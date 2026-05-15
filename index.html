@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>繪新國際有限公司 | 專業裝潢貼膜</title>
+  <meta name="description" content="繪新國際有限公司提供專業裝潢貼膜服務，包含室內貼膜、玻璃貼膜、家具翻新、商業空間改造。品質保證，經驗豐富。" />
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      color: #2d2d2d;
+      background: #fff;
+      line-height: 1.7;
+    }
+    img { max-width: 100%; display: block; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── Color Variables ── */
+    :root {
+      --primary:   #2a6496;
+      --primary-light: #e8f1f9;
+      --accent:    #3a8fc1;
+      --soft:      #f5f8fc;
+      --border:    #d8e6f0;
+      --text-muted:#6c7a89;
+      --white:     #ffffff;
+    }
+
+    /* ── Navbar ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6%;
+      height: 68px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(42,100,150,0.07);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-logo .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+    .nav-logo span {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 1px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: #444;
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .nav-links a:hover {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .nav-cta {
+      background: var(--primary);
+      color: white !important;
+      padding: 8px 20px !important;
+      border-radius: 6px;
+      border-bottom: none !important;
+      transition: background .2s !important;
+    }
+    .nav-cta:hover { background: var(--accent) !important; }
+
+    /* ── Hero ── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 120px 6% 80px;
+      background:
+        linear-gradient(135deg, rgba(232,241,249,0.9) 0%, rgba(255,255,255,0.7) 60%),
+        url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%232a6496' fill-opacity='0.04'%3E%3Crect x='0' y='0' width='40' height='40'/%3E%3Crect x='40' y='40' width='40' height='40'/%3E%3C/g%3E%3C/svg%3E");
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-content {
+      max-width: 580px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      letter-spacing: 0.5px;
+    }
+    .hero-badge::before { content: '✦'; font-size: 10px; }
+    h1 {
+      font-size: clamp(2.2rem, 4vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.25;
+      color: #1a2e3f;
+      margin-bottom: 20px;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--primary);
+    }
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      max-width: 460px;
+    }
+    .hero-btns {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: background .2s, transform .15s;
+      box-shadow: 0 4px 14px rgba(42,100,150,0.25);
+    }
+    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
+    .btn-outline {
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 13px 28px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: background .2s, color .2s;
+    }
+    .btn-outline:hover { background: var(--primary); color: white; }
+    .hero-stats {
+      display: flex;
+      gap: 36px;
+      margin-top: 52px;
+      padding-top: 36px;
+      border-top: 1px solid var(--border);
+    }
+    .hero-stat strong {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .hero-stat span {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .hero-visual {
+      position: absolute;
+      right: 6%;
+      top: 50%;
+      transform: translateY(-50%);
+      width: min(42vw, 460px);
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--primary-light), #ddeeff);
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 20px 60px rgba(42,100,150,0.15);
+      overflow: hidden;
+    }
+    .hero-visual-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 12px;
+      padding: 24px;
+      width: 100%;
+      height: 100%;
+    }
+    .vcard {
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 2rem;
+    }
+    .vcard:nth-child(1) { background: linear-gradient(135deg,#c8dff4,#a8c8e8); }
+    .vcard:nth-child(2) { background: linear-gradient(135deg,#d4eaff,#b8d8f0); }
+    .vcard:nth-child(3) { background: linear-gradient(135deg,#e0f0ff,#c0dcf0); }
+    .vcard:nth-child(4) { background: linear-gradient(135deg,#cce4ff,#acd0f0); }
+
+    /* ── Section Shared ── */
+    section { padding: 90px 6%; }
+    .section-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: clamp(1.7rem, 3vw, 2.3rem);
+      font-weight: 800;
+      color: #1a2e3f;
+      margin-bottom: 14px;
+      line-height: 1.3;
+    }
+    .section-desc {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 520px;
+    }
+    .section-header { margin-bottom: 52px; }
+
+    /* ── About ── */
+    #about { background: var(--soft); }
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .about-img {
+      background: linear-gradient(135deg, var(--primary-light), #ddeeff);
+      border-radius: 16px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      font-size: 5rem;
+      box-shadow: 0 10px 40px rgba(42,100,150,0.12);
+    }
+    .about-points { margin-top: 28px; display: flex; flex-direction: column; gap: 16px; }
+    .about-point {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .about-point .icon {
+      width: 42px; height: 42px; flex-shrink: 0;
+      background: var(--primary-light);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+    }
+    .about-point h4 { font-size: 0.95rem; font-weight: 700; color: #1a2e3f; }
+    .about-point p { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* ── Services ── */
+    #services { background: white; }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .service-card {
+      background: var(--soft);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: box-shadow .25s, transform .2s, border-color .2s;
+    }
+    .service-card:hover {
+      box-shadow: 0 12px 36px rgba(42,100,150,0.13);
+      transform: translateY(-4px);
+      border-color: var(--accent);
+    }
+    .service-icon {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.6rem;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(42,100,150,0.2);
+    }
+    .service-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a2e3f;
+      margin-bottom: 10px;
+    }
+    .service-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .service-tags {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      font-size: 0.75rem;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    /* ── Why Us ── */
+    #whyus { background: var(--soft); }
+    .whyus-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .whyus-card {
+      background: white;
+      border-radius: 14px;
+      padding: 28px 22px;
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: box-shadow .2s;
+    }
+    .whyus-card:hover { box-shadow: 0 8px 28px rgba(42,100,150,0.1); }
+    .whyus-num {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .whyus-num span { font-size: 1.2rem; }
+    .whyus-card h4 { font-size: 0.95rem; font-weight: 700; color: #1a2e3f; margin-bottom: 8px; }
+    .whyus-card p { font-size: 0.84rem; color: var(--text-muted); }
+    .whyus-features {
+      margin-top: 56px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+    .feature-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .feature-check {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: var(--primary);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 0.9rem;
+    }
+    .feature-item h4 { font-size: 0.92rem; font-weight: 700; color: #1a2e3f; }
+    .feature-item p { font-size: 0.84rem; color: var(--text-muted); }
+
+    /* ── Process ── */
+    #process { background: white; }
+    .process-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      position: relative;
+    }
+    .process-steps::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      z-index: 0;
+    }
+    .step {
+      text-align: center;
+      padding: 0 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .step-num {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 1.5rem;
+      font-weight: 900;
+      margin: 0 auto 20px;
+      box-shadow: 0 4px 18px rgba(42,100,150,0.25);
+      border: 4px solid white;
+    }
+    .step h4 { font-size: 0.95rem; font-weight: 700; color: #1a2e3f; margin-bottom: 8px; }
+    .step p { font-size: 0.84rem; color: var(--text-muted); }
+
+    /* ── Contact ── */
+    #contact {
+      background: linear-gradient(135deg, var(--primary) 0%, #1a4f7a 100%);
+      color: white;
+    }
+    #contact .section-label { color: #a8d0f0; }
+    #contact .section-title { color: white; }
+    #contact .section-desc { color: rgba(255,255,255,0.75); }
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 60px;
+      align-items: start;
+    }
+    .contact-info { display: flex; flex-direction: column; gap: 24px; }
+    .contact-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .contact-item .ci-icon {
+      width: 44px; height: 44px; flex-shrink: 0;
+      background: rgba(255,255,255,0.12);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .contact-item h4 { font-size: 0.88rem; color: rgba(255,255,255,0.65); margin-bottom: 2px; }
+    .contact-item p { font-size: 0.97rem; color: white; font-weight: 600; }
+    .contact-form {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 36px;
+      backdrop-filter: blur(8px);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .form-group label { font-size: 0.84rem; color: rgba(255,255,255,0.75); }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: white;
+      font-size: 0.92rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, background .2s;
+    }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: rgba(255,255,255,0.4); }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.15);
+    }
+    .form-group select option { background: var(--primary); color: white; }
+    .form-group textarea { resize: vertical; min-height: 100px; }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: white;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 0.97rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .2s, transform .15s;
+      font-family: inherit;
+    }
+    .btn-submit:hover { background: #e8f4ff; transform: translateY(-1px); }
+
+    /* ── Footer ── */
+    footer {
+      background: #0f1e2b;
+      color: rgba(255,255,255,0.55);
+      padding: 28px 6%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+    footer .f-logo {
+      font-weight: 700;
+      color: white;
+      font-size: 0.95rem;
+    }
+
+    /* ── Scroll animations ── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .hero-visual { display: none; }
+      .about-grid,
+      .contact-grid { grid-template-columns: 1fr; }
+      .services-grid { grid-template-columns: 1fr 1fr; }
+      .whyus-grid { grid-template-columns: 1fr 1fr; }
+      .process-steps { grid-template-columns: 1fr 1fr; gap: 32px; }
+      .process-steps::before { display: none; }
+      .whyus-features { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      nav { padding: 0 4%; }
+      .nav-links { display: none; }
+      section { padding: 64px 4%; }
+      #hero { padding: 100px 4% 60px; }
+      .services-grid,
+      .whyus-grid,
+      .process-steps { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      .hero-stats { gap: 24px; }
+      footer { flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-icon">繪</div>
+      <span>繪新國際有限公司</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#about">關於我們</a></li>
+      <li><a href="#services">服務項目</a></li>
+      <li><a href="#whyus">為何選擇我們</a></li>
+      <li><a href="#process">施工流程</a></li>
+      <li><a href="#contact" class="nav-cta">聯絡我們</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section id="hero">
+    <div class="hero-content">
+      <div class="hero-badge">專業裝潢貼膜服務</div>
+      <h1>為您的空間<br/><em>注入嶄新風貌</em></h1>
+      <p class="hero-desc">
+        繪新國際提供高品質裝潢貼膜服務，從居家翻新到商業空間改造，
+        以精湛工藝與優質材料，讓每個空間煥然一新。
+      </p>
+      <div class="hero-btns">
+        <a href="#contact" class="btn-primary">立即諮詢</a>
+        <a href="#services" class="btn-outline">服務項目</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong>10+</strong>
+          <span>年豐富經驗</span>
+        </div>
+        <div class="hero-stat">
+          <strong>500+</strong>
+          <span>完工案例</span>
+        </div>
+        <div class="hero-stat">
+          <strong>98%</strong>
+          <span>客戶好評率</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-visual-inner">
+        <div class="vcard">🏠</div>
+        <div class="vcard">🪟</div>
+        <div class="vcard">🛋️</div>
+        <div class="vcard">🏢</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section id="about">
+    <div class="about-grid">
+      <div class="about-img fade-in" aria-hidden="true">🎨</div>
+      <div class="fade-in">
+        <p class="section-label">關於我們</p>
+        <h2 class="section-title">精工細作<br/>品質如一</h2>
+        <p class="section-desc">
+          繪新國際有限公司深耕裝潢貼膜領域多年，以精湛技術與嚴選材料，
+          為每一位客戶打造理想中的空間樣貌。我們相信，好的貼膜工程不只是美觀，
+          更是對生活品質的全面提升。
+        </p>
+        <div class="about-points">
+          <div class="about-point">
+            <div class="icon">🏅</div>
+            <div>
+              <h4>專業認證技師</h4>
+              <p>所有施工人員均受過嚴格訓練，確保每道工序精準到位。</p>
+            </div>
+          </div>
+          <div class="about-point">
+            <div class="icon">🎯</div>
+            <div>
+              <h4>嚴選優質材料</h4>
+              <p>採用耐久、環保、多樣化的進口貼膜材料，款式豐富任您挑選。</p>
+            </div>
+          </div>
+          <div class="about-point">
+            <div class="icon">🤝</div>
+            <div>
+              <h4>完善售後保固</h4>
+              <p>施工完成後提供保固服務，有任何問題我們全力協助處理。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section id="services">
+    <div class="section-header fade-in">
+      <p class="section-label">服務項目</p>
+      <h2 class="section-title">多元貼膜服務<br/>滿足各種需求</h2>
+      <p class="section-desc">提供全方位裝潢貼膜解決方案，從室內空間到商業場域，一站式服務輕鬆完成。</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card fade-in">
+        <div class="service-icon">🏠</div>
+        <h3>室內裝潢貼膜</h3>
+        <p>牆面、天花板、地板等室內各面積貼膜，款式多樣，快速翻新居家空間，無需大費周章裝潢。</p>
+        <div class="service-tags">
+          <span class="tag">牆面貼膜</span>
+          <span class="tag">地板貼膜</span>
+          <span class="tag">天花板</span>
+        </div>
+      </div>
+      <div class="service-card fade-in">
+        <div class="service-icon">🪟</div>
+        <h3>玻璃隔熱貼膜</h3>
+        <p>隔熱、防爆、霧面、彩色等多種玻璃膜，有效隔絕紫外線與熱能，同時提升隱私性。</p>
+        <div class="service-tags">
+          <span class="tag">隔熱膜</span>
+          <span class="tag">防爆膜</span>
+          <span class="tag">霧面膜</span>
+        </div>
+      </div>
+      <div class="service-card fade-in">
+        <div class="service-icon">🛋️</div>
+        <h3>家具翻新貼膜</h3>
+        <p>木紋、石紋、純色等多款仿真貼膜，讓舊家具煥然一新，省時省力又省錢。</p>
+        <div class="service-tags">
+          <span class="tag">木紋膜</span>
+          <span class="tag">石紋膜</span>
+          <span class="tag">家具翻新</span>
+        </div>
+      </div>
+      <div class="service-card fade-in">
+        <div class="service-icon">🏢</div>
+        <h3>商業空間改造</h3>
+        <p>辦公室、店面、餐廳等商業場域的整體貼膜方案，快速完工，不影響您的正常營業。</p>
+        <div class="service-tags">
+          <span class="tag">辦公空間</span>
+          <span class="tag">店面門市</span>
+          <span class="tag">餐飲空間</span>
+        </div>
+      </div>
+      <div class="service-card fade-in">
+        <div class="service-icon">🚪</div>
+        <h3>門板櫥櫃貼膜</h3>
+        <p>廚房門板、浴室門板、衣櫃等各式門板貼膜翻新，精細收邊，呈現如新品般的視覺效果。</p>
+        <div class="service-tags">
+          <span class="tag">門板更新</span>
+          <span class="tag">廚具翻新</span>
+          <span class="tag">衣櫃改造</span>
+        </div>
+      </div>
+      <div class="service-card fade-in">
+        <div class="service-icon">✨</div>
+        <h3>客製化設計貼膜</h3>
+        <p>可依據客戶需求進行圖案、文字、LOGO 等個性化設計貼膜，打造獨一無二的專屬空間。</p>
+        <div class="service-tags">
+          <span class="tag">客製設計</span>
+          <span class="tag">品牌識別</span>
+          <span class="tag">造型貼膜</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Us -->
+  <section id="whyus">
+    <div class="section-header fade-in">
+      <p class="section-label">為何選擇我們</p>
+      <h2 class="section-title">值得信賴的<br/>專業選擇</h2>
+      <p class="section-desc">多年深耕，以品質和服務贏得客戶口碑，讓每個案件都成為我們的代表作。</p>
+    </div>
+    <div class="whyus-grid">
+      <div class="whyus-card fade-in">
+        <div class="whyus-num">10<span>年+</span></div>
+        <h4>豐富施工經驗</h4>
+        <p>深耕貼膜產業超過十年，累積無數成功案例</p>
+      </div>
+      <div class="whyus-card fade-in">
+        <div class="whyus-num">500<span>+</span></div>
+        <h4>完工案例</h4>
+        <p>從小坪數翻新到大型商業空間，樣樣精通</p>
+      </div>
+      <div class="whyus-card fade-in">
+        <div class="whyus-num">98<span>%</span></div>
+        <h4>客戶好評率</h4>
+        <p>口碑相傳，客戶推薦是我們最大的動力</p>
+      </div>
+      <div class="whyus-card fade-in">
+        <div class="whyus-num">2<span>年</span></div>
+        <h4>品質保固</h4>
+        <p>施工後提供保固，讓您用得安心放心</p>
+      </div>
+    </div>
+    <div class="whyus-features">
+      <div class="feature-item fade-in">
+        <div class="feature-check">✓</div>
+        <div>
+          <h4>免費丈量估價</h4>
+          <p>到府丈量、免費估報價，透明公開無隱藏費用。</p>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-check">✓</div>
+        <div>
+          <h4>快速施工完成</h4>
+          <p>有效率的施工流程，將對您生活的干擾降到最低。</p>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-check">✓</div>
+        <div>
+          <h4>環保安全材料</h4>
+          <p>選用通過環保認證的材料，安全無毒，適合家有孩童。</p>
+        </div>
+      </div>
+      <div class="feature-item fade-in">
+        <div class="feature-check">✓</div>
+        <div>
+          <h4>售後完善保固</h4>
+          <p>施工完畢提供保固期服務，有任何問題優先處理。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process -->
+  <section id="process">
+    <div class="section-header fade-in">
+      <p class="section-label">施工流程</p>
+      <h2 class="section-title">簡單四步驟<br/>輕鬆搞定</h2>
+      <p class="section-desc">透明清晰的施工流程，讓您從諮詢到完工每個環節都清楚明瞭。</p>
+    </div>
+    <div class="process-steps">
+      <div class="step fade-in">
+        <div class="step-num">1</div>
+        <h4>聯絡諮詢</h4>
+        <p>電話或線上填單聯絡我們，說明您的需求與想法。</p>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">2</div>
+        <h4>到府丈量</h4>
+        <p>專業技師到府丈量，確認施工範圍並提供免費報價。</p>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">3</div>
+        <h4>選料施工</h4>
+        <p>確認材料款式後，安排施工日期，由專業師傅精心施作。</p>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num">4</div>
+        <h4>驗收保固</h4>
+        <p>施工完成後與您確認成果，並提供正式保固。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact">
+    <div class="contact-grid">
+      <div>
+        <p class="section-label">聯絡我們</p>
+        <h2 class="section-title">準備好讓空間<br/>煥然一新了嗎？</h2>
+        <p class="section-desc" style="margin-bottom:40px;">
+          立即與我們聯繫，獲得免費諮詢與報價，讓專業的我們為您服務。
+        </p>
+        <div class="contact-info">
+          <div class="contact-item">
+            <div class="ci-icon">📞</div>
+            <div>
+              <h4>聯絡電話</h4>
+              <p>請洽詢公司電話</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="ci-icon">✉️</div>
+            <div>
+              <h4>電子信箱</h4>
+              <p>請洽詢公司信箱</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="ci-icon">📍</div>
+            <div>
+              <h4>公司地址</h4>
+              <p>請洽詢公司地址</p>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="ci-icon">🕐</div>
+            <div>
+              <h4>服務時間</h4>
+              <p>週一至週六 09:00 – 18:00</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="contact-form fade-in">
+        <h3 style="color:white;margin-bottom:24px;font-size:1.1rem;">免費諮詢申請</h3>
+        <form id="contactForm" onsubmit="handleSubmit(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label>姓名 *</label>
+              <input type="text" placeholder="您的姓名" required />
+            </div>
+            <div class="form-group">
+              <label>聯絡電話 *</label>
+              <input type="tel" placeholder="0912-345-678" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>電子信箱</label>
+            <input type="email" placeholder="your@email.com" />
+          </div>
+          <div class="form-group">
+            <label>服務類型 *</label>
+            <select required>
+              <option value="" disabled selected>請選擇服務項目</option>
+              <option>室內裝潢貼膜</option>
+              <option>玻璃隔熱貼膜</option>
+              <option>家具翻新貼膜</option>
+              <option>商業空間改造</option>
+              <option>門板櫥櫃貼膜</option>
+              <option>客製化設計貼膜</option>
+              <option>其他（歡迎說明）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>需求說明</label>
+            <textarea placeholder="請簡單描述您的空間大小、需求或任何問題…"></textarea>
+          </div>
+          <button type="submit" class="btn-submit">送出諮詢申請 →</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <span class="f-logo">繪新國際有限公司</span>
+    <span>© 2025 Hui Xin International Co., Ltd. All rights reserved.</span>
+  </footer>
+
+  <script>
+    // Intersection Observer for fade-in animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Stagger siblings
+    document.querySelectorAll('.services-grid, .whyus-grid, .process-steps, .whyus-features').forEach(grid => {
+      [...grid.querySelectorAll('.fade-in')].forEach((el, i) => {
+        el.style.transitionDelay = (i * 0.07) + 's';
+      });
+    });
+
+    // Form submit handler
+    function handleSubmit(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-submit');
+      btn.textContent = '✓ 已收到您的申請，我們將盡快與您聯繫！';
+      btn.style.background = '#d4edda';
+      btn.style.color = '#155724';
+      btn.disabled = true;
+    }
+
+    // Active nav link highlight on scroll
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-links a');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 100) current = s.id;
+      });
+      navLinks.forEach(a => {
+        a.style.color = a.getAttribute('href') === '#' + current ? 'var(--primary)' : '';
+      });
+    }, { passive: true });
+  </script>
+</body>
+</html>
