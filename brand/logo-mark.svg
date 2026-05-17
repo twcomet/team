@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 240" width="280" height="240" role="img" aria-label="TWCOMET 繪新 Logo Mark — Triangle">
+  <defs>
+    <!-- Neon pink glow for triangle -->
+    <filter id="neon" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7"   result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Gradient along triangle stroke -->
+    <linearGradient id="tri-grad" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FF3399"/>
+      <stop offset="60%"  stop-color="#FF0080"/>
+      <stop offset="100%" stop-color="#CC0066"/>
+    </linearGradient>
+    <!-- Soft pink glow for deco dots -->
+    <filter id="dot-glow" x="-200%" y="-200%" width="500%" height="500%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer triangle — glow layer -->
+  <polygon points="218,22 28,200 250,152"
+    fill="none" stroke="#FF0080" stroke-width="4"
+    filter="url(#neon)" opacity="0.75"/>
+
+  <!-- Outer triangle — crisp pink line -->
+  <polygon points="218,22 28,200 250,152"
+    fill="none" stroke="url(#tri-grad)" stroke-width="2"
+    stroke-linejoin="round"/>
+
+  <!-- Inner triangle — double-line effect (scaled 0.87 from centroid ≈163,125) -->
+  <polygon points="208,36 45,190 237,148"
+    fill="none" stroke="#FF99CC" stroke-width="1"
+    stroke-linejoin="round" opacity="0.7"/>
+
+  <!-- Decorative small squares at corners (原版，保留不動) -->
+  <!-- Near apex (upper right) -->
+  <g filter="url(#dot-glow)">
+    <rect x="222" y="14" width="7" height="7" fill="#FF0080" rx="1" transform="rotate(20,225.5,17.5)"/>
+    <rect x="232" y="26" width="4" height="4" fill="#FF5CAD" rx="0.5"/>
+  </g>
+
+  <!-- Near bottom-left vertex -->
+  <g filter="url(#dot-glow)">
+    <rect x="18" y="198" width="6" height="6" fill="#FF0080" rx="1" transform="rotate(15,21,201)"/>
+    <rect x="29" y="208" width="4" height="4" fill="#FF5CAD" rx="0.5" opacity="0.8"/>
+  </g>
+
+  <!-- Near bottom-right vertex -->
+  <g filter="url(#dot-glow)">
+    <rect x="254" y="155" width="6" height="6" fill="#FF0080" rx="1" transform="rotate(-10,257,158)"/>
+    <rect x="248" y="168" width="4" height="4" fill="#FF5CAD" rx="0.5" opacity="0.8"/>
+  </g>
+
+  <!-- 原版 mid-edge decorative dots × 3（保留，不動） -->
+  <g filter="url(#dot-glow)" opacity="0.6">
+    <circle cx="123" cy="111" r="2.5" fill="#FF5CAD"/>
+    <circle cx="234" cy="87"  r="2"   fill="#FF99CC"/>
+    <circle cx="140" cy="175" r="2"   fill="#FF5CAD"/>
+  </g>
+
+  <!-- 新增 6 顆，沿三條邊補齊（每邊各加 2 顆，共 +6，合計 12） -->
+  <!-- 邊 A→B：門徒 4、5 -->
+  <g filter="url(#dot-glow)" opacity="0.6">
+    <circle cx="170" cy="67"  r="2.5" fill="#FF5CAD"/>
+    <circle cx="76"  cy="156" r="2"   fill="#FF99CC"/>
+  </g>
+  <!-- 邊 B→C：門徒 6、7 -->
+  <g filter="url(#dot-glow)" opacity="0.6">
+    <circle cx="84"  cy="188" r="2.5" fill="#FF5CAD"/>
+    <circle cx="195" cy="164" r="2"   fill="#FF99CC"/>
+  </g>
+  <!-- 邊 C→A：門徒 8、9 -->
+  <g filter="url(#dot-glow)" opacity="0.6">
+    <circle cx="242" cy="120" r="2.5" fill="#FF5CAD"/>
+    <circle cx="226" cy="54"  r="2"   fill="#FF99CC"/>
+  </g>
+
+</svg>

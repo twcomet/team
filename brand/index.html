@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="stellar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>繪新國際有限公司 · 品牌識別系統 v2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="components.css">
+
+<style>
+/* ── Page base ──────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition:
+    background-color 500ms var(--ease-in-out),
+    color            300ms var(--ease-in-out);
+}
+
+/* ── Noise overlay (Stellar only) ───────────────────────────── */
+.noise-overlay {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  transition: opacity 500ms;
+}
+[data-theme="blanc"] .noise-overlay { opacity: 0.015; }
+
+/* ── Star field (Stellar only) ──────────────────────────────── */
+.starfield {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 0;
+  transition: opacity 500ms;
+}
+.starfield::before, .starfield::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.75) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,.40) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,.55) 1px, transparent 1px);
+  background-size: 300px 300px, 180px 180px, 420px 420px;
+  background-position: 0 0, 80px 120px, 200px 50px;
+  opacity: 0.18;
+}
+[data-theme="blanc"] .starfield { opacity: 0; }
+
+/* ── Layout ─────────────────────────────────────────────────── */
+.wrap { position: relative; z-index: 1; }
+
+.container {
+  max-width: var(--container-xl);
+  margin: 0 auto;
+  padding: 0 var(--sp-8);
+}
+
+@media (max-width: 768px) {
+  .container { padding: 0 var(--sp-5); }
+}
+
+/* ── Navigation ─────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  background: var(--color-overlay);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--color-border);
+  transition: background 500ms, border-color 300ms;
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 64px;
+}
+
+.nav-wordmark {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-divider {
+  width: 1px; height: 20px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex; gap: 0;
+  list-style: none;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.nav-links a {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.nav-links a:hover {
+  color: var(--color-text-brand);
+  background: var(--color-brand-subtle);
+}
+
+/* Theme toggle */
+.theme-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.switch-label {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  min-width: 48px;
+  transition: color 300ms;
+}
+
+.switch-track {
+  width: 64px; height: 30px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  position: relative;
+  transition: background 300ms, border-color 300ms;
+  flex-shrink: 0;
+}
+.switch-track:hover { border-color: var(--color-brand); }
+
+.switch-knob {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  box-shadow: var(--shadow-brand-sm);
+  transition: transform var(--dur-moderate) var(--ease-spring),
+              box-shadow var(--dur-normal) var(--ease-out);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; line-height: 1;
+}
+
+[data-theme="blanc"] .switch-knob {
+  transform: translateX(34px);
+}
+[data-theme="blanc"] .switch-track {
+  background: var(--pink-50);
+}
+
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-divider { display: none; }
+}
+
+/* ── Chapter layout ─────────────────────────────────────────── */
+.chapter {
+  padding: var(--sp-28) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.chapter-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-6) var(--sp-8);
+  align-items: start;
+  margin-bottom: var(--sp-16);
+}
+
+.chapter-num {
+  font-family: var(--font-display);
+  font-size: var(--type-8xl);
+  font-weight: var(--weight-black);
+  line-height: 1;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.15;
+  user-select: none;
+  margin-top: -8px;
+}
+
+.chapter-meta {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+}
+
+.chapter-title {
+  font-family: var(--font-display);
+  font-size: clamp(var(--type-3xl), 4vw, var(--type-5xl));
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: var(--leading-tight);
+}
+
+.chapter-desc {
+  max-width: 540px;
+  color: var(--color-text-secondary);
+  font-size: var(--type-base);
+  line-height: var(--leading-relaxed);
+}
+
+@media (max-width: 768px) {
+  .chapter-header { grid-template-columns: 1fr; }
+  .chapter-num { font-size: var(--type-5xl); }
+  .chapter { padding: var(--sp-16) 0; }
+}
+
+/* ── Sub-section header ─────────────────────────────────────── */
+.sub-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-8);
+}
+
+.sub-title {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════════════════ */
+.hero {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-32) var(--sp-8);
+  gap: var(--sp-6);
+  position: relative;
+  z-index: 1;
+}
+
+/* Radial gradient backdrop in hero */
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 50%,
+    var(--color-brand-subtle) 0%,
+    transparent 70%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  opacity: 0.9;
+}
+
+.hero-logo {
+  width: clamp(180px, 30vw, 280px);
+  height: auto;
+  filter: drop-shadow(0 0 32px rgba(255,0,128,.35));
+  animation: tc-float 4.5s var(--ease-in-out) infinite;
+  transition: filter 500ms;
+}
+[data-theme="blanc"] .hero-logo {
+  filter: drop-shadow(0 8px 24px rgba(255,0,128,.22));
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(var(--type-4xl), 8vw, var(--type-7xl));
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: var(--leading-tight);
+}
+
+.hero-sub {
+  font-size: clamp(var(--type-lg), 2.5vw, var(--type-2xl));
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-wide);
+}
+
+.hero-rule {
+  width: 80px; height: 1px;
+  background: var(--grad-brand-line);
+}
+
+.hero-tagline {
+  font-size: var(--type-sm);
+  color: var(--color-text-brand);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  text-shadow: var(--shadow-brand-sm);
+}
+
+.hero-themes {
+  display: flex;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.theme-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-normal) var(--ease-out);
+}
+.theme-chip.active,
+.theme-chip:hover {
+  border-color: var(--color-brand);
+  color: var(--color-text-brand);
+  background: var(--color-brand-subtle);
+  box-shadow: var(--shadow-brand-sm);
+}
+.theme-chip .dot {
+  width: 6px; height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+/* Scroll cue */
+.scroll-cue {
+  position: absolute;
+  bottom: var(--sp-8);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  animation: tc-float 2.5s var(--ease-in-out) infinite;
+}
+
+.scroll-arrow {
+  width: 24px; height: 24px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 00 — BRAND STORY
+   ═══════════════════════════════════════════════════════════════ */
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+}
+@media (max-width: 768px) {
+  .story-grid { grid-template-columns: 1fr; }
+}
+
+.story-card {
+  padding: var(--sp-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--dur-normal), box-shadow var(--dur-normal);
+}
+.story-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--grad-brand-line); opacity: 0.5;
+}
+.story-card:hover {
+  border-color: var(--color-border-brand);
+  box-shadow: var(--shadow-brand-sm);
+}
+
+.story-icon {
+  font-size: var(--type-3xl);
+  line-height: 1;
+}
+
+.story-card-title {
+  font-family: var(--font-display);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.story-card-body {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 01 — LOGO
+   ═══════════════════════════════════════════════════════════════ */
+.logo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-12);
+}
+@media (max-width: 768px) {
+  .logo-grid { grid-template-columns: 1fr; }
+}
+
+.logo-swatch {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.logo-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-12) var(--sp-8);
+  min-height: 200px;
+}
+.logo-canvas-black   { background: #060410; }
+.logo-canvas-white   { background: #FFFFFF; }
+.logo-canvas-brand   { background: linear-gradient(135deg, var(--space-900) 0%, var(--space-700) 100%); }
+
+.logo-swatch-info {
+  background: var(--color-surface);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.logo-swatch-name {
+  font-weight: var(--weight-bold);
+  font-size: var(--type-sm);
+  color: var(--color-text-primary);
+  margin-bottom: var(--sp-1);
+}
+.logo-swatch-desc {
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+}
+
+/* Clear space rule */
+.clearspace-demo {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-12);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  position: relative;
+}
+.clearspace-inner {
+  border: 1px solid var(--color-brand);
+  border-radius: var(--radius-md);
+  padding: var(--sp-8);
+  display: inline-flex;
+  position: relative;
+}
+.clearspace-label {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  padding: 0 var(--sp-2);
+  font-size: var(--type-xs);
+  color: var(--color-brand);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+/* Size scale */
+.size-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.size-label {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+  min-width: 180px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 02 — COLOR
+   ═══════════════════════════════════════════════════════════════ */
+.color-band {
+  height: 64px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-5);
+  margin-bottom: var(--sp-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.color-band-label {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+}
+
+.color-band-hex {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  opacity: 0.7;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-12);
+}
+@media (max-width: 768px) {
+  .palette-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.swatch-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.swatch-color-box {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: transform var(--dur-fast) var(--ease-out);
+  cursor: pointer;
+}
+.swatch-color-box:hover { transform: scale(1.08); }
+
+.swatch-info-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.swatch-step {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-bold);
+}
+.swatch-hex-mini {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-disabled);
+}
+
+/* Dual theme comparison */
+.theme-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-12);
+}
+@media (max-width: 640px) {
+  .theme-compare { grid-template-columns: 1fr; }
+}
+
+.theme-panel {
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.theme-panel-header {
+  padding: var(--sp-5) var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.theme-panel-body {
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.stellar-panel .theme-panel-header {
+  background: var(--space-900);
+  border-bottom: 1px solid rgba(255,0,128,.15);
+}
+.stellar-panel .theme-panel-body { background: var(--space-800); }
+
+.blanc-panel .theme-panel-header {
+  background: #FFFFFF;
+  border-bottom: 1px solid rgba(255,0,128,.12);
+}
+.blanc-panel .theme-panel-body { background: var(--pink-50); }
+
+.theme-panel-name {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+}
+.stellar-panel .theme-panel-name {
+  background: var(--grad-chrome-raw);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.blanc-panel .theme-panel-name {
+  background: linear-gradient(135deg, var(--space-900) 0%, var(--pink-600) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mini-palette {
+  display: flex;
+  gap: var(--sp-2);
+}
+.mini-swatch {
+  width: 24px; height: 24px;
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(255,255,255,.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 03 — TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════ */
+.type-family-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-12);
+}
+@media (max-width: 768px) {
+  .type-family-grid { grid-template-columns: 1fr; }
+}
+
+.type-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  overflow: hidden;
+}
+
+.type-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.type-card-role {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+}
+.type-card-name {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+}
+.type-card-use {
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+}
+
+.type-specimen-large {
+  font-size: clamp(var(--type-4xl), 6vw, var(--type-6xl));
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Type scale table */
+.type-scale-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.type-scale-row {
+  display: grid;
+  grid-template-columns: 150px 60px 1fr;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.type-scale-row:last-child { border-bottom: none; }
+.type-scale-token {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+}
+.type-scale-size {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--color-text-brand);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 04 — COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+.comp-section {
+  margin-bottom: var(--sp-12);
+}
+
+.comp-section-label {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--sp-5);
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--color-brand);
+}
+
+.comp-demo {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-8);
+}
+
+.comp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: center;
+  margin-bottom: var(--sp-5);
+}
+.comp-row:last-child { margin-bottom: 0; }
+
+/* Card demo grid */
+.card-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+}
+@media (max-width: 768px) {
+  .card-demo-grid { grid-template-columns: 1fr; }
+}
+
+.card-demo-title {
+  font-family: var(--font-display);
+  font-size: var(--type-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--sp-2);
+}
+.card-demo-body {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--sp-5);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 05 — MOTION
+   ═══════════════════════════════════════════════════════════════ */
+.motion-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-5);
+}
+@media (max-width: 768px) {
+  .motion-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.motion-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  cursor: pointer;
+  transition: all var(--dur-moderate) var(--ease-spring);
+}
+.motion-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-brand-sm);
+}
+
+.motion-card-icon {
+  width: 48px; height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-border-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--type-xl);
+}
+
+.motion-card-name {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+}
+.motion-card-val {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+}
+
+/* Easing visual curve */
+.ease-visual {
+  width: 100%;
+  height: 48px;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAPTER 06 — RULES
+   ═══════════════════════════════════════════════════════════════ */
+.rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-12);
+}
+@media (max-width: 640px) {
+  .rules-grid { grid-template-columns: 1fr; }
+}
+
+.rule-box {
+  border-radius: var(--radius-xl);
+  padding: var(--sp-8);
+  border: 1px solid;
+}
+
+.rule-box-do {
+  background: rgba(52,211,153, 0.05);
+  border-color: rgba(52,211,153, 0.25);
+}
+.rule-box-dont {
+  background: rgba(248,113,113, 0.05);
+  border-color: rgba(248,113,113, 0.25);
+}
+
+.rule-box-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+
+.rule-box-icon {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--type-sm);
+  font-weight: var(--weight-black);
+  flex-shrink: 0;
+}
+.rule-box-do .rule-box-icon { background: rgba(52,211,153,.15); color: var(--color-success); }
+.rule-box-dont .rule-box-icon { background: rgba(248,113,113,.15); color: var(--color-error); }
+
+.rule-box-title {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+}
+.rule-box-do .rule-box-title { color: var(--color-success); }
+.rule-box-dont .rule-box-title { color: var(--color-error); }
+
+.rule-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.rule-list li {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-snug);
+}
+.rule-list li::before {
+  font-weight: var(--weight-black);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.rule-box-do   .rule-list li::before { content: '✓'; color: var(--color-success); }
+.rule-box-dont .rule-list li::before { content: '×'; color: var(--color-error); }
+
+/* Quick ref token table */
+.token-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-5);
+}
+@media (max-width: 640px) {
+  .token-ref-grid { grid-template-columns: 1fr; }
+}
+
+.token-ref-block {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+}
+.token-ref-title {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-4);
+}
+.token-code {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  color: var(--color-info);
+  line-height: 1.9;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════ */
+.footer {
+  padding: var(--sp-20) 0 var(--sp-16);
+  text-align: center;
+}
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--sp-4);
+}
+.footer-info {
+  font-size: var(--type-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-loose);
+  letter-spacing: var(--tracking-wide);
+}
+
+/* Blanc-specific overrides */
+[data-theme="blanc"] .tc-input { background: #FFFFFF; }
+[data-theme="blanc"] .comp-demo { background: #FFFFFF; }
+[data-theme="blanc"] .type-card { background: #FFFFFF; }
+[data-theme="blanc"] .logo-swatch-info { background: var(--pink-50); }
+[data-theme="blanc"] .token-ref-block { background: #FFFFFF; }
+[data-theme="blanc"] .swatch-color-box { border-color: rgba(0,0,0,0.06); }
+@media (max-width: 768px) {
+  .faith-symbol-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BRAND SOUL — Manifesto, Mission, Values, Roadmap
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Manifesto block */
+.manifesto {
+  text-align: center;
+  padding: var(--sp-20) var(--sp-8);
+  position: relative;
+  margin-bottom: var(--sp-20);
+}
+.manifesto::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 50% 50%,
+    var(--color-brand-subtle) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: var(--radius-2xl);
+}
+.manifesto-eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-6);
+  opacity: 0.85;
+}
+.manifesto-quote {
+  font-family: var(--font-body);
+  font-size: clamp(var(--type-3xl), 5.5vw, var(--type-6xl));
+  font-weight: var(--weight-black);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-wide);
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--sp-8);
+  position: relative; z-index: 1;
+}
+.manifesto-sub {
+  font-size: clamp(var(--type-base), 2.2vw, var(--type-xl));
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-brand);
+  line-height: var(--leading-relaxed);
+  max-width: 560px;
+  margin: 0 auto;
+  position: relative; z-index: 1;
+  text-shadow: var(--shadow-brand-sm);
+}
+.manifesto-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  margin: var(--sp-8) auto var(--sp-6);
+  position: relative; z-index: 1;
+}
+.manifesto-rule::before,
+.manifesto-rule::after {
+  content: '';
+  width: 60px; height: 1px;
+  background: var(--grad-brand-line);
+}
+.manifesto-rule-dot {
+  width: 6px; height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  box-shadow: var(--shadow-brand-sm);
+}
+
+/* Mission pillars */
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-20);
+}
+@media (max-width: 768px) {
+  .mission-grid { grid-template-columns: 1fr; }
+}
+.mission-card {
+  padding: var(--sp-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--dur-normal), box-shadow var(--dur-normal), transform var(--dur-normal);
+}
+.mission-card::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--grad-brand-line);
+  opacity: 0;
+  transition: opacity var(--dur-normal);
+}
+.mission-card:hover {
+  border-color: var(--color-border-brand);
+  box-shadow: var(--shadow-brand-md);
+  transform: translateY(-2px);
+}
+.mission-card:hover::after { opacity: 1; }
+
+.mission-num {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  color: var(--color-text-brand);
+  opacity: 0.7;
+}
+.mission-icon-wrap {
+  width: 52px; height: 52px;
+  border-radius: var(--radius-xl);
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-border-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--type-2xl);
+}
+.mission-title {
+  font-family: var(--font-display);
+  font-size: var(--type-base);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.mission-body {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  flex: 1;
+}
+.mission-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.mission-tag {
+  font-size: calc(var(--type-xs) * 0.9);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-brand);
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-border-brand);
+  border-radius: var(--radius-full);
+  padding: 2px var(--sp-3);
+}
+
+/* Core values */
+.values-section { margin-bottom: var(--sp-20); }
+.values-intro {
+  max-width: 640px;
+  margin-bottom: var(--sp-10);
+}
+.values-intro p {
+  font-size: var(--type-base);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-4);
+}
+@media (max-width: 768px) {
+  .values-grid { grid-template-columns: 1fr; }
+  .values-grid .value-item[style] { grid-column: auto !important; max-width: 100% !important; }
+}
+.value-item {
+  display: flex;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  align-items: flex-start;
+  transition: border-color var(--dur-normal), background var(--dur-normal);
+  cursor: default;
+}
+.value-item:hover {
+  border-color: var(--color-border-brand);
+  background: var(--color-brand-subtle);
+}
+.value-num {
+  font-family: var(--font-display);
+  font-size: clamp(var(--type-2xl), 3vw, var(--type-4xl));
+  font-weight: var(--weight-black);
+  line-height: 1;
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.25;
+  flex-shrink: 0;
+  min-width: 52px;
+  transition: opacity var(--dur-normal);
+}
+.value-item:hover .value-num { opacity: 0.7; }
+.value-content { flex: 1; }
+.value-title {
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-primary);
+  margin-bottom: var(--sp-2);
+}
+.value-en {
+  font-family: var(--font-display);
+  font-size: calc(var(--type-xs) * 0.95);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-2);
+  opacity: 0.8;
+}
+.value-desc {
+  font-size: var(--type-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+/* Roadmap */
+.roadmap-section { margin-bottom: var(--sp-20); }
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  position: relative;
+}
+.roadmap-grid::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  left: calc(50% / 3);
+  right: calc(50% / 3);
+  height: 1px;
+  background: var(--grad-brand-line);
+  opacity: 0.4;
+  z-index: 0;
+}
+@media (max-width: 768px) {
+  .roadmap-grid { grid-template-columns: 1fr; gap: var(--sp-5); }
+  .roadmap-grid::before { display: none; }
+}
+.roadmap-phase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 var(--sp-6) var(--sp-8);
+  position: relative; z-index: 1;
+}
+.roadmap-node {
+  width: 56px; height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-brand);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-5);
+  box-shadow: var(--shadow-brand-sm);
+  transition: transform var(--dur-normal), box-shadow var(--dur-normal);
+}
+.roadmap-phase:hover .roadmap-node {
+  transform: scale(1.08);
+  box-shadow: var(--shadow-brand-md);
+}
+.roadmap-phase-label {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-2);
+  opacity: 0.75;
+}
+.roadmap-phase-title {
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--sp-3);
+}
+.roadmap-phase-desc {
+  font-size: var(--type-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+/* AI Banner */
+.ai-banner {
+  border: 1px solid var(--color-border-brand);
+  border-radius: var(--radius-2xl);
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--color-surface);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-8);
+  align-items: center;
+  margin-bottom: var(--sp-8);
+}
+.ai-banner::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 0% 50%,
+    var(--color-brand-subtle) 0%, transparent 60%);
+  pointer-events: none;
+}
+@media (max-width: 768px) {
+  .ai-banner { grid-template-columns: 1fr; padding: var(--sp-8); }
+}
+.ai-banner-content { position: relative; z-index: 1; }
+.ai-banner-eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-3);
+}
+.ai-banner-title {
+  font-size: clamp(var(--type-xl), 3vw, var(--type-3xl));
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-wide);
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--sp-4);
+  line-height: var(--leading-tight);
+}
+.ai-banner-body {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  max-width: 520px;
+}
+.ai-banner-stat {
+  text-align: center;
+  padding: var(--sp-6) var(--sp-8);
+  border: 1px solid var(--color-border-brand);
+  border-radius: var(--radius-xl);
+  background: var(--color-brand-subtle);
+  position: relative; z-index: 1;
+  flex-shrink: 0;
+}
+.ai-banner-stat-num {
+  font-family: var(--font-display);
+  font-size: var(--type-5xl);
+  font-weight: var(--weight-black);
+  background: var(--grad-chrome);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: var(--sp-2);
+}
+.ai-banner-stat-label {
+  font-size: var(--type-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-brand);
+}
+
+/* Faith core banner (for brand guide internal use) */
+.faith-strip {
+  border-left: 3px solid var(--color-brand);
+  padding: var(--sp-6) var(--sp-8);
+  background: var(--color-surface);
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+  margin-bottom: var(--sp-8);
+}
+.faith-strip-title {
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+  margin-bottom: var(--sp-3);
+}
+.faith-strip-body {
+  font-size: var(--type-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+</style>
+</head>
+
+<body class="tc">
+<div class="noise-overlay" aria-hidden="true"></div>
+<div class="starfield" aria-hidden="true"></div>
+
+<!-- ── Navigation ─────────────────────────────────────────────── -->
+<nav class="nav">
+  <div class="container">
+    <div class="nav-inner">
+      <span class="nav-wordmark">TWCOMET · BIS v2.0</span>
+      <div class="nav-divider"></div>
+      <ul class="nav-links">
+        <li><a href="#story">靈魂</a></li>
+        <li><a href="#logo">標誌</a></li>
+        <li><a href="#color">色彩</a></li>
+        <li><a href="#type">字型</a></li>
+        <li><a href="#components">元件</a></li>
+        <li><a href="#motion">動效</a></li>
+        <li><a href="#rules">規範</a></li>
+      </ul>
+      <div class="theme-switch">
+        <span class="switch-label" id="sw-label">Stellar</span>
+        <div class="switch-track" role="switch" aria-checked="false" tabindex="0"
+             onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' ')toggleTheme()">
+          <div class="switch-knob" id="sw-knob">🌌</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ══════════════════════════════════════════════════════ HERO -->
+<section class="hero" aria-label="品牌主視覺">
+  <p class="hero-eyebrow">Brand Identity System · v2.0</p>
+  <img src="logo.png" alt="繪新 TWCOMET 標誌" class="hero-logo">
+  <h1 class="hero-title">TWCOMET</h1>
+  <p class="hero-sub">繪新國際有限公司</p>
+  <div class="hero-rule"></div>
+  <p class="hero-tagline">繪新讓世界煥然一新</p>
+  <div class="hero-themes" role="group" aria-label="主題切換">
+    <button class="theme-chip active" id="chip-stellar" onclick="setTheme('stellar')">
+      <span class="dot"></span>Stellar 星空深色
+    </button>
+    <button class="theme-chip" id="chip-blanc" onclick="setTheme('blanc')">
+      <span class="dot"></span>Blanc 白底桃紅
+    </button>
+  </div>
+  <div class="scroll-cue" aria-hidden="true">
+    <span>Scroll</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 00 -->
+<section class="chapter" id="story">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">00</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Brand Soul</span>
+        <h2 class="chapter-title">品牌靈魂</h2>
+        <p class="chapter-desc">使命、核心價值與願景。繪新不只是一間貼膜公司，更是一個翻轉生命的平台。技術翻轉生活，信仰翻轉生命。</p>
+      </div>
+    </div>
+
+    <!-- ── 品牌宣言 ──────────────────────────────────────────── -->
+    <div class="manifesto tc-animate-slide-up">
+      <p class="manifesto-eyebrow">Brand Manifesto · 品牌宣言</p>
+      <blockquote class="manifesto-quote">繪新讓世界煥然一新</blockquote>
+      <div class="manifesto-rule">
+        <span class="manifesto-rule-dot"></span>
+      </div>
+      <p class="manifesto-sub">技術翻轉生活，信仰翻轉生命。</p>
+    </div>
+
+    <!-- ── 三大核心使命 ──────────────────────────────────────── -->
+    <div class="sub-header">
+      <p class="sub-title">Core Mission · 核心使命</p>
+    </div>
+    <div class="mission-grid" style="margin-bottom:var(--sp-20);">
+      <div class="mission-card tc-animate-slide-up">
+        <p class="mission-num">01</p>
+        <div class="mission-icon-wrap">🔧</div>
+        <p class="mission-title">技術翻轉生活</p>
+        <p class="mission-body">透過裝潢貼膜技術，幫助更多人提升收入、改善家庭與人生選擇。技術不只是賺錢的工具，而是一個可以翻轉人生的平台。</p>
+        <div class="mission-tags">
+          <span class="mission-tag">技術傳授</span>
+          <span class="mission-tag">增加收入</span>
+          <span class="mission-tag">人才培育</span>
+        </div>
+      </div>
+      <div class="mission-card tc-animate-slide-up tc-delay-1">
+        <p class="mission-num">02</p>
+        <div class="mission-icon-wrap">🌱</div>
+        <p class="mission-title">信仰翻轉生命</p>
+        <p class="mission-body">建立一間有愛的團隊、有使命的文化、有信仰價值的企業。真正長久的成功，不只是業績成功，更是生命成功。</p>
+        <div class="mission-tags">
+          <span class="mission-tag">團隊文化</span>
+          <span class="mission-tag">品格建立</span>
+          <span class="mission-tag">誠信責任</span>
+        </div>
+      </div>
+      <div class="mission-card tc-animate-slide-up tc-delay-2">
+        <p class="mission-num">03</p>
+        <div class="mission-icon-wrap">✨</div>
+        <p class="mission-title">空間改變生命</p>
+        <p class="mission-body">讓空間煥然一新，也讓生命煥然一新。希望世界因為有繪新，空間更美好、家庭更健康、人生方向更清楚。</p>
+        <div class="mission-tags">
+          <span class="mission-tag">空間美學</span>
+          <span class="mission-tag">家庭幸福</span>
+          <span class="mission-tag">人生影響</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 七大核心價值 ─────────────────────────────────────── -->
+    <div class="values-section">
+      <div class="sub-header">
+        <p class="sub-title">Core Values · 核心價值</p>
+      </div>
+      <div class="values-intro">
+        <p>七個核心價值構成繪新的行事準則，指導我們如何對待客戶、對待夥伴、對待自己的工作與生命。</p>
+      </div>
+      <div class="values-grid">
+        <div class="value-item tc-animate-slide-up">
+          <span class="value-num">01</span>
+          <div class="value-content">
+            <p class="value-en">Givers Gain</p>
+            <p class="value-title">付出者收穫</p>
+            <p class="value-desc">先成就別人，才能成就自己。真正長久的成功，來自願意付出、幫助與成全別人，建立共同成長的文化。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up tc-delay-1">
+          <span class="value-num">02</span>
+          <div class="value-content">
+            <p class="value-en">Lifelong Learning</p>
+            <p class="value-title">終身學習</p>
+            <p class="value-desc">停止學習，就是停止成長。持續精進技術、學習管理、擁抱 AI，不斷提升生命與思維的高度。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up">
+          <span class="value-num">03</span>
+          <div class="value-content">
+            <p class="value-en">Heritage + Innovation</p>
+            <p class="value-title">傳承＋創新</p>
+            <p class="value-desc">守住技術、文化與價值觀的根本，同時持續創新工法、服務與經營模式，讓傳統與未來並行。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up tc-delay-1">
+          <span class="value-num">04</span>
+          <div class="value-content">
+            <p class="value-en">Positive Mindset</p>
+            <p class="value-title">正面積極態度</p>
+            <p class="value-desc">遇到問題時，不是抱怨，而是願意解決問題。成為一個帶來盼望、散發正能量的人。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up">
+          <span class="value-num">05</span>
+          <div class="value-content">
+            <p class="value-en">Build Relationships</p>
+            <p class="value-title">建立關係</p>
+            <p class="value-desc">先建立信任，再建立成交。真正長久的生意，來自真誠與信任的關係，而非單純的交易。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up tc-delay-1">
+          <span class="value-num">06</span>
+          <div class="value-content">
+            <p class="value-en">Accountability</p>
+            <p class="value-title">當責</p>
+            <p class="value-desc">從完成工作，升級成創造成果。對結果負責，對品質負責，對客戶負責，對自己的承諾負責。</p>
+          </div>
+        </div>
+        <div class="value-item tc-animate-slide-up" style="grid-column: 1 / -1; max-width: calc(50% - var(--sp-2));">
+          <span class="value-num">07</span>
+          <div class="value-content">
+            <p class="value-en">Recognition</p>
+            <p class="value-title">表揚</p>
+            <p class="value-desc">看見與肯定彼此的價值，打造一個充滿愛、尊重與榮耀的團隊文化。好的成果值得被看見。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 2026 AI 升級計畫 ──────────────────────────────────── -->
+    <div class="sub-header">
+      <p class="sub-title">2026 Focus · 年度重點</p>
+    </div>
+    <div class="ai-banner tc-animate-slide-up" style="margin-bottom:var(--sp-20);">
+      <div class="ai-banner-content">
+        <p class="ai-banner-eyebrow">2026 Strategic Initiative</p>
+        <h3 class="ai-banner-title">AI 企業升級計畫</h3>
+        <p class="ai-banner-body">
+          繪新今年度集體學習 AI，讓 AI 成為企業升級的核心力量。未來的競爭，不只是人與人的競爭，而是團隊有沒有使用 AI、公司有沒有 AI 化、組織效率能不能被放大。
+          <br><br>
+          <strong style="color:var(--color-text-primary);">AI 不會取代人，但會使用 AI 的人，將會取代不會使用 AI 的人。</strong>
+        </p>
+      </div>
+      <div class="ai-banner-stat">
+        <p class="ai-banner-stat-num">2026</p>
+        <p class="ai-banner-stat-label">AI 元年</p>
+      </div>
+    </div>
+
+    <!-- ── 發展藍圖 ──────────────────────────────────────────── -->
+    <div class="roadmap-section">
+      <div class="sub-header">
+        <p class="sub-title">Vision Roadmap · 發展藍圖</p>
+      </div>
+      <div class="roadmap-grid">
+        <div class="roadmap-phase tc-animate-slide-up">
+          <div class="roadmap-node">P1</div>
+          <p class="roadmap-phase-label">現在 — 1年</p>
+          <p class="roadmap-phase-title">扎根建制</p>
+          <p class="roadmap-phase-desc">建立制度、穩定組織、完善教育訓練系統與標準化施工流程，打造堅實的企業地基。</p>
+        </div>
+        <div class="roadmap-phase tc-animate-slide-up tc-delay-1">
+          <div class="roadmap-node">P2</div>
+          <p class="roadmap-phase-label">1 — 3年</p>
+          <p class="roadmap-phase-title">擴大版圖</p>
+          <p class="roadmap-phase-desc">擴大市場、建立區域主管、建構招生系統與人才複製體系，實現規模化成長。</p>
+        </div>
+        <div class="roadmap-phase tc-animate-slide-up tc-delay-2">
+          <div class="roadmap-node">P3</div>
+          <p class="roadmap-phase-label">3 — 5年</p>
+          <p class="roadmap-phase-title">全台連鎖</p>
+          <p class="roadmap-phase-desc">建立全台直營門市、連鎖化經營模式與技術認證系統，成為台灣貼膜產業的頂尖品牌。</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 01 -->
+<section class="chapter" id="logo">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">01</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Identity Mark</span>
+        <h2 class="chapter-title">標誌系統</h2>
+        <p class="chapter-desc">品牌標誌是繪新視覺識別的核心。霓虹桃紅三角幾何框架搭配金屬鉻色漢字，承載的不只是視覺美學，更是信仰的宣告。</p>
+      </div>
+    </div>
+
+    <!-- Design Philosophy -->
+    <div class="faith-symbol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-5);margin-bottom:var(--sp-12);">
+      <div class="faith-strip tc-animate-slide-up">
+        <p class="faith-strip-title">△ 三角形 · The Trinity</p>
+        <p class="faith-strip-body">
+          品牌標誌的三角形幾何，代表<strong style="color:var(--color-text-primary);">三位一體的神——聖父、聖子、聖靈</strong>。三條邊，三個角，構成完整而不可分割的神的形象。標誌本身就是信仰的符號，每一次出現都是一次默默的宣告。
+        </p>
+      </div>
+      <div class="faith-strip tc-animate-slide-up tc-delay-1">
+        <p class="faith-strip-title">✦ 12顆星星 · 12 Disciples</p>
+        <p class="faith-strip-body">
+          標誌旁的<strong style="color:var(--color-text-primary);">12 顆星星，預表耶穌的 12 位門徒</strong>。繪新的每一位同仁，都蒙召成為職場中的門徒，帶著使命與影響力走入世界。
+        </p>
+      </div>
+      <div class="faith-strip tc-animate-slide-up tc-delay-2">
+        <p class="faith-strip-title">✦ 宇宙星空 · Created by God</p>
+        <p class="faith-strip-body">
+          繪新選擇宇宙星空作為品牌視覺語言，因為<strong style="color:var(--color-text-primary);">宇宙是上帝所創造的</strong>。基督是繪新之主，宇宙感預表上帝創造繪新、與繪新同在。每一次看見星空視覺，都是在宣告神的同在與創造大能。
+        </p>
+      </div>
+    </div>
+
+    <!-- Logo variants -->
+    <div class="sub-header" style="margin-bottom:var(--sp-5);">
+      <p class="sub-title">標誌適用背景</p>
+    </div>
+    <div class="logo-grid">
+      <div class="logo-swatch">
+        <div class="logo-canvas logo-canvas-black">
+          <img src="logo.png" alt="繪新 — 深黑背景" style="width:clamp(120px,18vw,200px);height:auto;filter:drop-shadow(0 0 20px rgba(255,0,128,.4));">
+        </div>
+        <div class="logo-swatch-info">
+          <p class="logo-swatch-name">深黑背景 · Stellar</p>
+          <p class="logo-swatch-desc">主要用法：品牌網站、名片深色版、簡報封面</p>
+        </div>
+      </div>
+
+      <div class="logo-swatch">
+        <div class="logo-canvas logo-canvas-white">
+          <img src="logo.png" alt="繪新 — 純白背景" style="width:clamp(120px,18vw,200px);height:auto;">
+        </div>
+        <div class="logo-swatch-info">
+          <p class="logo-swatch-name">純白背景 · Blanc</p>
+          <p class="logo-swatch-desc">一般用法：報價單、估價單、正式文件、名片白色版</p>
+        </div>
+      </div>
+
+      <div class="logo-swatch">
+        <div class="logo-canvas logo-canvas-brand">
+          <img src="logo.png" alt="繪新 — 品牌漸層背景" style="width:clamp(120px,18vw,200px);height:auto;filter:drop-shadow(0 0 28px rgba(255,0,128,.55));">
+        </div>
+        <div class="logo-swatch-info">
+          <p class="logo-swatch-name">品牌漸層 · Campaign</p>
+          <p class="logo-swatch-desc">行銷應用：社群封面、活動佈景板、廣告素材</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear space -->
+    <div class="sub-header">
+      <p class="sub-title">安全間距 Clear Space</p>
+    </div>
+    <div class="clearspace-demo" style="margin-bottom:var(--sp-12);">
+      <div class="clearspace-inner">
+        <span class="clearspace-label">最小間距 = 標誌高度 × 0.25</span>
+        <img src="logo.png" alt="" style="width:160px;height:auto;opacity:.9;">
+      </div>
+      <p style="font-size:var(--type-xs);color:var(--color-text-muted);letter-spacing:var(--tracking-wide);">標誌周圍必須保留至少 1X 的淨空區域（X = 標誌高度 ÷ 4），禁止在此區域內放置任何元素。</p>
+    </div>
+
+    <!-- Symbol rules -->
+    <div class="sub-header">
+      <p class="sub-title">標誌符號規範 · Symbol Rules</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5);margin-bottom:var(--sp-12);" class="faith-symbol-grid">
+
+      <div style="border:1px solid var(--color-border-brand);border-radius:var(--radius-xl);padding:var(--sp-6) var(--sp-7);background:var(--color-surface);">
+        <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-4);">
+          <span style="font-size:var(--type-2xl);line-height:1;">△</span>
+          <div>
+            <p style="font-family:var(--font-display);font-size:var(--type-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--color-text-brand);">三角形 · The Trinity</p>
+          </div>
+        </div>
+        <p style="font-size:var(--type-sm);color:var(--color-text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--sp-4);">代表<strong style="color:var(--color-text-primary);">三位一體——聖父、聖子、聖靈</strong>。三邊三角，完整而不可分割。</p>
+        <ul style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:2;list-style:none;padding:0;">
+          <li>✓ 必須保持完整三角形結構</li>
+          <li>✓ 雙線設計（外線＋內線）不可省略</li>
+          <li>× 不可拉伸、變形、或改為其他幾何</li>
+          <li>× 不可單獨移除任何一條邊</li>
+        </ul>
+      </div>
+
+      <div style="border:1px solid var(--color-border-brand);border-radius:var(--radius-xl);padding:var(--sp-6) var(--sp-7);background:var(--color-surface);">
+        <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-4);">
+          <span style="font-size:var(--type-2xl);line-height:1;">✦</span>
+          <div>
+            <p style="font-family:var(--font-display);font-size:var(--type-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-widest);text-transform:uppercase;color:var(--color-text-brand);">12顆星星 · 12 Disciples</p>
+          </div>
+        </div>
+        <p style="font-size:var(--type-sm);color:var(--color-text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--sp-4);">預表<strong style="color:var(--color-text-primary);">耶穌的 12 位門徒</strong>。每顆星分佈於三角形三個頂角，每角 4 顆，共 12 顆，缺一不可。</p>
+        <ul style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:2;list-style:none;padding:0;">
+          <li>✓ 星星數量必須精確為 12 顆</li>
+          <li>✓ 三角每個頂角附近各 4 顆</li>
+          <li>× 不可增加或減少數量</li>
+          <li>× 不可改為其他形狀</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Symbol preview -->
+    <div class="sub-header">
+      <p class="sub-title">符號標誌預覽 · Mark Preview</p>
+    </div>
+    <div style="display:flex;gap:var(--sp-5);margin-bottom:var(--sp-12);flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;background:#060410;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;padding:var(--sp-10);border:1px solid var(--color-border);">
+        <img src="logo-mark.svg" alt="繪新 Symbol Mark — 深黑底" style="width:clamp(100px,14vw,160px);height:auto;">
+      </div>
+      <div style="flex:1;min-width:200px;background:#FFFFFF;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;padding:var(--sp-10);border:1px solid var(--color-border);">
+        <img src="logo-mark.svg" alt="繪新 Symbol Mark — 白底" style="width:clamp(100px,14vw,160px);height:auto;">
+      </div>
+    </div>
+
+    <!-- Size scale -->
+    <div class="sub-header">
+      <p class="sub-title">最小尺寸 Minimum Size</p>
+    </div>
+    <div class="tc-card" style="background:var(--color-surface);">
+      <div class="size-row">
+        <span class="size-label">Print · 印刷最小</span>
+        <img src="logo.png" alt="" style="height:24px;width:auto;opacity:.9;">
+        <span class="tc-code">height ≥ 24pt</span>
+      </div>
+      <div class="size-row">
+        <span class="size-label">Digital · 數位最小</span>
+        <img src="logo.png" alt="" style="height:32px;width:auto;opacity:.9;">
+        <span class="tc-code">height ≥ 32px</span>
+      </div>
+      <div class="size-row" style="border-bottom:none;">
+        <span class="size-label">Favicons · 圖示最小</span>
+        <img src="logo.png" alt="" style="height:48px;width:auto;opacity:.9;">
+        <span class="tc-code">48 × 48px (use mark only)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 02 -->
+<section class="chapter" id="color">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">02</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Color System</span>
+        <h2 class="chapter-title">色彩系統</h2>
+        <p class="chapter-desc">品牌色彩以霓虹桃紅為核心，搭配深太空黑與金屬鉻白，建構出兩套完整的色彩語言，適用於不同場景與媒介。</p>
+      </div>
+    </div>
+
+    <!-- Dual theme compare -->
+    <div class="sub-header">
+      <p class="sub-title">雙主題對照</p>
+    </div>
+    <div class="theme-compare" style="margin-bottom:var(--sp-12);">
+      <!-- Stellar -->
+      <div class="theme-panel stellar-panel">
+        <div class="theme-panel-header">
+          <span class="theme-panel-name">Stellar 星空深色</span>
+          <div class="mini-palette">
+            <div class="mini-swatch" style="background:#0C0920;" title="Space 900"></div>
+            <div class="mini-swatch" style="background:#FF0080;" title="Pink 500"></div>
+            <div class="mini-swatch" style="background:#F0F6FF;" title="Chrome 100"></div>
+            <div class="mini-swatch" style="background:#00E8FF;" title="Cyan 400"></div>
+          </div>
+        </div>
+        <div class="theme-panel-body">
+          <div style="display:flex;gap:var(--sp-3);">
+            <button style="background:#FF0080;color:#fff;border:none;padding:var(--sp-2) var(--sp-4);border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 0 12px rgba(255,0,128,.4);">霓虹按鈕</button>
+            <button style="background:transparent;color:#FF80BF;border:1px solid #FF0080;padding:var(--sp-2) var(--sp-4);border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;">次要按鈕</button>
+          </div>
+          <div style="background:#0F0A3A;border:1px solid rgba(255,0,128,.2);border-radius:8px;padding:var(--sp-4);">
+            <p style="color:#F0F6FF;font-size:13px;font-weight:700;margin-bottom:4px;">裝潢貼膜服務</p>
+            <p style="color:#788898;font-size:12px;line-height:1.6;">無甲醛、防焰、抗菌、防霉，超越傳統壁紙。</p>
+          </div>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
+            <span style="background:rgba(255,0,128,.12);border:1px solid rgba(255,0,128,.4);color:#FF80BF;padding:2px 10px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">進行中</span>
+            <span style="background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.4);color:#34D399;padding:2px 10px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">已完成</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blanc -->
+      <div class="theme-panel blanc-panel">
+        <div class="theme-panel-header">
+          <span class="theme-panel-name">Blanc 白底桃紅</span>
+          <div class="mini-palette">
+            <div class="mini-swatch" style="background:#FFFFFF;border:1px solid #eee;" title="White"></div>
+            <div class="mini-swatch" style="background:#FF0080;" title="Pink 500"></div>
+            <div class="mini-swatch" style="background:#0C0920;" title="Space 900"></div>
+            <div class="mini-swatch" style="background:#FFF0F7;" title="Pink 50"></div>
+          </div>
+        </div>
+        <div class="theme-panel-body">
+          <div style="display:flex;gap:var(--sp-3);">
+            <button style="background:#FF0080;color:#fff;border:none;padding:var(--sp-2) var(--sp-4);border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(255,0,128,.3);">桃紅按鈕</button>
+            <button style="background:transparent;color:#D40069;border:1px solid #FF0080;padding:var(--sp-2) var(--sp-4);border-radius:4px;font-weight:700;font-size:12px;cursor:pointer;">次要按鈕</button>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid rgba(255,0,128,.15);border-radius:8px;padding:var(--sp-4);box-shadow:0 2px 12px rgba(255,0,128,.08);">
+            <p style="color:#0C0920;font-size:13px;font-weight:700;margin-bottom:4px;">裝潢貼膜服務</p>
+            <p style="color:#534CB8;font-size:12px;line-height:1.6;">無甲醛、防焰、抗菌、防霉，超越傳統壁紙。</p>
+          </div>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
+            <span style="background:rgba(255,0,128,.07);border:1px solid rgba(255,0,128,.3);color:#D40069;padding:2px 10px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">進行中</span>
+            <span style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.3);color:#10B981;padding:2px 10px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">已完成</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pink scale -->
+    <div class="sub-header">
+      <p class="sub-title">品牌粉紅 Pink Scale — 核心品牌色</p>
+    </div>
+    <div class="color-band" style="background:#FF0080;margin-bottom:var(--sp-6);box-shadow:0 0 40px rgba(255,0,128,.3);">
+      <span class="color-band-label" style="color:#fff;">Pink 500 — Core Brand</span>
+      <span class="color-band-hex" style="color:rgba(255,255,255,.8);">#FF0080</span>
+    </div>
+    <div class="palette-grid" style="margin-bottom:var(--sp-12);">
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#FFF0F7;" title="#FFF0F7"></div><div class="swatch-info-mini"><p class="swatch-step">50</p><p class="swatch-hex-mini">#FFF0F7</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#FFD6EC;" title="#FFD6EC"></div><div class="swatch-info-mini"><p class="swatch-step">100</p><p class="swatch-hex-mini">#FFD6EC</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#FFB3D9;" title="#FFB3D9"></div><div class="swatch-info-mini"><p class="swatch-step">200</p><p class="swatch-hex-mini">#FFB3D9</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#FF80BF;" title="#FF80BF"></div><div class="swatch-info-mini"><p class="swatch-step">300</p><p class="swatch-hex-mini">#FF80BF</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#FF4DA6;" title="#FF4DA6"></div><div class="swatch-info-mini"><p class="swatch-step">400</p><p class="swatch-hex-mini">#FF4DA6</p></div></div>
+      <div class="swatch-block" style="position:relative;"><div class="swatch-color-box" style="background:#FF0080;border:2px solid var(--color-text-primary);box-shadow:0 0 0 2px var(--color-canvas);" title="Core — #FF0080"></div><div class="swatch-info-mini"><p class="swatch-step" style="color:var(--color-brand);">500 ★</p><p class="swatch-hex-mini">#FF0080</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#D40069;" title="#D40069"></div><div class="swatch-info-mini"><p class="swatch-step">600</p><p class="swatch-hex-mini">#D40069</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#AA0055;" title="#AA0055"></div><div class="swatch-info-mini"><p class="swatch-step">700</p><p class="swatch-hex-mini">#AA0055</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#770038;" title="#770038"></div><div class="swatch-info-mini"><p class="swatch-step">800</p><p class="swatch-hex-mini">#770038</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#44001F;" title="#44001F"></div><div class="swatch-info-mini"><p class="swatch-step">900</p><p class="swatch-hex-mini">#44001F</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#220010;" title="#220010"></div><div class="swatch-info-mini"><p class="swatch-step">950</p><p class="swatch-hex-mini">#220010</p></div></div>
+    </div>
+
+    <!-- Space scale -->
+    <div class="sub-header">
+      <p class="sub-title">太空深色 Space Scale — Stellar 背景色</p>
+    </div>
+    <div class="palette-grid" style="margin-bottom:var(--sp-12);">
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#EEEDF8;" title="#EEEDF8"></div><div class="swatch-info-mini"><p class="swatch-step">50</p><p class="swatch-hex-mini">#EEEDF8</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#D4D2F0;" title="#D4D2F0"></div><div class="swatch-info-mini"><p class="swatch-step">100</p><p class="swatch-hex-mini">#D4D2F0</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#A9A5E0;" title="#A9A5E0"></div><div class="swatch-info-mini"><p class="swatch-step">200</p><p class="swatch-hex-mini">#A9A5E0</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#7E79D0;" title="#7E79D0"></div><div class="swatch-info-mini"><p class="swatch-step">300</p><p class="swatch-hex-mini">#7E79D0</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#534CB8;" title="#534CB8"></div><div class="swatch-info-mini"><p class="swatch-step">400</p><p class="swatch-hex-mini">#534CB8</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#2D2480;" title="#2D2480"></div><div class="swatch-info-mini"><p class="swatch-step">500</p><p class="swatch-hex-mini">#2D2480</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#221B6B;" title="#221B6B"></div><div class="swatch-info-mini"><p class="swatch-step">600</p><p class="swatch-hex-mini">#221B6B</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#171256;" title="#171256"></div><div class="swatch-info-mini"><p class="swatch-step">700</p><p class="swatch-hex-mini">#171256</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#0F0A3A;" title="#0F0A3A"></div><div class="swatch-info-mini"><p class="swatch-step">800</p><p class="swatch-hex-mini">#0F0A3A</p></div></div>
+      <div class="swatch-block" style="position:relative;"><div class="swatch-color-box" style="background:#0C0920;border:2px solid var(--color-text-primary);box-shadow:0 0 0 2px var(--color-canvas);" title="Base — #0C0920"></div><div class="swatch-info-mini"><p class="swatch-step" style="color:var(--color-text-brand);">900 ★</p><p class="swatch-hex-mini">#0C0920</p></div></div>
+      <div class="swatch-block"><div class="swatch-color-box" style="background:#060410;" title="#060410"></div><div class="swatch-info-mini"><p class="swatch-step">950</p><p class="swatch-hex-mini">#060410</p></div></div>
+    </div>
+
+    <!-- Semantic colors -->
+    <div class="sub-header">
+      <p class="sub-title">語意色彩 Semantic Colors</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--sp-4);">
+      <div class="color-band" style="background:var(--color-success);opacity:.9;"><span class="color-band-label" style="color:#fff;font-size:11px;">Success</span><span class="color-band-hex" style="color:rgba(255,255,255,.8);font-size:11px;">#34D399</span></div>
+      <div class="color-band" style="background:var(--color-warning);opacity:.9;"><span class="color-band-label" style="color:var(--space-950);font-size:11px;">Warning</span><span class="color-band-hex" style="color:rgba(0,0,0,.5);font-size:11px;">#FBBF24</span></div>
+      <div class="color-band" style="background:var(--color-error);opacity:.9;"><span class="color-band-label" style="color:#fff;font-size:11px;">Error</span><span class="color-band-hex" style="color:rgba(255,255,255,.8);font-size:11px;">#F87171</span></div>
+      <div class="color-band" style="background:var(--color-info);opacity:.9;"><span class="color-band-label" style="color:var(--space-950);font-size:11px;">Info</span><span class="color-band-hex" style="color:rgba(0,0,0,.5);font-size:11px;">#00E8FF</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 03 -->
+<section class="chapter" id="type">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">03</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Typography</span>
+        <h2 class="chapter-title">字型系統</h2>
+        <p class="chapter-desc">三套各司其職的字型建構品牌排版語言——展示標題的未來感、正文的親切易讀、程式碼的精準技術感。</p>
+      </div>
+    </div>
+
+    <div class="type-family-grid">
+      <!-- Display -->
+      <div class="type-card">
+        <div class="type-card-meta">
+          <p class="type-card-role">Display · 展示標題</p>
+          <p class="type-card-name">Orbitron</p>
+          <p class="type-card-use">品牌名稱 · 標題 · 按鈕</p>
+        </div>
+        <div class="tc-rule"></div>
+        <div class="type-specimen-large tc-display" aria-label="Orbitron 展示">TWC</div>
+        <p class="tc-label">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>0123456789</p>
+      </div>
+      <!-- Body -->
+      <div class="type-card">
+        <div class="type-card-meta">
+          <p class="type-card-role">Body · 正文</p>
+          <p class="type-card-name">Noto Sans TC</p>
+          <p class="type-card-use">段落 · 說明 · 介面文字</p>
+        </div>
+        <div class="tc-rule"></div>
+        <div style="font-size:clamp(var(--type-3xl),5vw,var(--type-5xl));font-weight:var(--weight-black);line-height:var(--leading-tight);overflow:hidden;">繪新</div>
+        <p style="font-size:var(--type-sm);color:var(--color-text-secondary);line-height:var(--leading-relaxed);">熱誠服務 · 誠信合作 · 創新未來<br>讓世界因我們煥然一新</p>
+      </div>
+      <!-- Mono -->
+      <div class="type-card">
+        <div class="type-card-meta">
+          <p class="type-card-role">Mono · 等寬</p>
+          <p class="type-card-name">Share Tech Mono</p>
+          <p class="type-card-use">程式碼 · 規格數值 · Token</p>
+        </div>
+        <div class="tc-rule"></div>
+        <div style="font-family:var(--font-mono);font-size:clamp(var(--type-xl),3vw,var(--type-3xl));line-height:var(--leading-tight);color:var(--color-info);overflow:hidden;">01001</div>
+        <p style="font-family:var(--font-mono);font-size:var(--type-xs);color:var(--color-text-muted);line-height:1.8;">--color-brand: #FF0080;<br>box-shadow: var(--shadow-brand);</p>
+      </div>
+    </div>
+
+    <!-- Type scale -->
+    <div class="sub-header">
+      <p class="sub-title">字型尺寸對照表</p>
+    </div>
+    <div class="tc-card" style="padding:0;overflow:hidden;">
+      <div class="type-scale-row" style="padding:var(--sp-5) var(--sp-6);">
+        <span class="type-scale-token">--type-8xl</span>
+        <span class="type-scale-size">96px</span>
+        <span style="font-size:var(--type-8xl);font-weight:900;line-height:1;overflow:hidden;white-space:nowrap;">Aa</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-5) var(--sp-6);">
+        <span class="type-scale-token">--type-6xl</span>
+        <span class="type-scale-size">60px</span>
+        <span style="font-size:var(--type-6xl);font-weight:700;line-height:1;">Aa</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-4) var(--sp-6);">
+        <span class="type-scale-token">--type-4xl</span>
+        <span class="type-scale-size">36px</span>
+        <span style="font-size:var(--type-4xl);font-weight:700;line-height:1;">標題文字</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-4) var(--sp-6);">
+        <span class="type-scale-token">--type-2xl</span>
+        <span class="type-scale-size">24px</span>
+        <span style="font-size:var(--type-2xl);font-weight:600;">子標題文字</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-4) var(--sp-6);">
+        <span class="type-scale-token">--type-base</span>
+        <span class="type-scale-size">16px</span>
+        <span style="font-size:var(--type-base);color:var(--color-text-secondary);">正文閱讀文字，建議行高 1.6</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-4) var(--sp-6);">
+        <span class="type-scale-token">--type-sm</span>
+        <span class="type-scale-size">14px</span>
+        <span style="font-size:var(--type-sm);color:var(--color-text-secondary);">次要說明文字、表單欄位</span>
+      </div>
+      <div class="type-scale-row" style="padding:var(--sp-4) var(--sp-6);border-bottom:none;">
+        <span class="type-scale-token">--type-xs</span>
+        <span class="type-scale-size">12px</span>
+        <span style="font-size:var(--type-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.15em;">LABEL · BADGE · CAPTION</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 04 -->
+<section class="chapter" id="components">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">04</span>
+      <div class="chapter-meta">
+        <span class="tc-label">UI Components</span>
+        <h2 class="chapter-title">元件庫</h2>
+        <p class="chapter-desc">所有元件均響應雙主題設計，透過引入 <code class="tc-code">tokens.css</code> 與 <code class="tc-code">components.css</code> 即可一鍵套用。</p>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="comp-section">
+      <p class="comp-section-label">Buttons</p>
+      <div class="comp-demo">
+        <div class="comp-row">
+          <button class="tc-btn tc-btn-primary">Primary</button>
+          <button class="tc-btn tc-btn-secondary">Secondary</button>
+          <button class="tc-btn tc-btn-ghost">Ghost</button>
+          <button class="tc-btn tc-btn-text">Text →</button>
+        </div>
+        <div class="comp-row">
+          <button class="tc-btn tc-btn-primary tc-btn-xs">XSmall</button>
+          <button class="tc-btn tc-btn-primary tc-btn-sm">Small</button>
+          <button class="tc-btn tc-btn-primary">Default</button>
+          <button class="tc-btn tc-btn-primary tc-btn-lg">Large</button>
+          <button class="tc-btn tc-btn-primary tc-btn-xl">X-Large</button>
+        </div>
+        <div class="comp-row">
+          <button class="tc-btn tc-btn-secondary" disabled>Disabled</button>
+          <button class="tc-btn tc-btn-primary tc-animate-glow">Glow Pulse</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cards -->
+    <div class="comp-section">
+      <p class="comp-section-label">Cards</p>
+      <div class="card-demo-grid">
+        <div class="tc-card tc-card-interactive">
+          <span class="tc-badge tc-badge-brand" style="margin-bottom:var(--sp-4);">裝潢貼膜</span>
+          <p class="card-demo-title">高質感空間翻新</p>
+          <p class="card-demo-body">無甲醛、防焰、抗菌，一年施工保固，台北誠品南西、陶朱隱園公設指定施工。</p>
+          <button class="tc-btn tc-btn-secondary tc-btn-sm">了解更多</button>
+        </div>
+        <div class="tc-card tc-card-brand tc-card-interactive">
+          <span class="tc-badge tc-badge-brand-fill" style="margin-bottom:var(--sp-4);">電梯貼膜</span>
+          <p class="card-demo-title">無粉塵專業翻新</p>
+          <p class="card-demo-body">永大、三菱、日大電梯指定合作，老舊電梯改色翻新，施工零污染。</p>
+          <button class="tc-btn tc-btn-primary tc-btn-sm">立即詢問</button>
+        </div>
+        <div class="tc-card tc-card-glass tc-card-interactive">
+          <span class="tc-badge tc-badge-neutral" style="margin-bottom:var(--sp-4);">廣告工程</span>
+          <p class="card-demo-title">整合視覺工程</p>
+          <p class="card-demo-body">HP Latex 環保墨水、Avery / Lintec 進口膠膜，從設計到施工一條龍服務。</p>
+          <button class="tc-btn tc-btn-ghost tc-btn-sm">查看案例</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Badges -->
+    <div class="comp-section">
+      <p class="comp-section-label">Badges</p>
+      <div class="comp-demo">
+        <div class="comp-row">
+          <span class="tc-badge tc-badge-brand">Brand</span>
+          <span class="tc-badge tc-badge-brand-fill">Filled</span>
+          <span class="tc-badge tc-badge-neutral">Neutral</span>
+          <span class="tc-badge tc-badge-success">Success</span>
+          <span class="tc-badge tc-badge-warning">Warning</span>
+          <span class="tc-badge tc-badge-error">Error</span>
+          <span class="tc-badge tc-badge-info">Info</span>
+        </div>
+        <div class="comp-row">
+          <span class="tc-badge tc-badge-brand tc-badge-dot">進行中</span>
+          <span class="tc-badge tc-badge-success tc-badge-dot">已完成</span>
+          <span class="tc-badge tc-badge-warning tc-badge-dot">待確認</span>
+          <span class="tc-badge tc-badge-neutral tc-badge-dot">草稿</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="comp-section">
+      <p class="comp-section-label">Form Elements</p>
+      <div class="comp-demo" style="max-width:520px;">
+        <div class="tc-form-group">
+          <label class="tc-label-text">公司名稱</label>
+          <input type="text" class="tc-input" placeholder="請輸入公司名稱">
+        </div>
+        <div class="tc-form-group">
+          <label class="tc-label-text">服務項目</label>
+          <select class="tc-input tc-select">
+            <option>裝潢貼膜</option>
+            <option>電梯貼膜</option>
+            <option>廣告工程</option>
+            <option>大圖輸出</option>
+            <option>車體包膜</option>
+          </select>
+        </div>
+        <div class="tc-form-group">
+          <label class="tc-label-text">需求說明</label>
+          <textarea class="tc-input tc-textarea" placeholder="請描述您的需求與空間條件…" rows="3"></textarea>
+          <p class="tc-form-hint">師傅將於 2 個工作天內回覆</p>
+        </div>
+        <button class="tc-btn tc-btn-primary tc-btn-lg" style="width:100%;">送出詢問</button>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="comp-section">
+      <p class="comp-section-label">Alerts</p>
+      <div class="comp-demo" style="display:flex;flex-direction:column;gap:var(--sp-3);">
+        <div class="tc-alert tc-alert-brand">施工完成後提供完整一年售後保固服務。</div>
+        <div class="tc-alert tc-alert-success">案件確認，師傅將於 3 個工作天內聯繫您。</div>
+        <div class="tc-alert tc-alert-warning">部分膜料需要預訂，建議提前 2 週確認規格。</div>
+        <div class="tc-alert tc-alert-error">此功能目前維護中，請改以電話 02-86781229 聯繫。</div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="comp-section">
+      <p class="comp-section-label">Progress</p>
+      <div class="comp-demo" style="display:flex;flex-direction:column;gap:var(--sp-6);">
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:var(--sp-2);">
+            <span style="font-size:var(--type-xs);color:var(--color-text-secondary);letter-spacing:var(--tracking-wider);text-transform:uppercase;">專案施工進度</span>
+            <span style="font-family:var(--font-mono);font-size:var(--type-xs);color:var(--color-brand);">78%</span>
+          </div>
+          <div class="tc-progress tc-progress-lg"><div class="tc-progress-fill" style="width:78%;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:var(--sp-2);">
+            <span style="font-size:var(--type-xs);color:var(--color-text-secondary);letter-spacing:var(--tracking-wider);text-transform:uppercase;">膜料備料</span>
+            <span style="font-family:var(--font-mono);font-size:var(--type-xs);color:var(--color-brand);">45%</span>
+          </div>
+          <div class="tc-progress tc-progress-lg"><div class="tc-progress-fill" style="width:45%;"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 05 -->
+<section class="chapter" id="motion">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">05</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Motion Design</span>
+        <h2 class="chapter-title">動效原則</h2>
+        <p class="chapter-desc">品牌動效以「宇宙引力」為設計比喻——有重量感的緩入、輕盈的離開，Spring Curve 賦予元素活力而不失精準。</p>
+      </div>
+    </div>
+
+    <div class="motion-grid">
+      <div class="motion-card">
+        <div class="motion-card-icon">⚡</div>
+        <div>
+          <p class="motion-card-name">Fast</p>
+          <p class="motion-card-val">120ms · ease-out</p>
+        </div>
+        <p style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:var(--leading-normal);">Hover 狀態、顏色切換、最即時的 UI 反饋</p>
+      </div>
+      <div class="motion-card">
+        <div class="motion-card-icon">✦</div>
+        <div>
+          <p class="motion-card-name">Normal</p>
+          <p class="motion-card-val">200ms · ease-out</p>
+        </div>
+        <p style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:var(--leading-normal);">按鈕互動、下拉選單、一般轉場</p>
+      </div>
+      <div class="motion-card">
+        <div class="motion-card-icon">🌊</div>
+        <div>
+          <p class="motion-card-name">Spring</p>
+          <p class="motion-card-val">320ms · spring</p>
+        </div>
+        <p style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:var(--leading-normal);">卡片浮起、Modal 出現、有彈性感的動作</p>
+      </div>
+      <div class="motion-card">
+        <div class="motion-card-icon">🌌</div>
+        <div>
+          <p class="motion-card-name">Float</p>
+          <p class="motion-card-val">3.5s · ease-in-out ∞</p>
+        </div>
+        <p style="font-size:var(--type-xs);color:var(--color-text-muted);line-height:var(--leading-normal);">Logo 漂浮、裝飾性元素、無限循環</p>
+      </div>
+    </div>
+
+    <!-- Live demos -->
+    <div style="margin-top:var(--sp-10);">
+      <p class="sub-title" style="margin-bottom:var(--sp-5);">Hover to preview interaction</p>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-5);align-items:center;">
+        <button class="tc-btn tc-btn-primary">Primary Hover</button>
+        <button class="tc-btn tc-btn-secondary">Secondary Hover</button>
+        <div class="tc-card tc-card-interactive" style="padding:var(--sp-5) var(--sp-6);display:inline-block;">
+          <p style="font-size:var(--type-sm);font-weight:var(--weight-bold);">Spring Card</p>
+          <p style="font-size:var(--type-xs);color:var(--color-text-muted);">Hover to lift</p>
+        </div>
+        <img src="logo.png" alt="" style="width:80px;height:auto;animation:tc-float 4.5s ease-in-out infinite;filter:drop-shadow(0 0 16px rgba(255,0,128,.3));">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════ CHAPTER 06 -->
+<section class="chapter" id="rules">
+  <div class="container">
+    <div class="chapter-header">
+      <span class="chapter-num" aria-hidden="true">06</span>
+      <div class="chapter-meta">
+        <span class="tc-label">Brand Rules</span>
+        <h2 class="chapter-title">使用規範</h2>
+        <p class="chapter-desc">品牌識別的一致性決定了市場認知的深度。以下規範確保繪新在每個接觸點都傳遞相同的專業形象。</p>
+      </div>
+    </div>
+
+    <div class="rules-grid">
+      <div class="rule-box rule-box-do">
+        <div class="rule-box-header">
+          <div class="rule-box-icon">✓</div>
+          <p class="rule-box-title">應遵循</p>
+        </div>
+        <ul class="rule-list">
+          <li>以深色背景（#0C0920）或純白（#FFFFFF）作為標誌底色</li>
+          <li>霓虹桃紅（#FF0080）限用於主要行動按鈕與品牌重點元素</li>
+          <li>標誌四周保留最小 1X 淨空（X = 標誌高度 ÷ 4）</li>
+          <li>TWCOMET 全大寫，繪新 字體須保持原始比例</li>
+          <li>展示標題使用 Orbitron，正文使用 Noto Sans TC</li>
+          <li>動效遵循品牌 Timing Token，不任意使用線性緩動</li>
+          <li>色彩應用以 Stellar 或 Blanc 擇一為主，保持一致性</li>
+        </ul>
+      </div>
+      <div class="rule-box rule-box-dont">
+        <div class="rule-box-header">
+          <div class="rule-box-icon">×</div>
+          <p class="rule-box-title">禁止</p>
+        </div>
+        <ul class="rule-list">
+          <li>不拉伸、壓縮或旋轉標誌</li>
+          <li>不將標誌置於低對比背景（對比值需 ≥ 4.5:1）</li>
+          <li>不在同一版面同時使用 Stellar 與 Blanc 兩套配色</li>
+          <li>不以霓虹粉紅作大面積背景填充（視覺過載）</li>
+          <li>不改變 Chrome 漸層方向（需由上往下或左上至右下）</li>
+          <li>不添加超過品牌 Token 以外的陰影或特效</li>
+          <li>不以紅、橙、黃等暖色系搭配品牌粉紅作同等強調</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Quick token reference -->
+    <div class="sub-header" style="margin-top:var(--sp-12);">
+      <p class="sub-title">快速 Token 查詢</p>
+    </div>
+    <div class="token-ref-grid">
+      <div class="token-ref-block">
+        <p class="token-ref-title">主要按鈕</p>
+        <pre class="token-code">background: var(--color-brand);
+color: var(--neutral-0);
+box-shadow: var(--shadow-brand-sm);</pre>
+      </div>
+      <div class="token-ref-block">
+        <p class="token-ref-title">展示標題</p>
+        <pre class="token-code">font-family: var(--font-display);
+font-weight: var(--weight-black);
+background: var(--grad-chrome);
+-webkit-background-clip: text;</pre>
+      </div>
+      <div class="token-ref-block">
+        <p class="token-ref-title">標準卡片</p>
+        <pre class="token-code">background: var(--color-surface);
+border: 1px solid var(--color-border);
+border-radius: var(--radius-xl);
+box-shadow: var(--shadow-md);</pre>
+      </div>
+      <div class="token-ref-block">
+        <p class="token-ref-title">頁面底色</p>
+        <pre class="token-code">/* Stellar */
+background: var(--color-canvas);
+/* → #0C0920 deep space */
+
+/* Blanc */
+background: var(--color-canvas);
+/* → #FFFFFF pure white */</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="tc-rule tc-rule-xl" style="margin:0 auto var(--sp-8);"></div>
+    <p class="footer-brand">TWCOMET · 繪新國際有限公司</p>
+    <p class="footer-info">
+      Brand Identity System v2.0<br>
+      02-86781229 · twcomet@gmail.com · twcomet.com<br>
+      新北市鶯歌區中山路166巷2號<br>
+      <br>
+      © 2026 繪新國際有限公司 · All rights reserved
+    </p>
+  </div>
+</footer>
+
+</div><!-- .wrap -->
+
+<script>
+const themes = ['stellar', 'blanc'];
+let current = 'stellar';
+
+function setTheme(theme) {
+  current = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+
+  const isBlank = theme === 'blanc';
+  document.getElementById('sw-label').textContent = isBlank ? 'Blanc' : 'Stellar';
+  document.getElementById('sw-knob').textContent  = isBlank ? '☀️' : '🌌';
+  document.querySelector('.switch-track').setAttribute('aria-checked', String(isBlank));
+
+  document.getElementById('chip-stellar').classList.toggle('active', !isBlank);
+  document.getElementById('chip-blanc').classList.toggle('active',  isBlank);
+}
+
+function toggleTheme() {
+  setTheme(current === 'stellar' ? 'blanc' : 'stellar');
+}
+
+// Keyboard support for switch track
+document.querySelector('.switch-track').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme(); }
+});
+</script>
+</body>
+</html>
