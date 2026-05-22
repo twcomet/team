@@ -10,7 +10,7 @@ router.get('/', requireAuth, (req, res) => {
   const filter = orgFilter(me);
   const clients = filter.org_id
     ? db.prepare(`
-        SELECT c.*,
+        SELECT c.*, cc.name AS category_name, cc.discount_rate AS category_discount,
           (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
             AND cs.status IN ('contracted','payment','closed')
             AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
@@ -18,10 +18,10 @@ router.get('/', requireAuth, (req, res) => {
             AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
           (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
             FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
-        FROM clients c WHERE c.org_id = ? ORDER BY c.name
+        FROM clients c LEFT JOIN client_categories cc ON cc.id = c.category_id WHERE c.org_id = ? ORDER BY c.name
       `).all(filter.org_id)
     : db.prepare(`
-        SELECT c.*, o.name AS org_name,
+        SELECT c.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
           (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
             AND cs.status IN ('contracted','payment','closed')
             AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
@@ -29,7 +29,7 @@ router.get('/', requireAuth, (req, res) => {
             AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
           (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
             FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
-        FROM clients c LEFT JOIN orgs o ON c.org_id = o.id ORDER BY c.name
+        FROM clients c LEFT JOIN orgs o ON c.org_id = o.id LEFT JOIN client_categories cc ON cc.id = c.category_id ORDER BY c.name
       `).all();
   clients.forEach(c => {
     c.tags = c.tags_csv
@@ -93,31 +93,31 @@ router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { name, phone, email, address, source, discount, notes,
           tax_id, contact_person, capital, einvoice_code,
-          client_level, payment_terms, discount_terms, referrer, line_group_name } = req.body;
+          client_level, payment_terms, discount_terms, referrer, line_group_name, category_id } = req.body;
   if (!name) return res.status(400).json({ error: '請填入客戶姓名' });
   const result = db.prepare(`
     INSERT INTO clients (org_id, name, phone, email, address, source, discount, notes, created_by,
-      tax_id, contact_person, capital, einvoice_code, client_level, payment_terms, discount_terms, referrer, line_group_name)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      tax_id, contact_person, capital, einvoice_code, client_level, payment_terms, discount_terms, referrer, line_group_name, category_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(me.org_id, name, phone ?? null, email ?? null, address ?? null,
          source ?? null, discount ?? 1.0, notes ?? null, me.id,
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
-         line_group_name ?? null);
+         line_group_name ?? null, category_id ?? null);
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
 router.put('/:id', requireAuth, (req, res) => {
   const { name, phone, email, address, source, discount, notes,
           tax_id, contact_person, capital, einvoice_code,
-          client_level, payment_terms, discount_terms, referrer, line_group_name } = req.body;
+          client_level, payment_terms, discount_terms, referrer, line_group_name, category_id } = req.body;
   db.prepare(`UPDATE clients SET name=?, phone=?, email=?, address=?, source=?, discount=?, notes=?,
-    tax_id=?, contact_person=?, capital=?, einvoice_code=?, client_level=?, payment_terms=?, discount_terms=?, referrer=?, line_group_name=?
+    tax_id=?, contact_person=?, capital=?, einvoice_code=?, client_level=?, payment_terms=?, discount_terms=?, referrer=?, line_group_name=?, category_id=?
     WHERE id=?`)
     .run(name, phone ?? null, email ?? null, address ?? null, source ?? null, discount ?? 1.0, notes ?? null,
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
-         line_group_name ?? null, req.params.id);
+         line_group_name ?? null, category_id ?? null, req.params.id);
   res.json({ ok: true });
 });
 

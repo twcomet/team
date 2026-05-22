@@ -443,6 +443,19 @@ if (!catExists) {
   expenses.forEach((n,i) => ins.run('expense', n, i));
 }
 
+// ── 客戶分類（含折扣設定）───────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_categories (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id        INTEGER REFERENCES orgs(id),
+    name          TEXT NOT NULL,
+    discount_rate REAL DEFAULT 1.0,
+    notes         TEXT,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+_addCol('clients', 'category_id', 'INTEGER REFERENCES client_categories(id)');
+
 // ── 客戶標籤 ─────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS tags (

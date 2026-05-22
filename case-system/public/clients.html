@@ -104,10 +104,29 @@
         <span class="type-tab active" data-tag="" style="font-size:12px">全部</span>
         <span id="tagFilterRow"></span>
         <button class="btn btn-ghost btn-sm" id="manageTagsBtn" style="font-size:11px">⚙ 管理標籤</button>
+        <button class="btn btn-ghost btn-sm" id="manageCatsBtn" style="font-size:11px">⚙ 管理分類</button>
       </div>
 
       <!-- 客戶卡片列表 -->
       <div id="clientList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 管理分類 Modal -->
+<div class="modal-overlay" id="catMgrModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>管理客戶分類</h3>
+      <button class="modal-close" onclick="document.getElementById('catMgrModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">
+        <div class="form-group" style="flex:2;margin:0"><label>分類名稱</label><input type="text" id="newCatName" placeholder="例：設計師"></div>
+        <div class="form-group" style="flex:1;margin:0"><label>折扣率</label><input type="number" id="newCatDiscount" value="1" step="0.01" min="0" max="1" placeholder="0.85"></div>
+        <button class="btn btn-primary btn-sm" onclick="createCategory()" style="height:36px">新增</button>
+      </div>
+      <div id="catMgrList"></div>
     </div>
   </div>
 </div>
@@ -168,6 +187,12 @@
       </div>
       <div class="form-group"><label>名片地址</label><input type="text" id="cm_address"></div>
       <div class="form-row">
+        <div class="form-group"><label>客戶分類</label>
+          <select id="cm_category_id" onchange="onCategoryChange()">
+            <option value="">不指定</option>
+          </select>
+          <div id="cm_category_discount_hint" style="font-size:11px;color:#6b7280;margin-top:3px;display:none"></div>
+        </div>
         <div class="form-group"><label>客戶等級</label>
           <select id="cm_client_level">
             <option value="">不指定</option>
@@ -177,6 +202,8 @@
           </select>
           <div id="cm_level_hint" style="font-size:11px;margin-top:4px;color:#92400e;display:none"></div>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>來源</label>
           <select id="cm_source">
             <option value="">不指定</option>
@@ -251,7 +278,77 @@ async function applyLevel(cid, level) {
 
 let allClients = [], activeSource = '', searchQ = '', activeTag = '';
 let clientCases = {};
-let allTags = [];
+let allTags = [], allCategories = [];
+
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  allCategories = res.ok ? await res.json() : [];
+  renderCategorySelect();
+  renderCatMgrList();
+}
+
+function renderCategorySelect() {
+  const sel = document.getElementById('cm_category_id');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">不指定</option>` +
+    allCategories.map(c => `<option value="${c.id}">${c.name}（${Math.round(c.discount_rate*100)}折）</option>`).join('');
+  sel.value = cur;
+}
+
+function onCategoryChange() {
+  const sel = document.getElementById('cm_category_id');
+  const hint = document.getElementById('cm_category_discount_hint');
+  const cat = allCategories.find(c => c.id === +sel.value);
+  if (cat) {
+    const pct = Math.round(cat.discount_rate * 100);
+    hint.style.display = 'block';
+    hint.textContent = `此分類折扣：${pct}折（${cat.discount_rate}）`;
+    document.getElementById('cm_discount').value = cat.discount_rate;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+function renderCatMgrList() {
+  const el = document.getElementById('catMgrList');
+  if (!el) return;
+  el.innerHTML = allCategories.length
+    ? allCategories.map(c => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="flex:1;font-size:14px;font-weight:500">${c.name}</span>
+          <span style="font-size:13px;color:var(--gray-500)">${Math.round(c.discount_rate*100)}折</span>
+          <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCategory(${c.id})">刪除</button>
+        </div>`).join('')
+    : `<p style="font-size:13px;color:var(--gray-500);text-align:center">尚無分類</p>`;
+}
+
+async function createCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  const discount_rate = parseFloat(document.getElementById('newCatDiscount').value) || 1;
+  if (!name) return;
+  const res = await fetch('/api/categories', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, discount_rate}) });
+  if (res.ok) {
+    const cat = await res.json();
+    allCategories.push(cat);
+    document.getElementById('newCatName').value = '';
+    document.getElementById('newCatDiscount').value = '1';
+    renderCategorySelect();
+    renderCatMgrList();
+    showToast(`分類「${name}」已建立`);
+  }
+}
+
+async function deleteCategory(id) {
+  const res = await fetch(`/api/categories/${id}`, { method:'DELETE' });
+  if (res.ok) {
+    allCategories = allCategories.filter(c => c.id !== id);
+    renderCategorySelect();
+    renderCatMgrList();
+    clientCases = {};
+    await loadClients();
+  }
+}
 
 async function loadTags() {
   const res = await fetch('/api/tags');
@@ -330,11 +427,16 @@ function renderTagPicker(selectedTagIds) {
 async function init() {
   await loadUser();
   highlightNav('clients');
-  await Promise.all([loadClients(), loadTags()]);
+  await Promise.all([loadClients(), loadTags(), loadCategories()]);
 
   document.getElementById('manageTagsBtn').addEventListener('click', () => {
     renderTagMgrList();
     document.getElementById('tagMgrModal').classList.add('open');
+  });
+
+  document.getElementById('manageCatsBtn').addEventListener('click', () => {
+    renderCatMgrList();
+    document.getElementById('catMgrModal').classList.add('open');
   });
 
   document.querySelectorAll('[data-tag=""]').forEach(tab => {
@@ -482,6 +584,8 @@ function openClientModal(id) {
     document.getElementById('cm_einvoice_code').value   = c.einvoice_code || '';
     document.getElementById('cm_address').value         = c.address || '';
     document.getElementById('cm_client_level').value    = c.client_level || '';
+    document.getElementById('cm_category_id').value     = c.category_id || '';
+    onCategoryChange();
     document.getElementById('cm_source').value          = c.source || '';
     document.getElementById('cm_payment_terms').value   = c.payment_terms || '';
     document.getElementById('cm_discount_terms').value  = c.discount_terms || '';
@@ -496,6 +600,8 @@ function openClientModal(id) {
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('cm_source').value       = '';
     document.getElementById('cm_client_level').value = '';
+    document.getElementById('cm_category_id').value  = '';
+    document.getElementById('cm_category_discount_hint').style.display = 'none';
     document.getElementById('cm_discount').value     = '1';
   }
   document.getElementById('cm_card_filename').textContent = '（支援 JPG、PNG）';
@@ -542,6 +648,7 @@ async function saveClient() {
     capital:         g('cm_capital'),
     referrer:        g('cm_referrer'),
     line_group_name: g('cm_line_group_name'),
+    category_id:     document.getElementById('cm_category_id').value || null,
     discount:        parseFloat(document.getElementById('cm_discount').value) || 1,
     notes:           g('cm_notes'),
   };
