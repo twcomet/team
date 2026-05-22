@@ -52,9 +52,35 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// 頁面 → 對應的 permission key（owner 永遠放行）
+const PAGE_PERMS = {
+  dashboard:  'page_dashboard',
+  cases:      'page_cases',
+  'case-detail': 'page_cases',
+  clients:    'page_clients',
+  calendar:   'page_calendar',
+  payments:   'page_payments',
+  admin:      'manage_users',
+};
+
+function requirePagePerm(page) {
+  return (req, res, next) => {
+    const u = req.session.user;
+    if (!u) return res.redirect('/');
+    if (u.role === 'owner') return next();
+    const key = PAGE_PERMS[page];
+    if (!key) return next();
+    // page_xxx 存在 u.permissions；manage_users 直接在 u
+    const p = u.permissions || {};
+    const allowed = key === 'manage_users' ? !!u.manage_users : (p[key] !== false);
+    if (!allowed) return res.redirect('/my-tasks');
+    next();
+  };
+}
+
 const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks'];
 pages.forEach(page => {
-  app.get(`/${page}`, requireAuth, (req, res) => {
+  app.get(`/${page}`, requireAuth, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));
   });
 });
