@@ -226,7 +226,7 @@ function renderStats() {
 function render() {
   const list = allClients.filter(c => {
     if (activeSource && c.source !== activeSource) return false;
-    if (searchQ && !`${c.name} ${c.phone || ''} ${c.email || ''}`.toLowerCase().includes(searchQ)) return false;
+    if (searchQ && !`${c.name} ${c.contact_person || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase().includes(searchQ)) return false;
     return true;
   });
   const el = document.getElementById('clientList');
@@ -245,6 +245,7 @@ function render() {
             ${srcLabel ? `<span class="source-tag ${srcCls}" style="margin-left:8px">${srcLabel}</span>` : ''}
           </div>
           <div class="cc-meta">
+            ${c.contact_person ? `👤 ${c.contact_person}　` : ''}${c.client_level ? `[${c.client_level}級]　` : ''}
             ${c.phone ? `📞 ${c.phone}` : ''}
             ${c.email ? `　✉️ ${c.email}` : ''}
             ${c.address ? `　📍 ${c.address}` : ''}
