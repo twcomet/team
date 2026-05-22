@@ -71,6 +71,7 @@ router.get('/', requireAuth, (req, res) => {
     p.push(me.id);
   }
   if (status)    { q += ` AND c.status = ?`;         p.push(status); }
+  if (req.query.active) { q += ` AND c.status NOT IN ('closed','invalid')`; }
   if (case_type) { q += ` AND c.case_type = ?`;      p.push(case_type); }
   if (date_from) { q += ` AND c.scheduled_date >= ?`; p.push(date_from); }
   if (date_to)   { q += ` AND c.scheduled_date <= ?`; p.push(date_to); }

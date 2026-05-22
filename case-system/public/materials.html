@@ -63,6 +63,15 @@
 .branch-tab.active { background:var(--primary); border-color:var(--primary); color:#fff; }
 .branch-badge { display:inline-block; padding:1px 7px; border-radius:4px; font-size:11px;
                 font-weight:600; background:#e0f2fe; color:#0369a1; }
+
+.case-option { padding:9px 12px; cursor:pointer; display:flex; align-items:center; gap:8px;
+               border-bottom:1px solid var(--gray-100); font-size:13px; transition:background .1s; }
+.case-option:last-child { border-bottom:none; }
+.case-option:hover { background:var(--gray-50); }
+.case-option.selected { background:rgba(255,0,128,.07); border-left:3px solid var(--primary); }
+.case-option .case-num { font-family:monospace; font-size:11px; color:var(--gray-500); white-space:nowrap; }
+.case-option .case-title { font-weight:600; flex:1; }
+.case-option .case-client { font-size:12px; color:var(--gray-500); white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -248,6 +257,58 @@
   </div>
 </div>
 
+<!-- 銷貨／扣庫 Modal -->
+<div class="modal-overlay" id="sellModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="sellModalTitle">銷貨／扣庫</h3>
+      <button class="modal-close" onclick="closeSellModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>選擇捲料 *</label>
+        <select id="s_roll_id" onchange="updateRollRemaining()">
+          <option value="">載入中…</option>
+        </select>
+        <div id="s_roll_remaining" style="font-size:12px;margin-top:4px"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>用途 *</label>
+          <select id="s_type">
+            <option value="case_cut">案場切料</option>
+            <option value="case_loss">案場損失重貼</option>
+            <option value="store_sale">門市銷售</option>
+            <option value="academy">學院使用</option>
+            <option value="ecommerce">電商訂單</option>
+            <option value="adjust">庫存調整</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>使用米數 *</label>
+          <input type="number" id="s_meters" min="0.1" step="0.1" placeholder="3.5" oninput="updateSellPreview()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>關聯案件（選填）</label>
+        <input type="text" id="s_case_search" placeholder="搜尋案件名稱、編號或客戶…"
+          oninput="filterSellCases()" autocomplete="off"
+          style="margin-bottom:6px;width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <input type="hidden" id="s_case_id">
+        <div id="s_case_list" style="border:1px solid var(--gray-200);border-radius:8px;max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div id="s_preview" style="background:var(--gray-50);border-radius:8px;padding:10px 14px;font-size:13px;display:none;margin-top:4px">
+        扣除 <strong id="s_preview_meters"></strong> 米後，剩餘 <strong id="s_preview_remaining"></strong> 米
+      </div>
+      <div class="form-group" style="margin-top:10px"><label>備注</label><textarea id="s_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSellModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveSell()">確認扣庫</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let materials = [];
@@ -257,6 +318,9 @@ let logTargetRollId = null;
 let expandedRows = new Set();
 let activeBranch = null;   // null = 全部
 let knownBranches = [];
+let activeCases = [];
+let sellTargetMatId = null;
+let sellRolls = [];
 
 const LOG_LABELS = {
   purchase:'進貨', case_cut:'案場切料', case_loss:'案場損失重貼',
@@ -266,8 +330,12 @@ const LOG_LABELS = {
 async function init() {
   await loadUser();
   highlightNav('materials');
-  await loadMaterials();
-  await loadBranches();
+  await Promise.all([loadMaterials(), loadBranches(), loadActiveCases()]);
+}
+
+async function loadActiveCases() {
+  const res = await fetch('/api/cases?active=1');
+  activeCases = res.ok ? await res.json() : [];
 }
 
 async function loadMaterials() {
@@ -368,6 +436,7 @@ function renderTable(list) {
       <td style="font-size:12px;color:var(--gray-500)">${m.notes||''}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-primary btn-sm" onclick="openRollModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">＋進貨</button>
+        <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="openSellModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">銷貨</button>
         <button class="btn btn-ghost btn-sm" onclick="openMatEdit(${m.id});event.stopPropagation()">編輯</button>
         <button class="btn btn-danger btn-sm" onclick="deleteMat(${m.id});event.stopPropagation()">刪除</button>
       </td>
@@ -459,6 +528,121 @@ async function loadRolls(matId) {
   }
 
   el.innerHTML = html;
+}
+
+// ── 銷貨／扣庫 ───────────────────────────────────────────────
+
+async function openSellModal(matId, name) {
+  sellTargetMatId = matId;
+  document.getElementById('sellModalTitle').textContent = `銷貨／扣庫 — ${name}`;
+  document.getElementById('s_meters').value = '';
+  document.getElementById('s_notes').value = '';
+  document.getElementById('s_case_search').value = '';
+  document.getElementById('s_case_id').value = '';
+  document.getElementById('s_preview').style.display = 'none';
+  document.getElementById('s_type').value = 'case_cut';
+
+  // 載入此膜料的可用捲料
+  const res = await fetch(`/api/materials/${matId}/rolls`);
+  sellRolls = res.ok ? await res.json() : [];
+  const active = sellRolls.filter(r => r.status === 'active');
+  const sel = document.getElementById('s_roll_id');
+  if (!active.length) {
+    sel.innerHTML = '<option value="">（無可用捲料，請先進貨）</option>';
+  } else {
+    sel.innerHTML = active.map(r =>
+      `<option value="${r.id}">[${r.branch||'總部'}] ${r.roll_no||'#'+r.id} — 剩餘 ${(r.remaining_meters||0).toFixed(1)}米${r.location?' 📍'+r.location:''}</option>`
+    ).join('');
+  }
+  updateRollRemaining();
+  renderSellCaseList('');
+  document.getElementById('sellModal').classList.add('open');
+}
+
+function closeSellModal() { document.getElementById('sellModal').classList.remove('open'); }
+
+function updateRollRemaining() {
+  const rid = document.getElementById('s_roll_id').value;
+  const roll = sellRolls.find(r => r.id == rid);
+  const el = document.getElementById('s_roll_remaining');
+  if (roll) {
+    el.textContent = `目前剩餘：${(roll.remaining_meters||0).toFixed(1)} 米`;
+    el.style.color = roll.remaining_meters < 5 ? 'var(--danger)' : 'var(--gray-500)';
+  } else { el.textContent = ''; }
+  updateSellPreview();
+}
+
+function updateSellPreview() {
+  const rid = document.getElementById('s_roll_id').value;
+  const meters = parseFloat(document.getElementById('s_meters').value);
+  const roll = sellRolls.find(r => r.id == rid);
+  const el = document.getElementById('s_preview');
+  if (roll && meters > 0) {
+    const remaining = Math.max(0, (roll.remaining_meters||0) - meters);
+    document.getElementById('s_preview_meters').textContent = meters + ' 米';
+    const rem = document.getElementById('s_preview_remaining');
+    rem.textContent = remaining.toFixed(1);
+    rem.style.color = remaining < 5 ? 'var(--danger)' : 'var(--success)';
+    el.style.display = 'block';
+  } else { el.style.display = 'none'; }
+}
+
+function filterSellCases() {
+  renderSellCaseList(document.getElementById('s_case_search').value.toLowerCase());
+}
+
+function renderSellCaseList(q) {
+  const list = q
+    ? activeCases.filter(c =>
+        (c.case_number||'').toLowerCase().includes(q) ||
+        (c.title||'').toLowerCase().includes(q) ||
+        (c.client_name||'').toLowerCase().includes(q))
+    : activeCases;
+  const selectedId = String(document.getElementById('s_case_id').value);
+  const el = document.getElementById('s_case_list');
+  if (!list.length) {
+    el.innerHTML = `<div style="padding:12px;color:var(--gray-500);font-size:13px;text-align:center">沒有符合的案件</div>`;
+    return;
+  }
+  const shown = list.slice(0, 25);
+  el.innerHTML = shown.map(c => `
+    <div class="case-option ${selectedId == c.id ? 'selected' : ''}"
+      onclick="selectSellCase(${c.id})">
+      <span class="case-num">${c.case_number}</span>
+      <span class="case-title">${c.title||''}</span>
+      <span class="case-client">👤 ${c.client_name||'—'}</span>
+    </div>`).join('') +
+    (list.length > 25 ? `<div style="padding:8px;color:var(--gray-400);font-size:12px;text-align:center">還有 ${list.length-25} 筆，請搜尋縮小範圍</div>` : '');
+}
+
+function selectSellCase(id) {
+  const prev = document.getElementById('s_case_id').value;
+  document.getElementById('s_case_id').value = (prev == id) ? '' : id;  // 再次點擊取消選取
+  renderSellCaseList(document.getElementById('s_case_search').value.toLowerCase());
+}
+
+async function saveSell() {
+  const rid = document.getElementById('s_roll_id').value;
+  const meters = parseFloat(document.getElementById('s_meters').value);
+  if (!rid) { alert('請選擇捲料'); return; }
+  if (!meters || meters <= 0) { alert('請填寫使用米數'); return; }
+  const body = {
+    log_type: document.getElementById('s_type').value,
+    case_id:  document.getElementById('s_case_id').value || null,
+    meters,
+    notes:    document.getElementById('s_notes').value.trim() || null,
+  };
+  const res = await fetch(`/api/materials/rolls/${rid}/logs`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    closeSellModal();
+    await loadMaterials();
+    expandedRows.forEach(id => loadRolls(id));
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || '操作失敗');
+  }
 }
 
 // ── 膜料 CRUD ────────────────────────────────────────────────
