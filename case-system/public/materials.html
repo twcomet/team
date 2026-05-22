@@ -332,6 +332,7 @@ let logTargetRollId = null;
 let expandedRows = new Set();
 let activeBranch = null;   // null = 全部
 let knownBranches = [];
+let showFinishedSet = new Set();  // 哪些 matId 要顯示已用完捲料
 let activeCases = [];
 let sellTargetMatId = null;
 let sellRolls = [];
@@ -483,6 +484,12 @@ async function toggleRolls(matId) {
   applyFilters();
 }
 
+function toggleFinished(matId) {
+  if (showFinishedSet.has(matId)) showFinishedSet.delete(matId);
+  else showFinishedSet.add(matId);
+  loadRolls(matId);
+}
+
 async function loadRolls(matId) {
   const el = document.getElementById(`rolls-content-${matId}`);
   if (!el) return;
@@ -501,15 +508,28 @@ async function loadRolls(matId) {
     logsByRoll[l.roll_id].push(l);
   });
 
-  const branchLabel = activeBranch ? ` — ${activeBranch}` : '';
+  const showFinished = showFinishedSet.has(matId);
+  const activeRolls   = rolls.filter(r => r.status === 'active');
+  const finishedRolls = rolls.filter(r => r.status !== 'active');
+  const visibleRolls  = showFinished ? rolls : activeRolls;
+  const branchLabel   = activeBranch ? ` — ${activeBranch}` : '';
+
   let html = `<div class="roll-header">
-    <div class="roll-title">🎞️ 捲料明細（${rolls.length} 支${branchLabel}）</div>
+    <div class="roll-title">🎞️ 捲料明細（使用中 ${activeRolls.length} 支${branchLabel}）</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      ${finishedRolls.length ? `
+        <button class="btn btn-ghost btn-sm" onclick="toggleFinished(${matId})" style="font-size:12px">
+          ${showFinished ? '隱藏已用完' : `顯示已用完（${finishedRolls.length} 支）`}
+        </button>` : ''}
+    </div>
   </div>`;
 
   if (!rolls.length) {
     html += `<div style="color:var(--gray-500);font-size:13px;padding:8px 0">尚無捲料紀錄。點「＋進貨」新增第一支。</div>`;
+  } else if (!visibleRolls.length) {
+    html += `<div style="color:var(--gray-500);font-size:13px;padding:8px 0">目前無使用中捲料。<button class="btn btn-ghost btn-sm" onclick="toggleFinished(${matId})">顯示已用完（${finishedRolls.length} 支）</button></div>`;
   } else {
-    rolls.forEach(r => {
+    visibleRolls.forEach(r => {
       const rLogs = logsByRoll[r.id] || [];
       html += `<div style="margin-bottom:16px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-50)">
