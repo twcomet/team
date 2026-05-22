@@ -14,6 +14,13 @@
 .stat-card .value.danger  { color:#e02424; }
 .stat-card .value.warning { color:#c27803; }
 .filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.tab-bar { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:20px; }
+.tab-btn { padding:10px 22px; font-size:14px; font-weight:500; cursor:pointer; border:none; background:none; color:var(--gray-500); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; }
+.tab-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
+.ledger-income  { color:#057a55; font-weight:600; }
+.ledger-expense { color:#e02424; font-weight:600; }
+.badge-income  { background:#def7ec; color:#057a55; padding:2px 8px; border-radius:20px; font-size:11px; }
+.badge-expense { background:#fde8e8; color:#e02424; padding:2px 8px; border-radius:20px; font-size:11px; }
 </style>
 </head>
 <body>
@@ -25,6 +32,7 @@
       <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
       <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
       <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
       <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
@@ -37,65 +45,95 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">收款追蹤</span>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px" id="topBarActions">
         <input type="text" id="searchInput" placeholder="🔍 搜尋案號、客戶…"
                style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:200px">
       </div>
     </div>
     <div class="page-body">
 
-      <!-- 統計卡片 -->
-      <div class="stats-grid" id="paymentStats"></div>
-
-      <!-- 篩選列 -->
-      <div class="filter-bar">
-        <label style="font-size:13px;color:var(--gray-600)">收款狀態</label>
-        <select id="filterPayment" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部</option>
-          <option value="unpaid">未收款</option>
-          <option value="partial">部分收款</option>
-          <option value="paid">已收款</option>
-          <option value="overdue">逾期</option>
-        </select>
-        <label style="font-size:13px;color:var(--gray-600)">案件階段</label>
-        <select id="filterStatus" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部</option>
-          <option value="confirmed">已成交</option>
-          <option value="scheduled">已排程</option>
-          <option value="in_progress">施工中</option>
-          <option value="completed">完工</option>
-          <option value="aftersales">售後</option>
-          <option value="closed">結案</option>
-        </select>
-        <button class="btn btn-ghost btn-sm" id="clearBtn">清除篩選</button>
+      <!-- Tab 切換 -->
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabCases" onclick="switchTab('cases')">案件收款</button>
+        <button class="tab-btn"        id="tabLedger" onclick="switchTab('ledger')">流水帳</button>
       </div>
 
-      <!-- 表格 -->
-      <div class="card">
-        <div class="card-body" style="padding:0">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>案號</th>
-                  <th>客戶</th>
-                  <th>項目</th>
-                  <th>施工日</th>
-                  <th>成交金額</th>
-                  <th>含稅總額</th>
-                  <th>訂金</th>
-                  <th>已收</th>
-                  <th>待收</th>
-                  <th>收款狀態</th>
-                  <th>業務</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="payBody"></tbody>
-            </table>
+      <!-- ===== 案件收款 tab ===== -->
+      <div id="panelCases">
+        <div class="stats-grid" id="paymentStats"></div>
+        <div class="filter-bar">
+          <label style="font-size:13px;color:var(--gray-600)">收款狀態</label>
+          <select id="filterPayment" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+            <option value="unpaid">未收款</option>
+            <option value="partial">部分收款</option>
+            <option value="paid">已收款</option>
+            <option value="overdue">逾期</option>
+          </select>
+          <label style="font-size:13px;color:var(--gray-600)">案件階段</label>
+          <select id="filterStatus" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+            <option value="confirmed">已成交</option>
+            <option value="scheduled">已排程</option>
+            <option value="in_progress">施工中</option>
+            <option value="completed">完工</option>
+            <option value="aftersales">售後</option>
+            <option value="closed">結案</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="clearBtn">清除篩選</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>案號</th><th>客戶</th><th>項目</th><th>施工日</th>
+                    <th>成交金額</th><th>含稅總額</th><th>訂金</th>
+                    <th>已收</th><th>待收</th><th>收款狀態</th><th>業務</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="payBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- ===== 流水帳 tab ===== -->
+      <div id="panelLedger" style="display:none">
+        <div class="stats-grid" id="ledgerStats"></div>
+        <div class="filter-bar">
+          <label style="font-size:13px;color:var(--gray-600)">月份</label>
+          <input type="month" id="filterMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <label style="font-size:13px;color:var(--gray-600)">類型</label>
+          <select id="filterLedgerType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+            <option value="income">收入</option>
+            <option value="expense">支出</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="clearLedgerBtn">清除篩選</button>
+          <button class="btn btn-primary btn-sm" onclick="openLedgerModal()">＋ 新增</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th><th>類型</th><th>類別</th><th>說明</th>
+                    <th>關聯案件</th><th style="text-align:right">收入</th>
+                    <th style="text-align:right">支出</th><th>登記人</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="ledgerBody"></tbody>
+                <tfoot id="ledgerFoot"></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -131,14 +169,77 @@
   </div>
 </div>
 
+<!-- 流水帳新增/編輯 Modal -->
+<div class="modal-overlay" id="ledgerModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3 id="ledgerModalTitle">新增帳務記錄</h3>
+      <button class="modal-close" onclick="document.getElementById('ledgerModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ledgerEntryId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>日期 *</label>
+          <input type="date" id="ledgerDate">
+        </div>
+        <div class="form-group">
+          <label>類型 *</label>
+          <select id="ledgerType" onchange="updateCategoryOptions()">
+            <option value="income">收入</option>
+            <option value="expense">支出</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>類別 *</label>
+          <select id="ledgerCategory"></select>
+        </div>
+        <div class="form-group">
+          <label>金額 *</label>
+          <input type="number" id="ledgerAmount" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>說明</label>
+        <input type="text" id="ledgerDescription" placeholder="例如：HX2605-001 尾款入帳">
+      </div>
+      <div class="form-group">
+        <label>關聯案件（選填）</label>
+        <input type="text" id="ledgerCaseSearch" placeholder="輸入案號搜尋…" autocomplete="off">
+        <input type="hidden" id="ledgerCaseId">
+        <div id="ledgerCaseSuggest" style="display:none;background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;font-size:13px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('ledgerModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" id="ledgerSaveBtn" onclick="saveLedgerEntry()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let allPayments = [], filtered = [];
+let allLedger = [];
+let ledgerCategories = { income: [], expense: [] };
+let currentTab = 'cases';
+let allCases = [];
+
+const INCOME_CATS  = ['施工款','訂金','尾款','材料銷售','其他收入'];
+const EXPENSE_CATS = ['材料費','人工費（外包）','油資/交通','工具耗材','水電費','租金','廣告費','辦公費','稅費','其他支出'];
 
 async function init() {
   await loadUser();
   highlightNav('payments');
-  await loadPayments();
+
+  // 預設月份為本月
+  const now = new Date();
+  document.getElementById('filterMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  updateCategoryOptions();
+  await Promise.all([loadPayments(), loadLedger(), loadCasesForSearch()]);
 
   document.getElementById('filterPayment').addEventListener('change', applyFilter);
   document.getElementById('filterStatus').addEventListener('change', applyFilter);
@@ -147,16 +248,32 @@ async function init() {
     document.getElementById('filterStatus').value = '';
     applyFilter();
   });
-
   let t;
-  document.getElementById('searchInput').addEventListener('input', e => {
-    clearTimeout(t);
-    t = setTimeout(() => applyFilter(), 300);
+  document.getElementById('searchInput').addEventListener('input', () => {
+    clearTimeout(t); t = setTimeout(() => applyFilter(), 300);
   });
+  document.getElementById('filterMonth').addEventListener('change', applyLedgerFilter);
+  document.getElementById('filterLedgerType').addEventListener('change', applyLedgerFilter);
+  document.getElementById('clearLedgerBtn').addEventListener('click', () => {
+    document.getElementById('filterLedgerType').value = '';
+    applyLedgerFilter();
+  });
+
+  // 案件搜尋自動完成
+  document.getElementById('ledgerCaseSearch').addEventListener('input', onCaseSearch);
 }
 
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabCases').classList.toggle('active', tab === 'cases');
+  document.getElementById('tabLedger').classList.toggle('active', tab === 'ledger');
+  document.getElementById('panelCases').style.display  = tab === 'cases'  ? '' : 'none';
+  document.getElementById('panelLedger').style.display = tab === 'ledger' ? '' : 'none';
+  document.getElementById('searchInput').style.display = tab === 'cases'  ? '' : 'none';
+}
+
+// ─── 案件收款 ───────────────────────────────────────────────
 async function loadPayments() {
-  // 只拉有實質金額追蹤意義的案件（排除純詢價、已報價未成交）
   const res = await fetch('/api/cases');
   const all  = await res.json();
   allPayments = all.filter(c => !['inquiry','quoted','survey_scheduled','surveyed'].includes(c.status));
@@ -164,9 +281,9 @@ async function loadPayments() {
 }
 
 function applyFilter() {
-  const ps    = document.getElementById('filterPayment').value;
-  const st    = document.getElementById('filterStatus').value;
-  const q     = document.getElementById('searchInput').value.trim().toLowerCase();
+  const ps = document.getElementById('filterPayment').value;
+  const st = document.getElementById('filterStatus').value;
+  const q  = document.getElementById('searchInput').value.trim().toLowerCase();
   filtered = allPayments.filter(c => {
     if (ps && c.payment_status !== ps) return false;
     if (st && c.status !== st) return false;
@@ -205,22 +322,17 @@ function renderTable(cases) {
     const outstanding = total - recv;
     return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:12px">${c.case_number}</code></td>
-      <td>
-        <div style="font-weight:500">${c.client_name || '—'}</div>
-        <div style="font-size:11px;color:var(--gray-500)">${c.client_phone || ''}</div>
-      </td>
+      <td><div style="font-weight:500">${c.client_name||'—'}</div><div style="font-size:11px;color:var(--gray-500)">${c.client_phone||''}</div></td>
       <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
       <td>${fmtDate(c.scheduled_date)}</td>
-      <td>${base ? fmt(base) : '—'}</td>
-      <td style="font-weight:600">${base ? fmt(total) : '—'}</td>
-      <td>${dep ? fmt(dep) : '—'}</td>
-      <td style="color:#057a55">${recv ? fmt(recv) : '—'}</td>
-      <td style="color:${outstanding > 0 ? '#e02424' : '#057a55'};font-weight:600">${outstanding > 0 ? fmt(outstanding) : '✓ 結清'}</td>
+      <td>${base?fmt(base):'—'}</td>
+      <td style="font-weight:600">${base?fmt(total):'—'}</td>
+      <td>${dep?fmt(dep):'—'}</td>
+      <td style="color:#057a55">${recv?fmt(recv):'—'}</td>
+      <td style="color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓ 結清'}</td>
       <td>${paymentBadge(c.payment_status)}</td>
-      <td>${c.sales_name || '—'}</td>
-      <td onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="openPayModal(${c.id})">更新</button>
-      </td>
+      <td>${c.sales_name||'—'}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openPayModal(${c.id})">更新</button></td>
     </tr>`;
   }).join('');
 }
@@ -233,13 +345,13 @@ function openPayModal(id) {
   document.getElementById('payModalTitle').textContent = `收款更新 — ${c.case_number}`;
   document.getElementById('payingCaseId').value = id;
   document.getElementById('payModalInfo').innerHTML = `
-    <strong>${c.client_name || '（無客戶）'}</strong>｜${c.title}<br>
+    <strong>${c.client_name||'（無客戶）'}</strong>｜${c.title}<br>
     成交金額：<strong>${fmt(base)}</strong>　含稅：<strong>${fmt(total)}</strong>
-    ${c.deposit_amount ? `　訂金：<strong>${fmt(c.deposit_amount)}</strong>` : ''}
+    ${c.deposit_amount?`　訂金：<strong>${fmt(c.deposit_amount)}</strong>`:''}
   `;
-  document.getElementById('payStatus').value    = c.payment_status || 'unpaid';
-  document.getElementById('payReceived').value  = c.payment_received || '';
-  document.getElementById('payNotes').value     = c.payment_notes || '';
+  document.getElementById('payStatus').value   = c.payment_status || 'unpaid';
+  document.getElementById('payReceived').value = c.payment_received || '';
+  document.getElementById('payNotes').value    = c.payment_notes || '';
   document.getElementById('payModal').classList.add('open');
 }
 
@@ -247,8 +359,7 @@ document.getElementById('payConfirm').addEventListener('click', async () => {
   const id = document.getElementById('payingCaseId').value;
   const c  = allPayments.find(x => x.id == id);
   if (!c) return;
-  const body = {
-    ...c,
+  const body = { ...c,
     payment_status:   document.getElementById('payStatus').value,
     payment_received: parseFloat(document.getElementById('payReceived').value) || 0,
     payment_notes:    document.getElementById('payNotes').value,
@@ -261,8 +372,175 @@ document.getElementById('payConfirm').addEventListener('click', async () => {
   } else { showToast('更新失敗', 'error'); }
 });
 
-document.getElementById('payCancel').addEventListener('click',   () => document.getElementById('payModal').classList.remove('open'));
-document.getElementById('payModalClose').addEventListener('click',() => document.getElementById('payModal').classList.remove('open'));
+document.getElementById('payCancel').addEventListener('click',    () => document.getElementById('payModal').classList.remove('open'));
+document.getElementById('payModalClose').addEventListener('click', () => document.getElementById('payModal').classList.remove('open'));
+
+// ─── 流水帳 ──────────────────────────────────────────────────
+async function loadLedger() {
+  const month = document.getElementById('filterMonth').value;
+  let url = '/api/ledger';
+  if (month) url += `?from=${month}-01&to=${month}-31`;
+  const res = await fetch(url);
+  allLedger = await res.json();
+  applyLedgerFilter();
+}
+
+function applyLedgerFilter() {
+  const type = document.getElementById('filterLedgerType').value;
+  const month = document.getElementById('filterMonth').value;
+
+  let rows = allLedger;
+  if (type) rows = rows.filter(r => r.type === type);
+
+  renderLedgerStats(rows);
+  renderLedgerTable(rows);
+}
+
+function renderLedgerStats(rows) {
+  const totalIncome  = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount, 0);
+  const totalExpense = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount, 0);
+  const net = totalIncome - totalExpense;
+  document.getElementById('ledgerStats').innerHTML = `
+    <div class="stat-card"><div class="label">收入合計</div><div class="value success">${fmt(totalIncome)}</div></div>
+    <div class="stat-card"><div class="label">支出合計</div><div class="value danger">${fmt(totalExpense)}</div></div>
+    <div class="stat-card"><div class="label">淨餘</div><div class="value ${net>=0?'success':'danger'}">${fmt(net)}</div></div>
+    <div class="stat-card"><div class="label">筆數</div><div class="value">${rows.length} 筆</div></div>
+  `;
+}
+
+function renderLedgerTable(rows) {
+  const tbody = document.getElementById('ledgerBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="icon">📒</div>尚無帳務記錄</div></td></tr>';
+    document.getElementById('ledgerFoot').innerHTML = '';
+    return;
+  }
+  // 按日期升序計算餘額
+  const sorted = [...rows].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+  let balance = 0;
+  const balances = {};
+  sorted.forEach(r => {
+    balance += r.type === 'income' ? r.amount : -r.amount;
+    balances[r.id] = balance;
+  });
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
+      <td>${r.category}</td>
+      <td style="color:var(--gray-600)">${r.description||'—'}</td>
+      <td>${r.case_number?`<code style="font-size:11px">${r.case_number}</code>`:'—'}</td>
+      <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
+      <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r.created_by_name||'—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editLedgerEntry(${r.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteLedgerEntry(${r.id})">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const totalIncome  = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount, 0);
+  const totalExpense = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount, 0);
+  const net = totalIncome - totalExpense;
+  document.getElementById('ledgerFoot').innerHTML = `
+    <tr style="font-weight:700;background:var(--gray-50)">
+      <td colspan="5">合計</td>
+      <td style="text-align:right;color:#057a55">${fmt(totalIncome)}</td>
+      <td style="text-align:right;color:#e02424">${fmt(totalExpense)}</td>
+      <td colspan="2" style="color:${net>=0?'#057a55':'#e02424'}">淨餘 ${fmt(net)}</td>
+    </tr>
+  `;
+}
+
+function updateCategoryOptions() {
+  const type = document.getElementById('ledgerType').value;
+  const cats = type === 'income' ? INCOME_CATS : EXPENSE_CATS;
+  const sel  = document.getElementById('ledgerCategory');
+  sel.innerHTML = cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+function openLedgerModal(entry = null) {
+  document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : '新增帳務記錄';
+  document.getElementById('ledgerEntryId').value = entry ? entry.id : '';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('ledgerDate').value        = entry ? entry.date : today;
+  document.getElementById('ledgerType').value        = entry ? entry.type : 'income';
+  updateCategoryOptions();
+  document.getElementById('ledgerCategory').value   = entry ? entry.category : INCOME_CATS[0];
+  document.getElementById('ledgerAmount').value      = entry ? entry.amount : '';
+  document.getElementById('ledgerDescription').value = entry ? (entry.description||'') : '';
+  document.getElementById('ledgerCaseSearch').value  = entry ? (entry.case_number||'') : '';
+  document.getElementById('ledgerCaseId').value      = entry ? (entry.case_id||'') : '';
+  document.getElementById('ledgerModal').classList.add('open');
+}
+
+async function editLedgerEntry(id) {
+  const entry = allLedger.find(r => r.id === id);
+  if (entry) openLedgerModal(entry);
+}
+
+async function deleteLedgerEntry(id) {
+  if (!confirm('確定刪除這筆記錄？')) return;
+  const res = await fetch(`/api/ledger/${id}`, { method:'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadLedger(); }
+  else showToast('刪除失敗', 'error');
+}
+
+async function saveLedgerEntry() {
+  const id   = document.getElementById('ledgerEntryId').value;
+  const body = {
+    date:        document.getElementById('ledgerDate').value,
+    type:        document.getElementById('ledgerType').value,
+    category:    document.getElementById('ledgerCategory').value,
+    amount:      parseFloat(document.getElementById('ledgerAmount').value),
+    description: document.getElementById('ledgerDescription').value,
+    case_id:     document.getElementById('ledgerCaseId').value || null,
+  };
+  if (!body.date || !body.amount || isNaN(body.amount)) return showToast('請填寫日期與金額', 'error');
+
+  const url    = id ? `/api/ledger/${id}` : '/api/ledger';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) {
+    document.getElementById('ledgerModal').classList.remove('open');
+    showToast(id ? '已更新' : '已新增');
+    await loadLedger();
+  } else showToast('儲存失敗', 'error');
+}
+
+// 案件搜尋自動完成
+async function loadCasesForSearch() {
+  const res = await fetch('/api/cases');
+  allCases = await res.json();
+}
+
+function onCaseSearch(e) {
+  const q = e.target.value.trim().toLowerCase();
+  const box = document.getElementById('ledgerCaseSuggest');
+  if (!q) { box.style.display='none'; document.getElementById('ledgerCaseId').value=''; return; }
+  const matches = allCases.filter(c => `${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)).slice(0,8);
+  if (!matches.length) { box.style.display='none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(c=>`
+    <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+         onmousedown="selectCase(${c.id},'${c.case_number}')">
+      <code style="font-size:11px">${c.case_number}</code>
+      <span style="margin-left:8px">${c.client_name||''}</span>
+      <span style="color:var(--gray-400);font-size:12px;margin-left:4px">${c.title}</span>
+    </div>
+  `).join('');
+}
+
+function selectCase(id, number) {
+  document.getElementById('ledgerCaseId').value    = id;
+  document.getElementById('ledgerCaseSearch').value = number;
+  document.getElementById('ledgerCaseSuggest').style.display = 'none';
+}
+
+// 月份篩選變更時重新拉資料
+document.getElementById('filterMonth').addEventListener('change', loadLedger);
 
 init();
 </script>

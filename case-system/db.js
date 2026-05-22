@@ -287,6 +287,22 @@ db.exec(`
   );
 `);
 
+// ── 流水帳 ────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ledger_entries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    date        DATE NOT NULL,
+    type        TEXT NOT NULL CHECK(type IN ('income','expense')),
+    category    TEXT NOT NULL,
+    amount      REAL NOT NULL,
+    case_id     INTEGER REFERENCES cases(id),
+    description TEXT,
+    org_id      INTEGER REFERENCES orgs(id),
+    created_by  INTEGER REFERENCES users(id),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // ── 初始資料：總部 + Flora + Dan ────────────────────────────
 const hqExists = db.prepare(`SELECT id FROM orgs WHERE type = 'hq' LIMIT 1`).get();
 if (!hqExists) {
