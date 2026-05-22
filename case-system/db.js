@@ -1,8 +1,14 @@
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
 
-const db = new DatabaseSync(path.join(__dirname, 'huixin.db'));
+// Zeabur volume 掛載在 /data，本機開發用專案目錄
+const DB_DIR  = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : __dirname;
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, 'huixin.db');
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+
+const db = new DatabaseSync(DB_FILE);
 
 db.exec(`PRAGMA journal_mode = WAL;`);
 db.exec(`PRAGMA foreign_keys = ON;`);

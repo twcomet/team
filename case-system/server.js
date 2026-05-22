@@ -4,7 +4,12 @@ const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
 require('./db'); // 初始化資料庫
 
+const fs   = require('fs');
 const { requireAuth, requireOwner } = require('./middleware/auth');
+
+// 確保資料目錄存在（Zeabur volume）
+const dataDir = process.env.DB_PATH ? require('path').dirname(process.env.DB_PATH) : __dirname;
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.db', dir: __dirname }),
+  store: new SQLiteStore({ db: 'sessions.db', dir: dataDir }),
   secret: process.env.SESSION_SECRET || 'huixin-internal-2024',
   resave: false,
   saveUninitialized: false,
