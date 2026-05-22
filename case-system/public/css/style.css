@@ -128,9 +128,11 @@ tr:hover td { background: var(--gray-50); }
 .cal-revenue.over { color: var(--danger); }
 .cal-revenue.under { color: var(--warning); }
 .cal-revenue.ok { color: var(--success); }
-.cal-case-pill { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #dbeafe; color: #1e40af; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-case-pill.in_progress { background: #fed7aa; color: #92400e; }
-.cal-case-pill.completed { background: #d1fae5; color: #065f46; }
+.cal-case-pill { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e5e7eb; color: #374151; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-case-pill.survey      { background: #dbeafe; color: #1e40af; }
+.cal-case-pill.contracted  { background: #fee2e2; color: #991b1b; }
+.cal-case-pill.payment     { background: #fed7aa; color: #92400e; }
+.cal-case-pill.closed      { background: #d1fae5; color: #065f46; }
 .unscheduled-list { margin-top: 20px; }
 .unscheduled-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 8px; background: #fff; }
 .unscheduled-item .case-num { font-size: 12px; color: var(--gray-500); font-family: monospace; }
