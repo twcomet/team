@@ -204,8 +204,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>店別 *</label>
-          <input type="text" id="r_branch" placeholder="總部" list="branchDatalist">
-          <datalist id="branchDatalist"></datalist>
+          <select id="r_branch"></select>
         </div>
         <div class="form-group"><label>存放位置</label><input type="text" id="r_location" placeholder="N-1 第3支…"></div>
       </div>
@@ -347,13 +346,14 @@ async function loadMaterials() {
 }
 
 async function loadBranches() {
-  const res = await fetch('/api/materials/branches');
-  knownBranches = res.ok ? await res.json() : ['總部'];
-  if (!knownBranches.includes('總部')) knownBranches.unshift('總部');
+  const res = await fetch('/api/orgs');
+  const orgs = res.ok ? await res.json() : [];
+  knownBranches = orgs.filter(o => o.active !== 0).map(o => o.name);
+  if (!knownBranches.length) knownBranches = ['總部'];
   renderBranchTabs();
-  // update datalist
-  const dl = document.getElementById('branchDatalist');
-  dl.innerHTML = knownBranches.map(b => `<option value="${b}">`).join('');
+  // 更新進貨 modal 的店別下拉
+  const sel = document.getElementById('r_branch');
+  sel.innerHTML = knownBranches.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
 function renderBranchTabs() {
@@ -702,7 +702,7 @@ function openRollModal(matId, name) {
   ['r_roll_no','r_notes','r_location'].forEach(id => document.getElementById(id).value = '');
   ['r_initial_meters','r_unit_cost'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('r_purchase_date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('r_branch').value = activeBranch || '總部';
+  document.getElementById('r_branch').value = activeBranch || knownBranches[0] || '總部';
   // 預填型號成本
   const mat = materials.find(m => m.id === matId);
   if (mat?.unit_cost) document.getElementById('r_unit_cost').value = mat.unit_cost;
@@ -729,7 +729,6 @@ async function saveRoll() {
     closeRollModal();
     expandedRows.add(rollTargetMatId);
     await loadMaterials();
-    await loadBranches();
   }
 }
 
