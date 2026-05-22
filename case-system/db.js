@@ -255,7 +255,7 @@ _addCol('cases',     'photo_upload_url',  'TEXT');
 _addCol('cases',     'outsource_cost',    'REAL');
 _addCol('cases',     'shipping_cost',     'REAL');
 _addCol('cases',     'other_cost',        'REAL');
-_addCol('materials', 'location',          'TEXT');
+// materials.location 移到 CREATE TABLE 之後處理（避免全新 DB 的 ALTER TABLE 時序錯誤）
 
 // ── 個別捲料 ──────────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS material_rolls (
@@ -300,12 +300,14 @@ db.exec(`CREATE TABLE IF NOT EXISTS materials (
   model        TEXT NOT NULL,
   color        TEXT,
   spec         TEXT,
+  location     TEXT,
   unit_cost    REAL DEFAULT 0,
   unit_price   REAL DEFAULT 0,
   stock_meters REAL DEFAULT 0,
   notes        TEXT,
   created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
+_addCol('materials', 'location', 'TEXT');  // 舊 DB 補欄位
 
 // ── 膜料使用紀錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
