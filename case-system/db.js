@@ -287,6 +287,17 @@ db.exec(`
   );
 `);
 
+// ── 流水帳科目 ──────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ledger_categories (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    type       TEXT NOT NULL CHECK(type IN ('income','expense')),
+    name       TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    active     INTEGER DEFAULT 1
+  );
+`);
+
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS ledger_entries (
@@ -302,6 +313,16 @@ db.exec(`
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// 初始會計科目（只在空的時候 seed）
+const catExists = db.prepare(`SELECT id FROM ledger_categories LIMIT 1`).get();
+if (!catExists) {
+  const incomes  = ['施工款','訂金','尾款','材料銷售','設計費','其他收入'];
+  const expenses = ['材料費','人工費（外包）','油資/交通','工具耗材','水電費','租金','廣告費','辦公費','稅費','其他支出'];
+  const ins = db.prepare(`INSERT INTO ledger_categories (type, name, sort_order) VALUES (?, ?, ?)`);
+  incomes.forEach((n,i)  => ins.run('income',  n, i));
+  expenses.forEach((n,i) => ins.run('expense', n, i));
+}
 
 // ── 初始資料：總部 + Flora + Dan ────────────────────────────
 const hqExists = db.prepare(`SELECT id FROM orgs WHERE type = 'hq' LIMIT 1`).get();

@@ -1,35 +1,71 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireOwner, orgFilter } = require('../middleware/auth');
 const router = express.Router();
 
-// 收入類別
-const INCOME_CATEGORIES  = ['施工款','訂金','尾款','材料銷售','其他收入'];
-// 支出類別
-const EXPENSE_CATEGORIES = ['材料費','人工費（外包）','油資/交通','工具耗材','水電費','租金','廣告費','辦公費','稅費','其他支出'];
-
-// GET /api/ledger?from=&to=&type=&org_id=
-router.get('/', requireAuth, (req, res) => {
-  const { from, to, type, org_id } = req.query;
-  let sql = `
-    SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title
-    FROM ledger_entries l
-    LEFT JOIN users u ON l.created_by = u.id
-    LEFT JOIN cases c ON l.case_id = c.id
-    WHERE 1=1
-  `;
-  const params = [];
-  if (from)   { sql += ' AND l.date >= ?'; params.push(from); }
-  if (to)     { sql += ' AND l.date <= ?'; params.push(to); }
-  if (type)   { sql += ' AND l.type = ?'; params.push(type); }
-  if (org_id) { sql += ' AND l.org_id = ?'; params.push(org_id); }
-  sql += ' ORDER BY l.date DESC, l.id DESC';
-  res.json(db.prepare(sql).all(...params));
-});
+// ── 會計科目 CRUD ─────────────────────────────────────────────
 
 // GET /api/ledger/categories
 router.get('/categories', requireAuth, (req, res) => {
-  res.json({ income: INCOME_CATEGORIES, expense: EXPENSE_CATEGORIES });
+  const rows = db.prepare(`SELECT * FROM ledger_categories ORDER BY type, sort_order, id`).all();
+  res.json(rows);
+});
+
+// POST /api/ledger/categories  (owner only)
+router.post('/categories', requireOwner, (req, res) => {
+  const { type, name } = req.body;
+  if (!type || !name?.trim()) return res.status(400).json({ error: '必填欄位不完整' });
+  const maxOrder = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE type=?`).get(type).m;
+  const r = db.prepare(`INSERT INTO ledger_categories (type, name, sort_order) VALUES (?, ?, ?)`).run(type, name.trim(), maxOrder + 1);
+  res.json({ id: r.lastInsertRowid });
+});
+
+// PUT /api/ledger/categories/:id  (owner only)
+router.put('/categories/:id', requireOwner, (req, res) => {
+  const { name, sort_order, active } = req.body;
+  db.prepare(`UPDATE ledger_categories SET name=?, sort_order=?, active=? WHERE id=?`)
+    .run(name, sort_order ?? 0, active ?? 1, req.params.id);
+  res.json({ ok: true });
+});
+
+// DELETE /api/ledger/categories/:id  (owner only)
+router.delete('/categories/:id', requireOwner, (req, res) => {
+  db.prepare(`DELETE FROM ledger_categories WHERE id=?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── 流水帳 CRUD ───────────────────────────────────────────────
+
+// GET /api/ledger?from=&to=&type=&org_id=
+router.get('/', requireAuth, (req, res) => {
+  const user = req.session.user;
+  const { from, to, type } = req.query;
+  const orgRestrict = orgFilter(user);
+
+  let sql = `
+    SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title,
+           o.name as org_name
+    FROM ledger_entries l
+    LEFT JOIN users u ON l.created_by = u.id
+    LEFT JOIN cases c ON l.case_id = c.id
+    LEFT JOIN orgs  o ON l.org_id  = o.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  // 非跨分店角色只能看自己的 org
+  if (orgRestrict.org_id) {
+    sql += ' AND l.org_id = ?'; params.push(orgRestrict.org_id);
+  } else if (req.query.org_id) {
+    sql += ' AND l.org_id = ?'; params.push(req.query.org_id);
+  }
+
+  if (from) { sql += ' AND l.date >= ?'; params.push(from); }
+  if (to)   { sql += ' AND l.date <= ?'; params.push(to);   }
+  if (type) { sql += ' AND l.type = ?';  params.push(type); }
+
+  sql += ' ORDER BY l.date DESC, l.id DESC';
+  res.json(db.prepare(sql).all(...params));
 });
 
 // POST /api/ledger
