@@ -3,1710 +3,1995 @@
     "brand": "3M",
     "model": "AE-2160",
     "spec": "塗料",
+    "location": "未歸位",
     "stock": 30.2
   },
   {
     "brand": "3M",
     "model": "DW-2474MT",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "3M",
     "model": "FW-336",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 22.5
   },
   {
     "brand": "3M",
     "model": "FW-7011",
     "spec": "木紋",
+    "location": "N-7",
     "stock": 9.3
   },
   {
     "brand": "3M",
     "model": "ME-2554",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 24.0
   },
   {
     "brand": "3M",
     "model": "ME-379",
     "spec": "金屬",
+    "location": "N-3",
     "stock": 31.3
   },
   {
     "brand": "3M",
     "model": "ME-380",
     "spec": "金屬",
+    "location": "N-2",
     "stock": 63.0
   },
   {
     "brand": "3M",
     "model": "PA-187",
     "spec": "素面",
+    "location": "N-1",
     "stock": 50.0
   },
   {
     "brand": "3M",
     "model": "VM-168",
     "spec": "金屬",
+    "location": "N-4",
     "stock": 4.0
   },
   {
     "brand": "3M",
     "model": "VM-1691",
     "spec": "金屬",
+    "location": "N-5",
     "stock": 11.5
   },
   {
     "brand": "AICA",
     "model": "VML18206",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 5.0
   },
   {
     "brand": "BODAQ",
     "model": "AA601(NS401)",
     "spec": "石紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "AA603",
     "spec": "塗料",
+    "location": "G-2",
     "stock": 16.5
   },
   {
     "brand": "BODAQ",
     "model": "AA607(NS703)",
     "spec": "塗料",
+    "location": "散料區",
     "stock": 30.5
   },
   {
     "brand": "BODAQ",
     "model": "AA613(NS804)",
     "spec": "石紋",
+    "location": "G-9",
     "stock": 45.2
   },
   {
     "brand": "BODAQ",
     "model": "AA615(NS806)",
     "spec": "石紋",
+    "location": "L-7",
     "stock": 39.5
   },
   {
     "brand": "BODAQ",
     "model": "AA616(NS809)",
     "spec": "編織",
+    "location": "散料區",
     "stock": 20.8
   },
   {
     "brand": "BODAQ",
     "model": "AA618",
     "spec": "石紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "AA618(NS814)",
     "spec": "石紋",
+    "location": "K-15",
     "stock": 4.4
   },
   {
     "brand": "BODAQ",
     "model": "AA625(NS118)",
     "spec": "石紋",
+    "location": "F-14",
     "stock": 28.7
   },
   {
     "brand": "BODAQ",
     "model": "AA801(RM002)",
     "spec": "金屬",
+    "location": "E-7",
     "stock": 72.0
   },
   {
     "brand": "BODAQ",
     "model": "AA802(RM003)",
     "spec": "金屬",
+    "location": "F-6",
     "stock": 24.45
   },
   {
     "brand": "BODAQ",
     "model": "AA803(RM004)",
     "spec": "金屬",
+    "location": "F-10",
     "stock": 18.5
   },
   {
     "brand": "BODAQ",
     "model": "AA804(RM005)",
     "spec": "金屬",
+    "location": "F-1",
     "stock": 5.4
   },
   {
     "brand": "BODAQ",
     "model": "AA806(RM007)",
     "spec": "金屬",
+    "location": "E-17",
     "stock": 20.5
   },
   {
     "brand": "BODAQ",
     "model": "AA807(RM008)",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 3.5
   },
   {
     "brand": "BODAQ",
     "model": "AA808(RM009)",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 2.6
   },
   {
     "brand": "BODAQ",
     "model": "AA811",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 42.5
   },
   {
     "brand": "BODAQ",
     "model": "AA811(RM051)",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 5.0
   },
   {
     "brand": "BODAQ",
     "model": "AA812(RM013)",
     "spec": "金屬",
+    "location": "R-6",
     "stock": 25.4
   },
   {
     "brand": "BODAQ",
     "model": "AB003(PM003)",
     "spec": "石紋",
+    "location": "舊款",
     "stock": 17.5
   },
   {
     "brand": "BODAQ",
     "model": "AB004(PM004)",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 4.7
   },
   {
     "brand": "BODAQ",
     "model": "AB006(PM006)",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 53.8
   },
   {
     "brand": "BODAQ",
     "model": "AB007",
     "spec": "石紋",
+    "location": "F-5",
     "stock": 49.7
   },
   {
     "brand": "BODAQ",
     "model": "AB008",
     "spec": "石紋",
+    "location": "G-1",
     "stock": 10.0
   },
   {
     "brand": "BODAQ",
     "model": "AB010",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 10.0
   },
   {
     "brand": "BODAQ",
     "model": "AF001(RF001)",
     "spec": "編織",
+    "location": "F-13",
     "stock": 2.1
   },
   {
     "brand": "BODAQ",
     "model": "AF007(停產)",
     "spec": "編織",
+    "location": "散料區",
     "stock": 4.85
   },
   {
     "brand": "BODAQ",
     "model": "AF010(RF010)",
     "spec": "布紋",
+    "location": "散料區",
     "stock": 1.0
   },
   {
     "brand": "BODAQ",
     "model": "AF011(RF011)",
     "spec": "布紋",
+    "location": "K-1",
     "stock": 14.0
   },
   {
     "brand": "BODAQ",
     "model": "AP002",
     "spec": "塗料",
+    "location": "K-11",
     "stock": 4.9
   },
   {
     "brand": "BODAQ",
     "model": "APZ25",
     "spec": "金屬",
+    "location": "F-7",
     "stock": 18.3
   },
   {
     "brand": "BODAQ",
     "model": "AT014",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 32.3
   },
   {
     "brand": "BODAQ",
     "model": "AU002",
     "spec": "炫彩虹膜",
+    "location": "O-5",
     "stock": 4.6
   },
   {
     "brand": "BODAQ",
     "model": "BA003",
     "spec": "木紋",
+    "location": "L-10",
     "stock": 12.3
   },
   {
     "brand": "BODAQ",
     "model": "BA011(W189)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 3.7
   },
   {
     "brand": "BODAQ",
     "model": "BA014(W198)",
     "spec": "木紋",
+    "location": "D-5",
     "stock": 11.0
   },
   {
     "brand": "BODAQ",
     "model": "BA024(W276)",
     "spec": "木紋",
+    "location": "C-3",
     "stock": 5.3
   },
   {
     "brand": "BODAQ",
     "model": "BA033(W356)",
     "spec": "木紋",
+    "location": "Q-5",
     "stock": 17.4
   },
   {
     "brand": "BODAQ",
     "model": "BA045(W508)",
     "spec": "木紋",
+    "location": "C-1",
     "stock": 11.0
   },
   {
     "brand": "BODAQ",
     "model": "BA046",
     "spec": "木紋",
+    "location": "B-8",
     "stock": 28.2
   },
   {
     "brand": "BODAQ",
     "model": "BA049(W538)",
     "spec": "木紋",
+    "location": "K-5",
     "stock": 4.3
   },
   {
     "brand": "BODAQ",
     "model": "BA052(W555)",
     "spec": "木紋",
+    "location": "C-8",
     "stock": 10.4
   },
   {
     "brand": "BODAQ",
     "model": "BA059",
     "spec": "木紋",
+    "location": "S-18",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "BA059(W705)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.5
   },
   {
     "brand": "BODAQ",
     "model": "BA068",
     "spec": "木紋",
+    "location": "L-16",
     "stock": 32.6
   },
   {
     "brand": "BODAQ",
     "model": "BA082(W874)",
     "spec": "木紋",
+    "location": "D-7",
     "stock": 48.3
   },
   {
     "brand": "BODAQ",
     "model": "BA095(W933)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "BA096(W934)",
     "spec": "木紋",
+    "location": "D-2",
     "stock": 22.45
   },
   {
     "brand": "BODAQ",
     "model": "BC009(ZX109)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "BC303(HZ004)",
     "spec": "木紋",
+    "location": "E-9",
     "stock": 26.7
   },
   {
     "brand": "BODAQ",
     "model": "BC401(PTW02)",
     "spec": "木紋",
+    "location": "K-14",
     "stock": 6.6
   },
   {
     "brand": "BODAQ",
     "model": "BC405(PTW06)",
     "spec": "木紋",
+    "location": "D-6",
     "stock": 29.4
   },
   {
     "brand": "BODAQ",
     "model": "BC407(PTW09)",
     "spec": "木紋",
+    "location": "C-4",
     "stock": 17.3
   },
   {
     "brand": "BODAQ",
     "model": "BC408",
     "spec": "木紋",
+    "location": "K-9",
     "stock": 6.6
   },
   {
     "brand": "BODAQ",
     "model": "BC409",
     "spec": "木紋",
+    "location": "L-13",
     "stock": 23.4
   },
   {
     "brand": "BODAQ",
     "model": "BC503(PZ009)",
     "spec": "木紋",
+    "location": "D-10",
     "stock": 13.5
   },
   {
     "brand": "BODAQ",
     "model": "BC506(PZ017)",
     "spec": "木紋",
+    "location": "C-10",
     "stock": 13.1
   },
   {
     "brand": "BODAQ",
     "model": "BC521(PZ906)",
     "spec": "木紋",
+    "location": "D-8",
     "stock": 6.6
   },
   {
     "brand": "BODAQ",
     "model": "BC704(Z808S)",
     "spec": "木紋",
+    "location": "K-3",
     "stock": 6.9
   },
   {
     "brand": "BODAQ",
     "model": "BC903",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 33.8
   },
   {
     "brand": "BODAQ",
     "model": "BC903(ZSW04)",
     "spec": "木紋",
+    "location": "A-14",
     "stock": 8.3
   },
   {
     "brand": "BODAQ",
     "model": "BC951(T102K)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 1.2
   },
   {
     "brand": "BODAQ",
     "model": "BC957",
     "spec": "木紋",
+    "location": "L-14",
     "stock": 46.7
   },
   {
     "brand": "BODAQ",
     "model": "BC960",
     "spec": "木紋",
+    "location": "C-7",
     "stock": 25.6
   },
   {
     "brand": "BODAQ",
     "model": "BC972",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.6
   },
   {
     "brand": "BODAQ",
     "model": "BC973",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "BD010(XP118)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.0
   },
   {
     "brand": "BODAQ",
     "model": "BD011(XP124)",
     "spec": "木紋",
+    "location": "K-2",
     "stock": 34.9
   },
   {
     "brand": "BODAQ",
     "model": "BM002",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 22.2
   },
   {
     "brand": "BODAQ",
     "model": "BM005",
     "spec": "木紋",
+    "location": "D-4",
     "stock": 29.6
   },
   {
     "brand": "BODAQ",
     "model": "BM018",
     "spec": "木紋",
+    "location": "C-6",
     "stock": 18.1
   },
   {
     "brand": "BODAQ",
     "model": "BM021",
     "spec": "木紋",
+    "location": "D-9",
     "stock": 4.8
   },
   {
     "brand": "BODAQ",
     "model": "BM024",
     "spec": "木紋",
+    "location": "B-5",
     "stock": 7.3
   },
   {
     "brand": "BODAQ",
     "model": "BM025",
     "spec": "木紋",
+    "location": "A-1",
     "stock": 13.7
   },
   {
     "brand": "BODAQ",
     "model": "BM026",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.9
   },
   {
     "brand": "BODAQ",
     "model": "BM033",
     "spec": "木紋",
+    "location": "L-4",
     "stock": 5.1
   },
   {
     "brand": "BODAQ",
     "model": "BM038",
     "spec": "木紋",
+    "location": "O-7",
     "stock": 23.9
   },
   {
     "brand": "BODAQ",
     "model": "BM039",
     "spec": "木紋",
+    "location": "Q-3",
     "stock": 17.1
   },
   {
     "brand": "BODAQ",
     "model": "BM042",
     "spec": "木紋",
+    "location": "L-5",
     "stock": 21.6
   },
   {
     "brand": "BODAQ",
     "model": "BM043",
     "spec": "木紋",
+    "location": "Q-2",
     "stock": 38.4
   },
   {
     "brand": "BODAQ",
     "model": "BM048",
     "spec": "木紋",
+    "location": "B-10",
     "stock": 4.6
   },
   {
     "brand": "BODAQ",
     "model": "BM058",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 25.2
   },
   {
     "brand": "BODAQ",
     "model": "BT001",
     "spec": "木紋",
+    "location": "C-11",
     "stock": 15.6
   },
   {
     "brand": "BODAQ",
     "model": "BT003",
     "spec": "木紋",
+    "location": "Q-1",
     "stock": 5.0
   },
   {
     "brand": "BODAQ",
     "model": "NS119",
     "spec": "石紋",
+    "location": "R-7",
     "stock": 44.1
   },
   {
     "brand": "BODAQ",
     "model": "NS121",
     "spec": "石紋",
+    "location": "G-13",
     "stock": 35.5
   },
   {
     "brand": "BODAQ",
     "model": "NS602(GNS602)",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 3.0
   },
   {
     "brand": "BODAQ",
     "model": "NS895",
     "spec": "石紋",
+    "location": "G-4",
     "stock": 7.0
   },
   {
     "brand": "BODAQ",
     "model": "PM007",
     "spec": "石紋",
+    "location": "F-8",
     "stock": 29.3
   },
   {
     "brand": "BODAQ",
     "model": "PNC44",
     "spec": "塗料",
+    "location": "散料區",
     "stock": 2.4
   },
   {
     "brand": "BODAQ",
     "model": "PNC47",
     "spec": "木紋",
+    "location": "K-12",
     "stock": 6.7
   },
   {
     "brand": "BODAQ",
     "model": "PNC50",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 0.0
   },
   {
     "brand": "BODAQ",
     "model": "PNT04",
     "spec": "木紋",
+    "location": "G-6",
     "stock": 13.9
   },
   {
     "brand": "BODAQ",
     "model": "PTW10",
     "spec": "木紋",
+    "location": "D-1",
     "stock": 6.6
   },
   {
     "brand": "BODAQ",
     "model": "PTW12",
     "spec": "木紋",
+    "location": "C-5",
     "stock": 36.1
   },
   {
     "brand": "BODAQ",
     "model": "RM011",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 61.0
   },
   {
     "brand": "BODAQ",
     "model": "RM015",
     "spec": "金屬",
+    "location": "L-3",
     "stock": 34.4
   },
   {
     "brand": "BODAQ",
     "model": "SH001",
     "spec": "素面",
+    "location": "I-9",
     "stock": 18.5
   },
   {
     "brand": "BODAQ",
     "model": "SM002",
     "spec": "金屬",
+    "location": "E-10",
     "stock": 13.6
   },
   {
     "brand": "BODAQ",
     "model": "SMT16",
     "spec": "素面",
+    "location": "G-12",
     "stock": 45.0
   },
   {
     "brand": "BODAQ",
     "model": "SPW22",
     "spec": "木紋",
+    "location": "B-12",
     "stock": 5.9
   },
   {
     "brand": "BODAQ",
     "model": "SPW43",
     "spec": "木紋",
+    "location": "K-18",
     "stock": 7.0
   },
   {
     "brand": "BODAQ",
     "model": "SPW45",
     "spec": "木紋",
+    "location": "F-9",
     "stock": 26.2
   },
   {
     "brand": "BODAQ",
     "model": "SPW63",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 4.5
   },
   {
     "brand": "BODAQ",
     "model": "SPW66",
     "spec": "木紋",
+    "location": "B-11",
     "stock": 39.9
   },
   {
     "brand": "BODAQ",
     "model": "SPW68",
     "spec": "木紋",
+    "location": "Q-4",
     "stock": 12.2
   },
   {
     "brand": "BODAQ",
     "model": "SS007",
     "spec": "素面",
+    "location": "L-9",
     "stock": 34.0
   },
   {
     "brand": "BODAQ",
     "model": "SS011(S149)",
     "spec": "素面",
+    "location": "I-2",
     "stock": 28.5
   },
   {
     "brand": "BODAQ",
     "model": "SS013(S153)",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "SS016(S158)",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "BODAQ",
     "model": "SS030(S188)",
     "spec": "素面",
+    "location": "H-8",
     "stock": 42.2
   },
   {
     "brand": "BODAQ",
     "model": "SS032",
     "spec": "素面",
+    "location": "I-5",
     "stock": 17.6
   },
   {
     "brand": "BODAQ",
     "model": "SS033",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 81.5
   },
   {
     "brand": "BODAQ",
     "model": "SS035",
     "spec": "素面",
+    "location": "S-3",
     "stock": 8.7
   },
   {
     "brand": "BODAQ",
     "model": "SS040",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 17.85
   },
   {
     "brand": "BODAQ",
     "model": "SS041(S207)",
     "spec": "素面",
+    "location": "H-6",
     "stock": 24.0
   },
   {
     "brand": "BODAQ",
     "model": "SS042(S208)",
     "spec": "素面",
+    "location": "I-10",
     "stock": 4.0
   },
   {
     "brand": "BODAQ",
     "model": "SS053(LS108)",
     "spec": "素面",
+    "location": "H-5",
     "stock": 33.7
   },
   {
     "brand": "BODAQ",
     "model": "SS059(S243)",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 3.1
   },
   {
     "brand": "BODAQ",
     "model": "SS106",
     "spec": "素面",
+    "location": "散料區",
     "stock": 3.3
   },
   {
     "brand": "BODAQ",
     "model": "ST002(SMT02)",
     "spec": "素面",
+    "location": "J-5",
     "stock": 0.2
   },
   {
     "brand": "BODAQ",
     "model": "ST003",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "BODAQ",
     "model": "ST006(SMT06)",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 5.0
   },
   {
     "brand": "BODAQ",
     "model": "ST007(SMT07)",
     "spec": "素面",
+    "location": "散料區",
     "stock": 1.1
   },
   {
     "brand": "BODAQ",
     "model": "ST008",
     "spec": "素面",
+    "location": "J-3",
     "stock": 5.1
   },
   {
     "brand": "BODAQ",
     "model": "ST009",
     "spec": "素面",
+    "location": "I-7",
     "stock": -1.7
   },
   {
     "brand": "BODAQ",
     "model": "ST012",
     "spec": "素面",
+    "location": "I-6",
     "stock": 22.0
   },
   {
     "brand": "BODAQ",
     "model": "ST013",
     "spec": "素面",
+    "location": "I-1",
     "stock": 6.6
   },
   {
     "brand": "BODAQ",
     "model": "ST014(BODAQ)",
     "spec": "素面",
+    "location": "S-13",
     "stock": 41.6
   },
   {
     "brand": "BODAQ",
     "model": "TNS09(停產)",
     "spec": "皮革",
+    "location": "F-15",
     "stock": 4.3
   },
   {
     "brand": "BODAQ",
     "model": "UMI01",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 3.0
   },
   {
     "brand": "BODAQ",
     "model": "W012",
     "spec": "木紋",
+    "location": "S-9",
     "stock": 17.6
   },
   {
     "brand": "BODAQ",
     "model": "ZX104",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 9.0
   },
   {
     "brand": "BODAQ",
     "model": "ZX149 (BD010) (XP118)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 1.8
   },
   {
     "brand": "Carlife",
     "model": "M-50隔熱紙",
     "spec": "隔熱紙",
+    "location": "未歸位",
     "stock": 10.55
   },
   {
     "brand": "Carlife",
     "model": "M-70隔熱紙",
     "spec": "隔熱紙",
+    "location": "未歸位",
     "stock": 30.0
   },
   {
     "brand": "Carlife",
     "model": "T520",
     "spec": "隔熱紙",
+    "location": "貨架編號",
     "stock": 8.0
   },
   {
     "brand": "KCC",
     "model": "KW334",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 30.0
   },
   {
     "brand": "LG",
     "model": "MG002(RP04)",
     "spec": "金屬",
+    "location": "E-5",
     "stock": 48.0
   },
   {
     "brand": "LG",
     "model": "MG003(RP06)",
     "spec": "金屬",
+    "location": "E-2",
     "stock": 6.3
   },
   {
     "brand": "LG",
     "model": "MG005(RP42)",
     "spec": "金屬",
+    "location": "E-6",
     "stock": 30.0
   },
   {
     "brand": "LG",
     "model": "MG006",
     "spec": "金屬",
+    "location": "O-8",
     "stock": 18.5
   },
   {
     "brand": "LG",
     "model": "MG008(RP47)",
     "spec": "金屬",
+    "location": "F-2",
     "stock": 14.0
   },
   {
     "brand": "LG",
     "model": "MG009(RP48)",
     "spec": "金屬",
+    "location": "E-1",
     "stock": 22.7
   },
   {
     "brand": "LG",
     "model": "MG010",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 20.0
   },
   {
     "brand": "LG",
     "model": "MG013(RP52)",
     "spec": "金屬",
+    "location": "入口架上",
     "stock": 60.1
   },
   {
     "brand": "LG",
     "model": "MG015",
     "spec": "金屬",
+    "location": "G-14",
     "stock": 29.0
   },
   {
     "brand": "LG",
     "model": "MG016",
     "spec": "金屬",
+    "location": "K-17",
     "stock": 9.6
   },
   {
     "brand": "LG",
     "model": "MG023",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "LG",
     "model": "MG024(MS21)",
     "spec": "素面",
+    "location": "I-3",
     "stock": 11.4
   },
   {
     "brand": "LG",
     "model": "MH001(PM007)",
     "spec": "金屬",
+    "location": "K-16",
     "stock": 26.5
   },
   {
     "brand": "LG",
     "model": "MH002(PM008)",
     "spec": "金屬",
+    "location": "E-8",
     "stock": 40.4
   },
   {
     "brand": "LG",
     "model": "MH004(PM002)",
     "spec": "金屬",
+    "location": "E-3",
     "stock": 22.2
   },
   {
     "brand": "LG",
     "model": "MH005",
     "spec": "金屬",
+    "location": "G-3",
     "stock": 13.1
   },
   {
     "brand": "LG",
     "model": "MH006(PME09)",
     "spec": "金屬",
+    "location": "F-4",
     "stock": 50.0
   },
   {
     "brand": "LG",
     "model": "MH008(PM004)",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 38.5
   },
   {
     "brand": "LG",
     "model": "PW115(WC018)",
     "spec": "木紋",
+    "location": "R-2",
     "stock": 7.0
   },
   {
     "brand": "LG",
     "model": "SD001",
     "spec": "素面",
+    "location": "S-12",
     "stock": 17.2
   },
   {
     "brand": "LG",
     "model": "SG001",
     "spec": "素面",
+    "location": "I-11",
     "stock": 36.5
   },
   {
     "brand": "LG",
     "model": "SG006(ES22,RS22)",
     "spec": "素面",
+    "location": "H-2",
     "stock": 17.9
   },
   {
     "brand": "LG",
     "model": "SG017(ES52,RS52)",
     "spec": "素面",
+    "location": "散料區",
     "stock": 4.5
   },
   {
     "brand": "LG",
     "model": "SG019",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 15.5
   },
   {
     "brand": "LG",
     "model": "SG026",
     "spec": "素面",
+    "location": "S-5",
     "stock": 38.0
   },
   {
     "brand": "LG",
     "model": "SG027",
     "spec": "素面",
+    "location": "J-8",
     "stock": 44.3
   },
   {
     "brand": "LG",
     "model": "SG040(RS104)",
     "spec": "木紋",
+    "location": "B-2",
     "stock": 47.5
   },
   {
     "brand": "LG",
     "model": "SG043(ES107)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 42.6
   },
   {
     "brand": "LG",
     "model": "SG046(RS118)",
     "spec": "素面",
+    "location": "O-6",
     "stock": 22.5
   },
   {
     "brand": "LG",
     "model": "SG049(ES121)",
     "spec": "素面",
+    "location": "I-8",
     "stock": 34.6
   },
   {
     "brand": "LG",
     "model": "SG050",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "LG",
     "model": "SG051",
     "spec": "素面",
+    "location": "S-6",
     "stock": 8.8
   },
   {
     "brand": "LG",
     "model": "SG056(RS130)",
     "spec": "素面",
+    "location": "I-4",
     "stock": 2.6
   },
   {
     "brand": "LG",
     "model": "SG057",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 7.7
   },
   {
     "brand": "LG",
     "model": "SG072(ES158)",
     "spec": "素面",
+    "location": "H-10",
     "stock": 40.7
   },
   {
     "brand": "LG",
     "model": "SG088(ES175)",
     "spec": "木紋",
+    "location": "A-5",
     "stock": 26.2
   },
   {
     "brand": "LG",
     "model": "SG091",
     "spec": "素面",
+    "location": "C-9",
     "stock": 45.5
   },
   {
     "brand": "LG",
     "model": "SM005(ST010)",
     "spec": "石紋",
+    "location": "K-7",
     "stock": 2.5
   },
   {
     "brand": "LG",
     "model": "SM013(ST014)",
     "spec": "石紋",
+    "location": "L-1",
     "stock": 3.9
   },
   {
     "brand": "LG",
     "model": "SR002",
     "spec": "木紋",
+    "location": "H-9",
     "stock": 7.1
   },
   {
     "brand": "LG",
     "model": "SR003(EGM05)",
     "spec": "木紋",
+    "location": "B-1",
     "stock": 10.2
   },
   {
     "brand": "LG",
     "model": "ST006",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 4.2
   },
   {
     "brand": "LG",
     "model": "ST010(SM005)",
     "spec": "石紋",
+    "location": "E-12",
     "stock": 3.0
   },
   {
     "brand": "LG",
     "model": "US002(停產)",
     "spec": "素面",
+    "location": "H-4",
     "stock": 13.2
   },
   {
     "brand": "LG",
     "model": "US005(停產)",
     "spec": "素面",
+    "location": "H-3",
     "stock": 7.7
   },
   {
     "brand": "LG",
     "model": "VB002",
     "spec": "石紋",
+    "location": "未歸位",
     "stock": 5.0
   },
   {
     "brand": "LG",
     "model": "VB011(BM007)",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 3.8
   },
   {
     "brand": "LG",
     "model": "VB012(BM008)",
     "spec": "石紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "LG",
     "model": "VB016",
     "spec": "木紋",
+    "location": "F-18",
     "stock": 25.7
   },
   {
     "brand": "LG",
     "model": "VE006(EL177)",
     "spec": "塗料",
+    "location": "S-14",
     "stock": 29.9
   },
   {
     "brand": "LG",
     "model": "VE009(EL240)",
     "spec": "塗料",
+    "location": "S-15",
     "stock": 7.6
   },
   {
     "brand": "LG",
     "model": "VE010",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 6.4
   },
   {
     "brand": "LG",
     "model": "VF004(SF002)",
     "spec": "編織",
+    "location": "散料區",
     "stock": 6.8
   },
   {
     "brand": "LG",
     "model": "VS009(ML57)",
     "spec": "石紋",
+    "location": "散料區",
     "stock": 70.0
   },
   {
     "brand": "LG",
     "model": "VS011(ML64)",
     "spec": "石紋",
+    "location": "R-4",
     "stock": 4.0
   },
   {
     "brand": "LG",
     "model": "VS016",
     "spec": "石紋",
+    "location": "未歸位",
     "stock": 100.0
   },
   {
     "brand": "LG",
     "model": "VS024",
     "spec": "皮革",
+    "location": "S-2",
     "stock": 24.5
   },
   {
     "brand": "LG",
     "model": "VS026",
     "spec": "皮革",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "LG",
     "model": "VS027",
     "spec": "石紋",
+    "location": "F-17",
     "stock": 11.0
   },
   {
     "brand": "LG",
     "model": "VS028",
     "spec": "石紋",
+    "location": "E-14",
     "stock": 44.0
   },
   {
     "brand": "LG",
     "model": "VS053(GT001)",
     "spec": "塗料",
+    "location": "G-17",
     "stock": 29.9
   },
   {
     "brand": "LG",
     "model": "WC006",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 25.7
   },
   {
     "brand": "LG",
     "model": "WC008(PW105)",
     "spec": "木紋",
+    "location": "D-12",
     "stock": 7.2
   },
   {
     "brand": "LG",
     "model": "WC013",
     "spec": "木紋",
+    "location": "A-2",
     "stock": 10.9
   },
   {
     "brand": "LG",
     "model": "WC015(PW112)",
     "spec": "木紋",
+    "location": "B-3",
     "stock": 10.0
   },
   {
     "brand": "LG",
     "model": "WC023(PW120)",
     "spec": "木紋",
+    "location": "A-6",
     "stock": 11.9
   },
   {
     "brand": "LG",
     "model": "WC026(PW123)",
     "spec": "木紋",
+    "location": "倉庫",
     "stock": 196.4
   },
   {
     "brand": "LG",
     "model": "WC027(PW124)",
     "spec": "木紋",
+    "location": "R-1",
     "stock": 4.0
   },
   {
     "brand": "LG",
     "model": "WC035(PW132)",
     "spec": "木紋",
+    "location": "A-10",
     "stock": 3.3
   },
   {
     "brand": "LG",
     "model": "WG011(CW152)",
     "spec": "木紋",
+    "location": "G-15",
     "stock": 49.6
   },
   {
     "brand": "LG",
     "model": "WG014",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 33.0
   },
   {
     "brand": "LG",
     "model": "WG021(EW348)",
     "spec": "木紋",
+    "location": "J-6",
     "stock": 39.8
   },
   {
     "brand": "LG",
     "model": "WG031(EW437)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 2.2
   },
   {
     "brand": "LG",
     "model": "WG032(EW441)",
     "spec": "木紋",
+    "location": "G-7",
     "stock": 8.1
   },
   {
     "brand": "LG",
     "model": "WG044",
     "spec": "木紋",
+    "location": "S-4",
     "stock": 8.3
   },
   {
     "brand": "LG",
     "model": "WG046",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 38.4
   },
   {
     "brand": "LG",
     "model": "WG058",
     "spec": "木紋",
+    "location": "C-2",
     "stock": 50.0
   },
   {
     "brand": "LG",
     "model": "WG060(EW590)",
     "spec": "木紋",
+    "location": "H-7",
     "stock": 14.1
   },
   {
     "brand": "LG",
     "model": "WG063(EW599)",
     "spec": "木紋",
+    "location": "J-4",
     "stock": 20.8
   },
   {
     "brand": "LG",
     "model": "WG068(EW604)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 74.8
   },
   {
     "brand": "LG",
     "model": "WG092(EW308)",
     "spec": "木紋",
+    "location": "R-3",
     "stock": 6.3
   },
   {
     "brand": "LG",
     "model": "WG094(EW398)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "LG",
     "model": "WG103(DW634)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 3.3
   },
   {
     "brand": "LG",
     "model": "WG105(DW636)",
     "spec": "木紋",
+    "location": "K-8",
     "stock": 29.0
   },
   {
     "brand": "LG",
     "model": "WG126(EWES3)",
     "spec": "木紋",
+    "location": "A-12",
     "stock": 4.1
   },
   {
     "brand": "LG",
     "model": "WGA04",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 3.8
   },
   {
     "brand": "LG",
     "model": "WH001(BW016)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.5
   },
   {
     "brand": "LG",
     "model": "WH003(BW018)",
     "spec": "木紋",
+    "location": "入口架上",
     "stock": 56.0
   },
   {
     "brand": "LG",
     "model": "WH006(BW021)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 67.0
   },
   {
     "brand": "LG",
     "model": "WH010(BW002)",
     "spec": "木紋",
+    "location": "A-4",
     "stock": 75.0
   },
   {
     "brand": "LG",
     "model": "WH029",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 5.0
   },
   {
     "brand": "LG",
     "model": "WP023(NE059)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "LG",
     "model": "WP029(NW070)",
     "spec": "木紋",
+    "location": "G-16",
     "stock": 23.5
   },
   {
     "brand": "LG",
     "model": "WP032",
     "spec": "木紋",
+    "location": "B-6",
     "stock": 40.0
   },
   {
     "brand": "LG",
     "model": "WP033",
     "spec": "木紋",
+    "location": "A-13",
     "stock": 22.6
   },
   {
     "brand": "LG",
     "model": "WP033(NW078)",
     "spec": "木紋",
+    "location": "Q-6",
     "stock": 33.3
   },
   {
     "brand": "LG",
     "model": "WP034(NE080)停產",
     "spec": "木紋",
+    "location": "B-4",
     "stock": 6.4
   },
   {
     "brand": "LG",
     "model": "WP038(NE085)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 60.1
   },
   {
     "brand": "LG",
     "model": "WP045(NW099)",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 218.5
   },
   {
     "brand": "LG",
     "model": "WP047(NE101)",
     "spec": "木紋",
+    "location": "A-7",
     "stock": 5.7
   },
   {
     "brand": "LG",
     "model": "WP054(NW113)",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 5.6
   },
   {
     "brand": "LG",
     "model": "WP057",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 5.0
   },
   {
     "brand": "LG",
     "model": "WP059(NE119)",
     "spec": "木紋",
+    "location": "A-11",
     "stock": 2.8
   },
   {
     "brand": "LG",
     "model": "WP061(NE121)",
     "spec": "木紋",
+    "location": "A-3",
     "stock": 2.8
   },
   {
     "brand": "LG",
     "model": "WP063(NE123)",
     "spec": "木紋",
+    "location": "B-7",
     "stock": 8.4
   },
   {
     "brand": "LG",
     "model": "WR003",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "Paroi",
     "model": "",
     "spec": "素面",
+    "location": "P-2",
     "stock": 48.4
   },
   {
     "brand": "Paroi",
     "model": "ME-6452",
     "spec": "金屬",
+    "location": "未歸位",
     "stock": 10.0
   },
   {
     "brand": "Paroi",
     "model": "MES-348",
     "spec": "金屬",
+    "location": "P-6",
     "stock": 42.0
   },
   {
     "brand": "Paroi",
     "model": "MES-367",
     "spec": "金屬",
+    "location": "P-3",
     "stock": 48.4
   },
   {
     "brand": "Paroi",
     "model": "PBR-180",
     "spec": "素面",
+    "location": "P-8",
     "stock": 44.0
   },
   {
     "brand": "Paroi",
     "model": "PBR-83E",
     "spec": "素面",
+    "location": "M-5",
     "stock": 47.6
   },
   {
     "brand": "Paroi",
     "model": "PGA-217",
     "spec": "塗料",
+    "location": "散料區",
     "stock": 2.4
   },
   {
     "brand": "Paroi",
     "model": "PGM-261",
     "spec": "炫彩虹膜",
+    "location": "M-1",
     "stock": 47.6
   },
   {
     "brand": "Paroi",
     "model": "PKM-191",
     "spec": "金屬",
+    "location": "M-2",
     "stock": 47.6
   },
   {
     "brand": "Paroi",
     "model": "PKM-193",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 29.7
   },
   {
     "brand": "Paroi",
     "model": "PMO-006",
     "spec": "素面",
+    "location": "P-9",
     "stock": 18.5
   },
   {
     "brand": "Paroi",
     "model": "PMO-007",
     "spec": "素面",
+    "location": "M-6",
     "stock": 17.3
   },
   {
     "brand": "Paroi",
     "model": "PMO-015",
     "spec": "素面",
+    "location": "散料區",
     "stock": 1.6
   },
   {
     "brand": "Paroi",
     "model": "PNU-054",
     "spec": "素面",
+    "location": "P-7",
     "stock": 48.0
   },
   {
     "brand": "Paroi",
     "model": "PSE-187",
     "spec": "金屬",
+    "location": "M-3",
     "stock": 48.4
   },
   {
     "brand": "Paroi",
     "model": "PSE-188",
     "spec": "金屬",
+    "location": "M-4",
     "stock": 47.4
   },
   {
     "brand": "Paroi",
     "model": "PWH-698",
     "spec": "素面",
+    "location": "R-8",
     "stock": 28.1
   },
   {
     "brand": "Paroi",
     "model": "PWO-458",
     "spec": "木紋",
+    "location": "散料區",
     "stock": 2.0
   },
   {
     "brand": "Paroi",
     "model": "PWO-91E",
     "spec": "木紋",
+    "location": "M-0",
     "stock": 21.2
   },
   {
     "brand": "Paroi",
     "model": "PWO-93E",
     "spec": "木紋",
+    "location": "O-2",
     "stock": 13.9
   },
   {
     "brand": "Paroi",
     "model": "PWO-96E",
     "spec": "木紋",
+    "location": "P-4",
     "stock": 30.4
   },
   {
     "brand": "穩得",
     "model": "L-1510",
     "spec": "長虹玻璃膜",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "穩得",
     "model": "L-1526",
     "spec": "隔熱紙",
+    "location": "未歸位",
     "stock": 51.9
   },
   {
     "brand": "穩得",
     "model": "WD030",
     "spec": "木紋",
+    "location": "S-16",
     "stock": 23.4
   },
   {
     "brand": "穩得",
     "model": "WD1004",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 50.0
   },
   {
     "brand": "穩得",
     "model": "WD158",
     "spec": "金屬",
+    "location": "L-2",
     "stock": 15.6
   },
   {
     "brand": "穩得",
     "model": "WD168",
     "spec": "木紋",
+    "location": "未歸位",
     "stock": 4.0
   },
   {
     "brand": "穩得",
     "model": "WD173",
     "spec": "素面",
+    "location": "F-12",
     "stock": 18.0
   },
   {
     "brand": "穩得",
     "model": "WD177",
     "spec": "素面",
+    "location": "未歸位",
     "stock": 1.0
   },
   {
     "brand": "穩得",
     "model": "WD196",
     "spec": "金屬",
+    "location": "散料區",
     "stock": 2.4
   }
 ]

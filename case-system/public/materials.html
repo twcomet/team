@@ -5,6 +5,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>膜料管理 — 繪新管理系統</title>
 <link rel="stylesheet" href="/css/style.css">
+<style>
+.filter-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+.filter-row select, .filter-row input { padding:8px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; background:#fff; }
+
+.mat-row td { vertical-align:middle; }
+.mat-row:hover td { background:var(--gray-50); cursor:pointer; }
+.mat-row.expanded td { background:#fff8fe !important; border-bottom:none; }
+
+.rolls-panel { background:#fdf2ff; border:1px solid var(--primary-light); border-top:none; }
+.rolls-panel td { padding:0 !important; border-bottom:1px solid var(--primary-light) !important; }
+.rolls-inner { padding:16px 20px; }
+.roll-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.roll-title { font-size:13px; font-weight:600; color:var(--primary-dark); }
+
+.roll-table { width:100%; border-collapse:collapse; font-size:13px; }
+.roll-table th { background:rgba(255,0,128,.06); padding:6px 10px; font-size:11px; font-weight:600; color:var(--gray-500); border-bottom:1px solid var(--primary-light); white-space:nowrap; }
+.roll-table td { padding:8px 10px; border-bottom:1px solid rgba(255,0,128,.08); vertical-align:middle; }
+.roll-table tr:last-child td { border-bottom:none; }
+
+.status-pill { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+.status-pill.active   { background:#dcfce7; color:#14532d; }
+.status-pill.finished { background:var(--gray-100); color:var(--gray-500); }
+.status-pill.lost     { background:#fee2e2; color:#991b1b; }
+
+.log-type-badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:500; }
+.log-purchase   { background:#dbeafe; color:#1e40af; }
+.log-case_cut   { background:#dcfce7; color:#14532d; }
+.log-case_loss  { background:#fee2e2; color:#991b1b; }
+.log-store_sale { background:#fef9c3; color:#713f12; }
+.log-academy    { background:#e0e7ff; color:#3730a3; }
+.log-ecommerce  { background:#fce7f3; color:#9d174d; }
+.log-adjust     { background:var(--gray-100); color:var(--gray-500); }
+
+.stock-low  { color:var(--danger); font-weight:700; }
+.stock-mid  { color:var(--warning); font-weight:600; }
+.stock-ok   { color:var(--success); }
+
+.expand-btn { background:none; border:none; cursor:pointer; color:var(--gray-500); font-size:16px; padding:2px 6px; transition:transform .2s; }
+.expand-btn.open { transform:rotate(90deg); color:var(--primary); }
+
+/* 品牌色塊 */
+.brand-tag { display:inline-block; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:700; }
+.brand-BODAQ  { background:#e0e7ff; color:#3730a3; }
+.brand-LG     { background:#dcfce7; color:#14532d; }
+.brand-3M     { background:#dbeafe; color:#1e40af; }
+.brand-Paroi  { background:#fce7f3; color:#9d174d; }
+.brand-穩得   { background:#fef9c3; color:#713f12; }
+.brand-AICA   { background:#f3e8ff; color:#6b21a8; }
+.brand-other  { background:var(--gray-100); color:var(--gray-700); }
+
+.branch-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.branch-tab { padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600;
+              border:1.5px solid var(--gray-300); background:#fff; cursor:pointer;
+              color:var(--gray-600); transition:all .15s; }
+.branch-tab:hover { border-color:var(--primary); color:var(--primary); }
+.branch-tab.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+.branch-badge { display:inline-block; padding:1px 7px; border-radius:4px; font-size:11px;
+                font-weight:600; background:#e0f2fe; color:#0369a1; }
+</style>
 </head>
 <body>
 <div class="app-layout">
@@ -30,25 +89,46 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">膜料管理</span>
-      <button class="btn btn-primary btn-sm" onclick="openModal()">＋ 新增膜料</button>
+      <button class="btn btn-primary btn-sm" onclick="openMatModal()">＋ 新增膜料型號</button>
     </div>
     <div class="page-body">
-      <!-- 統計 -->
       <div class="stats-grid" id="statsGrid"></div>
 
       <div class="card">
         <div class="card-header">
-          <h3>膜料庫存目錄</h3>
-          <div class="filter-bar" style="margin:0">
-            <input type="text" id="searchInput" placeholder="搜尋品牌/型號…" oninput="filterTable()" style="width:200px">
+          <h3>膜料庫存</h3>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid var(--gray-200)">
+          <div class="branch-tabs" id="branchTabs"></div>
+          <div class="filter-row">
+            <input type="text" id="searchInput" placeholder="🔍 搜尋品牌/型號…" oninput="applyFilters()" style="width:200px">
+            <select id="filterBrand" onchange="applyFilters()">
+              <option value="">全部品牌</option>
+            </select>
+            <select id="filterSpec" onchange="applyFilters()">
+              <option value="">全部材質</option>
+            </select>
+            <select id="filterStock" onchange="applyFilters()">
+              <option value="">全部庫存</option>
+              <option value="low">偏低（&lt;10米）</option>
+              <option value="ok">充足（≥30米）</option>
+            </select>
           </div>
         </div>
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
             <table id="matTable">
               <thead><tr>
-                <th>品牌</th><th>型號</th><th>顏色/規格</th>
-                <th>成本/米</th><th>售價/米</th><th>庫存（米）</th><th>備注</th><th></th>
+                <th style="width:32px"></th>
+                <th>品牌</th>
+                <th>型號</th>
+                <th>材質</th>
+                <th>貨架</th>
+                <th>成本/米</th>
+                <th>售價/米</th>
+                <th>庫存（米）</th>
+                <th>備注</th>
+                <th></th>
               </tr></thead>
               <tbody id="matTbody"></tbody>
             </table>
@@ -59,53 +139,111 @@
   </div>
 </div>
 
-<!-- 新增/編輯 Modal -->
+<!-- 新增/編輯膜料 Modal -->
 <div class="modal-overlay" id="matModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
-      <h3 id="modalTitle">新增膜料</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <h3 id="matModalTitle">新增膜料型號</h3>
+      <button class="modal-close" onclick="closeMatModal()">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="form-group"><label>品牌 *</label><input type="text" id="m_brand" placeholder="3M、日東、長春…"></div>
-        <div class="form-group"><label>型號 *</label><input type="text" id="m_model" placeholder="CF2200、LLumar…"></div>
+        <div class="form-group"><label>品牌 *</label><input type="text" id="m_brand" placeholder="BODAQ、LG、3M…"></div>
+        <div class="form-group"><label>型號 *</label><input type="text" id="m_model"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>顏色</label><input type="text" id="m_color" placeholder="淺灰、深茶…"></div>
-        <div class="form-group"><label>規格/說明</label><input type="text" id="m_spec" placeholder="隔熱率、遮光率…"></div>
+        <div class="form-group"><label>材質/紋路</label>
+          <select id="m_spec">
+            <option value="">請選擇</option>
+            <option>木紋</option><option>石紋</option><option>金屬</option>
+            <option>素面</option><option>塗料</option><option>皮革</option>
+            <option>布紋</option><option>編織</option><option>隔熱紙</option>
+            <option>炫彩虹膜</option><option>長虹玻璃膜</option><option>其他</option>
+          </select>
+        </div>
+        <div class="form-group"><label>貨架位置</label><input type="text" id="m_location" placeholder="N-1、B-3…"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>成本/米（NT$）</label><input type="number" id="m_unit_cost" min="0" step="1" placeholder="0"></div>
         <div class="form-group"><label>售價/米（NT$）</label><input type="number" id="m_unit_price" min="0" step="1" placeholder="0"></div>
       </div>
-      <div class="form-group"><label>現有庫存（米）</label><input type="number" id="m_stock" min="0" step="0.1" placeholder="0"></div>
       <div class="form-group"><label>備注</label><textarea id="m_notes" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" id="modalSaveBtn" onclick="saveMat()">儲存</button>
+      <button class="btn btn-ghost" onclick="closeMatModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveMat()">儲存</button>
     </div>
   </div>
 </div>
 
-<!-- 調整庫存 Modal -->
-<div class="modal-overlay" id="stockModal">
-  <div class="modal" style="max-width:360px">
+<!-- 新增捲料（進貨）Modal -->
+<div class="modal-overlay" id="rollModal">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header">
-      <h3 id="stockModalTitle">調整庫存</h3>
-      <button class="modal-close" onclick="closeStockModal()">✕</button>
+      <h3 id="rollModalTitle">新增捲料（進貨）</h3>
+      <button class="modal-close" onclick="closeRollModal()">✕</button>
     </div>
     <div class="modal-body">
-      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">正數＝入庫；負數＝出庫/調整</p>
-      <div class="form-group">
-        <label>調整量（米）</label>
-        <input type="number" id="s_delta" step="0.1" placeholder="例：50 或 -10">
+      <div class="form-row">
+        <div class="form-group"><label>捲料編號</label><input type="text" id="r_roll_no" placeholder="自動或手動填入"></div>
+        <div class="form-group"><label>進貨日期</label><input type="date" id="r_purchase_date"></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>進貨米數 *</label><input type="number" id="r_initial_meters" min="0" step="0.1" placeholder="50"></div>
+        <div class="form-group"><label>進貨成本/米</label><input type="number" id="r_unit_cost" min="0" step="1" placeholder="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>店別 *</label>
+          <input type="text" id="r_branch" placeholder="總部" list="branchDatalist">
+          <datalist id="branchDatalist"></datalist>
+        </div>
+        <div class="form-group"><label>存放位置</label><input type="text" id="r_location" placeholder="N-1 第3支…"></div>
+      </div>
+      <div class="form-group"><label>備注</label><textarea id="r_notes" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeStockModal()">取消</button>
-      <button class="btn btn-primary" onclick="saveStock()">確認</button>
+      <button class="btn btn-ghost" onclick="closeRollModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveRoll()">確認入庫</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增使用紀錄 Modal -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3 id="logModalTitle">新增使用紀錄</h3>
+      <button class="modal-close" onclick="closeLogModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>用途 *</label>
+        <select id="l_type">
+          <option value="case_cut">案場切料</option>
+          <option value="case_loss">案場損失重貼</option>
+          <option value="store_sale">門市銷售</option>
+          <option value="academy">學院使用</option>
+          <option value="ecommerce">電商訂單</option>
+          <option value="adjust">庫存調整</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>使用米數 *</label>
+        <input type="number" id="l_meters" min="0.1" step="0.1" placeholder="3.5">
+      </div>
+      <div class="form-group" id="l_case_group">
+        <label>關聯案件（選填）</label>
+        <input type="text" id="l_case_search" placeholder="輸入案件編號或名稱搜尋…" oninput="searchCase()" autocomplete="off">
+        <div id="l_case_results" style="border:1px solid var(--gray-200);border-radius:6px;max-height:160px;overflow-y:auto;display:none;margin-top:4px"></div>
+        <input type="hidden" id="l_case_id">
+        <div id="l_case_selected" style="font-size:12px;color:var(--primary);margin-top:4px"></div>
+      </div>
+      <div class="form-group"><label>備注</label><textarea id="l_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeLogModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveLog()">記錄</button>
     </div>
   </div>
 </div>
@@ -113,131 +251,364 @@
 <script src="/js/common.js"></script>
 <script>
 let materials = [];
-let editId = null;
-let stockTargetId = null;
+let editMatId = null;
+let rollTargetMatId = null;
+let logTargetRollId = null;
+let expandedRows = new Set();
+let activeBranch = null;   // null = 全部
+let knownBranches = [];
+
+const LOG_LABELS = {
+  purchase:'進貨', case_cut:'案場切料', case_loss:'案場損失重貼',
+  store_sale:'門市銷售', academy:'學院使用', ecommerce:'電商訂單', adjust:'庫存調整'
+};
 
 async function init() {
   await loadUser();
   highlightNav('materials');
   await loadMaterials();
+  await loadBranches();
 }
 
 async function loadMaterials() {
   const res = await fetch('/api/materials');
   materials = res.ok ? await res.json() : [];
+  buildFilters();
   renderStats();
-  renderTable(materials);
+  applyFilters();
+}
+
+async function loadBranches() {
+  const res = await fetch('/api/materials/branches');
+  knownBranches = res.ok ? await res.json() : ['總部'];
+  if (!knownBranches.includes('總部')) knownBranches.unshift('總部');
+  renderBranchTabs();
+  // update datalist
+  const dl = document.getElementById('branchDatalist');
+  dl.innerHTML = knownBranches.map(b => `<option value="${b}">`).join('');
+}
+
+function renderBranchTabs() {
+  const tabs = document.getElementById('branchTabs');
+  tabs.innerHTML = [null, ...knownBranches].map(b => `
+    <button class="branch-tab ${activeBranch === b ? 'active' : ''}"
+      onclick="switchBranch(${b === null ? 'null' : `'${b}'`})">
+      ${b === null ? '全部店別' : b}
+    </button>`).join('');
+}
+
+function switchBranch(b) {
+  activeBranch = b;
+  renderBranchTabs();
+  expandedRows.forEach(id => loadRolls(id));
+}
+
+function buildFilters() {
+  const brands = [...new Set(materials.map(m => m.brand))].sort();
+  const specs  = [...new Set(materials.map(m => m.spec).filter(Boolean))].sort();
+  const bSel = document.getElementById('filterBrand');
+  const sSel = document.getElementById('filterSpec');
+  bSel.innerHTML = '<option value="">全部品牌</option>' + brands.map(b => `<option>${b}</option>`).join('');
+  sSel.innerHTML = '<option value="">全部材質</option>' + specs.map(s => `<option>${s}</option>`).join('');
 }
 
 function renderStats() {
-  const totalKinds  = materials.length;
-  const lowStock    = materials.filter(m => m.stock_meters < 10 && m.stock_meters >= 0).length;
-  const totalStock  = materials.reduce((s, m) => s + (m.stock_meters || 0), 0);
-  const totalValue  = materials.reduce((s, m) => s + (m.stock_meters || 0) * (m.unit_cost || 0), 0);
+  const total      = materials.length;
+  const lowStock   = materials.filter(m => m.stock_meters < 10).length;
+  const totalMeters= materials.reduce((s,m) => s + (m.stock_meters||0), 0);
+  const totalValue = materials.reduce((s,m) => s + (m.stock_meters||0)*(m.unit_cost||0), 0);
   document.getElementById('statsGrid').innerHTML = `
-    <div class="stat-card"><div class="label">膜料種類</div><div class="value">${totalKinds}</div></div>
-    <div class="stat-card"><div class="label">庫存偏低（&lt;10米）</div><div class="value ${lowStock ? 'warning' : ''}">${lowStock}</div></div>
-    <div class="stat-card"><div class="label">總庫存米數</div><div class="value">${totalStock.toFixed(1)} 米</div></div>
+    <div class="stat-card"><div class="label">膜料種類</div><div class="value">${total}</div></div>
+    <div class="stat-card"><div class="label">庫存偏低（&lt;10米）</div><div class="value ${lowStock?'warning':''}">${lowStock}</div></div>
+    <div class="stat-card"><div class="label">總庫存米數</div><div class="value">${totalMeters.toFixed(1)} 米</div></div>
     <div class="stat-card"><div class="label">庫存成本價值</div><div class="value">$${Math.round(totalValue).toLocaleString()}</div></div>
   `;
 }
 
+function applyFilters() {
+  const q     = document.getElementById('searchInput').value.toLowerCase();
+  const brand = document.getElementById('filterBrand').value;
+  const spec  = document.getElementById('filterSpec').value;
+  const stock = document.getElementById('filterStock').value;
+  let list = materials;
+  if (q)     list = list.filter(m => (m.brand+m.model+(m.spec||'')+(m.location||'')).toLowerCase().includes(q));
+  if (brand) list = list.filter(m => m.brand === brand);
+  if (spec)  list = list.filter(m => m.spec === spec);
+  if (stock === 'low') list = list.filter(m => m.stock_meters < 10);
+  if (stock === 'ok')  list = list.filter(m => m.stock_meters >= 30);
+  renderTable(list);
+}
+
+function brandTag(brand) {
+  const key = ['BODAQ','LG','3M','Paroi','穩得','AICA'].includes(brand) ? brand : 'other';
+  return `<span class="brand-tag brand-${key}">${brand}</span>`;
+}
+function stockClass(v) { return v < 10 ? 'stock-low' : v < 30 ? 'stock-mid' : 'stock-ok'; }
+
 function renderTable(list) {
   const tbody = document.getElementById('matTbody');
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-500)">尚無膜料資料</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--gray-500)">沒有符合條件的膜料</td></tr>`;
     return;
   }
-  tbody.innerHTML = list.map(m => {
-    const stockClass = m.stock_meters < 10 ? 'style="color:var(--danger);font-weight:700"' : m.stock_meters < 30 ? 'style="color:var(--warning);font-weight:600"' : '';
-    return `<tr>
-      <td><strong>${m.brand}</strong></td>
-      <td>${m.model}</td>
-      <td style="color:var(--gray-500)">${[m.color, m.spec].filter(Boolean).join(' · ') || '—'}</td>
-      <td>${m.unit_cost ? '$' + m.unit_cost : '—'}</td>
-      <td>${m.unit_price ? '$' + m.unit_price : '—'}</td>
-      <td ${stockClass}>${(m.stock_meters || 0).toFixed(1)}</td>
-      <td style="color:var(--gray-500);font-size:12px">${m.notes || ''}</td>
+  let html = '';
+  list.forEach(m => {
+    const isExpanded = expandedRows.has(m.id);
+    html += `<tr class="mat-row ${isExpanded?'expanded':''}" id="row-${m.id}">
+      <td style="text-align:center">
+        <button class="expand-btn ${isExpanded?'open':''}" onclick="toggleRolls(${m.id})" title="展開捲料">▶</button>
+      </td>
+      <td>${brandTag(m.brand)}</td>
+      <td><strong>${m.model}</strong>${m.color?`<br><span style="font-size:11px;color:var(--gray-500)">${m.color}</span>`:''}</td>
+      <td style="color:var(--gray-500)">${m.spec||'—'}</td>
+      <td style="font-family:monospace;font-size:12px">${m.location||'—'}</td>
+      <td>${m.unit_cost?'$'+m.unit_cost:'—'}</td>
+      <td>${m.unit_price?'$'+m.unit_price:'—'}</td>
+      <td class="${stockClass(m.stock_meters||0)}">${(m.stock_meters||0).toFixed(1)}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${m.notes||''}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="openStock(${m.id},'${m.brand} ${m.model}')">庫存</button>
-        <button class="btn btn-ghost btn-sm" onclick="openEdit(${m.id})">編輯</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMat(${m.id})">刪除</button>
+        <button class="btn btn-primary btn-sm" onclick="openRollModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">＋進貨</button>
+        <button class="btn btn-ghost btn-sm" onclick="openMatEdit(${m.id});event.stopPropagation()">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMat(${m.id});event.stopPropagation()">刪除</button>
       </td>
     </tr>`;
-  }).join('');
+    if (isExpanded) {
+      html += `<tr class="rolls-panel" id="rolls-${m.id}">
+        <td colspan="10"><div class="rolls-inner" id="rolls-content-${m.id}">載入中…</div></td>
+      </tr>`;
+    }
+  });
+  tbody.innerHTML = html;
+  // 重新載入已展開的行
+  expandedRows.forEach(id => loadRolls(id));
 }
 
-function filterTable() {
-  const q = document.getElementById('searchInput').value.toLowerCase();
-  renderTable(q ? materials.filter(m => (m.brand+m.model+m.color+m.spec).toLowerCase().includes(q)) : materials);
+async function toggleRolls(matId) {
+  if (expandedRows.has(matId)) {
+    expandedRows.delete(matId);
+  } else {
+    expandedRows.add(matId);
+  }
+  applyFilters();
 }
 
-function openModal(id) {
-  editId = null;
-  document.getElementById('modalTitle').textContent = '新增膜料';
-  ['m_brand','m_model','m_color','m_spec','m_notes'].forEach(id => document.getElementById(id).value = '');
-  ['m_unit_cost','m_unit_price','m_stock'].forEach(id => document.getElementById(id).value = '');
+async function loadRolls(matId) {
+  const el = document.getElementById(`rolls-content-${matId}`);
+  if (!el) return;
+
+  const branchQ = activeBranch ? `?branch=${encodeURIComponent(activeBranch)}` : '';
+  const [rRes, lRes] = await Promise.all([
+    fetch(`/api/materials/${matId}/rolls${branchQ}`),
+    fetch(`/api/materials/${matId}/logs`),
+  ]);
+  const rolls = rRes.ok ? await rRes.json() : [];
+  const logs  = lRes.ok ? await lRes.json() : [];
+
+  const logsByRoll = {};
+  logs.forEach(l => {
+    if (!logsByRoll[l.roll_id]) logsByRoll[l.roll_id] = [];
+    logsByRoll[l.roll_id].push(l);
+  });
+
+  const branchLabel = activeBranch ? ` — ${activeBranch}` : '';
+  let html = `<div class="roll-header">
+    <div class="roll-title">🎞️ 捲料明細（${rolls.length} 支${branchLabel}）</div>
+  </div>`;
+
+  if (!rolls.length) {
+    html += `<div style="color:var(--gray-500);font-size:13px;padding:8px 0">尚無捲料紀錄。點「＋進貨」新增第一支。</div>`;
+  } else {
+    rolls.forEach(r => {
+      const rLogs = logsByRoll[r.id] || [];
+      html += `<div style="margin-bottom:16px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-50)">
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px">
+            <span style="font-family:monospace;font-weight:700">${r.roll_no || `#${r.id}`}</span>
+            <span class="status-pill ${r.status}">${{active:'使用中',finished:'用完',lost:'遺失'}[r.status]||r.status}</span>
+            <span class="branch-badge">🏪 ${r.branch||'總部'}</span>
+            <span style="color:var(--gray-500)">進貨 ${r.purchase_date||'—'}</span>
+            <span>初始 <strong>${r.initial_meters}</strong> 米 → 剩餘 <strong class="${stockClass(r.remaining_meters)}">${(r.remaining_meters||0).toFixed(1)}</strong> 米</span>
+            ${r.unit_cost ? `<span style="color:var(--gray-500)">$${r.unit_cost}/米</span>` : ''}
+            ${r.location ? `<span style="font-size:11px;color:var(--gray-500)">📍${r.location}</span>` : ''}
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="openLogModal(${r.id},'${r.roll_no||'#'+r.id}')">＋使用</button>
+        </div>`;
+
+      if (rLogs.length) {
+        html += `<div style="overflow-x:auto">
+          <table class="roll-table">
+            <thead><tr><th>時間</th><th>用途</th><th>米數</th><th>案件</th><th>記錄人</th><th>備注</th></tr></thead>
+            <tbody>`;
+        rLogs.forEach(l => {
+          const isIn = l.meters > 0;
+          html += `<tr>
+            <td style="color:var(--gray-500)">${l.logged_at ? l.logged_at.slice(0,16) : '—'}</td>
+            <td><span class="log-type-badge log-${l.log_type}">${LOG_LABELS[l.log_type]||l.log_type}</span></td>
+            <td style="font-weight:600;color:${isIn?'var(--success)':'var(--danger)'}">
+              ${isIn?'+':''}${l.meters} 米
+            </td>
+            <td style="font-size:12px">${l.case_number?`<a href="/case-detail?id=${l.case_id}" style="color:var(--primary)">${l.case_number}</a>`:'—'}</td>
+            <td style="font-size:12px">${l.logger_name||'—'}</td>
+            <td style="font-size:12px;color:var(--gray-500)">${l.notes||''}</td>
+          </tr>`;
+        });
+        html += `</tbody></table></div>`;
+      }
+      html += `</div>`;
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+// ── 膜料 CRUD ────────────────────────────────────────────────
+
+function openMatModal() {
+  editMatId = null;
+  document.getElementById('matModalTitle').textContent = '新增膜料型號';
+  ['m_brand','m_model','m_notes','m_location'].forEach(id => document.getElementById(id).value = '');
+  ['m_unit_cost','m_unit_price'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m_spec').value = '';
   document.getElementById('matModal').classList.add('open');
 }
-
-function openEdit(id) {
+function openMatEdit(id) {
   const m = materials.find(x => x.id === id);
   if (!m) return;
-  editId = id;
-  document.getElementById('modalTitle').textContent = '編輯膜料';
+  editMatId = id;
+  document.getElementById('matModalTitle').textContent = '編輯膜料型號';
   document.getElementById('m_brand').value     = m.brand || '';
   document.getElementById('m_model').value     = m.model || '';
-  document.getElementById('m_color').value     = m.color || '';
-  document.getElementById('m_spec').value      = m.spec || '';
+  document.getElementById('m_spec').value      = m.spec  || '';
+  document.getElementById('m_location').value  = m.location || '';
   document.getElementById('m_unit_cost').value = m.unit_cost || '';
   document.getElementById('m_unit_price').value= m.unit_price || '';
-  document.getElementById('m_stock').value     = m.stock_meters || '';
   document.getElementById('m_notes').value     = m.notes || '';
   document.getElementById('matModal').classList.add('open');
 }
-
-function closeModal() { document.getElementById('matModal').classList.remove('open'); }
+function closeMatModal() { document.getElementById('matModal').classList.remove('open'); }
 
 async function saveMat() {
   const body = {
     brand: document.getElementById('m_brand').value.trim(),
     model: document.getElementById('m_model').value.trim(),
-    color: document.getElementById('m_color').value.trim() || null,
-    spec:  document.getElementById('m_spec').value.trim() || null,
-    unit_cost:   parseFloat(document.getElementById('m_unit_cost').value)  || 0,
-    unit_price:  parseFloat(document.getElementById('m_unit_price').value) || 0,
-    stock_meters:parseFloat(document.getElementById('m_stock').value)      || 0,
+    spec:  document.getElementById('m_spec').value  || null,
+    location: document.getElementById('m_location').value.trim() || null,
+    unit_cost:  parseFloat(document.getElementById('m_unit_cost').value)  || 0,
+    unit_price: parseFloat(document.getElementById('m_unit_price').value) || 0,
     notes: document.getElementById('m_notes').value.trim() || null,
   };
   if (!body.brand || !body.model) { alert('品牌和型號必填'); return; }
-  const url = editId ? `/api/materials/${editId}` : '/api/materials';
-  const method = editId ? 'PUT' : 'POST';
-  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (res.ok) { closeModal(); await loadMaterials(); }
+  const url = editMatId ? `/api/materials/${editMatId}` : '/api/materials';
+  const res = await fetch(url, { method: editMatId ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeMatModal(); await loadMaterials(); }
 }
 
 async function deleteMat(id) {
-  if (!confirm('確定刪除？')) return;
-  await fetch(`/api/materials/${id}`, { method: 'DELETE' });
+  if (!confirm('確定刪除此膜料型號？相關捲料和紀錄也會一併刪除。')) return;
+  await fetch(`/api/materials/${id}`, { method:'DELETE' });
+  expandedRows.delete(id);
   await loadMaterials();
 }
 
-function openStock(id, name) {
-  stockTargetId = id;
-  document.getElementById('stockModalTitle').textContent = `調整庫存 — ${name}`;
-  document.getElementById('s_delta').value = '';
-  document.getElementById('stockModal').classList.add('open');
-}
-function closeStockModal() { document.getElementById('stockModal').classList.remove('open'); }
+// ── 捲料 CRUD ────────────────────────────────────────────────
 
-async function saveStock() {
-  const delta = parseFloat(document.getElementById('s_delta').value);
-  if (isNaN(delta)) { alert('請填寫調整量'); return; }
-  await fetch(`/api/materials/${stockTargetId}/stock`, {
-    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ delta }),
+function openRollModal(matId, name) {
+  rollTargetMatId = matId;
+  document.getElementById('rollModalTitle').textContent = `新增捲料 — ${name}`;
+  ['r_roll_no','r_notes','r_location'].forEach(id => document.getElementById(id).value = '');
+  ['r_initial_meters','r_unit_cost'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('r_purchase_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('r_branch').value = activeBranch || '總部';
+  // 預填型號成本
+  const mat = materials.find(m => m.id === matId);
+  if (mat?.unit_cost) document.getElementById('r_unit_cost').value = mat.unit_cost;
+  document.getElementById('rollModal').classList.add('open');
+}
+function closeRollModal() { document.getElementById('rollModal').classList.remove('open'); }
+
+async function saveRoll() {
+  const meters = parseFloat(document.getElementById('r_initial_meters').value);
+  if (!meters) { alert('請填寫進貨米數'); return; }
+  const body = {
+    roll_no:       document.getElementById('r_roll_no').value.trim() || null,
+    initial_meters: meters,
+    purchase_date:  document.getElementById('r_purchase_date').value || null,
+    unit_cost:      parseFloat(document.getElementById('r_unit_cost').value) || 0,
+    branch:         document.getElementById('r_branch').value.trim() || '總部',
+    location:       document.getElementById('r_location').value.trim() || null,
+    notes:          document.getElementById('r_notes').value.trim() || null,
+  };
+  const res = await fetch(`/api/materials/${rollTargetMatId}/rolls`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
   });
-  closeStockModal();
-  await loadMaterials();
+  if (res.ok) {
+    closeRollModal();
+    expandedRows.add(rollTargetMatId);
+    await loadMaterials();
+    await loadBranches();
+  }
+}
+
+// ── 使用紀錄 ─────────────────────────────────────────────────
+
+function openLogModal(rollId, rollName) {
+  logTargetRollId = rollId;
+  document.getElementById('logModalTitle').textContent = `使用紀錄 — ${rollName}`;
+  document.getElementById('l_type').value = 'case_cut';
+  document.getElementById('l_meters').value = '';
+  document.getElementById('l_notes').value = '';
+  document.getElementById('l_case_search').value = '';
+  document.getElementById('l_case_id').value = '';
+  document.getElementById('l_case_selected').textContent = '';
+  document.getElementById('l_case_results').style.display = 'none';
+  document.getElementById('logModal').classList.add('open');
+}
+function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
+
+let caseSearchTimer;
+async function searchCase() {
+  clearTimeout(caseSearchTimer);
+  const q = document.getElementById('l_case_search').value.trim();
+  const el = document.getElementById('l_case_results');
+  if (!q) { el.style.display = 'none'; return; }
+  caseSearchTimer = setTimeout(async () => {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=cases`);
+    const items = res.ok ? await res.json() : [];
+    if (!items.length) { el.style.display = 'none'; return; }
+    el.innerHTML = items.slice(0,6).map(c =>
+      `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
+        onmousedown="selectCase(${c.id},'${c.case_number}','${(c.title||'').replace(/'/g,'')}')">
+        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span> ${c.title||''}
+      </div>`).join('');
+    el.style.display = 'block';
+  }, 300);
+}
+
+function selectCase(id, num, title) {
+  document.getElementById('l_case_id').value = id;
+  document.getElementById('l_case_search').value = '';
+  document.getElementById('l_case_selected').textContent = `✓ ${num} ${title}`;
+  document.getElementById('l_case_results').style.display = 'none';
+}
+
+async function saveLog() {
+  const meters = parseFloat(document.getElementById('l_meters').value);
+  if (!meters) { alert('請填寫使用米數'); return; }
+  const body = {
+    log_type: document.getElementById('l_type').value,
+    case_id:  document.getElementById('l_case_id').value || null,
+    meters,
+    notes:    document.getElementById('l_notes').value.trim() || null,
+  };
+  const res = await fetch(`/api/materials/rolls/${logTargetRollId}/logs`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    closeLogModal();
+    await loadMaterials();
+    // 重新載入展開的捲料
+    expandedRows.forEach(id => loadRolls(id));
+  }
 }
 
 init();

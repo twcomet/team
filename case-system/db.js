@@ -250,11 +250,46 @@ _addCol('clients',    'discount_terms',    'TEXT');
 _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
-_addCol('cases',      'entry_info',        'TEXT');
-_addCol('cases',      'photo_upload_url',  'TEXT');
-_addCol('cases',      'outsource_cost',    'REAL');
-_addCol('cases',      'shipping_cost',     'REAL');
-_addCol('cases',      'other_cost',        'REAL');
+_addCol('cases',     'entry_info',        'TEXT');
+_addCol('cases',     'photo_upload_url',  'TEXT');
+_addCol('cases',     'outsource_cost',    'REAL');
+_addCol('cases',     'shipping_cost',     'REAL');
+_addCol('cases',     'other_cost',        'REAL');
+_addCol('materials', 'location',          'TEXT');
+_addCol('material_rolls', 'branch',       "TEXT NOT NULL DEFAULT '總部'");
+
+// ── 個別捲料 ──────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS material_rolls (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  material_id     INTEGER NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+  org_id          INTEGER REFERENCES orgs(id),
+  roll_no         TEXT,
+  initial_meters  REAL DEFAULT 0,
+  remaining_meters REAL DEFAULT 0,
+  purchase_date   DATE,
+  unit_cost       REAL DEFAULT 0,
+  location        TEXT,
+  status          TEXT DEFAULT 'active' CHECK(status IN ('active','finished','lost')),
+  notes           TEXT,
+  created_by      INTEGER REFERENCES users(id),
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
+
+// ── 膜料流水帳 ────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS material_logs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  roll_id     INTEGER REFERENCES material_rolls(id) ON DELETE CASCADE,
+  material_id INTEGER NOT NULL REFERENCES materials(id),
+  org_id      INTEGER REFERENCES orgs(id),
+  log_type    TEXT NOT NULL CHECK(log_type IN (
+                'purchase','case_cut','case_loss','store_sale','academy','ecommerce','adjust'
+              )),
+  case_id     INTEGER REFERENCES cases(id),
+  meters      REAL NOT NULL,
+  notes       TEXT,
+  logged_by   INTEGER REFERENCES users(id),
+  logged_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
 
 // ── 膜料庫存目錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS materials (
