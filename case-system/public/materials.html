@@ -521,6 +521,7 @@ async function loadRolls(matId) {
             <span>初始 <strong>${r.initial_meters}</strong> 米 → 剩餘 <strong class="${stockClass(r.remaining_meters)}">${(r.remaining_meters||0).toFixed(1)}</strong> 米</span>
             ${r.unit_cost ? `<span style="color:var(--gray-500)">$${r.unit_cost}/米</span>` : ''}
             ${r.location ? `<span style="font-size:11px;color:var(--gray-500)">📍${r.location}</span>` : ''}
+            ${r.created_by_name ? `<span style="font-size:11px;color:var(--gray-400)">登錄：${r.created_by_name}</span>` : ''}
           </div>
           <button class="btn btn-ghost btn-sm" onclick="openLogModal(${r.id},'${r.roll_no||'#'+r.id}')">＋使用</button>
         </div>`;
