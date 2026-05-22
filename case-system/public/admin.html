@@ -110,13 +110,38 @@
         <div class="form-group"><label>角色 *</label><select id="userRole"></select></div>
         <div class="form-group"><label>部門</label><input type="text" id="userDept" placeholder="例：業務部、技術部"></div>
       </div>
-      <div style="display:flex;gap:24px;margin-top:4px">
+      <div style="display:flex;gap:24px;margin-top:4px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userIsManager"> 主管職
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userCanSeeAmounts"> 可查看案件金額
         </label>
+      </div>
+
+      <!-- 功能頁面權限 -->
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 16px">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:10px">功能頁面權限（owner 永遠全開）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_dashboard"> 📊 總覽（全體統計）
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_my_tasks"> 📌 我的任務（員工個人頁）
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_cases"> 📋 案件管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_clients"> 👥 客戶管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_calendar"> 📅 派單行事曆
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_payments"> 💰 收款追蹤
+          </label>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -210,6 +235,9 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userUsername').disabled = false;
   document.getElementById('pwdHint').style.display = 'none';
   document.getElementById('userOrgId').value = currentUser.org_id;
+  // 新增人員預設全開
+  ['perm_page_dashboard','perm_page_cases','perm_page_clients','perm_page_calendar','perm_page_payments'].forEach(id => document.getElementById(id).checked = true);
+  document.getElementById('perm_my_tasks').checked = false;
   document.getElementById('userModal').classList.add('open');
 });
 
@@ -229,6 +257,14 @@ function openEditUser(id) {
   document.getElementById('userDept').value = u.department || '';
   document.getElementById('userIsManager').checked = !!u.is_manager;
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
+  const perms = u.permissions ? JSON.parse(u.permissions) : {};
+  const isOwner = u.role === 'owner';
+  document.getElementById('perm_page_dashboard').checked = isOwner || (perms.page_dashboard ?? true);
+  document.getElementById('perm_page_cases').checked     = isOwner || (perms.page_cases ?? true);
+  document.getElementById('perm_page_clients').checked   = isOwner || (perms.page_clients ?? true);
+  document.getElementById('perm_page_calendar').checked  = isOwner || (perms.page_calendar ?? true);
+  document.getElementById('perm_page_payments').checked  = isOwner || (perms.page_payments ?? true);
+  document.getElementById('perm_my_tasks').checked       = isOwner || (perms.my_tasks ?? false);
   document.getElementById('userModal').classList.add('open');
 }
 
@@ -244,6 +280,14 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     is_manager: document.getElementById('userIsManager').checked,
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
     active: 1,
+    permissions: {
+      page_dashboard: document.getElementById('perm_page_dashboard').checked,
+      page_cases:     document.getElementById('perm_page_cases').checked,
+      page_clients:   document.getElementById('perm_page_clients').checked,
+      page_calendar:  document.getElementById('perm_page_calendar').checked,
+      page_payments:  document.getElementById('perm_page_payments').checked,
+      my_tasks:       document.getElementById('perm_my_tasks').checked,
+    },
   };
   if (!id) body.password = password;
   if (!body.name || !body.role) { showToast('請填入必要欄位', 'error'); return; }

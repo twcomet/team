@@ -44,6 +44,7 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/my-tasks',  require('./routes/my-tasks'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -51,7 +52,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'admin', 'clients', 'survey-form', 'quote-form'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));

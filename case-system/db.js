@@ -249,6 +249,7 @@ _addCol('clients',    'payment_terms',     'TEXT');
 _addCol('clients',    'discount_terms',    'TEXT');
 _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
+_addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 // 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移

@@ -36,11 +36,36 @@ async function loadUser() {
   if (roleEl) roleEl.textContent = currentUser.role_label;
   if (orgEl)  orgEl.textContent  = currentUser.org_name || '';
 
-  // 只有有 manageUsers 權限的人才能看到人員管理
+  const p = currentUser.permissions || {};
+
+  // 依權限隱藏側邊欄項目
+  const pageMap = {
+    dashboard: p.page_dashboard,
+    cases:     p.page_cases,
+    clients:   p.page_clients,
+    calendar:  p.page_calendar,
+    payments:  p.page_payments,
+    admin:     currentUser.manage_users,
+  };
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    const page = el.dataset.page;
+    if (page in pageMap && pageMap[page] === false) el.style.display = 'none';
+  });
+
+  // 如果有「我的任務」權限，在側邊欄新增（或顯示）my-tasks 連結
+  if (p.my_tasks) {
+    const nav = document.querySelector('.sidebar-nav');
+    if (nav && !document.querySelector('[data-page="my-tasks"]')) {
+      const a = document.createElement('a');
+      a.className = 'nav-item'; a.dataset.page = 'my-tasks'; a.href = '/my-tasks';
+      a.innerHTML = '<span class="icon">📌</span>我的任務';
+      nav.insertBefore(a, nav.children[1]); // 放在總覽下方
+    }
+  }
+
   if (!currentUser.manage_users) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
-  // 只有 owner 才能看分店管理
   if (currentUser.role !== 'owner') {
     document.querySelectorAll('[data-need="owner"]').forEach(el => el.style.display = 'none');
   }
