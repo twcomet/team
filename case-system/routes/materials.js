@@ -29,11 +29,13 @@ router.post('/', requireAuth, (req, res) => {
   if (stock_meters > 0) {
     const today    = new Date().toISOString().slice(0, 10);
     const orgName  = db.prepare(`SELECT name FROM orgs WHERE id = ?`).get(org_id)?.name || '總部';
+    const dateCode = today.replace(/-/g, '');
+    const rollNo   = `${brand.trim()}-${model.trim()}-${dateCode}-01`;
     const roll     = db.prepare(`
       INSERT INTO material_rolls
-        (material_id, org_id, initial_meters, remaining_meters, purchase_date, unit_cost, location, branch, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(matId, org_id, stock_meters, stock_meters, today,
+        (material_id, org_id, roll_no, initial_meters, remaining_meters, purchase_date, unit_cost, location, branch, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(matId, org_id, rollNo, stock_meters, stock_meters, today,
            unit_cost || 0, location || null, orgName, uid);
     db.prepare(`
       INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by)

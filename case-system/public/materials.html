@@ -208,7 +208,7 @@
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>捲料編號</label><input type="text" id="r_roll_no" placeholder="自動或手動填入"></div>
-        <div class="form-group"><label>進貨日期</label><input type="date" id="r_purchase_date"></div>
+        <div class="form-group"><label>進貨日期</label><input type="date" id="r_purchase_date" onchange="updateRollNo()"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>進貨米數 *</label><input type="number" id="r_initial_meters" min="0" step="0.1" placeholder="50"></div>
@@ -730,16 +730,41 @@ async function deleteMat(id) {
 
 // ── 捲料 CRUD ────────────────────────────────────────────────
 
-function openRollModal(matId, name) {
+function genRollNoBase(brand, model, date) {
+  return `${brand.trim()}-${model.trim()}-${date.replace(/-/g,'')}`;
+}
+
+async function nextRollNo(matId, brand, model, date) {
+  const base = genRollNoBase(brand, model, date);
+  const res  = await fetch(`/api/materials/${matId}/rolls`);
+  const rolls = res.ok ? await res.json() : [];
+  const count = rolls.filter(r => r.roll_no && r.roll_no.startsWith(base)).length;
+  return `${base}-${String(count + 1).padStart(2, '0')}`;
+}
+
+async function updateRollNo() {
+  const mat  = materials.find(m => m.id === rollTargetMatId);
+  const date = document.getElementById('r_purchase_date').value;
+  if (mat && date) {
+    document.getElementById('r_roll_no').value = await nextRollNo(rollTargetMatId, mat.brand, mat.model, date);
+  }
+}
+
+async function openRollModal(matId, name) {
   rollTargetMatId = matId;
   document.getElementById('rollModalTitle').textContent = `新增捲料 — ${name}`;
-  ['r_roll_no','r_notes','r_location'].forEach(id => document.getElementById(id).value = '');
+  ['r_notes','r_location'].forEach(id => document.getElementById(id).value = '');
   ['r_initial_meters','r_unit_cost'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('r_purchase_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('r_roll_no').value = '產生中…';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('r_purchase_date').value = today;
   document.getElementById('r_branch').value = activeBranch || knownBranches[0] || '總部';
-  // 預填型號成本
   const mat = materials.find(m => m.id === matId);
-  if (mat?.unit_cost) document.getElementById('r_unit_cost').value = mat.unit_cost;
+  if (mat) {
+    if (mat.unit_cost) document.getElementById('r_unit_cost').value = mat.unit_cost;
+    if (mat.location)  document.getElementById('r_location').value  = mat.location;
+    document.getElementById('r_roll_no').value = await nextRollNo(matId, mat.brand, mat.model, today);
+  }
   document.getElementById('rollModal').classList.add('open');
 }
 function closeRollModal() { document.getElementById('rollModal').classList.remove('open'); }
