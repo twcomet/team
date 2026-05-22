@@ -149,7 +149,7 @@ function renderCalendar() {
 }
 
 function renderUnscheduled() {
-  fetch('/api/cases?status=confirmed').then(r => r.json()).then(cases => {
+  fetch('/api/cases?status=contracted').then(r => r.json()).then(cases => {
     const unscheduled = cases.filter(c => !c.scheduled_date);
     document.getElementById('unscheduledCount').textContent = `（${unscheduled.length} 件）`;
     const list = document.getElementById('unscheduledList');
@@ -161,8 +161,8 @@ function renderUnscheduled() {
       <div class="unscheduled-item">
         <span class="case-num">${c.case_number}</span>
         <span style="flex:1;font-size:14px">${c.client_name || ''} ${c.title}</span>
-        <span style="font-size:13px;color:#6b7280">${c.installer_name || '未指定師傅'}</span>
-        <a href="/cases#${c.id}" class="btn btn-ghost btn-sm">排程</a>
+        <span style="font-size:13px;color:#6b7280">${c.sales_name || '未指定'}</span>
+        <a href="/case-detail.html?id=${c.id}" class="btn btn-ghost btn-sm">填施工日期</a>
       </div>
     `).join('');
   });
@@ -181,8 +181,9 @@ function openDayModal(dateStr) {
           ${statusBadge(c.status)}
         </div>
         <div style="font-weight:600;margin-bottom:4px">${c.client_name || ''} — ${c.title}</div>
-        <div style="font-size:13px;color:#6b7280">師傅：${c.installer_name || '未指定'} ｜ 時間：${c.scheduled_time || '未定'}</div>
+        <div style="font-size:13px;color:#6b7280">負責：${c.installer_name || '未指定'} ｜ 時間：${c.scheduled_time || '未定'}</div>
         <div style="font-size:13px;color:#6b7280">金額：${fmt(c.final_price || c.quoted_price)}</div>
+        <a href="/case-detail.html?id=${c.id}" style="font-size:12px;color:#1a56db;text-decoration:none">→ 開啟案件</a>
       </div>
     `).join('');
   }

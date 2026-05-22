@@ -4,7 +4,7 @@ const { requireAuth, orgFilter } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/calendar?year=2026&month=5
-// 回傳該月份的派工記錄（附案件資訊）與每日目標
+// 回傳該月份的派工記錄 + 有施工日期的案件，與每日目標
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const filter = orgFilter(me);
@@ -15,7 +15,8 @@ router.get('/', requireAuth, (req, res) => {
 
   const orgCond = filter.org_id ? `AND c.org_id = ${filter.org_id}` : '';
 
-  const cases = db.prepare(`
+  // 派工記錄
+  const dispatched = db.prepare(`
     SELECT
       d.id            AS dispatch_id,
       d.scheduled_date,
@@ -25,7 +26,8 @@ router.get('/', requireAuth, (req, res) => {
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
       cl.name         AS client_name,
-      GROUP_CONCAT(u.name, '、') AS installer_name
+      GROUP_CONCAT(u.name, '、') AS installer_name,
+      'dispatch'      AS source
     FROM dispatches d
     JOIN cases c ON d.case_id = c.id
     LEFT JOIN clients cl ON c.client_id = cl.id
@@ -37,6 +39,36 @@ router.get('/', requireAuth, (req, res) => {
     GROUP BY d.id
     ORDER BY d.scheduled_date, d.scheduled_time
   `).all(dateFrom, dateTo);
+
+  // 有施工日期但無派工記錄的案件
+  const dispatchedCaseIds = dispatched.map(d => d.id);
+  const excludeClause = dispatchedCaseIds.length
+    ? `AND c.id NOT IN (${dispatchedCaseIds.join(',')})`
+    : '';
+
+  const scheduled = db.prepare(`
+    SELECT
+      NULL            AS dispatch_id,
+      c.scheduled_date,
+      NULL            AS scheduled_time,
+      NULL            AS dispatch_type,
+      NULL            AS dispatch_status,
+      c.id, c.case_number, c.title, c.status,
+      c.final_price, c.quoted_price,
+      cl.name         AS client_name,
+      sv.name         AS installer_name,
+      'case'          AS source
+    FROM cases c
+    LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN users sv ON c.surveyor_id = sv.id
+    WHERE c.scheduled_date BETWEEN ? AND ?
+      AND c.status NOT IN ('closed','invalid')
+      ${orgCond}
+      ${excludeClause}
+    ORDER BY c.scheduled_date
+  `).all(dateFrom, dateTo);
+
+  const cases = [...dispatched, ...scheduled];
 
   const targets = db.prepare(`
     SELECT date, target_amount FROM daily_targets
