@@ -109,11 +109,27 @@
     <div class="modal-body">
       <input type="hidden" id="cm_id">
       <div class="form-row">
-        <div class="form-group"><label>姓名 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
-        <div class="form-group"><label>電話</label><input type="tel" id="cm_phone" placeholder="0912-345-678"></div>
+        <div class="form-group"><label>客戶抬頭 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
+        <div class="form-group"><label>聯絡人</label><input type="text" id="cm_contact_person" placeholder="負責人姓名"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>電話</label><input type="tel" id="cm_phone" placeholder="0912-345-678"></div>
         <div class="form-group"><label>Email</label><input type="email" id="cm_email"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>統一編號</label><input type="text" id="cm_tax_id" placeholder="12345678"></div>
+        <div class="form-group"><label>電子發票代碼</label><input type="text" id="cm_einvoice_code" placeholder="（選填）"></div>
+      </div>
+      <div class="form-group"><label>名片地址</label><input type="text" id="cm_address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>客戶等級</label>
+          <select id="cm_client_level">
+            <option value="">不指定</option>
+            <option value="A">A 級（優質常客）</option>
+            <option value="B">B 級（一般）</option>
+            <option value="C">C 級（潛在）</option>
+          </select>
+        </div>
         <div class="form-group"><label>來源</label>
           <select id="cm_source">
             <option value="">不指定</option>
@@ -127,10 +143,15 @@
           </select>
         </div>
       </div>
-      <div class="form-group"><label>地址</label><input type="text" id="cm_address"></div>
       <div class="form-row">
+        <div class="form-group"><label>付款條件</label><input type="text" id="cm_payment_terms" placeholder="例：月結30天"></div>
+        <div class="form-group"><label>優惠條件</label><input type="text" id="cm_discount_terms" placeholder="例：9折"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>資本額</label><input type="text" id="cm_capital" placeholder="（選填）"></div>
         <div class="form-group"><label>折扣（1.0 = 全額）</label><input type="number" id="cm_discount" value="1" step="0.01" min="0" max="1"></div>
       </div>
+      <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="cm_referrer" placeholder="（選填）"></div>
       <div class="form-group"><label>備註</label><textarea id="cm_notes" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
@@ -271,17 +292,28 @@ function openClientModal(id) {
   if (id) {
     const c = allClients.find(x => x.id === id);
     if (!c) return;
-    document.getElementById('cm_name').value     = c.name || '';
-    document.getElementById('cm_phone').value    = c.phone || '';
-    document.getElementById('cm_email').value    = c.email || '';
-    document.getElementById('cm_source').value   = c.source || '';
-    document.getElementById('cm_address').value  = c.address || '';
-    document.getElementById('cm_discount').value = c.discount ?? 1;
-    document.getElementById('cm_notes').value    = c.notes || '';
+    document.getElementById('cm_name').value           = c.name || '';
+    document.getElementById('cm_contact_person').value  = c.contact_person || '';
+    document.getElementById('cm_phone').value           = c.phone || '';
+    document.getElementById('cm_email').value           = c.email || '';
+    document.getElementById('cm_tax_id').value          = c.tax_id || '';
+    document.getElementById('cm_einvoice_code').value   = c.einvoice_code || '';
+    document.getElementById('cm_address').value         = c.address || '';
+    document.getElementById('cm_client_level').value    = c.client_level || '';
+    document.getElementById('cm_source').value          = c.source || '';
+    document.getElementById('cm_payment_terms').value   = c.payment_terms || '';
+    document.getElementById('cm_discount_terms').value  = c.discount_terms || '';
+    document.getElementById('cm_capital').value         = c.capital || '';
+    document.getElementById('cm_discount').value        = c.discount ?? 1;
+    document.getElementById('cm_referrer').value        = c.referrer || '';
+    document.getElementById('cm_notes').value           = c.notes || '';
   } else {
-    ['cm_name','cm_phone','cm_email','cm_address','cm_notes'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('cm_source').value   = '';
-    document.getElementById('cm_discount').value = '1';
+    ['cm_name','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
+     'cm_address','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_notes']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cm_source').value       = '';
+    document.getElementById('cm_client_level').value = '';
+    document.getElementById('cm_discount').value     = '1';
   }
   document.getElementById('clientModal').classList.add('open');
 }
@@ -291,14 +323,23 @@ async function saveClient() {
   const id   = document.getElementById('cm_id').value;
   const name = document.getElementById('cm_name').value.trim();
   if (!name) { showToast('請填入客戶姓名', 'error'); return; }
+  const g = id => document.getElementById(id).value || null;
   const body = {
     name,
-    phone:    document.getElementById('cm_phone').value || null,
-    email:    document.getElementById('cm_email').value || null,
-    source:   document.getElementById('cm_source').value || null,
-    address:  document.getElementById('cm_address').value || null,
-    discount: parseFloat(document.getElementById('cm_discount').value) || 1,
-    notes:    document.getElementById('cm_notes').value || null,
+    contact_person:  g('cm_contact_person'),
+    phone:           g('cm_phone'),
+    email:           g('cm_email'),
+    tax_id:          g('cm_tax_id'),
+    einvoice_code:   g('cm_einvoice_code'),
+    address:         g('cm_address'),
+    client_level:    g('cm_client_level'),
+    source:          g('cm_source'),
+    payment_terms:   g('cm_payment_terms'),
+    discount_terms:  g('cm_discount_terms'),
+    capital:         g('cm_capital'),
+    referrer:        g('cm_referrer'),
+    discount:        parseFloat(document.getElementById('cm_discount').value) || 1,
+    notes:           g('cm_notes'),
   };
   const url    = id ? `/api/clients/${id}` : '/api/clients';
   const method = id ? 'PUT' : 'POST';

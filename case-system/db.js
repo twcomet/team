@@ -240,6 +240,14 @@ _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');
 _addCol('clients',    'line_user_id',      'TEXT');
+_addCol('clients',    'tax_id',            'TEXT');
+_addCol('clients',    'contact_person',    'TEXT');
+_addCol('clients',    'capital',           'TEXT');
+_addCol('clients',    'einvoice_code',     'TEXT');
+_addCol('clients',    'client_level',      'TEXT');
+_addCol('clients',    'payment_terms',     'TEXT');
+_addCol('clients',    'discount_terms',    'TEXT');
+_addCol('clients',    'referrer',          'TEXT');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 // 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移
