@@ -11,7 +11,7 @@ db.exec('PRAGMA foreign_keys = ON;');
 
 // 1. 場勘案件：匯入自 Excel 的，狀態改為 survey
 const r1 = db.prepare(
-  "UPDATE cases SET status='survey' WHERE case_type='survey' AND notes LIKE '匯入自Excel%' AND status != 'survey'"
+  "UPDATE cases SET status='survey' WHERE notes LIKE '匯入自Excel%' AND status != 'survey'"
 ).run();
 console.log('場勘案件修正：', r1.changes, '筆 → survey');
 

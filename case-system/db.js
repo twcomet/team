@@ -80,8 +80,8 @@ db.exec(`
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     case_number     TEXT UNIQUE NOT NULL,
     org_id          INTEGER REFERENCES orgs(id),
-    case_type       TEXT DEFAULT 'inquiry'
-                    CHECK(case_type IN ('inquiry','survey','contract','repair')),
+    case_type       TEXT DEFAULT 'other'
+                    CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
     client_id       INTEGER REFERENCES clients(id),
     title           TEXT NOT NULL,
     description     TEXT,
@@ -242,13 +242,14 @@ _addCol('case_items', 'location',          'TEXT');
 _addCol('clients',    'line_user_id',      'TEXT');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
+// 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移
 const _casesSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
+if (_casesSchema && _casesSchema.sql.includes('survey_scheduled')) {
   db.exec(`PRAGMA foreign_keys=OFF`);
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'inquiry' CHECK(case_type IN ('inquiry','survey','contract','repair')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
@@ -266,7 +267,10 @@ if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
     scheduled_date DATE, survey_date DATE, surveyor_id INTEGER REFERENCES users(id)
   )`);
   db.exec(`INSERT INTO _cases_new
-    SELECT id, case_number, org_id, case_type, client_id, title, description, location,
+    SELECT id, case_number, org_id,
+           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','other')
+                THEN case_type ELSE 'other' END,
+           client_id, title, description, location,
            quoted_price, final_price, material_cost, survey_fee, install_fee,
            payment_status, payment_received, payment_due_date, payment_notes,
            sales_id, is_outsourced, outsource_type,
@@ -299,6 +303,49 @@ if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
   db.exec(`DROP TABLE cases; ALTER TABLE _cases_new RENAME TO cases`);
   db.exec(`PRAGMA foreign_keys=ON`);
   console.log('✅ 案件狀態升級完成（7 階段流程）');
+}
+
+// ── 案件類型升級 → 7 大類（居家/商空/電梯/玻璃/外快/外包/其他）──
+// 條件：舊 schema 含 'inquiry','survey','contract','repair' 才需遷移
+const _casesSchema2 = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
+if (_casesSchema2 && _casesSchema2.sql.includes("'inquiry','survey','contract','repair'")) {
+  db.exec(`PRAGMA foreign_keys=OFF`);
+  db.exec(`CREATE TABLE _cases_new2 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
+    org_id INTEGER REFERENCES orgs(id),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
+    client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
+    description TEXT, location TEXT, quoted_price REAL, final_price REAL,
+    material_cost REAL, survey_fee REAL, install_fee REAL,
+    payment_status TEXT DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid','partial','paid','overdue')),
+    payment_received REAL DEFAULT 0, payment_due_date DATE, payment_notes TEXT,
+    sales_id INTEGER REFERENCES users(id), is_outsourced INTEGER DEFAULT 0,
+    outsource_type TEXT CHECK(outsource_type IN ('full','survey_only','install_only')),
+    status TEXT DEFAULT 'initial_estimate',
+    priority TEXT DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
+    notes TEXT, created_by INTEGER REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    line_source TEXT, keyword TEXT, deposit_amount REAL, material_ordered INTEGER DEFAULT 0,
+    invoice_company TEXT, invoice_tax_id TEXT, invoice_address TEXT,
+    invoice_email TEXT, invoice_item_desc TEXT,
+    scheduled_date DATE, survey_date DATE, surveyor_id INTEGER REFERENCES users(id)
+  )`);
+  db.exec(`INSERT INTO _cases_new2
+    SELECT id, case_number, org_id,
+           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','other')
+                THEN case_type ELSE 'other' END,
+           client_id, title, description, location,
+           quoted_price, final_price, material_cost, survey_fee, install_fee,
+           payment_status, payment_received, payment_due_date, payment_notes,
+           sales_id, is_outsourced, outsource_type, status,
+           priority, notes, created_by, created_at, updated_at,
+           line_source, keyword, deposit_amount, material_ordered,
+           invoice_company, invoice_tax_id, invoice_address, invoice_email, invoice_item_desc,
+           scheduled_date, survey_date, surveyor_id
+    FROM cases`);
+  db.exec(`DROP TABLE cases; ALTER TABLE _cases_new2 RENAME TO cases`);
+  db.exec(`PRAGMA foreign_keys=ON`);
+  console.log('✅ 案件類型升級完成（居家/商空/電梯/玻璃/外快/外包/其他）');
 }
 
 // ── 報價單 ────────────────────────────────────────────────────

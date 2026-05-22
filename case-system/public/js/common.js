@@ -15,6 +15,7 @@ const STATUS_LABELS = {
   invalid:          '7.無效案件保存',
 };
 const PAYMENT_LABELS = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
+const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', other:'其他' };
 
 function badge(text, cls) { return `<span class="badge badge-${cls}">${text}</span>`; }
 function statusBadge(s) { return badge(STATUS_LABELS[s] || s, s); }
