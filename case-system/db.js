@@ -237,7 +237,6 @@ _addCol('cases', 'scheduled_date',   'DATE');
 _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');
-_addCol('quote_sheets', 'client_type',    'TEXT DEFAULT "owner"');
 
 // ── 報價單 ────────────────────────────────────────────────────
 db.exec(`
@@ -262,6 +261,7 @@ db.exec(`
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+_addCol('quote_sheets', 'client_type', 'TEXT DEFAULT "owner"');
 
 // ── 場勘單 ────────────────────────────────────────────────────
 db.exec(`
