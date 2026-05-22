@@ -15,6 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
+
+// LINE webhook 必須在 express.json() 之前，才能取得 raw body 做簽名驗證
+app.use('/webhook', require('./routes/webhook'));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));

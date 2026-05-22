@@ -237,6 +237,7 @@ _addCol('cases', 'scheduled_date',   'DATE');
 _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');
+_addCol('clients',    'line_user_id',      'TEXT');
 
 // ── 報價單 ────────────────────────────────────────────────────
 db.exec(`
