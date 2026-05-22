@@ -243,12 +243,7 @@ _addCol('clients',    'line_user_id',      'TEXT');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 const _casesSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-const _needsMigrate = _casesSchema && (
-  _casesSchema.sql.includes("'in_progress'") ||   // 舊 10 階段
-  _casesSchema.sql.includes("'dispatched'")  ||   // 中間 13 階段
-  _casesSchema.sql.includes("'contracted'")  === false && _casesSchema.sql.includes("'closed'") // 尚未升級到 7 階段
-);
-if (_needsMigrate && !(_casesSchema.sql.includes("'contracted'"))) {
+if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
   db.exec(`PRAGMA foreign_keys=OFF`);
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,

@@ -23,8 +23,7 @@ _addCol('cases', 'surveyor_id',  'INTEGER REFERENCES users(id)');
 
 // 如果舊 CHECK 約束存在，遷移 cases 表格
 const _casesSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-const _needsMigrate = _casesSchema && !_casesSchema.sql.includes("'contracted'");
-if (_needsMigrate) {
+if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
   console.log('升級案件狀態至 7 階段...');
   db.exec(`PRAGMA foreign_keys=OFF`);
   db.exec(`CREATE TABLE _cases_new (
