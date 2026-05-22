@@ -63,6 +63,7 @@
         <span class="type-tab" data-type="glass">玻璃</span>
         <span class="type-tab" data-type="extra">外快</span>
         <span class="type-tab" data-type="outsource">外包</span>
+        <span class="type-tab" data-type="output">輸出</span>
         <span class="type-tab" data-type="other">其他</span>
       </div>
 
@@ -103,6 +104,7 @@
             <option value="glass">玻璃</option>
             <option value="extra">外快</option>
             <option value="outsource">外包</option>
+            <option value="output">輸出</option>
             <option value="other">其他</option>
           </select>
         </div>
@@ -172,7 +174,7 @@ const STAGE_NAMES = {
   contracted:'成交派案', payment:'完工請款', closed:'結案保存', invalid:'無效',
 };
 const HIDDEN_STAGES = new Set(['closed','invalid']); // 結案/無效預設不顯示在列表
-const TYPE_NAMES  = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', other:'其他' };
+const TYPE_NAMES  = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
 const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca3af' };
 
 let allCases = [], clients = [], salesUsers = [];

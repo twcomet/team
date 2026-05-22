@@ -81,7 +81,7 @@ db.exec(`
     case_number     TEXT UNIQUE NOT NULL,
     org_id          INTEGER REFERENCES orgs(id),
     case_type       TEXT DEFAULT 'other'
-                    CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
+                    CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
     client_id       INTEGER REFERENCES clients(id),
     title           TEXT NOT NULL,
     description     TEXT,
@@ -249,7 +249,7 @@ if (_casesSchema && _casesSchema.sql.includes('survey_scheduled')) {
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
@@ -313,7 +313,7 @@ if (_casesSchema2 && _casesSchema2.sql.includes("'inquiry','survey','contract','
   db.exec(`CREATE TABLE _cases_new2 (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','other')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
