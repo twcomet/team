@@ -328,6 +328,26 @@
           </div>
         </div>
 
+        <!-- 成本費用 -->
+        <div style="margin-top:24px;border:1px solid var(--gray-200);border-radius:10px;padding:20px;max-width:800px">
+          <h4 style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--gray-700)">成本費用</h4>
+          <div class="form-row-3" style="margin-bottom:10px">
+            <div class="form-group" style="margin:0"><label>材料成本</label><input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+            <div class="form-group" style="margin:0"><label>外包成本</label><input type="number" id="p_outsource_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+            <div class="form-group" style="margin:0"><label>施工成本</label><input type="number" id="p_install_fee" placeholder="0" min="0" oninput="updateProfit()"></div>
+          </div>
+          <div class="form-row" style="margin-bottom:14px">
+            <div class="form-group" style="margin:0"><label>運費</label><input type="number" id="p_shipping_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+            <div class="form-group" style="margin:0"><label>其他費用</label><input type="number" id="p_other_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+          </div>
+          <!-- 毛利摘要 -->
+          <div style="background:var(--gray-50);border-radius:8px;padding:14px;font-size:13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center" id="profitSummary">
+            <div><div style="color:var(--gray-500);margin-bottom:4px">總成本</div><div id="p_total_cost" style="font-weight:700;font-size:16px">—</div></div>
+            <div><div style="color:var(--gray-500);margin-bottom:4px">毛利</div><div id="p_profit" style="font-weight:700;font-size:16px">—</div></div>
+            <div><div style="color:var(--gray-500);margin-bottom:4px">毛利率</div><div id="p_margin" style="font-weight:700;font-size:16px">—</div></div>
+          </div>
+        </div>
+
         <div style="margin-top:20px">
           <button class="btn btn-primary" id="savePaymentBtn">更新收款 ／ 發票資訊</button>
         </div>
@@ -726,6 +746,19 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
 });
 
 // ── 收款 ───────────────────────────────────────────────────
+function updateProfit() {
+  const revenue = parseFloat(document.getElementById('p_final_price').value) || 0;
+  const costs = ['p_material_cost','p_outsource_cost','p_install_fee','p_shipping_cost','p_other_cost']
+    .reduce((s, id) => s + (parseFloat(document.getElementById(id).value) || 0), 0);
+  const profit = revenue - costs;
+  const margin = revenue > 0 ? (profit / revenue * 100).toFixed(1) : null;
+  const profitColor = profit >= 0 ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('p_total_cost').textContent = costs ? fmt(costs) : '—';
+  document.getElementById('p_profit').textContent     = (revenue || costs) ? fmt(profit) : '—';
+  document.getElementById('p_profit').style.color     = (revenue || costs) ? profitColor : '';
+  document.getElementById('p_margin').textContent     = margin !== null ? `${margin}%` : '—';
+  document.getElementById('p_margin').style.color     = margin !== null ? profitColor : '';
+}
 function updateVat() {
   const base = parseFloat(document.getElementById('p_final_price').value) || 0;
   const vat  = base * 0.05;
@@ -733,6 +766,7 @@ function updateVat() {
   document.getElementById('p_vat_display').textContent   = base ? fmt(vat)   : '—';
   document.getElementById('p_total_display').textContent = base ? fmt(total) : '—';
   updateBalance();
+  updateProfit();
 }
 function updateBalance() {
   const base    = parseFloat(document.getElementById('p_final_price').value) || 0;
@@ -756,6 +790,12 @@ function fillPaymentForm() {
   document.getElementById('p_invoice_address').value   = c.invoice_address || '';
   document.getElementById('p_invoice_email').value     = c.invoice_email || '';
   document.getElementById('p_invoice_item_desc').value = c.invoice_item_desc || '';
+  document.getElementById('p_material_cost').value   = c.material_cost  != null ? c.material_cost  : '';
+  document.getElementById('p_outsource_cost').value  = c.outsource_cost != null ? c.outsource_cost : '';
+  document.getElementById('p_install_fee').value     = c.install_fee    != null ? c.install_fee    : '';
+  document.getElementById('p_shipping_cost').value   = c.shipping_cost  != null ? c.shipping_cost  : '';
+  document.getElementById('p_other_cost').value      = c.other_cost     != null ? c.other_cost     : '';
+  updateProfit();
   updateVat();
 }
 
@@ -774,6 +814,11 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     invoice_address:     document.getElementById('p_invoice_address').value || null,
     invoice_email:       document.getElementById('p_invoice_email').value || null,
     invoice_item_desc:   document.getElementById('p_invoice_item_desc').value || null,
+    material_cost:  parseFloat(document.getElementById('p_material_cost').value)  || null,
+    outsource_cost: parseFloat(document.getElementById('p_outsource_cost').value) || null,
+    install_fee:    parseFloat(document.getElementById('p_install_fee').value)    || null,
+    shipping_cost:  parseFloat(document.getElementById('p_shipping_cost').value)  || null,
+    other_cost:     parseFloat(document.getElementById('p_other_cost').value)     || null,
   };
   const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) { showToast('收款 ／ 發票資訊已更新'); await loadCase(); }

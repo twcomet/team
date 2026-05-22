@@ -161,6 +161,7 @@ router.put('/:id', requireAuth, (req, res) => {
     invoice_company, invoice_tax_id, invoice_address, invoice_email, invoice_item_desc,
     survey_date, surveyor_id,
     entry_info, photo_upload_url,
+    material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
   } = req.body;
 
   db.prepare(`
@@ -175,6 +176,7 @@ router.put('/:id', requireAuth, (req, res) => {
       invoice_email=?, invoice_item_desc=?,
       survey_date=?, surveyor_id=?,
       entry_info=?, photo_upload_url=?,
+      material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -189,6 +191,7 @@ router.put('/:id', requireAuth, (req, res) => {
     invoice_email ?? null, invoice_item_desc ?? null,
     survey_date ?? null, surveyor_id ?? null,
     entry_info ?? null, photo_upload_url ?? null,
+    material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     req.params.id,
   );
 

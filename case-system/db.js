@@ -252,6 +252,9 @@ _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('cases',      'entry_info',        'TEXT');
 _addCol('cases',      'photo_upload_url',  'TEXT');
+_addCol('cases',      'outsource_cost',    'REAL');
+_addCol('cases',      'shipping_cost',     'REAL');
+_addCol('cases',      'other_cost',        'REAL');
 
 // ── 膜料使用紀錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
