@@ -30,6 +30,9 @@
 .source-google   { background:#f0fdf4; color:#166534; }
 .source-boss_friend { background:#fce7f3; color:#9d174d; }
 .source-other    { background:var(--gray-100); color:var(--gray-600); }
+.client-tag { display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500;color:#fff; }
+.tag-check-item { display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer; }
+.tag-check-item:hover { background:var(--gray-100); }
 </style>
 </head>
 <body>
@@ -83,7 +86,7 @@
       </div>
 
       <!-- 來源篩選 -->
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <span class="type-tab active" data-src="">全部</span>
         <span class="type-tab" data-src="line">Line@</span>
         <span class="type-tab" data-src="ig">Instagram</span>
@@ -95,8 +98,34 @@
         <span class="type-tab" data-src="other">其他</span>
       </div>
 
+      <!-- 標籤篩選 -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:12px;color:var(--gray-500)">標籤：</span>
+        <span class="type-tab active" data-tag="" style="font-size:12px">全部</span>
+        <span id="tagFilterRow"></span>
+        <button class="btn btn-ghost btn-sm" id="manageTagsBtn" style="font-size:11px">⚙ 管理標籤</button>
+      </div>
+
       <!-- 客戶卡片列表 -->
       <div id="clientList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 管理標籤 Modal -->
+<div class="modal-overlay" id="tagMgrModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>管理標籤</h3>
+      <button class="modal-close" onclick="document.getElementById('tagMgrModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="newTagName" placeholder="標籤名稱" style="flex:1">
+        <input type="color" id="newTagColor" value="#3b82f6" style="width:40px;height:36px;border:1px solid var(--gray-300);border-radius:6px;padding:2px">
+        <button class="btn btn-primary btn-sm" onclick="createTag()">新增</button>
+      </div>
+      <div id="tagMgrList"></div>
     </div>
   </div>
 </div>
@@ -174,6 +203,10 @@
         <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="cm_referrer" placeholder="（選填）"></div>
         <div class="form-group"><label>LINE 群組名稱</label><input type="text" id="cm_line_group_name" placeholder="例：@繪新-信義案"></div>
       </div>
+      <div class="form-group">
+        <label>標籤</label>
+        <div id="cm_tags_picker" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--gray-300);border-radius:8px;min-height:38px"></div>
+      </div>
       <div class="form-group"><label>備註</label><textarea id="cm_notes" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
@@ -216,17 +249,106 @@ async function applyLevel(cid, level) {
   }
 }
 
-let allClients = [], activeSource = '', searchQ = '';
+let allClients = [], activeSource = '', searchQ = '', activeTag = '';
 let clientCases = {};
+let allTags = [];
+
+async function loadTags() {
+  const res = await fetch('/api/tags');
+  allTags = res.ok ? await res.json() : [];
+  renderTagFilters();
+  renderTagMgrList();
+}
+
+function renderTagFilters() {
+  const row = document.getElementById('tagFilterRow');
+  row.innerHTML = allTags.map(t =>
+    `<span class="type-tab" data-tag="${t.id}" style="font-size:12px">
+       <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.color};margin-right:3px"></span>${t.name}
+     </span>`
+  ).join('');
+  row.querySelectorAll('.type-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-tag]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTag = tab.dataset.tag;
+      render();
+    });
+  });
+}
+
+function renderTagMgrList() {
+  const el = document.getElementById('tagMgrList');
+  if (!el) return;
+  el.innerHTML = allTags.length
+    ? allTags.map(t => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="width:14px;height:14px;border-radius:50%;background:${t.color};display:inline-block"></span>
+          <span style="flex:1;font-size:14px">${t.name}</span>
+          <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteTag(${t.id})">刪除</button>
+        </div>`).join('')
+    : `<p style="font-size:13px;color:var(--gray-500);text-align:center">尚無標籤</p>`;
+}
+
+async function createTag() {
+  const name = document.getElementById('newTagName').value.trim();
+  const color = document.getElementById('newTagColor').value;
+  if (!name) return;
+  const res = await fetch('/api/tags', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name,color}) });
+  if (res.ok) {
+    const tag = await res.json();
+    allTags.push(tag);
+    document.getElementById('newTagName').value = '';
+    renderTagFilters();
+    renderTagMgrList();
+    showToast(`標籤「${name}」已建立`);
+  }
+}
+
+async function deleteTag(id) {
+  const res = await fetch(`/api/tags/${id}`, { method:'DELETE' });
+  if (res.ok) {
+    allTags = allTags.filter(t => t.id !== id);
+    renderTagFilters();
+    renderTagMgrList();
+    clientCases = {};
+    await loadClients();
+  }
+}
+
+function renderTagPicker(selectedTagIds) {
+  const el = document.getElementById('cm_tags_picker');
+  el.innerHTML = allTags.map(t => {
+    const sel = selectedTagIds.includes(t.id);
+    return `<label class="tag-check-item" style="${sel ? `background:${t.color}20` : ''}">
+      <input type="checkbox" value="${t.id}" ${sel ? 'checked' : ''} style="accent-color:${t.color}">
+      <span class="client-tag" style="background:${t.color}">${t.name}</span>
+    </label>`;
+  }).join('') || `<span style="font-size:12px;color:var(--gray-400)">尚無標籤，請先至「管理標籤」新增</span>`;
+}
 
 async function init() {
   await loadUser();
   highlightNav('clients');
-  await loadClients();
+  await Promise.all([loadClients(), loadTags()]);
 
-  document.querySelectorAll('.type-tab').forEach(tab => {
+  document.getElementById('manageTagsBtn').addEventListener('click', () => {
+    renderTagMgrList();
+    document.getElementById('tagMgrModal').classList.add('open');
+  });
+
+  document.querySelectorAll('[data-tag=""]').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('[data-tag]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTag = '';
+      render();
+    });
+  });
+
+  document.querySelectorAll('.type-tab[data-src]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.type-tab[data-src]').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       activeSource = tab.dataset.src;
       render();
@@ -259,6 +381,7 @@ function renderStats() {
 function render() {
   const list = allClients.filter(c => {
     if (activeSource && c.source !== activeSource) return false;
+    if (activeTag && !(c.tags || []).some(t => t.id === +activeTag)) return false;
     if (searchQ && !`${c.name} ${c.contact_person || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase().includes(searchQ)) return false;
     return true;
   });
@@ -282,6 +405,7 @@ function render() {
             ${c.phone ? `📞 ${c.phone}` : ''}
             ${c.email ? `　✉️ ${c.email}` : ''}
             ${c.address ? `　📍 ${c.address}` : ''}
+            ${c.tags && c.tags.length ? '<br>' + c.tags.map(t=>`<span class="client-tag" style="background:${t.color}">${t.name}</span>`).join(' ') : ''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -388,7 +512,11 @@ function openClientModal(id) {
       hint.innerHTML = `✨ 系統建議：<strong>${sug} 級</strong>（近一年成交 ${c.orders_last_year} 筆 / 累計 ${fmt(c.total_revenue)}）
         <a href="#" style="margin-left:6px;color:#1e40af" onclick="event.preventDefault();document.getElementById('cm_client_level').value='${sug}';this.parentElement.style.display='none'">套用</a>`;
     } else { hint.style.display = 'none'; }
-  } else { hint.style.display = 'none'; }
+    renderTagPicker((c.tags || []).map(t => t.id));
+  } else {
+    hint.style.display = 'none';
+    renderTagPicker([]);
+  }
 
   document.getElementById('clientModal').classList.add('open');
 }
@@ -421,6 +549,9 @@ async function saveClient() {
   const method = id ? 'PUT' : 'POST';
   const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) {
+    const savedId = id || (await res.json()).id;
+    const tag_ids = [...document.querySelectorAll('#cm_tags_picker input[type=checkbox]:checked')].map(el => +el.value);
+    await fetch(`/api/tags/client/${savedId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tag_ids}) });
     closeClientModal();
     showToast(id ? '客戶資訊已更新' : `客戶「${name}」已建立`);
     clientCases = {};

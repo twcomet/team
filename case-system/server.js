@@ -42,6 +42,7 @@ app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
+app.use('/api/tags',  require('./routes/tags'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {

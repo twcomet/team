@@ -11,24 +11,32 @@ router.get('/', requireAuth, (req, res) => {
   const clients = filter.org_id
     ? db.prepare(`
         SELECT c.*,
-          COUNT(CASE WHEN cs.status IN ('contracted','payment','closed')
-                      AND cs.created_at >= datetime('now','-1 year') THEN 1 END) AS orders_last_year,
-          COALESCE(SUM(CASE WHEN cs.status IN ('contracted','payment','closed') THEN cs.final_price END),0) AS total_revenue
-        FROM clients c
-        LEFT JOIN cases cs ON cs.client_id = c.id
-        WHERE c.org_id = ?
-        GROUP BY c.id ORDER BY c.name
+          (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
+            AND cs.status IN ('contracted','payment','closed')
+            AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
+          (SELECT COALESCE(SUM(cs.final_price),0) FROM cases cs WHERE cs.client_id=c.id
+            AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
+          (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
+            FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
+        FROM clients c WHERE c.org_id = ? ORDER BY c.name
       `).all(filter.org_id)
     : db.prepare(`
         SELECT c.*, o.name AS org_name,
-          COUNT(CASE WHEN cs.status IN ('contracted','payment','closed')
-                      AND cs.created_at >= datetime('now','-1 year') THEN 1 END) AS orders_last_year,
-          COALESCE(SUM(CASE WHEN cs.status IN ('contracted','payment','closed') THEN cs.final_price END),0) AS total_revenue
-        FROM clients c
-        LEFT JOIN orgs o ON c.org_id = o.id
-        LEFT JOIN cases cs ON cs.client_id = c.id
-        GROUP BY c.id ORDER BY c.name
+          (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
+            AND cs.status IN ('contracted','payment','closed')
+            AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
+          (SELECT COALESCE(SUM(cs.final_price),0) FROM cases cs WHERE cs.client_id=c.id
+            AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
+          (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
+            FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
+        FROM clients c LEFT JOIN orgs o ON c.org_id = o.id ORDER BY c.name
       `).all();
+  clients.forEach(c => {
+    c.tags = c.tags_csv
+      ? c.tags_csv.split(',').map(s => { const [id,name,color]=s.split('|'); return {id:+id,name,color}; })
+      : [];
+    delete c.tags_csv;
+  });
   res.json(clients);
 });
 

@@ -443,6 +443,24 @@ if (!catExists) {
   expenses.forEach((n,i) => ins.run('expense', n, i));
 }
 
+// ── 客戶標籤 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tags (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id     INTEGER REFERENCES orgs(id),
+    name       TEXT NOT NULL,
+    color      TEXT DEFAULT '#6b7280',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_tags (
+    client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    tag_id    INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (client_id, tag_id)
+  );
+`);
+
 // ── 初始資料：總部 + Flora + Dan ────────────────────────────
 const hqExists = db.prepare(`SELECT id FROM orgs WHERE type = 'hq' LIMIT 1`).get();
 if (!hqExists) {
