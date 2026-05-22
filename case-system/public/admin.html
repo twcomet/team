@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人員 & 分店管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">人員 & 分店管理</span>
+    </div>
+    <div class="page-body">
+
+      <!-- 分店管理（owner only） -->
+      <div class="card" id="orgSection" data-need="owner" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>分店 / 組織</h3>
+          <button class="btn btn-primary btn-sm" id="newOrgBtn">＋ 新增分店</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>名稱</th><th>類型</th><th>地址</th><th>狀態</th></tr></thead>
+              <tbody id="orgBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 人員管理 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>人員帳號</h3>
+          <button class="btn btn-primary btn-sm" id="newUserBtn">＋ 新增人員</button>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th><th>帳號</th><th>角色</th><th>所屬</th>
+                  <th>可看金額</th><th>狀態</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="userBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增 / 編輯分店 Modal -->
+<div class="modal-overlay" id="orgModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header"><h3 id="orgModalTitle">新增分店</h3><button class="modal-close" onclick="closeModal('orgModal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="orgId">
+      <div class="form-group"><label>名稱 *</label><input type="text" id="orgName"></div>
+      <div class="form-group">
+        <label>類型</label>
+        <select id="orgType"><option value="branch">分店</option><option value="hq">總部</option></select>
+      </div>
+      <div class="form-group"><label>地址</label><input type="text" id="orgAddress"></div>
+      <div class="form-group"><label>電話</label><input type="text" id="orgPhone"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('orgModal')">取消</button>
+      <button class="btn btn-primary" id="orgSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增 / 編輯人員 Modal -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="userModalTitle">新增人員</h3><button class="modal-close" onclick="closeModal('userModal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="userId">
+      <div class="form-row">
+        <div class="form-group"><label>姓名 *</label><input type="text" id="userName"></div>
+        <div class="form-group"><label>帳號 *</label><input type="text" id="userUsername"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>密碼 <span id="pwdHint" style="font-size:11px;color:#6b7280">（留空=不修改）</span></label><input type="password" id="userPassword" placeholder="至少 6 個字元"></div>
+        <div class="form-group"><label>所屬組織</label><select id="userOrgId"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>角色 *</label><select id="userRole"></select></div>
+        <div class="form-group"><label>部門</label><input type="text" id="userDept" placeholder="例：業務部、技術部"></div>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+          <input type="checkbox" id="userIsManager"> 主管職
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+          <input type="checkbox" id="userCanSeeAmounts"> 可查看案件金額
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('userModal')">取消</button>
+      <button class="btn btn-primary" id="userSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let orgs = [], roles = [], allUsers = [];
+let editingUserId = null;
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function init() {
+  await loadUser();
+  if (!currentUser.manage_users) { location.href = '/dashboard'; return; }
+  highlightNav('admin');
+  [orgs, roles] = await Promise.all([fetchOrgs(), fetchRoles()]);
+  populateSelect(document.getElementById('userOrgId'), orgs, 'id', 'name', '請選擇組織');
+  populateSelect(document.getElementById('userRole'), roles, 'value', 'label', '請選擇角色');
+
+  // 非 owner 隱藏分店管理區塊
+  if (currentUser.role !== 'owner') document.getElementById('orgSection').style.display = 'none';
+
+  await loadOrgs();
+  await loadUsers();
+}
+
+// ── 分店 ───────────────────────────────────────────────────
+async function loadOrgs() {
+  const tbody = document.getElementById('orgBody');
+  if (!tbody) return;
+  const typeMap = { hq:'🏢 總部', branch:'🏪 分店' };
+  tbody.innerHTML = orgs.map(o => `
+    <tr>
+      <td style="font-weight:500">${o.name}</td>
+      <td>${typeMap[o.type] || o.type}</td>
+      <td style="color:#6b7280;font-size:13px">${o.address || '—'}</td>
+      <td><span class="badge ${o.active ? 'badge-completed':'badge-closed'}">${o.active ? '啟用':'停用'}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="empty-state">尚無資料</td></tr>';
+}
+
+document.getElementById('newOrgBtn')?.addEventListener('click', () => {
+  document.getElementById('orgId').value = '';
+  document.getElementById('orgName').value = '';
+  document.getElementById('orgAddress').value = '';
+  document.getElementById('orgPhone').value = '';
+  document.getElementById('orgModal').classList.add('open');
+});
+
+document.getElementById('orgSaveBtn').addEventListener('click', async () => {
+  const id = document.getElementById('orgId').value;
+  const body = { name: document.getElementById('orgName').value, type: document.getElementById('orgType').value, address: document.getElementById('orgAddress').value, phone: document.getElementById('orgPhone').value };
+  if (!body.name) { showToast('請填入名稱', 'error'); return; }
+  const res = await fetch(id ? `/api/orgs/${id}` : '/api/orgs', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('orgModal'); orgs = await fetchOrgs(); loadOrgs(); showToast('分店已儲存'); }
+  else { const e = await res.json(); showToast(e.error || '儲存失敗', 'error'); }
+});
+
+// ── 人員 ───────────────────────────────────────────────────
+async function loadUsers() {
+  allUsers = await fetchUsers();
+  const tbody = document.getElementById('userBody');
+  tbody.innerHTML = allUsers.map(u => `
+    <tr>
+      <td style="font-weight:500">${u.name}</td>
+      <td><code style="font-size:12px">${u.username}</code></td>
+      <td>${ROLE_LABELS[u.role] || u.role}</td>
+      <td style="font-size:13px;color:#6b7280">${u.org_name || '—'}</td>
+      <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
+      <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="7"><div class="empty-state">尚無人員</div></td></tr>';
+}
+
+document.getElementById('newUserBtn').addEventListener('click', () => {
+  editingUserId = null;
+  document.getElementById('userModalTitle').textContent = '新增人員';
+  document.getElementById('userId').value = '';
+  document.getElementById('userName').value = '';
+  document.getElementById('userUsername').value = '';
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userDept').value = '';
+  document.getElementById('userIsManager').checked = false;
+  document.getElementById('userCanSeeAmounts').checked = false;
+  document.getElementById('userUsername').disabled = false;
+  document.getElementById('pwdHint').style.display = 'none';
+  document.getElementById('userOrgId').value = currentUser.org_id;
+  document.getElementById('userModal').classList.add('open');
+});
+
+function openEditUser(id) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) return;
+  editingUserId = id;
+  document.getElementById('userModalTitle').textContent = `編輯：${u.name}`;
+  document.getElementById('userId').value = u.id;
+  document.getElementById('userName').value = u.name;
+  document.getElementById('userUsername').value = u.username;
+  document.getElementById('userUsername').disabled = true;
+  document.getElementById('userPassword').value = '';
+  document.getElementById('pwdHint').style.display = 'inline';
+  document.getElementById('userRole').value = u.role;
+  document.getElementById('userOrgId').value = u.org_id;
+  document.getElementById('userDept').value = u.department || '';
+  document.getElementById('userIsManager').checked = !!u.is_manager;
+  document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
+  document.getElementById('userModal').classList.add('open');
+}
+
+document.getElementById('userSaveBtn').addEventListener('click', async () => {
+  const id = document.getElementById('userId').value;
+  const password = document.getElementById('userPassword').value;
+  const body = {
+    name: document.getElementById('userName').value,
+    username: document.getElementById('userUsername').value,
+    role: document.getElementById('userRole').value,
+    org_id: document.getElementById('userOrgId').value,
+    department: document.getElementById('userDept').value,
+    is_manager: document.getElementById('userIsManager').checked,
+    can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
+    active: 1,
+  };
+  if (!id) body.password = password;
+  if (!body.name || !body.role) { showToast('請填入必要欄位', 'error'); return; }
+  if (!id && !body.password) { showToast('新增人員請填入密碼', 'error'); return; }
+
+  const url = id ? `/api/users/${id}` : '/api/users';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+
+  if (res.ok) {
+    // 有填密碼就額外更新密碼
+    if (id && password) {
+      await fetch(`/api/users/${id}/password`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password }) });
+    }
+    closeModal('userModal');
+    await loadUsers();
+    showToast('人員資料已儲存');
+  } else {
+    const e = await res.json();
+    showToast(e.error || '儲存失敗', 'error');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

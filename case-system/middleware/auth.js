@@ -1,0 +1,53 @@
+// 角色定義：每個 role 的預設權限
+const ROLE_DEFS = {
+  owner:              { label:'最高管理者', viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:true  },
+  hq_cs:              { label:'客服',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  hq_sales:           { label:'業務',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  hq_tech:            { label:'技術',       viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
+  hq_accounting:      { label:'會計',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  hq_hr:              { label:'人事',       viewAllBranches:true,  viewAmounts:false, manageUsers:true,  manageOrgs:false },
+  branch_manager:     { label:'分店負責人', viewAllBranches:false, viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  branch_sales:       { label:'分店業務',   viewAllBranches:false, viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  branch_tech:        { label:'分店技術',   viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
+  contractor_install: { label:'約聘技師',   viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
+  contractor_sales:   { label:'約聘業務',   viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
+  dealer:             { label:'經銷商',     viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
+};
+
+function getRoleDef(role) {
+  return ROLE_DEFS[role] || ROLE_DEFS.hq_tech;
+}
+
+// ── Middleware ──────────────────────────────────────────────
+
+function requireAuth(req, res, next) {
+  if (!req.session?.user) {
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: '請先登入' });
+    return res.redirect('/');
+  }
+  next();
+}
+
+function requireOwner(req, res, next) {
+  if (req.session?.user?.role !== 'owner') {
+    return res.status(403).json({ error: '僅最高管理者可操作' });
+  }
+  next();
+}
+
+function requireCanManageUsers(req, res, next) {
+  const user = req.session?.user;
+  if (!user) return res.status(401).json({ error: '請先登入' });
+  const def = getRoleDef(user.role);
+  if (!def.manageUsers) return res.status(403).json({ error: '權限不足' });
+  next();
+}
+
+// 根據使用者角色加上 org 過濾條件
+function orgFilter(user) {
+  const def = getRoleDef(user.role);
+  if (def.viewAllBranches) return {}; // 不限制
+  return { org_id: user.org_id };     // 只看自己的分店
+}
+
+module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCanManageUsers, orgFilter };

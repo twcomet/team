@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.pipeline { display:flex; gap:0; margin-bottom:24px; overflow-x:auto; }
+.pipeline-stage { flex:1; min-width:90px; padding:10px 8px; text-align:center; font-size:12px; font-weight:500; cursor:pointer; border-bottom:3px solid transparent; color:var(--gray-500); white-space:nowrap; transition:all .15s; }
+.pipeline-stage:hover { color:var(--primary); }
+.pipeline-stage.active { color:var(--primary); border-bottom-color:var(--primary); }
+.pipeline-stage .count { display:block; font-size:20px; font-weight:700; color:var(--gray-900); margin-bottom:2px; }
+.pipeline-stage.active .count { color:var(--primary); }
+.case-type-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.type-tab { padding:6px 14px; border-radius:20px; font-size:13px; cursor:pointer; border:1px solid var(--gray-300); background:#fff; color:var(--gray-700); }
+.type-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.margin-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
+.margin-red    { background:#e02424; }
+.margin-yellow { background:#c27803; }
+.margin-green  { background:#057a55; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">案件管理</span>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="searchInput" placeholder="🔍 搜尋案號、客戶、項目…"
+               style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:220px">
+        <button class="btn btn-primary btn-sm" id="newCaseBtn">＋ 新增案件</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 案件流程管道 -->
+      <div class="pipeline" id="pipeline"></div>
+
+      <!-- 案件類型 tab -->
+      <div class="case-type-tabs">
+        <span class="type-tab active" data-type="">全部類型</span>
+        <span class="type-tab" data-type="inquiry">初步詢價</span>
+        <span class="type-tab" data-type="survey">場勘</span>
+        <span class="type-tab" data-type="contract">成交案件</span>
+        <span class="type-tab" data-type="repair">維修保固</span>
+      </div>
+
+      <!-- 案件清單 -->
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
+                  <th>施工日</th><th>業務</th><th>狀態</th>
+                  <th id="amountHeader">報價／成交</th>
+                  <th>毛利</th><th>收款</th>
+                </tr>
+              </thead>
+              <tbody id="casesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增案件 Modal（快速建立，詳細在 case-detail 頁面填） -->
+<div class="modal-overlay" id="newCaseModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3>新增案件</h3><button class="modal-close" onclick="document.getElementById('newCaseModal').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>案件類型</label>
+          <select id="nc_type">
+            <option value="inquiry">初步詢價</option>
+            <option value="survey">場勘</option>
+            <option value="contract">成交案件</option>
+            <option value="repair">維修保固</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>優先度</label>
+          <select id="nc_priority">
+            <option value="normal">一般</option>
+            <option value="high">優先</option>
+            <option value="urgent">緊急</option>
+            <option value="low">低優先</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>項目名稱 *</label><input type="text" id="nc_title" placeholder="例：台北信義區辦公室牆面翻新"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>客戶 <button type="button" id="quickAddClientBtn" style="font-size:11px;margin-left:6px" class="btn btn-ghost btn-sm">＋新客戶</button></label>
+          <select id="nc_client"></select>
+        </div>
+        <div class="form-group"><label>負責業務</label><select id="nc_sales"></select></div>
+      </div>
+      <div class="form-group"><label>施工地點</label><input type="text" id="nc_location" placeholder="地址或簡稱"></div>
+      <div class="form-group"><label>說明（可留空，稍後在案件頁填）</label><textarea id="nc_desc" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('newCaseModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" id="createCaseBtn">建立並進入案件</button>
+    </div>
+  </div>
+</div>
+
+<!-- 快速新增客戶 Modal -->
+<div class="modal-overlay" id="quickClientModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>新增客戶</h3><button class="modal-close" onclick="document.getElementById('quickClientModal').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>姓名 *</label><input type="text" id="qc_name" placeholder="客戶姓名或公司名"></div>
+      <div class="form-row">
+        <div class="form-group"><label>電話</label><input type="tel" id="qc_phone" placeholder="0912-345-678"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="qc_email"></div>
+      </div>
+      <div class="form-group"><label>來源</label>
+        <select id="qc_source">
+          <option value="">不指定</option>
+          <option value="line">Line@</option>
+          <option value="ig">Instagram</option>
+          <option value="fb">Facebook</option>
+          <option value="referral">客戶介紹</option>
+          <option value="bni">BNI</option>
+          <option value="google">Google 搜尋</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('quickClientModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" id="saveQuickClientBtn">建立客戶</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const STAGE_ORDER = ['inquiry','quoted','survey_scheduled','surveyed','confirmed','scheduled','in_progress','completed','aftersales','closed'];
+const STAGE_NAMES = { inquiry:'詢價中', quoted:'已報價', survey_scheduled:'場勘排程', surveyed:'已場勘', confirmed:'已成交', scheduled:'已排程', in_progress:'施工中', completed:'完工', aftersales:'售後中', closed:'結案' };
+const TYPE_NAMES  = { inquiry:'詢價', survey:'場勘', contract:'成交', repair:'維修' };
+const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca3af' };
+
+let allCases = [], clients = [], salesUsers = [];
+let activeStatus = '', activeType = '';
+
+async function init() {
+  await loadUser();
+  highlightNav('cases');
+  if (!currentUser.can_see_amounts) {
+    document.getElementById('amountHeader').style.display = 'none';
+  }
+  [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
+  populateSelect(document.getElementById('nc_client'), clients, 'id', 'name', '選擇客戶（可留空）');
+  const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
+  populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
+  await loadCases();
+}
+
+async function loadCases(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch('/api/cases' + (qs ? '?' + qs : ''));
+  allCases = await res.json();
+  renderPipeline(allCases);
+  renderTable(allCases);
+}
+
+function renderPipeline(cases) {
+  const counts = {};
+  STAGE_ORDER.forEach(s => counts[s] = 0);
+  cases.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
+  document.getElementById('pipeline').innerHTML = STAGE_ORDER.map(s => `
+    <div class="pipeline-stage${activeStatus === s ? ' active' : ''}" onclick="filterByStatus('${s}')">
+      <span class="count">${counts[s]}</span>${STAGE_NAMES[s]}
+    </div>
+  `).join('');
+}
+
+function renderTable(cases) {
+  const filtered = cases.filter(c => (!activeStatus || c.status === activeStatus) && (!activeType || c.case_type === activeType));
+  const tbody = document.getElementById('casesBody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(c => {
+    const price = c.final_price || c.quoted_price;
+    const margin = c.gross_margin_pct;
+    const marginDot = margin == null ? '' : margin < 40
+      ? `<span class="margin-dot margin-red"></span>`
+      : margin < 60 ? `<span class="margin-dot margin-yellow"></span>`
+      : `<span class="margin-dot margin-green"></span>`;
+    const priorityStyle = PRIORITY_COLORS[c.priority] ? `color:${PRIORITY_COLORS[c.priority]}` : '';
+    return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
+      <td>${c.client_name || '—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
+      <td>${fmtDate(c.scheduled_date)}</td>
+      <td>${c.sales_name || '—'}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td ${!currentUser.can_see_amounts ? 'style="display:none"' : ''}>${price ? fmt(price) : '—'}</td>
+      <td>${marginDot}${margin != null ? margin + '%' : '—'}</td>
+      <td>${paymentBadge(c.payment_status)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterByStatus(s) {
+  activeStatus = activeStatus === s ? '' : s;
+  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
+    el.classList.toggle('active', STAGE_ORDER[i] === activeStatus);
+  });
+  renderTable(allCases);
+}
+
+document.querySelectorAll('.type-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeType = tab.dataset.type;
+    renderTable(allCases);
+  });
+});
+
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    const q = e.target.value.trim();
+    if (q.length >= 1) loadCases({ search: q });
+    else loadCases();
+  }, 400);
+});
+
+// 新增案件
+document.getElementById('newCaseBtn').addEventListener('click', () => {
+  document.getElementById('newCaseModal').classList.add('open');
+});
+
+// 快速新增客戶
+document.getElementById('quickAddClientBtn').addEventListener('click', () => {
+  document.getElementById('qc_name').value  = '';
+  document.getElementById('qc_phone').value = '';
+  document.getElementById('qc_email').value = '';
+  document.getElementById('qc_source').value = '';
+  document.getElementById('quickClientModal').classList.add('open');
+});
+document.getElementById('saveQuickClientBtn').addEventListener('click', async () => {
+  const name = document.getElementById('qc_name').value.trim();
+  if (!name) { showToast('請填入客戶姓名', 'error'); return; }
+  const res = await fetch('/api/clients', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name,
+      phone:  document.getElementById('qc_phone').value || null,
+      email:  document.getElementById('qc_email').value || null,
+      source: document.getElementById('qc_source').value || null,
+    })
+  });
+  if (res.ok) {
+    const { id } = await res.json();
+    // 重新載入客戶清單並選中新建的
+    clients = await fetchClients();
+    populateSelect(document.getElementById('nc_client'), clients, 'id', 'name', '選擇客戶（可留空）');
+    document.getElementById('nc_client').value = id;
+    document.getElementById('quickClientModal').classList.remove('open');
+    showToast(`客戶「${name}」已建立`);
+  } else { showToast('建立失敗', 'error'); }
+});
+
+document.getElementById('createCaseBtn').addEventListener('click', async () => {
+  const title = document.getElementById('nc_title').value.trim();
+  if (!title) { showToast('請填入項目名稱', 'error'); return; }
+  const body = {
+    title,
+    case_type:  document.getElementById('nc_type').value,
+    priority:   document.getElementById('nc_priority').value,
+    client_id:  document.getElementById('nc_client').value || null,
+    sales_id:   document.getElementById('nc_sales').value || null,
+    location:   document.getElementById('nc_location').value || null,
+    description:document.getElementById('nc_desc').value || null,
+  };
+  const res = await fetch('/api/cases', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) {
+    const { id } = await res.json();
+    location.href = `/case-detail?id=${id}`;
+  } else { showToast('建立失敗', 'error'); }
+});
+
+init();
+</script>
+</body>
+</html>

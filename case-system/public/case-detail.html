@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件詳情 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+/* 狀態時間軸 */
+.status-pipeline { display:flex; align-items:center; gap:0; margin-bottom:24px; overflow-x:auto; padding-bottom:4px; }
+.sp-step { display:flex; align-items:center; }
+.sp-dot  { width:28px; height:28px; border-radius:50%; border:2px solid var(--gray-300); background:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; position:relative; cursor:pointer; flex-shrink:0; }
+.sp-dot.done  { background:var(--primary); border-color:var(--primary); color:#fff; }
+.sp-dot.current { background:#fff; border-color:var(--primary); color:var(--primary); box-shadow:0 0 0 4px rgba(26,86,219,.15); }
+.sp-label { font-size:11px; margin-top:4px; color:var(--gray-500); text-align:center; width:62px; }
+.sp-label.current { color:var(--primary); font-weight:600; }
+.sp-item { display:flex; flex-direction:column; align-items:center; }
+.sp-line { flex:1; height:2px; background:var(--gray-200); min-width:16px; max-width:40px; }
+.sp-line.done { background:var(--primary); }
+
+/* Tab */
+.tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:24px; gap:0; }
+.tab  { padding:10px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab:hover  { color:var(--gray-700); }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-pane   { display:none; }
+.tab-pane.active { display:block; }
+
+/* 報價明細表 */
+.quote-table { width:100%; border-collapse:collapse; font-size:13px; }
+.quote-table th { background:var(--gray-50); padding:8px 10px; font-size:11px; font-weight:600; color:var(--gray-500); border-bottom:1px solid var(--gray-200); white-space:nowrap; }
+.quote-table td { padding:8px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+.quote-table td input, .quote-table td select { width:100%; padding:5px 7px; border:1px solid var(--gray-200); border-radius:6px; font-size:12px; background:#fff; }
+.quote-table td input:focus, .quote-table td select:focus { border-color:var(--primary); outline:none; }
+.quote-total { background:var(--gray-50); padding:16px 20px; border-top:2px solid var(--gray-200); display:flex; gap:32px; align-items:center; flex-wrap:wrap; }
+.qt-item { text-align:center; }
+.qt-item .qt-label { font-size:11px; color:var(--gray-500); margin-bottom:4px; }
+.qt-item .qt-value { font-size:18px; font-weight:700; }
+.margin-pill { padding:4px 12px; border-radius:20px; font-size:13px; font-weight:600; }
+.margin-red    { background:#fee2e2; color:#991b1b; }
+.margin-yellow { background:#fef9c3; color:#713f12; }
+.margin-green  { background:#d1fae5; color:#065f46; }
+
+/* 派工卡片 */
+.dispatch-card { border:1px solid var(--gray-200); border-radius:10px; padding:16px; margin-bottom:12px; }
+.dispatch-card .dc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.dispatch-type-tag { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; }
+.tag-survey   { background:#dbeafe; color:#1e40af; }
+.tag-install  { background:#d1fae5; color:#065f46; }
+.tag-aftersales { background:#ede9fe; color:#5b21b6; }
+
+/* 歷程 */
+.log-item { padding:10px 0; border-bottom:1px solid var(--gray-100); display:flex; gap:12px; align-items:flex-start; }
+.log-icon { width:30px; height:30px; border-radius:50%; background:var(--gray-100); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.log-text { flex:1; font-size:13px; }
+.log-time { font-size:11px; color:var(--gray-500); }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="/cases" style="color:var(--gray-500);font-size:13px;text-decoration:none">← 返回列表</a>
+        <span class="page-title" id="caseTitle">載入中…</span>
+        <span id="caseNumber" style="font-size:13px;color:var(--gray-500);font-family:monospace"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="statusSelect" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="inquiry">詢價中</option>
+          <option value="quoted">已報價</option>
+          <option value="survey_scheduled">場勘排程中</option>
+          <option value="surveyed">已場勘</option>
+          <option value="confirmed">已成交</option>
+          <option value="scheduled">已排程</option>
+          <option value="in_progress">施工中</option>
+          <option value="completed">完工</option>
+          <option value="aftersales">售後服務</option>
+          <option value="closed">結案</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="saveBasicBtn">儲存</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 狀態時間軸 -->
+      <div class="status-pipeline" id="statusPipeline"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" data-tab="basic">基本資訊</div>
+        <div class="tab" data-tab="quote">報價明細</div>
+        <div class="tab" data-tab="dispatch">派工記錄</div>
+        <div class="tab" data-tab="payment">收款</div>
+        <div class="tab" data-tab="log">歷程</div>
+      </div>
+
+      <!-- 基本資訊 -->
+      <div class="tab-pane active" id="tab-basic">
+        <div class="form-row" style="margin-bottom:16px">
+          <div class="form-group"><label>案件類型</label>
+            <select id="b_case_type">
+              <option value="inquiry">初步詢價</option><option value="survey">場勘</option>
+              <option value="contract">成交案件</option><option value="repair">維修保固</option>
+            </select>
+          </div>
+          <div class="form-group"><label>優先度</label>
+            <select id="b_priority">
+              <option value="normal">一般</option><option value="high">優先</option>
+              <option value="urgent">緊急</option><option value="low">低優先</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>項目名稱</label><input type="text" id="b_title"></div>
+        <div class="form-row">
+          <div class="form-group"><label>客戶</label><select id="b_client"></select></div>
+          <div class="form-group"><label>負責業務</label><select id="b_sales"></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2"><label>施工地點</label><input type="text" id="b_location"></div>
+          <div class="form-group"><label>施工日期</label><input type="date" id="b_scheduled_date"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Line@ 來源名稱</label><input type="text" id="b_line_source" placeholder="例：@繪新台北"></div>
+          <div class="form-group"><label>關鍵字</label><input type="text" id="b_keyword" placeholder="例：辦公室貼膜、隔熱紙"></div>
+        </div>
+        <div class="form-group"><label>需求說明</label><textarea id="b_desc" rows="4"></textarea></div>
+        <div class="form-row" style="margin-top:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+              <input type="checkbox" id="b_outsourced"> 外包給學員／約聘
+            </label>
+            <select id="b_outsource_type" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+              <option value="full">全案外包（業務＋場勘＋施工）</option>
+              <option value="survey_only">僅場勘</option>
+              <option value="install_only">僅施工</option>
+            </select>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="b_material_ordered"> 已訂料
+          </label>
+        </div>
+        <div class="form-group" style="margin-top:16px"><label>備註</label><textarea id="b_notes" rows="2"></textarea></div>
+      </div>
+
+      <!-- 報價明細 -->
+      <div class="tab-pane" id="tab-quote">
+
+        <!-- 報價單管理面板 -->
+        <div class="sf-section" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div>
+              <span style="font-size:13px;font-weight:600;color:#1e40af">📤 客戶報價單</span>
+              <span id="quoteStatusBadge" style="margin-left:8px;font-size:12px;padding:3px 10px;border-radius:20px;background:#e5e7eb;color:#374151"></span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" id="previewQuoteBtn" style="display:none">👁 預覽</button>
+              <button class="btn btn-primary btn-sm" id="genQuoteBtn">產生報價連結</button>
+            </div>
+          </div>
+
+          <!-- 分享連結（產生後顯示） -->
+          <div id="quoteShareBox" style="display:none;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;display:none;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#1e40af;flex:1;word-break:break-all" id="quoteShareUrl"></span>
+            <button class="btn btn-ghost btn-sm" id="copyQuoteBtn">複製</button>
+            <a id="openQuoteBtn" href="#" target="_blank" class="btn btn-ghost btn-sm">開啟</a>
+          </div>
+
+          <!-- 報價設定 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group" style="margin:0">
+              <label style="font-size:12px">有效天數</label>
+              <input type="number" id="q_valid_days" value="30" min="1" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label style="font-size:12px">客戶身份</label>
+              <select id="q_client_type" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%" onchange="updateDiscountOptions()">
+                <option value="owner">一般業主</option>
+                <option value="designer">設計師</option>
+                <option value="dealer">經銷商</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label style="font-size:12px">行銷優惠折扣</label>
+              <select id="q_discount_select" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%" onchange="document.getElementById('q_discount_value').value=this.value">
+                <option value="0">無折扣（原價）</option>
+              </select>
+              <input type="hidden" id="q_discount_value" value="0">
+            </div>
+            <div class="form-group" style="margin:0;align-self:end">
+              <div style="font-size:12px;color:#6b7280;padding:6px 0">
+                有折扣即自動標示「行銷優惠」，僅客戶可見
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px;margin-bottom:10px">
+            <label style="font-size:12px">付款條件</label>
+            <input type="text" id="q_payment_terms" placeholder="例：訂金30%，完工後付清尾款" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label style="font-size:12px">備註 / 給客戶的說明</label>
+            <textarea id="q_client_notes" rows="2" placeholder="施工注意事項、特殊說明…" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%"></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <p style="font-size:13px;color:var(--gray-500)">依施作物件逐項填入，★ 對客單價 = 傳給客戶看的價格</p>
+          <button class="btn btn-primary btn-sm" id="addItemBtn">＋ 新增物件</button>
+        </div>
+        <div class="table-wrap">
+          <table class="quote-table">
+            <thead>
+              <tr>
+                <th>施作位置</th><th>物件 / 說明</th>
+                <th>寬(cm)</th><th>高(cm)</th><th>數量</th><th>單位</th>
+                <th>才數</th>
+                <th>品牌</th><th>型號</th>
+                <th title="內部：材料成本/才">材料成本</th>
+                <th title="內部：施工費/才">施工費</th>
+                <th title="給客戶看的單價/才" style="background:#dbeafe;color:#1e40af">★ 對客單價</th>
+                <th title="對客小計" style="background:#dbeafe;color:#1e40af">對客小計</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+        <div class="quote-total" id="quoteTotal">
+          <div class="qt-item"><div class="qt-label">對客報價（未稅）</div><div class="qt-value" id="qt_client">—</div></div>
+          <div class="qt-item"><div class="qt-label">材料成本</div><div class="qt-value" id="qt_material">—</div></div>
+          <div class="qt-item"><div class="qt-label">施工費</div><div class="qt-value" id="qt_install">—</div></div>
+          <div class="qt-item"><div class="qt-label">毛利</div><div class="qt-value" id="qt_profit">—</div></div>
+          <div class="qt-item"><div class="qt-label">毛利率</div><div class="qt-value"><span class="margin-pill" id="qt_margin">—</span></div></div>
+        </div>
+      </div>
+
+      <!-- 派工記錄 -->
+      <div class="tab-pane" id="tab-dispatch">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <p style="font-size:13px;color:var(--gray-500)">大型案件可新增多筆、不同日期</p>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="surveyFormBtn">📋 場勘單</button>
+            <button class="btn btn-primary btn-sm" id="addDispatchBtn">＋ 新增派工</button>
+          </div>
+        </div>
+        <div id="dispatchList"></div>
+      </div>
+
+      <!-- 收款 -->
+      <div class="tab-pane" id="tab-payment">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:800px">
+
+          <!-- 左欄：金額 -->
+          <div>
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">金額資訊</h4>
+            <div class="form-group"><label>場勘費</label><input type="number" id="p_survey_fee" placeholder="（無）" min="0"></div>
+            <div class="form-group"><label>成交金額（未稅）</label><input type="number" id="p_final_price" placeholder="同報價則留空" oninput="updateVat()"></div>
+            <div style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="color:var(--gray-500)">稅金 5%</span>
+                <span id="p_vat_display" style="font-weight:500">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--gray-700);font-weight:600">含稅總金額</span>
+                <span id="p_total_display" style="font-weight:700;color:var(--primary)">—</span>
+              </div>
+            </div>
+            <div class="form-group"><label>訂金</label><input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updateBalance()"></div>
+            <div style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--gray-700);font-weight:600">尾款</span>
+                <span id="p_balance_display" style="font-weight:700">—</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>收款狀態</label>
+                <select id="p_payment_status">
+                  <option value="unpaid">未收款</option><option value="partial">部分收款</option>
+                  <option value="paid">已收款</option><option value="overdue">逾期</option>
+                </select>
+              </div>
+              <div class="form-group"><label>到期日</label><input type="date" id="p_payment_due_date"></div>
+            </div>
+            <div class="form-group"><label>已收金額</label><input type="number" id="p_payment_received"></div>
+            <div class="form-group"><label>收款備註</label><textarea id="p_payment_notes" rows="2" placeholder="發票號碼、匯款帳號、催收進度…"></textarea></div>
+          </div>
+
+          <!-- 右欄：發票資訊 -->
+          <div>
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">發票資訊</h4>
+            <div class="form-group"><label>公司名稱</label><input type="text" id="p_invoice_company" placeholder="統一發票抬頭"></div>
+            <div class="form-group"><label>統一編號</label><input type="text" id="p_invoice_tax_id" placeholder="8碼統編" maxlength="8"></div>
+            <div class="form-group"><label>發票地址</label><input type="text" id="p_invoice_address"></div>
+            <div class="form-group"><label>發票 Email</label><input type="email" id="p_invoice_email"></div>
+            <div class="form-group"><label>品名（發票用）</label><input type="text" id="p_invoice_item_desc" placeholder="例：室內裝潢貼膜施工費"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px">
+          <button class="btn btn-primary" id="savePaymentBtn">更新收款 ／ 發票資訊</button>
+        </div>
+      </div>
+
+      <!-- 歷程 -->
+      <div class="tab-pane" id="tab-log">
+        <div id="logList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增派工 Modal -->
+<div class="modal-overlay" id="dispatchModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3 id="dispatchModalTitle">新增派工</h3><button class="modal-close" onclick="document.getElementById('dispatchModal').classList.remove('open')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="d_dispatch_id">
+      <div class="form-row">
+        <div class="form-group"><label>派工類型</label>
+          <select id="d_type">
+            <option value="survey">場勘</option>
+            <option value="install" selected>施工</option>
+            <option value="aftersales">售後服務</option>
+          </select>
+        </div>
+        <div class="form-group"><label>狀態</label>
+          <select id="d_status">
+            <option value="pending">待確認</option><option value="confirmed">已確認</option>
+            <option value="done">完成</option><option value="cancelled">取消</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>日期 *</label><input type="date" id="d_date"></div>
+        <div class="form-group"><label>時間</label><input type="time" id="d_time"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>預估工時（小時）</label><input type="number" id="d_hours" step="0.5" placeholder="4"></div>
+        <div class="form-group"><label>使用材料</label><input type="text" id="d_material" placeholder="PAROI MX-001 等"></div>
+      </div>
+      <div class="form-group">
+        <label>指派人員（可多選）</label>
+        <div id="d_users" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
+      </div>
+      <div class="form-group"><label>備註</label><textarea id="d_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('dispatchModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" id="saveDispatchBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+// ── 常數 ───────────────────────────────────────────────────
+const STAGES = [
+  {key:'inquiry',label:'詢價中'},{key:'quoted',label:'已報價'},
+  {key:'survey_scheduled',label:'場勘排程'},{key:'surveyed',label:'已場勘'},
+  {key:'confirmed',label:'已成交'},{key:'scheduled',label:'已排程'},
+  {key:'in_progress',label:'施工中'},{key:'completed',label:'完工'},
+  {key:'aftersales',label:'售後'},{key:'closed',label:'結案'},
+];
+const ITEM_TYPES = [
+  '牆面','電視牆','天花板','門片','門框','防火門','系統櫃','玻璃',
+  '電梯廂內壁','電梯門板','電梯廂外壁','車體','廣告板','其他'
+];
+const BRANDS = ['PAROI（日本）','BODAQ（韓國）','LG BENIF（韓國）','WD穩得','3M DI-NOC','Avery','Lintec','其他'];
+
+let caseId, caseData, users = [], clients = [], quoteData = null;
+
+// ── 初始化 ─────────────────────────────────────────────────
+async function init() {
+  await loadUser();
+  caseId = new URLSearchParams(location.search).get('id');
+  if (!caseId) { location.href = '/cases'; return; }
+  [users, clients] = await Promise.all([fetchUsers(), fetchClients()]);
+  await loadCase();
+
+  // Tab 切換
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab,.tab-pane').forEach(el => el.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    });
+  });
+
+  document.getElementById('b_outsourced').addEventListener('change', e => {
+    document.getElementById('b_outsource_type').style.display = e.target.checked ? 'block' : 'none';
+  });
+}
+
+async function loadCase() {
+  const res = await fetch(`/api/cases/${caseId}`);
+  if (!res.ok) { location.href = '/cases'; return; }
+  caseData = await res.json();
+  renderHeader();
+  renderPipeline();
+  fillBasicForm();
+  renderItems(caseData.items);
+  renderDispatches(caseData.dispatches);
+  fillPaymentForm();
+  renderLogs(caseData.logs);
+  await loadQuote();
+}
+
+// ── 頁首 ───────────────────────────────────────────────────
+function renderHeader() {
+  document.title = `${caseData.case_number} — 繪新管理系統`;
+  document.getElementById('caseTitle').textContent = caseData.title;
+  document.getElementById('caseNumber').textContent = caseData.case_number;
+  document.getElementById('statusSelect').value = caseData.status;
+}
+
+function renderPipeline() {
+  const idx = STAGES.findIndex(s => s.key === caseData.status);
+  document.getElementById('statusPipeline').innerHTML = STAGES.map((s, i) => `
+    <div class="sp-item">
+      <div class="sp-dot ${i < idx ? 'done' : i === idx ? 'current' : ''}" title="${s.label}">
+        ${i < idx ? '✓' : i + 1}
+      </div>
+      <div class="sp-label ${i === idx ? 'current' : ''}">${s.label}</div>
+    </div>
+    ${i < STAGES.length - 1 ? `<div class="sp-line ${i < idx ? 'done' : ''}"></div>` : ''}
+  `).join('');
+}
+
+// ── 基本資訊 ───────────────────────────────────────────────
+function fillBasicForm() {
+  const c = caseData;
+  document.getElementById('b_case_type').value = c.case_type || 'inquiry';
+  document.getElementById('b_priority').value  = c.priority  || 'normal';
+  document.getElementById('b_title').value          = c.title || '';
+  document.getElementById('b_location').value       = c.location || '';
+  document.getElementById('b_scheduled_date').value = c.scheduled_date || '';
+  document.getElementById('b_line_source').value = c.line_source || '';
+  document.getElementById('b_keyword').value    = c.keyword || '';
+  document.getElementById('b_desc').value       = c.description || '';
+  document.getElementById('b_notes').value      = c.notes || '';
+  document.getElementById('b_outsourced').checked      = !!c.is_outsourced;
+  document.getElementById('b_material_ordered').checked = !!c.material_ordered;
+  if (c.is_outsourced) {
+    document.getElementById('b_outsource_type').style.display = 'block';
+    document.getElementById('b_outsource_type').value = c.outsource_type || 'full';
+  }
+  const salesList = users.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
+  populateSelect(document.getElementById('b_client'), clients, 'id', 'name', '（未選擇）');
+  populateSelect(document.getElementById('b_sales'),  salesList, 'id', 'name', '（未指定）');
+  document.getElementById('b_client').value = c.client_id || '';
+  document.getElementById('b_sales').value  = c.sales_id  || '';
+}
+
+document.getElementById('saveBasicBtn').addEventListener('click', async () => {
+  const body = {
+    case_type:        document.getElementById('b_case_type').value,
+    priority:         document.getElementById('b_priority').value,
+    title:            document.getElementById('b_title').value,
+    location:         document.getElementById('b_location').value,
+    scheduled_date:   document.getElementById('b_scheduled_date').value || null,
+    line_source:      document.getElementById('b_line_source').value || null,
+    keyword:          document.getElementById('b_keyword').value || null,
+    description:      document.getElementById('b_desc').value,
+    notes:            document.getElementById('b_notes').value,
+    client_id:        document.getElementById('b_client').value || null,
+    sales_id:         document.getElementById('b_sales').value  || null,
+    is_outsourced:    document.getElementById('b_outsourced').checked,
+    outsource_type:   document.getElementById('b_outsource_type').value || null,
+    material_ordered: document.getElementById('b_material_ordered').checked,
+    status:           document.getElementById('statusSelect').value,
+    payment_status:   caseData.payment_status || 'unpaid',
+    payment_received: caseData.payment_received || 0,
+  };
+  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { showToast('已儲存'); await loadCase(); }
+  else showToast('儲存失敗', 'error');
+});
+
+// ── 報價明細 ───────────────────────────────────────────────
+function renderItems(items) {
+  const tbody = document.getElementById('itemsBody');
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:20px;color:#6b7280">點擊「新增物件」開始建立報價明細</td></tr>`;
+    updateQuoteTotals([]);
+    return;
+  }
+  tbody.innerHTML = items.map((it) => `
+    <tr data-item-id="${it.id}">
+      <td><input class="it-loc" value="${it.location||''}" onblur="saveItem(${it.id})" placeholder="客廳主牆" style="width:90px"></td>
+      <td>
+        <select class="it-type" onchange="saveItem(${it.id})" style="width:80px;margin-bottom:3px">${ITEM_TYPES.map(t=>`<option ${t===it.item_type?'selected':''}>${t}</option>`).join('')}</select>
+        <input class="it-desc" value="${it.description||''}" onblur="saveItem(${it.id})" placeholder="說明" style="width:100px">
+      </td>
+      <td><input class="it-w" type="number" value="${it.width_cm||''}" onblur="calcAndSave(${it.id})" style="width:65px"></td>
+      <td><input class="it-h" type="number" value="${it.height_cm||''}" onblur="calcAndSave(${it.id})" style="width:65px"></td>
+      <td><input class="it-qty" type="number" value="${it.quantity||1}" onblur="calcAndSave(${it.id})" style="width:50px" min="0.1" step="0.1"></td>
+      <td><select class="it-unit" onchange="calcAndSave(${it.id})" style="width:70px">
+        ${['才','平方公尺','件','米','式','其他'].map(u=>`<option ${u===it.unit?'selected':''}>${u}</option>`).join('')}
+      </select></td>
+      <td style="text-align:right;font-weight:500" class="it-area">${it.area ? it.area.toFixed(2) : '—'}</td>
+      <td><select class="it-brand" onchange="saveItem(${it.id})" style="width:100px">${BRANDS.map(b=>`<option ${b===it.material_brand?'selected':''}>${b}</option>`).join('<option value="">—</option>')}</select></td>
+      <td><input class="it-model" value="${it.material_model||''}" onblur="saveItem(${it.id})" placeholder="型號" style="width:80px"></td>
+      <td><input class="it-mcost" type="number" value="${currentUser.can_see_amounts ? (it.material_unit_cost||'') : ''}" ${!currentUser.can_see_amounts?'disabled':''} onblur="calcAndSave(${it.id})" style="width:75px" placeholder="成本"></td>
+      <td><input class="it-icost" type="number" value="${currentUser.can_see_amounts ? (it.install_unit_price||'') : ''}" ${!currentUser.can_see_amounts?'disabled':''} onblur="calcAndSave(${it.id})" style="width:75px" placeholder="施工費"></td>
+      <td style="background:#f0f7ff"><input class="it-cprice" type="number" value="${it.client_unit_price!=null ? it.client_unit_price : ''}" onblur="calcAndSave(${it.id})" style="width:80px;border-color:#bfdbfe" placeholder="對客價"></td>
+      <td style="text-align:right;font-weight:600;background:#f0f7ff" class="it-csubtotal">
+        ${currentUser.can_see_amounts && (it.client_subtotal != null) ? fmt(it.client_subtotal) : (it.subtotal ? fmt(it.subtotal) : '—')}
+      </td>
+      <td><button class="btn btn-ghost btn-sm" onclick="deleteItem(${it.id})" style="color:#e02424;padding:4px 8px">✕</button></td>
+    </tr>
+  `).join('');
+  updateQuoteTotals(items);
+}
+
+function updateQuoteTotals(items) {
+  if (!currentUser.can_see_amounts) return;
+  const clientTotal = items.reduce((s,i) => s + (i.client_subtotal != null ? i.client_subtotal : (i.subtotal||0)), 0);
+  const material = items.reduce((s,i) => s + (i.material_total||0), 0);
+  const install  = items.reduce((s,i) => s + (i.install_total||0), 0);
+  const profit   = clientTotal - material;
+  const margin   = clientTotal > 0 ? (profit / clientTotal * 100).toFixed(1) : null;
+  document.getElementById('qt_client').textContent   = fmt(clientTotal);
+  document.getElementById('qt_material').textContent = fmt(material);
+  document.getElementById('qt_install').textContent  = fmt(install);
+  document.getElementById('qt_profit').textContent   = fmt(profit);
+  const mp = document.getElementById('qt_margin');
+  if (margin === null) { mp.textContent = '—'; mp.className = 'margin-pill'; }
+  else {
+    mp.textContent = margin + '%';
+    mp.className = 'margin-pill ' + (margin < 30 ? 'margin-red' : margin < 50 ? 'margin-yellow' : 'margin-green');
+  }
+}
+
+document.getElementById('addItemBtn').addEventListener('click', async () => {
+  const res = await fetch(`/api/cases/${caseId}/items`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ item_type:'牆面', quantity:1, unit:'才', material_unit_cost:0, install_unit_price:0 })
+  });
+  if (res.ok) await loadCase();
+});
+
+async function saveItem(itemId) {
+  const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+  if (!row) return;
+  const cpVal = row.querySelector('.it-cprice').value;
+  const body = {
+    location:           row.querySelector('.it-loc').value,
+    item_type:          row.querySelector('.it-type').value,
+    description:        row.querySelector('.it-desc').value,
+    width_cm:           parseFloat(row.querySelector('.it-w').value) || null,
+    height_cm:          parseFloat(row.querySelector('.it-h').value) || null,
+    quantity:           parseFloat(row.querySelector('.it-qty').value) || 1,
+    unit:               row.querySelector('.it-unit').value,
+    material_brand:     row.querySelector('.it-brand').value || null,
+    material_model:     row.querySelector('.it-model').value,
+    material_unit_cost: parseFloat(row.querySelector('.it-mcost').value) || 0,
+    install_unit_price: parseFloat(row.querySelector('.it-icost').value) || 0,
+    client_unit_price:  cpVal !== '' ? parseFloat(cpVal) : null,
+  };
+  const res = await fetch(`/api/cases/${caseId}/items/${itemId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    const data = await res.json();
+    row.querySelector('.it-area').textContent = data.area ? data.area.toFixed(2) : '—';
+    const cSub = data.client_subtotal != null ? data.client_subtotal : data.subtotal;
+    row.querySelector('.it-csubtotal').textContent = currentUser.can_see_amounts ? fmt(cSub) : '—';
+    const itemsRes = await fetch(`/api/cases/${caseId}/items`);
+    updateQuoteTotals(await itemsRes.json());
+  }
+}
+
+async function calcAndSave(itemId) { await saveItem(itemId); }
+
+async function deleteItem(itemId) {
+  if (!confirm('確定刪除這筆施作物件？')) return;
+  await fetch(`/api/cases/${caseId}/items/${itemId}`, { method:'DELETE' });
+  await loadCase();
+}
+
+// ── 派工 ───────────────────────────────────────────────────
+const DISPATCH_TAGS = { survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales' };
+
+function renderDispatches(dispatches) {
+  const el = document.getElementById('dispatchList');
+  if (!dispatches.length) {
+    el.innerHTML = `<p style="color:#6b7280;font-size:14px;text-align:center;padding:32px">尚無派工記錄，點擊「新增派工」開始安排施工</p>`;
+    return;
+  }
+  el.innerHTML = dispatches.map(d => {
+    const [tag, tagClass] = (DISPATCH_TAGS[d.dispatch_type] || '派工 tag-install').split(' ');
+    const statusMap = { pending:'待確認', confirmed:'已確認', done:'✅完成', cancelled:'❌取消' };
+    return `
+    <div class="dispatch-card">
+      <div class="dc-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="dispatch-type-tag ${tagClass}">${tag}</span>
+          <strong>${d.scheduled_date}</strong>
+          ${d.scheduled_time ? `<span style="color:#6b7280;font-size:13px">${d.scheduled_time}</span>` : ''}
+          ${d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">${d.estimated_hours}hr</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:#6b7280">${statusMap[d.status] || d.status}</span>
+          <button class="btn btn-ghost btn-sm" onclick="editDispatch(${d.id})">編輯</button>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#374151">
+        <span>👷 ${d.installer_names || '（尚未指派人員）'}</span>
+        ${d.material ? `<span style="margin-left:16px">🎨 ${d.material}</span>` : ''}
+      </div>
+      ${d.notes ? `<div style="font-size:12px;color:#6b7280;margin-top:6px">${d.notes}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildUserCheckboxes(selectedIds = []) {
+  const container = document.getElementById('d_users');
+  const techUsers = users.filter(u => ['owner','hq_tech','branch_tech','contractor_install'].includes(u.role));
+  container.innerHTML = techUsers.map(u => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--gray-200);${selectedIds.includes(u.id)?'background:#dbeafe;border-color:var(--primary)':''}">
+      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">
+      ${u.name}
+    </label>
+  `).join('');
+}
+
+document.getElementById('surveyFormBtn').addEventListener('click', () => {
+  location.href = `/survey-form?case_id=${caseId}`;
+});
+
+document.getElementById('addDispatchBtn').addEventListener('click', () => {
+  document.getElementById('dispatchModalTitle').textContent = '新增派工';
+  document.getElementById('d_dispatch_id').value = '';
+  document.getElementById('d_type').value   = 'install';
+  document.getElementById('d_status').value = 'pending';
+  document.getElementById('d_date').value   = '';
+  document.getElementById('d_time').value   = '';
+  document.getElementById('d_hours').value  = '';
+  document.getElementById('d_material').value = '';
+  document.getElementById('d_notes').value  = '';
+  buildUserCheckboxes([]);
+  document.getElementById('dispatchModal').classList.add('open');
+});
+
+function editDispatch(did) {
+  const d = caseData.dispatches.find(x => x.id === did);
+  if (!d) return;
+  document.getElementById('dispatchModalTitle').textContent = '編輯派工';
+  document.getElementById('d_dispatch_id').value = did;
+  document.getElementById('d_type').value   = d.dispatch_type;
+  document.getElementById('d_status').value = d.status;
+  document.getElementById('d_date').value   = d.scheduled_date;
+  document.getElementById('d_time').value   = d.scheduled_time || '';
+  document.getElementById('d_hours').value  = d.estimated_hours || '';
+  document.getElementById('d_material').value = d.material || '';
+  document.getElementById('d_notes').value  = d.notes || '';
+  const ids = d.installer_ids ? d.installer_ids.split(',').map(Number) : [];
+  buildUserCheckboxes(ids);
+  document.getElementById('dispatchModal').classList.add('open');
+}
+
+document.getElementById('saveDispatchBtn').addEventListener('click', async () => {
+  const did = document.getElementById('d_dispatch_id').value;
+  const user_ids = [...document.querySelectorAll('#d_users input:checked')].map(el => Number(el.value));
+  const body = {
+    dispatch_type:  document.getElementById('d_type').value,
+    status:         document.getElementById('d_status').value,
+    scheduled_date: document.getElementById('d_date').value,
+    scheduled_time: document.getElementById('d_time').value || null,
+    estimated_hours:parseFloat(document.getElementById('d_hours').value) || null,
+    material:       document.getElementById('d_material').value || null,
+    notes:          document.getElementById('d_notes').value || null,
+    user_ids,
+  };
+  if (!body.scheduled_date) { showToast('請選擇日期', 'error'); return; }
+  const url  = did ? `/api/cases/${caseId}/dispatches/${did}` : `/api/cases/${caseId}/dispatches`;
+  const method = did ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { document.getElementById('dispatchModal').classList.remove('open'); await loadCase(); showToast('派工已儲存'); }
+  else showToast('儲存失敗', 'error');
+});
+
+// ── 收款 ───────────────────────────────────────────────────
+function updateVat() {
+  const base = parseFloat(document.getElementById('p_final_price').value) || 0;
+  const vat  = base * 0.05;
+  const total = base + vat;
+  document.getElementById('p_vat_display').textContent   = base ? fmt(vat)   : '—';
+  document.getElementById('p_total_display').textContent = base ? fmt(total) : '—';
+  updateBalance();
+}
+function updateBalance() {
+  const base    = parseFloat(document.getElementById('p_final_price').value) || 0;
+  const total   = base * 1.05;
+  const deposit = parseFloat(document.getElementById('p_deposit_amount').value) || 0;
+  const balance = total - deposit;
+  document.getElementById('p_balance_display').textContent = (base || deposit) ? fmt(balance) : '—';
+}
+
+function fillPaymentForm() {
+  const c = caseData;
+  document.getElementById('p_survey_fee').value        = c.survey_fee != null ? c.survey_fee : '';
+  document.getElementById('p_final_price').value       = c.final_price != null ? c.final_price : '';
+  document.getElementById('p_deposit_amount').value    = c.deposit_amount != null ? c.deposit_amount : '';
+  document.getElementById('p_payment_status').value    = c.payment_status || 'unpaid';
+  document.getElementById('p_payment_received').value  = c.payment_received || '';
+  document.getElementById('p_payment_due_date').value  = c.payment_due_date || '';
+  document.getElementById('p_payment_notes').value     = c.payment_notes || '';
+  document.getElementById('p_invoice_company').value   = c.invoice_company || '';
+  document.getElementById('p_invoice_tax_id').value    = c.invoice_tax_id || '';
+  document.getElementById('p_invoice_address').value   = c.invoice_address || '';
+  document.getElementById('p_invoice_email').value     = c.invoice_email || '';
+  document.getElementById('p_invoice_item_desc').value = c.invoice_item_desc || '';
+  updateVat();
+}
+
+document.getElementById('savePaymentBtn').addEventListener('click', async () => {
+  const body = {
+    ...caseData,
+    survey_fee:          parseFloat(document.getElementById('p_survey_fee').value) || null,
+    final_price:         parseFloat(document.getElementById('p_final_price').value) || null,
+    deposit_amount:      parseFloat(document.getElementById('p_deposit_amount').value) || null,
+    payment_status:      document.getElementById('p_payment_status').value,
+    payment_received:    parseFloat(document.getElementById('p_payment_received').value) || 0,
+    payment_due_date:    document.getElementById('p_payment_due_date').value || null,
+    payment_notes:       document.getElementById('p_payment_notes').value,
+    invoice_company:     document.getElementById('p_invoice_company').value || null,
+    invoice_tax_id:      document.getElementById('p_invoice_tax_id').value || null,
+    invoice_address:     document.getElementById('p_invoice_address').value || null,
+    invoice_email:       document.getElementById('p_invoice_email').value || null,
+    invoice_item_desc:   document.getElementById('p_invoice_item_desc').value || null,
+  };
+  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { showToast('收款 ／ 發票資訊已更新'); await loadCase(); }
+  else showToast('儲存失敗', 'error');
+});
+
+// ── 歷程 ───────────────────────────────────────────────────
+function renderLogs(logs) {
+  const el = document.getElementById('logList');
+  if (!logs.length) { el.innerHTML = `<p style="color:#6b7280">尚無操作記錄</p>`; return; }
+  el.innerHTML = logs.map(l => `
+    <div class="log-item">
+      <div class="log-icon">📝</div>
+      <div>
+        <div class="log-text"><strong>${l.user_name || '系統'}</strong> ${l.detail || l.action}</div>
+        <div class="log-time">${l.created_at?.slice(0,16).replace('T',' ')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 報價單管理 ─────────────────────────────────────────────
+async function loadQuote() {
+  const res = await fetch(`/api/quotes/cases/${caseId}`);
+  quoteData = res.ok ? await res.json() : null;
+  renderQuotePanel();
+}
+
+function renderQuotePanel() {
+  const q = quoteData;
+  const statusBadge = document.getElementById('quoteStatusBadge');
+  const shareBox    = document.getElementById('quoteShareBox');
+  const genBtn      = document.getElementById('genQuoteBtn');
+  const previewBtn  = document.getElementById('previewQuoteBtn');
+
+  if (q) {
+    const statusMap = { draft:'草稿', sent:'已傳送', accepted:'✅ 已接受', rejected:'已拒絕' };
+    const statusColor = { draft:'#e5e7eb', sent:'#dbeafe', accepted:'#d1fae5', rejected:'#fee2e2' };
+    const statusText = { draft:'#374151', sent:'#1e40af', accepted:'#065f46', rejected:'#991b1b' };
+    const s = q.status || 'draft';
+    statusBadge.textContent = statusMap[s] || s;
+    statusBadge.style.background = statusColor[s] || '#e5e7eb';
+    statusBadge.style.color = statusText[s] || '#374151';
+
+    shareBox.style.display = 'flex';
+    const url = `${location.origin}/quote/${q.share_token}`;
+    document.getElementById('quoteShareUrl').textContent = url;
+    document.getElementById('openQuoteBtn').href = url;
+    previewBtn.style.display = '';
+    genBtn.textContent = '更新報價連結';
+
+    // 填入現有設定
+    document.getElementById('q_valid_days').value    = q.valid_days || 30;
+    document.getElementById('q_client_type').value   = q.client_type || 'owner';
+    document.getElementById('q_discount_value').value= q.discount_value || 0;
+    document.getElementById('q_payment_terms').value = q.payment_terms || '';
+    document.getElementById('q_client_notes').value  = q.client_notes || '';
+    updateDiscountOptions();
+  } else {
+    statusBadge.textContent = '';
+    shareBox.style.display = 'none';
+    previewBtn.style.display = 'none';
+    genBtn.textContent = '產生報價連結';
+  }
+}
+
+const DISCOUNT_OPTIONS = {
+  owner:    [{ label:'無折扣（原價）', val:0 }, { label:'95折（-5%）', val:5 }, { label:'9折（-10%）', val:10 }, { label:'8折 大量（-20%）', val:20 }],
+  designer: [{ label:'9折（-10%）', val:10 }, { label:'8折（-20%）', val:20 }],
+  dealer:   [{ label:'8折（-20%）', val:20 }, { label:'7折（-30%）', val:30 }],
+};
+
+function updateDiscountOptions() {
+  const type = document.getElementById('q_client_type').value;
+  const sel  = document.getElementById('q_discount_select');
+  const cur  = parseFloat(document.getElementById('q_discount_value').value) || 0;
+  const opts = DISCOUNT_OPTIONS[type] || DISCOUNT_OPTIONS.owner;
+  sel.innerHTML = opts.map(o => `<option value="${o.val}" ${o.val===cur?'selected':''}>${o.label}</option>`).join('');
+  document.getElementById('q_discount_value').value = sel.value;
+}
+
+document.getElementById('genQuoteBtn').addEventListener('click', async () => {
+  const body = {
+    valid_days:     parseInt(document.getElementById('q_valid_days').value) || 30,
+    client_type:    document.getElementById('q_client_type').value,
+    discount_value: parseFloat(document.getElementById('q_discount_value').value) || 0,
+    payment_terms:  document.getElementById('q_payment_terms').value || null,
+    client_notes:   document.getElementById('q_client_notes').value || null,
+  };
+  const method = quoteData ? 'PUT' : 'POST';
+  const res = await fetch(`/api/quotes/cases/${caseId}`, {
+    method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    showToast('報價連結已產生');
+    await loadQuote();
+  } else showToast('產生失敗', 'error');
+});
+
+document.getElementById('copyQuoteBtn').addEventListener('click', () => {
+  const url = document.getElementById('quoteShareUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
+});
+
+document.getElementById('previewQuoteBtn').addEventListener('click', () => {
+  if (quoteData?.share_token) {
+    window.open(`/quote/${quoteData.share_token}?print=1`, '_blank');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

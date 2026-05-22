@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>場勘單 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.sf-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:20px; margin-bottom:16px; }
+.sf-section h4 { font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--gray-100); }
+.finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 36px; gap:8px; align-items:center; margin-bottom:8px; }
+.finding-row input, .finding-row select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; }
+.status-bar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-radius:8px; margin-bottom:16px; font-size:13px; }
+.status-draft   { background:#f9fafb; border:1px solid var(--gray-200); }
+.status-sent    { background:#dbeafe; border:1px solid #93c5fd; color:#1e40af; }
+.status-signed  { background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; }
+.share-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px; display:flex; align-items:center; gap:10px; }
+.share-url { flex:1; font-size:13px; color:var(--primary); word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a id="backLink" href="/cases" style="color:var(--gray-500);font-size:13px;text-decoration:none">← 返回案件</a>
+        <span class="page-title">場勘單</span>
+        <span id="sfCaseNum" style="font-size:13px;color:var(--gray-500);font-family:monospace"></span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="previewBtn">👁 預覽 / 列印</button>
+        <button class="btn btn-primary btn-sm" id="saveBtn">儲存場勘單</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 狀態列 -->
+      <div class="status-bar status-draft" id="statusBar">
+        <span id="statusText">草稿</span>
+        <span id="signedInfo" style="display:none;margin-left:auto;font-size:12px"></span>
+      </div>
+
+      <!-- 分享連結 -->
+      <div class="sf-section" id="shareSection" style="display:none">
+        <h4>客戶簽名連結</h4>
+        <div class="share-box">
+          <span class="share-url" id="shareUrl"></span>
+          <button class="btn btn-ghost btn-sm" id="copyLinkBtn">複製連結</button>
+          <a id="openLinkBtn" href="#" target="_blank" class="btn btn-ghost btn-sm">開啟</a>
+        </div>
+        <p style="font-size:12px;color:var(--gray-500);margin-top:8px">將此連結傳給客戶，客戶可在手機上查看場勘資料並簽名確認。</p>
+      </div>
+
+      <!-- 基本資訊 -->
+      <div class="sf-section">
+        <h4>場勘基本資訊</h4>
+        <div class="form-row">
+          <div class="form-group"><label>場勘日期 *</label><input type="date" id="sf_date"></div>
+          <div class="form-group"><label>場勘人員</label><select id="sf_surveyor"></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>現場聯絡人</label><input type="text" id="sf_contact" placeholder="王先生"></div>
+          <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
+        </div>
+        <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
+      </div>
+
+      <!-- 場勘項目 -->
+      <div class="sf-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
+          <h4 style="margin:0;border:none;padding:0">場勘項目紀錄</h4>
+          <button class="btn btn-ghost btn-sm" id="addFindingBtn">＋ 新增項目</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 36px;gap:8px;margin-bottom:8px">
+          <div style="font-size:12px;color:var(--gray-500);font-weight:500">施作位置</div>
+          <div style="font-size:12px;color:var(--gray-500);font-weight:500">材料 / 說明</div>
+          <div style="font-size:12px;color:var(--gray-500);font-weight:500">寬(cm)</div>
+          <div style="font-size:12px;color:var(--gray-500);font-weight:500">高(cm)</div>
+          <div></div>
+        </div>
+        <div id="findingsList"></div>
+      </div>
+
+      <!-- 備注 -->
+      <div class="sf-section">
+        <h4>補充說明</h4>
+        <div class="form-group"><label>拍照紀錄說明</label><textarea id="sf_photos" rows="2" placeholder="照片拍攝位置、特殊狀況紀錄…"></textarea></div>
+        <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求、其他說明…"></textarea></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let caseId, formData = null, surveyors = [];
+
+async function init() {
+  await loadUser();
+  caseId = new URLSearchParams(location.search).get('case_id');
+  if (!caseId) { location.href = '/cases'; return; }
+
+  document.getElementById('backLink').href = `/case-detail?id=${caseId}`;
+
+  // 載入案件資訊
+  const caseRes = await fetch(`/api/cases/${caseId}`);
+  const c = await caseRes.json();
+  document.getElementById('sfCaseNum').textContent = c.case_number;
+  document.title = `場勘單 ${c.case_number} — 繪新管理系統`;
+
+  // 場勘人員選單（技術 + owner）
+  const users = await fetchUsers();
+  surveyors = users.filter(u => ['owner','hq_tech','branch_tech','contractor_install','hq_cs','hq_sales','branch_manager'].includes(u.role));
+  populateSelect(document.getElementById('sf_surveyor'), surveyors, 'id', 'name', '請選擇');
+
+  // 預設地址
+  document.getElementById('sf_address').value = c.location || '';
+  document.getElementById('sf_contact').value = c.client_name || '';
+  document.getElementById('sf_phone').value   = c.client_phone || '';
+
+  // 載入現有場勘單
+  const sfRes = await fetch(`/api/survey/cases/${caseId}/survey-form`);
+  formData = await sfRes.json();
+
+  if (formData) {
+    fillForm(formData);
+    updateStatusBar(formData.status, formData.client_signed_at, formData.share_token);
+  } else {
+    // 預設今天
+    document.getElementById('sf_date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sf_surveyor').value = currentUser.id;
+    renderFindings([]);
+  }
+}
+
+function fillForm(f) {
+  document.getElementById('sf_date').value    = f.survey_date || '';
+  document.getElementById('sf_surveyor').value= f.surveyor_id || '';
+  document.getElementById('sf_contact').value = f.site_contact || '';
+  document.getElementById('sf_phone').value   = f.site_phone || '';
+  document.getElementById('sf_address').value = f.site_address || '';
+  document.getElementById('sf_photos').value  = f.photos_note || '';
+  document.getElementById('sf_notes').value   = f.extra_notes || '';
+  renderFindings(f.findings || []);
+}
+
+function updateStatusBar(status, signedAt, token) {
+  const bar = document.getElementById('statusBar');
+  const txt = document.getElementById('statusText');
+  bar.className = 'status-bar status-' + status;
+  const labels = { draft:'草稿', sent:'已傳送給客戶', signed:'✅ 客戶已簽名', cancelled:'已取消' };
+  txt.textContent = labels[status] || status;
+  if (signedAt) {
+    document.getElementById('signedInfo').style.display = '';
+    document.getElementById('signedInfo').textContent = '簽名時間：' + signedAt.slice(0,16).replace('T',' ');
+  }
+  if (token) {
+    const shareSection = document.getElementById('shareSection');
+    shareSection.style.display = '';
+    const url = `${location.origin}/sign/${token}`;
+    document.getElementById('shareUrl').textContent = url;
+    document.getElementById('openLinkBtn').href = url;
+  }
+}
+
+// ── 場勘項目 ──────────────────────────────────────────────
+function renderFindings(findings) {
+  const el = document.getElementById('findingsList');
+  if (!findings.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px">點擊「新增項目」加入場勘項目</p>`;
+    return;
+  }
+  el.innerHTML = findings.map((f, i) => `
+    <div class="finding-row" data-idx="${i}">
+      <input class="f-loc" value="${f.location||''}" placeholder="例：客廳主牆" oninput="markDirty()">
+      <input class="f-mat" value="${f.material||''}" placeholder="PAROI MX001 / 隔熱紙" oninput="markDirty()">
+      <input class="f-w" type="number" value="${f.width||''}" placeholder="cm" oninput="markDirty()">
+      <input class="f-h" type="number" value="${f.height||''}" placeholder="cm" oninput="markDirty()">
+      <button class="btn btn-ghost btn-sm" style="color:#e02424;padding:4px 8px" onclick="removeFinding(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function getFindings() {
+  return [...document.querySelectorAll('.finding-row')].map(row => ({
+    location: row.querySelector('.f-loc').value,
+    material: row.querySelector('.f-mat').value,
+    width:    row.querySelector('.f-w').value || null,
+    height:   row.querySelector('.f-h').value || null,
+  })).filter(f => f.location || f.material);
+}
+
+document.getElementById('addFindingBtn').addEventListener('click', () => {
+  const current = getFindings();
+  current.push({ location:'', material:'', width:'', height:'' });
+  renderFindings(current);
+  // focus 最後一行第一個輸入
+  const rows = document.querySelectorAll('.finding-row');
+  if (rows.length) rows[rows.length-1].querySelector('.f-loc').focus();
+});
+
+function removeFinding(idx) {
+  const current = getFindings();
+  current.splice(idx, 1);
+  renderFindings(current);
+}
+
+function markDirty() {} // 可在此加 dirty flag
+
+// ── 儲存 ──────────────────────────────────────────────────
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const body = {
+    surveyor_id:  document.getElementById('sf_surveyor').value || null,
+    survey_date:  document.getElementById('sf_date').value || null,
+    site_contact: document.getElementById('sf_contact').value || null,
+    site_phone:   document.getElementById('sf_phone').value || null,
+    site_address: document.getElementById('sf_address').value || null,
+    findings:     getFindings(),
+    photos_note:  document.getElementById('sf_photos').value || null,
+    extra_notes:  document.getElementById('sf_notes').value || null,
+    status:       formData?.status || 'draft',
+  };
+
+  let res;
+  if (formData) {
+    res = await fetch(`/api/survey/cases/${caseId}/survey-form`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+  } else {
+    res = await fetch(`/api/survey/cases/${caseId}/survey-form`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+  }
+
+  if (res.ok) {
+    const data = await res.json();
+    showToast('場勘單已儲存');
+    // 重新載入最新狀態
+    const sfRes = await fetch(`/api/survey/cases/${caseId}/survey-form`);
+    formData = await sfRes.json();
+    if (formData) updateStatusBar(formData.status, formData.client_signed_at, formData.share_token);
+    // 傳送給客戶（更新狀態為 sent）
+    if (data.token && formData?.status === 'draft') {
+      await fetch(`/api/survey/cases/${caseId}/survey-form`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...body, status:'sent' })
+      });
+      formData.status = 'sent';
+      updateStatusBar('sent', null, data.token);
+    }
+  } else { showToast('儲存失敗', 'error'); }
+});
+
+// ── 複製連結 ──────────────────────────────────────────────
+document.getElementById('copyLinkBtn').addEventListener('click', () => {
+  const url = document.getElementById('shareUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
+});
+
+// ── 列印預覽 ──────────────────────────────────────────────
+document.getElementById('previewBtn').addEventListener('click', () => {
+  if (formData?.share_token) {
+    window.open(`/sign/${formData.share_token}?print=1`, '_blank');
+  } else {
+    showToast('請先儲存場勘單才能預覽', 'error');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

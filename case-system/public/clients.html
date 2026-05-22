@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客戶管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.client-card {
+  background:#fff; border:1px solid var(--gray-200); border-radius:10px;
+  padding:16px 20px; margin-bottom:10px; cursor:pointer; transition:all .15s;
+}
+.client-card:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(26,86,219,.1); }
+.client-card.open  { border-color:var(--primary); }
+.cc-header { display:flex; justify-content:space-between; align-items:center; }
+.cc-name   { font-size:16px; font-weight:600; }
+.cc-meta   { font-size:12px; color:var(--gray-500); margin-top:4px; }
+.cc-badge  { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; background:var(--gray-100); color:var(--gray-600); }
+.cc-cases  { display:none; margin-top:14px; border-top:1px solid var(--gray-100); padding-top:14px; }
+.client-card.open .cc-cases { display:block; }
+.case-row  { display:flex; align-items:center; gap:12px; padding:8px 0;
+             border-bottom:1px solid var(--gray-100); font-size:13px; }
+.case-row:last-child { border-bottom:none; }
+.source-tag { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:500; }
+.source-line     { background:#d1fae5; color:#065f46; }
+.source-ig       { background:#ede9fe; color:#5b21b6; }
+.source-fb       { background:#dbeafe; color:#1e40af; }
+.source-referral { background:#fef3c7; color:#92400e; }
+.source-bni      { background:#fee2e2; color:#991b1b; }
+.source-google   { background:#f0fdf4; color:#166534; }
+.source-other    { background:var(--gray-100); color:var(--gray-600); }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">客戶管理</span>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="searchInput" placeholder="🔍 搜尋姓名、電話…"
+               style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:200px">
+        <button class="btn btn-primary btn-sm" id="newClientBtn">＋ 新增客戶</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 統計 -->
+      <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="card" style="flex:1;min-width:120px;padding:16px 20px">
+          <div style="font-size:12px;color:var(--gray-500)">客戶總數</div>
+          <div style="font-size:24px;font-weight:700" id="statTotal">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:120px;padding:16px 20px">
+          <div style="font-size:12px;color:var(--gray-500)">有施工記錄</div>
+          <div style="font-size:24px;font-weight:700;color:var(--primary)" id="statActive">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:120px;padding:16px 20px">
+          <div style="font-size:12px;color:var(--gray-500)">來源：Line@</div>
+          <div style="font-size:24px;font-weight:700" id="statLine">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:120px;padding:16px 20px">
+          <div style="font-size:12px;color:var(--gray-500)">來源：介紹</div>
+          <div style="font-size:24px;font-weight:700" id="statRef">—</div>
+        </div>
+      </div>
+
+      <!-- 來源篩選 -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <span class="type-tab active" data-src="">全部</span>
+        <span class="type-tab" data-src="line">Line@</span>
+        <span class="type-tab" data-src="ig">Instagram</span>
+        <span class="type-tab" data-src="fb">Facebook</span>
+        <span class="type-tab" data-src="referral">介紹</span>
+        <span class="type-tab" data-src="bni">BNI</span>
+        <span class="type-tab" data-src="google">Google</span>
+        <span class="type-tab" data-src="other">其他</span>
+      </div>
+
+      <!-- 客戶卡片列表 -->
+      <div id="clientList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增 / 編輯客戶 Modal -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="clientModalTitle">新增客戶</h3>
+      <button class="modal-close" onclick="closeClientModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cm_id">
+      <div class="form-row">
+        <div class="form-group"><label>姓名 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
+        <div class="form-group"><label>電話</label><input type="tel" id="cm_phone" placeholder="0912-345-678"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="cm_email"></div>
+        <div class="form-group"><label>來源</label>
+          <select id="cm_source">
+            <option value="">不指定</option>
+            <option value="line">Line@</option>
+            <option value="ig">Instagram</option>
+            <option value="fb">Facebook</option>
+            <option value="referral">客戶介紹</option>
+            <option value="bni">BNI</option>
+            <option value="google">Google 搜尋</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>地址</label><input type="text" id="cm_address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>折扣（1.0 = 全額）</label><input type="number" id="cm_discount" value="1" step="0.01" min="0" max="1"></div>
+      </div>
+      <div class="form-group"><label>備註</label><textarea id="cm_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeClientModal()">取消</button>
+      <button class="btn btn-primary" id="saveClientBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const SOURCE_LABELS = { line:'Line@', ig:'Instagram', fb:'Facebook', referral:'客戶介紹', bni:'BNI', google:'Google', other:'其他' };
+
+let allClients = [], activeSource = '', searchQ = '';
+let clientCases = {};
+
+async function init() {
+  await loadUser();
+  highlightNav('clients');
+  await loadClients();
+
+  document.querySelectorAll('.type-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeSource = tab.dataset.src;
+      render();
+    });
+  });
+
+  let t;
+  document.getElementById('searchInput').addEventListener('input', e => {
+    clearTimeout(t);
+    t = setTimeout(() => { searchQ = e.target.value.trim().toLowerCase(); render(); }, 250);
+  });
+
+  document.getElementById('newClientBtn').addEventListener('click', () => openClientModal());
+  document.getElementById('saveClientBtn').addEventListener('click', saveClient);
+}
+
+async function loadClients() {
+  allClients = await fetchClients();
+  renderStats();
+  render();
+}
+
+function renderStats() {
+  document.getElementById('statTotal').textContent = allClients.length;
+  document.getElementById('statActive').textContent = allClients.filter(c => c._case_count > 0).length;
+  document.getElementById('statLine').textContent = allClients.filter(c => c.source === 'line').length;
+  document.getElementById('statRef').textContent  = allClients.filter(c => c.source === 'referral').length;
+}
+
+function render() {
+  const list = allClients.filter(c => {
+    if (activeSource && c.source !== activeSource) return false;
+    if (searchQ && !`${c.name} ${c.phone || ''} ${c.email || ''}`.toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+  const el = document.getElementById('clientList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:48px"><div class="icon">👥</div>沒有符合的客戶</div>`;
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const srcLabel = SOURCE_LABELS[c.source] || '';
+    const srcCls   = c.source ? `source-${c.source}` : '';
+    return `
+    <div class="client-card" id="cc-${c.id}" onclick="toggleCard(${c.id})">
+      <div class="cc-header">
+        <div>
+          <div class="cc-name">${c.name}
+            ${srcLabel ? `<span class="source-tag ${srcCls}" style="margin-left:8px">${srcLabel}</span>` : ''}
+          </div>
+          <div class="cc-meta">
+            ${c.phone ? `📞 ${c.phone}` : ''}
+            ${c.email ? `　✉️ ${c.email}` : ''}
+            ${c.address ? `　📍 ${c.address}` : ''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="cc-badge" id="ccase-${c.id}">歷史案件載入中…</span>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">編輯</button>
+        </div>
+      </div>
+      <div class="cc-cases" id="cases-${c.id}">
+        <div style="font-size:12px;color:var(--gray-500);text-align:center;padding:8px">載入中…</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 預先載入每個客戶的案件數（輕量）
+  list.forEach(c => loadClientCases(c.id));
+}
+
+async function loadClientCases(cid) {
+  if (clientCases[cid]) { renderClientCases(cid); return; }
+  const res = await fetch(`/api/clients/${cid}/cases`);
+  clientCases[cid] = res.ok ? await res.json() : [];
+  renderClientCases(cid);
+}
+
+function renderClientCases(cid) {
+  const cases = clientCases[cid] || [];
+  const badge = document.getElementById(`ccase-${cid}`);
+  if (badge) badge.textContent = cases.length ? `${cases.length} 件歷史案件` : '新客戶';
+
+  const el = document.getElementById(`cases-${cid}`);
+  if (!el) return;
+  if (!cases.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--gray-500);text-align:center">尚無案件記錄</p>
+      <div style="text-align:center;margin-top:8px">
+        <a href="/cases" class="btn btn-primary btn-sm">為此客戶建立案件</a>
+      </div>`;
+    return;
+  }
+  el.innerHTML = cases.map(c => `
+    <div class="case-row" onclick="event.stopPropagation();location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <code style="font-size:12px;color:var(--gray-500);min-width:100px">${c.case_number}</code>
+      <span style="flex:1;font-weight:500">${c.title}</span>
+      <span>${statusBadge(c.status)}</span>
+      ${currentUser.can_see_amounts && c.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(c.final_price)}</span>` : ''}
+      <span>${paymentBadge(c.payment_status)}</span>
+    </div>
+  `).join('');
+}
+
+function toggleCard(cid) {
+  const card = document.getElementById(`cc-${cid}`);
+  const isOpen = card.classList.contains('open');
+  card.classList.toggle('open', !isOpen);
+  if (!isOpen) loadClientCases(cid);
+}
+
+function openClientModal(id) {
+  document.getElementById('clientModalTitle').textContent = id ? '編輯客戶' : '新增客戶';
+  document.getElementById('cm_id').value = id || '';
+  if (id) {
+    const c = allClients.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('cm_name').value     = c.name || '';
+    document.getElementById('cm_phone').value    = c.phone || '';
+    document.getElementById('cm_email').value    = c.email || '';
+    document.getElementById('cm_source').value   = c.source || '';
+    document.getElementById('cm_address').value  = c.address || '';
+    document.getElementById('cm_discount').value = c.discount ?? 1;
+    document.getElementById('cm_notes').value    = c.notes || '';
+  } else {
+    ['cm_name','cm_phone','cm_email','cm_address','cm_notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cm_source').value   = '';
+    document.getElementById('cm_discount').value = '1';
+  }
+  document.getElementById('clientModal').classList.add('open');
+}
+function closeClientModal() { document.getElementById('clientModal').classList.remove('open'); }
+
+async function saveClient() {
+  const id   = document.getElementById('cm_id').value;
+  const name = document.getElementById('cm_name').value.trim();
+  if (!name) { showToast('請填入客戶姓名', 'error'); return; }
+  const body = {
+    name,
+    phone:    document.getElementById('cm_phone').value || null,
+    email:    document.getElementById('cm_email').value || null,
+    source:   document.getElementById('cm_source').value || null,
+    address:  document.getElementById('cm_address').value || null,
+    discount: parseFloat(document.getElementById('cm_discount').value) || 1,
+    notes:    document.getElementById('cm_notes').value || null,
+  };
+  const url    = id ? `/api/clients/${id}` : '/api/clients';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) {
+    closeClientModal();
+    showToast(id ? '客戶資訊已更新' : `客戶「${name}」已建立`);
+    clientCases = {};
+    await loadClients();
+  } else { showToast('儲存失敗', 'error'); }
+}
+
+init();
+</script>
+</body>
+</html>

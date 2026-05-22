@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>派單行事曆 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases" href="/cases"><span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar" href="/calendar"><span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments" href="/payments"><span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin" href="/admin" data-admin-only><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">派單行事曆</span>
+      <div class="tag-target-form" id="targetForm" style="display:none">
+        每日目標：<input type="number" id="targetAmount" style="width:100px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px" placeholder="100000">
+        <button class="btn btn-ghost btn-sm" id="setTargetBtn">設定</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="cal-nav">
+        <button class="btn btn-ghost btn-sm" id="prevMonth">‹ 上月</button>
+        <h2 id="calTitle"></h2>
+        <button class="btn btn-ghost btn-sm" id="nextMonth">下月 ›</button>
+      </div>
+
+      <div class="cal-grid" id="calGrid"></div>
+
+      <!-- 圖例 -->
+      <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#6b7280">
+        <span style="color:#e02424">■</span> 超過目標（過載）
+        <span style="color:#c27803">■</span> 低於目標（偏空）
+        <span style="color:#057a55">■</span> 達標
+        <span style="color:#6b7280">■</span> 未設定目標
+      </div>
+
+      <!-- 待排工案件 -->
+      <div class="unscheduled-list">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">待排工案件 <span id="unscheduledCount" style="font-size:13px;color:#6b7280"></span></h3>
+        <div id="unscheduledList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 日期詳情 Modal -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3 id="dayModalTitle"></h3>
+      <button class="modal-close" id="dayModalClose">×</button>
+    </div>
+    <div class="modal-body" id="dayModalBody"></div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let curYear = new Date().getFullYear();
+let curMonth = new Date().getMonth() + 1;
+let calData = { cases: [], targets: [] };
+let defaultTarget = 100000;
+
+async function init() {
+  await loadUser();
+  highlightNav('calendar');
+  if (['admin','dispatcher'].includes(currentUser.role)) {
+    document.getElementById('targetForm').style.display = 'flex';
+  }
+  await loadCalendar();
+}
+
+async function loadCalendar() {
+  document.getElementById('calTitle').textContent = `${curYear} 年 ${curMonth} 月`;
+  const res = await fetch(`/api/calendar?year=${curYear}&month=${curMonth}`);
+  calData = await res.json();
+  renderCalendar();
+  renderUnscheduled();
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const days = ['日','一','二','三','四','五','六'];
+  let html = days.map(d => `<div class="cal-header-cell">${d}</div>`).join('');
+
+  const firstDay = new Date(curYear, curMonth - 1, 1).getDay();
+  const daysInMonth = new Date(curYear, curMonth, 0).getDate();
+  const today = new Date().toISOString().split('T')[0];
+
+  // 目標 map
+  const targetMap = {};
+  calData.targets.forEach(t => { targetMap[t.date] = t.target_amount; });
+
+  // 案件按日期分組
+  const casesByDate = {};
+  calData.cases.forEach(c => {
+    if (!casesByDate[c.scheduled_date]) casesByDate[c.scheduled_date] = [];
+    casesByDate[c.scheduled_date].push(c);
+  });
+
+  // 空格
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell other-month"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === today;
+    const cases = casesByDate[dateStr] || [];
+    const target = targetMap[dateStr] || defaultTarget;
+    const revenue = cases.reduce((s, c) => s + (c.final_price || c.quoted_price || 0), 0);
+
+    let revenueHtml = '';
+    if (target) {
+      const ratio = revenue / target;
+      const cls = ratio >= 1.1 ? 'over' : ratio < 0.5 ? 'under' : 'ok';
+      const label = `$${(revenue/1000).toFixed(0)}k / $${(target/1000).toFixed(0)}k`;
+      revenueHtml = `<div class="cal-revenue ${cls}">${label}</div>`;
+    }
+
+    const pillsHtml = cases.slice(0, 3).map(c => {
+      const name = c.installer_name ? `${c.installer_name}｜` : '';
+      return `<div class="cal-case-pill ${c.status}" title="${c.title}">${name}${c.client_name || c.title}</div>`;
+    }).join('') + (cases.length > 3 ? `<div style="font-size:11px;color:#6b7280">+${cases.length - 3} 件</div>` : '');
+
+    html += `
+      <div class="cal-cell${isToday ? ' today' : ''}" onclick="openDayModal('${dateStr}')">
+        <div class="cal-day">${d}</div>
+        ${revenueHtml}
+        ${pillsHtml}
+      </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function renderUnscheduled() {
+  fetch('/api/cases?status=confirmed').then(r => r.json()).then(cases => {
+    const unscheduled = cases.filter(c => !c.scheduled_date);
+    document.getElementById('unscheduledCount').textContent = `（${unscheduled.length} 件）`;
+    const list = document.getElementById('unscheduledList');
+    if (!unscheduled.length) {
+      list.innerHTML = '<p style="color:#6b7280;font-size:14px">目前沒有待排工案件</p>';
+      return;
+    }
+    list.innerHTML = unscheduled.map(c => `
+      <div class="unscheduled-item">
+        <span class="case-num">${c.case_number}</span>
+        <span style="flex:1;font-size:14px">${c.client_name || ''} ${c.title}</span>
+        <span style="font-size:13px;color:#6b7280">${c.installer_name || '未指定師傅'}</span>
+        <a href="/cases#${c.id}" class="btn btn-ghost btn-sm">排程</a>
+      </div>
+    `).join('');
+  });
+}
+
+function openDayModal(dateStr) {
+  const cases = calData.cases.filter(c => c.scheduled_date === dateStr);
+  document.getElementById('dayModalTitle').textContent = `${dateStr} 施工安排`;
+  if (!cases.length) {
+    document.getElementById('dayModalBody').innerHTML = '<p style="color:#6b7280">這天沒有排工</p>';
+  } else {
+    document.getElementById('dayModalBody').innerHTML = cases.map(c => `
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <code style="font-size:12px;color:#6b7280">${c.case_number}</code>
+          ${statusBadge(c.status)}
+        </div>
+        <div style="font-weight:600;margin-bottom:4px">${c.client_name || ''} — ${c.title}</div>
+        <div style="font-size:13px;color:#6b7280">師傅：${c.installer_name || '未指定'} ｜ 時間：${c.scheduled_time || '未定'}</div>
+        <div style="font-size:13px;color:#6b7280">金額：${fmt(c.final_price || c.quoted_price)}</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('dayModal').classList.add('open');
+}
+
+// 設定每日目標
+document.getElementById('setTargetBtn')?.addEventListener('click', async () => {
+  const amount = document.getElementById('targetAmount').value;
+  if (!amount) return;
+  // 設定整個月
+  const daysInMonth = new Date(curYear, curMonth, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    await fetch('/api/calendar/daily-target', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, target_amount: Number(amount) }) });
+  }
+  defaultTarget = Number(amount);
+  await loadCalendar();
+});
+
+document.getElementById('prevMonth').addEventListener('click', () => { curMonth--; if (curMonth < 1) { curMonth = 12; curYear--; } loadCalendar(); });
+document.getElementById('nextMonth').addEventListener('click', () => { curMonth++; if (curMonth > 12) { curMonth = 1; curYear++; } loadCalendar(); });
+document.getElementById('dayModalClose').addEventListener('click', () => document.getElementById('dayModal').classList.remove('open'));
+
+init();
+</script>
+</body>
+</html>
