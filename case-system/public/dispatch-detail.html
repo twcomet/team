@@ -79,6 +79,7 @@
       <a class="nav-item" data-page="clients"    href="/clients">   <span class="icon">👥</span>客戶管理</a>
       <a class="nav-item" data-page="calendar"   href="/calendar">  <span class="icon">📅</span>派單行事曆</a>
       <a class="nav-item" data-page="payments"   href="/payments">  <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="materials"  href="/materials"> <span class="icon">🎞️</span>膜料管理</a>
       <a class="nav-item" data-page="admin"      href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
@@ -107,6 +108,7 @@
 <script>
 const caseId = new URLSearchParams(location.search).get('id');
 let data = null;
+let catalog = [];
 
 const TYPE_LABEL = { survey: '場勘', install: '施工', aftersales: '售後服務' };
 const STATUS_LABEL = {
@@ -125,9 +127,13 @@ async function init() {
   highlightNav('my-tasks');
   if (!caseId) { location.href = '/my-tasks'; return; }
 
-  const res = await fetch(`/api/dispatch-detail/${caseId}`);
-  if (!res.ok) { location.href = '/my-tasks'; return; }
-  data = await res.json();
+  const [r1, r2] = await Promise.all([
+    fetch(`/api/dispatch-detail/${caseId}`),
+    fetch('/api/materials'),
+  ]);
+  if (!r1.ok) { location.href = '/my-tasks'; return; }
+  data = await r1.json();
+  catalog = r2.ok ? await r2.json() : [];
   document.getElementById('pageTitle').textContent = data.case_number || '派工單';
   render();
 }
@@ -235,12 +241,18 @@ function render() {
       <div class="mat-form">
         <div class="mat-form-title">＋ 新增使用紀錄</div>
         ${dispatchSelect}
+        ${catalog.length ? `<select id="mat_catalog" onchange="onCatalogSelect()" style="padding:8px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;width:100%;margin-bottom:10px">
+          <option value="">— 從膜料庫選擇 —</option>
+          ${catalog.map(m => `<option value="${m.id}" data-brand="${m.brand}" data-model="${m.model}" data-cost="${m.unit_cost}">${m.brand} ${m.model}${m.color?' ('+m.color+')':''}</option>`).join('')}
+        </select>` : ''}
+        <input type="hidden" id="mat_id" value="">
         <div class="mat-grid">
-          <input id="mat_brand" placeholder="膜料品牌（選填）">
+          <input id="mat_brand" placeholder="膜料品牌">
           <input id="mat_model" placeholder="型號（必填）" required>
-          <input id="mat_meters" type="number" step="0.1" min="0" placeholder="使用米數">
-          <input id="mat_cost" type="number" step="1" min="0" placeholder="單位成本/米（選填）">
+          <input id="mat_meters" type="number" step="0.1" min="0" placeholder="使用米數（米）" oninput="updateCostPreview()">
+          <input id="mat_cost" type="number" step="1" min="0" placeholder="單位成本/米" style="background:var(--gray-50)" oninput="updateCostPreview()">
         </div>
+        <div id="mat_cost_preview" style="font-size:12px;color:var(--primary-dark);font-weight:600;margin-bottom:8px;min-height:18px"></div>
         <input id="mat_notes" placeholder="備注（選填）" style="padding:8px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;width:100%;margin-bottom:10px">
         <button class="btn btn-primary btn-full" onclick="addMat()">記錄使用</button>
       </div>
@@ -258,15 +270,46 @@ function render() {
   document.getElementById('workOrder').innerHTML = html;
 }
 
+function onCatalogSelect() {
+  const sel = document.getElementById('mat_catalog');
+  const opt = sel.options[sel.selectedIndex];
+  if (!sel.value) {
+    document.getElementById('mat_id').value = '';
+    document.getElementById('mat_brand').value = '';
+    document.getElementById('mat_model').value = '';
+    document.getElementById('mat_cost').value = '';
+    updateCostPreview();
+    return;
+  }
+  document.getElementById('mat_id').value = sel.value;
+  document.getElementById('mat_brand').value = opt.dataset.brand || '';
+  document.getElementById('mat_model').value = opt.dataset.model || '';
+  document.getElementById('mat_cost').value = opt.dataset.cost || '';
+  updateCostPreview();
+}
+
+function updateCostPreview() {
+  const meters = parseFloat(document.getElementById('mat_meters').value) || 0;
+  const cost   = parseFloat(document.getElementById('mat_cost').value)   || 0;
+  const el = document.getElementById('mat_cost_preview');
+  if (meters && cost) {
+    el.textContent = `預計成本：$${Math.round(meters * cost).toLocaleString()}`;
+  } else {
+    el.textContent = '';
+  }
+}
+
 async function addMat() {
   const dispatch_id = document.getElementById('mat_dispatch').value;
   const film_model = document.getElementById('mat_model').value.trim();
-  if (!film_model) { toast('請填寫膜料型號'); return; }
+  const mat_id = document.getElementById('mat_id')?.value;
+  if (!film_model && !mat_id) { toast('請選擇或填寫膜料型號'); return; }
 
   const body = {
     dispatch_id: Number(dispatch_id),
+    material_id: mat_id ? Number(mat_id) : null,
     film_brand: document.getElementById('mat_brand').value.trim() || null,
-    film_model,
+    film_model: film_model || null,
     meters_used: parseFloat(document.getElementById('mat_meters').value) || 0,
     unit_cost: parseFloat(document.getElementById('mat_cost').value) || 0,
     notes: document.getElementById('mat_notes').value.trim() || null,

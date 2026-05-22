@@ -256,11 +256,27 @@ _addCol('cases',      'outsource_cost',    'REAL');
 _addCol('cases',      'shipping_cost',     'REAL');
 _addCol('cases',      'other_cost',        'REAL');
 
+// ── 膜料庫存目錄 ─────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS materials (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id       INTEGER REFERENCES orgs(id),
+  brand        TEXT NOT NULL,
+  model        TEXT NOT NULL,
+  color        TEXT,
+  spec         TEXT,
+  unit_cost    REAL DEFAULT 0,
+  unit_price   REAL DEFAULT 0,
+  stock_meters REAL DEFAULT 0,
+  notes        TEXT,
+  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
+
 // ── 膜料使用紀錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   dispatch_id  INTEGER NOT NULL REFERENCES dispatches(id) ON DELETE CASCADE,
   case_id      INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  material_id  INTEGER REFERENCES materials(id),
   film_brand   TEXT,
   film_model   TEXT NOT NULL,
   meters_used  REAL DEFAULT 0,
@@ -269,6 +285,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
   created_by   INTEGER REFERENCES users(id),
   created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
+_addCol('dispatch_materials', 'material_id', 'INTEGER REFERENCES materials(id)');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 // 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移

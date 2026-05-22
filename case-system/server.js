@@ -46,6 +46,7 @@ app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
 app.use('/api/dispatch-detail', require('./routes/dispatch-detail'));
+app.use('/api/materials',       require('./routes/materials'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -62,6 +63,7 @@ const PAGE_PERMS = {
   calendar:   'page_calendar',
   payments:   'page_payments',
   admin:      'manage_users',
+  materials:  'manage_users',
 };
 
 function requirePagePerm(page) {
@@ -79,7 +81,7 @@ function requirePagePerm(page) {
   };
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));

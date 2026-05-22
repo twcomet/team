@@ -66,7 +66,8 @@
       <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
       <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
       <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
-      <a class="nav-item" data-page="admin"     href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="materials"  href="/materials"> <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="admin"      href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
@@ -105,6 +106,7 @@
         <div class="tab active" data-tab="basic">基本資訊</div>
         <div class="tab" data-tab="quote">報價明細</div>
         <div class="tab" data-tab="dispatch">派工記錄</div>
+        <div class="tab" data-tab="material">膜料使用</div>
         <div class="tab" data-tab="payment">收款</div>
         <div class="tab" data-tab="log">歷程</div>
       </div>
@@ -276,6 +278,11 @@
           </div>
         </div>
         <div id="dispatchList"></div>
+      </div>
+
+      <!-- 膜料使用 -->
+      <div class="tab-pane" id="tab-material">
+        <div id="matUsageList"></div>
       </div>
 
       <!-- 收款 -->
@@ -454,6 +461,7 @@ async function loadCase() {
   fillBasicForm();
   renderItems(caseData.items);
   renderDispatches(caseData.dispatches);
+  renderMatUsage(caseData.matUsage || []);
   fillPaymentForm();
   renderLogs(caseData.logs);
   await loadQuote();
@@ -826,6 +834,47 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
 });
 
 // ── 歷程 ───────────────────────────────────────────────────
+function renderMatUsage(list) {
+  const el = document.getElementById('matUsageList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📦</div>尚無膜料使用紀錄</div>`;
+    return;
+  }
+  // 加總
+  const total_meters = list.reduce((s, m) => s + (m.meters_used || 0), 0);
+  const total_cost   = list.reduce((s, m) => s + (m.meters_used || 0) * (m.unit_cost || 0), 0);
+  const DISPATCH_TYPE = { survey:'場勘', install:'施工', aftersales:'售後' };
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h4 style="font-size:14px;font-weight:600;color:var(--gray-700)">膜料使用紀錄</h4>
+      <div style="display:flex;gap:16px;font-size:13px">
+        <span style="color:var(--gray-500)">合計用料 <strong style="color:var(--gray-900)">${total_meters.toFixed(1)} 米</strong></span>
+        ${currentUser.can_see_amounts && total_cost ? `<span style="color:var(--gray-500)">材料成本 <strong style="color:var(--primary)">$${Math.round(total_cost).toLocaleString()}</strong></span>` : ''}
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>日期</th><th>類型</th><th>品牌</th><th>型號</th>
+          <th>用量（米）</th>${currentUser.can_see_amounts ? '<th>單位成本</th><th>小計</th>' : ''}
+          <th>記錄人</th><th>備注</th>
+        </tr></thead>
+        <tbody>
+          ${list.map(m => `<tr>
+            <td>${m.dispatch_date || '—'}</td>
+            <td>${DISPATCH_TYPE[m.dispatch_type] || '—'}</td>
+            <td>${m.film_brand || '—'}</td>
+            <td><strong>${m.film_model}</strong></td>
+            <td>${m.meters_used || 0}</td>
+            ${currentUser.can_see_amounts ? `<td>${m.unit_cost ? '$'+m.unit_cost : '—'}</td><td>${m.unit_cost ? '$'+Math.round((m.meters_used||0)*(m.unit_cost||0)).toLocaleString() : '—'}</td>` : ''}
+            <td>${m.recorder_name || '—'}</td>
+            <td style="color:var(--gray-500)">${m.notes || ''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
 function renderLogs(logs) {
   const el = document.getElementById('logList');
   if (!logs.length) { el.innerHTML = `<p style="color:#6b7280">尚無操作記錄</p>`; return; }

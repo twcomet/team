@@ -115,6 +115,16 @@ router.get('/:id', requireAuth, (req, res) => {
     ORDER BY l.created_at DESC LIMIT 30
   `).all(c.id);
 
+  const matUsage = db.prepare(`
+    SELECT dm.*, u.name AS recorder_name,
+           d.scheduled_date AS dispatch_date, d.dispatch_type
+    FROM dispatch_materials dm
+    LEFT JOIN users u ON u.id = dm.created_by
+    LEFT JOIN dispatches d ON d.id = dm.dispatch_id
+    WHERE dm.case_id = ?
+    ORDER BY dm.created_at DESC
+  `).all(c.id);
+
   // 金額遮蔽（無 can_see_amounts 的人看不到金額欄）
   const me = req.session.user;
   if (!me.can_see_amounts) {
@@ -123,9 +133,10 @@ router.get('/:id', requireAuth, (req, res) => {
     items.forEach(i => {
       ['material_unit_cost','material_total','install_unit_price','install_total','subtotal'].forEach(k => { i[k] = null; });
     });
+    matUsage.forEach(m => { m.unit_cost = null; });
   }
 
-  res.json({ ...c, items, dispatches, logs });
+  res.json({ ...c, items, dispatches, logs, matUsage });
 });
 
 router.post('/', requireAuth, (req, res) => {

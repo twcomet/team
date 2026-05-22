@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>膜料管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"  href="/dashboard"> <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"   href="/my-tasks">  <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="cases"      href="/cases">     <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"    href="/clients">   <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"   href="/calendar">  <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"   href="/payments">  <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="materials"  href="/materials"> <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="admin"      href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">膜料管理</span>
+      <button class="btn btn-primary btn-sm" onclick="openModal()">＋ 新增膜料</button>
+    </div>
+    <div class="page-body">
+      <!-- 統計 -->
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>膜料庫存目錄</h3>
+          <div class="filter-bar" style="margin:0">
+            <input type="text" id="searchInput" placeholder="搜尋品牌/型號…" oninput="filterTable()" style="width:200px">
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table id="matTable">
+              <thead><tr>
+                <th>品牌</th><th>型號</th><th>顏色/規格</th>
+                <th>成本/米</th><th>售價/米</th><th>庫存（米）</th><th>備注</th><th></th>
+              </tr></thead>
+              <tbody id="matTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div class="modal-overlay" id="matModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增膜料</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>品牌 *</label><input type="text" id="m_brand" placeholder="3M、日東、長春…"></div>
+        <div class="form-group"><label>型號 *</label><input type="text" id="m_model" placeholder="CF2200、LLumar…"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>顏色</label><input type="text" id="m_color" placeholder="淺灰、深茶…"></div>
+        <div class="form-group"><label>規格/說明</label><input type="text" id="m_spec" placeholder="隔熱率、遮光率…"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>成本/米（NT$）</label><input type="number" id="m_unit_cost" min="0" step="1" placeholder="0"></div>
+        <div class="form-group"><label>售價/米（NT$）</label><input type="number" id="m_unit_price" min="0" step="1" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label>現有庫存（米）</label><input type="number" id="m_stock" min="0" step="0.1" placeholder="0"></div>
+      <div class="form-group"><label>備注</label><textarea id="m_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" id="modalSaveBtn" onclick="saveMat()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 調整庫存 Modal -->
+<div class="modal-overlay" id="stockModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h3 id="stockModalTitle">調整庫存</h3>
+      <button class="modal-close" onclick="closeStockModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">正數＝入庫；負數＝出庫/調整</p>
+      <div class="form-group">
+        <label>調整量（米）</label>
+        <input type="number" id="s_delta" step="0.1" placeholder="例：50 或 -10">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeStockModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveStock()">確認</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let materials = [];
+let editId = null;
+let stockTargetId = null;
+
+async function init() {
+  await loadUser();
+  highlightNav('materials');
+  await loadMaterials();
+}
+
+async function loadMaterials() {
+  const res = await fetch('/api/materials');
+  materials = res.ok ? await res.json() : [];
+  renderStats();
+  renderTable(materials);
+}
+
+function renderStats() {
+  const totalKinds  = materials.length;
+  const lowStock    = materials.filter(m => m.stock_meters < 10 && m.stock_meters >= 0).length;
+  const totalStock  = materials.reduce((s, m) => s + (m.stock_meters || 0), 0);
+  const totalValue  = materials.reduce((s, m) => s + (m.stock_meters || 0) * (m.unit_cost || 0), 0);
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="label">膜料種類</div><div class="value">${totalKinds}</div></div>
+    <div class="stat-card"><div class="label">庫存偏低（&lt;10米）</div><div class="value ${lowStock ? 'warning' : ''}">${lowStock}</div></div>
+    <div class="stat-card"><div class="label">總庫存米數</div><div class="value">${totalStock.toFixed(1)} 米</div></div>
+    <div class="stat-card"><div class="label">庫存成本價值</div><div class="value">$${Math.round(totalValue).toLocaleString()}</div></div>
+  `;
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('matTbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-500)">尚無膜料資料</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(m => {
+    const stockClass = m.stock_meters < 10 ? 'style="color:var(--danger);font-weight:700"' : m.stock_meters < 30 ? 'style="color:var(--warning);font-weight:600"' : '';
+    return `<tr>
+      <td><strong>${m.brand}</strong></td>
+      <td>${m.model}</td>
+      <td style="color:var(--gray-500)">${[m.color, m.spec].filter(Boolean).join(' · ') || '—'}</td>
+      <td>${m.unit_cost ? '$' + m.unit_cost : '—'}</td>
+      <td>${m.unit_price ? '$' + m.unit_price : '—'}</td>
+      <td ${stockClass}>${(m.stock_meters || 0).toFixed(1)}</td>
+      <td style="color:var(--gray-500);font-size:12px">${m.notes || ''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openStock(${m.id},'${m.brand} ${m.model}')">庫存</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEdit(${m.id})">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMat(${m.id})">刪除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  renderTable(q ? materials.filter(m => (m.brand+m.model+m.color+m.spec).toLowerCase().includes(q)) : materials);
+}
+
+function openModal(id) {
+  editId = null;
+  document.getElementById('modalTitle').textContent = '新增膜料';
+  ['m_brand','m_model','m_color','m_spec','m_notes'].forEach(id => document.getElementById(id).value = '');
+  ['m_unit_cost','m_unit_price','m_stock'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('matModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const m = materials.find(x => x.id === id);
+  if (!m) return;
+  editId = id;
+  document.getElementById('modalTitle').textContent = '編輯膜料';
+  document.getElementById('m_brand').value     = m.brand || '';
+  document.getElementById('m_model').value     = m.model || '';
+  document.getElementById('m_color').value     = m.color || '';
+  document.getElementById('m_spec').value      = m.spec || '';
+  document.getElementById('m_unit_cost').value = m.unit_cost || '';
+  document.getElementById('m_unit_price').value= m.unit_price || '';
+  document.getElementById('m_stock').value     = m.stock_meters || '';
+  document.getElementById('m_notes').value     = m.notes || '';
+  document.getElementById('matModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('matModal').classList.remove('open'); }
+
+async function saveMat() {
+  const body = {
+    brand: document.getElementById('m_brand').value.trim(),
+    model: document.getElementById('m_model').value.trim(),
+    color: document.getElementById('m_color').value.trim() || null,
+    spec:  document.getElementById('m_spec').value.trim() || null,
+    unit_cost:   parseFloat(document.getElementById('m_unit_cost').value)  || 0,
+    unit_price:  parseFloat(document.getElementById('m_unit_price').value) || 0,
+    stock_meters:parseFloat(document.getElementById('m_stock').value)      || 0,
+    notes: document.getElementById('m_notes').value.trim() || null,
+  };
+  if (!body.brand || !body.model) { alert('品牌和型號必填'); return; }
+  const url = editId ? `/api/materials/${editId}` : '/api/materials';
+  const method = editId ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal(); await loadMaterials(); }
+}
+
+async function deleteMat(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`/api/materials/${id}`, { method: 'DELETE' });
+  await loadMaterials();
+}
+
+function openStock(id, name) {
+  stockTargetId = id;
+  document.getElementById('stockModalTitle').textContent = `調整庫存 — ${name}`;
+  document.getElementById('s_delta').value = '';
+  document.getElementById('stockModal').classList.add('open');
+}
+function closeStockModal() { document.getElementById('stockModal').classList.remove('open'); }
+
+async function saveStock() {
+  const delta = parseFloat(document.getElementById('s_delta').value);
+  if (isNaN(delta)) { alert('請填寫調整量'); return; }
+  await fetch(`/api/materials/${stockTargetId}/stock`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ delta }),
+  });
+  closeStockModal();
+  await loadMaterials();
+}
+
+init();
+</script>
+</body>
+</html>
