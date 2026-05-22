@@ -126,6 +126,19 @@ router.get('/:id', requireAuth, (req, res) => {
     ORDER BY dm.created_at DESC
   `).all(c.id);
 
+  const matLogs = db.prepare(`
+    SELECT ml.id, ml.roll_id, ml.log_type, ml.meters, ml.notes, ml.logged_at,
+           m.brand AS film_brand, m.model AS film_model,
+           mr.unit_cost,
+           u.name AS recorder_name
+    FROM material_logs ml
+    LEFT JOIN material_rolls mr ON mr.id = ml.roll_id
+    LEFT JOIN materials m ON m.id = ml.material_id
+    LEFT JOIN users u ON u.id = ml.logged_by
+    WHERE ml.case_id = ? AND ml.log_type IN ('case_cut','case_loss')
+    ORDER BY ml.logged_at DESC
+  `).all(c.id);
+
   // 金額遮蔽（無 can_see_amounts 的人看不到金額欄）
   const me = req.session.user;
   if (!me.can_see_amounts) {
@@ -135,9 +148,10 @@ router.get('/:id', requireAuth, (req, res) => {
       ['material_unit_cost','material_total','install_unit_price','install_total','subtotal'].forEach(k => { i[k] = null; });
     });
     matUsage.forEach(m => { m.unit_cost = null; });
+    matLogs.forEach(m => { m.unit_cost = null; });
   }
 
-  res.json({ ...c, items, dispatches, logs, matUsage });
+  res.json({ ...c, items, dispatches, logs, matUsage, matLogs });
 });
 
 router.post('/', requireAuth, (req, res) => {

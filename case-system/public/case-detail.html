@@ -282,6 +282,9 @@
 
       <!-- 膜料使用 -->
       <div class="tab-pane" id="tab-material">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" onclick="openMatLogModal()">＋ 新增使用紀錄</button>
+        </div>
         <div id="matUsageList"></div>
       </div>
 
@@ -461,7 +464,7 @@ async function loadCase() {
   fillBasicForm();
   renderItems(caseData.items);
   renderDispatches(caseData.dispatches);
-  renderMatUsage(caseData.matUsage || []);
+  renderMatUsage(caseData.matUsage || [], caseData.matLogs || []);
   fillPaymentForm();
   renderLogs(caseData.logs);
   await loadQuote();
@@ -834,16 +837,45 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
 });
 
 // ── 歷程 ───────────────────────────────────────────────────
-function renderMatUsage(list) {
+function renderMatUsage(dispatchList, logList) {
   const el = document.getElementById('matUsageList');
-  if (!list.length) {
+  const DISPATCH_TYPE = { survey:'場勘', install:'施工', aftersales:'售後' };
+  const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼' };
+
+  // 統一格式
+  const fromDispatch = dispatchList.map(m => ({
+    date:          m.dispatch_date || '',
+    type_label:    DISPATCH_TYPE[m.dispatch_type] || '—',
+    film_brand:    m.film_brand || '—',
+    film_model:    m.film_model || '—',
+    meters:        m.meters_used || 0,
+    unit_cost:     m.unit_cost,
+    recorder_name: m.recorder_name || '—',
+    notes:         m.notes || '',
+    source:        'dispatch',
+  }));
+  const fromLogs = logList.map(m => ({
+    date:          (m.logged_at || '').slice(0,10),
+    type_label:    LOG_TYPE[m.log_type] || m.log_type,
+    film_brand:    m.film_brand || '—',
+    film_model:    m.film_model || '—',
+    meters:        Math.abs(m.meters || 0),
+    unit_cost:     m.unit_cost,
+    recorder_name: m.recorder_name || '—',
+    notes:         m.notes || '',
+    source:        'log',
+    id:            m.id,
+  }));
+
+  const all = [...fromDispatch, ...fromLogs].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  if (!all.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📦</div>尚無膜料使用紀錄</div>`;
     return;
   }
-  // 加總
-  const total_meters = list.reduce((s, m) => s + (m.meters_used || 0), 0);
-  const total_cost   = list.reduce((s, m) => s + (m.meters_used || 0) * (m.unit_cost || 0), 0);
-  const DISPATCH_TYPE = { survey:'場勘', install:'施工', aftersales:'售後' };
+
+  const total_meters = all.reduce((s, m) => s + m.meters, 0);
+  const total_cost   = all.reduce((s, m) => s + m.meters * (m.unit_cost || 0), 0);
 
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -858,18 +890,19 @@ function renderMatUsage(list) {
         <thead><tr>
           <th>日期</th><th>類型</th><th>品牌</th><th>型號</th>
           <th>用量（米）</th>${currentUser.can_see_amounts ? '<th>單位成本</th><th>小計</th>' : ''}
-          <th>記錄人</th><th>備注</th>
+          <th>記錄人</th><th>備注</th><th></th>
         </tr></thead>
         <tbody>
-          ${list.map(m => `<tr>
-            <td>${m.dispatch_date || '—'}</td>
-            <td>${DISPATCH_TYPE[m.dispatch_type] || '—'}</td>
-            <td>${m.film_brand || '—'}</td>
+          ${all.map(m => `<tr>
+            <td>${m.date || '—'}</td>
+            <td>${m.type_label}</td>
+            <td>${m.film_brand}</td>
             <td><strong>${m.film_model}</strong></td>
-            <td>${m.meters_used || 0}</td>
-            ${currentUser.can_see_amounts ? `<td>${m.unit_cost ? '$'+m.unit_cost : '—'}</td><td>${m.unit_cost ? '$'+Math.round((m.meters_used||0)*(m.unit_cost||0)).toLocaleString() : '—'}</td>` : ''}
-            <td>${m.recorder_name || '—'}</td>
-            <td style="color:var(--gray-500)">${m.notes || ''}</td>
+            <td>${m.meters}</td>
+            ${currentUser.can_see_amounts ? `<td>${m.unit_cost ? '$'+m.unit_cost : '—'}</td><td>${m.unit_cost ? '$'+Math.round(m.meters*(m.unit_cost||0)).toLocaleString() : '—'}</td>` : ''}
+            <td>${m.recorder_name}</td>
+            <td style="color:var(--gray-500)">${m.notes}</td>
+            <td>${m.source==='log' ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteMatLog(${m.id})">刪除</button>` : ''}</td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -1021,7 +1054,114 @@ function initClientAutocomplete() {
   });
 }
 
+// ── 膜料使用紀錄（直接新增） ──────────────────────────────────
+let _matList = [];
+let _matRolls = [];
+
+async function openMatLogModal() {
+  if (!_matList.length) {
+    const res = await fetch('/api/materials');
+    _matList = res.ok ? await res.json() : [];
+  }
+  const matSel = document.getElementById('ml_material');
+  matSel.innerHTML = '<option value="">— 選擇膜料型號 —</option>' +
+    _matList.map(m => `<option value="${m.id}" data-brand="${m.brand}" data-model="${m.model}">${m.brand} ${m.model}</option>`).join('');
+  document.getElementById('ml_roll').innerHTML = '<option value="">— 先選膜料 —</option>';
+  document.getElementById('ml_type').value = 'case_cut';
+  document.getElementById('ml_meters').value = '';
+  document.getElementById('ml_notes').value = '';
+  document.getElementById('ml_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('matLogModal').classList.add('open');
+}
+
+async function onMatLogMaterialChange() {
+  const matId = document.getElementById('ml_material').value;
+  const rollSel = document.getElementById('ml_roll');
+  rollSel.innerHTML = '<option value="">載入中…</option>';
+  if (!matId) { rollSel.innerHTML = '<option value="">— 先選膜料 —</option>'; return; }
+  const res = await fetch(`/api/materials/${matId}/rolls`);
+  _matRolls = res.ok ? await res.json() : [];
+  const active = _matRolls.filter(r => r.status !== 'finished');
+  rollSel.innerHTML = '<option value="">— 選擇捲料 —</option>' +
+    active.map(r => `<option value="${r.id}">${r.roll_no || '無編號'} (剩 ${r.remaining_meters} 米)</option>`).join('');
+}
+
+async function saveMatLog() {
+  const rollId  = document.getElementById('ml_roll').value;
+  const logType = document.getElementById('ml_type').value;
+  const meters  = parseFloat(document.getElementById('ml_meters').value);
+  const notes   = document.getElementById('ml_notes').value.trim();
+  if (!rollId) return showToast('請選擇捲料', 'error');
+  if (!meters || meters <= 0) return showToast('請填寫用量（米）', 'error');
+
+  const res = await fetch(`/api/materials/rolls/${rollId}/logs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ log_type: logType, case_id: caseId, meters, notes: notes || null }),
+  });
+  if (res.ok) {
+    document.getElementById('matLogModal').classList.remove('open');
+    showToast('使用紀錄已新增');
+    await loadCase();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '新增失敗', 'error');
+  }
+}
+
+async function deleteMatLog(id) {
+  if (!confirm('確定刪除這筆使用紀錄？庫存米數將會還原。')) return;
+  const res = await fetch(`/api/materials/logs/${id}`, { method: 'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadCase(); }
+  else showToast('刪除失敗', 'error');
+}
+
 init();
 </script>
+
+<!-- 新增膜料使用紀錄 Modal -->
+<div class="modal-overlay" id="matLogModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3>新增膜料使用紀錄</h3>
+      <button class="modal-close" onclick="document.getElementById('matLogModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>膜料型號 *</label>
+        <select id="ml_material" onchange="onMatLogMaterialChange()"></select>
+      </div>
+      <div class="form-group">
+        <label>捲料 *</label>
+        <select id="ml_roll"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>用途</label>
+          <select id="ml_type">
+            <option value="case_cut">施工</option>
+            <option value="case_loss">損失重貼</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>用量（米）*</label>
+          <input type="number" id="ml_meters" placeholder="0" min="0.01" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>日期</label>
+        <input type="date" id="ml_date">
+      </div>
+      <div class="form-group">
+        <label>備注</label>
+        <input type="text" id="ml_notes" placeholder="選填">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('matLogModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveMatLog()">新增</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

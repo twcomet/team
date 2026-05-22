@@ -200,4 +200,24 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   res.json({ ok: true, remaining: newRemaining });
 });
 
+// DELETE /logs/:id — 刪除流水帳並還原庫存
+router.delete('/logs/:id', requireAuth, (req, res) => {
+  const org_id = req.session.user.org_id;
+  const log = db.prepare(`SELECT * FROM material_logs WHERE id = ? AND org_id = ?`).get(req.params.id, org_id);
+  if (!log) return res.status(404).json({ error: '找不到記錄' });
+
+  // 還原捲料剩餘米數（meters 是負數代表出庫，刪除後加回去）
+  const newRemaining = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(log.roll_id)?.remaining_meters || 0;
+  const restored = newRemaining - log.meters; // -meters 還原
+  db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
+    .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
+
+  // 還原 materials.stock_meters
+  db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
+    .run(log.meters, log.material_id, org_id);
+
+  db.prepare(`DELETE FROM material_logs WHERE id = ?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

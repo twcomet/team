@@ -69,6 +69,12 @@
       <div id="panelCases">
         <div class="stats-grid" id="paymentStats"></div>
         <div class="filter-bar">
+          <span id="caseOrgFilterWrap" style="display:none;align-items:center;gap:6px">
+            <label style="font-size:13px;color:var(--gray-600)">店別</label>
+            <select id="filterCaseOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+              <option value="">全部店別</option>
+            </select>
+          </span>
           <label style="font-size:13px;color:var(--gray-600)">收款狀態</label>
           <select id="filterPayment" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
             <option value="">全部</option>
@@ -80,12 +86,9 @@
           <label style="font-size:13px;color:var(--gray-600)">案件階段</label>
           <select id="filterStatus" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
             <option value="">全部</option>
-            <option value="confirmed">已成交</option>
-            <option value="scheduled">已排程</option>
-            <option value="in_progress">施工中</option>
-            <option value="completed">完工</option>
-            <option value="aftersales">售後</option>
-            <option value="closed">結案</option>
+            <option value="contracted">已成交／施工中</option>
+            <option value="payment">收款中</option>
+            <option value="closed">已結案</option>
           </select>
           <button class="btn btn-ghost btn-sm" id="clearBtn">清除篩選</button>
         </div>
@@ -302,7 +305,9 @@ async function init() {
   document.getElementById('clearBtn').addEventListener('click', () => {
     document.getElementById('filterPayment').value = '';
     document.getElementById('filterStatus').value  = '';
-    applyFilter();
+    const caseOrgSel = document.getElementById('filterCaseOrg');
+    if (caseOrgSel) caseOrgSel.value = '';
+    loadPayments();
   });
   let t;
   document.getElementById('searchInput').addEventListener('input', () => { clearTimeout(t); t = setTimeout(applyFilter, 300); });
@@ -347,6 +352,17 @@ function populateOrgSelects() {
       opt.value = o.id; opt.textContent = o.name;
       sel.appendChild(opt);
     });
+
+    // 案件收款店別篩選
+    const caseOrgWrap = document.getElementById('caseOrgFilterWrap');
+    caseOrgWrap.style.display = 'flex';
+    const caseSel = document.getElementById('filterCaseOrg');
+    allOrgs.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id; opt.textContent = o.name;
+      caseSel.appendChild(opt);
+    });
+    caseSel.addEventListener('change', loadPayments);
   }
 
   // 新增記錄的店別下拉
@@ -385,20 +401,25 @@ function switchTab(tab) {
 
 // ─── 案件收款 ──────────────────────────────────────────────────
 async function loadPayments() {
-  const res = await fetch('/api/cases');
+  const orgId = document.getElementById('filterCaseOrg')?.value || '';
+  let url = '/api/cases';
+  if (orgId) url += `?org_id=${orgId}`;
+  const res = await fetch(url);
   const all = await res.json();
-  allPayments = all.filter(c => !['inquiry','quoted','survey_scheduled','surveyed'].includes(c.status));
+  allPayments = all.filter(c => ['contracted','payment','closed'].includes(c.status));
   applyFilter();
 }
 
 function applyFilter() {
-  const ps = document.getElementById('filterPayment').value;
-  const st = document.getElementById('filterStatus').value;
-  const q  = document.getElementById('searchInput').value.trim().toLowerCase();
+  const ps  = document.getElementById('filterPayment').value;
+  const st  = document.getElementById('filterStatus').value;
+  const org = document.getElementById('filterCaseOrg')?.value || '';
+  const q   = document.getElementById('searchInput').value.trim().toLowerCase();
   filtered = allPayments.filter(c => {
-    if (ps && c.payment_status !== ps) return false;
-    if (st && c.status !== st) return false;
-    if (q && !`${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)) return false;
+    if (ps  && c.payment_status !== ps) return false;
+    if (st  && c.status !== st) return false;
+    if (org && String(c.org_id) !== org) return false;
+    if (q   && !`${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)) return false;
     return true;
   });
   renderStats(filtered);
