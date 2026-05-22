@@ -9,8 +9,26 @@ router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const filter = orgFilter(me);
   const clients = filter.org_id
-    ? db.prepare(`SELECT * FROM clients WHERE org_id = ? ORDER BY name`).all(filter.org_id)
-    : db.prepare(`SELECT c.*, o.name as org_name FROM clients c LEFT JOIN orgs o ON c.org_id = o.id ORDER BY c.name`).all();
+    ? db.prepare(`
+        SELECT c.*,
+          COUNT(CASE WHEN cs.status IN ('contracted','payment','closed')
+                      AND cs.created_at >= datetime('now','-1 year') THEN 1 END) AS orders_last_year,
+          COALESCE(SUM(CASE WHEN cs.status IN ('contracted','payment','closed') THEN cs.final_price END),0) AS total_revenue
+        FROM clients c
+        LEFT JOIN cases cs ON cs.client_id = c.id
+        WHERE c.org_id = ?
+        GROUP BY c.id ORDER BY c.name
+      `).all(filter.org_id)
+    : db.prepare(`
+        SELECT c.*, o.name AS org_name,
+          COUNT(CASE WHEN cs.status IN ('contracted','payment','closed')
+                      AND cs.created_at >= datetime('now','-1 year') THEN 1 END) AS orders_last_year,
+          COALESCE(SUM(CASE WHEN cs.status IN ('contracted','payment','closed') THEN cs.final_price END),0) AS total_revenue
+        FROM clients c
+        LEFT JOIN orgs o ON c.org_id = o.id
+        LEFT JOIN cases cs ON cs.client_id = c.id
+        GROUP BY c.id ORDER BY c.name
+      `).all();
   res.json(clients);
 });
 

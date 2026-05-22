@@ -28,6 +28,7 @@
 .source-referral { background:#fef3c7; color:#92400e; }
 .source-bni      { background:#fee2e2; color:#991b1b; }
 .source-google   { background:#f0fdf4; color:#166534; }
+.source-boss_friend { background:#fce7f3; color:#9d174d; }
 .source-other    { background:var(--gray-100); color:var(--gray-600); }
 </style>
 </head>
@@ -90,6 +91,7 @@
         <span class="type-tab" data-src="referral">介紹</span>
         <span class="type-tab" data-src="bni">BNI</span>
         <span class="type-tab" data-src="google">Google</span>
+        <span class="type-tab" data-src="boss_friend">老闆的親友</span>
         <span class="type-tab" data-src="other">其他</span>
       </div>
 
@@ -144,6 +146,7 @@
             <option value="B">B 級（一般）</option>
             <option value="C">C 級（潛在）</option>
           </select>
+          <div id="cm_level_hint" style="font-size:11px;margin-top:4px;color:#92400e;display:none"></div>
         </div>
         <div class="form-group"><label>來源</label>
           <select id="cm_source">
@@ -154,6 +157,7 @@
             <option value="referral">客戶介紹</option>
             <option value="bni">BNI</option>
             <option value="google">Google 搜尋</option>
+            <option value="boss_friend">老闆的親友</option>
             <option value="other">其他</option>
           </select>
         </div>
@@ -181,7 +185,36 @@
 
 <script src="/js/common.js"></script>
 <script>
-const SOURCE_LABELS = { line:'Line@', ig:'Instagram', fb:'Facebook', referral:'客戶介紹', bni:'BNI', google:'Google', other:'其他' };
+const SOURCE_LABELS = { line:'Line@', ig:'Instagram', fb:'Facebook', referral:'客戶介紹', bni:'BNI', google:'Google', boss_friend:'老闆的親友', other:'其他' };
+
+function suggestLevel(c) {
+  const orders = c.orders_last_year || 0;
+  const revenue = c.total_revenue || 0;
+  if (orders >= 3 || revenue >= 200000) return 'A';
+  if (orders >= 1 || revenue >= 100000) return 'B';
+  return 'C';
+}
+
+async function applyLevel(cid, level) {
+  const c = allClients.find(x => x.id === cid);
+  if (!c) return;
+  const body = {
+    name: c.name, contact_person: c.contact_person, phone: c.phone,
+    email: c.email, tax_id: c.tax_id, einvoice_code: c.einvoice_code,
+    address: c.address, client_level: level, source: c.source,
+    payment_terms: c.payment_terms, discount_terms: c.discount_terms,
+    capital: c.capital, referrer: c.referrer, line_group_name: c.line_group_name,
+    discount: c.discount, notes: c.notes,
+  };
+  const res = await fetch(`/api/clients/${cid}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    showToast(`${c.name} 已套用為 ${level} 級`);
+    clientCases = {};
+    await loadClients();
+  }
+}
 
 let allClients = [], activeSource = '', searchQ = '';
 let clientCases = {};
@@ -253,6 +286,12 @@ function render() {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="cc-badge" id="ccase-${c.id}">歷史案件載入中…</span>
+          ${(() => {
+            const sug = suggestLevel(c);
+            return sug !== (c.client_level || '') ?
+              `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:11px"
+                 onclick="event.stopPropagation();applyLevel(${c.id},'${sug}')">✨ 建議${sug}級</button>` : '';
+          })()}
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">編輯</button>
         </div>
       </div>
@@ -339,6 +378,18 @@ function openClientModal(id) {
   document.getElementById('cm_card_file').value = '';
   document.getElementById('cm_ocr_btn').style.display = 'none';
   document.getElementById('cm_ocr_status').textContent = '';
+
+  const hint = document.getElementById('cm_level_hint');
+  if (id) {
+    const c = allClients.find(x => x.id === id);
+    const sug = c ? suggestLevel(c) : null;
+    if (sug && sug !== (c.client_level || '')) {
+      hint.style.display = 'block';
+      hint.innerHTML = `✨ 系統建議：<strong>${sug} 級</strong>（近一年成交 ${c.orders_last_year} 筆 / 累計 ${fmt(c.total_revenue)}）
+        <a href="#" style="margin-left:6px;color:#1e40af" onclick="event.preventDefault();document.getElementById('cm_client_level').value='${sug}';this.parentElement.style.display='none'">套用</a>`;
+    } else { hint.style.display = 'none'; }
+  } else { hint.style.display = 'none'; }
+
   document.getElementById('clientModal').classList.add('open');
 }
 function closeClientModal() { document.getElementById('clientModal').classList.remove('open'); }
