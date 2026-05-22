@@ -160,15 +160,12 @@
 
 <script src="/js/common.js"></script>
 <script>
-const STAGE_ORDER = ['inquiry','text_quoted','draft_quoted','survey_scheduled','surveyed','formal_quoted','quote_framework','quote_no_survey','confirmed','dispatched','pending_payment','completed','invalid'];
+const STAGE_ORDER = ['initial_estimate','survey','quoted','contracted','payment','closed','invalid'];
 const STAGE_NAMES = {
-  inquiry:'詢價', text_quoted:'文字報價', draft_quoted:'初步報價單',
-  survey_scheduled:'已約場勘', surveyed:'場勘回報',
-  formal_quoted:'正式報價單', quote_framework:'報價骨架', quote_no_survey:'未勘出報',
-  confirmed:'訂單回簽', dispatched:'已派工', pending_payment:'完工追款',
-  completed:'完工保存', invalid:'無效',
+  initial_estimate:'初步估價', survey:'場勘', quoted:'出報價單',
+  contracted:'成交派案', payment:'完工請款', closed:'結案保存', invalid:'無效',
 };
-const HIDDEN_STAGES = new Set(['completed','invalid']); // 完工/無效預設不顯示在列表
+const HIDDEN_STAGES = new Set(['closed','invalid']); // 結案/無效預設不顯示在列表
 const TYPE_NAMES  = { inquiry:'詢價', survey:'場勘', contract:'成交', repair:'維修' };
 const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca3af' };
 

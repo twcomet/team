@@ -6,19 +6,13 @@ const ROLE_LABELS = {
   contractor_sales:'約聘業務', dealer:'經銷商',
 };
 const STATUS_LABELS = {
-  inquiry:         '初步詢價',
-  text_quoted:     '1.1 已文字報價',
-  draft_quoted:    '1.2 出初步報價單',
-  survey_scheduled:'2. 已約場勘',
-  surveyed:        '3. 場勘已回報',
-  formal_quoted:   '4. 出正式報價單',
-  quote_framework: '4.1 建報價單骨架',
-  quote_no_survey: '4.2 未勘出報價',
-  confirmed:       '5. 訂單回簽派工',
-  dispatched:      '6. 已派工',
-  pending_payment: '7. 完工追款中',
-  completed:       '8. 完工保存',
-  invalid:         '9. 無效',
+  initial_estimate: '1.初步估價',
+  survey:           '2.場勘',
+  quoted:           '3.出報價單',
+  contracted:       '4.成交派案',
+  payment:          '5.完工請款',
+  closed:           '6.結案保存',
+  invalid:          '7.無效案件保存',
 };
 const PAYMENT_LABELS = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
 

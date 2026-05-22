@@ -129,7 +129,7 @@ function main() {
         location, survey_fee, sales_id,
         status, priority, notes,
         scheduled_date, created_by, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,'surveyed','normal',?,?,?,CURRENT_TIMESTAMP)
+      ) VALUES (?,?,?,?,?,?,?,?,'survey','normal',?,?,?,CURRENT_TIMESTAMP)
     `).run(caseNumber, orgId, 'survey', clientId, title, address, fee,
            surveyorId || sysUid, notes, surveyDate, sysUid);
 

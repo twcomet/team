@@ -23,8 +23,9 @@ _addCol('cases', 'surveyor_id',  'INTEGER REFERENCES users(id)');
 
 // 如果舊 CHECK 約束存在，遷移 cases 表格
 const _casesSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-if (_casesSchema && _casesSchema.sql.includes("'in_progress'")) {
-  console.log('升級案件狀態約束...');
+const _needsMigrate = _casesSchema && !_casesSchema.sql.includes("'contracted'");
+if (_needsMigrate) {
+  console.log('升級案件狀態至 7 階段...');
   db.exec(`PRAGMA foreign_keys=OFF`);
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
@@ -37,7 +38,7 @@ if (_casesSchema && _casesSchema.sql.includes("'in_progress'")) {
     payment_received REAL DEFAULT 0, payment_due_date DATE, payment_notes TEXT,
     sales_id INTEGER REFERENCES users(id), is_outsourced INTEGER DEFAULT 0,
     outsource_type TEXT CHECK(outsource_type IN ('full','survey_only','install_only')),
-    status TEXT DEFAULT 'inquiry',
+    status TEXT DEFAULT 'initial_estimate',
     priority TEXT DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
     notes TEXT, created_by INTEGER REFERENCES users(id),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -51,9 +52,27 @@ if (_casesSchema && _casesSchema.sql.includes("'in_progress'")) {
            quoted_price,final_price,material_cost,survey_fee,install_fee,
            payment_status,payment_received,payment_due_date,payment_notes,
            sales_id,is_outsourced,outsource_type,
-           CASE status WHEN 'quoted' THEN 'draft_quoted' WHEN 'scheduled' THEN 'dispatched'
-             WHEN 'in_progress' THEN 'dispatched' WHEN 'aftersales' THEN 'pending_payment'
-             WHEN 'closed' THEN 'completed' ELSE status END,
+           CASE status
+             WHEN 'inquiry' THEN 'initial_estimate'
+             WHEN 'text_quoted' THEN 'initial_estimate'
+             WHEN 'survey_scheduled' THEN 'survey'
+             WHEN 'surveyed' THEN 'survey'
+             WHEN 'quoted' THEN 'quoted'
+             WHEN 'draft_quoted' THEN 'quoted'
+             WHEN 'formal_quoted' THEN 'quoted'
+             WHEN 'quote_framework' THEN 'quoted'
+             WHEN 'quote_no_survey' THEN 'quoted'
+             WHEN 'confirmed' THEN 'contracted'
+             WHEN 'scheduled' THEN 'contracted'
+             WHEN 'in_progress' THEN 'contracted'
+             WHEN 'dispatched' THEN 'contracted'
+             WHEN 'pending_payment' THEN 'payment'
+             WHEN 'aftersales' THEN 'payment'
+             WHEN 'completed' THEN 'closed'
+             WHEN 'closed' THEN 'closed'
+             WHEN 'invalid' THEN 'invalid'
+             ELSE 'initial_estimate'
+           END,
            priority,notes,created_by,created_at,updated_at,
            line_source,keyword,deposit_amount,material_ordered,
            invoice_company,invoice_tax_id,invoice_address,invoice_email,invoice_item_desc,
@@ -61,7 +80,7 @@ if (_casesSchema && _casesSchema.sql.includes("'in_progress'")) {
     FROM cases`);
   db.exec(`DROP TABLE cases; ALTER TABLE _cases_new RENAME TO cases`);
   db.exec(`PRAGMA foreign_keys=ON`);
-  console.log('✅ 案件狀態約束升級完成');
+  console.log('✅ 案件狀態升級完成');
 }
 
 function genCaseNumber() {
@@ -110,7 +129,15 @@ function main() {
 
   let created = 0;
 
+  // 舊狀態 → 新 7 階段
+  const statusMap = {
+    confirmed: 'contracted', dispatched: 'contracted',
+    pending_payment: 'payment', completed: 'closed', invalid: 'invalid',
+    survey: 'survey', quoted: 'quoted', initial_estimate: 'initial_estimate',
+  };
+
   for (const row of rows) {
+    const dbStatus = statusMap[row.status] || 'contracted';
     // 場勘人對應
     const surveyorId = row.surveyor_name ? (userMap[row.surveyor_name] || null) : null;
 
@@ -137,15 +164,15 @@ function main() {
         location, final_price, survey_fee, surveyor_id, sales_id,
         status, priority, notes,
         survey_date, scheduled_date, created_by, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,'${row.status}','normal',?,?,?,?,CURRENT_TIMESTAMP)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,'normal',?,?,?,?,CURRENT_TIMESTAMP)
     `).run(
       caseNumber, orgId, row.case_type || 'contract', clientId, row.title,
       row.location, row.final_price, row.survey_fee, surveyorId, surveyorId || sysUid,
-      notes,
+      dbStatus, notes,
       row.survey_date, row.scheduled_date, sysUid
     );
 
-    console.log(`✓ ${caseNumber} | [${row.status}] ${row.title.slice(0,35)} | $${row.final_price ? row.final_price.toLocaleString() : '—'}`);
+    console.log(`✓ ${caseNumber} | [${dbStatus}] ${row.title.slice(0,35)} | $${row.final_price ? row.final_price.toLocaleString() : '—'}`);
     created++;
   }
 

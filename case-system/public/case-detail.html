@@ -84,19 +84,13 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <select id="statusSelect" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="inquiry">初步詢價</option>
-          <option value="text_quoted">1.1 已文字報價</option>
-          <option value="draft_quoted">1.2 出初步報價單</option>
-          <option value="survey_scheduled">2. 已約場勘</option>
-          <option value="surveyed">3. 場勘已回報</option>
-          <option value="formal_quoted">4. 出正式報價單</option>
-          <option value="quote_framework">4.1 建報價單骨架</option>
-          <option value="quote_no_survey">4.2 未勘出報價</option>
-          <option value="confirmed">5. 訂單回簽派工</option>
-          <option value="dispatched">6. 已派工</option>
-          <option value="pending_payment">7. 完工追款中</option>
-          <option value="completed">8. 完工保存</option>
-          <option value="invalid">9. 無效</option>
+          <option value="initial_estimate">1.初步估價</option>
+          <option value="survey">2.場勘</option>
+          <option value="quoted">3.出報價單</option>
+          <option value="contracted">4.成交派案</option>
+          <option value="payment">5.完工請款</option>
+          <option value="closed">6.結案保存</option>
+          <option value="invalid">7.無效案件保存</option>
         </select>
         <button class="btn btn-primary btn-sm" id="saveBasicBtn">儲存</button>
       </div>
@@ -379,19 +373,13 @@
 <script>
 // ── 常數 ───────────────────────────────────────────────────
 const STAGES = [
-  {key:'inquiry',         label:'詢價'},
-  {key:'text_quoted',     label:'文字報價'},
-  {key:'draft_quoted',    label:'初步報價單'},
-  {key:'survey_scheduled',label:'已約場勘'},
-  {key:'surveyed',        label:'場勘回報'},
-  {key:'formal_quoted',   label:'正式報價單'},
-  {key:'quote_framework', label:'報價骨架'},
-  {key:'quote_no_survey', label:'未勘出報'},
-  {key:'confirmed',       label:'訂單回簽'},
-  {key:'dispatched',      label:'已派工'},
-  {key:'pending_payment', label:'完工追款'},
-  {key:'completed',       label:'完工保存'},
-  {key:'invalid',         label:'無效'},
+  {key:'initial_estimate', label:'初步估價'},
+  {key:'survey',           label:'場勘'},
+  {key:'quoted',           label:'出報價單'},
+  {key:'contracted',       label:'成交派案'},
+  {key:'payment',          label:'完工請款'},
+  {key:'closed',           label:'結案保存'},
+  {key:'invalid',          label:'無效'},
 ];
 const ITEM_TYPES = [
   '牆面','電視牆','天花板','門片','門框','防火門','系統櫃','玻璃',

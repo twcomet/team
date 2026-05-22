@@ -87,19 +87,13 @@ tr:hover td { background: var(--gray-50); }
 
 /* ── Badges ─────────────────────────────────────────────── */
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap; }
-.badge-inquiry        { background: #e0f2fe; color: #0369a1; }
-.badge-text_quoted    { background: #fef3c7; color: #92400e; }
-.badge-draft_quoted   { background: #fef9c3; color: #713f12; }
-.badge-survey_scheduled { background: #e0e7ff; color: #3730a3; }
-.badge-surveyed       { background: #ddd6fe; color: #5b21b6; }
-.badge-formal_quoted  { background: #fce7f3; color: #9d174d; }
-.badge-quote_framework { background: #fbcfe8; color: #831843; }
-.badge-quote_no_survey { background: #fee2e2; color: #991b1b; }
-.badge-confirmed      { background: #dbeafe; color: #1e40af; }
-.badge-dispatched     { background: #fed7aa; color: #92400e; }
-.badge-pending_payment { background: #fde68a; color: #78350f; }
-.badge-completed      { background: #d1fae5; color: #065f46; }
-.badge-invalid        { background: var(--gray-100); color: var(--gray-500); }
+.badge-initial_estimate { background: #e0f2fe; color: #0369a1; }
+.badge-survey           { background: #e0e7ff; color: #3730a3; }
+.badge-quoted           { background: #fef9c3; color: #713f12; }
+.badge-contracted       { background: #dbeafe; color: #1e40af; }
+.badge-payment          { background: #fed7aa; color: #92400e; }
+.badge-closed           { background: #d1fae5; color: #065f46; }
+.badge-invalid          { background: var(--gray-100); color: var(--gray-500); }
 .badge-paid { background: #d1fae5; color: #065f46; }
 .badge-partial { background: #fef9c3; color: #713f12; }
 .badge-unpaid { background: #fee2e2; color: #991b1b; }
