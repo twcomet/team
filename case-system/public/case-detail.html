@@ -133,7 +133,13 @@
         </div>
         <div class="form-group"><label>項目名稱</label><input type="text" id="b_title"></div>
         <div class="form-row">
-          <div class="form-group"><label>客戶</label><select id="b_client"></select></div>
+          <div class="form-group" style="position:relative">
+            <label>客戶</label>
+            <input type="text" id="b_client_input" placeholder="輸入姓名或公司名篩選…" autocomplete="off"
+                   style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;outline:none">
+            <input type="hidden" id="b_client">
+            <div id="b_client_dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:220px;overflow-y:auto"></div>
+          </div>
           <div class="form-group"><label>負責業務</label><select id="b_sales"></select></div>
         </div>
         <div class="form-row">
@@ -472,10 +478,12 @@ function fillBasicForm() {
     document.getElementById('b_outsource_type').value = c.outsource_type || 'full';
   }
   const salesList = users.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
-  populateSelect(document.getElementById('b_client'),   clients,   'id', 'name', '（未選擇）');
+  initClientAutocomplete();
   populateSelect(document.getElementById('b_sales'),    salesList, 'id', 'name', '（未指定）');
   populateSelect(document.getElementById('b_surveyor'), users,     'id', 'name', '（未指定）');
-  document.getElementById('b_client').value   = c.client_id   || '';
+  const _cl = clients.find(x => x.id === c.client_id);
+  document.getElementById('b_client').value       = c.client_id || '';
+  document.getElementById('b_client_input').value = _cl ? _cl.name : '';
   document.getElementById('b_sales').value    = c.sales_id    || '';
   document.getElementById('b_surveyor').value = c.surveyor_id || '';
 }
@@ -869,6 +877,49 @@ document.getElementById('previewQuoteBtn').addEventListener('click', () => {
     window.open(`/quote/${quoteData.share_token}?print=1`, '_blank');
   }
 });
+
+function initClientAutocomplete() {
+  const input    = document.getElementById('b_client_input');
+  const hidden   = document.getElementById('b_client');
+  const dropdown = document.getElementById('b_client_dropdown');
+
+  function showDropdown(q) {
+    const keyword = q.trim().toLowerCase();
+    const matched = keyword
+      ? clients.filter(c =>
+          c.name.toLowerCase().includes(keyword) ||
+          (c.contact_person || '').toLowerCase().includes(keyword) ||
+          (c.phone || '').includes(keyword)
+        ).slice(0, 30)
+      : clients.slice(0, 30);
+
+    if (!matched.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = matched.map(c => `
+      <div data-id="${c.id}" data-name="${c.name}"
+           style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f3f4f6">
+        <div style="font-weight:500">${c.name}</div>
+        ${c.contact_person ? `<div style="font-size:12px;color:#6b7280">${c.contact_person}${c.phone ? ' · '+c.phone : ''}</div>` : (c.phone ? `<div style="font-size:12px;color:#6b7280">${c.phone}</div>` : '')}
+      </div>`).join('');
+    dropdown.style.display = 'block';
+    dropdown.querySelectorAll('div[data-id]').forEach(el => {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        hidden.value = el.dataset.id;
+        input.value  = el.dataset.name;
+        dropdown.style.display = 'none';
+      });
+      el.addEventListener('mouseover', () => el.style.background = '#f0f4ff');
+      el.addEventListener('mouseout',  () => el.style.background = '');
+    });
+  }
+
+  input.addEventListener('input',  () => showDropdown(input.value));
+  input.addEventListener('focus',  () => showDropdown(input.value));
+  input.addEventListener('blur',   () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { dropdown.style.display = 'none'; input.blur(); }
+  });
+}
 
 init();
 </script>

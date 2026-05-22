@@ -120,9 +120,12 @@
       </div>
       <div class="form-group"><label>項目名稱 *</label><input type="text" id="nc_title" placeholder="例：台北信義區辦公室牆面翻新"></div>
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group" style="position:relative">
           <label>客戶 <button type="button" id="quickAddClientBtn" style="font-size:11px;margin-left:6px" class="btn btn-ghost btn-sm">＋新客戶</button></label>
-          <select id="nc_client"></select>
+          <input type="text" id="nc_client_input" placeholder="輸入姓名或電話篩選…" autocomplete="off"
+                 style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;outline:none">
+          <input type="hidden" id="nc_client">
+          <div id="nc_client_dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:200px;overflow-y:auto"></div>
         </div>
         <div class="form-group"><label>負責業務</label><select id="nc_sales"></select></div>
       </div>
@@ -187,7 +190,7 @@ async function init() {
     document.getElementById('amountHeader').style.display = 'none';
   }
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
-  populateSelect(document.getElementById('nc_client'), clients, 'id', 'name', '選擇客戶（可留空）');
+  initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
   await loadCases();
@@ -302,8 +305,8 @@ document.getElementById('saveQuickClientBtn').addEventListener('click', async ()
     const { id } = await res.json();
     // 重新載入客戶清單並選中新建的
     clients = await fetchClients();
-    populateSelect(document.getElementById('nc_client'), clients, 'id', 'name', '選擇客戶（可留空）');
-    document.getElementById('nc_client').value = id;
+    document.getElementById('nc_client').value       = id;
+    document.getElementById('nc_client_input').value = name;
     document.getElementById('quickClientModal').classList.remove('open');
     showToast(`客戶「${name}」已建立`);
   } else { showToast('建立失敗', 'error'); }
@@ -327,6 +330,46 @@ document.getElementById('createCaseBtn').addEventListener('click', async () => {
     location.href = `/case-detail?id=${id}`;
   } else { showToast('建立失敗', 'error'); }
 });
+
+function initClientAC(inputId, hiddenId, dropdownId) {
+  const input    = document.getElementById(inputId);
+  const hidden   = document.getElementById(hiddenId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input) return;
+
+  function showDropdown(q) {
+    const kw = q.trim().toLowerCase();
+    const matched = kw
+      ? clients.filter(c =>
+          c.name.toLowerCase().includes(kw) ||
+          (c.contact_person || '').toLowerCase().includes(kw) ||
+          (c.phone || '').includes(kw)
+        ).slice(0, 30)
+      : clients.slice(0, 20);
+    if (!matched.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = matched.map(c => `
+      <div data-id="${c.id}" data-name="${c.name}"
+           style="padding:9px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f3f4f6">
+        <div style="font-weight:500">${c.name}</div>
+        ${c.contact_person||c.phone ? `<div style="font-size:12px;color:#6b7280">${[c.contact_person,c.phone].filter(Boolean).join(' · ')}</div>` : ''}
+      </div>`).join('');
+    dropdown.style.display = 'block';
+    dropdown.querySelectorAll('div[data-id]').forEach(el => {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        hidden.value = el.dataset.id;
+        input.value  = el.dataset.name;
+        dropdown.style.display = 'none';
+      });
+      el.addEventListener('mouseover', () => el.style.background = '#f0f4ff');
+      el.addEventListener('mouseout',  () => el.style.background = '');
+    });
+  }
+  input.addEventListener('input',  () => showDropdown(input.value));
+  input.addEventListener('focus',  () => showDropdown(input.value));
+  input.addEventListener('blur',   () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') { dropdown.style.display = 'none'; } });
+}
 
 init();
 </script>
