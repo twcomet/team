@@ -23,13 +23,13 @@ _addCol('cases', 'surveyor_id',  'INTEGER REFERENCES users(id)');
 
 // 如果舊 CHECK 約束存在，遷移 cases 表格
 const _casesSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-if (_casesSchema && !_casesSchema.sql.includes("'contracted'")) {
+if (_casesSchema && _casesSchema.sql.includes('survey_scheduled')) {
   console.log('升級案件狀態至 7 階段...');
   db.exec(`PRAGMA foreign_keys=OFF`);
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'inquiry' CHECK(case_type IN ('inquiry','survey','contract','repair')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
