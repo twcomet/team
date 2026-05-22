@@ -80,7 +80,7 @@ let defaultTarget = 100000;
 async function init() {
   await loadUser();
   highlightNav('calendar');
-  if (['admin','dispatcher'].includes(currentUser.role)) {
+  if (['admin','dispatcher'].includes(currentUser.role) && currentUser.can_see_amounts) {
     document.getElementById('targetForm').style.display = 'flex';
   }
   await loadCalendar();
@@ -125,7 +125,7 @@ function renderCalendar() {
     const revenue = cases.reduce((s, c) => s + (c.final_price || c.quoted_price || 0), 0);
 
     let revenueHtml = '';
-    if (target) {
+    if (target && currentUser.can_see_amounts) {
       const ratio = revenue / target;
       const cls = ratio >= 1.1 ? 'over' : ratio < 0.5 ? 'under' : 'ok';
       const label = `$${(revenue/1000).toFixed(0)}k / $${(target/1000).toFixed(0)}k`;
