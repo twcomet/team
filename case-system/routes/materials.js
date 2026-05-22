@@ -13,14 +13,35 @@ router.get('/', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
   const org_id = req.session.user.org_id;
+  const uid    = req.session.user.id;
   const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
+
   const r = db.prepare(`
     INSERT INTO materials (org_id, brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(org_id, brand, model, color || null, spec || null, location || null,
          unit_cost || 0, unit_price || 0, stock_meters || 0, notes || null);
-  res.json({ id: r.lastInsertRowid });
+
+  const matId = r.lastInsertRowid;
+
+  // 有設定初始庫存 → 自動建第一支捲料＋進貨流水帳
+  if (stock_meters > 0) {
+    const today    = new Date().toISOString().slice(0, 10);
+    const orgName  = db.prepare(`SELECT name FROM orgs WHERE id = ?`).get(org_id)?.name || '總部';
+    const roll     = db.prepare(`
+      INSERT INTO material_rolls
+        (material_id, org_id, initial_meters, remaining_meters, purchase_date, unit_cost, location, branch, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(matId, org_id, stock_meters, stock_meters, today,
+           unit_cost || 0, location || null, orgName, uid);
+    db.prepare(`
+      INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by)
+      VALUES (?, ?, ?, 'purchase', ?, '建立型號時設定初始庫存', ?)
+    `).run(roll.lastInsertRowid, matId, org_id, stock_meters, uid);
+  }
+
+  res.json({ id: matId });
 });
 
 router.put('/:id', requireAuth, (req, res) => {

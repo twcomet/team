@@ -708,7 +708,16 @@ async function saveMat() {
   if (!body.brand || !body.model) { alert('品牌和型號必填'); return; }
   const url = editMatId ? `/api/materials/${editMatId}` : '/api/materials';
   const res = await fetch(url, { method: editMatId ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (res.ok) { closeMatModal(); await loadMaterials(); }
+  if (res.ok) {
+    const data = await res.json();
+    closeMatModal();
+    await loadMaterials();
+    // 若有設定初始庫存，展開捲料讓使用者確認
+    if (!editMatId && body.stock_meters > 0 && data.id) {
+      expandedRows.add(data.id);
+      applyFilters();
+    }
+  }
 }
 
 async function deleteMat(id) {
