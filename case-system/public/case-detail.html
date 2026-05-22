@@ -171,6 +171,8 @@
           </label>
         </div>
         <div class="form-group" style="margin-top:16px"><label>備註</label><textarea id="b_notes" rows="2"></textarea></div>
+        <div class="form-group"><label>進場資訊</label><textarea id="b_entry_info" rows="2" placeholder="門禁密碼、停車位置、進場注意事項…"></textarea></div>
+        <div class="form-group"><label>完工照上傳網址</label><input type="url" id="b_photo_upload_url" placeholder="https://forms.gle/..."></div>
       </div>
 
       <!-- 報價明細 -->
@@ -470,7 +472,9 @@ function fillBasicForm() {
   document.getElementById('b_line_source').value = c.line_source || '';
   document.getElementById('b_keyword').value    = c.keyword || '';
   document.getElementById('b_desc').value       = c.description || '';
-  document.getElementById('b_notes').value      = c.notes || '';
+  document.getElementById('b_notes').value            = c.notes || '';
+  document.getElementById('b_entry_info').value       = c.entry_info || '';
+  document.getElementById('b_photo_upload_url').value = c.photo_upload_url || '';
   document.getElementById('b_outsourced').checked      = !!c.is_outsourced;
   document.getElementById('b_material_ordered').checked = !!c.material_ordered;
   if (c.is_outsourced) {
@@ -501,6 +505,8 @@ document.getElementById('saveBasicBtn').addEventListener('click', async () => {
     keyword:          document.getElementById('b_keyword').value || null,
     description:      document.getElementById('b_desc').value,
     notes:            document.getElementById('b_notes').value,
+    entry_info:       document.getElementById('b_entry_info').value || null,
+    photo_upload_url: document.getElementById('b_photo_upload_url').value || null,
     client_id:        document.getElementById('b_client').value || null,
     sales_id:         document.getElementById('b_sales').value  || null,
     is_outsourced:    document.getElementById('b_outsourced').checked,

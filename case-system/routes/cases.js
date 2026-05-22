@@ -160,6 +160,7 @@ router.put('/:id', requireAuth, (req, res) => {
     line_source, keyword, material_ordered, scheduled_date,
     invoice_company, invoice_tax_id, invoice_address, invoice_email, invoice_item_desc,
     survey_date, surveyor_id,
+    entry_info, photo_upload_url,
   } = req.body;
 
   db.prepare(`
@@ -173,6 +174,7 @@ router.put('/:id', requireAuth, (req, res) => {
       invoice_company=?, invoice_tax_id=?, invoice_address=?,
       invoice_email=?, invoice_item_desc=?,
       survey_date=?, surveyor_id=?,
+      entry_info=?, photo_upload_url=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -186,6 +188,7 @@ router.put('/:id', requireAuth, (req, res) => {
     invoice_company ?? null, invoice_tax_id ?? null, invoice_address ?? null,
     invoice_email ?? null, invoice_item_desc ?? null,
     survey_date ?? null, surveyor_id ?? null,
+    entry_info ?? null, photo_upload_url ?? null,
     req.params.id,
   );
 

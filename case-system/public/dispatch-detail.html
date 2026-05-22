@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>派工單 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.work-order { max-width: 680px; margin: 0 auto; }
+.wo-header { background: var(--space-900); color: #fff; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+.wo-case-num { font-size: 12px; opacity: .6; font-family: monospace; margin-bottom: 4px; }
+.wo-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.wo-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+.wo-tag { background: rgba(255,255,255,.15); padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+.wo-tag.pink { background: var(--primary); }
+
+.section { background: #fff; border: 1px solid var(--gray-200); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.section-title { font-size: 13px; font-weight: 700; color: var(--gray-500); text-transform: uppercase;
+                  letter-spacing: .5px; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.info-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; }
+.info-row:last-child { margin-bottom: 0; }
+.info-label { color: var(--gray-500); min-width: 80px; flex-shrink: 0; font-size: 13px; }
+.info-value { color: var(--gray-900); font-weight: 500; flex: 1; }
+.info-value a { color: var(--primary); text-decoration: none; }
+.info-value a:hover { text-decoration: underline; }
+
+.dispatch-card { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px;
+                  padding: 14px 16px; margin-bottom: 10px; }
+.dispatch-card:last-child { margin-bottom: 0; }
+.dispatch-type-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.dispatch-type-badge.survey { background: #e0e7ff; color: #3730a3; }
+.dispatch-type-badge.install { background: #dcfce7; color: #14532d; }
+.dispatch-type-badge.aftersales { background: #fef9c3; color: #713f12; }
+
+.items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.items-table th { background: var(--gray-100); padding: 8px 10px; text-align: left; font-size: 11px;
+                   font-weight: 600; color: var(--gray-500); border-bottom: 1px solid var(--gray-200); }
+.items-table td { padding: 9px 10px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+.items-table tr:last-child td { border-bottom: none; }
+
+.mat-form { background: var(--primary-bg); border: 1px solid var(--primary-light); border-radius: 8px; padding: 16px; margin-top: 14px; }
+.mat-form-title { font-size: 13px; font-weight: 600; color: var(--primary-dark); margin-bottom: 10px; }
+.mat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.mat-grid input { padding: 8px 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 13px; width: 100%; }
+.mat-grid input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(255,0,128,.1); }
+
+.mat-record { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px;
+               background: #fff; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 8px; font-size: 13px; }
+.mat-record:last-child { margin-bottom: 0; }
+.mat-record-info { flex: 1; }
+.mat-record-model { font-weight: 600; color: var(--gray-900); }
+.mat-record-detail { color: var(--gray-500); font-size: 12px; margin-top: 2px; }
+.mat-record-del { color: var(--danger); cursor: pointer; font-size: 18px; padding: 4px; background: none; border: none; }
+
+.photo-link { display: block; padding: 14px 20px; background: var(--primary); color: #fff;
+               border-radius: 10px; text-align: center; font-size: 15px; font-weight: 600;
+               text-decoration: none; margin-top: 4px; }
+.photo-link:hover { background: var(--primary-dark); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+          background: #1e293b; color: #fff; padding: 10px 20px; border-radius: 8px;
+          font-size: 14px; opacity: 0; transition: opacity .25s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 600px) {
+  .mat-grid { grid-template-columns: 1fr; }
+  .page-body { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"  href="/dashboard"> <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"   href="/my-tasks">  <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="cases"      href="/cases">     <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item" data-page="clients"    href="/clients">   <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"   href="/calendar">  <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"   href="/payments">  <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="admin"      href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title" id="pageTitle">派工單</span>
+      <a href="/my-tasks" style="font-size:13px;color:var(--gray-500);text-decoration:none">← 返回任務</a>
+    </div>
+    <div class="page-body">
+      <div class="work-order" id="workOrder">
+        <div style="text-align:center;padding:48px;color:var(--gray-500)">載入中…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/common.js"></script>
+<script>
+const caseId = new URLSearchParams(location.search).get('id');
+let data = null;
+
+const TYPE_LABEL = { survey: '場勘', install: '施工', aftersales: '售後服務' };
+const STATUS_LABEL = {
+  initial_estimate:'初步估價', survey:'場勘', quoted:'出報價單',
+  contracted:'成交派案', payment:'完工請款', closed:'結案存檔', invalid:'無效'
+};
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+async function init() {
+  await loadUser();
+  highlightNav('my-tasks');
+  if (!caseId) { location.href = '/my-tasks'; return; }
+
+  const res = await fetch(`/api/dispatch-detail/${caseId}`);
+  if (!res.ok) { location.href = '/my-tasks'; return; }
+  data = await res.json();
+  document.getElementById('pageTitle').textContent = data.case_number || '派工單';
+  render();
+}
+
+function render() {
+  const d = data;
+  const hasSurvey  = d.dispatches.some(x => x.dispatch_type === 'survey');
+  const hasInstall = d.dispatches.some(x => x.dispatch_type === 'install' || x.dispatch_type === 'aftersales');
+
+  let html = `
+    <div class="wo-header">
+      <div class="wo-case-num">${d.case_number || ''}</div>
+      <div class="wo-title">${d.title}</div>
+      <div class="wo-meta">
+        <span class="wo-tag">${STATUS_LABEL[d.status] || d.status}</span>
+        ${d.scheduled_date ? `<span class="wo-tag">📅 ${d.scheduled_date}</span>` : ''}
+        ${d.case_type ? `<span class="wo-tag">${d.case_type}</span>` : ''}
+      </div>
+    </div>`;
+
+  // 客戶資訊
+  html += `<div class="section">
+    <div class="section-title">👤 客戶資訊</div>
+    <div class="info-row"><span class="info-label">客戶姓名</span><span class="info-value">${d.client_name || '—'}</span></div>
+    ${d.contact_person ? `<div class="info-row"><span class="info-label">聯絡人</span><span class="info-value">${d.contact_person}</span></div>` : ''}
+    ${d.client_phone ? `<div class="info-row"><span class="info-label">聯絡電話</span><span class="info-value"><a href="tel:${d.client_phone}">${d.client_phone}</a></span></div>` : ''}
+    ${d.client_address ? `<div class="info-row"><span class="info-label">地址</span><span class="info-value">${d.client_address}</span></div>` : ''}
+  </div>`;
+
+  // 案場資訊
+  html += `<div class="section">
+    <div class="section-title">📍 案場資訊</div>
+    ${d.location ? `<div class="info-row"><span class="info-label">施工地點</span><span class="info-value">${d.location}</span></div>` : ''}
+    ${d.entry_info ? `<div class="info-row"><span class="info-label">進場資訊</span><span class="info-value" style="white-space:pre-line">${d.entry_info}</span></div>` : ''}
+    ${d.description ? `<div class="info-row"><span class="info-label">需求說明</span><span class="info-value" style="white-space:pre-line">${d.description}</span></div>` : ''}
+    ${d.notes ? `<div class="info-row"><span class="info-label">備注</span><span class="info-value" style="white-space:pre-line">${d.notes}</span></div>` : ''}
+  </div>`;
+
+  // 派工任務卡
+  if (d.dispatches.length) {
+    html += `<div class="section"><div class="section-title">🗓 派工任務</div>`;
+    d.dispatches.forEach(dsp => {
+      html += `<div class="dispatch-card">
+        <div class="dispatch-type-badge ${dsp.dispatch_type}">${TYPE_LABEL[dsp.dispatch_type] || dsp.dispatch_type}</div>
+        <div class="info-row" style="margin-bottom:6px"><span class="info-label">日期</span>
+          <span class="info-value">${dsp.scheduled_date}${dsp.scheduled_time ? ' ' + dsp.scheduled_time : ''}</span></div>
+        ${dsp.workers ? `<div class="info-row" style="margin-bottom:6px"><span class="info-label">人員</span><span class="info-value">${dsp.workers}</span></div>` : ''}
+        ${dsp.notes ? `<div class="info-row" style="margin-bottom:0"><span class="info-label">備注</span><span class="info-value" style="white-space:pre-line">${dsp.notes}</span></div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 施工規格（只有施工派工才顯示）
+  if (hasInstall && d.items.length) {
+    html += `<div class="section">
+      <div class="section-title">📐 施工規格</div>
+      <div class="table-wrap"><table class="items-table">
+        <thead><tr>
+          <th>施工範圍</th><th>膜料品牌</th><th>型號</th><th>面積/數量</th><th>位置</th>
+        </tr></thead>
+        <tbody>`;
+    d.items.forEach(it => {
+      const qty = it.area ? `${it.area} 才` : (it.quantity ? `${it.quantity} ${it.unit}` : '—');
+      html += `<tr>
+        <td>${it.description || '—'}</td>
+        <td>${it.material_brand || '—'}</td>
+        <td>${it.material_model || '—'}</td>
+        <td>${qty}</td>
+        <td>${it.location || '—'}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  }
+
+  // 膜料使用紀錄（施工派工）
+  if (hasInstall) {
+    html += `<div class="section">
+      <div class="section-title">📦 膜料使用紀錄</div>
+      <div id="matList">`;
+    if (d.materials.length) {
+      d.materials.forEach(m => {
+        const cost = m.unit_cost ? `　單價 $${m.unit_cost}/米　成本 $${(m.meters_used * m.unit_cost).toFixed(0)}` : '';
+        html += `<div class="mat-record" id="mat-${m.id}">
+          <div class="mat-record-info">
+            <div class="mat-record-model">${m.film_brand ? m.film_brand + ' ' : ''}${m.film_model}</div>
+            <div class="mat-record-detail">使用 ${m.meters_used} 米${cost}${m.notes ? '　' + m.notes : ''}</div>
+          </div>
+          <button class="mat-record-del" onclick="deleteMat(${m.id})" title="刪除">✕</button>
+        </div>`;
+      });
+    } else {
+      html += `<div style="color:var(--gray-500);font-size:13px;padding:8px 0">尚無使用紀錄</div>`;
+    }
+
+    const installDispatches = d.dispatches.filter(x => x.dispatch_type === 'install' || x.dispatch_type === 'aftersales');
+    const defaultDispatchId = installDispatches[0]?.id || '';
+    const dispatchSelect = installDispatches.length > 1
+      ? `<select id="mat_dispatch" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;width:100%;margin-bottom:10px">
+          ${installDispatches.map(x => `<option value="${x.id}">${x.scheduled_date} ${TYPE_LABEL[x.dispatch_type]}</option>`).join('')}
+         </select>`
+      : `<input type="hidden" id="mat_dispatch" value="${defaultDispatchId}">`;
+
+    html += `</div>
+      <div class="mat-form">
+        <div class="mat-form-title">＋ 新增使用紀錄</div>
+        ${dispatchSelect}
+        <div class="mat-grid">
+          <input id="mat_brand" placeholder="膜料品牌（選填）">
+          <input id="mat_model" placeholder="型號（必填）" required>
+          <input id="mat_meters" type="number" step="0.1" min="0" placeholder="使用米數">
+          <input id="mat_cost" type="number" step="1" min="0" placeholder="單位成本/米（選填）">
+        </div>
+        <input id="mat_notes" placeholder="備注（選填）" style="padding:8px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;width:100%;margin-bottom:10px">
+        <button class="btn btn-primary btn-full" onclick="addMat()">記錄使用</button>
+      </div>
+    </div>`;
+  }
+
+  // 完工照上傳
+  if (d.photo_upload_url) {
+    html += `<div class="section">
+      <div class="section-title">📷 完工照上傳</div>
+      <a href="${d.photo_upload_url}" target="_blank" class="photo-link">點此上傳完工照片</a>
+    </div>`;
+  }
+
+  document.getElementById('workOrder').innerHTML = html;
+}
+
+async function addMat() {
+  const dispatch_id = document.getElementById('mat_dispatch').value;
+  const film_model = document.getElementById('mat_model').value.trim();
+  if (!film_model) { toast('請填寫膜料型號'); return; }
+
+  const body = {
+    dispatch_id: Number(dispatch_id),
+    film_brand: document.getElementById('mat_brand').value.trim() || null,
+    film_model,
+    meters_used: parseFloat(document.getElementById('mat_meters').value) || 0,
+    unit_cost: parseFloat(document.getElementById('mat_cost').value) || 0,
+    notes: document.getElementById('mat_notes').value.trim() || null,
+  };
+
+  const res = await fetch(`/api/dispatch-detail/${caseId}/material`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    toast('已記錄');
+    const r = await fetch(`/api/dispatch-detail/${caseId}`);
+    data = await r.json();
+    render();
+  } else {
+    const e = await res.json();
+    toast(e.error || '失敗');
+  }
+}
+
+async function deleteMat(id) {
+  if (!confirm('確定刪除這筆記錄？')) return;
+  const res = await fetch(`/api/dispatch-detail/${caseId}/material/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    toast('已刪除');
+    const r = await fetch(`/api/dispatch-detail/${caseId}`);
+    data = await r.json();
+    render();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -77,7 +77,7 @@ async function init() {
     if (!list.length) return '';
     return `<div class="section-label">${label}</div>` +
       list.map(t => `
-        <div class="task-card" onclick="location.href='/case-detail?id=${t.id}'">
+        <div class="task-card" onclick="location.href='${currentUser.permissions && currentUser.permissions.page_cases !== false ? '/case-detail' : '/dispatch-detail'}?id=${t.id}'">
           <div class="task-date">${t.scheduled_date ? `📅 ${t.scheduled_date}` : '未排日期'}</div>
           <div class="task-title">${t.title}</div>
           <div class="task-client">👤 ${t.client_name || '—'}${t.client_phone ? `　📞 ${t.client_phone}` : ''}</div>

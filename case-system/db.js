@@ -250,6 +250,22 @@ _addCol('clients',    'discount_terms',    'TEXT');
 _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
+_addCol('cases',      'entry_info',        'TEXT');
+_addCol('cases',      'photo_upload_url',  'TEXT');
+
+// ── 膜料使用紀錄 ─────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  dispatch_id  INTEGER NOT NULL REFERENCES dispatches(id) ON DELETE CASCADE,
+  case_id      INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  film_brand   TEXT,
+  film_model   TEXT NOT NULL,
+  meters_used  REAL DEFAULT 0,
+  unit_cost    REAL DEFAULT 0,
+  notes        TEXT,
+  created_by   INTEGER REFERENCES users(id),
+  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 // 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移
