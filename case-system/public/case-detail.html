@@ -84,16 +84,19 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <select id="statusSelect" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="inquiry">詢價中</option>
-          <option value="quoted">已報價</option>
-          <option value="survey_scheduled">場勘排程中</option>
-          <option value="surveyed">已場勘</option>
-          <option value="confirmed">已成交</option>
-          <option value="scheduled">已排程</option>
-          <option value="in_progress">施工中</option>
-          <option value="completed">完工</option>
-          <option value="aftersales">售後服務</option>
-          <option value="closed">結案</option>
+          <option value="inquiry">初步詢價</option>
+          <option value="text_quoted">1.1 已文字報價</option>
+          <option value="draft_quoted">1.2 出初步報價單</option>
+          <option value="survey_scheduled">2. 已約場勘</option>
+          <option value="surveyed">3. 場勘已回報</option>
+          <option value="formal_quoted">4. 出正式報價單</option>
+          <option value="quote_framework">4.1 建報價單骨架</option>
+          <option value="quote_no_survey">4.2 未勘出報價</option>
+          <option value="confirmed">5. 訂單回簽派工</option>
+          <option value="dispatched">6. 已派工</option>
+          <option value="pending_payment">7. 完工追款中</option>
+          <option value="completed">8. 完工保存</option>
+          <option value="invalid">9. 無效</option>
         </select>
         <button class="btn btn-primary btn-sm" id="saveBasicBtn">儲存</button>
       </div>
@@ -136,6 +139,10 @@
         <div class="form-row">
           <div class="form-group" style="flex:2"><label>施工地點</label><input type="text" id="b_location"></div>
           <div class="form-group"><label>施工日期</label><input type="date" id="b_scheduled_date"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>場勘日期</label><input type="date" id="b_survey_date"></div>
+          <div class="form-group"><label>場勘人員</label><select id="b_surveyor"></select></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Line@ 來源名稱</label><input type="text" id="b_line_source" placeholder="例：@繪新台北"></div>
@@ -372,11 +379,19 @@
 <script>
 // ── 常數 ───────────────────────────────────────────────────
 const STAGES = [
-  {key:'inquiry',label:'詢價中'},{key:'quoted',label:'已報價'},
-  {key:'survey_scheduled',label:'場勘排程'},{key:'surveyed',label:'已場勘'},
-  {key:'confirmed',label:'已成交'},{key:'scheduled',label:'已排程'},
-  {key:'in_progress',label:'施工中'},{key:'completed',label:'完工'},
-  {key:'aftersales',label:'售後'},{key:'closed',label:'結案'},
+  {key:'inquiry',         label:'詢價'},
+  {key:'text_quoted',     label:'文字報價'},
+  {key:'draft_quoted',    label:'初步報價單'},
+  {key:'survey_scheduled',label:'已約場勘'},
+  {key:'surveyed',        label:'場勘回報'},
+  {key:'formal_quoted',   label:'正式報價單'},
+  {key:'quote_framework', label:'報價骨架'},
+  {key:'quote_no_survey', label:'未勘出報'},
+  {key:'confirmed',       label:'訂單回簽'},
+  {key:'dispatched',      label:'已派工'},
+  {key:'pending_payment', label:'完工追款'},
+  {key:'completed',       label:'完工保存'},
+  {key:'invalid',         label:'無效'},
 ];
 const ITEM_TYPES = [
   '牆面','電視牆','天花板','門片','門框','防火門','系統櫃','玻璃',
@@ -451,6 +466,7 @@ function fillBasicForm() {
   document.getElementById('b_title').value          = c.title || '';
   document.getElementById('b_location').value       = c.location || '';
   document.getElementById('b_scheduled_date').value = c.scheduled_date || '';
+  document.getElementById('b_survey_date').value    = c.survey_date    || '';
   document.getElementById('b_line_source').value = c.line_source || '';
   document.getElementById('b_keyword').value    = c.keyword || '';
   document.getElementById('b_desc').value       = c.description || '';
@@ -462,10 +478,12 @@ function fillBasicForm() {
     document.getElementById('b_outsource_type').value = c.outsource_type || 'full';
   }
   const salesList = users.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
-  populateSelect(document.getElementById('b_client'), clients, 'id', 'name', '（未選擇）');
-  populateSelect(document.getElementById('b_sales'),  salesList, 'id', 'name', '（未指定）');
-  document.getElementById('b_client').value = c.client_id || '';
-  document.getElementById('b_sales').value  = c.sales_id  || '';
+  populateSelect(document.getElementById('b_client'),   clients,   'id', 'name', '（未選擇）');
+  populateSelect(document.getElementById('b_sales'),    salesList, 'id', 'name', '（未指定）');
+  populateSelect(document.getElementById('b_surveyor'), users,     'id', 'name', '（未指定）');
+  document.getElementById('b_client').value   = c.client_id   || '';
+  document.getElementById('b_sales').value    = c.sales_id    || '';
+  document.getElementById('b_surveyor').value = c.surveyor_id || '';
 }
 
 document.getElementById('saveBasicBtn').addEventListener('click', async () => {
@@ -475,6 +493,8 @@ document.getElementById('saveBasicBtn').addEventListener('click', async () => {
     title:            document.getElementById('b_title').value,
     location:         document.getElementById('b_location').value,
     scheduled_date:   document.getElementById('b_scheduled_date').value || null,
+    survey_date:      document.getElementById('b_survey_date').value    || null,
+    surveyor_id:      document.getElementById('b_surveyor').value       || null,
     line_source:      document.getElementById('b_line_source').value || null,
     keyword:          document.getElementById('b_keyword').value || null,
     description:      document.getElementById('b_desc').value,

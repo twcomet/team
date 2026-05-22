@@ -49,12 +49,14 @@ router.get('/', requireAuth, (req, res) => {
     SELECT c.*,
            cl.name  as client_name, cl.phone as client_phone,
            s.name   as sales_name,
+           sv.name  as surveyor_name,
            o.name   as org_name,
            ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
     FROM cases c
-    LEFT JOIN clients cl ON c.client_id = cl.id
-    LEFT JOIN users   s  ON c.sales_id  = s.id
-    LEFT JOIN orgs    o  ON c.org_id    = o.id
+    LEFT JOIN clients cl ON c.client_id   = cl.id
+    LEFT JOIN users   s  ON c.sales_id    = s.id
+    LEFT JOIN users   sv ON c.surveyor_id = sv.id
+    LEFT JOIN orgs    o  ON c.org_id      = o.id
     WHERE 1=1
   `;
   const p = [];
@@ -82,13 +84,14 @@ router.get('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`
     SELECT c.*,
            cl.name as client_name, cl.phone as client_phone, cl.address as client_address, cl.email as client_email,
-           s.name  as sales_name,  o.name as org_name,
+           s.name  as sales_name,  sv.name as surveyor_name, o.name as org_name,
            ROUND((COALESCE(c.final_price, c.quoted_price) - c.material_cost) * 100.0
                  / NULLIF(COALESCE(c.final_price, c.quoted_price), 0), 1) as gross_margin_pct
     FROM cases c
-    LEFT JOIN clients cl ON c.client_id = cl.id
-    LEFT JOIN users   s  ON c.sales_id  = s.id
-    LEFT JOIN orgs    o  ON c.org_id    = o.id
+    LEFT JOIN clients cl ON c.client_id   = cl.id
+    LEFT JOIN users   s  ON c.sales_id    = s.id
+    LEFT JOIN users   sv ON c.surveyor_id = sv.id
+    LEFT JOIN orgs    o  ON c.org_id      = o.id
     WHERE c.id = ?
   `).get(req.params.id);
   if (!c) return res.status(404).json({ error: '找不到案件' });
@@ -156,6 +159,7 @@ router.put('/:id', requireAuth, (req, res) => {
     status, priority, is_outsourced, outsource_type, notes,
     line_source, keyword, material_ordered, scheduled_date,
     invoice_company, invoice_tax_id, invoice_address, invoice_email, invoice_item_desc,
+    survey_date, surveyor_id,
   } = req.body;
 
   db.prepare(`
@@ -168,6 +172,7 @@ router.put('/:id', requireAuth, (req, res) => {
       line_source=?, keyword=?, material_ordered=?, scheduled_date=?,
       invoice_company=?, invoice_tax_id=?, invoice_address=?,
       invoice_email=?, invoice_item_desc=?,
+      survey_date=?, surveyor_id=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -180,6 +185,7 @@ router.put('/:id', requireAuth, (req, res) => {
     line_source ?? null, keyword ?? null, material_ordered ? 1 : 0, scheduled_date ?? null,
     invoice_company ?? null, invoice_tax_id ?? null, invoice_address ?? null,
     invoice_email ?? null, invoice_item_desc ?? null,
+    survey_date ?? null, surveyor_id ?? null,
     req.params.id,
   );
 
