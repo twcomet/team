@@ -108,6 +108,21 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="cm_id">
+
+      <!-- 名片上傳 OCR -->
+      <div style="margin-bottom:16px;padding:12px 14px;background:#f0f4ff;border-radius:8px;border:1px dashed #93c5fd">
+        <div style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:8px">📷 上傳名片自動辨識</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="cursor:pointer">
+            <input type="file" id="cm_card_file" accept="image/*" style="display:none">
+            <span class="btn btn-ghost btn-sm">選擇名片圖片</span>
+          </label>
+          <span id="cm_card_filename" style="font-size:12px;color:#6b7280">（支援 JPG、PNG）</span>
+          <button class="btn btn-primary btn-sm" id="cm_ocr_btn" style="display:none">辨識並填入</button>
+        </div>
+        <div id="cm_ocr_status" style="font-size:12px;margin-top:6px;color:#6b7280"></div>
+      </div>
+
       <div class="form-row">
         <div class="form-group"><label>客戶抬頭 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
         <div class="form-group"><label>聯絡人</label><input type="text" id="cm_contact_person" placeholder="負責人姓名"></div>
@@ -151,7 +166,10 @@
         <div class="form-group"><label>資本額</label><input type="text" id="cm_capital" placeholder="（選填）"></div>
         <div class="form-group"><label>折扣（1.0 = 全額）</label><input type="number" id="cm_discount" value="1" step="0.01" min="0" max="1"></div>
       </div>
-      <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="cm_referrer" placeholder="（選填）"></div>
+      <div class="form-row">
+        <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="cm_referrer" placeholder="（選填）"></div>
+        <div class="form-group"><label>LINE 群組名稱</label><input type="text" id="cm_line_group_name" placeholder="例：@繪新-信義案"></div>
+      </div>
       <div class="form-group"><label>備註</label><textarea id="cm_notes" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
@@ -305,16 +323,21 @@ function openClientModal(id) {
     document.getElementById('cm_discount_terms').value  = c.discount_terms || '';
     document.getElementById('cm_capital').value         = c.capital || '';
     document.getElementById('cm_discount').value        = c.discount ?? 1;
-    document.getElementById('cm_referrer').value        = c.referrer || '';
-    document.getElementById('cm_notes').value           = c.notes || '';
+    document.getElementById('cm_referrer').value         = c.referrer || '';
+    document.getElementById('cm_line_group_name').value  = c.line_group_name || '';
+    document.getElementById('cm_notes').value            = c.notes || '';
   } else {
     ['cm_name','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
-     'cm_address','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_notes']
+     'cm_address','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_line_group_name','cm_notes']
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('cm_source').value       = '';
     document.getElementById('cm_client_level').value = '';
     document.getElementById('cm_discount').value     = '1';
   }
+  document.getElementById('cm_card_filename').textContent = '（支援 JPG、PNG）';
+  document.getElementById('cm_card_file').value = '';
+  document.getElementById('cm_ocr_btn').style.display = 'none';
+  document.getElementById('cm_ocr_status').textContent = '';
   document.getElementById('clientModal').classList.add('open');
 }
 function closeClientModal() { document.getElementById('clientModal').classList.remove('open'); }
@@ -338,6 +361,7 @@ async function saveClient() {
     discount_terms:  g('cm_discount_terms'),
     capital:         g('cm_capital'),
     referrer:        g('cm_referrer'),
+    line_group_name: g('cm_line_group_name'),
     discount:        parseFloat(document.getElementById('cm_discount').value) || 1,
     notes:           g('cm_notes'),
   };
@@ -351,6 +375,52 @@ async function saveClient() {
     await loadClients();
   } else { showToast('儲存失敗', 'error'); }
 }
+
+// ── 名片 OCR ──────────────────────────────────────────────────
+document.getElementById('cm_card_file').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('cm_card_filename').textContent = file.name;
+  document.getElementById('cm_ocr_btn').style.display = 'inline-flex';
+  document.getElementById('cm_ocr_status').textContent = '';
+});
+
+document.getElementById('cm_ocr_btn').addEventListener('click', async () => {
+  const file = document.getElementById('cm_card_file').files[0];
+  if (!file) return;
+  const btn    = document.getElementById('cm_ocr_btn');
+  const status = document.getElementById('cm_ocr_status');
+  btn.disabled = true;
+  btn.textContent = '辨識中…';
+  status.textContent = '正在辨識名片，請稍候…';
+  status.style.color = '#6b7280';
+
+  try {
+    const form = new FormData();
+    form.append('card', file);
+    const res  = await fetch('/api/clients/ocr-card', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '辨識失敗');
+
+    // 填入欄位（只覆蓋空白的，讓客服可以手動保留已填的值）
+    const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
+    fill('cm_name',           data.name);
+    fill('cm_contact_person', data.contact_person || data.name);
+    fill('cm_phone',          data.phone);
+    fill('cm_email',          data.email);
+    fill('cm_address',        data.address);
+    fill('cm_tax_id',         data.tax_id);
+
+    status.textContent = '✅ 辨識完成，請確認並補齊資料';
+    status.style.color = '#057a55';
+  } catch (e) {
+    status.textContent = '❌ ' + e.message;
+    status.style.color = '#e02424';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '辨識並填入';
+  }
+});
 
 init();
 </script>
