@@ -256,7 +256,6 @@ _addCol('cases',     'outsource_cost',    'REAL');
 _addCol('cases',     'shipping_cost',     'REAL');
 _addCol('cases',     'other_cost',        'REAL');
 _addCol('materials', 'location',          'TEXT');
-_addCol('material_rolls', 'branch',       "TEXT NOT NULL DEFAULT '總部'");
 
 // ── 個別捲料 ──────────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS material_rolls (
@@ -269,11 +268,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS material_rolls (
   purchase_date   DATE,
   unit_cost       REAL DEFAULT 0,
   location        TEXT,
+  branch          TEXT NOT NULL DEFAULT '總部',
   status          TEXT DEFAULT 'active' CHECK(status IN ('active','finished','lost')),
   notes           TEXT,
   created_by      INTEGER REFERENCES users(id),
   created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
+_addCol('material_rolls', 'branch', "TEXT NOT NULL DEFAULT '總部'");
 
 // ── 膜料流水帳 ────────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS material_logs (
