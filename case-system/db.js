@@ -1228,4 +1228,37 @@ _addCol('notifications', 'msg_status', "TEXT DEFAULT 'read'");
 _addCol('notifications', 'sent_at',    'DATETIME');
 _addCol('notifications', 'read_at',    'DATETIME');
 
+// ── LINE OA 詢問管理 ─────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS line_inquiries (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    line_user_id      TEXT NOT NULL,
+    client_id         INTEGER REFERENCES clients(id),
+    display_name      TEXT,
+    status            TEXT DEFAULT 'new'
+                      CHECK(status IN ('new','in_progress','converted','invalid','hidden')),
+    staff_note        TEXT,
+    converted_case_id INTEGER REFERENCES cases(id),
+    converted_at      DATETIME,
+    converted_by      INTEGER REFERENCES users(id),
+    last_message      TEXT,
+    last_message_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    message_count     INTEGER DEFAULT 0,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS line_inquiry_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    inquiry_id INTEGER NOT NULL REFERENCES line_inquiries(id) ON DELETE CASCADE,
+    direction  TEXT NOT NULL CHECK(direction IN ('in','out')),
+    msg_type   TEXT DEFAULT 'text',
+    content    TEXT,
+    sent_by    INTEGER REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 module.exports = db;

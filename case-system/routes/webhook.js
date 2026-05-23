@@ -79,7 +79,7 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   }
 });
 
-// 客戶傳訊 → 自動建案
+// 客戶傳訊 → 建立／追加 LINE 詢問單（不直接建案）
 async function handleClientText(event) {
   const userId = event.source?.userId;
   if (!userId) return;
@@ -93,6 +93,7 @@ async function handleClientText(event) {
   const orgId   = hqOrg?.id   || null;
   const sysId   = sysUser?.id || null;
 
+  // 確保 clients 記錄存在
   let client = db.prepare(`SELECT * FROM clients WHERE line_user_id=?`).get(userId);
   if (!client) {
     const r = db.prepare(`
@@ -102,21 +103,39 @@ async function handleClientText(event) {
     client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(r.lastInsertRowid);
   }
 
-  const caseNumber = genCaseNumber();
-  db.prepare(`
-    INSERT INTO cases (
-      case_number, org_id, case_type, client_id,
-      title, description, line_source,
-      status, priority, created_by, updated_at
-    ) VALUES (?, ?, 'other', ?, ?, ?, ?, 'initial_estimate', 'normal', ?, CURRENT_TIMESTAMP)
-  `).run(caseNumber, orgId, client.id,
-    `LINE詢問｜${displayName}`, text.slice(0, 500), userId, sysId);
+  // 找最近一筆開放中的詢問（new 或 in_progress），若無則建新的
+  const openInquiry = db.prepare(`
+    SELECT * FROM line_inquiries
+    WHERE line_user_id=? AND status IN ('new','in_progress')
+    ORDER BY created_at DESC LIMIT 1
+  `).get(userId);
 
-  console.log(`LINE客戶詢問建案：${caseNumber} from ${displayName}`);
+  let inquiryId;
+  if (openInquiry) {
+    inquiryId = openInquiry.id;
+    db.prepare(`
+      UPDATE line_inquiries
+      SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
+          message_count=message_count+1, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).run(text.slice(0, 200), inquiryId);
+    console.log(`LINE詢問追加訊息：inquiry#${inquiryId} from ${displayName}`);
+  } else {
+    const r = db.prepare(`
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, last_message, message_count)
+      VALUES (?, ?, ?, ?, 1)
+    `).run(userId, client.id, displayName, text.slice(0, 200));
+    inquiryId = r.lastInsertRowid;
+    console.log(`LINE新詢問建立：inquiry#${inquiryId} from ${displayName}`);
+  }
+
+  db.prepare(`
+    INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content)
+    VALUES (?, 'in', 'text', ?)
+  `).run(inquiryId, text);
 
   await reply(event.replyToken,
-    `您好 ${displayName}！已收到您的詢問 🙏\n` +
-    `案件編號：${caseNumber}\n\n` +
+    `您好 ${displayName}！已收到您的訊息 🙏\n\n` +
     `我們的客服人員將在工作時間內盡快與您聯繫，感謝您的耐心等候！`,
     CLIENT_TOKEN()
   );
