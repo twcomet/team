@@ -13,18 +13,19 @@ router.get('/categories', requireAuth, (req, res) => {
 
 // POST /api/ledger/categories  (owner only)
 router.post('/categories', requireOwner, (req, res) => {
-  const { type, name } = req.body;
+  const { type, name, section } = req.body;
   if (!type || !name?.trim()) return res.status(400).json({ error: '必填欄位不完整' });
-  const maxOrder = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE type=?`).get(type).m;
-  const r = db.prepare(`INSERT INTO ledger_categories (type, name, sort_order) VALUES (?, ?, ?)`).run(type, name.trim(), maxOrder + 1);
+  const maxOrder = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE section=?`).get(section || type).m;
+  const r = db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order) VALUES (?, ?, ?, ?)`)
+    .run(type, section || type, name.trim(), maxOrder + 1);
   res.json({ id: r.lastInsertRowid });
 });
 
 // PUT /api/ledger/categories/:id  (owner only)
 router.put('/categories/:id', requireOwner, (req, res) => {
-  const { name, sort_order, active } = req.body;
-  db.prepare(`UPDATE ledger_categories SET name=?, sort_order=?, active=? WHERE id=?`)
-    .run(name, sort_order ?? 0, active ?? 1, req.params.id);
+  const { name, section, sort_order, active } = req.body;
+  db.prepare(`UPDATE ledger_categories SET name=?, section=?, sort_order=?, active=? WHERE id=?`)
+    .run(name, section, sort_order ?? 0, active ?? 1, req.params.id);
   res.json({ ok: true });
 });
 

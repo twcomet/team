@@ -40,6 +40,15 @@
 .cf-day-row:hover { background:var(--gray-50); }
 .badge-in  { background:#dcfce7; color:#14532d; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
 .badge-out { background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
+/* 科目管理 */
+.cat-list { list-style:none; margin:0; padding:0; }
+.cat-item { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:1px solid var(--gray-100); cursor:default; }
+.cat-item:last-child { border:none; }
+.cat-item.cat-inactive { opacity:.45; }
+.cat-item.drag-over { border-top:2px solid var(--primary); background:#fdf4ff; }
+.drag-handle { cursor:grab; color:var(--gray-400); font-size:16px; user-select:none; flex-shrink:0; }
+.drag-handle:active { cursor:grabbing; }
+.cat-name { flex:1; font-size:13px; }
 /* P&L crosstab */
 .pl-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .pl-ct { border-collapse:collapse; font-size:12.5px; min-width:600px; }
@@ -89,6 +98,7 @@
         <button class="tab-btn active" onclick="switchTab('pl')">損益表</button>
         <button class="tab-btn"        onclick="switchTab('perf')">業績報表</button>
         <button class="tab-btn"        onclick="switchTab('cf')">現金流量表</button>
+        <button class="tab-btn"        onclick="switchTab('cats')">科目管理</button>
       </div>
 
       <!-- 損益表專用期間列（from/to 月份） -->
@@ -156,6 +166,45 @@
                 <tbody id="perfTable"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 科目管理 ===== -->
+      <div id="panelCats" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;color:var(--gray-500)">拖曳 ☰ 可調整順序，順序會影響損益表的顯示排列</span>
+          <button class="btn btn-primary btn-sm" onclick="openCatModal()">＋ 新增科目</button>
+        </div>
+        <div id="catSections"></div>
+      </div>
+
+      <!-- 科目 Modal -->
+      <div class="modal-overlay" id="catModal" style="display:none">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-header">
+            <h3 id="catModalTitle">新增科目</h3>
+            <button class="modal-close" onclick="closeCatModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">段落（損益表位置）</label>
+              <select id="catSection" class="form-control" onchange="updateCatType()">
+                <option value="income">收入</option>
+                <option value="cost">成本</option>
+                <option value="expense">費用</option>
+                <option value="asset_liability">資產/負債</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">科目名稱</label>
+              <input type="text" id="catName" class="form-control" placeholder="例：廣告輸出-自產">
+            </div>
+            <input type="hidden" id="catId">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCatModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveCat()">儲存</button>
           </div>
         </div>
       </div>
@@ -237,13 +286,15 @@ async function init() {
 
 function switchTab(tab) {
   currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['pl','perf','cf'][i]===tab));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['pl','perf','cf','cats'][i]===tab));
   document.getElementById('panelPl').style.display   = tab==='pl'   ? '' : 'none';
   document.getElementById('panelPerf').style.display = tab==='perf' ? '' : 'none';
   document.getElementById('panelCf').style.display   = tab==='cf'   ? '' : 'none';
-  document.getElementById('plPeriodBar').style.display    = tab==='pl' ? '' : 'none';
-  document.getElementById('otherPeriodBar').style.display = tab!=='pl' ? '' : 'none';
-  if (tab !== 'pl') loadOther();
+  document.getElementById('panelCats').style.display = tab==='cats' ? '' : 'none';
+  document.getElementById('plPeriodBar').style.display    = tab==='pl'  ? '' : 'none';
+  document.getElementById('otherPeriodBar').style.display = (tab==='perf'||tab==='cf') ? '' : 'none';
+  if (tab==='perf' || tab==='cf') loadOther();
+  if (tab==='cats') loadCats();
 }
 
 function setPeriodType(type) {
@@ -478,6 +529,177 @@ function renderCf(d) {
 
 function printReport() {
   window.print();
+}
+
+// ─── 科目管理 ─────────────────────────────────────────────────
+const SECTION_LABELS = { income:'收入', cost:'成本', expense:'費用', asset_liability:'資產/負債' };
+const SECTION_COLORS = { income:'#dcfce7', cost:'#fee2e2', expense:'#fef3c7', asset_liability:'#fed7aa' };
+const SECTION_TEXT   = { income:'#166534', cost:'#991b1b', expense:'#92400e', asset_liability:'#7c2d12' };
+const SECTION_ORDER  = ['income','cost','expense','asset_liability'];
+let allCats = [];
+let dragSrc  = null;
+
+async function loadCats() {
+  allCats = await fetch('/api/ledger/categories').then(r => r.json());
+  renderCats();
+}
+
+function renderCats() {
+  const grouped = {};
+  SECTION_ORDER.forEach(s => grouped[s] = []);
+  allCats.forEach(c => {
+    const s = c.section || (c.type === 'income' ? 'income' : 'expense');
+    if (!grouped[s]) grouped[s] = [];
+    grouped[s].push(c);
+  });
+  SECTION_ORDER.forEach(s => grouped[s].sort((a, b) => a.sort_order - b.sort_order));
+
+  document.getElementById('catSections').innerHTML = SECTION_ORDER.map(s => `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="background:${SECTION_COLORS[s]};border-radius:10px 10px 0 0">
+        <h3 style="color:${SECTION_TEXT[s]};font-size:14px">${SECTION_LABELS[s]}</h3>
+        <span style="font-size:12px;color:${SECTION_TEXT[s]}">${grouped[s].filter(c=>c.active).length} 個啟用 / ${grouped[s].length} 個</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <ul id="catList-${s}" class="cat-list" data-section="${s}">
+          ${grouped[s].map(c => catItem(c)).join('')}
+          ${grouped[s].length === 0 ? '<li style="padding:12px 16px;color:var(--gray-400);font-size:13px">— 尚無科目 —</li>' : ''}
+        </ul>
+      </div>
+    </div>
+  `).join('');
+
+  // Bind drag events
+  document.querySelectorAll('.cat-item').forEach(el => {
+    el.addEventListener('dragstart', onDragStart);
+    el.addEventListener('dragover',  onDragOver);
+    el.addEventListener('drop',      onDrop);
+    el.addEventListener('dragend',   onDragEnd);
+  });
+}
+
+function catItem(c) {
+  const activeBtn = c.active
+    ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--gray-500)" onclick="toggleCat(${c.id},0)">停用</button>`
+    : `<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e02424" onclick="toggleCat(${c.id},1)">已停用</button>`;
+  return `<li class="cat-item${c.active?'':' cat-inactive'}" draggable="true" data-id="${c.id}" data-section="${c.section}">
+    <span class="drag-handle" title="拖曳排序">☰</span>
+    <span class="cat-name">${c.name}</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      ${activeBtn}
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="openCatModal(${c.id})">編輯</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e02424" onclick="deleteCat(${c.id})">刪除</button>
+    </div>
+  </li>`;
+}
+
+// Drag-to-reorder
+function onDragStart(e) {
+  dragSrc = this;
+  e.dataTransfer.effectAllowed = 'move';
+  this.style.opacity = '0.4';
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over'));
+  this.classList.add('drag-over');
+  return false;
+}
+async function onDrop(e) {
+  e.stopPropagation();
+  if (dragSrc === this) return false;
+  const fromId   = Number(dragSrc.dataset.id);
+  const toId     = Number(this.dataset.id);
+  const toSection = this.dataset.section;
+  const fromCat  = allCats.find(c => c.id === fromId);
+  const toCat    = allCats.find(c => c.id === toId);
+  if (!fromCat || !toCat) return;
+
+  // Reorder within list
+  const section = toSection;
+  const list = allCats.filter(c => (c.section||c.type) === section).sort((a,b) => a.sort_order - b.sort_order);
+  const fromIdx = list.findIndex(c => c.id === fromId);
+  const toIdx   = list.findIndex(c => c.id === toId);
+
+  // Move fromCat to toSection if different
+  if (fromCat.section !== toSection) {
+    const typeMap = { income:'income', cost:'expense', expense:'expense', asset_liability:'expense' };
+    await fetch(`/api/ledger/categories/${fromId}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name:fromCat.name, section:toSection, sort_order:toCat.sort_order, active:fromCat.active })
+    });
+    fromCat.section = toSection;
+  }
+
+  // Rebuild sort_order
+  const items = list.filter(c => c.id !== fromId);
+  items.splice(toIdx < 0 ? items.length : toIdx, 0, fromCat);
+  await Promise.all(items.map((c, i) => {
+    c.sort_order = i + 1;
+    return fetch(`/api/ledger/categories/${c.id}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name:c.name, section:c.section, sort_order:c.sort_order, active:c.active })
+    });
+  }));
+  await loadCats();
+  return false;
+}
+function onDragEnd() {
+  this.style.opacity = '';
+  document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over'));
+}
+
+function openCatModal(id) {
+  const c = id ? allCats.find(x => x.id === id) : null;
+  document.getElementById('catModalTitle').textContent = c ? '編輯科目' : '新增科目';
+  document.getElementById('catId').value      = c ? c.id : '';
+  document.getElementById('catSection').value = c ? (c.section || 'expense') : 'income';
+  document.getElementById('catName').value    = c ? c.name : '';
+  document.getElementById('catModal').style.display = 'flex';
+}
+function closeCatModal() {
+  document.getElementById('catModal').style.display = 'none';
+}
+
+async function saveCat() {
+  const id      = document.getElementById('catId').value;
+  const section = document.getElementById('catSection').value;
+  const name    = document.getElementById('catName').value.trim();
+  if (!name) return alert('請輸入科目名稱');
+  const typeMap = { income:'income', cost:'expense', expense:'expense', asset_liability:'expense' };
+  const type = typeMap[section];
+  if (id) {
+    const cat = allCats.find(c => c.id === Number(id));
+    await fetch(`/api/ledger/categories/${id}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, section, sort_order: cat?.sort_order ?? 0, active: cat?.active ?? 1 })
+    });
+  } else {
+    await fetch('/api/ledger/categories', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type, section, name })
+    });
+  }
+  closeCatModal();
+  await loadCats();
+}
+
+async function toggleCat(id, active) {
+  const cat = allCats.find(c => c.id === id);
+  if (!cat) return;
+  await fetch(`/api/ledger/categories/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name:cat.name, section:cat.section, sort_order:cat.sort_order, active })
+  });
+  await loadCats();
+}
+
+async function deleteCat(id) {
+  const cat = allCats.find(c => c.id === id);
+  if (!confirm(`確定刪除「${cat?.name}」？`)) return;
+  await fetch(`/api/ledger/categories/${id}`, { method:'DELETE' });
+  await loadCats();
 }
 
 init();
