@@ -102,7 +102,7 @@ async function handleText(event) {
       case_number, org_id, case_type, client_id,
       title, description, line_source,
       status, priority, created_by, updated_at
-    ) VALUES (?, ?, 'inquiry', ?, ?, ?, ?, 'inquiry', 'normal', ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, 'other', ?, ?, ?, ?, 'initial_estimate', 'normal', ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, client.id,
     `LINE詢問｜${displayName}`,
