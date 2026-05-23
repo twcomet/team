@@ -104,6 +104,9 @@ router.post('/', requireAuth, (req, res) => {
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
          line_group_name ?? null, category_id ?? null);
+  const uid = req.session.user.id;
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(uid, 'create', 'clients', result.lastInsertRowid, `新增客戶：${name}`);
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
@@ -118,6 +121,8 @@ router.put('/:id', requireAuth, (req, res) => {
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
          line_group_name ?? null, category_id ?? null, req.params.id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(req.session.user.id, 'update', 'clients', req.params.id, `更新客戶：${name}`);
   res.json({ ok: true });
 });
 

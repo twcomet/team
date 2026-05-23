@@ -49,6 +49,34 @@
         </div>
       </div>
 
+      <!-- 操作紀錄（owner only） -->
+      <div class="card" id="auditSection" style="margin-bottom:24px;display:none">
+        <div class="card-header">
+          <h3>操作紀錄</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="auditEntity" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
+              <option value="">全部類型</option>
+              <option value="cases">案件</option>
+              <option value="clients">客戶</option>
+              <option value="ledger">流水帳</option>
+              <option value="users">帳號</option>
+            </select>
+            <select id="auditUser" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
+              <option value="">全部人員</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadAuditLogs()">篩選</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+            <table>
+              <thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>對象</th><th>說明</th></tr></thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- 角色管理（owner only） -->
       <div class="card" id="roleSection" style="margin-bottom:24px;display:none">
         <div class="card-header">
@@ -58,7 +86,7 @@
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>角色名稱</th><th>識別碼</th><th>預設頁面</th><th>類型</th><th></th></tr></thead>
+              <thead><tr><th style="width:28px"></th><th>角色名稱</th><th>識別碼</th><th>預設頁面</th><th>類型</th><th></th></tr></thead>
               <tbody id="roleBody"></tbody>
             </table>
           </div>
@@ -76,6 +104,7 @@
             <table>
               <thead>
                 <tr>
+                  <th style="width:28px"></th>
                   <th>姓名</th><th>帳號</th><th>角色</th><th>所屬</th>
                   <th>可看金額</th><th>狀態</th><th></th>
                 </tr>
@@ -236,8 +265,10 @@ async function init() {
   populateSelect(document.getElementById('userRole'), roles, 'value', 'label', '請選擇角色');
 
   if (currentUser.role === 'owner') {
+    document.getElementById('auditSection').style.display = '';
     document.getElementById('roleSection').style.display = '';
     await loadCustomRoles();
+    await loadAuditLogs();
   } else {
     document.getElementById('orgSection').style.display = 'none';
   }
@@ -288,7 +319,7 @@ async function loadCustomRoles() {
 
   // 系統角色（唯讀）
   const builtinRows = roles.filter(r => r.type === 'builtin').map(r =>
-    `<tr><td style="font-weight:500">${r.label}</td><td><code style="font-size:11px">${r.value}</code></td>
+    `<tr><td></td><td style="font-weight:500">${r.label}</td><td><code style="font-size:11px">${r.value}</code></td>
      <td style="color:#6b7280;font-size:12px">（依個別帳號設定）</td>
      <td><span class="badge badge-completed" style="font-size:11px">系統</span></td><td></td></tr>`
   );
@@ -296,7 +327,8 @@ async function loadCustomRoles() {
   const customRows = customRoles.map(r => {
     const p = JSON.parse(r.default_perms || '{}');
     const pages = Object.entries(PAGE_NAMES).filter(([k]) => p[k]).map(([,v]) => v).join('、') || '—';
-    return `<tr>
+    return `<tr draggable="true" data-id="${r.id}">
+      <td style="width:28px;cursor:grab;color:#9ca3af;font-size:16px;text-align:center;padding:0 4px" title="拖曳排序">⠿</td>
       <td style="font-weight:500">${r.label}${r.active ? '' : ' <span style="color:#9ca3af">(停用)</span>'}</td>
       <td><code style="font-size:11px">${r.code}</code></td>
       <td style="font-size:12px;color:#374151">${pages}</td>
@@ -307,7 +339,10 @@ async function loadCustomRoles() {
       </td></tr>`;
   });
 
-  tbody.innerHTML = [...builtinRows, ...customRows].join('') || '<tr><td colspan="5" class="empty-state">尚無自訂角色</td></tr>';
+  const builtinHeader = `<tr><td></td><td colspan="4" style="font-size:11px;color:#9ca3af;padding:6px 12px;background:var(--gray-50)">系統內建角色（不可刪除）</td><td></td></tr>`;
+  const customHeader  = customRoles.length ? `<tr><td></td><td colspan="4" style="font-size:11px;color:#9ca3af;padding:6px 12px;background:var(--gray-50)">自訂角色（可拖曳排序）</td><td></td></tr>` : '';
+  tbody.innerHTML = builtinHeader + builtinRows.join('') + customHeader + customRows.join('') || '<tr><td colspan="6" class="empty-state">尚無角色</td></tr>';
+  initDrag(tbody, '/api/users/custom-roles/reorder');
 }
 
 document.getElementById('newRoleBtn')?.addEventListener('click', () => {
@@ -366,6 +401,11 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     populateSelect(document.getElementById('userRole'), roles, 'value', 'label', '請選擇角色');
     await loadCustomRoles();
     showToast('角色已儲存');
+    // 若是修改既有角色，提示是否更新受影響帳號
+    if (id) {
+      const cr = customRoles.find(r => r.id === Number(id));
+      if (cr) await promptUpdateRoleUsers(cr.code, label, default_perms);
+    }
   } else {
     const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
   }
@@ -385,12 +425,38 @@ async function deleteRole(id, label) {
   }
 }
 
+// ── 拖排共用 ──────────────────────────────────────────────
+let _dragSrc = null;
+function initDrag(tbody, reorderUrl) {
+  tbody.addEventListener('dragstart', e => {
+    _dragSrc = e.target.closest('tr[draggable]');
+    if (!_dragSrc) return;
+    _dragSrc.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    const row = e.target.closest('tr[draggable]');
+    if (!row || row === _dragSrc) return;
+    const rows = [...tbody.querySelectorAll('tr[draggable]')];
+    const si = rows.indexOf(_dragSrc), ti = rows.indexOf(row);
+    if (si < ti) tbody.insertBefore(_dragSrc, row.nextSibling);
+    else tbody.insertBefore(_dragSrc, row);
+  });
+  tbody.addEventListener('dragend', async () => {
+    if (_dragSrc) { _dragSrc.style.opacity = ''; _dragSrc = null; }
+    const ids = [...tbody.querySelectorAll('tr[draggable]')].map(r => Number(r.dataset.id));
+    await fetch(reorderUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids }) });
+  });
+}
+
 // ── 人員 ───────────────────────────────────────────────────
 async function loadUsers() {
   allUsers = await fetchUsers();
   const tbody = document.getElementById('userBody');
   tbody.innerHTML = allUsers.map(u => `
-    <tr>
+    <tr draggable="true" data-id="${u.id}" style="cursor:default">
+      <td style="width:28px;cursor:grab;color:#9ca3af;font-size:16px;text-align:center;padding:0 4px" title="拖曳排序">⠿</td>
       <td style="font-weight:500">${u.name}</td>
       <td><code style="font-size:12px">${u.username}</code></td>
       <td>${roleLabelsMap[u.role] || ROLE_LABELS[u.role] || u.role}</td>
@@ -399,7 +465,8 @@ async function loadUsers() {
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
       <td><button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="7"><div class="empty-state">尚無人員</div></td></tr>';
+  `).join('') || '<tr><td colspan="8"><div class="empty-state">尚無人員</div></td></tr>';
+  initDrag(tbody, '/api/users/reorder');
 }
 
 document.getElementById('newUserBtn').addEventListener('click', () => {
@@ -505,6 +572,79 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     showToast(e.error || '儲存失敗', 'error');
   }
 });
+
+// ── 操作紀錄 ──────────────────────────────────────────────
+const ACTION_LABELS = {
+  create:'新增', update:'修改', delete:'刪除',
+  login:'登入', logout:'登出',
+  create_user:'新增帳號', update_user:'修改帳號', create_org:'新增分店',
+};
+const ENTITY_LABELS = { cases:'案件', clients:'客戶', ledger:'流水帳', users:'帳號', orgs:'分店' };
+
+async function loadAuditLogs() {
+  const entity = document.getElementById('auditEntity')?.value || '';
+  const uid    = document.getElementById('auditUser')?.value || '';
+  const params = new URLSearchParams({ limit: 200 });
+  if (entity) params.set('entity', entity);
+  if (uid)    params.set('uid', uid);
+  const res = await fetch('/api/users/audit-logs?' + params);
+  if (!res.ok) return;
+  const logs = await res.json();
+
+  // Populate user filter (first load only)
+  const sel = document.getElementById('auditUser');
+  if (sel && sel.options.length === 1) {
+    const seen = new Set();
+    logs.forEach(l => { if (l.user_id && !seen.has(l.user_id)) { seen.add(l.user_id); sel.add(new Option(l.user_name || l.username || l.user_id, l.user_id)); } });
+  }
+
+  const tbody = document.getElementById('auditBody');
+  if (!logs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暫無紀錄</td></tr>'; return; }
+  tbody.innerHTML = logs.map(l => {
+    const action = ACTION_LABELS[l.action] || l.action;
+    const entity = ENTITY_LABELS[l.entity] || l.entity || '';
+    const dt = new Date(l.created_at + (l.created_at.includes('+') ? '' : 'Z')).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return `<tr>
+      <td style="font-size:12px;color:#6b7280;white-space:nowrap">${dt}</td>
+      <td style="font-weight:500">${l.user_name || '—'}</td>
+      <td><span class="badge ${l.action==='delete'?'badge-closed':l.action==='login'||l.action==='logout'?'badge-completed':'badge-active'}" style="font-size:11px">${action}</span></td>
+      <td style="font-size:12px;color:#6b7280">${entity}</td>
+      <td style="font-size:12px;color:#374151;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.detail || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('auditEntity')?.addEventListener('change', loadAuditLogs);
+document.getElementById('auditUser')?.addEventListener('change', loadAuditLogs);
+
+// ── 儲存角色後提示更新受影響帳號 ─────────────────────────
+async function promptUpdateRoleUsers(roleCode, label, default_perms) {
+  if (!allUsers.length) return;
+  const affected = allUsers.filter(u => u.role === roleCode);
+  if (!affected.length) return;
+
+  const names = affected.map(u => `• ${u.name}（${u.username}）`).join('\n');
+  const ok = confirm(`角色「${label}」有 ${affected.length} 位帳號，要一起套用新的預設功能頁面設定嗎？\n\n${names}`);
+  if (!ok) return;
+
+  const p = typeof default_perms === 'string' ? JSON.parse(default_perms) : default_perms;
+  for (const u of affected) {
+    const perms = u.permissions ? JSON.parse(u.permissions) : {};
+    const newPerms = {
+      page_dashboard: !!(p.page_dashboard),
+      page_cases:     !!(p.page_cases ?? true),
+      page_clients:   !!(p.page_clients ?? true),
+      page_calendar:  !!(p.page_calendar ?? true),
+      page_payments:  !!(p.page_payments),
+      my_tasks:       !!(p.my_tasks),
+    };
+    await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name: u.name, role: u.role, department: u.department,
+        is_manager: !!(p.is_manager ?? u.is_manager), can_see_amounts: !!(p.can_see_amounts ?? u.can_see_amounts),
+        service_areas: JSON.parse(u.service_areas || '[]'), active: u.active, permissions: newPerms }) });
+  }
+  await loadUsers();
+  showToast(`已更新 ${affected.length} 位帳號的權限設定`);
+}
 
 init();
 </script>

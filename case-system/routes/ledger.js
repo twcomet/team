@@ -3,6 +3,9 @@ const db = require('../db');
 const { requireAuth, requireOwner, orgFilter } = require('../middleware/auth');
 const router = express.Router();
 
+const log = (uid, action, entity, eid, detail) =>
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`).run(uid, action, entity, eid ?? null, detail ?? null);
+
 // ── 會計科目 CRUD ─────────────────────────────────────────────
 
 // GET /api/ledger/categories
@@ -71,28 +74,35 @@ router.get('/', requireAuth, (req, res) => {
 
 // POST /api/ledger
 router.post('/', requireAuth, (req, res) => {
+  const uid = req.session.user.id;
   const { date, type, category, amount, case_id, description, org_id } = req.body;
   if (!date || !type || !category || !amount) return res.status(400).json({ error: '必填欄位不完整' });
   const r = db.prepare(`
     INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, req.session.user.id);
+  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid);
+  log(uid, 'create', 'ledger', r.lastInsertRowid, `${date} ${category} $${amount}`);
   res.json({ id: r.lastInsertRowid });
 });
 
 // PUT /api/ledger/:id
 router.put('/:id', requireAuth, (req, res) => {
+  const uid = req.session.user.id;
   const { date, type, category, amount, case_id, description, org_id } = req.body;
   db.prepare(`
     UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?
     WHERE id=?
   `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, req.params.id);
+  log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
   res.json({ ok: true });
 });
 
 // DELETE /api/ledger/:id
 router.delete('/:id', requireAuth, (req, res) => {
+  const uid = req.session.user.id;
+  const entry = db.prepare(`SELECT date,category,amount FROM ledger_entries WHERE id=?`).get(req.params.id);
   db.prepare(`DELETE FROM ledger_entries WHERE id=?`).run(req.params.id);
+  if (entry) log(uid, 'delete', 'ledger', req.params.id, `${entry.date} ${entry.category} $${entry.amount}`);
   res.json({ ok: true });
 });
 

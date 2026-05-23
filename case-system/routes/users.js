@@ -9,7 +9,7 @@ router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department,
                       u.is_manager, u.can_see_amounts, u.service_areas, u.active,
-                      u.permissions, o.name as org_name
+                      u.permissions, u.sort_order, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
   const params = [];
 
@@ -17,8 +17,18 @@ router.get('/', requireAuth, (req, res) => {
     query += ` WHERE u.org_id = ?`;
     params.push(me.org_id);
   }
-  query += ` ORDER BY o.type DESC, u.role, u.name`;
+  query += ` ORDER BY u.sort_order, o.type DESC, u.name`;
   res.json(db.prepare(query).all(...params));
+});
+
+// 使用者排序
+router.post('/reorder', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids 必須為陣列' });
+  const upd = db.prepare(`UPDATE users SET sort_order=? WHERE id=?`);
+  ids.forEach((id, i) => upd.run(i, id));
+  res.json({ ok: true });
 });
 
 // 新增使用者
@@ -75,6 +85,9 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
          JSON.stringify(service_areas || []), active ?? 1,
          JSON.stringify(permissions || {}), req.params.id);
 
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'update_user', 'users', req.params.id, `修改帳號：${target.username} → 角色:${role}`);
+
   res.json({ ok: true });
 });
 
@@ -98,6 +111,26 @@ router.get('/roles', requireAuth, (req, res) => {
   const custom = db.prepare(`SELECT * FROM custom_roles WHERE active=1 ORDER BY sort_order, id`).all()
     .map(r => ({ value: r.code, label: r.label, type: 'custom', id: r.id, default_perms: r.default_perms }));
   res.json([...builtin, ...custom]);
+});
+
+// 操作紀錄（owner only）
+router.get('/audit-logs', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可查看' });
+  const { from, to, uid, entity, limit = 200 } = req.query;
+  let where = 'WHERE 1=1';
+  const params = [];
+  if (from)   { where += ' AND l.created_at >= ?'; params.push(from); }
+  if (to)     { where += ' AND l.created_at <= ?'; params.push(to + ' 23:59:59'); }
+  if (uid)    { where += ' AND l.user_id = ?'; params.push(uid); }
+  if (entity) { where += ' AND l.entity = ?'; params.push(entity); }
+  const rows = db.prepare(`
+    SELECT l.*, u.name as user_name, u.username
+    FROM audit_logs l
+    LEFT JOIN users u ON l.user_id = u.id
+    ${where}
+    ORDER BY l.id DESC LIMIT ?
+  `).all(...params, Number(limit));
+  res.json(rows);
 });
 
 // ── 自訂角色 CRUD（owner only）────────────────────────────────
@@ -124,6 +157,15 @@ router.put('/custom-roles/:id', requireAuth, (req, res) => {
   if (!label?.trim()) return res.status(400).json({ error: '請填入角色名稱' });
   db.prepare(`UPDATE custom_roles SET label=?, default_perms=?, view_all_branches=?, active=? WHERE id=?`)
     .run(label.trim(), JSON.stringify(default_perms || {}), view_all_branches ? 1 : 0, active ?? 1, req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/custom-roles/reorder', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids 必須為陣列' });
+  const upd = db.prepare(`UPDATE custom_roles SET sort_order=? WHERE id=?`);
+  ids.forEach((id, i) => upd.run(i, id));
   res.json({ ok: true });
 });
 
