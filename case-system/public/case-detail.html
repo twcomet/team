@@ -464,37 +464,78 @@
         <div id="logList"></div>
       </div>
 
-      <!-- 外包設定（總部用） -->
+      <!-- 派案設定（總部用） -->
       <div class="tab-pane" id="tab-outsource">
-        <div style="max-width:600px">
+        <div style="max-width:640px">
+
+          <!-- 目前指派狀態 -->
+          <div id="os_assignedBanner" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:12px;padding:16px;margin-bottom:16px">
+            <div style="font-size:13px;font-weight:600;color:#065f46;margin-bottom:4px">已指派技師</div>
+            <div id="os_assignedName" style="font-size:15px;font-weight:700;color:#064e3b"></div>
+            <button onclick="cancelAssign()" style="margin-top:8px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;padding:0">取消指派</button>
+          </div>
+
+          <!-- A. 指定派案 -->
           <div style="background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:20px;margin-bottom:16px">
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--gray-700)">開放外包設定</h4>
-            <div class="form-group">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--gray-700)">指定派案</h4>
+            <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px">直接指定技師，案件不會出現在案件池，技師收到 LINE 通知後確認接受。</p>
+            <div class="form-row" style="gap:10px;margin-bottom:12px">
+              <div class="form-group" style="margin:0;flex:1">
+                <label style="font-size:12px;margin-bottom:4px">篩選區域</label>
+                <select id="os_filter_region" onchange="loadTechList()" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;width:100%">
+                  <option value="">全部區域</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;flex:2">
+                <label style="font-size:12px;margin-bottom:4px">選擇技師</label>
+                <select id="os_tech_select" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;width:100%">
+                  <option value="">請先選區域或直接選技師</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label style="font-size:12px;margin-bottom:4px">派案備註（選填）</label>
+              <textarea id="os_assign_note" rows="2" placeholder="施工注意事項、聯絡方式等…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="doDirectAssign()" style="font-size:13px">發送指定派案通知</button>
+          </div>
+
+          <!-- B. 開放案件池 -->
+          <div style="background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--gray-700)">開放案件池</h4>
+            <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px">案件放到指定區域的案件池，該區域技師可自行申請，由總部審核。</p>
+            <div class="form-group" style="margin-bottom:12px">
+              <label style="font-size:12px;margin-bottom:4px">開放區域</label>
+              <select id="os_region" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;width:100%;max-width:200px">
+                <option value="">不限區域</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
               <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
                 <input type="checkbox" id="os_open" onchange="toggleOutsourceOpen()">
-                <span style="font-size:14px;font-weight:500">開放學員申請接案</span>
+                <span style="font-size:14px;font-weight:500">開放技師申請接案</span>
               </label>
-              <div style="font-size:12px;color:var(--gray-500);margin-top:4px;margin-left:26px">開啟後案件將出現在學員的「接案廣場」</div>
             </div>
-            <div id="os_typeSection" style="display:none;margin-top:16px">
-              <label style="font-size:13px;font-weight:500;margin-bottom:8px;display:block">開放申請類型</label>
+            <div id="os_typeSection" style="display:none;margin-top:4px;margin-bottom:16px">
+              <label style="font-size:12px;font-weight:500;margin-bottom:8px;display:block">開放類型</label>
               <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_full">
-                  <input type="checkbox" value="full" onchange="updateOutsourceTypes()"> 全案負責
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 12px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_full">
+                  <input type="checkbox" value="full" onchange="updateOutsourceTypes()"> 全案
                 </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_survey">
-                  <input type="checkbox" value="survey" onchange="updateOutsourceTypes()"> 僅場勘
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 12px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_survey">
+                  <input type="checkbox" value="survey" onchange="updateOutsourceTypes()"> 場勘
                 </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_install">
-                  <input type="checkbox" value="install" onchange="updateOutsourceTypes()"> 僅施工
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 12px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_install">
+                  <input type="checkbox" value="install" onchange="updateOutsourceTypes()"> 施工
                 </label>
               </div>
             </div>
+            <button class="btn btn-secondary" onclick="saveOutsourceSetting()" style="font-size:13px">儲存案件池設定</button>
           </div>
 
           <!-- 申請列表 -->
           <div id="appListSection">
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">學員申請紀錄</h4>
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">技師申請記錄</h4>
             <div id="caseAppList"></div>
           </div>
         </div>
@@ -1568,30 +1609,102 @@ async function deleteMatLog(id) {
   else showToast('刪除失敗', 'error');
 }
 
-// ── 外包設定 Tab ──────────────────────────────────────────────
+// ── 派案設定 Tab ──────────────────────────────────────────────
+let _regions = [], _techList = [];
+
 async function loadOutsourceTab() {
   const c = caseData;
+
+  // 載入區域列表
+  const rRes = await fetch('/api/marketplace/regions');
+  _regions = rRes.ok ? await rRes.json() : [];
+  ['os_region','os_filter_region'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const cur = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    _regions.forEach(r => sel.add(new Option(r.name, r.id)));
+    if (cur) sel.value = cur;
+  });
+
+  // 已指派技師 banner
+  if (c.assigned_technician_id) {
+    const tech = users.find(u => u.id === c.assigned_technician_id);
+    document.getElementById('os_assignedBanner').style.display = '';
+    document.getElementById('os_assignedName').textContent = tech ? `${tech.name}（@${tech.username}）` : `技師 #${c.assigned_technician_id}`;
+  } else {
+    document.getElementById('os_assignedBanner').style.display = 'none';
+  }
+
+  // 案件池設定
   const open  = !!c.outsource_open;
   const types = JSON.parse(c.outsource_types || '[]');
   document.getElementById('os_open').checked = open;
   document.getElementById('os_typeSection').style.display = open ? '' : 'none';
+  if (c.region_id) document.getElementById('os_region').value = c.region_id;
   ['full','survey','install'].forEach(t => {
     const cb = document.querySelector(`#os_typeSection input[value="${t}"]`);
     if (cb) { cb.checked = types.includes(t); updateLabelStyle(cb.closest('label'), cb.checked); }
   });
+
+  // 預載技師列表
+  await loadTechList();
   await loadCaseApplications();
+}
+
+async function loadTechList() {
+  const regionId = document.getElementById('os_filter_region')?.value || '';
+  const url = '/api/marketplace/technicians' + (regionId ? `?region_id=${regionId}` : '');
+  const res = await fetch(url);
+  _techList = res.ok ? await res.json() : [];
+  const sel = document.getElementById('os_tech_select');
+  while (sel.options.length > 1) sel.remove(1);
+  if (!_techList.length) { sel.add(new Option('（此區域目前無技師）', '')); return; }
+  _techList.forEach(t => {
+    const label = `${t.name}（${t.region_name || '未分區'}｜R${t.technician_level || 0}）`;
+    sel.add(new Option(label, t.id));
+  });
+}
+
+async function doDirectAssign() {
+  const techId = document.getElementById('os_tech_select').value;
+  const note   = document.getElementById('os_assign_note').value.trim();
+  if (!techId) return showToast('請選擇技師', 'error');
+  const res = await fetch(`/api/marketplace/direct-assign/${caseId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ technician_id: parseInt(techId), note }),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    showToast(`已指派給 ${data.technician_name}，LINE 通知已送出`);
+    await loadCase();
+    loadOutsourceTab();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '指派失敗', 'error');
+  }
+}
+
+async function cancelAssign() {
+  if (!confirm('確定取消指派？案件將回到未派工狀態。')) return;
+  const res = await fetch(`/api/cases/${caseId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assigned_technician_id: null, status: 'pending_dispatch' }),
+  });
+  if (res.ok) { showToast('已取消指派'); await loadCase(); loadOutsourceTab(); }
+  else showToast('操作失敗', 'error');
 }
 
 function toggleOutsourceOpen() {
   const open = document.getElementById('os_open').checked;
   document.getElementById('os_typeSection').style.display = open ? '' : 'none';
-  saveOutsourceSetting();
 }
 
 async function updateOutsourceTypes() {
   const cb = event.target;
   updateLabelStyle(cb.closest('label'), cb.checked);
-  await saveOutsourceSetting();
 }
 
 function updateLabelStyle(lbl, checked) {
@@ -1601,35 +1714,37 @@ function updateLabelStyle(lbl, checked) {
 }
 
 async function saveOutsourceSetting() {
-  const open  = document.getElementById('os_open').checked;
-  const types = [...document.querySelectorAll('#os_typeSection input[type=checkbox]:checked')].map(c => c.value);
-  await fetch(`/api/marketplace/case-setting/${caseId}`, {
+  const open     = document.getElementById('os_open').checked;
+  const types    = [...document.querySelectorAll('#os_typeSection input[type=checkbox]:checked')].map(c => c.value);
+  const regionId = document.getElementById('os_region').value || null;
+  const res = await fetch(`/api/marketplace/case-setting/${caseId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ outsource_open: open, outsource_types: types }),
+    body: JSON.stringify({ outsource_open: open, outsource_types: types, region_id: regionId ? parseInt(regionId) : null }),
   });
-  showToast('外包設定已儲存');
+  if (res.ok) showToast('案件池設定已儲存');
+  else showToast('儲存失敗', 'error');
 }
 
 async function loadCaseApplications() {
-  const res = await fetch(`/api/marketplace/applications?status=`);
+  const res  = await fetch(`/api/marketplace/applications`);
   const all  = res.ok ? await res.json() : [];
-  const apps = all.filter(a => a.case_id === caseId);
+  const apps = all.filter(a => String(a.case_id) === String(caseId));
   const el   = document.getElementById('caseAppList');
-  const TYPE_MAP = { full:'全案負責', survey:'場勘', install:'施工' };
+  const TYPE_MAP = { full:'全案', survey:'場勘', install:'施工' };
   const ST_MAP   = {
     pending:  `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:12px">審核中</span>`,
     approved: `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:12px">✅ 已核准</span>`,
     rejected: `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:12px">❌ 未核准</span>`,
   };
-  if (!apps.length) { el.innerHTML = `<p style="color:var(--gray-400);font-size:13px">尚無學員申請</p>`; return; }
+  if (!apps.length) { el.innerHTML = `<p style="color:var(--gray-400);font-size:13px">尚無技師申請</p>`; return; }
   el.innerHTML = apps.map(a => `
     <div style="border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div>
           <strong style="font-size:14px">${a.applicant_name}</strong>
           <span style="font-size:12px;color:var(--gray-500);margin-left:8px">@${a.applicant_username}</span>
-          <span style="font-size:12px;color:var(--gray-500);margin-left:8px">申請：${TYPE_MAP[a.apply_type]}</span>
+          <span style="font-size:12px;color:var(--gray-600);margin-left:8px;background:#f3f4f6;padding:2px 8px;border-radius:20px">${TYPE_MAP[a.apply_type] || a.apply_type}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${ST_MAP[a.status] || ''}
@@ -1640,21 +1755,19 @@ async function loadCaseApplications() {
         </div>
       </div>
       ${a.hq_note ? `<div style="font-size:12px;color:var(--gray-500);margin-top:6px">備注：${a.hq_note}</div>` : ''}
-      <div style="font-size:11px;color:var(--gray-400);margin-top:4px">申請時間：${a.created_at?.slice(0,16).replace('T',' ')}</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:4px">${a.created_at?.slice(0,16).replace('T',' ')}</div>
     </div>`).join('');
 }
 
 async function reviewApp(appId, status) {
   let hq_note = '';
-  if (status === 'rejected') {
-    hq_note = prompt('拒絕原因（選填）') || '';
-  }
+  if (status === 'rejected') hq_note = prompt('拒絕原因（選填）') || '';
   const res = await fetch(`/api/marketplace/applications/${appId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, hq_note }),
   });
-  if (res.ok) { showToast(status === 'approved' ? '已核准' : '已拒絕'); loadCaseApplications(); }
+  if (res.ok) { showToast(status === 'approved' ? '✅ 已核准，技師收到 LINE 通知' : '已拒絕'); loadCaseApplications(); }
   else showToast('操作失敗', 'error');
 }
 
