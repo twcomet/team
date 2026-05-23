@@ -135,7 +135,10 @@ router.post('/scan', requireAuth, async (req, res) => {
       })
     });
 
-    if (!response.ok) return res.status(502).json({ error: 'AI API error' });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      return res.status(502).json({ error: `AI API error ${response.status}`, detail: errBody.slice(0, 300) });
+    }
     const data = await response.json();
     const text = data.content?.[0]?.text?.trim() || '';
     const match = text.match(/\{[\s\S]*\}/);

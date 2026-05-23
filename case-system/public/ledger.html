@@ -422,7 +422,10 @@ async function handleScanImage(event) {
       body: JSON.stringify({ image_base64: dataUrl.split(',')[1], mime_type: file.type })
     });
 
-    if (!res.ok) throw new Error('scan failed');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || errData.error || `HTTP ${res.status}`);
+    }
     const data = await res.json();
 
     if (data.date) document.getElementById('ledgerDate').value = data.date;
@@ -441,7 +444,7 @@ async function handleScanImage(event) {
     const typeLabel = (data.type==='income') ? '收入' : '支出';
     resultEl.textContent = `${typeLabel} $${data.amount || '?'} — ${data.description || ''}`;
   } catch(e) {
-    statusEl.textContent = '⚠️ 辨識失敗，請手動填寫';
+    statusEl.textContent = `⚠️ 辨識失敗：${e.message}`;
   }
 }
 

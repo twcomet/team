@@ -263,7 +263,7 @@ async function submitContract() {
 
   if (res.ok) {
     document.getElementById('contractCard').style.display = 'none';
-    document.getElementById('successCard').style.display = '';
+    document.getElementById('successCard').style.display = 'block';
     const isStudent = !INTERNAL_ROLES.includes(currentUser.role);
     document.getElementById('enterBtn').onclick = () => { location.href = isStudent ? '/marketplace' : '/dashboard'; };
   } else {
@@ -285,7 +285,7 @@ function downloadPDF() {
   // 列印後恢復
   setTimeout(() => {
     document.getElementById('contractCard').style.display = 'none';
-    document.getElementById('successCard').style.display = '';
+    document.getElementById('successCard').style.display = 'block';
     document.getElementById('printSig').style.display = 'none';
   }, 1000);
 }
