@@ -876,6 +876,38 @@ db.exec(`
   );
 `);
 
+// ── 學員接案申請 ─────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS case_applications (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id      INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    applicant_id INTEGER NOT NULL REFERENCES users(id),
+    apply_type   TEXT NOT NULL CHECK(apply_type IN ('full','survey','install')),
+    status       TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    hq_note      TEXT,
+    reviewed_by  INTEGER REFERENCES users(id),
+    reviewed_at  DATETIME,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(case_id, applicant_id)
+  );
+`);
+
+// ── 客戶對學員評分 ────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS case_ratings (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id    INTEGER NOT NULL REFERENCES cases(id),
+    student_id INTEGER NOT NULL REFERENCES users(id),
+    score      INTEGER NOT NULL CHECK(score BETWEEN 1 AND 5),
+    comment    TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(case_id, student_id)
+  );
+`);
+
+_addCol('cases', 'outsource_open',  'INTEGER DEFAULT 0');
+_addCol('cases', 'outsource_types', 'TEXT DEFAULT "[]"');
+
 // ── 系統設定 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (

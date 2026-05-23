@@ -124,6 +124,7 @@
         <div class="tab" data-tab="material">膜料使用</div>
         <div class="tab" data-tab="payment">收款</div>
         <div class="tab" data-tab="log">歷程</div>
+        <div class="tab" data-tab="outsource" data-need="manage_users" style="display:none">外包</div>
       </div>
 
       <!-- 基本資訊 -->
@@ -462,6 +463,42 @@
       <div class="tab-pane" id="tab-log">
         <div id="logList"></div>
       </div>
+
+      <!-- 外包設定（總部用） -->
+      <div class="tab-pane" id="tab-outsource">
+        <div style="max-width:600px">
+          <div style="background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--gray-700)">開放外包設定</h4>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                <input type="checkbox" id="os_open" onchange="toggleOutsourceOpen()">
+                <span style="font-size:14px;font-weight:500">開放學員申請接案</span>
+              </label>
+              <div style="font-size:12px;color:var(--gray-500);margin-top:4px;margin-left:26px">開啟後案件將出現在學員的「接案廣場」</div>
+            </div>
+            <div id="os_typeSection" style="display:none;margin-top:16px">
+              <label style="font-size:13px;font-weight:500;margin-bottom:8px;display:block">開放申請類型</label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_full">
+                  <input type="checkbox" value="full" onchange="updateOutsourceTypes()"> 全案負責
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_survey">
+                  <input type="checkbox" value="survey" onchange="updateOutsourceTypes()"> 僅場勘
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:14px;padding:8px 14px;border:2px solid var(--gray-200);border-radius:8px;cursor:pointer" id="os_lbl_install">
+                  <input type="checkbox" value="install" onchange="updateOutsourceTypes()"> 僅施工
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 申請列表 -->
+          <div id="appListSection">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">學員申請紀錄</h4>
+            <div id="caseAppList"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -544,7 +581,8 @@ async function init() {
       document.querySelectorAll('.tab,.tab-pane').forEach(el => el.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
-      if (t.dataset.tab === 'survey') loadSurveyTab();
+      if (t.dataset.tab === 'survey')    loadSurveyTab();
+      if (t.dataset.tab === 'outsource') loadOutsourceTab();
     });
   });
 
@@ -1528,6 +1566,96 @@ async function deleteMatLog(id) {
   const res = await fetch(`/api/materials/logs/${id}`, { method: 'DELETE' });
   if (res.ok) { showToast('已刪除'); await loadCase(); }
   else showToast('刪除失敗', 'error');
+}
+
+// ── 外包設定 Tab ──────────────────────────────────────────────
+async function loadOutsourceTab() {
+  const c = caseData;
+  const open  = !!c.outsource_open;
+  const types = JSON.parse(c.outsource_types || '[]');
+  document.getElementById('os_open').checked = open;
+  document.getElementById('os_typeSection').style.display = open ? '' : 'none';
+  ['full','survey','install'].forEach(t => {
+    const cb = document.querySelector(`#os_typeSection input[value="${t}"]`);
+    if (cb) { cb.checked = types.includes(t); updateLabelStyle(cb.closest('label'), cb.checked); }
+  });
+  await loadCaseApplications();
+}
+
+function toggleOutsourceOpen() {
+  const open = document.getElementById('os_open').checked;
+  document.getElementById('os_typeSection').style.display = open ? '' : 'none';
+  saveOutsourceSetting();
+}
+
+async function updateOutsourceTypes() {
+  const cb = event.target;
+  updateLabelStyle(cb.closest('label'), cb.checked);
+  await saveOutsourceSetting();
+}
+
+function updateLabelStyle(lbl, checked) {
+  if (!lbl) return;
+  lbl.style.borderColor = checked ? 'var(--primary)' : 'var(--gray-200)';
+  lbl.style.background  = checked ? '#eff6ff' : '';
+}
+
+async function saveOutsourceSetting() {
+  const open  = document.getElementById('os_open').checked;
+  const types = [...document.querySelectorAll('#os_typeSection input[type=checkbox]:checked')].map(c => c.value);
+  await fetch(`/api/marketplace/case-setting/${caseId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outsource_open: open, outsource_types: types }),
+  });
+  showToast('外包設定已儲存');
+}
+
+async function loadCaseApplications() {
+  const res = await fetch(`/api/marketplace/applications?status=`);
+  const all  = res.ok ? await res.json() : [];
+  const apps = all.filter(a => a.case_id === caseId);
+  const el   = document.getElementById('caseAppList');
+  const TYPE_MAP = { full:'全案負責', survey:'場勘', install:'施工' };
+  const ST_MAP   = {
+    pending:  `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:12px">審核中</span>`,
+    approved: `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:12px">✅ 已核准</span>`,
+    rejected: `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:12px">❌ 未核准</span>`,
+  };
+  if (!apps.length) { el.innerHTML = `<p style="color:var(--gray-400);font-size:13px">尚無學員申請</p>`; return; }
+  el.innerHTML = apps.map(a => `
+    <div style="border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <strong style="font-size:14px">${a.applicant_name}</strong>
+          <span style="font-size:12px;color:var(--gray-500);margin-left:8px">@${a.applicant_username}</span>
+          <span style="font-size:12px;color:var(--gray-500);margin-left:8px">申請：${TYPE_MAP[a.apply_type]}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${ST_MAP[a.status] || ''}
+          ${a.status === 'pending' ? `
+            <button class="btn btn-primary btn-sm" onclick="reviewApp(${a.id},'approved')">核准</button>
+            <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="reviewApp(${a.id},'rejected')">拒絕</button>
+          ` : ''}
+        </div>
+      </div>
+      ${a.hq_note ? `<div style="font-size:12px;color:var(--gray-500);margin-top:6px">備注：${a.hq_note}</div>` : ''}
+      <div style="font-size:11px;color:var(--gray-400);margin-top:4px">申請時間：${a.created_at?.slice(0,16).replace('T',' ')}</div>
+    </div>`).join('');
+}
+
+async function reviewApp(appId, status) {
+  let hq_note = '';
+  if (status === 'rejected') {
+    hq_note = prompt('拒絕原因（選填）') || '';
+  }
+  const res = await fetch(`/api/marketplace/applications/${appId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, hq_note }),
+  });
+  if (res.ok) { showToast(status === 'approved' ? '已核准' : '已拒絕'); loadCaseApplications(); }
+  else showToast('操作失敗', 'error');
 }
 
 init();

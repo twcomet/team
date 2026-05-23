@@ -39,7 +39,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
     body: JSON.stringify({ username: document.getElementById('username').value, password: document.getElementById('password').value }),
     credentials: 'same-origin'
   });
-  if (res.ok) { location.href = '/dashboard'; }
+  if (res.ok) { const data = await res.json(); location.href = data.redirect || '/dashboard'; }
   else {
     const err = await res.json();
     const msg = document.getElementById('errMsg');

@@ -49,7 +49,8 @@ router.post('/login', (req, res) => {
   db.prepare(`INSERT INTO audit_logs (user_id, action, detail) VALUES (?, 'login', ?)`)
     .run(user.id, `登入：${req.ip}`);
 
-  res.json({ ok: true, user: req.session.user });
+  const isStudent = ['contractor_install','contractor_sales'].includes(user.role);
+  res.json({ ok: true, user: req.session.user, redirect: isStudent ? '/marketplace' : null });
 });
 
 router.post('/logout', (req, res) => {

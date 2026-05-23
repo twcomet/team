@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接案廣場 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.mp-tabs { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:24px; }
+.mp-tab  { padding:10px 24px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.mp-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.mp-pane { display:none; }
+.mp-pane.active { display:block; }
+
+/* 案件卡片 */
+.case-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px; margin-bottom:14px; transition:box-shadow .15s; }
+.case-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+.case-card .cc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.case-card .cc-title { font-size:16px; font-weight:600; color:var(--gray-900); }
+.case-card .cc-meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.cc-tag { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; background:var(--gray-100); color:var(--gray-600); }
+.cc-tag.type-full    { background:#dbeafe; color:#1e40af; }
+.cc-tag.type-survey  { background:#fef3c7; color:#92400e; }
+.cc-tag.type-install { background:#d1fae5; color:#065f46; }
+.cc-amount { font-size:18px; font-weight:700; color:var(--primary); }
+.cc-apply-btn { padding:8px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; }
+.cc-apply-btn.pending  { background:#fef3c7; color:#92400e; cursor:default; }
+.cc-apply-btn.approved { background:#d1fae5; color:#065f46; cursor:default; }
+.cc-apply-btn.rejected { background:#fee2e2; color:#991b1b; }
+.cc-apply-btn.available { background:var(--primary); color:#fff; }
+.cc-apply-btn.available:hover { background:#1a40b8; }
+
+/* 分潤計算顯示 */
+.share-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px; margin-top:12px; font-size:13px; }
+.share-row { display:flex; justify-content:space-between; padding:4px 0; }
+.share-row.total { font-weight:700; border-top:1px solid var(--gray-200); margin-top:6px; padding-top:8px; color:var(--primary); }
+
+/* 我的申請 */
+.app-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:18px; margin-bottom:12px; }
+.app-status-pending  { background:#fef3c7; color:#92400e; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.app-status-approved { background:#d1fae5; color:#065f46; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.app-status-rejected { background:#fee2e2; color:#991b1b; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+
+/* 評分星星 */
+.stars { color:#f59e0b; font-size:16px; letter-spacing:2px; }
+
+/* 申請 Modal */
+.apply-type-btn { padding:12px 20px; border:2px solid var(--gray-200); border-radius:10px; cursor:pointer; background:#fff; font-size:14px; font-weight:500; text-align:center; flex:1; }
+.apply-type-btn.selected { border-color:var(--primary); background:#eff6ff; color:var(--primary); }
+.apply-type-btn:hover { border-color:var(--primary); }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2>
+      <p id="sidebarOrgName"></p>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-page="marketplace" href="/marketplace"><span class="icon">🏪</span>接案廣場</a>
+    </nav>
+    <div style="padding:16px;margin-top:auto">
+      <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:2px" id="sidebarUserName"></div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6)" id="sidebarUserRole"></div>
+      <button id="logoutBtn" style="margin-top:12px;padding:6px 14px;border:1px solid rgba(255,255,255,.3);border-radius:6px;background:none;color:#fff;font-size:12px;cursor:pointer;width:100%">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <div class="top-bar">
+      <div class="top-bar-title">接案廣場</div>
+    </div>
+
+    <div class="content" style="max-width:860px">
+      <!-- 學員評分摘要 -->
+      <div id="ratingBanner" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:13px;opacity:.85">我的評分</div>
+          <div id="ratingValue" style="font-size:28px;font-weight:700"></div>
+        </div>
+        <div style="font-size:13px;opacity:.85" id="ratingCount"></div>
+        <div id="ratingStars" class="stars" style="font-size:20px"></div>
+      </div>
+
+      <!-- Tab -->
+      <div class="mp-tabs">
+        <div class="mp-tab active" data-tab="market">案件廣場</div>
+        <div class="mp-tab" data-tab="my">我的申請</div>
+      </div>
+
+      <div class="mp-pane active" id="tab-market">
+        <div id="filterBar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <select id="filterType" onchange="renderMarket()" style="padding:6px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
+            <option value="">全部類型</option>
+            <option value="home">居家</option>
+            <option value="commercial">商空</option>
+            <option value="elevator">電梯</option>
+            <option value="glass">玻璃</option>
+            <option value="extra">外快</option>
+            <option value="other">其他</option>
+          </select>
+          <select id="filterApply" onchange="renderMarket()" style="padding:6px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
+            <option value="">全部狀態</option>
+            <option value="available">尚未申請</option>
+            <option value="applied">已申請</option>
+          </select>
+        </div>
+        <div id="marketList"></div>
+      </div>
+
+      <div class="mp-pane" id="tab-my">
+        <div id="myAppList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 申請 Modal -->
+<div class="modal-overlay" id="applyModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3>申請接案</h3>
+      <button class="modal-close" onclick="closeModal('applyModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="applyInfo" style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:16px;font-size:14px"></div>
+      <div class="form-group">
+        <label style="font-weight:600;margin-bottom:8px;display:block">申請類型 *</label>
+        <div id="applyTypeBtns" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- 分潤預覽 -->
+      <div id="sharePreview" style="display:none" class="share-box">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">分潤預估</div>
+        <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span id="sp_total">—</span></div>
+        <div class="share-row"><span style="color:var(--gray-500)">材料成本</span><span id="sp_mat">—</span></div>
+        <div class="share-row"><span style="color:var(--gray-500)">毛利</span><span id="sp_gross">—</span></div>
+        <div class="share-row"><span style="color:var(--gray-500)">場勘費</span><span id="sp_survey">—</span></div>
+        <div class="share-row"><span style="color:var(--gray-500)">施工費</span><span id="sp_install">—</span></div>
+        <div class="share-row total"><span>可分潤金額</span><span id="sp_shareable">—</span></div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:10px;line-height:1.7" id="sp_breakdown"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('applyModal')">取消</button>
+      <button class="btn btn-primary" onclick="submitApply()">確認申請</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const CASE_TYPE_MAP = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+const APPLY_TYPE_MAP = { full:'全案負責', survey:'場勘', install:'施工' };
+const APPLY_TYPE_DESC = {
+  full:    '業務＋場勘＋施工＋售後，全程負責',
+  survey:  '僅負責場勘丈量，總部負責售後',
+  install: '僅負責施工安裝，總部負責售後',
+};
+// 分潤比例（可分潤金額 × %）
+const SHARE_RATES = {
+  full:    { label:'全案業務', pct:0.3 },
+  survey:  { label:'場勘師傅', pct:0.20 },
+  install: { label:'施工師傅', pct:0.30 },
+};
+
+let marketData = [], myApps = [], currentUser = null;
+let applyingCase = null, selectedApplyType = null;
+
+async function init() {
+  currentUser = await loadUser();
+  if (!currentUser) return;
+
+  // 載入評分摘要
+  const ratingRes = await fetch(`/api/marketplace/student/${currentUser.id}`);
+  if (ratingRes.ok) {
+    const { avg, count } = await ratingRes.json();
+    if (count > 0) {
+      document.getElementById('ratingBanner').style.display = 'flex';
+      document.getElementById('ratingValue').textContent = avg;
+      document.getElementById('ratingCount').textContent = `共 ${count} 筆評分`;
+      document.getElementById('ratingStars').textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
+    }
+  }
+
+  await loadAll();
+
+  document.querySelectorAll('.mp-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.mp-tab,.mp-pane').forEach(el => el.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+async function loadAll() {
+  const [mRes, aRes] = await Promise.all([
+    fetch('/api/marketplace'),
+    fetch('/api/marketplace/my'),
+  ]);
+  marketData = mRes.ok ? await mRes.json() : [];
+  myApps     = aRes.ok ? await aRes.json() : [];
+  renderMarket();
+  renderMyApps();
+}
+
+function renderMarket() {
+  const el = document.getElementById('marketList');
+  const typeFilter  = document.getElementById('filterType').value;
+  const applyFilter = document.getElementById('filterApply').value;
+
+  let list = [...marketData];
+  if (typeFilter)  list = list.filter(c => c.case_type === typeFilter);
+  if (applyFilter === 'available') list = list.filter(c => !c.app_id);
+  if (applyFilter === 'applied')   list = list.filter(c => !!c.app_id);
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📭</div>目前沒有符合條件的案件</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(c => {
+    const types = (c.outsource_types || []).map(t =>
+      `<span class="cc-tag type-${t}">${APPLY_TYPE_MAP[t] || t}</span>`
+    ).join('');
+    const statusBtn = renderApplyBtn(c);
+    const amountHtml = c.final_price
+      ? `<span class="cc-amount">$${Number(c.final_price).toLocaleString()}</span>`
+      : c.quoted_price
+        ? `<span class="cc-amount">約 $${Number(c.quoted_price).toLocaleString()}</span>`
+        : '';
+    return `
+    <div class="case-card">
+      <div class="cc-head">
+        <div>
+          <div class="cc-title">${c.title}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${c.case_number} · ${c.org_name || ''}</div>
+        </div>
+        <div style="text-align:right">
+          ${amountHtml}
+          ${c.avg_rating ? `<div class="stars" style="font-size:12px;margin-top:4px">${'★'.repeat(Math.round(c.avg_rating))} ${c.avg_rating}</div>` : ''}
+        </div>
+      </div>
+      <div class="cc-meta">
+        <span class="cc-tag">${CASE_TYPE_MAP[c.case_type] || c.case_type}</span>
+        ${c.location ? `<span class="cc-tag">📍 ${c.location}</span>` : ''}
+        ${types}
+      </div>
+      ${c.description ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:10px">${c.description.slice(0,120)}${c.description.length>120?'…':''}</div>` : ''}
+      <div style="display:flex;justify-content:flex-end">
+        ${statusBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderApplyBtn(c) {
+  if (c.app_status === 'pending')  return `<span class="cc-apply-btn pending">審核中…</span>`;
+  if (c.app_status === 'approved') return `<span class="cc-apply-btn approved">✅ 已接案（${APPLY_TYPE_MAP[c.app_type]}）</span>`;
+  if (c.app_status === 'rejected') return `<button class="cc-apply-btn rejected" onclick="openApply(${c.id})">重新申請</button>`;
+  return `<button class="cc-apply-btn available" onclick="openApply(${c.id})">我要接這個案件</button>`;
+}
+
+function renderMyApps() {
+  const el = document.getElementById('myAppList');
+  if (!myApps.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div>尚未申請任何案件</div>`;
+    return;
+  }
+  el.innerHTML = myApps.map(a => {
+    const statusHtml = {
+      pending:  `<span class="app-status-pending">⏳ 審核中</span>`,
+      approved: `<span class="app-status-approved">✅ 已核准</span>`,
+      rejected: `<span class="app-status-rejected">❌ 未核准</span>`,
+    }[a.status] || '';
+
+    const clientHtml = a.status === 'approved' ? `
+      <div style="margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px">
+        <div style="font-weight:600;color:#065f46;margin-bottom:6px">📋 客戶資訊（已解鎖）</div>
+        ${a.client_name    ? `<div>姓名：${a.client_name}</div>` : ''}
+        ${a.client_phone   ? `<div>電話：${a.client_phone}</div>` : ''}
+        ${a.client_address ? `<div>地址：${a.client_address}</div>` : ''}
+      </div>` : '';
+
+    const shareHtml = a.status === 'approved' ? renderShareCalc(a) : '';
+
+    return `
+    <div class="app-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:15px;font-weight:600">${a.title}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${a.case_number} · 申請類型：${APPLY_TYPE_MAP[a.apply_type]}</div>
+        </div>
+        ${statusHtml}
+      </div>
+      ${a.hq_note ? `<div style="font-size:13px;color:var(--gray-500);margin-top:8px;padding:8px 10px;background:var(--gray-50);border-radius:6px">備注：${a.hq_note}</div>` : ''}
+      ${clientHtml}
+      ${shareHtml}
+    </div>`;
+  }).join('');
+}
+
+function renderShareCalc(a) {
+  const total    = a.final_price || a.quoted_price;
+  if (!total) return '';
+  const mat      = a.material_cost || 0;
+  const gross    = total - mat;
+  const survey   = a.survey_fee || 0;
+  const install  = a.install_fee || 0;
+  const shareable = Math.max(0, gross - survey - install);
+  const rate     = SHARE_RATES[a.apply_type];
+  const myShare  = rate ? Math.round(shareable * rate.pct) : 0;
+
+  return `
+  <div class="share-box" style="margin-top:12px">
+    <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">分潤預估</div>
+    <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span>$${Number(total).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">材料成本</span><span>$${Number(mat).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">毛利</span><span>$${Number(gross).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">場勘費</span><span>$${Number(survey).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">施工費</span><span>$${Number(install).toLocaleString()}</span></div>
+    <div class="share-row total"><span>可分潤金額</span><span>$${Number(shareable).toLocaleString()}</span></div>
+    ${rate ? `<div style="font-size:12px;color:var(--primary);margin-top:8px;font-weight:600">
+      我的分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ $${myShare.toLocaleString()}
+    </div>` : ''}
+    <div style="font-size:11px;color:var(--gray-400);margin-top:6px;line-height:1.6">
+      分潤比例：總部30%・負責業務10~20%・監工10%・施工30%・品保10%
+    </div>
+  </div>`;
+}
+
+// ── 申請 Modal ────────────────────────────────────────────────
+function openApply(caseId) {
+  const c = marketData.find(x => x.id === caseId);
+  if (!c) return;
+  applyingCase = c;
+  selectedApplyType = null;
+
+  document.getElementById('applyInfo').innerHTML = `
+    <strong>${c.title}</strong>
+    <div style="font-size:12px;color:var(--gray-500);margin-top:4px">${c.case_number} · ${c.location || ''} · ${CASE_TYPE_MAP[c.case_type]}</div>
+  `;
+
+  const types = c.outsource_types || [];
+  document.getElementById('applyTypeBtns').innerHTML = types.map(t => `
+    <button class="apply-type-btn" onclick="selectApplyType('${t}')" id="atype_${t}">
+      <div style="font-size:15px;margin-bottom:4px">${APPLY_TYPE_MAP[t]}</div>
+      <div style="font-size:11px;color:var(--gray-500)">${APPLY_TYPE_DESC[t]}</div>
+    </button>
+  `).join('');
+
+  document.getElementById('sharePreview').style.display = 'none';
+  document.getElementById('applyModal').classList.add('open');
+}
+
+function selectApplyType(t) {
+  selectedApplyType = t;
+  document.querySelectorAll('.apply-type-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('atype_' + t)?.classList.add('selected');
+
+  const c = applyingCase;
+  const total = c.final_price || c.quoted_price;
+  if (total) {
+    const mat      = c.material_cost || 0;
+    const gross    = total - mat;
+    const survey   = c.survey_fee || 0;
+    const install  = c.install_fee || 0;
+    const shareable = Math.max(0, gross - survey - install);
+    const rate     = SHARE_RATES[t];
+
+    document.getElementById('sp_total').textContent    = `$${Number(total).toLocaleString()}`;
+    document.getElementById('sp_mat').textContent      = `$${Number(mat).toLocaleString()}`;
+    document.getElementById('sp_gross').textContent    = `$${Number(gross).toLocaleString()}`;
+    document.getElementById('sp_survey').textContent   = `$${Number(survey).toLocaleString()}`;
+    document.getElementById('sp_install').textContent  = `$${Number(install).toLocaleString()}`;
+    document.getElementById('sp_shareable').textContent = `$${Number(shareable).toLocaleString()}`;
+    document.getElementById('sp_breakdown').innerHTML  = rate
+      ? `我的預估分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ <strong style="color:var(--primary)">$${Math.round(shareable*rate.pct).toLocaleString()}</strong>`
+      : '';
+    document.getElementById('sharePreview').style.display = '';
+  }
+}
+
+async function submitApply() {
+  if (!applyingCase || !selectedApplyType) return showToast('請選擇申請類型', 'error');
+  const res = await fetch(`/api/marketplace/${applyingCase.id}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apply_type: selectedApplyType }),
+  });
+  if (res.ok) {
+    closeModal('applyModal');
+    showToast('申請已送出，等待總部審核');
+    await loadAll();
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '申請失敗', 'error');
+  }
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>
