@@ -75,7 +75,7 @@
 
     <div class="content" style="max-width:860px">
       <!-- 學員評分摘要 -->
-      <div id="ratingBanner" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div id="ratingBanner" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:16px;flex-wrap:wrap">
         <div>
           <div style="font-size:13px;opacity:.85">我的評分</div>
           <div id="ratingValue" style="font-size:28px;font-weight:700"></div>
@@ -172,7 +172,7 @@ const SHARE_RATES = {
   install: { label:'施工師傅', pct:0.30 },
 };
 
-let marketData = [], myApps = [], myTasks = [], currentUser = null;
+let marketData = [], myApps = [], myTasks = [];
 let applyingCase = null, selectedApplyType = null;
 
 async function init() {

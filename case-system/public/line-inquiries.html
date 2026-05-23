@@ -188,7 +188,7 @@
   </div>
 </div>
 
-<script src="/auth-check.js"></script>
+<script src="/js/common.js"></script>
 <script>
 let currentStatus = 'all';
 let currentId     = null;
@@ -214,10 +214,7 @@ window.addEventListener('DOMContentLoaded', () => {
     searchTimer = setTimeout(loadList, 280);
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    location.href = '/';
-  });
+  // logoutBtn 由 common.js 處理
 });
 
 // ── 載入統計 ───────────────────────────────────────────────
@@ -482,13 +479,7 @@ function fmtTime(ts) {
   return `${mm}/${dd} ${hh}:${mi}`;
 }
 
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.textContent = msg;
-  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;pointer-events:none;transition:opacity .3s';
-  document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
-}
+// showToast 由 common.js 提供
 </script>
 </body>
 </html>
