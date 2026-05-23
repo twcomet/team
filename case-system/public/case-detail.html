@@ -665,9 +665,30 @@ function renderDispatches(dispatches) {
     el.innerHTML = `<p style="color:#6b7280;font-size:14px;text-align:center;padding:32px">尚無派工記錄，點擊「新增派工」開始安排施工</p>`;
     return;
   }
-  el.innerHTML = dispatches.map(d => {
+
+  // 施工日人工成本摘要
+  const installDisps = dispatches.filter(d => d.dispatch_type === 'install');
+  const totalPersons = installDisps.reduce((s, d) => s + (d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0), 0);
+  const installFee = caseData.install_fee;
+  let summaryHtml = '';
+  if (installDisps.length > 0 && installFee) {
+    const perPerson = totalPersons ? Math.round(installFee / totalPersons) : 0;
+    summaryHtml = `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap">
+      <span>📅 施工 <strong>${installDisps.length}</strong> 天</span>
+      <span>👷 總人次 <strong>${totalPersons}</strong> 人次</span>
+      <span>每人次 <strong>$${perPerson.toLocaleString()}</strong></span>
+      <span style="color:#16a34a;font-weight:600">人工成本合計 $${installFee.toLocaleString()}</span>
+    </div>`;
+  }
+
+  const statusMap = { pending:'待確認', confirmed:'已確認', done:'✅完成', cancelled:'❌取消' };
+  el.innerHTML = summaryHtml + dispatches.map(d => {
     const [tag, tagClass] = (DISPATCH_TAGS[d.dispatch_type] || '派工 tag-install').split(' ');
-    const statusMap = { pending:'待確認', confirmed:'已確認', done:'✅完成', cancelled:'❌取消' };
+    const wCount = d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0;
+    const laborHtml = (d.dispatch_type === 'install' && d.labor_cost != null)
+      ? `<span style="margin-left:16px;color:#16a34a;font-weight:600">人工 $${Math.round(d.labor_cost).toLocaleString()}（${wCount} 人）</span>`
+      : (wCount ? `<span style="margin-left:16px;color:#6b7280">${wCount} 人</span>` : '');
     return `
     <div class="dispatch-card">
       <div class="dc-header">
@@ -680,10 +701,12 @@ function renderDispatches(dispatches) {
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:13px;color:#6b7280">${statusMap[d.status] || d.status}</span>
           <button class="btn btn-ghost btn-sm" onclick="editDispatch(${d.id})">編輯</button>
+          <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteDispatch(${d.id})">刪除</button>
         </div>
       </div>
       <div style="font-size:13px;color:#374151">
         <span>👷 ${d.installer_names || '（尚未指派人員）'}</span>
+        ${laborHtml}
         ${d.material ? `<span style="margin-left:16px">🎨 ${d.material}</span>` : ''}
       </div>
       ${d.notes ? `<div style="font-size:12px;color:#6b7280;margin-top:6px">${d.notes}</div>` : ''}
@@ -691,9 +714,16 @@ function renderDispatches(dispatches) {
   }).join('');
 }
 
+async function deleteDispatch(did) {
+  if (!confirm('確定刪除此派工記錄？')) return;
+  await fetch(`/api/cases/${caseId}/dispatches/${did}`, { method: 'DELETE' });
+  await loadCase();
+  showToast('已刪除');
+}
+
 function buildUserCheckboxes(selectedIds = []) {
   const container = document.getElementById('d_users');
-  const techUsers = users.filter(u => ['owner','hq_tech','branch_tech','contractor_install'].includes(u.role));
+  const techUsers = users.filter(u => u.active !== 0);
   container.innerHTML = techUsers.map(u => `
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--gray-200);${selectedIds.includes(u.id)?'background:#dbeafe;border-color:var(--primary)':''}">
       <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">

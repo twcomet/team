@@ -13,6 +13,26 @@ function genCaseNumber(org_id) {
   return `${prefix}-${String(count + 1).padStart(3, '0')}`;
 }
 
+// 依 install_fee / 總人次 重算每筆施工派工的 labor_cost
+function recalcLaborCost(case_id) {
+  const c = db.prepare(`SELECT install_fee FROM cases WHERE id=?`).get(case_id);
+  const rows = db.prepare(`
+    SELECT d.id, COUNT(du.user_id) AS worker_count
+    FROM dispatches d
+    LEFT JOIN dispatch_users du ON du.dispatch_id = d.id
+    WHERE d.case_id=? AND d.dispatch_type='install'
+    GROUP BY d.id
+  `).all(case_id);
+  const totalPersons = rows.reduce((s, r) => s + (r.worker_count || 0), 0);
+  const upd = db.prepare(`UPDATE dispatches SET labor_cost=? WHERE id=?`);
+  if (!c?.install_fee || !totalPersons) {
+    rows.forEach(r => upd.run(null, r.id));
+    return;
+  }
+  const perPerson = c.install_fee / totalPersons;
+  rows.forEach(r => upd.run((r.worker_count || 0) * perPerson, r.id));
+}
+
 function recalcCase(case_id) {
   const items = db.prepare(`SELECT * FROM case_items WHERE case_id = ?`).all(case_id);
   const quoted_price = items.reduce((s, i) => s + (i.subtotal || 0), 0);
@@ -224,6 +244,7 @@ router.put('/:id', requireAuth, (req, res) => {
   db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'update', 'cases', ?, ?)`)
     .run(req.session.user.id, req.params.id, `更新案件資訊`);
 
+  recalcLaborCost(Number(req.params.id));
   res.json({ ok: true });
 });
 
@@ -347,6 +368,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
     }
   }
 
+  recalcLaborCost(case_id);
   res.json({ ok: true, id: did });
 });
 
@@ -366,6 +388,14 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
       db.prepare(`INSERT INTO dispatch_users (dispatch_id, user_id, role_in_dispatch) VALUES (?, ?, 'lead')`).run(req.params.did, uid);
     });
   }
+  recalcLaborCost(Number(req.params.id));
+  res.json({ ok: true });
+});
+
+router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
+  db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
+  db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, req.params.id);
+  recalcLaborCost(Number(req.params.id));
   res.json({ ok: true });
 });
 

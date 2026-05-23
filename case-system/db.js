@@ -352,6 +352,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
   created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 _addCol('dispatch_materials', 'material_id', 'INTEGER REFERENCES materials(id)');
+_addCol('dispatches', 'labor_cost', 'REAL');
 
 // ── 案件狀態升級 → 7 階段流程 ────────────────────────────────
 // 條件：只有舊 schema 含 survey_scheduled（舊 CHECK 枚舉值）才需遷移
