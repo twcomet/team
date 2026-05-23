@@ -84,6 +84,36 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     location.href = '/';
   });
+
+  // ── 手機版漢堡選單 ──────────────────────────────────────
+  const topBar  = document.querySelector('.top-bar');
+  const sidebar = document.querySelector('.sidebar');
+  if (topBar && sidebar) {
+    // 注入背景遮罩
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+
+    // 注入漢堡按鈕（插在 top-bar 最前面）
+    const btn = document.createElement('button');
+    btn.className = 'mobile-menu-btn';
+    btn.setAttribute('aria-label', '選單');
+    btn.innerHTML = '<span></span><span></span><span></span>';
+    topBar.insertBefore(btn, topBar.firstChild);
+
+    const openSidebar  = () => { sidebar.classList.add('open');  backdrop.classList.add('open'); };
+    const closeSidebar = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
+
+    btn.addEventListener('click', () =>
+      sidebar.classList.contains('open') ? closeSidebar() : openSidebar()
+    );
+    backdrop.addEventListener('click', closeSidebar);
+
+    // 點選選單項目後自動收合（手機）
+    sidebar.querySelectorAll('.nav-item').forEach(el =>
+      el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); })
+    );
+  }
 });
 
 async function fetchUsers() {

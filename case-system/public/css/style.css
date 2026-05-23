@@ -143,15 +143,46 @@ tr:hover td { background: var(--gray-50); }
 .unscheduled-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 8px; background: #fff; }
 .unscheduled-item .case-num { font-size: 12px; color: var(--gray-500); font-family: monospace; }
 
+/* ── Hamburger / Mobile Nav ──────────────────────────────── */
+.mobile-menu-btn {
+  display: none; background: none; border: none; cursor: pointer;
+  padding: 6px 8px; border-radius: 8px; color: var(--gray-700);
+  flex-direction: column; gap: 5px; margin-right: 12px;
+}
+.mobile-menu-btn span { display: block; width: 22px; height: 2px; background: currentColor; border-radius: 2px; transition: all .2s; }
+.sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
+.sidebar-backdrop.open { display: block; }
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); transition: transform .25s; }
+  .mobile-menu-btn { display: flex; }
+  .sidebar { transform: translateX(-100%); transition: transform .25s; z-index: 100; }
   .sidebar.open { transform: translateX(0); }
   .main-content { margin-left: 0; }
+  .top-bar { padding: 0 12px; }
+  .page-body { padding: 16px 12px; }
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  /* 表格在手機自動捲動 */
+  table { min-width: 520px; }
+  /* Modal 全寬 */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 16px 16px 0 0; max-height: 92vh; overflow-y: auto; }
+  /* 卡片 header 可換行 */
+  .card-header { flex-wrap: wrap; gap: 8px; }
+  /* filter bar 單行捲動 */
+  .filter-bar { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .filter-bar select, .filter-bar input { flex-shrink: 0; }
+  /* 行事曆縮小 */
+  .cal-cell { min-height: 70px; padding: 4px; }
+  .cal-case-pill { font-size: 10px; }
 }
 
 .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-500); }
 .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+@media (max-width: 768px) {
+  #sf_sigCanvas { height: 180px !important; }
+}
 .tag-target-form { display: flex; gap: 8px; align-items: center; font-size: 13px; }
