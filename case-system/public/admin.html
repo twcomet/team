@@ -219,11 +219,9 @@
         </label>
       </div>
       <div class="form-group" style="margin-top:4px">
-        <label style="display:flex;align-items:center;gap:6px">
-          LINE Notify Token
-          <a href="https://notify-bot.line.me/my/" target="_blank" style="font-size:11px;color:var(--primary)">（申請 Token）</a>
-        </label>
-        <input type="text" id="userLineToken" placeholder="貼上 LINE Notify 個人 Token，派工時自動通知本人" style="font-size:13px">
+        <label style="font-size:13px;font-weight:500;margin-bottom:6px;display:block">LINE 派工通知</label>
+        <div id="lineBindStatus" style="padding:8px 12px;border-radius:8px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200)"></div>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:6px">員工加入繪新 LINE 官方帳號好友後，傳送「<strong>綁定 帳號</strong>」即可自動綁定。例如：綁定 flora</div>
       </div>
 
       <!-- 功能頁面權限 -->
@@ -491,7 +489,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userIsManager').checked = false;
   document.getElementById('userCanSeeAmounts').checked = false;
   document.getElementById('userDailyCost').value = '';
-  document.getElementById('userLineToken').value = '';
+  document.getElementById('lineBindStatus').innerHTML = '<span style="color:var(--gray-400)">新增帳號後員工自行綁定</span>';
   document.getElementById('userUsername').disabled = false;
   document.getElementById('pwdHint').style.display = 'none';
   document.getElementById('userOrgId').value = currentUser.org_id;
@@ -516,6 +514,25 @@ document.getElementById('userRole').addEventListener('change', function() {
   document.getElementById('perm_page_payments').checked  = !!p.page_payments;
 });
 
+async function unbindLine(userId) {
+  if (!confirm('確定解除此帳號的 LINE 綁定？')) return;
+  const u = allUsers.find(x => x.id === userId);
+  if (!u) return;
+  const perms = u.permissions ? JSON.parse(u.permissions) : {};
+  const res = await fetch(`/api/users/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: u.name, role: u.role, department: u.department,
+      is_manager: u.is_manager, can_see_amounts: u.can_see_amounts,
+      service_areas: JSON.parse(u.service_areas || '[]'), active: u.active,
+      permissions: perms, daily_cost: u.daily_cost, line_user_id: null,
+    }),
+  });
+  if (res.ok) { showToast('已解除 LINE 綁定'); await loadData(); openEditUser(userId); }
+  else showToast('解除失敗', 'error');
+}
+
 function openEditUser(id) {
   const u = allUsers.find(x => x.id === id);
   if (!u) return;
@@ -533,7 +550,12 @@ function openEditUser(id) {
   document.getElementById('userIsManager').checked = !!u.is_manager;
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
-  document.getElementById('userLineToken').value = u.line_notify_token || '';
+  const bindEl = document.getElementById('lineBindStatus');
+  if (u.line_user_id) {
+    bindEl.innerHTML = `<span style="color:#057a55;font-weight:600">✅ 已綁定 LINE</span> <button onclick="unbindLine(${u.id})" style="margin-left:8px;font-size:11px;color:#e02424;background:none;border:none;cursor:pointer;text-decoration:underline">解除綁定</button>`;
+  } else {
+    bindEl.innerHTML = `<span style="color:var(--gray-500)">尚未綁定</span> — 請員工在 LINE 加入繪新官方帳號好友，傳送「<strong>綁定 ${u.username}</strong>」`;
+  }
   const perms = u.permissions ? JSON.parse(u.permissions) : {};
   const isOwner = u.role === 'owner';
   document.getElementById('perm_page_dashboard').checked = isOwner || (perms.page_dashboard ?? true);
@@ -557,7 +579,6 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     is_manager: document.getElementById('userIsManager').checked,
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
-    line_notify_token: document.getElementById('userLineToken').value.trim() || null,
     active: 1,
     permissions: {
       page_dashboard: document.getElementById('perm_page_dashboard').checked,

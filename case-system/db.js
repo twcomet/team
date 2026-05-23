@@ -269,6 +269,7 @@ _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
 _addCol('users',      'line_notify_token', 'TEXT');
+_addCol('users',      'line_user_id',      'TEXT');
 _addCol('cases',     'survey_fee_paid',   'INTEGER DEFAULT 0');
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');

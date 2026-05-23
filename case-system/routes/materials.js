@@ -6,8 +6,10 @@ const router = express.Router();
 // ── 膜料目錄 ─────────────────────────────────────────────────
 
 router.get('/', requireAuth, (req, res) => {
-  const org_id = req.session.user.org_id;
-  const rows = db.prepare(`SELECT * FROM materials WHERE org_id = ? ORDER BY brand, model`).all(org_id);
+  const { org_id, view_all_branches } = req.session.user;
+  const rows = view_all_branches
+    ? db.prepare(`SELECT * FROM materials ORDER BY brand, model`).all()
+    : db.prepare(`SELECT * FROM materials WHERE org_id = ? ORDER BY brand, model`).all(org_id);
   res.json(rows);
 });
 
@@ -79,10 +81,10 @@ router.get('/branches', requireAuth, (req, res) => {
 
 // GET /:matId/rolls — 取得某膜料的所有捲料（可選 ?branch= 篩選）
 router.get('/:matId/rolls', requireAuth, (req, res) => {
-  const org_id = req.session.user.org_id;
+  const { org_id, view_all_branches } = req.session.user;
   const { branch } = req.query;
-  const params = [req.params.matId, org_id];
-  let where = 'WHERE r.material_id = ? AND r.org_id = ?';
+  let where = view_all_branches ? 'WHERE r.material_id = ?' : 'WHERE r.material_id = ? AND r.org_id = ?';
+  const params = view_all_branches ? [req.params.matId] : [req.params.matId, org_id];
   if (branch) { where += ' AND r.branch = ?'; params.push(branch); }
   const rolls = db.prepare(`
     SELECT r.*, u.name AS created_by_name
@@ -154,6 +156,21 @@ router.get('/:matId/logs', requireAuth, (req, res) => {
     ORDER BY l.logged_at DESC
   `).all(req.params.matId, org_id);
   res.json(logs);
+});
+
+// POST /case-reserves — 新增案件膜料保留（不指定捲料，僅計畫用量）
+router.post('/case-reserves', requireAuth, (req, res) => {
+  const { org_id } = req.session.user;
+  const uid = req.session.user.id;
+  const { material_id, case_id, meters, notes } = req.body;
+  if (!material_id || !case_id || !meters || meters <= 0) {
+    return res.status(400).json({ error: '請填寫膜料、案件及用量' });
+  }
+  db.prepare(`
+    INSERT INTO material_logs (roll_id, material_id, org_id, log_type, case_id, meters, notes, logged_by)
+    VALUES (NULL, ?, ?, 'reserve', ?, ?, ?, ?)
+  `).run(material_id, org_id, case_id, -Math.abs(meters), notes || null, uid);
+  res.json({ ok: true });
 });
 
 // GET /rolls/:rid/logs — 取得某捲料的流水帳
@@ -228,10 +245,12 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
 
   // 已取消的保留不需還原（庫存刪除保留時已還原）
   if (log.status !== 'cancelled') {
-    const newRemaining = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(log.roll_id)?.remaining_meters || 0;
-    const restored = newRemaining - log.meters;
-    db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
-      .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
+    if (log.roll_id) {
+      const newRemaining = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(log.roll_id)?.remaining_meters || 0;
+      const restored = newRemaining - log.meters;
+      db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
+        .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
+    }
     db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
       .run(log.meters, log.material_id, org_id);
   }

@@ -29,6 +29,15 @@ async function replyMessage(replyToken, text) {
   });
 }
 
+async function pushMessage(lineUserId, text) {
+  if (!lineUserId || !ACCESS_TOKEN()) return;
+  await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ACCESS_TOKEN()}` },
+    body: JSON.stringify({ to: lineUserId, messages: [{ type: 'text', text }] })
+  }).catch(err => console.error('LINE push error:', err));
+}
+
 function genCaseNumber() {
   const now = new Date();
   const yy  = String(now.getFullYear()).slice(-2);
@@ -74,6 +83,22 @@ async function handleText(event) {
 
   const text    = event.message.text.trim();
   const msgDate = new Date(event.timestamp).toISOString().slice(0, 10);
+
+  // 員工綁定：發送「綁定 帳號」即可連結 LINE 帳號
+  const bindMatch = text.match(/^綁定\s+(\S+)$/);
+  if (bindMatch) {
+    const username = bindMatch[1];
+    const emp = db.prepare(`SELECT id, name FROM users WHERE username = ? AND active = 1`).get(username);
+    if (!emp) {
+      await replyMessage(event.replyToken, `找不到帳號「${username}」，請確認系統登入帳號後再試。`);
+      return;
+    }
+    db.prepare(`UPDATE users SET line_user_id = ? WHERE id = ?`).run(userId, emp.id);
+    await replyMessage(event.replyToken,
+      `✅ 綁定成功！\n帳號：${username}（${emp.name}）\n\n之後派工通知將直接傳送到這裡。`
+    );
+    return;
+  }
 
   // 取得 LINE 顯示名稱
   const profile     = await lineGet(`/v2/bot/profile/${userId}`);
@@ -135,3 +160,4 @@ async function handleFollow(event) {
 }
 
 module.exports = router;
+module.exports.pushMessage = pushMessage;

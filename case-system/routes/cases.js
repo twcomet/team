@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, orgFilter } = require('../middleware/auth');
+const { pushMessage } = require('./webhook');
 const router = express.Router();
 
 // ── 派工通知 ─────────────────────────────────────────────────
@@ -23,15 +24,11 @@ async function notifyDispatch(case_id, dispatch_type, scheduled_date, user_ids, 
     if (uid === creatorId) continue; // 不通知自己
     insNotif.run(uid, title, body, case_id, url);
 
-    // LINE Notify（選用）
-    const u = db.prepare(`SELECT line_notify_token FROM users WHERE id=?`).get(uid);
-    if (u?.line_notify_token) {
-      const msg = `\n【繪新 ${typeLabel}派工】\n${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}`;
-      fetch('https://notify-api.line.me/api/notify', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${u.line_notify_token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `message=${encodeURIComponent(msg)}`,
-      }).catch(() => {});
+    // LINE Messaging API 推播
+    const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+    if (u?.line_user_id) {
+      const msg = `【繪新 ${typeLabel}派工通知】\n案件：${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}`;
+      pushMessage(u.line_user_id, msg);
     }
   }
 }
