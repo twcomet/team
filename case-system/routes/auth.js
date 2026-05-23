@@ -49,8 +49,11 @@ router.post('/login', (req, res) => {
   db.prepare(`INSERT INTO audit_logs (user_id, action, detail) VALUES (?, 'login', ?)`)
     .run(user.id, `登入：${req.ip}`);
 
+  req.session.user.contract_signed_at = user.contract_signed_at || null;
+
   const isStudent = ['contractor_install','contractor_sales'].includes(user.role);
-  res.json({ ok: true, user: req.session.user, redirect: isStudent ? '/marketplace' : null });
+  const needsContract = !user.contract_signed_at;
+  res.json({ ok: true, user: req.session.user, redirect: needsContract ? '/contract' : (isStudent ? '/marketplace' : null) });
 });
 
 router.post('/logout', (req, res) => {
@@ -64,6 +67,26 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: '未登入' });
   res.json(req.session.user);
+});
+
+// POST /api/auth/sign-contract
+router.post('/sign-contract', (req, res) => {
+  if (!req.session?.user) return res.status(401).json({ error: '請先登入' });
+  const { signature } = req.body;
+  if (!signature) return res.status(400).json({ error: 'missing signature' });
+
+  const INTERNAL = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr','branch_manager','branch_sales','branch_tech'];
+  const contractType = INTERNAL.includes(req.session.user.role) ? 'employee' : 'contractor';
+  const now = new Date().toISOString().slice(0,10);
+
+  db.prepare(`UPDATE users SET contract_signed_at=?, contract_type=?, contract_signature=? WHERE id=?`)
+    .run(now, contractType, signature, req.session.user.id);
+  req.session.user.contract_signed_at = now;
+
+  db.prepare(`INSERT INTO audit_logs (user_id, action, detail) VALUES (?, 'contract_signed', ?)`)
+    .run(req.session.user.id, `合約類型：${contractType}，簽署日期：${now}`);
+
+  res.json({ ok: true, contract_type: contractType });
 });
 
 module.exports = router;

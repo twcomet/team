@@ -1261,4 +1261,9 @@ db.exec(`
   );
 `);
 
+// 合約簽署
+_addCol('users', 'contract_signed_at', 'DATETIME DEFAULT NULL');
+_addCol('users', 'contract_type',      "TEXT DEFAULT NULL");
+_addCol('users', 'contract_signature', 'TEXT DEFAULT NULL');
+
 module.exports = db;

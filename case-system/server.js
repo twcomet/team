@@ -88,9 +88,21 @@ function requirePagePerm(page) {
   };
 }
 
+// 合約簽署頁（已登入但未簽約才可進入）
+app.get('/contract', requireAuth, (req, res) => {
+  if (req.session.user.contract_signed_at) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'contract.html'));
+});
+
+function requireContract(req, res, next) {
+  const u = req.session?.user;
+  if (u && !u.contract_signed_at) return res.redirect('/contract');
+  next();
+}
+
 const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
-  app.get(`/${page}`, requireAuth, requirePagePerm(page), (req, res) => {
+  app.get(`/${page}`, requireAuth, requireContract, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));
   });
 });
