@@ -97,6 +97,14 @@ router.get('/sign/:token', (req, res) => {
   res.json(form);
 });
 
+// PATCH /api/survey/cases/:id/fee  → 更新場勘費 & 是否已收
+router.patch('/cases/:id/fee', requireAuth, (req, res) => {
+  const { survey_fee, survey_fee_paid } = req.body;
+  db.prepare(`UPDATE cases SET survey_fee=?, survey_fee_paid=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(survey_fee ?? null, survey_fee_paid ? 1 : 0, req.params.id);
+  res.json({ ok: true });
+});
+
 // POST /api/survey/cases/:id/send-link  → 寄場勘連結給客戶
 router.post('/cases/:id/send-link', requireAuth, async (req, res) => {
   const { email, token } = req.body;

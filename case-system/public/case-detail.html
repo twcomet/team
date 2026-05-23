@@ -302,6 +302,14 @@
             <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
           </div>
           <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
+          <div style="display:flex;gap:16px;align-items:center;margin-top:4px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px">
+              場勘費 $<input type="number" id="sf_fee" placeholder="0" min="0" style="width:100px;padding:5px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+              <input type="checkbox" id="sf_fee_paid"> 已收取場勘費
+            </label>
+          </div>
         </div>
         <!-- 場勘項目 -->
         <div class="sf-tab-section">
@@ -337,6 +345,23 @@
           <div style="display:flex;gap:8px;align-items:center">
             <input type="email" id="sf_emailInput" placeholder="輸入客戶 Email，系統自動發送連結" style="flex:1;padding:8px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
             <button class="btn btn-primary btn-sm" id="sf_sendEmailBtn">✉ 發送連結</button>
+          </div>
+        </div>
+        <!-- 現場客戶簽名 -->
+        <div id="sf_signSection" class="sf-tab-section" style="display:none">
+          <h4 class="sf-tab-title">客戶現場簽名</h4>
+          <div id="sf_signedDisplay" style="display:none;text-align:center">
+            <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px;margin-bottom:12px;color:#065f46;font-size:13px;font-weight:500">✅ 客戶已簽名確認</div>
+            <img id="sf_signedImg" src="" style="max-width:320px;border:1px solid var(--gray-200);border-radius:8px;display:none">
+          </div>
+          <div id="sf_canvasWrap">
+            <p style="font-size:13px;color:var(--gray-500);margin-bottom:10px">請客戶在下方空白處以手指或滑鼠簽名：</p>
+            <canvas id="sf_sigCanvas" style="width:100%;height:160px;border:2px dashed var(--gray-300);border-radius:8px;background:#fafafa;cursor:crosshair;touch-action:none;display:block"></canvas>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+              <span style="font-size:12px;color:var(--gray-400)">請在上方框內簽名</span>
+              <button class="btn btn-ghost btn-sm" id="sf_clearSigBtn">清除重寫</button>
+            </div>
+            <button class="btn btn-primary" id="sf_submitSigBtn" style="width:100%;margin-top:12px">確認並送出簽名</button>
           </div>
         </div>
       </div>
@@ -817,11 +842,13 @@ async function loadSurveyTab() {
     sel.appendChild(opt);
   });
 
-  // 預設帶入地址
-  document.getElementById('sf_address').value = caseData.location || '';
-  document.getElementById('sf_contact').value = caseData.client_name || '';
-  document.getElementById('sf_phone').value   = caseData.client_phone || '';
-  document.getElementById('sf_date').value    = new Date().toISOString().split('T')[0];
+  // 預設帶入地址 & 場勘費
+  document.getElementById('sf_address').value  = caseData.location || '';
+  document.getElementById('sf_contact').value  = caseData.client_name || '';
+  document.getElementById('sf_phone').value    = caseData.client_phone || '';
+  document.getElementById('sf_date').value     = new Date().toISOString().split('T')[0];
+  document.getElementById('sf_fee').value      = caseData.survey_fee != null ? caseData.survey_fee : '';
+  document.getElementById('sf_fee_paid').checked = !!caseData.survey_fee_paid;
   sel.value = currentUser.id;
 
   // 載入現有場勘單
@@ -864,6 +891,21 @@ function sf_updateStatus(status, signedAt, token) {
     const url = `${location.origin}/sign/${token}`;
     document.getElementById('sf_shareUrl').textContent = url;
     document.getElementById('sf_openBtn').href = url;
+    // 顯示簽名區
+    document.getElementById('sf_signSection').style.display = '';
+    if (status === 'signed') {
+      document.getElementById('sf_canvasWrap').style.display = 'none';
+      document.getElementById('sf_signedDisplay').style.display = '';
+      if (sfData?.client_signature) {
+        const img = document.getElementById('sf_signedImg');
+        img.src = sfData.client_signature;
+        img.style.display = '';
+      }
+    } else {
+      document.getElementById('sf_canvasWrap').style.display = '';
+      document.getElementById('sf_signedDisplay').style.display = 'none';
+      sf_setupCanvas();
+    }
   }
 }
 
@@ -919,6 +961,15 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     extra_notes:  document.getElementById('sf_notes').value || null,
     status:       sfData?.status || 'draft',
   };
+  // 同步存場勘費
+  await fetch(`/api/survey/cases/${caseId}/fee`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      survey_fee:      parseFloat(document.getElementById('sf_fee').value) || null,
+      survey_fee_paid: document.getElementById('sf_fee_paid').checked,
+    })
+  });
+
   const method = sfData ? 'PUT' : 'POST';
   const res = await fetch(`/api/survey/cases/${caseId}/survey-form`, {
     method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -967,6 +1018,54 @@ document.getElementById('sf_sendEmailBtn').addEventListener('click', async () =>
     // SMTP 未設定，fallback：顯示 mailto
     window.location.href = `mailto:${email}?subject=繪新場勘單&body=請點擊以下連結查看場勘單並完成簽名：${encodeURIComponent(data.link)}`;
   } else { showToast(data.error || '發送失敗', 'error'); }
+});
+
+// ── 簽名 Canvas ───────────────────────────────────────────
+let _sfSigCtx = null, _sfSigHas = false;
+function sf_setupCanvas() {
+  const canvas = document.getElementById('sf_sigCanvas');
+  if (!canvas) return;
+  _sfSigHas = false;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  _sfSigCtx = ctx;
+  let drawing = false;
+  const pos = e => { const r = canvas.getBoundingClientRect(), s = e.touches ? e.touches[0] : e; return { x: s.clientX - r.left, y: s.clientY - r.top }; };
+  canvas.addEventListener('pointerdown', e => { drawing = true; _sfSigHas = true; canvas.style.borderColor = 'var(--primary)'; const {x,y}=pos(e); ctx.beginPath(); ctx.moveTo(x,y); });
+  canvas.addEventListener('pointermove', e => { if (!drawing) return; e.preventDefault(); const {x,y}=pos(e); ctx.lineTo(x,y); ctx.stroke(); });
+  canvas.addEventListener('pointerup',    () => { drawing = false; });
+  canvas.addEventListener('pointerleave', () => { drawing = false; });
+}
+
+document.getElementById('sf_clearSigBtn').addEventListener('click', () => {
+  const canvas = document.getElementById('sf_sigCanvas');
+  if (!canvas) return;
+  _sfSigCtx?.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.style.borderColor = '';
+  _sfSigHas = false;
+});
+
+document.getElementById('sf_submitSigBtn').addEventListener('click', async () => {
+  if (!_sfSigHas) { showToast('請先在上方框內簽名', 'error'); return; }
+  const canvas = document.getElementById('sf_sigCanvas');
+  const sig = canvas.toDataURL('image/png');
+  const res = await fetch(`/api/survey/sign/${sfData.share_token}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ signature: sig })
+  });
+  if (res.ok) {
+    showToast('簽名完成！');
+    sfLoaded = false;
+    await loadSurveyTab();
+  } else {
+    const err = await res.json();
+    showToast(err.error || '送出失敗', 'error');
+  }
 });
 
 document.getElementById('addDispatchBtn').addEventListener('click', () => {
