@@ -551,30 +551,39 @@ if (!catExists) {
 db.exec(`UPDATE ledger_categories SET section='income'  WHERE type='income'  AND section IS NULL`);
 db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND section IS NULL`);
 
-// 新增損益表專用科目（來自 PDF 格式；若已存在則跳過）
+// 新增損益表專用科目（來自業務分類；若已存在則跳過）
 {
   const getCat = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`);
   const insCat = db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active) VALUES (?, ?, ?, ?, 1)`);
   const plCats = [
-    // ── 收入 ──
-    ['income','income','廣告輸出-自產',1],
-    ['income','income','廣告輸出-外包',2],
-    ['income','income','PAROI',3],
-    ['income','income','裝漠貼膜-bodaq',4],
-    ['income','income','裝漠貼膜-LG',5],
-    ['income','income','裝漠貼膜-3M',6],
-    ['income','income','裝漠貼膜-翰可',7],
-    ['income','income','裝漠貼膜-保護膜',8],
-    ['income','income','電梯貼膜-改色',9],
-    ['income','income','電梯貼膜-保護',10],
-    ['income','income','DS彩貼',11],
-    ['income','income','施工代工',12],
-    ['income','income','銷售膜料',13],
-    ['income','income','調控薄膜',14],
-    ['income','income','隔熱紙-收入',15],
-    ['income','income','無框畫',16],
-    ['income','income','玻璃膜-收入',17],
-    ['income','income','穩得-收入',18],
+    // ── 收入（27 個，確認版 2026-05）──
+    ['income','income','裝漠貼膜-bodaq',  1],
+    ['income','income','裝漠貼膜-LG',     2],
+    ['income','income','裝漠貼膜-3M',     3],
+    ['income','income','裝漠貼膜-PAROI',  4],
+    ['income','income','裝漠貼膜-保護膜', 5],
+    ['income','income','裝漠貼膜-其他',   6],
+    ['income','income','電梯貼膜-改色',   7],
+    ['income','income','電梯貼膜-保護膜', 8],
+    ['income','income','車體貼膜',        9],
+    ['income','income','廣告輸出-自產',   10],
+    ['income','income','廣告輸出-外包',   11],
+    ['income','income','玻璃膜施工',      12],
+    ['income','income','隔熱紙施工',      13],
+    ['income','income','銷售膜料-bodaq',  14],
+    ['income','income','銷售膜料-LG',     15],
+    ['income','income','銷售膜料-3M',     16],
+    ['income','income','銷售膜料-翰可',   17],
+    ['income','income','銷售膜料-隔熱紙', 18],
+    ['income','income','銷售膜料-其他',   19],
+    ['income','income','施工代工',        20],
+    ['income','income','學院課程',        21],
+    ['income','income','DS彩貼',          22],
+    ['income','income','穩得',            23],
+    ['income','income','調控薄膜',        24],
+    ['income','income','無框畫',          25],
+    ['income','income','設計費',          26],
+    ['income','income','其他收入',        27],
     // ── 成本 ──
     ['expense','cost','成本-大陸陳總',101],
     ['expense','cost','成本-LINTEC',102],
@@ -649,6 +658,43 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
   for (const [type, section, name, order] of plCats) {
     if (!getCat.get(name)) insCat.run(type, section, name, order);
   }
+}
+
+// ── 收入科目整理 migration（偵測舊版才執行）────────────────────
+// 條件：舊版有 '裝漠貼膜-翰可' 或 'PAROI'（獨立科目，非 裝漠貼膜-PAROI）
+const _needIncomeMigration =
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='裝漠貼膜-翰可' AND section='income' LIMIT 1`).get() ||
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='PAROI' AND section='income' LIMIT 1`).get();
+
+if (_needIncomeMigration) {
+  // 刪除舊名稱 / 錯誤科目
+  const _delOld = [
+    '裝漠貼膜-翰可', 'PAROI',
+    '電梯貼膜-保護', '隔熱紙-收入', '玻璃膜-收入', '穩得-收入',
+    '銷售膜料',       // 舊的通用銷售科目，已細分品牌
+  ];
+  _delOld.forEach(n => db.prepare(`DELETE FROM ledger_categories WHERE name=? AND section='income'`).run(n));
+
+  // 停用舊通用科目（有人用過就不刪，改停用）
+  ['施工款','訂金','尾款','材料銷售'].forEach(n =>
+    db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=? AND section='income'`).run(n)
+  );
+
+  // 重新設定排序（確保損益表顯示順序正確）
+  const _finalOrder = [
+    '裝漠貼膜-bodaq','裝漠貼膜-LG','裝漠貼膜-3M','裝漠貼膜-PAROI',
+    '裝漠貼膜-保護膜','裝漠貼膜-其他',
+    '電梯貼膜-改色','電梯貼膜-保護膜',
+    '車體貼膜',
+    '廣告輸出-自產','廣告輸出-外包',
+    '玻璃膜施工','隔熱紙施工',
+    '銷售膜料-bodaq','銷售膜料-LG','銷售膜料-3M',
+    '銷售膜料-翰可','銷售膜料-隔熱紙','銷售膜料-其他',
+    '施工代工','學院課程',
+    'DS彩貼','穩得','調控薄膜','無框畫','設計費','其他收入',
+  ];
+  const _updOrder = db.prepare(`UPDATE ledger_categories SET sort_order=?,active=1 WHERE name=? AND section='income'`);
+  _finalOrder.forEach((n, i) => _updOrder.run(i + 1, n));
 }
 
 // ── 客戶分類（含折扣設定）───────────────────────────────────
