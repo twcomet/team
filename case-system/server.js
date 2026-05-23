@@ -88,7 +88,7 @@ function requirePagePerm(page) {
   };
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));

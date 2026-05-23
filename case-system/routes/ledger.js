@@ -106,4 +106,44 @@ router.delete('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/ledger/scan — 用 Claude Vision 辨識收據圖片
+router.post('/scan', requireAuth, async (req, res) => {
+  const { image_base64, mime_type } = req.body;
+  if (!image_base64 || !mime_type) return res.status(400).json({ error: 'missing image' });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mime_type, data: image_base64 } },
+            { type: 'text', text: '請從這張收據/發票/單據圖片提取帳務資訊，僅回傳 JSON（不含其他說明文字）：\n{"date":"YYYY-MM-DD","amount":數字,"type":"income或expense","description":"一句話說明","category_hint":"科目關鍵字"}\n\n規則：收款單/發票/入帳=income；支出收據/費用單=expense。日期轉為台灣本地日期 YYYY-MM-DD 格式。無法判斷的欄位填 null。' }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) return res.status(502).json({ error: 'AI API error' });
+    const data = await response.json();
+    const text = data.content?.[0]?.text?.trim() || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return res.status(422).json({ error: 'parse error' });
+    res.json(JSON.parse(match[0]));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收支流水帳 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+.stat-card  { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; }
+.stat-card .label { font-size:12px; color:var(--gray-500); margin-bottom:6px; }
+.stat-card .value { font-size:22px; font-weight:700; }
+.stat-card .value.success { color:#057a55; }
+.stat-card .value.danger  { color:#e02424; }
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.ledger-income  { color:#057a55; font-weight:600; }
+.ledger-expense { color:#e02424; font-weight:600; }
+.badge-income  { background:#def7ec; color:#057a55; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-expense { background:#fde8e8; color:#e02424; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+.cat-list { display:flex; flex-direction:column; gap:6px; max-height:380px; overflow-y:auto; }
+.cat-item { display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--gray-50); border-radius:8px; font-size:13px; }
+.cat-item .cat-name { flex:1; }
+.cat-item .cat-type { padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; }
+.cat-item .cat-type.income  { background:#def7ec; color:#057a55; }
+.cat-item .cat-type.expense { background:#fde8e8; color:#e02424; }
+.cat-inactive { opacity:.4; }
+.scan-box { background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:12px; margin-bottom:16px; }
+.scan-label { display:flex; align-items:center; gap:8px; padding:7px 14px; background:#fff; border:1px solid #7dd3fc; color:#0369a1; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s; }
+.scan-label:hover { background:#e0f2fe; }
+#scanImg { max-height:100px; border-radius:6px; border:1px solid var(--gray-200); margin-top:8px; display:block; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+        <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases"          href="/cases">          <span class="icon">📋</span>案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">收支流水帳</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="manageCatBtn" style="display:none" onclick="openCatModal()">管理科目</button>
+        <button class="btn btn-primary btn-sm" onclick="openLedgerModal()">＋ 新增</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="filter-bar">
+        <label style="font-size:13px;color:var(--gray-600)">月份</label>
+        <input type="month" id="filterMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <label style="font-size:13px;color:var(--gray-600)">類型</label>
+        <select id="filterLedgerType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部</option>
+          <option value="income">收入</option>
+          <option value="expense">支出</option>
+        </select>
+        <span id="orgFilterWrap" style="display:none;align-items:center;gap:6px">
+          <label style="font-size:13px;color:var(--gray-600)">店別</label>
+          <select id="filterOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+          </select>
+        </span>
+        <button class="btn btn-ghost btn-sm" id="clearLedgerBtn">清除篩選</button>
+      </div>
+
+      <div class="stats-grid" id="ledgerStats"></div>
+
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>類型</th><th>科目</th><th>說明</th>
+                  <th>關聯案件</th><th>店別</th>
+                  <th style="text-align:right">收入</th>
+                  <th style="text-align:right">支出</th>
+                  <th>登記人</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="ledgerBody"></tbody>
+              <tfoot id="ledgerFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div class="modal-overlay" id="ledgerModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="ledgerModalTitle">新增帳務記錄</h3>
+      <button class="modal-close" onclick="document.getElementById('ledgerModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 掃描單據 -->
+      <div class="scan-box">
+        <div style="display:flex;align-items:center;gap:10px">
+          <label class="scan-label" for="scanInput">
+            📷 拍照掃描單據
+          </label>
+          <input type="file" id="scanInput" accept="image/*" style="display:none" onchange="handleScanImage(event)">
+          <span id="scanStatus" style="font-size:12px;color:var(--gray-500)">拍照或選取收據，自動辨識填入</span>
+        </div>
+        <div id="scanPreview" style="display:none">
+          <img id="scanImg" src="">
+          <div id="scanResult" style="font-size:12px;color:#057a55;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <input type="hidden" id="ledgerEntryId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>日期 *</label>
+          <input type="date" id="ledgerDate">
+        </div>
+        <div class="form-group">
+          <label>類型 *</label>
+          <select id="ledgerType" onchange="updateCategoryOptions()">
+            <option value="income">收入</option>
+            <option value="expense">支出</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>科目 *</label>
+          <select id="ledgerCategory"></select>
+        </div>
+        <div class="form-group">
+          <label>金額 *</label>
+          <input type="number" id="ledgerAmount" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>店別</label>
+        <select id="ledgerOrg"><option value="">— 請選擇 —</option></select>
+      </div>
+      <div class="form-group">
+        <label>說明</label>
+        <input type="text" id="ledgerDescription" placeholder="例如：HX2605-001 尾款入帳">
+      </div>
+      <div class="form-group" style="position:relative">
+        <label>關聯案件（選填）</label>
+        <input type="text" id="ledgerCaseSearch" placeholder="輸入案號或客戶名搜尋…" autocomplete="off">
+        <input type="hidden" id="ledgerCaseId">
+        <div id="ledgerCaseSuggest" style="display:none;position:absolute;z-index:100;background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;font-size:13px;min-width:300px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('ledgerModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveLedgerEntry()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理科目 Modal -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>管理會計科目</h3>
+      <button class="modal-close" onclick="document.getElementById('catModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-bar" style="margin-bottom:12px">
+        <select id="newCatType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="income">收入科目</option>
+          <option value="expense">支出科目</option>
+        </select>
+        <input type="text" id="newCatName" placeholder="新科目名稱" style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addCategory()">新增</button>
+      </div>
+      <div class="filter-bar" style="margin-bottom:12px">
+        <label style="font-size:13px;color:var(--gray-600)">顯示</label>
+        <select id="catFilterType" onchange="renderCatList()" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部</option>
+          <option value="income">收入</option>
+          <option value="expense">支出</option>
+        </select>
+      </div>
+      <div class="cat-list" id="catList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('catModal').classList.remove('open')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
+
+async function init() {
+  await loadUser();
+  highlightNav('ledger');
+
+  const now = new Date();
+  document.getElementById('filterMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  await Promise.all([loadOrgs(), loadCategories(), loadCasesForSearch()]);
+  updateCategoryOptions();
+  populateOrgSelects();
+  await loadLedger();
+
+  document.getElementById('filterMonth').addEventListener('change', loadLedger);
+  document.getElementById('filterLedgerType').addEventListener('change', applyFilter);
+  document.getElementById('filterOrg').addEventListener('change', loadLedger);
+  document.getElementById('clearLedgerBtn').addEventListener('click', () => {
+    document.getElementById('filterLedgerType').value = '';
+    document.getElementById('filterOrg').value = '';
+    loadLedger();
+  });
+  document.getElementById('ledgerCaseSearch').addEventListener('input', onCaseSearch);
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#ledgerCaseSuggest') && !e.target.closest('#ledgerCaseSearch'))
+      document.getElementById('ledgerCaseSuggest').style.display = 'none';
+  });
+}
+
+async function loadOrgs() {
+  const res = await fetch('/api/orgs');
+  allOrgs = await res.json();
+}
+
+async function loadCategories() {
+  const res = await fetch('/api/ledger/categories');
+  allCategories = await res.json();
+}
+
+function populateOrgSelects() {
+  const viewAll = currentUser?.view_all_branches;
+  if (viewAll) {
+    document.getElementById('orgFilterWrap').style.display = 'flex';
+    const sel = document.getElementById('filterOrg');
+    allOrgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; sel.appendChild(opt); });
+  }
+  const orgSel = document.getElementById('ledgerOrg');
+  if (viewAll) {
+    allOrgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; orgSel.appendChild(opt); });
+  } else if (currentUser?.org_id) {
+    const myOrg = allOrgs.find(o => o.id === currentUser.org_id);
+    if (myOrg) { orgSel.innerHTML = `<option value="${myOrg.id}">${myOrg.name}</option>`; orgSel.disabled = true; }
+  }
+  if (currentUser?.role === 'owner') document.getElementById('manageCatBtn').style.display = '';
+}
+
+async function loadLedger() {
+  const month = document.getElementById('filterMonth').value;
+  const orgId = document.getElementById('filterOrg')?.value || '';
+  let url = '/api/ledger';
+  const params = [];
+  if (month) params.push(`from=${month}-01`, `to=${month}-31`);
+  if (orgId) params.push(`org_id=${orgId}`);
+  if (params.length) url += '?' + params.join('&');
+  const res = await fetch(url);
+  allLedger = await res.json();
+  applyFilter();
+}
+
+function applyFilter() {
+  const type = document.getElementById('filterLedgerType').value;
+  const rows = type ? allLedger.filter(r => r.type === type) : allLedger;
+  renderStats(rows);
+  renderTable(rows);
+}
+
+function renderStats(rows) {
+  const inc = rows.filter(r => r.type==='income').reduce((s,r) => s+r.amount, 0);
+  const exp = rows.filter(r => r.type==='expense').reduce((s,r) => s+r.amount, 0);
+  const net = inc - exp;
+  document.getElementById('ledgerStats').innerHTML = `
+    <div class="stat-card"><div class="label">收入合計</div><div class="value success">${fmt(inc)}</div></div>
+    <div class="stat-card"><div class="label">支出合計</div><div class="value danger">${fmt(exp)}</div></div>
+    <div class="stat-card"><div class="label">淨餘</div><div class="value ${net>=0?'success':'danger'}">${fmt(net)}</div></div>
+    <div class="stat-card"><div class="label">筆數</div><div class="value">${rows.length} 筆</div></div>
+  `;
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('ledgerBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">📒</div>尚無帳務記錄</div></td></tr>';
+    document.getElementById('ledgerFoot').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
+      <td>${r.category}</td>
+      <td style="color:var(--gray-600)">${r.description||'—'}</td>
+      <td>${r.case_number?`<code style="font-size:11px">${r.case_number}</code>`:'—'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
+      <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
+      <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r.created_by_name||'—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editEntry(${r.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteEntry(${r.id})">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const inc = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const exp = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  const net = inc - exp;
+  document.getElementById('ledgerFoot').innerHTML = `
+    <tr style="font-weight:700;background:var(--gray-50)">
+      <td colspan="6">合計</td>
+      <td style="text-align:right;color:#057a55">${fmt(inc)}</td>
+      <td style="text-align:right;color:#e02424">${fmt(exp)}</td>
+      <td colspan="2" style="color:${net>=0?'#057a55':'#e02424'}">淨餘 ${fmt(net)}</td>
+    </tr>
+  `;
+}
+
+// ─── Modal ────────────────────────────────────────────────────
+function updateCategoryOptions() {
+  const type = document.getElementById('ledgerType').value;
+  const cats = allCategories.filter(c => c.type===type && c.active);
+  const sel  = document.getElementById('ledgerCategory');
+  sel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+}
+
+function openLedgerModal(entry=null) {
+  document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : '新增帳務記錄';
+  document.getElementById('ledgerEntryId').value    = entry ? entry.id : '';
+  document.getElementById('ledgerDate').value       = entry ? entry.date : new Date().toISOString().slice(0,10);
+  document.getElementById('ledgerType').value       = entry ? entry.type : 'expense';
+  updateCategoryOptions();
+  if (entry) document.getElementById('ledgerCategory').value = entry.category;
+  document.getElementById('ledgerAmount').value      = entry ? entry.amount : '';
+  document.getElementById('ledgerDescription').value = entry ? (entry.description||'') : '';
+  document.getElementById('ledgerCaseSearch').value  = entry ? (entry.case_number||'') : '';
+  document.getElementById('ledgerCaseId').value      = entry ? (entry.case_id||'') : '';
+  const orgSel = document.getElementById('ledgerOrg');
+  if (entry?.org_id) orgSel.value = entry.org_id;
+  else if (currentUser?.org_id) orgSel.value = currentUser.org_id;
+  // reset scan
+  document.getElementById('scanStatus').textContent = '拍照或選取收據，自動辨識填入';
+  document.getElementById('scanPreview').style.display = 'none';
+  document.getElementById('scanInput').value = '';
+  document.getElementById('ledgerModal').classList.add('open');
+}
+
+function editEntry(id) { const e = allLedger.find(r=>r.id===id); if (e) openLedgerModal(e); }
+
+async function deleteEntry(id) {
+  if (!confirm('確定刪除這筆記錄？')) return;
+  const res = await fetch(`/api/ledger/${id}`, { method:'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadLedger(); }
+  else showToast('刪除失敗', 'error');
+}
+
+async function saveLedgerEntry() {
+  const id = document.getElementById('ledgerEntryId').value;
+  const body = {
+    date:        document.getElementById('ledgerDate').value,
+    type:        document.getElementById('ledgerType').value,
+    category:    document.getElementById('ledgerCategory').value,
+    amount:      parseFloat(document.getElementById('ledgerAmount').value),
+    description: document.getElementById('ledgerDescription').value,
+    case_id:     document.getElementById('ledgerCaseId').value || null,
+    org_id:      document.getElementById('ledgerOrg').value || null,
+  };
+  if (!body.date || !body.amount || isNaN(body.amount)) return showToast('請填寫日期與金額','error');
+  const url = id ? `/api/ledger/${id}` : '/api/ledger';
+  const res = await fetch(url, { method:id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (res.ok) { document.getElementById('ledgerModal').classList.remove('open'); showToast(id?'已更新':'已新增'); await loadLedger(); }
+  else showToast('儲存失敗', 'error');
+}
+
+// ─── 拍照掃描 ─────────────────────────────────────────────────
+async function handleScanImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl  = document.getElementById('scanStatus');
+  const previewEl = document.getElementById('scanPreview');
+  const imgEl     = document.getElementById('scanImg');
+  const resultEl  = document.getElementById('scanResult');
+
+  previewEl.style.display = '';
+  resultEl.textContent = '';
+  statusEl.textContent = '⏳ 辨識中…';
+
+  // 顯示預覽
+  const dataUrl = await new Promise(resolve => {
+    const r = new FileReader(); r.onload = e => resolve(e.target.result); r.readAsDataURL(file);
+  });
+  imgEl.src = dataUrl;
+
+  try {
+    const res = await fetch('/api/ledger/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: dataUrl.split(',')[1], mime_type: file.type })
+    });
+
+    if (!res.ok) throw new Error('scan failed');
+    const data = await res.json();
+
+    if (data.date) document.getElementById('ledgerDate').value = data.date;
+    if (data.amount) document.getElementById('ledgerAmount').value = data.amount;
+    if (data.type) { document.getElementById('ledgerType').value = data.type; updateCategoryOptions(); }
+    if (data.description) document.getElementById('ledgerDescription').value = data.description;
+    if (data.category_hint) {
+      const type = data.type || document.getElementById('ledgerType').value;
+      const cats = allCategories.filter(c => c.type===type && c.active);
+      const hint = data.category_hint;
+      const match = cats.find(c => c.name.includes(hint) || hint.includes(c.name));
+      if (match) document.getElementById('ledgerCategory').value = match.name;
+    }
+
+    statusEl.textContent = '✅ 辨識完成，請確認後儲存';
+    const typeLabel = (data.type==='income') ? '收入' : '支出';
+    resultEl.textContent = `${typeLabel} $${data.amount || '?'} — ${data.description || ''}`;
+  } catch(e) {
+    statusEl.textContent = '⚠️ 辨識失敗，請手動填寫';
+  }
+}
+
+// ─── 科目管理 ─────────────────────────────────────────────────
+async function openCatModal() {
+  await loadCategories(); renderCatList();
+  document.getElementById('catModal').classList.add('open');
+}
+
+function renderCatList() {
+  const typeFilter = document.getElementById('catFilterType').value;
+  const cats = typeFilter ? allCategories.filter(c=>c.type===typeFilter) : allCategories;
+  document.getElementById('catList').innerHTML = cats.map(c=>`
+    <div class="cat-item ${c.active?'':'cat-inactive'}">
+      <span class="cat-type ${c.type}">${c.type==='income'?'收入':'支出'}</span>
+      <span class="cat-name">${c.name}</span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleCat(${c.id},${c.active})">${c.active?'停用':'啟用'}</button>
+      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteCat(${c.id})">刪除</button>
+    </div>
+  `).join('') || '<div style="color:var(--gray-400);text-align:center;padding:16px">尚無科目</div>';
+}
+
+async function addCategory() {
+  const type = document.getElementById('newCatType').value;
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) return showToast('請輸入科目名稱','error');
+  const res = await fetch('/api/ledger/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,name})});
+  if (res.ok) { document.getElementById('newCatName').value=''; showToast('科目已新增'); await loadCategories(); renderCatList(); updateCategoryOptions(); }
+  else showToast('新增失敗','error');
+}
+
+async function toggleCat(id, active) {
+  const cat = allCategories.find(c=>c.id===id); if(!cat) return;
+  await fetch(`/api/ledger/categories/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...cat,active:active?0:1})});
+  await loadCategories(); renderCatList(); updateCategoryOptions();
+}
+
+async function deleteCat(id) {
+  if (!confirm('確定刪除此科目？')) return;
+  const res = await fetch(`/api/ledger/categories/${id}`,{method:'DELETE'});
+  if (res.ok) { showToast('已刪除'); await loadCategories(); renderCatList(); updateCategoryOptions(); }
+  else showToast('刪除失敗','error');
+}
+
+// ─── 案件搜尋 ─────────────────────────────────────────────────
+async function loadCasesForSearch() {
+  const res = await fetch('/api/cases'); allCases = await res.json();
+}
+
+function onCaseSearch(e) {
+  const q = e.target.value.trim().toLowerCase();
+  const box = document.getElementById('ledgerCaseSuggest');
+  if (!q) { box.style.display='none'; document.getElementById('ledgerCaseId').value=''; return; }
+  const matches = allCases.filter(c => `${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)).slice(0,8);
+  if (!matches.length) { box.style.display='none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(c=>`
+    <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+         onmousedown="selectCase(${c.id},'${c.case_number}')">
+      <code style="font-size:11px">${c.case_number}</code>
+      <span style="margin-left:8px">${c.client_name||''}</span>
+      <span style="color:var(--gray-400);font-size:12px;margin-left:4px">${c.title}</span>
+    </div>
+  `).join('');
+}
+
+function selectCase(id, number) {
+  document.getElementById('ledgerCaseId').value = ''+id;
+  document.getElementById('ledgerCaseSearch').value = number;
+  document.getElementById('ledgerCaseSuggest').style.display = 'none';
+}
+
+init();
+</script>
+</body>
+</html>
