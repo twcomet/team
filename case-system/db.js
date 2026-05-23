@@ -570,20 +570,24 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
     ['income','income','廣告輸出-外包',   11],
     ['income','income','玻璃膜施工',      12],
     ['income','income','隔熱紙施工',      13],
-    ['income','income','銷售膜料-bodaq',  14],
-    ['income','income','銷售膜料-LG',     15],
-    ['income','income','銷售膜料-3M',     16],
-    ['income','income','銷售膜料-翰可',   17],
-    ['income','income','銷售膜料-隔熱紙', 18],
-    ['income','income','銷售膜料-其他',   19],
-    ['income','income','施工代工',        20],
-    ['income','income','學院課程',        21],
-    ['income','income','DS彩貼',          22],
-    ['income','income','穩得',            23],
-    ['income','income','調控薄膜',        24],
-    ['income','income','無框畫',          25],
-    ['income','income','設計費',          26],
-    ['income','income','其他收入',        27],
+    ['income','income','防爆膜',          14],
+    ['income','income','銷售膜料-bodaq',  15],
+    ['income','income','銷售膜料-LG',     16],
+    ['income','income','銷售膜料-3M',     17],
+    ['income','income','銷售膜料-翰可',   18],
+    ['income','income','銷售膜料-隔熱紙', 19],
+    ['income','income','銷售膜料-其他',   20],
+    ['income','income','施工代工',        21],
+    ['income','income','學院-課程費',     22],
+    ['income','income','學院-材料銷售',   23],
+    ['income','income','學院-認證考試',   24],
+    ['income','income','學院-其他',       25],
+    ['income','income','DS彩貼',          26],
+    ['income','income','穩得',            27],
+    ['income','income','調控薄膜',        28],
+    ['income','income','無框畫',          29],
+    ['income','income','設計費',          30],
+    ['income','income','其他收入',        31],
     // ── 成本 ──
     ['expense','cost','成本-大陸陳總',101],
     ['expense','cost','成本-LINTEC',102],
@@ -687,14 +691,32 @@ if (_needIncomeMigration) {
     '電梯貼膜-改色','電梯貼膜-保護膜',
     '車體貼膜',
     '廣告輸出-自產','廣告輸出-外包',
-    '玻璃膜施工','隔熱紙施工',
+    '玻璃膜施工','隔熱紙施工','防爆膜',
     '銷售膜料-bodaq','銷售膜料-LG','銷售膜料-3M',
     '銷售膜料-翰可','銷售膜料-隔熱紙','銷售膜料-其他',
-    '施工代工','學院課程',
+    '施工代工',
+    '學院-課程費','學院-材料銷售','學院-認證考試','學院-其他',
     'DS彩貼','穩得','調控薄膜','無框畫','設計費','其他收入',
   ];
   const _updOrder = db.prepare(`UPDATE ledger_categories SET sort_order=?,active=1 WHERE name=? AND section='income'`);
   _finalOrder.forEach((n, i) => _updOrder.run(i + 1, n));
+}
+
+// ── 學院業務展開 migration（「學院課程」→ 4 個子科目）───────────
+const _needAcademyMigration =
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='學院課程' AND section='income' LIMIT 1`).get() &&
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='學院-課程費' AND section='income' LIMIT 1`).get();
+
+if (_needAcademyMigration) {
+  db.prepare(`DELETE FROM ledger_categories WHERE name='學院課程' AND section='income'`).run();
+  // DS彩貼(23)以後全部 +3，騰出 22-25 給學院
+  db.prepare(`UPDATE ledger_categories SET sort_order=sort_order+3 WHERE section='income' AND sort_order>=22`).run();
+  const _insAcad = db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active) VALUES ('income','income',?,?,1)`);
+  _insAcad.run('學院-課程費',   22);
+  _insAcad.run('學院-材料銷售', 23);
+  _insAcad.run('學院-認證考試', 24);
+  _insAcad.run('學院-其他',     25);
+  console.log('✅ 學院業務展開完成（4 子科目）');
 }
 
 // ── 客戶分類（含折扣設定）───────────────────────────────────
