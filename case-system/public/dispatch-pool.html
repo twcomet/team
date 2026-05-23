@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>派案池管理 — 繪新管理系統</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <style>
+    .pool-stats { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+    .stat-card  { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 20px; min-width:130px; }
+    .stat-card .num  { font-size:28px; font-weight:700; color:#1a56db; }
+    .stat-card .lbl  { font-size:12px; color:#6b7280; margin-top:2px; }
+
+    .pool-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden; }
+    .pool-card-head { padding:14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border-bottom:1px solid #f3f4f6; }
+    .pool-card-head .case-num  { font-size:12px; color:#6b7280; font-family:monospace; }
+    .pool-card-head .case-title { font-size:15px; font-weight:600; color:#111827; }
+    .pool-card-head .tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .tag { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:500; }
+    .tag-type    { background:#dbeafe; color:#1e40af; }
+    .tag-region  { background:#fef9c3; color:#713f12; }
+    .tag-open    { background:#dcfce7; color:#166534; }
+    .head-actions { margin-left:auto; display:flex; gap:8px; }
+
+    .apps-section { padding:12px 18px; }
+    .apps-label   { font-size:12px; font-weight:600; color:#374151; margin-bottom:8px; }
+    .app-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:#f9fafb; margin-bottom:6px; flex-wrap:wrap; }
+    .app-row:last-child { margin-bottom:0; }
+    .app-name  { font-size:13px; font-weight:600; color:#111827; }
+    .app-type  { font-size:11px; padding:2px 7px; border-radius:10px; }
+    .app-type-full    { background:#dbeafe; color:#1e40af; }
+    .app-type-survey  { background:#fef3c7; color:#92400e; }
+    .app-type-install { background:#d1fae5; color:#065f46; }
+    .app-status { font-size:11px; color:#6b7280; }
+    .app-actions { margin-left:auto; display:flex; gap:6px; }
+    .app-empty { font-size:13px; color:#9ca3af; padding:6px 0; }
+
+    .btn-approve { padding:5px 12px; border-radius:6px; font-size:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; }
+    .btn-approve:hover { background:#15803d; }
+    .btn-reject  { padding:5px 12px; border-radius:6px; font-size:12px; background:#fff; color:#dc2626; border:1px solid #fca5a5; cursor:pointer; }
+    .btn-reject:hover  { background:#fee2e2; }
+    .btn-remove  { padding:5px 12px; border-radius:6px; font-size:12px; background:#fff; color:#6b7280; border:1px solid #d1d5db; cursor:pointer; }
+    .btn-remove:hover  { background:#f9fafb; }
+    .btn-detail  { padding:5px 12px; border-radius:6px; font-size:12px; background:#eff6ff; color:#1a56db; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+
+    .filter-bar  { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+    .filter-bar select, .filter-bar input { padding:7px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
+
+    .empty-pool { text-align:center; padding:60px 20px; color:#9ca3af; }
+    .empty-pool .icon { font-size:48px; margin-bottom:12px; }
+
+    .badge-pending  { background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-approved { background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+    .badge-rejected { background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+
+    .section-divider { border:none; border-top:1px solid #f3f4f6; margin:0; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2>
+      <p id="sidebarOrgName"></p>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">  <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="cases"          href="/cases">      <span class="icon">📋</span>案件管理</a>
+      <a class="nav-item active" data-page="dispatch-pool" href="/dispatch-pool"><span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="clients"        href="/clients">    <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">   <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="payments"       href="/payments">   <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="materials"      href="/materials">  <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="reports"        href="/reports">    <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">派案池管理</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="loadPool()">重新整理</button>
+        <a href="/cases" class="btn btn-ghost btn-sm">← 案件清單</a>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 統計列 -->
+      <div class="pool-stats" id="poolStats">
+        <div class="stat-card"><div class="num" id="stat-cases">—</div><div class="lbl">案件在池中</div></div>
+        <div class="stat-card"><div class="num" id="stat-apps">—</div><div class="lbl">收到申請</div></div>
+        <div class="stat-card"><div class="num" id="stat-pending" style="color:#c27803">—</div><div class="lbl">待審核</div></div>
+      </div>
+
+      <!-- 篩選列 -->
+      <div class="filter-bar">
+        <select id="filterApps" onchange="renderPool()">
+          <option value="">全部案件</option>
+          <option value="has_pending">有待審申請</option>
+          <option value="no_apps">尚無申請</option>
+        </select>
+        <input type="text" id="filterSearch" placeholder="🔍 搜尋案件…" oninput="renderPool()" style="width:200px">
+      </div>
+
+      <!-- 案件池清單 -->
+      <div id="poolList">
+        <div style="text-align:center;padding:40px;color:#9ca3af">載入中…</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const APPLY_TYPE_LABEL = { full:'全案負責', survey:'僅場勘', install:'僅施工' };
+const CASE_TYPE_LABEL  = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+const STATUS_LABELS_M  = { initial_estimate:'初步估價', survey:'場勘', quoted:'出報價', contracted:'成交', payment:'完工請款', closed:'結案', invalid:'無效' };
+
+let poolData = [];
+
+async function init() {
+  await loadUser();
+  highlightNav('dispatch-pool');
+  if (!currentUser.manage_users) {
+    document.querySelector('.page-body').innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">此頁面需要管理權限</div>';
+    return;
+  }
+  await loadPool();
+}
+
+async function loadPool() {
+  const res = await fetch('/api/marketplace/pool-overview');
+  poolData = res.ok ? await res.json() : [];
+  updateStats();
+  renderPool();
+}
+
+function updateStats() {
+  const totalApps   = poolData.reduce((s, c) => s + c.total_apps, 0);
+  const totalPending = poolData.reduce((s, c) => s + c.pending_count, 0);
+  document.getElementById('stat-cases').textContent   = poolData.length;
+  document.getElementById('stat-apps').textContent    = totalApps;
+  document.getElementById('stat-pending').textContent = totalPending;
+}
+
+function renderPool() {
+  const appFilter = document.getElementById('filterApps').value;
+  const q = document.getElementById('filterSearch').value.trim().toLowerCase();
+
+  let list = poolData;
+  if (appFilter === 'has_pending') list = list.filter(c => c.pending_count > 0);
+  if (appFilter === 'no_apps')     list = list.filter(c => c.total_apps === 0);
+  if (q) list = list.filter(c =>
+    c.case_number?.toLowerCase().includes(q) ||
+    c.title?.toLowerCase().includes(q) ||
+    c.client_name?.toLowerCase().includes(q)
+  );
+
+  const el = document.getElementById('poolList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-pool"><div class="icon">🏊</div>目前沒有案件在池中${appFilter || q ? '<br><span style="font-size:13px">試著移除篩選條件</span>' : ''}</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(c => `
+    <div class="pool-card">
+      <div class="pool-card-head">
+        <div>
+          <div class="case-num">${escHtml(c.case_number)}</div>
+          <div class="case-title">${escHtml(c.title)}</div>
+          ${c.client_name ? `<div style="font-size:12px;color:#6b7280;margin-top:2px">客戶：${escHtml(c.client_name)}</div>` : ''}
+        </div>
+        <div class="tags">
+          <span class="tag tag-type">${CASE_TYPE_LABEL[c.case_type] || c.case_type}</span>
+          ${c.region_name ? `<span class="tag tag-region">📍 ${escHtml(c.region_name)}</span>` : '<span class="tag" style="background:#f3f4f6;color:#6b7280">📍 全區</span>'}
+          <span class="tag tag-open">開放：${c.outsource_types.map(t => APPLY_TYPE_LABEL[t]).join('、')}</span>
+          ${c.pending_count > 0 ? `<span class="tag" style="background:#fef3c7;color:#92400e">⏳ ${c.pending_count} 筆待審</span>` : ''}
+        </div>
+        <div class="head-actions">
+          <a href="/case-detail?id=${c.id}" target="_blank" class="btn-detail">案件詳情 ↗</a>
+          <button class="btn-remove" onclick="removeFromPool(${c.id})">從池中移除</button>
+        </div>
+      </div>
+
+      <div class="apps-section">
+        <div class="apps-label">申請記錄（${c.total_apps} 筆）</div>
+        ${c.applications.length === 0
+          ? `<div class="app-empty">尚無技師申請</div>`
+          : c.applications.map(a => `
+          <div class="app-row">
+            <div>
+              <div class="app-name">${escHtml(a.applicant_name || a.applicant_username)}</div>
+              <div style="margin-top:2px;display:flex;align-items:center;gap:6px">
+                <span class="app-type app-type-${a.apply_type}">${APPLY_TYPE_LABEL[a.apply_type] || a.apply_type}</span>
+                ${a.status === 'pending'  ? '<span class="badge-pending">⏳ 待審核</span>' : ''}
+                ${a.status === 'approved' ? '<span class="badge-approved">✅ 已核准</span>' : ''}
+                ${a.status === 'rejected' ? '<span class="badge-rejected">❌ 未核准</span>' : ''}
+                <span style="font-size:11px;color:#9ca3af">${fmtTime(a.created_at)}</span>
+              </div>
+            </div>
+            ${a.status === 'pending' ? `
+            <div class="app-actions">
+              <button class="btn-approve" onclick="reviewApp(${a.id},'approved')">核准接案</button>
+              <button class="btn-reject"  onclick="reviewApp(${a.id},'rejected')">不採用</button>
+            </div>` : ''}
+          </div>`).join('')
+        }
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 動作 ──────────────────────────────────────────────────
+async function reviewApp(appId, status) {
+  let hq_note = '';
+  if (status === 'rejected') {
+    hq_note = prompt('不採用原因（選填，會通知技師）') ?? '';
+    if (hq_note === null) return; // user cancelled
+  }
+  const res = await fetch(`/api/marketplace/applications/${appId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, hq_note })
+  });
+  if (res.ok) {
+    showToast(status === 'approved' ? '✅ 已核准，技師將收到通知' : '已不採用此申請');
+    await loadPool();
+  } else {
+    const e = await res.json().catch(() => ({}));
+    showToast(e.error || '操作失敗', 'error');
+  }
+}
+
+async function removeFromPool(caseId) {
+  if (!confirm('確定要將此案件從案件池移除嗎？\n技師將看不到此案件，已有的申請記錄仍保留。')) return;
+  const res = await fetch(`/api/marketplace/case-setting/${caseId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outsource_open: false, outsource_types: [] })
+  });
+  if (res.ok) {
+    showToast('已從案件池移除');
+    await loadPool();
+  } else {
+    showToast('操作失敗', 'error');
+  }
+}
+
+// ── 工具 ──────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts.replace(' ','T'));
+  if (isNaN(d)) return ts;
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 3600000)  return `${Math.floor(diff/60000)||1} 分鐘前`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)} 小時前`;
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -69,7 +69,8 @@ const PAGE_PERMS = {
   payments:   'page_payments',
   admin:      'manage_users',
   materials:  'manage_users',
-  reports:    'manage_users',   // 財務報表：老闆專屬
+  reports:       'manage_users',   // 財務報表：老闆專屬
+  'dispatch-pool': 'manage_users',
 };
 
 function requirePagePerm(page) {
@@ -87,7 +88,7 @@ function requirePagePerm(page) {
   };
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));

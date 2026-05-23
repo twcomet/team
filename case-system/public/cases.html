@@ -29,7 +29,8 @@
     <nav class="sidebar-nav">
       <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
       <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>
-      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
+            <a class="nav-item" data-page="dispatch-pool" href="/dispatch-pool"><span class="icon">🏊</span>派案池管理</a>
+<a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
       <a class="nav-item" data-page="clients"   href="/clients">  <span class="icon">👥</span>客戶管理</a>
       <a class="nav-item" data-page="calendar"  href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
       <a class="nav-item" data-page="payments"  href="/payments"> <span class="icon">💰</span>收款追蹤</a>
@@ -82,6 +83,7 @@
                   <th>施工日</th><th>業務</th><th>狀態</th>
                   <th id="amountHeader">報價／成交</th>
                   <th>毛利</th><th>收款</th>
+                  <th id="poolHeader" style="display:none">案件池</th>
                 </tr>
               </thead>
               <tbody id="casesBody"></tbody>
@@ -143,6 +145,35 @@
   </div>
 </div>
 
+<!-- 案件池設定 Modal -->
+<div class="modal-overlay" id="poolModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="poolModalTitle">案件池設定</h3>
+      <button class="modal-close" onclick="document.getElementById('poolModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>可接受的申請類型（可複選）</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer"><input type="checkbox" id="pt_full" value="full"> 全案負責</label>
+          <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer"><input type="checkbox" id="pt_survey" value="survey"> 僅場勘</label>
+          <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer"><input type="checkbox" id="pt_install" value="install"> 僅施工</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>指定區域（不選 = 全區開放）</label>
+        <select id="pool_region"><option value="">全區開放</option></select>
+      </div>
+    </div>
+    <div class="modal-footer" id="poolModalFooter">
+      <button class="btn btn-ghost" onclick="document.getElementById('poolModal').classList.remove('open')">取消</button>
+      <button class="btn btn-danger btn-sm" id="poolRemoveBtn" style="display:none" onclick="savePoolSetting(false)">從池中移除</button>
+      <button class="btn btn-primary" onclick="savePoolSetting(true)">開放到案件池</button>
+    </div>
+  </div>
+</div>
+
 <!-- 快速新增客戶 Modal -->
 <div class="modal-overlay" id="quickClientModal">
   <div class="modal" style="max-width:420px">
@@ -192,6 +223,14 @@ async function init() {
   highlightNav('cases');
   if (!currentUser.can_see_amounts) {
     document.getElementById('amountHeader').style.display = 'none';
+  }
+  if (currentUser.manage_users) {
+    document.getElementById('poolHeader').style.display = '';
+    // 預載區域清單
+    fetch('/api/marketplace/regions').then(r => r.json()).then(regs => {
+      const sel = document.getElementById('pool_region');
+      regs.forEach(r => sel.add(new Option(r.name, r.id)));
+    });
   }
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
@@ -249,6 +288,12 @@ function renderTable(cases) {
       <td ${!currentUser.can_see_amounts ? 'style="display:none"' : ''}>${price ? fmt(price) : '—'}</td>
       <td>${marginDot}${margin != null ? margin + '%' : '—'}</td>
       <td>${paymentBadge(c.payment_status)}</td>
+      <td id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">
+        ${c.outsource_open
+          ? `<button onclick="event.stopPropagation();openPoolModal(${c.id},true)" style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池中</button>`
+          : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 10px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
+        }
+      </td>
     </tr>`;
   }).join('');
 }
@@ -279,6 +324,37 @@ document.getElementById('searchInput').addEventListener('input', e => {
     else loadCases();
   }, 400);
 });
+
+// ── 案件池快速設定 ─────────────────────────────────────────
+let poolTargetId = null;
+function openPoolModal(caseId, isOpen) {
+  poolTargetId = caseId;
+  document.getElementById('poolModalTitle').textContent = isOpen ? '修改案件池設定' : '加入案件池';
+  document.getElementById('poolRemoveBtn').style.display = isOpen ? '' : 'none';
+  // 找目前設定
+  const c = allCases.find(x => x.id === caseId);
+  const types = JSON.parse(c?.outsource_types || '[]');
+  document.getElementById('pt_full').checked    = types.includes('full');
+  document.getElementById('pt_survey').checked  = types.includes('survey');
+  document.getElementById('pt_install').checked = types.includes('install');
+  const regionSel = document.getElementById('pool_region');
+  regionSel.value = c?.region_id || '';
+  document.getElementById('poolModal').classList.add('open');
+}
+async function savePoolSetting(open) {
+  const types = ['full','survey','install'].filter(t => document.getElementById('pt_'+t).checked);
+  if (open && !types.length) { showToast('請選擇至少一種申請類型', 'error'); return; }
+  const region_id = document.getElementById('pool_region').value || null;
+  const res = await fetch(`/api/marketplace/case-setting/${poolTargetId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outsource_open: open, outsource_types: types, region_id })
+  });
+  if (res.ok) {
+    document.getElementById('poolModal').classList.remove('open');
+    showToast(open ? '✅ 已開放到案件池' : '已從案件池移除');
+    await loadCases();
+  } else { showToast('操作失敗', 'error'); }
+}
 
 // 新增案件
 document.getElementById('newCaseBtn').addEventListener('click', () => {
