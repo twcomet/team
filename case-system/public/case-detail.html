@@ -55,6 +55,18 @@
 .log-icon { width:30px; height:30px; border-radius:50%; background:var(--gray-100); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
 .log-text { flex:1; font-size:13px; }
 .log-time { font-size:11px; color:var(--gray-500); }
+/* 場勘 tab */
+.sf-tab-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:20px; margin-bottom:16px; }
+.sf-tab-title { font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--gray-100); }
+.sf-finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 36px; gap:8px; align-items:center; margin-bottom:8px; }
+.sf-finding-row input, .sf-finding-row select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; width:100%; }
+.sf-status-draft  { background:#f9fafb; border:1px solid var(--gray-200); }
+.sf-status-sent   { background:#dbeafe; border:1px solid #93c5fd; color:#1e40af; }
+.sf-status-signed { background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; }
+@media print {
+  .sidebar, .top-bar, .tabs, .tab-pane:not(#tab-survey), #sf_saveBtn, #sf_printBtn, #sf_shareSection { display:none!important; }
+  #tab-survey { display:block!important; }
+}
 </style>
 </head>
 <body>
@@ -107,6 +119,7 @@
       <div class="tabs">
         <div class="tab active" data-tab="basic">基本資訊</div>
         <div class="tab" data-tab="quote">報價明細</div>
+        <div class="tab" data-tab="survey">場勘</div>
         <div class="tab" data-tab="dispatch">派工記錄</div>
         <div class="tab" data-tab="material">膜料使用</div>
         <div class="tab" data-tab="payment">收款</div>
@@ -270,14 +283,69 @@
         </div>
       </div>
 
+      <!-- 場勘 -->
+      <div class="tab-pane" id="tab-survey">
+        <!-- 狀態列 -->
+        <div id="sf_statusBar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;background:#f9fafb;border:1px solid var(--gray-200)">
+          <span id="sf_statusText">草稿</span>
+          <span id="sf_signedInfo" style="display:none;margin-left:auto;font-size:12px"></span>
+        </div>
+        <!-- 基本資訊 -->
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">場勘基本資訊</h4>
+          <div class="form-row">
+            <div class="form-group"><label>場勘日期 *</label><input type="date" id="sf_date"></div>
+            <div class="form-group"><label>場勘人員</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>現場聯絡人</label><input type="text" id="sf_contact" placeholder="王先生"></div>
+            <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
+          </div>
+          <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
+        </div>
+        <!-- 場勘項目 -->
+        <div class="sf-tab-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h4 class="sf-tab-title" style="margin:0">場勘項目紀錄</h4>
+            <button class="btn btn-ghost btn-sm" id="sf_addFindingBtn">＋ 新增項目</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 36px;gap:8px;margin-bottom:8px;font-size:12px;color:var(--gray-500);font-weight:500">
+            <div>施作位置</div><div>材料 / 說明</div><div>寬(cm)</div><div>高(cm)</div><div></div>
+          </div>
+          <div id="sf_findingsList"></div>
+        </div>
+        <!-- 補充說明 -->
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">補充說明</h4>
+          <div class="form-group"><label>拍照紀錄說明</label><textarea id="sf_photos" rows="2" placeholder="照片拍攝位置、特殊狀況紀錄…"></textarea></div>
+          <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
+        </div>
+        <!-- 操作按鈕 -->
+        <div style="display:flex;gap:8px;margin-bottom:20px">
+          <button class="btn btn-primary" id="sf_saveBtn">儲存場勘單</button>
+          <button class="btn btn-ghost" id="sf_printBtn">📄 存成 PDF</button>
+        </div>
+        <!-- 分享 / 發信 -->
+        <div id="sf_shareSection" class="sf-tab-section" style="display:none">
+          <h4 class="sf-tab-title">客戶簽名連結</h4>
+          <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span id="sf_shareUrl" style="flex:1;font-size:13px;color:var(--primary);word-break:break-all"></span>
+            <button class="btn btn-ghost btn-sm" id="sf_copyBtn">複製連結</button>
+            <a id="sf_openBtn" href="#" target="_blank" class="btn btn-ghost btn-sm">開啟</a>
+          </div>
+          <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">客戶開啟後可查看場勘資料並完成簽名確認。</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="email" id="sf_emailInput" placeholder="輸入客戶 Email，系統自動發送連結" style="flex:1;padding:8px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
+            <button class="btn btn-primary btn-sm" id="sf_sendEmailBtn">✉ 發送連結</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 派工記錄 -->
       <div class="tab-pane" id="tab-dispatch">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <p style="font-size:13px;color:var(--gray-500)">大型案件可新增多筆、不同日期</p>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" id="surveyFormBtn">📋 場勘單</button>
-            <button class="btn btn-primary btn-sm" id="addDispatchBtn">＋ 新增派工</button>
-          </div>
+          <button class="btn btn-primary btn-sm" id="addDispatchBtn">＋ 新增派工</button>
         </div>
         <div id="dispatchList"></div>
       </div>
@@ -449,6 +517,7 @@ async function init() {
       document.querySelectorAll('.tab,.tab-pane').forEach(el => el.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+      if (t.dataset.tab === 'survey') loadSurveyTab();
     });
   });
 
@@ -732,8 +801,172 @@ function buildUserCheckboxes(selectedIds = []) {
   `).join('');
 }
 
-document.getElementById('surveyFormBtn').addEventListener('click', () => {
-  location.href = `/survey-form?case_id=${caseId}`;
+// ── 場勘 Tab ──────────────────────────────────────────────
+let sfData = null;
+let sfLoaded = false;
+
+async function loadSurveyTab() {
+  if (sfLoaded) return;
+  sfLoaded = true;
+
+  // 填入人員選單
+  const sel = document.getElementById('sf_surveyor');
+  users.filter(u => u.active !== 0).forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.id; opt.textContent = u.name;
+    sel.appendChild(opt);
+  });
+
+  // 預設帶入地址
+  document.getElementById('sf_address').value = caseData.location || '';
+  document.getElementById('sf_contact').value = caseData.client_name || '';
+  document.getElementById('sf_phone').value   = caseData.client_phone || '';
+  document.getElementById('sf_date').value    = new Date().toISOString().split('T')[0];
+  sel.value = currentUser.id;
+
+  // 載入現有場勘單
+  const res = await fetch(`/api/survey/cases/${caseId}/survey-form`);
+  sfData = await res.json();
+  if (sfData) {
+    sf_fillForm(sfData);
+    sf_updateStatus(sfData.status, sfData.client_signed_at, sfData.share_token);
+  } else {
+    sf_renderFindings([]);
+  }
+}
+
+function sf_fillForm(f) {
+  document.getElementById('sf_date').value    = f.survey_date || '';
+  document.getElementById('sf_surveyor').value= f.surveyor_id || '';
+  document.getElementById('sf_contact').value = f.site_contact || '';
+  document.getElementById('sf_phone').value   = f.site_phone || '';
+  document.getElementById('sf_address').value = f.site_address || '';
+  document.getElementById('sf_photos').value  = f.photos_note || '';
+  document.getElementById('sf_notes').value   = f.extra_notes || '';
+  sf_renderFindings(f.findings || []);
+}
+
+function sf_updateStatus(status, signedAt, token) {
+  const bar = document.getElementById('sf_statusBar');
+  bar.className = '';
+  bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px';
+  const colorMap = { draft:'background:#f9fafb;border:1px solid var(--gray-200)', sent:'background:#dbeafe;border:1px solid #93c5fd;color:#1e40af', signed:'background:#d1fae5;border:1px solid #6ee7b7;color:#065f46', cancelled:'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b' };
+  bar.style.cssText += ';' + (colorMap[status] || colorMap.draft);
+  const labels = { draft:'草稿', sent:'已傳送給客戶', signed:'✅ 客戶已簽名', cancelled:'已取消' };
+  document.getElementById('sf_statusText').textContent = labels[status] || status;
+  if (signedAt) {
+    document.getElementById('sf_signedInfo').style.display = '';
+    document.getElementById('sf_signedInfo').textContent = '簽名時間：' + signedAt.slice(0, 16).replace('T', ' ');
+  }
+  if (token) {
+    const section = document.getElementById('sf_shareSection');
+    section.style.display = '';
+    const url = `${location.origin}/sign/${token}`;
+    document.getElementById('sf_shareUrl').textContent = url;
+    document.getElementById('sf_openBtn').href = url;
+  }
+}
+
+function sf_renderFindings(findings) {
+  const el = document.getElementById('sf_findingsList');
+  if (!findings.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px">點擊「新增項目」加入場勘項目</p>`;
+    return;
+  }
+  el.innerHTML = findings.map((f, i) => `
+    <div class="sf-finding-row" data-idx="${i}">
+      <input class="f-loc" value="${f.location||''}" placeholder="例：客廳主牆">
+      <input class="f-mat" value="${f.material||''}" placeholder="PAROI MX001 / 隔熱紙">
+      <input class="f-w" type="number" value="${f.width||''}" placeholder="cm">
+      <input class="f-h" type="number" value="${f.height||''}" placeholder="cm">
+      <button class="btn btn-ghost btn-sm" style="color:#e02424;padding:4px 8px" onclick="sf_removeFinding(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function sf_getFindings() {
+  return [...document.querySelectorAll('.sf-finding-row')].map(row => ({
+    location: row.querySelector('.f-loc').value,
+    material: row.querySelector('.f-mat').value,
+    width:    row.querySelector('.f-w').value || null,
+    height:   row.querySelector('.f-h').value || null,
+  })).filter(f => f.location || f.material);
+}
+
+function sf_removeFinding(idx) {
+  const cur = sf_getFindings();
+  cur.splice(idx, 1);
+  sf_renderFindings(cur);
+}
+
+document.getElementById('sf_addFindingBtn').addEventListener('click', () => {
+  const cur = sf_getFindings();
+  cur.push({ location:'', material:'', width:'', height:'' });
+  sf_renderFindings(cur);
+  const rows = document.querySelectorAll('.sf-finding-row');
+  if (rows.length) rows[rows.length - 1].querySelector('.f-loc').focus();
+});
+
+document.getElementById('sf_saveBtn').addEventListener('click', async () => {
+  const body = {
+    surveyor_id:  document.getElementById('sf_surveyor').value || null,
+    survey_date:  document.getElementById('sf_date').value || null,
+    site_contact: document.getElementById('sf_contact').value || null,
+    site_phone:   document.getElementById('sf_phone').value || null,
+    site_address: document.getElementById('sf_address').value || null,
+    findings:     sf_getFindings(),
+    photos_note:  document.getElementById('sf_photos').value || null,
+    extra_notes:  document.getElementById('sf_notes').value || null,
+    status:       sfData?.status || 'draft',
+  };
+  const method = sfData ? 'PUT' : 'POST';
+  const res = await fetch(`/api/survey/cases/${caseId}/survey-form`, {
+    method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    const data = await res.json();
+    showToast('場勘單已儲存');
+    const sfRes = await fetch(`/api/survey/cases/${caseId}/survey-form`);
+    sfData = await sfRes.json();
+    if (sfData) sf_updateStatus(sfData.status, sfData.client_signed_at, sfData.share_token);
+    // 首次建立 → 自動設 sent
+    if (data.token && (!sfData?.status || sfData.status === 'draft')) {
+      await fetch(`/api/survey/cases/${caseId}/survey-form`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...body, status:'sent' })
+      });
+      sfData = { ...sfData, status:'sent' };
+      sf_updateStatus('sent', null, data.token || sfData.share_token);
+    }
+  } else { showToast('儲存失敗', 'error'); }
+});
+
+document.getElementById('sf_printBtn').addEventListener('click', () => {
+  if (sfData?.share_token) {
+    window.open(`/sign/${sfData.share_token}?print=1`, '_blank');
+  } else {
+    showToast('請先儲存場勘單才能匯出 PDF', 'error');
+  }
+});
+
+document.getElementById('sf_copyBtn').addEventListener('click', () => {
+  const url = document.getElementById('sf_shareUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
+});
+
+document.getElementById('sf_sendEmailBtn').addEventListener('click', async () => {
+  const email = document.getElementById('sf_emailInput').value.trim();
+  if (!email) { showToast('請輸入 Email', 'error'); return; }
+  const res = await fetch(`/api/survey/cases/${caseId}/send-link`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email, token: sfData?.share_token })
+  });
+  const data = await res.json();
+  if (res.ok) { showToast(`連結已發送至 ${email}`); }
+  else if (data.link) {
+    // SMTP 未設定，fallback：顯示 mailto
+    window.location.href = `mailto:${email}?subject=繪新場勘單&body=請點擊以下連結查看場勘單並完成簽名：${encodeURIComponent(data.link)}`;
+  } else { showToast(data.error || '發送失敗', 'error'); }
 });
 
 document.getElementById('addDispatchBtn').addEventListener('click', () => {

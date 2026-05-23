@@ -1,8 +1,19 @@
-const express = require('express');
-const crypto  = require('crypto');
-const db      = require('../db');
+const express    = require('express');
+const crypto     = require('crypto');
+const db         = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const router  = express.Router();
+const router     = express.Router();
+
+function createMailer() {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
+  const nodemailer = require('nodemailer');
+  return nodemailer.createTransport({
+    host: SMTP_HOST, port: Number(SMTP_PORT) || 587,
+    secure: Number(SMTP_PORT) === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+}
 
 function genToken() {
   return crypto.randomBytes(16).toString('hex');
@@ -84,6 +95,30 @@ router.get('/sign/:token', (req, res) => {
   if (!form) return res.status(404).json({ error: '找不到場勘單' });
   try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
   res.json(form);
+});
+
+// POST /api/survey/cases/:id/send-link  → 寄場勘連結給客戶
+router.post('/cases/:id/send-link', requireAuth, async (req, res) => {
+  const { email, token } = req.body;
+  if (!email || !token) return res.status(400).json({ error: '缺少參數' });
+  const link = `${req.protocol}://${req.get('host')}/sign/${token}`;
+  const mailer = createMailer();
+  if (!mailer) {
+    return res.status(200).json({ ok: false, link, error: '未設定 SMTP，請手動複製連結發送' });
+  }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const c = db.prepare(`SELECT c.case_number, c.title FROM cases c JOIN survey_forms sf ON sf.case_id=c.id WHERE c.id=?`).get(req.params.id);
+  try {
+    await mailer.sendMail({
+      from,
+      to: email,
+      subject: `【繪新國際】場勘單確認 ${c?.case_number || ''}`,
+      html: `<p>您好，</p><p>請點擊以下連結查看場勘單資料，並完成簽名確認：</p><p><a href="${link}" style="color:#2563eb">${link}</a></p><p style="font-size:12px;color:#6b7280">繪新國際有限公司</p>`,
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/survey/sign/:token  → 客戶提交簽名
