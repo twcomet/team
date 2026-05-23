@@ -43,6 +43,36 @@
         <div class="stat-card"><div class="label">待收款總額</div><div class="value danger" id="s-unpaid">—</div></div>
       </div>
 
+      <!-- 財務摘要：老闆專屬 -->
+      <div id="financeSection" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600;color:var(--gray-700)">📈 本月財務摘要</span>
+          <span id="finMonth" style="font-size:12px;color:var(--gray-500)"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <!-- 損益 -->
+          <div class="card" style="margin:0">
+            <div class="card-header" style="padding:12px 16px 8px">
+              <h3 style="font-size:13px">損益表</h3>
+              <a href="/reports" style="font-size:11px;color:var(--primary)">詳細 →</a>
+            </div>
+            <div class="card-body" style="padding:8px 16px 14px">
+              <div id="plRows"></div>
+            </div>
+          </div>
+          <!-- 現金流量 -->
+          <div class="card" style="margin:0">
+            <div class="card-header" style="padding:12px 16px 8px">
+              <h3 style="font-size:13px">現金流量</h3>
+              <a href="/reports" style="font-size:11px;color:var(--primary)">詳細 →</a>
+            </div>
+            <div class="card-body" style="padding:8px 16px 14px">
+              <div id="cfRows"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3>最新案件</h3>
@@ -66,12 +96,23 @@
 document.getElementById('todayDate').textContent = new Date().toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
 
 async function init() {
-  await loadUser();
+  const user = await loadUser();
   highlightNav('dashboard');
 
-  const [statsRes, casesRes] = await Promise.all([fetch('/api/cases/stats/summary'), fetch('/api/cases')]);
-  const stats = await statsRes.json();
-  const cases = await casesRes.json();
+  // 本月起訖
+  const now = new Date();
+  const ym  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const fromDate = `${ym}-01`, toDate = `${ym}-${String(lastDay).padStart(2,'0')}`;
+
+  const fetches = [fetch('/api/cases/stats/summary'), fetch('/api/cases')];
+  if (user?.manage_users) {
+    fetches.push(fetch(`/api/reports/pl-monthly?from=${ym}&to=${ym}`));
+    fetches.push(fetch(`/api/reports/cashflow?from=${fromDate}&to=${toDate}`));
+  }
+  const results = await Promise.all(fetches);
+  const stats = await results[0].json();
+  const cases = await results[1].json();
 
   document.getElementById('s-total').textContent = stats.total ?? 0;
   document.getElementById('s-active').textContent = stats.active ?? 0;
@@ -79,6 +120,13 @@ async function init() {
   document.getElementById('s-unscheduled').textContent = stats.unscheduled ?? 0;
   document.getElementById('s-revenue').textContent = fmt(stats.month_income ?? 0);
   document.getElementById('s-unpaid').textContent = fmt(stats.unpaid ?? 0);
+
+  // 財務摘要（老闆）
+  if (user?.manage_users && results[2] && results[3]) {
+    const pl = await results[2].json();
+    const cf = await results[3].json();
+    renderFinance(pl, cf, ym);
+  }
 
   const tbody = document.getElementById('recentCases');
   const recent = cases.slice(0, 10);
@@ -98,6 +146,40 @@ async function init() {
     </tr>
   `).join('');
 }
+function renderFinance(pl, cf, ym) {
+  document.getElementById('financeSection').style.display = '';
+  document.getElementById('finMonth').textContent = `${ym.slice(0,4)} 年 ${ym.slice(5)} 月`;
+
+  const { totals } = pl;
+  const plColor = (v) => v >= 0 ? '#057a55' : '#e02424';
+  const row = (label, value, color, bold) =>
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--gray-100);font-size:13px${bold?';font-weight:700':''}">
+      <span style="color:var(--gray-600)">${label}</span>
+      <span style="color:${color}">${fmt(value)}</span>
+    </div>`;
+  const pctRow = (label, pct) =>
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;color:var(--gray-500)">
+      <span>${label}</span><span>${pct.toFixed(1)}%</span>
+    </div>`;
+
+  document.getElementById('plRows').innerHTML =
+    row('收入', totals.incomeTotal, '#057a55') +
+    row('成本', totals.costTotal,   '#e02424') +
+    row('毛利', totals.grossProfit, plColor(totals.grossProfit), true) +
+    pctRow('毛利率', totals.grossMargin) +
+    row('費用', totals.expTotal, '#92400e') +
+    row('營業淨利', totals.opIncome, plColor(totals.opIncome), true) +
+    pctRow('淨利率', totals.netMargin);
+
+  const net = cf.net;
+  document.getElementById('cfRows').innerHTML =
+    row('現金流入', cf.totalIn,  '#057a55') +
+    row('現金流出', cf.totalOut, '#e02424') +
+    row('本月淨現金流', net, plColor(net), true) +
+    `<div style="padding:8px 0 2px;font-size:12px;color:var(--gray-500)">交易 ${cf.daily.length} 天</div>` +
+    (net < 0 ? `<div style="background:#fef2f2;color:#991b1b;padding:6px 10px;border-radius:6px;font-size:12px;margin-top:6px">⚠️ 本月現金淨流出</div>` : '');
+}
+
 init();
 </script>
 </body>
