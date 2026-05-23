@@ -269,6 +269,9 @@ function fmtTime(ts) {
 }
 
 init();
+
+// 每 30 秒自動刷新（多人協作跨裝置同步）
+setInterval(loadPool, 30000);
 </script>
 </body>
 </html>
