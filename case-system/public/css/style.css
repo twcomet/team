@@ -182,6 +182,27 @@ tr:hover td { background: var(--gray-50); }
 .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-500); }
 .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
 
+/* ── 通知鈴鐺 ────────────────────────────────────────────── */
+.notif-wrap { position: relative; margin-left: 8px; }
+.notif-bell { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 8px; position: relative; line-height: 1; }
+.notif-bell:hover { background: var(--gray-100); }
+.notif-badge { position: absolute; top: -2px; right: -2px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; text-align: center; line-height: 18px; padding: 0 4px; }
+.notif-dropdown { position: absolute; right: 0; top: calc(100% + 8px); width: 320px; background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 200; }
+.notif-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--gray-100); font-size: 14px; font-weight: 600; }
+.notif-read-all { background: none; border: none; font-size: 12px; color: var(--primary); cursor: pointer; }
+.notif-list { max-height: 360px; overflow-y: auto; }
+.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); cursor: pointer; transition: background .1s; }
+.notif-item:hover { background: var(--gray-50); }
+.notif-item.unread { background: #eff6ff; }
+.notif-item:last-child { border-bottom: none; }
+.notif-title { font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 3px; }
+.notif-body { font-size: 12px; color: var(--gray-500); line-height: 1.5; margin-bottom: 4px; }
+.notif-time { font-size: 11px; color: var(--gray-400); }
+.notif-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--gray-500); }
+@media (max-width: 768px) {
+  .notif-dropdown { right: -40px; width: 90vw; }
+}
+
 @media (max-width: 768px) {
   #sf_sigCanvas { height: 180px !important; }
 }

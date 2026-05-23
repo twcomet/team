@@ -181,6 +181,22 @@ db.exec(`
   );
 `);
 
+// ── 系統通知 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    title      TEXT NOT NULL,
+    body       TEXT,
+    type       TEXT DEFAULT 'dispatch',
+    entity     TEXT,
+    entity_id  INTEGER,
+    url        TEXT,
+    is_read    INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // ── 分潤設定 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS profit_shares (
@@ -252,6 +268,7 @@ _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
+_addCol('users',      'line_notify_token', 'TEXT');
 _addCol('cases',     'survey_fee_paid',   'INTEGER DEFAULT 0');
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');

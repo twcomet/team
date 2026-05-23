@@ -3,6 +3,39 @@ const db = require('../db');
 const { requireAuth, orgFilter } = require('../middleware/auth');
 const router = express.Router();
 
+// ── 派工通知 ─────────────────────────────────────────────────
+const DISPATCH_LABELS = { survey:'場勘', install:'施工', aftersales:'維修' };
+
+async function notifyDispatch(case_id, dispatch_type, scheduled_date, user_ids, creatorId) {
+  if (!Array.isArray(user_ids) || !user_ids.length) return;
+  const c = db.prepare(`
+    SELECT c.case_number, c.title, cl.name AS client_name
+    FROM cases c LEFT JOIN clients cl ON cl.id = c.client_id WHERE c.id=?
+  `).get(case_id);
+  const typeLabel = DISPATCH_LABELS[dispatch_type] || dispatch_type;
+  const title = `${typeLabel}派工通知`;
+  const body = `案件 ${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}\n類型：${typeLabel}`;
+  const url = `/case-detail?id=${case_id}`;
+
+  const insNotif = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'dispatch','cases',?,?)`);
+
+  for (const uid of user_ids) {
+    if (uid === creatorId) continue; // 不通知自己
+    insNotif.run(uid, title, body, case_id, url);
+
+    // LINE Notify（選用）
+    const u = db.prepare(`SELECT line_notify_token FROM users WHERE id=?`).get(uid);
+    if (u?.line_notify_token) {
+      const msg = `\n【繪新 ${typeLabel}派工】\n${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}`;
+      fetch('https://notify-api.line.me/api/notify', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${u.line_notify_token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `message=${encodeURIComponent(msg)}`,
+      }).catch(() => {});
+    }
+  }
+}
+
 // ── 工具 ─────────────────────────────────────────────────────
 function genCaseNumber(org_id) {
   const now = new Date();
@@ -369,6 +402,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   }
 
   recalcLaborCost(case_id);
+  notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
   res.json({ ok: true, id: did });
 });
 
@@ -389,6 +423,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
     });
   }
   recalcLaborCost(Number(req.params.id));
+  notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, user_ids, req.session.user.id);
   res.json({ ok: true });
 });
 

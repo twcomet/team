@@ -113,7 +113,68 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebar.querySelectorAll('.nav-item').forEach(el =>
       el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); })
     );
+
+    // ── 通知鈴鐺 ────────────────────────────────────────────
+    const notifWrap = document.createElement('div');
+    notifWrap.className = 'notif-wrap';
+    notifWrap.innerHTML = `
+      <button class="notif-bell" id="notifBell" aria-label="通知">
+        🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>
+      </button>
+      <div class="notif-dropdown" id="notifDropdown" style="display:none">
+        <div class="notif-header">
+          <span>通知</span>
+          <button class="notif-read-all" id="notifReadAll">全部已讀</button>
+        </div>
+        <div class="notif-list" id="notifList"></div>
+      </div>`;
+    topBar.appendChild(notifWrap);
+
+    let notifOpen = false;
+    document.getElementById('notifBell').addEventListener('click', e => {
+      e.stopPropagation();
+      notifOpen = !notifOpen;
+      document.getElementById('notifDropdown').style.display = notifOpen ? '' : 'none';
+      if (notifOpen) loadNotifications();
+    });
+    document.addEventListener('click', () => {
+      if (notifOpen) { notifOpen = false; document.getElementById('notifDropdown').style.display = 'none'; }
+    });
+    document.getElementById('notifDropdown').addEventListener('click', e => e.stopPropagation());
+
+    document.getElementById('notifReadAll').addEventListener('click', async () => {
+      await fetch('/api/notifications/read-all', { method: 'PUT' });
+      loadNotifications();
+    });
   }
+
+  async function loadNotifications() {
+    const res = await fetch('/api/notifications');
+    if (!res.ok) return;
+    const { notifications, unread } = await res.json();
+    const badge = document.getElementById('notifBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+    const list = document.getElementById('notifList');
+    if (!list) return;
+    if (!notifications.length) { list.innerHTML = '<div class="notif-empty">暫無通知</div>'; return; }
+    list.innerHTML = notifications.map(n => `
+      <div class="notif-item${n.is_read ? '' : ' unread'}" onclick="location.href='${n.url || '#'}'">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-body">${(n.body||'').replace(/\n/g,'<br>')}</div>
+        <div class="notif-time">${n.created_at?.slice(0,16).replace('T',' ')}</div>
+      </div>`).join('');
+  }
+
+  // 定時刷新未讀數（每 60 秒）
+  async function refreshNotifBadge() {
+    const res = await fetch('/api/notifications');
+    if (!res.ok) return;
+    const { unread } = await res.json();
+    const badge = document.getElementById('notifBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+  }
+  setTimeout(refreshNotifBadge, 3000);
+  setInterval(refreshNotifBadge, 60000);
 });
 
 async function fetchUsers() {

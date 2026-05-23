@@ -45,9 +45,10 @@ app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
-app.use('/api/dispatch-detail', require('./routes/dispatch-detail'));
-app.use('/api/materials',       require('./routes/materials'));
-app.use('/api/reports',        require('./routes/reports'));
+app.use('/api/dispatch-detail',   require('./routes/dispatch-detail'));
+app.use('/api/materials',         require('./routes/materials'));
+app.use('/api/reports',           require('./routes/reports'));
+app.use('/api/notifications',     require('./routes/notifications'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {

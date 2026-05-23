@@ -218,6 +218,13 @@
           每日成本 $<input type="number" id="userDailyCost" placeholder="0" min="0" style="width:90px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
         </label>
       </div>
+      <div class="form-group" style="margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px">
+          LINE Notify Token
+          <a href="https://notify-bot.line.me/my/" target="_blank" style="font-size:11px;color:var(--primary)">（申請 Token）</a>
+        </label>
+        <input type="text" id="userLineToken" placeholder="貼上 LINE Notify 個人 Token，派工時自動通知本人" style="font-size:13px">
+      </div>
 
       <!-- 功能頁面權限 -->
       <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 16px">
@@ -484,6 +491,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userIsManager').checked = false;
   document.getElementById('userCanSeeAmounts').checked = false;
   document.getElementById('userDailyCost').value = '';
+  document.getElementById('userLineToken').value = '';
   document.getElementById('userUsername').disabled = false;
   document.getElementById('pwdHint').style.display = 'none';
   document.getElementById('userOrgId').value = currentUser.org_id;
@@ -525,6 +533,7 @@ function openEditUser(id) {
   document.getElementById('userIsManager').checked = !!u.is_manager;
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
+  document.getElementById('userLineToken').value = u.line_notify_token || '';
   const perms = u.permissions ? JSON.parse(u.permissions) : {};
   const isOwner = u.role === 'owner';
   document.getElementById('perm_page_dashboard').checked = isOwner || (perms.page_dashboard ?? true);
@@ -548,6 +557,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     is_manager: document.getElementById('userIsManager').checked,
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
+    line_notify_token: document.getElementById('userLineToken').value.trim() || null,
     active: 1,
     permissions: {
       page_dashboard: document.getElementById('perm_page_dashboard').checked,
