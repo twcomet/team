@@ -251,6 +251,7 @@ _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
+_addCol('users',      'daily_cost',        'REAL');
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');
 _addCol('cases',     'outsource_cost',    'REAL');

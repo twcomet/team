@@ -9,7 +9,7 @@ router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department,
                       u.is_manager, u.can_see_amounts, u.service_areas, u.active,
-                      u.permissions, u.sort_order, o.name as org_name
+                      u.permissions, u.sort_order, u.daily_cost, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
   const params = [];
 
@@ -79,11 +79,11 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
     if (target.role === 'owner') return res.status(403).json({ error: '無法修改最高管理者' });
   }
 
-  const { name, role, department, is_manager, can_see_amounts, service_areas, active, permissions } = req.body;
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=? WHERE id=?`)
+  const { name, role, department, is_manager, can_see_amounts, service_areas, active, permissions, daily_cost } = req.body;
+  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=?, daily_cost=? WHERE id=?`)
     .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0,
          JSON.stringify(service_areas || []), active ?? 1,
-         JSON.stringify(permissions || {}), req.params.id);
+         JSON.stringify(permissions || {}), daily_cost ?? null, req.params.id);
 
   db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
     .run(me.id, 'update_user', 'users', req.params.id, `修改帳號：${target.username} → 角色:${role}`);
