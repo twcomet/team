@@ -526,14 +526,16 @@ const ITEM_TYPES = [
 ];
 const BRANDS = ['PAROI（日本）','BODAQ（韓國）','LG BENIF（韓國）','WD穩得','3M DI-NOC','Avery','Lintec','其他'];
 
-let caseId, caseData, users = [], clients = [], quoteData = null;
+let caseId, caseData, users = [], clients = [], quoteData = null, pushMode = 'manual';
 
 // ── 初始化 ─────────────────────────────────────────────────
 async function init() {
   await loadUser();
   caseId = new URLSearchParams(location.search).get('id');
   if (!caseId) { location.href = '/cases'; return; }
-  [users, clients] = await Promise.all([fetchUsers(), fetchClients()]);
+  const [usersRes, clientsRes, settingsRes] = await Promise.all([fetchUsers(), fetchClients(), fetch('/api/settings')]);
+  users = usersRes; clients = clientsRes;
+  if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
 
   // Tab 切換
@@ -792,8 +794,9 @@ function renderDispatches(dispatches) {
           ${d.scheduled_time ? `<span style="color:#6b7280;font-size:13px">${d.scheduled_time}</span>` : ''}
           ${d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">${d.estimated_hours}hr</span>` : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:13px;color:#6b7280">${statusMap[d.status] || d.status}</span>
+          ${pushMode === 'manual' ? `<button class="btn btn-ghost btn-sm" style="color:#0EA5E9" onclick="pushDispatchNotify(${d.id},this)" title="發送 LINE 派工通知給指派人員">LINE 通知</button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="editDispatch(${d.id})">編輯</button>
           <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteDispatch(${d.id})">刪除</button>
         </div>
@@ -806,6 +809,20 @@ function renderDispatches(dispatches) {
       ${d.notes ? `<div style="font-size:12px;color:#6b7280;margin-top:6px">${d.notes}</div>` : ''}
     </div>`;
   }).join('');
+}
+
+async function pushDispatchNotify(did, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '傳送中…';
+  const res = await fetch(`/api/cases/${caseId}/dispatches/${did}/push`, { method: 'POST' });
+  btn.disabled = false; btn.textContent = orig;
+  if (res.ok) {
+    const { sent, total } = await res.json();
+    if (sent === 0) showToast(`沒有人員綁定 LINE，通知未送出`, 'error');
+    else showToast(`已發送 LINE 通知給 ${sent}/${total} 人`);
+  } else {
+    showToast('發送失敗', 'error');
+  }
 }
 
 async function deleteDispatch(did) {

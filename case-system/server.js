@@ -49,6 +49,7 @@ app.use('/api/dispatch-detail',   require('./routes/dispatch-detail'));
 app.use('/api/materials',         require('./routes/materials'));
 app.use('/api/reports',           require('./routes/reports'));
 app.use('/api/notifications',     require('./routes/notifications'));
+app.use('/api/settings',          require('./routes/settings'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {

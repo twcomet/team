@@ -24,11 +24,14 @@ async function notifyDispatch(case_id, dispatch_type, scheduled_date, user_ids, 
     if (uid === creatorId) continue; // 不通知自己
     insNotif.run(uid, title, body, case_id, url);
 
-    // LINE Messaging API 推播
-    const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
-    if (u?.line_user_id) {
-      const msg = `【繪新 ${typeLabel}派工通知】\n案件：${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}`;
-      pushMessage(u.line_user_id, msg);
+    // LINE Messaging API 推播（主動模式才自動送）
+    const pushMode = db.prepare(`SELECT value FROM settings WHERE key='push_mode'`).get()?.value || 'manual';
+    if (pushMode === 'auto') {
+      const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+      if (u?.line_user_id) {
+        const msg = `【繪新 ${typeLabel}派工通知】\n案件：${c?.case_number || ''} ${c?.title || ''}\n日期：${scheduled_date}`;
+        pushMessage(u.line_user_id, msg);
+      }
     }
   }
 }
@@ -429,6 +432,22 @@ router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
   db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, req.params.id);
   recalcLaborCost(Number(req.params.id));
   res.json({ ok: true });
+});
+
+// 人工推播：手動發送 LINE 通知給該派工的所有人員
+router.post('/:id/dispatches/:did/push', requireAuth, async (req, res) => {
+  const d = db.prepare(`SELECT * FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, req.params.id);
+  if (!d) return res.status(404).json({ error: '派工不存在' });
+  const c = db.prepare(`SELECT c.case_number, c.title FROM cases c WHERE c.id=?`).get(req.params.id);
+  const typeLabel = DISPATCH_LABELS[d.dispatch_type] || d.dispatch_type;
+  const uids = db.prepare(`SELECT user_id FROM dispatch_users WHERE dispatch_id=?`).all(req.params.did).map(r => r.user_id);
+  const msg = `【繪新 ${typeLabel}派工通知】\n案件：${c?.case_number || ''} ${c?.title || ''}\n日期：${d.scheduled_date}`;
+  let sent = 0;
+  for (const uid of uids) {
+    const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+    if (u?.line_user_id) { pushMessage(u.line_user_id, msg); sent++; }
+  }
+  res.json({ ok: true, sent, total: uids.length });
 });
 
 // ── 統計 ─────────────────────────────────────────────────────

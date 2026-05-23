@@ -876,6 +876,18 @@ db.exec(`
   );
 `);
 
+// ── 系統設定 ────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+  );
+`);
+// 預設推播模式（manual = 人工推播，auto = 主動推播）
+if (!db.prepare(`SELECT key FROM settings WHERE key='push_mode'`).get()) {
+  db.prepare(`INSERT INTO settings (key, value) VALUES ('push_mode', 'manual')`).run();
+}
+
 // ── 初始資料：總部 + Flora + Dan ────────────────────────────
 const hqExists = db.prepare(`SELECT id FROM orgs WHERE type = 'hq' LIMIT 1`).get();
 if (!hqExists) {

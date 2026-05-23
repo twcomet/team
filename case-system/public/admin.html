@@ -94,6 +94,30 @@
         </div>
       </div>
 
+      <!-- LINE 推播模式設定（owner only） -->
+      <div class="card" id="pushModeCard" data-need="owner" style="display:none">
+        <div class="card-header"><h3>LINE 派工通知設定</h3></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px 20px;border-radius:10px;border:2px solid var(--gray-200);min-width:200px" id="pushModeManualLabel">
+              <input type="radio" name="pushMode" value="manual" style="margin-top:3px">
+              <div>
+                <div style="font-weight:600;font-size:14px">人工推播</div>
+                <div style="font-size:12px;color:var(--gray-500);margin-top:2px">派工建立後不自動送 LINE，<br>由人員手動點按鈕發送</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px 20px;border-radius:10px;border:2px solid var(--gray-200);min-width:200px" id="pushModeAutoLabel">
+              <input type="radio" name="pushMode" value="auto" style="margin-top:3px">
+              <div>
+                <div style="font-weight:600;font-size:14px">主動推播</div>
+                <div style="font-size:12px;color:var(--gray-500);margin-top:2px">新增派工時自動送 LINE，<br>每月 500 則免費</div>
+              </div>
+            </label>
+          </div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:10px">建議平時使用「人工推播」節省額度，重要派工再手動發送</div>
+        </div>
+      </div>
+
       <!-- 人員管理 -->
       <div class="card">
         <div class="card-header">
@@ -276,8 +300,10 @@ async function init() {
   if (currentUser.role === 'owner') {
     document.getElementById('auditSection').style.display = '';
     document.getElementById('roleSection').style.display = '';
+    document.getElementById('pushModeCard').style.display = '';
     await loadCustomRoles();
     await loadAuditLogs();
+    await loadPushMode();
   } else {
     document.getElementById('orgSection').style.display = 'none';
   }
@@ -287,6 +313,34 @@ async function init() {
 }
 
 // ── 分店 ───────────────────────────────────────────────────
+async function loadPushMode() {
+  const res = await fetch('/api/settings');
+  if (!res.ok) return;
+  const s = await res.json();
+  const mode = s.push_mode || 'manual';
+  document.querySelectorAll('input[name="pushMode"]').forEach(r => {
+    r.checked = r.value === mode;
+    const lbl = r.closest('label');
+    lbl.style.borderColor = r.checked ? 'var(--primary)' : 'var(--gray-200)';
+    lbl.style.background  = r.checked ? '#eff6ff' : '';
+  });
+  document.querySelectorAll('input[name="pushMode"]').forEach(r => {
+    r.addEventListener('change', async () => {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ push_mode: r.value }),
+      });
+      document.querySelectorAll('input[name="pushMode"]').forEach(x => {
+        const l = x.closest('label');
+        l.style.borderColor = x.checked ? 'var(--primary)' : 'var(--gray-200)';
+        l.style.background  = x.checked ? '#eff6ff' : '';
+      });
+      showToast(`已切換為「${r.value === 'auto' ? '主動推播' : '人工推播'}」`);
+    });
+  });
+}
+
 async function loadOrgs() {
   const tbody = document.getElementById('orgBody');
   if (!tbody) return;
