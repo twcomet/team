@@ -3,6 +3,7 @@ const db = require('../db');
 // 角色定義：每個 role 的預設權限
 const ROLE_DEFS = {
   owner:              { label:'最高管理者', viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:true  },
+  vp:                 { label:'副總',       viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:false },
   hq_cs:              { label:'客服',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
   hq_sales:           { label:'業務',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
   hq_tech:            { label:'技術',       viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
