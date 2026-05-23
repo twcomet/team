@@ -610,51 +610,60 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
     ['expense','cost','成本-機器設備',     119],
     ['expense','cost','成本-施工耗材',     120],
     ['expense','cost','成本-其他',         121],
-    // ── 費用 ──
-    ['expense','expense','費用-租金支出',201],
-    ['expense','expense','費用-專業委外',202],
-    ['expense','expense','費用-公司裝漠',203],
-    ['expense','expense','費用-施工耗材',204],
-    ['expense','expense','費用-文具用品',205],
-    ['expense','expense','費用-運費',206],
-    ['expense','expense','費用-進口關稅',207],
-    ['expense','expense','費用-進口運費',208],
-    ['expense','expense','費用-交通費',209],
-    ['expense','expense','費用-停車費',210],
-    ['expense','expense','費用-汽車修繕',211],
-    ['expense','expense','費用-郵電費',212],
-    ['expense','expense','費用-電話網路費',213],
-    ['expense','expense','費用-電費',214],
-    ['expense','expense','費用-燃料費',215],
-    ['expense','expense','費用-牌照稅',216],
-    ['expense','expense','費用-修繕費',217],
-    ['expense','expense','費用-廣告費',218],
-    ['expense','expense','費用-雜項購置',219],
-    ['expense','expense','費用-損耗虧損',220],
-    ['expense','expense','保險費-勞保',221],
-    ['expense','expense','保險費-勞退',222],
-    ['expense','expense','保險費-健保',223],
-    ['expense','expense','保險費-其他',224],
-    ['expense','expense','職工福利費-教育訓練',225],
-    ['expense','expense','職工福利費-員工聚餐',226],
-    ['expense','expense','會計費用-記帳費用',227],
-    ['expense','expense','會計費用-稅捐',228],
-    ['expense','expense','會計費用-營業稅',229],
-    ['expense','expense','聯邦車貸-費用',230],
-    ['expense','expense','台企銀青年創業貸款',231],
-    ['expense','expense','富邦貸款',232],
-    ['expense','expense','華銀貸款',233],
-    ['expense','expense','利息支出',234],
-    ['expense','expense','零用金費用-Flora',235],
-    ['expense','expense','零用金費用-Dan',236],
-    ['expense','expense','零用金費用-恰吉',237],
-    ['expense','expense','交際費',238],
-    ['expense','expense','BNI',239],
-    ['expense','expense','其他費用',240],
-    ['expense','expense','非公司費用只是抵五趴',241],
-    ['expense','expense','退費退貨',242],
-    ['expense','expense','外業務佣金',243],
-    ['expense','expense','捐款',244],
+    // ── 費用（依性質分群，統一前綴）──
+    // 場地
+    ['expense','expense','費用-租金',           201],
+    ['expense','expense','費用-電費',           202],
+    ['expense','expense','費用-修繕費',         203],
+    ['expense','expense','費用-公司裝漠',       204],
+    // 交通
+    ['expense','expense','費用-交通費',         205],
+    ['expense','expense','費用-停車費',         206],
+    ['expense','expense','費用-燃料費',         207],
+    ['expense','expense','費用-汽車修繕',       208],
+    ['expense','expense','費用-牌照稅',         209],
+    // 物流進口
+    ['expense','expense','費用-進口關稅',       210],
+    ['expense','expense','費用-進口運費',       211],
+    ['expense','expense','費用-運費',           212],
+    // 行銷
+    ['expense','expense','費用-廣告費',         213],
+    ['expense','expense','費用-交際費',         214],
+    ['expense','expense','費用-BNI',            215],
+    // 行政
+    ['expense','expense','費用-文具用品',       216],
+    ['expense','expense','費用-郵電費',         217],
+    ['expense','expense','費用-電話網路費',     218],
+    ['expense','expense','費用-雜項購置',       219],
+    ['expense','expense','費用-零用金-Flora',   220],
+    ['expense','expense','費用-零用金-Dan',     221],
+    ['expense','expense','費用-零用金-恰吉',    222],
+    // 保險
+    ['expense','expense','保險費-勞保',         223],
+    ['expense','expense','保險費-勞退',         224],
+    ['expense','expense','保險費-健保',         225],
+    ['expense','expense','保險費-其他',         226],
+    // 職工福利
+    ['expense','expense','費用-教育訓練',       227],
+    ['expense','expense','費用-員工聚餐',       228],
+    ['expense','expense','費用-外業務佣金',     229],
+    // 會計稅務
+    ['expense','expense','費用-記帳費',         230],
+    ['expense','expense','費用-稅捐',           231],
+    ['expense','expense','費用-營業稅',         232],
+    // 貸款
+    ['expense','expense','貸款-聯邦車貸',       233],
+    ['expense','expense','貸款-台企銀',         234],
+    ['expense','expense','貸款-富邦',           235],
+    ['expense','expense','貸款-華銀',           236],
+    ['expense','expense','費用-利息支出',       237],
+    // 其他
+    ['expense','expense','費用-損耗虧損',       238],
+    ['expense','expense','費用-退費退貨',       239],
+    ['expense','expense','費用-捐款',           240],
+    ['expense','expense','費用-專業委外',       241],
+    ['expense','expense','費用-非公司五趴',     242],
+    ['expense','expense','費用-其他',           243],
     // ── 資產/負債 ──
     ['expense','asset_liability','押金/保證金',301],
     ['expense','asset_liability','車輛設備',302],
@@ -664,6 +673,14 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
   for (const [type, section, name, order] of plCats) {
     if (!getCat.get(name)) insCat.run(type, section, name, order);
   }
+
+  // 停用舊 seed 通用科目（已由上方 plCats 取代）
+  db.exec(`UPDATE ledger_categories SET active=0 WHERE name IN ('施工款','訂金','尾款','材料銷售') AND section='income'`);
+  db.exec(`UPDATE ledger_categories SET active=0 WHERE name IN ('材料費','人工費（外包）','油資/交通','工具耗材','水電費','租金','廣告費','辦公費','稅費','其他支出') AND section='expense'`);
+
+  // 確保 sort_order 與 plCats 定義一致（seed 可能設了錯誤的初始值）
+  const _syncOrder = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=?`);
+  for (const [,, name, order] of plCats) _syncOrder.run(order, name);
 }
 
 // ── 收入科目整理 migration（偵測舊版才執行）────────────────────
@@ -728,29 +745,12 @@ const _needCostMigration =
   db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-犀牛皮'   AND section='cost' LIMIT 1`).get();
 
 if (_needCostMigration) {
-  // 刪除廢棄科目（大陸陳總已拆分品牌、可米亞刪除、LINTEC/琳得科合併）
-  ['成本-大陸陳總','成本-可米亞','成本-日本琳得科材料','成本-LINTEC'].forEach(n =>
-    db.prepare(`DELETE FROM ledger_categories WHERE name=? AND section='cost'`).run(n)
-  );
-
-  // 重新命名（old → new）
-  const _renC = db.prepare(`UPDATE ledger_categories SET name=? WHERE name=? AND section='cost'`);
-  _renC.run('進貨-LG',       '成本-LG裝漠膜');
-  _renC.run('進貨-3M',       '成本-3M裝漠膜');
-  _renC.run('進貨-保護膜',   '成本-犀牛皮');
-  _renC.run('進貨-隔熱紙',   '成本-隔熱紙');
-  _renC.run('進貨-翰可',     '成本-翰可');
-  _renC.run('進貨-其他膜料', '成本-其他裝漠膜');
-  _renC.run('成本-廣告外包', '成本-製作外包');
-
-  // 新增科目
-  const _insC = db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active) VALUES ('expense','cost',?,?,1)`);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='進貨-bodaq'`).get())      _insC.run('進貨-bodaq',      101);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='進貨-PAROI'`).get())      _insC.run('進貨-PAROI',      104);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-DS彩貼'`).get())     _insC.run('成本-DS彩貼',     111);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-學院材料'`).get())   _insC.run('成本-學院材料',   117);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-學院講師費'`).get()) _insC.run('成本-學院講師費', 118);
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-其他'`).get())       _insC.run('成本-其他',       121);
+  // 刪除舊名稱（新名稱已由 plCats 建立）
+  [
+    '成本-大陸陳總','成本-可米亞','成本-日本琳得科材料','成本-LINTEC',
+    '成本-LG裝漠膜','成本-3M裝漠膜','成本-犀牛皮','成本-隔熱紙',
+    '成本-翰可','成本-其他裝漠膜','成本-製作外包',
+  ].forEach(n => db.prepare(`DELETE FROM ledger_categories WHERE name=?`).run(n));
 
   // 重設排序
   const _costOrder = [
@@ -766,6 +766,47 @@ if (_needCostMigration) {
   _costOrder.forEach((n, i) => _updC.run(i + 101, n));
 
   console.log('✅ 成本科目整理完成（依品牌/產品邏輯）');
+}
+
+// ── 費用科目整理 migration（依性質分群、統一前綴）──────────────
+// 條件：舊版有「聯邦車貸-費用」或「會計費用-記帳費用」才執行
+const _needExpenseMigration =
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='聯邦車貸-費用'     AND section='expense' LIMIT 1`).get() ||
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='會計費用-記帳費用' AND section='expense' LIMIT 1`).get();
+
+if (_needExpenseMigration) {
+  // 停用重複項（施工耗材已在成本段）
+  db.prepare(`UPDATE ledger_categories SET active=0 WHERE name='費用-施工耗材' AND section='expense'`).run();
+
+  // 刪除舊名稱（新名稱已由 plCats 建立）
+  [
+    '費用-租金支出',
+    '職工福利費-教育訓練','職工福利費-員工聚餐',
+    '會計費用-記帳費用','會計費用-稅捐','會計費用-營業稅',
+    '聯邦車貸-費用','台企銀青年創業貸款','富邦貸款','華銀貸款','利息支出',
+    '零用金費用-Flora','零用金費用-Dan','零用金費用-恰吉',
+    '交際費','BNI','其他費用','非公司費用只是抵五趴','退費退貨','外業務佣金','捐款',
+  ].forEach(n => db.prepare(`DELETE FROM ledger_categories WHERE name=?`).run(n));
+
+  // 重設排序
+  const _expFinalOrder = [
+    '費用-租金','費用-電費','費用-修繕費','費用-公司裝漠',
+    '費用-交通費','費用-停車費','費用-燃料費','費用-汽車修繕','費用-牌照稅',
+    '費用-進口關稅','費用-進口運費','費用-運費',
+    '費用-廣告費','費用-交際費','費用-BNI',
+    '費用-文具用品','費用-郵電費','費用-電話網路費','費用-雜項購置',
+    '費用-零用金-Flora','費用-零用金-Dan','費用-零用金-恰吉',
+    '保險費-勞保','保險費-勞退','保險費-健保','保險費-其他',
+    '費用-教育訓練','費用-員工聚餐','費用-外業務佣金',
+    '費用-記帳費','費用-稅捐','費用-營業稅',
+    '貸款-聯邦車貸','貸款-台企銀','貸款-富邦','貸款-華銀','費用-利息支出',
+    '費用-損耗虧損','費用-退費退貨','費用-捐款',
+    '費用-專業委外','費用-非公司五趴','費用-其他',
+  ];
+  const _updE = db.prepare(`UPDATE ledger_categories SET sort_order=?,active=1 WHERE name=? AND section='expense'`);
+  _expFinalOrder.forEach((n, i) => _updE.run(i + 201, n));
+
+  console.log('✅ 費用科目整理完成（依性質分群）');
 }
 
 // ── 客戶分類（含折扣設定）───────────────────────────────────
