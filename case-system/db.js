@@ -940,4 +940,292 @@ if (!hqExists) {
   console.log('請登入後至「人員管理」修改密碼。');
 }
 
+// ══════════════════════════════════════════════════════════════
+// 派案系統擴充 v3.0 — Phase 1 Schema
+// ══════════════════════════════════════════════════════════════
+
+// ── 區域 ────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS regions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    type            TEXT NOT NULL DEFAULT 'direct' CHECK(type IN ('direct','partner')),
+    parent_id       INTEGER REFERENCES regions(id),
+    manager_user_id INTEGER REFERENCES users(id),
+    keywords        TEXT DEFAULT '[]',
+    status          TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 預設 6 個直營區域
+{
+  const regExists = db.prepare(`SELECT id FROM regions LIMIT 1`).get();
+  if (!regExists) {
+    const insReg = db.prepare(`INSERT INTO regions (name, type, keywords) VALUES (?, 'direct', ?)`);
+    insReg.run('臺北', JSON.stringify(['台北','臺北','北市','士林','天母','內湖','南港','信義','大安','中正','萬華','中山','大同','松山','文山','北投']));
+    insReg.run('鶯歌', JSON.stringify(['鶯歌','三峽','樹林','土城','板橋','新莊','泰山','林口','八里','淡水','三重','蘆洲','五股','新北']));
+    insReg.run('新竹', JSON.stringify(['新竹','竹北','竹東','苗栗','桃園','中壢','平鎮','龍潭','楊梅','新豐']));
+    insReg.run('臺中', JSON.stringify(['台中','臺中','豐原','大甲','清水','沙鹿','彰化','南投','烏日','太平']));
+    insReg.run('臺南', JSON.stringify(['台南','臺南','善化','新化','永康','歸仁','嘉義','新營','麻豆']));
+    insReg.run('高雄', JSON.stringify(['高雄','鳳山','左營','三民','苓雅','前鎮','屏東','旗山','岡山','楠梓']));
+    console.log('✅ 預設直營區域建立完成（臺北/鶯歌/新竹/臺中/臺南/高雄）');
+  }
+}
+
+// ── 技師檔案 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS technician_profiles (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id          INTEGER NOT NULL UNIQUE REFERENCES users(id),
+    region_id        INTEGER REFERENCES regions(id),
+    level            INTEGER NOT NULL DEFAULT 1 CHECK(level BETWEEN 1 AND 4),
+    acceptance_rate  REAL DEFAULT 1.0,
+    complaint_rate   REAL DEFAULT 0,
+    certified_at     DATETIME,
+    status           TEXT DEFAULT 'active' CHECK(status IN ('active','suspended','deactivated')),
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 派案佇列（自動遞補用）──────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS dispatch_queue (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id           INTEGER NOT NULL REFERENCES cases(id),
+    technician_id     INTEGER NOT NULL REFERENCES users(id),
+    queue_position    INTEGER DEFAULT 1,
+    notified_at       DATETIME,
+    response_deadline DATETIME,
+    status            TEXT DEFAULT 'pending'
+                      CHECK(status IN ('pending','accepted','declined','timeout')),
+    decline_reason    TEXT,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 場勘記錄 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS site_surveys (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id             INTEGER NOT NULL REFERENCES cases(id),
+    technician_id       INTEGER REFERENCES users(id),
+    area_sqm            REAL,
+    dimensions          TEXT,
+    materials_needed    TEXT DEFAULT '[]',
+    difficulty_level    INTEGER DEFAULT 1 CHECK(difficulty_level BETWEEN 1 AND 5),
+    estimated_work_days INTEGER DEFAULT 1,
+    photos              TEXT DEFAULT '[]',
+    notes               TEXT,
+    submitted_at        DATETIME,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 內部報價估算（不同於 quote_sheets 的客戶簽收單）──────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS quotations (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id        INTEGER NOT NULL REFERENCES cases(id),
+    version        INTEGER DEFAULT 1,
+    total_amount   REAL,
+    material_cost  REAL,
+    labor_cost     REAL,
+    survey_fee     REAL DEFAULT 0,
+    qa_cost        REAL DEFAULT 0,
+    gross_profit   REAL,
+    gross_margin   REAL,
+    status         TEXT DEFAULT 'draft'
+                   CHECK(status IN ('draft','sent','approved','rejected')),
+    notes          TEXT,
+    created_by     INTEGER REFERENCES users(id),
+    approved_by    INTEGER REFERENCES users(id),
+    approved_at    DATETIME,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 材料訂單（技師下單，綁定案件）──────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS material_orders (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_code     TEXT UNIQUE,
+    case_id        INTEGER REFERENCES cases(id),
+    technician_id  INTEGER REFERENCES users(id),
+    region_id      INTEGER REFERENCES regions(id),
+    status         TEXT DEFAULT 'pending'
+                   CHECK(status IN ('pending','confirmed','preparing','shipped','delivered','cancelled')),
+    payment_status TEXT DEFAULT 'unpaid'
+                   CHECK(payment_status IN ('unpaid','paid','credited')),
+    total_amount   REAL DEFAULT 0,
+    notes          TEXT,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS material_order_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id     INTEGER NOT NULL REFERENCES material_orders(id) ON DELETE CASCADE,
+    material_id  INTEGER REFERENCES materials(id),
+    sku          TEXT,
+    name         TEXT,
+    quantity     REAL NOT NULL,
+    unit_price   REAL,
+    subtotal     REAL,
+    batch_number TEXT,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 品保驗收 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS quality_checks (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id         INTEGER NOT NULL REFERENCES cases(id),
+    inspector_id    INTEGER REFERENCES users(id),
+    type            TEXT DEFAULT 'final' CHECK(type IN ('pre','mid','final')),
+    quality_score   INTEGER CHECK(quality_score BETWEEN 1 AND 5),
+    photos          TEXT DEFAULT '[]',
+    issues          TEXT DEFAULT '[]',
+    passed          INTEGER DEFAULT 0,
+    customer_signed INTEGER DEFAULT 0,
+    notes           TEXT,
+    checked_at      DATETIME,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 保固案 ───────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS warranty_cases (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_case_id    INTEGER REFERENCES cases(id),
+    client_id           INTEGER REFERENCES clients(id),
+    technician_id       INTEGER REFERENCES users(id),
+    issue_description   TEXT,
+    issue_type          TEXT CHECK(issue_type IN ('material','installation','other')),
+    responsibility_type TEXT CHECK(responsibility_type IN ('technician','material','customer')),
+    status              TEXT DEFAULT 'open'
+                        CHECK(status IN ('open','rework','resolved','rejected')),
+    repair_cost         REAL DEFAULT 0,
+    resolved_at         DATETIME,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 技師評分（比 case_ratings 更細）──────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ratings (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id           INTEGER NOT NULL REFERENCES cases(id),
+    technician_id     INTEGER NOT NULL REFERENCES users(id),
+    rated_by          INTEGER REFERENCES users(id),
+    quality_score     INTEGER CHECK(quality_score BETWEEN 1 AND 5),
+    punctuality_score INTEGER CHECK(punctuality_score BETWEEN 1 AND 5),
+    response_score    INTEGER CHECK(response_score BETWEEN 1 AND 5),
+    cooperation_score INTEGER CHECK(cooperation_score BETWEEN 1 AND 5),
+    customer_score    INTEGER CHECK(customer_score BETWEEN 1 AND 5),
+    overall_score     REAL,
+    notes             TEXT,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 分潤規則 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS revenue_share_rules (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    name             TEXT NOT NULL,
+    project_type     TEXT,
+    region_id        INTEGER REFERENCES regions(id),
+    technician_level INTEGER,
+    rule_type        TEXT NOT NULL DEFAULT 'fixed_percent'
+                     CHECK(rule_type IN ('fixed_percent','fixed_amount','tiered')),
+    conditions       TEXT DEFAULT '{}',
+    shares           TEXT NOT NULL DEFAULT '{}',
+    status           TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 分潤明細（每案拆帳）─────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS revenue_shares (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id          INTEGER REFERENCES cases(id),
+    user_id          INTEGER REFERENCES users(id),
+    role_type        TEXT NOT NULL,
+    share_type       TEXT NOT NULL CHECK(share_type IN ('percent','fixed','deduction')),
+    amount           REAL NOT NULL,
+    rule_id          INTEGER REFERENCES revenue_share_rules(id),
+    status           TEXT DEFAULT 'pending'
+                     CHECK(status IN ('pending','confirmed','settled')),
+    settlement_month TEXT,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// ── 月結 ─────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settlements (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    settlement_month   TEXT NOT NULL,
+    user_id            INTEGER NOT NULL REFERENCES users(id),
+    role_type          TEXT NOT NULL,
+    total_income       REAL DEFAULT 0,
+    material_deduction REAL DEFAULT 0,
+    penalty_deduction  REAL DEFAULT 0,
+    warranty_deduction REAL DEFAULT 0,
+    net_amount         REAL DEFAULT 0,
+    status             TEXT DEFAULT 'draft'
+                       CHECK(status IN ('draft','pending_approval','approved','paid')),
+    approved_by        INTEGER REFERENCES users(id),
+    approved_at        DATETIME,
+    notes              TEXT,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(settlement_month, user_id)
+  );
+`);
+
+// ── 擴充現有表欄位（_addCol 必須在 CREATE TABLE 之後）──────────
+// users
+_addCol('users', 'region_id',         'INTEGER REFERENCES regions(id)');
+_addCol('users', 'technician_level',  'INTEGER DEFAULT 0');
+_addCol('users', 'rating_avg',        'REAL DEFAULT 0');
+_addCol('users', 'completed_cases',   'INTEGER DEFAULT 0');
+_addCol('users', 'suspended_at',      'TEXT');
+_addCol('users', 'suspension_reason', 'TEXT');
+// clients
+_addCol('clients', 'region_id',      'INTEGER REFERENCES regions(id)');
+_addCol('clients', 'owner_type',     "TEXT DEFAULT 'hq'");
+_addCol('clients', 'owner_user_id',  'INTEGER REFERENCES users(id)');
+// cases
+_addCol('cases', 'region_id',              'INTEGER REFERENCES regions(id)');
+_addCol('cases', 'source_type',            "TEXT DEFAULT 'line'");
+_addCol('cases', 'assigned_technician_id', 'INTEGER REFERENCES users(id)');
+_addCol('cases', 'regional_partner_id',    'INTEGER REFERENCES users(id)');
+_addCol('cases', 'requires_survey',        'INTEGER DEFAULT 0');
+_addCol('cases', 'dispatch_deadline',      'TEXT');
+_addCol('cases', 'quotation_amount',       'REAL');
+_addCol('cases', 'gross_profit',           'REAL');
+// materials
+_addCol('materials', 'sku',                  'TEXT');
+_addCol('materials', 'technician_price',     'REAL');
+_addCol('materials', 'locked_quantity',      'INTEGER DEFAULT 0');
+_addCol('materials', 'ecommerce_product_id', 'TEXT');
+// notifications（擴充現有表，加 channel / msg_status / sent_at / read_at）
+_addCol('notifications', 'channel',    "TEXT DEFAULT 'system'");
+_addCol('notifications', 'msg_status', "TEXT DEFAULT 'read'");
+_addCol('notifications', 'sent_at',    'DATETIME');
+_addCol('notifications', 'read_at',    'DATETIME');
+
 module.exports = db;
