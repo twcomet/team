@@ -98,6 +98,7 @@
         <button class="tab-btn active" onclick="switchTab('pl')">損益表</button>
         <button class="tab-btn"        onclick="switchTab('perf')">業績報表</button>
         <button class="tab-btn"        onclick="switchTab('cf')">現金流量表</button>
+        <button class="tab-btn"        onclick="switchTab('income')">收入分析</button>
         <button class="tab-btn"        onclick="switchTab('cats')">科目管理</button>
       </div>
 
@@ -166,6 +167,27 @@
                 <tbody id="perfTable"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 收入分析 ===== -->
+      <div id="panelIncome" style="display:none">
+        <div class="stats-grid" id="incStats"></div>
+        <div class="section-2col" style="margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><h3>品牌／產品收入排名</h3><span id="incBrandNote" style="font-size:12px;color:var(--gray-500)"></span></div>
+            <div class="card-body" id="incBrandList"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>案件類型收入</h3><span style="font-size:12px;color:var(--gray-500)">僅含有關聯案件的流水帳</span></div>
+            <div class="card-body" id="incCaseTypeList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>每月收入趨勢</h3></div>
+          <div class="card-body" style="padding:0">
+            <div class="pl-wrap"><table class="pl-ct" id="incMonthTable"></table></div>
           </div>
         </div>
       </div>
@@ -284,16 +306,19 @@ async function init() {
   await loadPl();
 }
 
+const TABS = ['pl','perf','cf','income','cats'];
 function switchTab(tab) {
   currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['pl','perf','cf','cats'][i]===tab));
-  document.getElementById('panelPl').style.display   = tab==='pl'   ? '' : 'none';
-  document.getElementById('panelPerf').style.display = tab==='perf' ? '' : 'none';
-  document.getElementById('panelCf').style.display   = tab==='cf'   ? '' : 'none';
-  document.getElementById('panelCats').style.display = tab==='cats' ? '' : 'none';
-  document.getElementById('plPeriodBar').style.display    = tab==='pl'  ? '' : 'none';
-  document.getElementById('otherPeriodBar').style.display = (tab==='perf'||tab==='cf') ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TABS[i]===tab));
+  document.getElementById('panelPl').style.display     = tab==='pl'     ? '' : 'none';
+  document.getElementById('panelPerf').style.display   = tab==='perf'   ? '' : 'none';
+  document.getElementById('panelCf').style.display     = tab==='cf'     ? '' : 'none';
+  document.getElementById('panelIncome').style.display = tab==='income' ? '' : 'none';
+  document.getElementById('panelCats').style.display   = tab==='cats'   ? '' : 'none';
+  document.getElementById('plPeriodBar').style.display    = (tab==='pl'||tab==='income') ? '' : 'none';
+  document.getElementById('otherPeriodBar').style.display = (tab==='perf'||tab==='cf')  ? '' : 'none';
   if (tab==='perf' || tab==='cf') loadOther();
+  if (tab==='income') loadIncome();
   if (tab==='cats') loadCats();
 }
 
@@ -314,6 +339,15 @@ function getDateRange() {
   }
   const y = document.getElementById('pickYear').value;
   return { from: `${y}-01-01`, to: `${y}-12-31` };
+}
+
+async function loadIncome() {
+  const from = document.getElementById('plFrom').value;
+  const to   = document.getElementById('plTo').value;
+  const org  = document.getElementById('filterOrgPl')?.value || '';
+  const qs   = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
+  const d    = await fetch(`/api/reports/income-analysis?${qs}`).then(r => r.json());
+  renderIncome(d);
 }
 
 async function loadPl() {
@@ -525,6 +559,85 @@ function renderCf(d) {
       <td style="text-align:right">${fmt(net)}</td>
     </tr>
   `;
+}
+
+// ─── 收入分析 ─────────────────────────────────────────────────
+function renderIncome(d) {
+  const { byBrand, byCaseType, noCase, totalIncome, months, monthlyRows } = d;
+
+  // Stats
+  const topBrand = byBrand[0];
+  document.getElementById('incStats').innerHTML = `
+    <div class="stat-card"><div class="label">總收入</div><div class="value success">${fmt(totalIncome)}</div></div>
+    <div class="stat-card"><div class="label">品牌/產品數</div><div class="value">${byBrand.filter(r=>r.total>0).length} 項</div></div>
+    <div class="stat-card"><div class="label">最高收入產品</div><div class="value" style="font-size:14px">${topBrand ? topBrand.category : '—'}</div></div>
+    <div class="stat-card"><div class="label">最高產品佔比</div><div class="value ${topBrand?.pct>50?'warning':''}">${topBrand ? topBrand.pct.toFixed(1)+'%' : '—'}</div></div>
+  `;
+
+  // 品牌排名
+  const maxBrand = byBrand[0]?.total || 1;
+  document.getElementById('incBrandNote').textContent = `共 ${byBrand.length} 項`;
+  document.getElementById('incBrandList').innerHTML = byBrand.length
+    ? byBrand.map(r => `
+        <div class="bar-row" style="margin-bottom:10px">
+          <span class="bar-label" style="width:130px;font-size:12px" title="${r.category}">${r.category}</span>
+          <div class="bar-track" style="flex:1">
+            <div class="bar-fill" style="width:${(r.total/maxBrand*100).toFixed(1)}%;background:var(--primary)"></div>
+          </div>
+          <span class="bar-val" style="width:90px;font-size:12px">${fmt(r.total)}</span>
+          <span style="width:46px;text-align:right;font-size:11px;color:var(--gray-500)">${r.pct.toFixed(1)}%</span>
+        </div>`).join('')
+    : '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">此期間無收入記錄</div>';
+
+  // 案件類型
+  const caseTotalInc = byCaseType.reduce((s,r)=>s+r.total,0);
+  const maxCase = byCaseType[0]?.total || 1;
+  const typeRows = byCaseType.map(r => `
+    <div class="bar-row" style="margin-bottom:10px">
+      <span class="bar-label" style="width:80px;font-size:12px">${CASE_TYPE_LABELS[r.case_type]||r.case_type}</span>
+      <div class="bar-track" style="flex:1">
+        <div class="bar-fill" style="width:${(r.total/maxCase*100).toFixed(1)}%;background:#10b981"></div>
+      </div>
+      <span class="bar-val" style="width:90px;font-size:12px">${fmt(r.total)}</span>
+      <span style="width:46px;text-align:right;font-size:11px;color:var(--gray-500)">${r.case_count}件</span>
+    </div>`).join('');
+  const noCaseHtml = noCase?.total > 0
+    ? `<div style="margin-top:10px;font-size:12px;color:var(--gray-500)">未關聯案件：${fmt(noCase.total)}（${noCase.count} 筆）</div>` : '';
+  document.getElementById('incCaseTypeList').innerHTML = byCaseType.length
+    ? typeRows + noCaseHtml
+    : '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">無關聯案件收入記錄</div>';
+
+  // 月份趨勢表
+  if (!months.length || !byBrand.length) {
+    document.getElementById('incMonthTable').innerHTML = '<tr><td style="padding:20px;color:var(--gray-400)">此期間無資料</td></tr>';
+    return;
+  }
+  // pivot: category → { month: amount }
+  const pivot = {};
+  monthlyRows.forEach(r => {
+    if (!pivot[r.category]) pivot[r.category] = {};
+    pivot[r.category][r.month] = r.total;
+  });
+  const mHdr = months.map(m => `<th>${m.slice(0,4)}/${m.slice(4)}</th>`).join('');
+  const mTotals = {};
+  months.forEach(m => { mTotals[m] = byBrand.reduce((s,r) => s+(pivot[r.category]?.[m]||0),0); });
+
+  const rows = byBrand.map(r => {
+    if (!r.total) return '';
+    const cells = months.map(m => {
+      const v = pivot[r.category]?.[m] || 0;
+      return `<td>${v ? fmt(v) : '<span class="pl-zero">0</span>'}</td>`;
+    }).join('');
+    return `<tr><td>${r.category}</td><td>${fmt(r.total)}</td><td style="color:var(--gray-500)">${r.pct.toFixed(1)}%</td>${cells}</tr>`;
+  }).join('');
+
+  const totalRow = `<tr class="pl-subtotal">
+    <td>收入合計</td><td>${fmt(totalIncome)}</td><td></td>
+    ${months.map(m=>`<td><b>${mTotals[m]?fmt(mTotals[m]):'<span class="pl-zero">0</span>'}</b></td>`).join('')}
+  </tr>`;
+
+  document.getElementById('incMonthTable').innerHTML =
+    `<thead><tr><th>品牌/產品</th><th>合計</th><th>%</th>${mHdr}</tr></thead><tbody>${rows}${totalRow}</tbody>`;
 }
 
 function printReport() {

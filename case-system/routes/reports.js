@@ -41,8 +41,9 @@ router.get('/performance', requireAuth, (req, res) => {
   let where = "WHERE c.status NOT IN ('invalid','initial_estimate','survey')";
   if (orgRestrict.org_id) { where += ' AND c.org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND c.org_id=?'; params.push(req.query.org_id); }
-  if (from) { where += ' AND date(c.created_at)>=?'; params.push(from); }
-  if (to)   { where += ' AND date(c.created_at)<=?'; params.push(to); }
+  // 業績以第一天施工日期（scheduled_date）計算，無施工日期則 fallback 至建立日期
+  if (from) { where += ' AND COALESCE(c.scheduled_date, date(c.created_at))>=?'; params.push(from); }
+  if (to)   { where += ' AND COALESCE(c.scheduled_date, date(c.created_at))<=?'; params.push(to); }
 
   // 案件彙總
   const summary = db.prepare(`
@@ -74,9 +75,9 @@ router.get('/performance', requireAuth, (req, res) => {
     GROUP BY c.sales_name ORDER BY gross_value DESC
   `).all(...params);
 
-  // 依月份
+  // 依月份（以施工日期）
   const byMonth = db.prepare(`
-    SELECT strftime('%Y-%m', c.created_at) as month,
+    SELECT strftime('%Y-%m', COALESCE(c.scheduled_date, c.created_at)) as month,
       COUNT(*) as count,
       SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
       SUM(COALESCE(c.payment_received, 0)) as received
@@ -144,6 +145,81 @@ router.get('/cashflow', requireAuth, (req, res) => {
   });
 
   res.json({ daily: withBalance, byCategory, totalIn, totalOut, net: totalIn - totalOut });
+});
+
+// ── 收入分析 GET /api/reports/income-analysis?from=YYYY-MM&to=YYYY-MM ──
+router.get('/income-analysis', requireAuth, (req, res) => {
+  const user = req.session.user;
+  const orgRestrict = orgFilter(user);
+
+  const now = new Date();
+  let { from, to } = req.query;
+  if (!from) from = `${now.getFullYear()}-01`;
+  if (!to)   to   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  const fromDate = `${from}-01`;
+  const lastDay  = new Date(ty, tm, 0).getDate();
+  const toDate   = `${to}-${String(lastDay).padStart(2,'0')}`;
+
+  const params = [];
+  let where = `WHERE le.type='income' AND le.date>=? AND le.date<=?`;
+  params.push(fromDate, toDate);
+  if (orgRestrict.org_id) { where += ' AND le.org_id=?'; params.push(orgRestrict.org_id); }
+  else if (req.query.org_id) { where += ' AND le.org_id=?'; params.push(req.query.org_id); }
+
+  // 品牌/產品收入（流水帳科目）
+  const byBrand = db.prepare(`
+    SELECT le.category, COALESCE(lc.section,'income') as section,
+           SUM(le.amount) as total, COUNT(*) as count
+    FROM ledger_entries le
+    LEFT JOIN ledger_categories lc ON lc.name = le.category
+    ${where}
+    GROUP BY le.category
+    ORDER BY total DESC
+  `).all(...params);
+
+  const totalIncome = byBrand.reduce((s, r) => s + r.total, 0);
+  byBrand.forEach(r => { r.pct = totalIncome > 0 ? r.total / totalIncome * 100 : 0; });
+
+  // 月份趨勢（品牌 × 月份 pivot）
+  const monthlyParams = [...params];
+  const monthlyRows = db.prepare(`
+    SELECT le.category, strftime('%Y%m', le.date) as month, SUM(le.amount) as total
+    FROM ledger_entries le
+    LEFT JOIN ledger_categories lc ON lc.name = le.category
+    ${where}
+    GROUP BY le.category, month ORDER BY month
+  `).all(...monthlyParams);
+
+  // 案件類型收入（透過 case_id join cases）
+  const caseTypeParams = [...params];
+  const byCaseType = db.prepare(`
+    SELECT COALESCE(c.case_type, '未分類') as case_type,
+           SUM(le.amount) as total, COUNT(DISTINCT le.case_id) as case_count
+    FROM ledger_entries le
+    LEFT JOIN cases c ON c.id = le.case_id
+    ${where} AND le.case_id IS NOT NULL
+    GROUP BY case_type ORDER BY total DESC
+  `).all(...caseTypeParams);
+
+  // 無案件關聯的收入
+  const noCase = db.prepare(`
+    SELECT SUM(le.amount) as total, COUNT(*) as count
+    FROM ledger_entries le
+    ${where} AND le.case_id IS NULL
+  `).get(...params);
+
+  // 月份清單
+  const months = [];
+  let cy = fy, cm = fm;
+  while (cy < ty || (cy === ty && cm <= tm)) {
+    months.push(`${cy}${String(cm).padStart(2,'0')}`);
+    cm++; if (cm > 12) { cm = 1; cy++; }
+  }
+
+  res.json({ byBrand, byCaseType, noCase, totalIncome, months, monthlyRows });
 });
 
 // ── 損益表（月份交叉表）GET /api/reports/pl-monthly?from=YYYY-MM&to=YYYY-MM ──
