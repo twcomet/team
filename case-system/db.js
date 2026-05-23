@@ -515,9 +515,11 @@ db.exec(`
     type       TEXT NOT NULL CHECK(type IN ('income','expense')),
     name       TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0,
-    active     INTEGER DEFAULT 1
+    active     INTEGER DEFAULT 1,
+    section    TEXT DEFAULT NULL
   );
 `);
+_addCol('ledger_categories', 'section', "TEXT DEFAULT NULL");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
@@ -540,9 +542,113 @@ const catExists = db.prepare(`SELECT id FROM ledger_categories LIMIT 1`).get();
 if (!catExists) {
   const incomes  = ['施工款','訂金','尾款','材料銷售','設計費','其他收入'];
   const expenses = ['材料費','人工費（外包）','油資/交通','工具耗材','水電費','租金','廣告費','辦公費','稅費','其他支出'];
-  const ins = db.prepare(`INSERT INTO ledger_categories (type, name, sort_order) VALUES (?, ?, ?)`);
-  incomes.forEach((n,i)  => ins.run('income',  n, i));
-  expenses.forEach((n,i) => ins.run('expense', n, i));
+  const ins = db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order) VALUES (?, ?, ?, ?)`);
+  incomes.forEach((n,i)  => ins.run('income',  'income',  n, i));
+  expenses.forEach((n,i) => ins.run('expense', 'expense', n, i));
+}
+
+// 更新舊資料的 section 欄位（migration：idempotent）
+db.exec(`UPDATE ledger_categories SET section='income'  WHERE type='income'  AND section IS NULL`);
+db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND section IS NULL`);
+
+// 新增損益表專用科目（來自 PDF 格式；若已存在則跳過）
+{
+  const getCat = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`);
+  const insCat = db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active) VALUES (?, ?, ?, ?, 1)`);
+  const plCats = [
+    // ── 收入 ──
+    ['income','income','廣告輸出-自產',1],
+    ['income','income','廣告輸出-外包',2],
+    ['income','income','PAROI',3],
+    ['income','income','裝漠貼膜-bodaq',4],
+    ['income','income','裝漠貼膜-LG',5],
+    ['income','income','裝漠貼膜-3M',6],
+    ['income','income','裝漠貼膜-翰可',7],
+    ['income','income','裝漠貼膜-保護膜',8],
+    ['income','income','電梯貼膜-改色',9],
+    ['income','income','電梯貼膜-保護',10],
+    ['income','income','DS彩貼',11],
+    ['income','income','施工代工',12],
+    ['income','income','銷售膜料',13],
+    ['income','income','調控薄膜',14],
+    ['income','income','隔熱紙-收入',15],
+    ['income','income','無框畫',16],
+    ['income','income','玻璃膜-收入',17],
+    ['income','income','穩得-收入',18],
+    // ── 成本 ──
+    ['expense','cost','成本-大陸陳總',101],
+    ['expense','cost','成本-LINTEC',102],
+    ['expense','cost','成本-製作外包',103],
+    ['expense','cost','成本-輸出材料',104],
+    ['expense','cost','成本-機器設備',105],
+    ['expense','cost','成本-可米亞',106],
+    ['expense','cost','成本-翰可',107],
+    ['expense','cost','成本-其他裝漠膜',108],
+    ['expense','cost','成本-3M裝漠膜',109],
+    ['expense','cost','成本-LG裝漠膜',110],
+    ['expense','cost','成本-車貼材料',111],
+    ['expense','cost','成本-隔熱紙',112],
+    ['expense','cost','成本-穩得',113],
+    ['expense','cost','成本-犀牛皮',114],
+    ['expense','cost','成本-人力外包',115],
+    ['expense','cost','成本-日本琳得科材料',116],
+    ['expense','cost','成本-施工耗材',117],
+    ['expense','cost','成本-員工薪水',118],
+    ['expense','cost','成本-員工獎金',119],
+    // ── 費用 ──
+    ['expense','expense','費用-租金支出',201],
+    ['expense','expense','費用-專業委外',202],
+    ['expense','expense','費用-公司裝漠',203],
+    ['expense','expense','費用-施工耗材',204],
+    ['expense','expense','費用-文具用品',205],
+    ['expense','expense','費用-運費',206],
+    ['expense','expense','費用-進口關稅',207],
+    ['expense','expense','費用-進口運費',208],
+    ['expense','expense','費用-交通費',209],
+    ['expense','expense','費用-停車費',210],
+    ['expense','expense','費用-汽車修繕',211],
+    ['expense','expense','費用-郵電費',212],
+    ['expense','expense','費用-電話網路費',213],
+    ['expense','expense','費用-電費',214],
+    ['expense','expense','費用-燃料費',215],
+    ['expense','expense','費用-牌照稅',216],
+    ['expense','expense','費用-修繕費',217],
+    ['expense','expense','費用-廣告費',218],
+    ['expense','expense','費用-雜項購置',219],
+    ['expense','expense','費用-損耗虧損',220],
+    ['expense','expense','保險費-勞保',221],
+    ['expense','expense','保險費-勞退',222],
+    ['expense','expense','保險費-健保',223],
+    ['expense','expense','保險費-其他',224],
+    ['expense','expense','職工福利費-教育訓練',225],
+    ['expense','expense','職工福利費-員工聚餐',226],
+    ['expense','expense','會計費用-記帳費用',227],
+    ['expense','expense','會計費用-稅捐',228],
+    ['expense','expense','會計費用-營業稅',229],
+    ['expense','expense','聯邦車貸-費用',230],
+    ['expense','expense','台企銀青年創業貸款',231],
+    ['expense','expense','富邦貸款',232],
+    ['expense','expense','華銀貸款',233],
+    ['expense','expense','利息支出',234],
+    ['expense','expense','零用金費用-Flora',235],
+    ['expense','expense','零用金費用-Dan',236],
+    ['expense','expense','零用金費用-恰吉',237],
+    ['expense','expense','交際費',238],
+    ['expense','expense','BNI',239],
+    ['expense','expense','其他費用',240],
+    ['expense','expense','非公司費用只是抵五趴',241],
+    ['expense','expense','退費退貨',242],
+    ['expense','expense','外業務佣金',243],
+    ['expense','expense','捐款',244],
+    // ── 資產/負債 ──
+    ['expense','asset_liability','押金/保證金',301],
+    ['expense','asset_liability','車輛設備',302],
+    ['expense','asset_liability','系統設備',303],
+    ['expense','asset_liability','資產-聯邦車貸',304],
+  ];
+  for (const [type, section, name, order] of plCats) {
+    if (!getCat.get(name)) insCat.run(type, section, name, order);
+  }
 }
 
 // ── 客戶分類（含折扣設定）───────────────────────────────────

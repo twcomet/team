@@ -65,6 +65,7 @@ const PAGE_PERMS = {
   payments:   'page_payments',
   admin:      'manage_users',
   materials:  'manage_users',
+  reports:    'manage_users',   // 財務報表：老闆專屬
 };
 
 function requirePagePerm(page) {

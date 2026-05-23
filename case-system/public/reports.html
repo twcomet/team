@@ -40,6 +40,21 @@
 .cf-day-row:hover { background:var(--gray-50); }
 .badge-in  { background:#dcfce7; color:#14532d; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
 .badge-out { background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:20px; font-size:11px; font-weight:600; }
+/* P&L crosstab */
+.pl-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.pl-ct { border-collapse:collapse; font-size:12.5px; min-width:600px; }
+.pl-ct th { background:#fce8d5; color:#7c2d12; font-weight:600; padding:7px 10px; text-align:right; white-space:nowrap; border:1px solid #fed7aa; }
+.pl-ct th:first-child { text-align:left; min-width:170px; position:sticky; left:0; z-index:2; }
+.pl-ct td { padding:6px 10px; border-bottom:1px solid var(--gray-100); text-align:right; white-space:nowrap; }
+.pl-ct td:first-child { text-align:left; position:sticky; left:0; background:#fff; z-index:1; }
+.pl-ct tr:hover td { background:#f9fafb; }
+.pl-ct tr:hover td:first-child { background:#f3f4f6; }
+.pl-subtotal td { background:#fce8d5 !important; font-weight:700; border-top:2px solid #fed7aa; border-bottom:2px solid #fed7aa; }
+.pl-profit td { background:#bfdbfe !important; font-weight:700; }
+.pl-margin td { background:#fef3c7 !important; font-weight:600; font-style:italic; }
+.pl-asset-total td { background:#fed7aa !important; font-weight:700; }
+.pl-zero { color:#d1d5db; }
+.pl-section-gap td { height:12px; background:#f9fafb !important; border:none; }
 </style>
 </head>
 <body>
@@ -51,7 +66,7 @@
       <a class="nav-item" data-page="cases"       href="/cases">    <span class="icon">📋</span>案件管理</a>
       <a class="nav-item" data-page="calendar"    href="/calendar"> <span class="icon">📅</span>派單行事曆</a>
       <a class="nav-item" data-page="payments"    href="/payments"> <span class="icon">💰</span>收款追蹤</a>
-      <a class="nav-item" data-page="reports"     href="/reports">  <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="reports" data-need="manage_users" href="/reports">  <span class="icon">📈</span>財務報表</a>
       <a class="nav-item" data-page="clients"     href="/clients">  <span class="icon">👥</span>客戶管理</a>
       <a class="nav-item" data-page="materials"   href="/materials"><span class="icon">🎞️</span>膜料管理</a>
       <a class="nav-item" data-page="admin"        href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
@@ -76,8 +91,24 @@
         <button class="tab-btn"        onclick="switchTab('cf')">現金流量表</button>
       </div>
 
-      <!-- 期間 / 篩選列 -->
-      <div class="period-bar">
+      <!-- 損益表專用期間列（from/to 月份） -->
+      <div id="plPeriodBar" class="period-bar">
+        <label style="font-size:13px;color:var(--gray-600)">從</label>
+        <input type="month" id="plFrom" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <label style="font-size:13px;color:var(--gray-600)">至</label>
+        <input type="month" id="plTo"   style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <span id="orgFilterWrapPl" style="display:none;align-items:center;gap:6px">
+          <label style="font-size:13px;color:var(--gray-600)">店別</label>
+          <select id="filterOrgPl" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+          </select>
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="loadPl()">查詢</button>
+        <button class="btn btn-ghost btn-sm" onclick="printReport()">🖨️ 列印</button>
+      </div>
+
+      <!-- 業績/現金流量 期間列 -->
+      <div id="otherPeriodBar" class="period-bar" style="display:none">
         <button class="period-tab active" onclick="setPeriodType('day')">日</button>
         <button class="period-tab"        onclick="setPeriodType('month')">月</button>
         <button class="period-tab"        onclick="setPeriodType('year')">年</button>
@@ -90,14 +121,20 @@
             <option value="">全部</option>
           </select>
         </span>
-        <button class="btn btn-primary btn-sm" onclick="loadAll()">查詢</button>
+        <button class="btn btn-primary btn-sm" onclick="loadOther()">查詢</button>
         <button class="btn btn-ghost btn-sm" onclick="printReport()">🖨️ 列印</button>
       </div>
 
       <!-- ===== 損益表 ===== -->
       <div id="panelPl">
         <div class="stats-grid" id="plStats"></div>
-        <div class="card"><div class="card-body" id="plBody" style="max-width:600px"></div></div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="pl-wrap">
+              <table class="pl-ct" id="plTable"></table>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== 業績報表 ===== -->
@@ -156,14 +193,6 @@ let currentTab = 'pl';
 let periodType = 'month';
 let allOrgs = [];
 
-const CASE_TYPE_LABELS = {
-  home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃',
-  extra:'外快', outsource:'外包', output:'輸出', other:'其他'
-};
-const STATUS_LABELS = {
-  initial_estimate:'初步估價', survey:'場勘', quoted:'出報價單',
-  contracted:'成交派案', payment:'完工請款', closed:'已結案', invalid:'無效'
-};
 const PAY_BADGES = {
   unpaid:  '<span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:20px;font-size:11px">未收款</span>',
   partial: '<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:20px;font-size:11px">部分收款</span>',
@@ -175,31 +204,35 @@ async function init() {
   currentUser = await loadUser();
   highlightNav('reports');
 
-  // 年份下拉
   const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // P&L from/to default: Jan of current year → current month
+  document.getElementById('plFrom').value = `${now.getFullYear()}-01`;
+  document.getElementById('plTo').value   = curYM;
+
+  // Other tabs defaults
   const ySel = document.getElementById('pickYear');
   for (let y = now.getFullYear(); y >= 2020; y--) {
-    const o = document.createElement('option');
-    o.value = y; o.textContent = `${y} 年`;
-    ySel.appendChild(o);
+    const o = document.createElement('option'); o.value = y; o.textContent = `${y} 年`; ySel.appendChild(o);
   }
-  document.getElementById('pickMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('pickMonth').value = curYM;
   document.getElementById('pickDay').value   = now.toISOString().slice(0,10);
 
-  // 載入 orgs
+  // Orgs
   const res = await fetch('/api/orgs');
   allOrgs = await res.json();
   if (currentUser?.view_all_branches) {
-    document.getElementById('orgFilterWrap').style.display = 'flex';
-    const sel = document.getElementById('filterOrg');
-    allOrgs.forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = o.id; opt.textContent = o.name;
-      sel.appendChild(opt);
+    ['orgFilterWrapPl','orgFilterWrap'].forEach(id => {
+      const wrap = document.getElementById(id); if (wrap) wrap.style.display = 'flex';
+    });
+    ['filterOrgPl','filterOrg'].forEach(selId => {
+      const sel = document.getElementById(selId); if (!sel) return;
+      allOrgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; sel.appendChild(opt); });
     });
   }
 
-  await loadAll();
+  await loadPl();
 }
 
 function switchTab(tab) {
@@ -208,6 +241,9 @@ function switchTab(tab) {
   document.getElementById('panelPl').style.display   = tab==='pl'   ? '' : 'none';
   document.getElementById('panelPerf').style.display = tab==='perf' ? '' : 'none';
   document.getElementById('panelCf').style.display   = tab==='cf'   ? '' : 'none';
+  document.getElementById('plPeriodBar').style.display    = tab==='pl' ? '' : 'none';
+  document.getElementById('otherPeriodBar').style.display = tab!=='pl' ? '' : 'none';
+  if (tab !== 'pl') loadOther();
 }
 
 function setPeriodType(type) {
@@ -219,64 +255,112 @@ function setPeriodType(type) {
 }
 
 function getDateRange() {
-  if (periodType === 'day') {
-    const d = document.getElementById('pickDay').value;
-    return { from: d, to: d };
-  }
+  if (periodType === 'day') { const d = document.getElementById('pickDay').value; return { from: d, to: d }; }
   if (periodType === 'month') {
     const m = document.getElementById('pickMonth').value;
     const [y, mo] = m.split('-').map(Number);
-    const last = new Date(y, mo, 0).getDate();
-    return { from: `${m}-01`, to: `${m}-${String(last).padStart(2,'0')}` };
+    return { from: `${m}-01`, to: `${m}-${String(new Date(y,mo,0).getDate()).padStart(2,'0')}` };
   }
   const y = document.getElementById('pickYear').value;
   return { from: `${y}-01-01`, to: `${y}-12-31` };
 }
 
-async function loadAll() {
+async function loadPl() {
+  const from = document.getElementById('plFrom').value;
+  const to   = document.getElementById('plTo').value;
+  const org  = document.getElementById('filterOrgPl')?.value || '';
+  const qs   = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
+  const d    = await fetch(`/api/reports/pl-monthly?${qs}`).then(r => r.json());
+  renderPlMonthly(d);
+}
+
+async function loadOther() {
   const { from, to } = getDateRange();
   const org = document.getElementById('filterOrg')?.value || '';
-  const qs = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
-  const [pl, perf, cf] = await Promise.all([
-    fetch(`/api/reports/pl?${qs}`).then(r=>r.json()),
+  const qs  = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
+  const [perf, cf] = await Promise.all([
     fetch(`/api/reports/performance?${qs}`).then(r=>r.json()),
     fetch(`/api/reports/cashflow?${qs}`).then(r=>r.json()),
   ]);
-  renderPl(pl);
   renderPerf(perf);
   renderCf(cf);
 }
 
-// ─── 損益表 ───────────────────────────────────────────────────
-function renderPl(d) {
-  const net = d.net;
+// ─── 損益表（月份交叉表）─────────────────────────────────────
+function renderPlMonthly(d) {
+  const { months, sections, totals } = d;
+  const it = totals.incomeTotal;
+
+  // stat cards
   document.getElementById('plStats').innerHTML = `
-    <div class="stat-card"><div class="label">收入合計</div><div class="value success">${fmt(d.totalIn)}</div></div>
-    <div class="stat-card"><div class="label">支出合計</div><div class="value danger">${fmt(d.totalOut)}</div></div>
-    <div class="stat-card"><div class="label">淨損益</div><div class="value ${net>=0?'success':'danger'}">${fmt(net)}</div></div>
-    <div class="stat-card"><div class="label">毛利率</div><div class="value ${net>=0?'success':'danger'}">${d.totalIn ? (net/d.totalIn*100).toFixed(1)+'%' : '—'}</div></div>
+    <div class="stat-card"><div class="label">收入小計</div><div class="value success">${fmt(totals.incomeTotal)}</div></div>
+    <div class="stat-card"><div class="label">成本小計</div><div class="value danger">${fmt(totals.costTotal)}</div></div>
+    <div class="stat-card"><div class="label">毛利</div><div class="value ${totals.grossProfit>=0?'success':'danger'}">${fmt(totals.grossProfit)}</div></div>
+    <div class="stat-card"><div class="label">費用合計</div><div class="value warning">${fmt(totals.expTotal)}</div></div>
+    <div class="stat-card"><div class="label">營業淨利</div><div class="value ${totals.opIncome>=0?'success':'danger'}">${fmt(totals.opIncome)}</div></div>
+    <div class="stat-card"><div class="label">淨利率</div><div class="value ${totals.opIncome>=0?'success':'danger'}">${it>0?totals.netMargin.toFixed(1)+'%':'—'}</div></div>
   `;
 
-  const rows = (items, cls) => items.length
-    ? items.map(r=>`<div class="pl-row"><span>${r.category}</span><span style="color:${cls}">${fmt(r.total)}</span></div>`).join('')
-    : '<div class="pl-row" style="color:var(--gray-400)">— 無記錄 —</div>';
+  const pct = (v) => it > 0 ? (v/it*100).toFixed(2)+'%' : '0.00%';
+  const n   = (v) => v ? fmt(v) : `<span class="pl-zero">0</span>`;
+  const mHdr = months.map(m => `<th>${m.slice(0,4)}/${m.slice(4)}</th>`).join('');
 
-  document.getElementById('plBody').innerHTML = `
-    <div class="pl-section">
-      <h4>收入項目</h4>
-      ${rows(d.income, '#057a55')}
-      <div class="pl-total"><span>收入合計</span><span style="color:#057a55">${fmt(d.totalIn)}</span></div>
-    </div>
-    <div class="pl-section">
-      <h4>支出項目</h4>
-      ${rows(d.expense, '#e02424')}
-      <div class="pl-total"><span>支出合計</span><span style="color:#e02424">${fmt(d.totalOut)}</span></div>
-    </div>
-    <div class="pl-net ${net>=0?'positive':'negative'}">
-      <span>${net>=0?'本期淨利':'本期淨損'}</span>
-      <span>${fmt(Math.abs(net))}</span>
-    </div>
-  `;
+  const dataRow = (cat, isSection) => {
+    const cells = months.map(m => `<td>${n(cat.monthly[m])}</td>`).join('');
+    return `<tr>
+      <td>${cat.name}</td>
+      <td>${n(cat.total)}</td>
+      <td style="color:var(--gray-500)">${pct(cat.total)}</td>
+      ${cells}
+    </tr>`;
+  };
+
+  const subtotalRow = (label, total, mMap, cls) => {
+    const cells = months.map(m => `<td><b>${n(mMap[m])}</b></td>`).join('');
+    return `<tr class="${cls}"><td>${label}</td><td>${fmt(total)}</td><td></td>${cells}</tr>`;
+  };
+
+  const percentRow = (label, pctVal, mIncome, mMap) => {
+    const cells = months.map(m => `<td>${mIncome[m]>0?(mMap[m]/mIncome[m]*100).toFixed(1)+'%':'—'}</td>`).join('');
+    return `<tr class="pl-margin"><td>${label}</td><td>${pctVal.toFixed(1)}%</td><td></td>${cells}</tr>`;
+  };
+
+  const gapRow = `<tr class="pl-section-gap"><td colspan="${3+months.length}"></td></tr>`;
+
+  let html = `<thead><tr>
+    <th>月份 / 科目</th><th>合計</th><th>%</th>${mHdr}
+  </tr></thead><tbody>`;
+
+  // 收入
+  html += sections.income.map(c => dataRow(c)).join('');
+  html += subtotalRow('收入小計', totals.incomeTotal, totals.mIncome, 'pl-subtotal');
+  html += gapRow;
+
+  // 成本
+  html += sections.cost.map(c => dataRow(c)).join('');
+  html += subtotalRow('成本小計', totals.costTotal, totals.mCost, 'pl-subtotal');
+  html += subtotalRow('毛利', totals.grossProfit, totals.mGross, 'pl-profit');
+  html += percentRow('毛利率', totals.grossMargin, totals.mIncome, totals.mGross);
+  html += gapRow;
+
+  // 費用
+  html += sections.expense.map(c => dataRow(c)).join('');
+  html += subtotalRow('費用合計', totals.expTotal, totals.mExp, 'pl-subtotal');
+  html += gapRow;
+  html += subtotalRow('營業淨利', totals.opIncome, totals.mOp, 'pl-profit');
+  html += percentRow('淨利率', totals.netMargin, totals.mIncome, totals.mOp);
+
+  // 資產/負債
+  if (sections.asset_liability.length) {
+    html += gapRow;
+    html += sections.asset_liability.map(c => dataRow(c)).join('');
+    const assetM = {};
+    months.forEach(m => { assetM[m] = sections.asset_liability.reduce((s,c) => s+(c.monthly[m]||0), 0); });
+    html += subtotalRow('資產/負債合計', totals.assetTotal, assetM, 'pl-asset-total');
+  }
+
+  html += '</tbody>';
+  document.getElementById('plTable').innerHTML = html;
 }
 
 // ─── 業績報表 ─────────────────────────────────────────────────

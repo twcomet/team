@@ -146,4 +146,119 @@ router.get('/cashflow', requireAuth, (req, res) => {
   res.json({ daily: withBalance, byCategory, totalIn, totalOut, net: totalIn - totalOut });
 });
 
+// ── 損益表（月份交叉表）GET /api/reports/pl-monthly?from=YYYY-MM&to=YYYY-MM ──
+router.get('/pl-monthly', requireAuth, (req, res) => {
+  const user = req.session.user;
+  const orgRestrict = orgFilter(user);
+
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let { from, to } = req.query;
+  if (!from) from = `${now.getFullYear()}-01`;
+  if (!to)   to   = curYM;
+
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  const fromDate = `${from}-01`;
+  const lastDay  = new Date(ty, tm, 0).getDate();
+  const toDate   = `${to}-${String(lastDay).padStart(2,'0')}`;
+
+  // Generate ordered month list
+  const months = [];
+  let cy = fy, cm = fm;
+  while (cy < ty || (cy === ty && cm <= tm)) {
+    months.push(`${cy}${String(cm).padStart(2,'0')}`);
+    cm++; if (cm > 12) { cm = 1; cy++; }
+  }
+
+  const params = [];
+  let where = 'WHERE le.date>=? AND le.date<=?';
+  params.push(fromDate, toDate);
+  if (orgRestrict.org_id) { where += ' AND le.org_id=?'; params.push(orgRestrict.org_id); }
+  else if (req.query.org_id) { where += ' AND le.org_id=?'; params.push(req.query.org_id); }
+
+  // All entries grouped by category + month
+  const rows = db.prepare(`
+    SELECT
+      le.category,
+      le.type AS entry_type,
+      COALESCE(lc.section, le.type) AS section,
+      COALESCE(lc.sort_order, 999)  AS sort_order,
+      strftime('%Y%m', le.date)     AS month,
+      SUM(le.amount)                AS total
+    FROM ledger_entries le
+    LEFT JOIN ledger_categories lc ON lc.name = le.category
+    ${where}
+    GROUP BY le.category, section, month
+    ORDER BY sort_order, le.category, month
+  `).all(...params);
+
+  // Build pivot: catKey → { name, section, sort_order, monthly, total }
+  const catMap = {};
+  for (const r of rows) {
+    if (!catMap[r.category]) {
+      catMap[r.category] = { name: r.category, section: r.section, sort_order: r.sort_order, monthly: {}, total: 0 };
+    }
+    catMap[r.category].monthly[r.month] = (catMap[r.category].monthly[r.month] || 0) + r.total;
+    catMap[r.category].total += r.total;
+  }
+
+  // Merge all known active categories (show even if 0)
+  const allCats = db.prepare(`SELECT * FROM ledger_categories WHERE active=1 ORDER BY sort_order, id`).all();
+  for (const c of allCats) {
+    if (!catMap[c.name]) {
+      catMap[c.name] = {
+        name: c.name,
+        section: c.section || (c.type === 'income' ? 'income' : 'expense'),
+        sort_order: c.sort_order,
+        monthly: {},
+        total: 0
+      };
+    }
+  }
+
+  // Group by section, sorted by sort_order
+  const sections = { income: [], cost: [], expense: [], asset_liability: [] };
+  for (const cat of Object.values(catMap)) {
+    const s = cat.section || 'expense';
+    if (!sections[s]) sections[s] = [];
+    sections[s].push(cat);
+  }
+  for (const s of Object.keys(sections)) {
+    sections[s].sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name, 'zh-TW'));
+  }
+
+  const sumCats   = cats => cats.reduce((s, c) => s + c.total, 0);
+  const sumMonth  = (cats, m) => cats.reduce((s, c) => s + (c.monthly[m] || 0), 0);
+
+  const incomeTotal = sumCats(sections.income);
+  const costTotal   = sumCats(sections.cost);
+  const expTotal    = sumCats(sections.expense);
+  const assetTotal  = sumCats(sections.asset_liability);
+  const grossProfit = incomeTotal - costTotal;
+  const opIncome    = grossProfit - expTotal;
+
+  const mIncome = {}, mCost = {}, mExp = {}, mGross = {}, mOp = {};
+  for (const m of months) {
+    mIncome[m] = sumMonth(sections.income, m);
+    mCost[m]   = sumMonth(sections.cost, m);
+    mExp[m]    = sumMonth(sections.expense, m);
+    mGross[m]  = mIncome[m] - mCost[m];
+    mOp[m]     = mGross[m] - mExp[m];
+  }
+
+  res.json({
+    months,
+    sections,
+    totals: {
+      incomeTotal, costTotal, expTotal, assetTotal,
+      grossProfit,
+      grossMargin:  incomeTotal > 0 ? grossProfit / incomeTotal * 100 : 0,
+      opIncome,
+      netMargin:    incomeTotal > 0 ? opIncome / incomeTotal * 100 : 0,
+      mIncome, mCost, mExp, mGross, mOp
+    }
+  });
+});
+
 module.exports = router;

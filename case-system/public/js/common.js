@@ -46,6 +46,7 @@ async function loadUser() {
     calendar:  p.page_calendar,
     payments:  p.page_payments,
     admin:     currentUser.manage_users,
+    reports:   currentUser.manage_users,
   };
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     const page = el.dataset.page;
