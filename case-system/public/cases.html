@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>案件管理 — 繪新管理系統</title>
 <link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
 <style>
 .pipeline { display:flex; gap:0; margin-bottom:24px; overflow-x:auto; }
 .pipeline-stage { flex:1; min-width:90px; padding:10px 8px; text-align:center; font-size:12px; font-weight:500; cursor:pointer; border-bottom:3px solid transparent; color:var(--gray-500); white-space:nowrap; transition:all .15s; }
@@ -24,7 +25,7 @@
 <body>
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
     <nav class="sidebar-nav">
       <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
       <a class="nav-item" data-page="cases"     href="/cases">    <span class="icon">📋</span>案件管理</a>

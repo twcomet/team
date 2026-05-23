@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>財務報表 — 繪新管理系統</title>
 <link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
 <style>
 .tab-bar { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:20px; }
 .tab-btn { padding:10px 22px; font-size:14px; font-weight:500; cursor:pointer; border:none; background:none; color:var(--gray-500); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; }
@@ -69,7 +70,7 @@
 <body>
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-brand"><h2>🎨 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
     <nav class="sidebar-nav">
       <a class="nav-item" data-page="dashboard"  href="/dashboard"><span class="icon">📊</span>總覽</a>
       <a class="nav-item" data-page="cases"       href="/cases">    <span class="icon">📋</span>案件管理</a>
