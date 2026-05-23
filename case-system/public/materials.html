@@ -37,6 +37,7 @@
 .log-academy    { background:#e0e7ff; color:#3730a3; }
 .log-ecommerce  { background:#fce7f3; color:#9d174d; }
 .log-adjust     { background:var(--gray-100); color:var(--gray-500); }
+.log-reserve    { background:#fef3c7; color:#92400e; }
 
 .stock-low  { color:var(--danger); font-weight:700; }
 .stock-mid  { color:var(--warning); font-weight:600; }
@@ -243,6 +244,7 @@
       <div class="form-group">
         <label>用途 *</label>
         <select id="l_type">
+          <option value="reserve">保留</option>
           <option value="case_cut">案場切料</option>
           <option value="case_loss">案場損失重貼</option>
           <option value="store_sale">門市銷售</option>
@@ -290,6 +292,7 @@
         <div class="form-group">
           <label>用途 *</label>
           <select id="s_type">
+            <option value="reserve">保留</option>
             <option value="case_cut">案場切料</option>
             <option value="case_loss">案場損失重貼</option>
             <option value="store_sale">門市銷售</option>
@@ -339,7 +342,8 @@ let sellRolls = [];
 
 const LOG_LABELS = {
   purchase:'進貨', case_cut:'案場切料', case_loss:'案場損失重貼',
-  store_sale:'門市銷售', academy:'學院使用', ecommerce:'電商訂單', adjust:'庫存調整'
+  store_sale:'門市銷售', academy:'學院使用', ecommerce:'電商訂單', adjust:'庫存調整',
+  reserve:'保留'
 };
 
 async function init() {

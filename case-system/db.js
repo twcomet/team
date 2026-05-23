@@ -283,14 +283,41 @@ db.exec(`CREATE TABLE IF NOT EXISTS material_logs (
   material_id INTEGER NOT NULL REFERENCES materials(id),
   org_id      INTEGER REFERENCES orgs(id),
   log_type    TEXT NOT NULL CHECK(log_type IN (
-                'purchase','case_cut','case_loss','store_sale','academy','ecommerce','adjust'
+                'purchase','case_cut','case_loss','store_sale','academy','ecommerce','adjust','reserve'
               )),
   case_id     INTEGER REFERENCES cases(id),
   meters      REAL NOT NULL,
   notes       TEXT,
+  status      TEXT NOT NULL DEFAULT 'active',
   logged_by   INTEGER REFERENCES users(id),
   logged_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
+
+// 若舊 DB 的 material_logs 尚未含 reserve 與 status → 重建
+const _matLogsSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='material_logs'`).get();
+if (_matLogsSchema && !_matLogsSchema.sql.includes("'reserve'")) {
+  db.exec(`PRAGMA foreign_keys=OFF`);
+  db.exec(`CREATE TABLE material_logs_new (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    roll_id     INTEGER REFERENCES material_rolls(id) ON DELETE CASCADE,
+    material_id INTEGER NOT NULL REFERENCES materials(id),
+    org_id      INTEGER REFERENCES orgs(id),
+    log_type    TEXT NOT NULL CHECK(log_type IN (
+                  'purchase','case_cut','case_loss','store_sale','academy','ecommerce','adjust','reserve'
+                )),
+    case_id     INTEGER REFERENCES cases(id),
+    meters      REAL NOT NULL,
+    notes       TEXT,
+    status      TEXT NOT NULL DEFAULT 'active',
+    logged_by   INTEGER REFERENCES users(id),
+    logged_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.exec(`INSERT INTO material_logs_new (id,roll_id,material_id,org_id,log_type,case_id,meters,notes,status,logged_by,logged_at)
+    SELECT id,roll_id,material_id,org_id,log_type,case_id,meters,notes,'active',logged_by,logged_at FROM material_logs`);
+  db.exec(`DROP TABLE material_logs`);
+  db.exec(`ALTER TABLE material_logs_new RENAME TO material_logs`);
+  db.exec(`PRAGMA foreign_keys=ON`);
+}
 
 // ── 膜料庫存目錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS materials (

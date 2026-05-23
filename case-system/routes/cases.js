@@ -127,7 +127,7 @@ router.get('/:id', requireAuth, (req, res) => {
   `).all(c.id);
 
   const matLogs = db.prepare(`
-    SELECT ml.id, ml.roll_id, ml.log_type, ml.meters, ml.notes, ml.logged_at,
+    SELECT ml.id, ml.roll_id, ml.log_type, ml.status, ml.meters, ml.notes, ml.logged_at,
            m.brand AS film_brand, m.model AS film_model,
            mr.unit_cost,
            u.name AS recorder_name
@@ -135,7 +135,7 @@ router.get('/:id', requireAuth, (req, res) => {
     LEFT JOIN material_rolls mr ON mr.id = ml.roll_id
     LEFT JOIN materials m ON m.id = ml.material_id
     LEFT JOIN users u ON u.id = ml.logged_by
-    WHERE ml.case_id = ? AND ml.log_type IN ('case_cut','case_loss')
+    WHERE ml.case_id = ? AND ml.log_type IN ('case_cut','case_loss','reserve')
     ORDER BY ml.logged_at DESC
   `).all(c.id);
 

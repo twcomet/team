@@ -840,7 +840,7 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
 function renderMatUsage(dispatchList, logList) {
   const el = document.getElementById('matUsageList');
   const DISPATCH_TYPE = { survey:'場勘', install:'施工', aftersales:'售後' };
-  const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼' };
+  const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留' };
 
   // 統一格式
   const fromDispatch = dispatchList.map(m => ({
@@ -853,6 +853,7 @@ function renderMatUsage(dispatchList, logList) {
     recorder_name: m.recorder_name || '—',
     notes:         m.notes || '',
     source:        'dispatch',
+    status:        'active',
   }));
   const fromLogs = logList.map(m => ({
     date:          (m.logged_at || '').slice(0,10),
@@ -864,6 +865,8 @@ function renderMatUsage(dispatchList, logList) {
     recorder_name: m.recorder_name || '—',
     notes:         m.notes || '',
     source:        'log',
+    status:        m.status || 'active',
+    log_type:      m.log_type,
     id:            m.id,
   }));
 
@@ -874,8 +877,9 @@ function renderMatUsage(dispatchList, logList) {
     return;
   }
 
-  const total_meters = all.reduce((s, m) => s + m.meters, 0);
-  const total_cost   = all.reduce((s, m) => s + m.meters * (m.unit_cost || 0), 0);
+  // 合計只計算 active（不算已取消的保留）
+  const total_meters = all.filter(m=>m.status==='active').reduce((s, m) => s + m.meters, 0);
+  const total_cost   = all.filter(m=>m.status==='active').reduce((s, m) => s + m.meters * (m.unit_cost || 0), 0);
 
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -893,17 +897,27 @@ function renderMatUsage(dispatchList, logList) {
           <th>記錄人</th><th>備注</th><th></th>
         </tr></thead>
         <tbody>
-          ${all.map(m => `<tr>
-            <td>${m.date || '—'}</td>
-            <td>${m.type_label}</td>
-            <td>${m.film_brand}</td>
-            <td><strong>${m.film_model}</strong></td>
-            <td>${m.meters}</td>
-            ${currentUser.can_see_amounts ? `<td>${m.unit_cost ? '$'+m.unit_cost : '—'}</td><td>${m.unit_cost ? '$'+Math.round(m.meters*(m.unit_cost||0)).toLocaleString() : '—'}</td>` : ''}
-            <td>${m.recorder_name}</td>
-            <td style="color:var(--gray-500)">${m.notes}</td>
-            <td>${m.source==='log' ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteMatLog(${m.id})">刪除</button>` : ''}</td>
-          </tr>`).join('')}
+          ${all.map(m => {
+            const isCancelled = m.status === 'cancelled';
+            const isReserve   = m.log_type === 'reserve' && !isCancelled;
+            const rowStyle    = isCancelled ? 'opacity:.45;text-decoration:line-through' : '';
+            const typeBadge   = isReserve
+              ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">🔒 保留中</span>`
+              : isCancelled
+                ? `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:20px;font-size:11px">保留已取消</span>`
+                : m.type_label;
+            return `<tr style="${rowStyle}">
+              <td>${m.date || '—'}</td>
+              <td>${typeBadge}</td>
+              <td>${m.film_brand}</td>
+              <td><strong>${m.film_model}</strong></td>
+              <td>${m.meters}</td>
+              ${currentUser.can_see_amounts ? `<td>${m.unit_cost ? '$'+m.unit_cost : '—'}</td><td>${m.unit_cost && !isCancelled ? '$'+Math.round(m.meters*(m.unit_cost||0)).toLocaleString() : '—'}</td>` : ''}
+              <td>${m.recorder_name}</td>
+              <td style="color:var(--gray-500)">${m.notes}</td>
+              <td>${m.source==='log' && !isCancelled ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteMatLog(${m.id})">刪除</button>` : ''}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
@@ -1139,6 +1153,7 @@ init();
         <div class="form-group">
           <label>用途</label>
           <select id="ml_type">
+            <option value="reserve">保留</option>
             <option value="case_cut">施工</option>
             <option value="case_loss">損失重貼</option>
           </select>

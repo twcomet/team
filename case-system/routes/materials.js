@@ -136,7 +136,8 @@ router.put('/:matId/rolls/:rid', requireAuth, (req, res) => {
 
 const LOG_TYPE_LABELS = {
   purchase: '進貨', case_cut: '案場切料', case_loss: '案場損失重貼',
-  store_sale: '門市銷售', academy: '學院使用', ecommerce: '電商訂單', adjust: '庫存調整'
+  store_sale: '門市銷售', academy: '學院使用', ecommerce: '電商訂單', adjust: '庫存調整',
+  reserve: '保留'
 };
 
 // GET /:matId/logs — 取得某膜料下所有流水帳（跨捲料）
@@ -182,6 +183,25 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   const isOut = log_type !== 'purchase';
   const delta = isOut ? -Math.abs(meters) : Math.abs(meters);
 
+  // 若為實際出料（case_cut / case_loss），自動取消同案件同捲料的保留
+  if (['case_cut', 'case_loss'].includes(log_type) && case_id) {
+    const reserves = db.prepare(`
+      SELECT * FROM material_logs
+      WHERE roll_id = ? AND case_id = ? AND log_type = 'reserve' AND status = 'active'
+    `).all(req.params.rid, case_id);
+    for (const r of reserves) {
+      // 還原米數（r.meters 是負數）
+      db.prepare(`UPDATE material_rolls SET remaining_meters = remaining_meters - ? WHERE id = ?`)
+        .run(r.meters, r.roll_id);
+      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
+        .run(r.meters, r.material_id, org_id);
+      db.prepare(`UPDATE material_logs SET status = 'cancelled' WHERE id = ?`).run(r.id);
+    }
+    // 重新取得最新 remaining_meters（因為可能已被還原）
+    const fresh = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(req.params.rid);
+    roll.remaining_meters = fresh ? fresh.remaining_meters : roll.remaining_meters;
+  }
+
   // 更新捲料剩餘米數
   const newRemaining = Math.max(0, roll.remaining_meters + delta);
   db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
@@ -206,15 +226,15 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
   const log = db.prepare(`SELECT * FROM material_logs WHERE id = ? AND org_id = ?`).get(req.params.id, org_id);
   if (!log) return res.status(404).json({ error: '找不到記錄' });
 
-  // 還原捲料剩餘米數（meters 是負數代表出庫，刪除後加回去）
-  const newRemaining = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(log.roll_id)?.remaining_meters || 0;
-  const restored = newRemaining - log.meters; // -meters 還原
-  db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
-    .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
-
-  // 還原 materials.stock_meters
-  db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
-    .run(log.meters, log.material_id, org_id);
+  // 已取消的保留不需還原（庫存刪除保留時已還原）
+  if (log.status !== 'cancelled') {
+    const newRemaining = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(log.roll_id)?.remaining_meters || 0;
+    const restored = newRemaining - log.meters;
+    db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
+      .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
+    db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
+      .run(log.meters, log.material_id, org_id);
+  }
 
   db.prepare(`DELETE FROM material_logs WHERE id = ?`).run(req.params.id);
   res.json({ ok: true });
