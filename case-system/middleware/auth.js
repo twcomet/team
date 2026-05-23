@@ -1,3 +1,5 @@
+const db = require('../db');
+
 // 角色定義：每個 role 的預設權限
 const ROLE_DEFS = {
   owner:              { label:'最高管理者', viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:true  },
@@ -15,7 +17,21 @@ const ROLE_DEFS = {
 };
 
 function getRoleDef(role) {
-  return ROLE_DEFS[role] || ROLE_DEFS.hq_tech;
+  if (ROLE_DEFS[role]) return ROLE_DEFS[role];
+  try {
+    const cr = db.prepare(`SELECT * FROM custom_roles WHERE code=? AND active=1 LIMIT 1`).get(role);
+    if (cr) {
+      const p = JSON.parse(cr.default_perms || '{}');
+      return {
+        label: cr.label,
+        viewAllBranches: cr.view_all_branches === 1,
+        viewAmounts: !!p.can_see_amounts,
+        manageUsers: false,
+        manageOrgs:  false,
+      };
+    }
+  } catch (_) {}
+  return ROLE_DEFS.hq_tech;
 }
 
 // ── Middleware ──────────────────────────────────────────────

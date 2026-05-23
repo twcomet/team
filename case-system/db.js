@@ -508,6 +508,20 @@ db.exec(`
   );
 `);
 
+// ── 自訂角色 ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS custom_roles (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    code              TEXT UNIQUE NOT NULL,
+    label             TEXT NOT NULL,
+    default_perms     TEXT DEFAULT '{}',
+    view_all_branches INTEGER DEFAULT 0,
+    active            INTEGER DEFAULT 1,
+    sort_order        INTEGER DEFAULT 0,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // ── 流水帳科目 ──────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS ledger_categories (

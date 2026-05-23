@@ -90,9 +90,51 @@ router.put('/:id/password', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// 角色清單（供前端 select 使用）
+// 角色清單（系統內建 + 自訂，供前端 select 使用）
 router.get('/roles', requireAuth, (req, res) => {
-  res.json(Object.entries(ROLE_DEFS).map(([value, def]) => ({ value, label: def.label })));
+  const builtin = Object.entries(ROLE_DEFS).map(([value, def]) => ({
+    value, label: def.label, type: 'builtin', default_perms: null,
+  }));
+  const custom = db.prepare(`SELECT * FROM custom_roles WHERE active=1 ORDER BY sort_order, id`).all()
+    .map(r => ({ value: r.code, label: r.label, type: 'custom', id: r.id, default_perms: r.default_perms }));
+  res.json([...builtin, ...custom]);
+});
+
+// ── 自訂角色 CRUD（owner only）────────────────────────────────
+
+router.get('/custom-roles', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  res.json(db.prepare(`SELECT * FROM custom_roles ORDER BY sort_order, id`).all());
+});
+
+router.post('/custom-roles', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  const { label, default_perms, view_all_branches } = req.body;
+  if (!label?.trim()) return res.status(400).json({ error: '請填入角色名稱' });
+  const r = db.prepare(`INSERT INTO custom_roles (code, label, default_perms, view_all_branches, sort_order)
+    VALUES ('_tmp', ?, ?, ?, (SELECT COALESCE(MAX(sort_order),0)+1 FROM custom_roles))`)
+    .run(label.trim(), JSON.stringify(default_perms || {}), view_all_branches ? 1 : 0);
+  db.prepare(`UPDATE custom_roles SET code=? WHERE id=?`).run(`cr_${r.lastInsertRowid}`, r.lastInsertRowid);
+  res.json({ id: r.lastInsertRowid, code: `cr_${r.lastInsertRowid}` });
+});
+
+router.put('/custom-roles/:id', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  const { label, default_perms, view_all_branches, active } = req.body;
+  if (!label?.trim()) return res.status(400).json({ error: '請填入角色名稱' });
+  db.prepare(`UPDATE custom_roles SET label=?, default_perms=?, view_all_branches=?, active=? WHERE id=?`)
+    .run(label.trim(), JSON.stringify(default_perms || {}), view_all_branches ? 1 : 0, active ?? 1, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/custom-roles/:id', requireAuth, (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可操作' });
+  const cr = db.prepare(`SELECT code FROM custom_roles WHERE id=?`).get(req.params.id);
+  if (!cr) return res.status(404).json({ error: '角色不存在' });
+  const inUse = db.prepare(`SELECT id FROM users WHERE role=? LIMIT 1`).get(cr.code);
+  if (inUse) return res.status(400).json({ error: '此角色仍有使用者，請先更改其角色' });
+  db.prepare(`DELETE FROM custom_roles WHERE id=?`).run(req.params.id);
+  res.json({ ok: true });
 });
 
 module.exports = router;
