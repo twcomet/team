@@ -68,7 +68,7 @@
           </div>
         </div>
         <div class="card-body" style="padding:0">
-          <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+          <div class="table-wrap">
             <table>
               <thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>對象</th><th>說明</th></tr></thead>
               <tbody id="auditBody"></tbody>
@@ -600,18 +600,37 @@ async function loadAuditLogs() {
 
   const tbody = document.getElementById('auditBody');
   if (!logs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暫無紀錄</td></tr>'; return; }
-  tbody.innerHTML = logs.map(l => {
+  const PREVIEW = 5;
+  const rows = logs.map((l, i) => {
     const action = ACTION_LABELS[l.action] || l.action;
     const entity = ENTITY_LABELS[l.entity] || l.entity || '';
     const dt = new Date(l.created_at + (l.created_at.includes('+') ? '' : 'Z')).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    return `<tr>
+    const hidden = i >= PREVIEW ? ' class="audit-extra" style="display:none"' : '';
+    return `<tr${hidden}>
       <td style="font-size:12px;color:#6b7280;white-space:nowrap">${dt}</td>
       <td style="font-weight:500">${l.user_name || '—'}</td>
       <td><span class="badge ${l.action==='delete'?'badge-closed':l.action==='login'||l.action==='logout'?'badge-completed':'badge-active'}" style="font-size:11px">${action}</span></td>
       <td style="font-size:12px;color:#6b7280">${entity}</td>
       <td style="font-size:12px;color:#374151;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.detail || '—'}</td>
     </tr>`;
-  }).join('');
+  });
+  if (logs.length > PREVIEW) {
+    rows.push(`<tr id="auditToggleRow">
+      <td colspan="5" style="text-align:center;padding:8px 0">
+        <button class="btn btn-ghost btn-sm" id="auditToggleBtn" onclick="toggleAuditExpand(${logs.length})">
+          展開顯示更多（共 ${logs.length} 筆）▾
+        </button>
+      </td>
+    </tr>`);
+  }
+  tbody.innerHTML = rows.join('');
+}
+function toggleAuditExpand(total) {
+  const extras = document.querySelectorAll('.audit-extra');
+  const btn = document.getElementById('auditToggleBtn');
+  const expanded = extras[0]?.style.display !== 'none';
+  extras.forEach(r => r.style.display = expanded ? 'none' : '');
+  btn.textContent = expanded ? `展開顯示更多（共 ${total} 筆）▾` : `收合 ▴`;
 }
 document.getElementById('auditEntity')?.addEventListener('change', loadAuditLogs);
 document.getElementById('auditUser')?.addEventListener('change', loadAuditLogs);
