@@ -588,26 +588,28 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
     ['income','income','無框畫',          29],
     ['income','income','設計費',          30],
     ['income','income','其他收入',        31],
-    // ── 成本 ──
-    ['expense','cost','成本-大陸陳總',101],
-    ['expense','cost','成本-LINTEC',102],
-    ['expense','cost','成本-製作外包',103],
-    ['expense','cost','成本-輸出材料',104],
-    ['expense','cost','成本-機器設備',105],
-    ['expense','cost','成本-可米亞',106],
-    ['expense','cost','成本-翰可',107],
-    ['expense','cost','成本-其他裝漠膜',108],
-    ['expense','cost','成本-3M裝漠膜',109],
-    ['expense','cost','成本-LG裝漠膜',110],
-    ['expense','cost','成本-車貼材料',111],
-    ['expense','cost','成本-隔熱紙',112],
-    ['expense','cost','成本-穩得',113],
-    ['expense','cost','成本-犀牛皮',114],
-    ['expense','cost','成本-人力外包',115],
-    ['expense','cost','成本-日本琳得科材料',116],
-    ['expense','cost','成本-施工耗材',117],
-    ['expense','cost','成本-員工薪水',118],
-    ['expense','cost','成本-員工獎金',119],
+    // ── 成本（依品牌/產品邏輯，對應收入科目）──
+    ['expense','cost','進貨-bodaq',        101],
+    ['expense','cost','進貨-LG',           102],
+    ['expense','cost','進貨-3M',           103],
+    ['expense','cost','進貨-PAROI',        104],
+    ['expense','cost','進貨-保護膜',       105],
+    ['expense','cost','進貨-隔熱紙',       106],
+    ['expense','cost','進貨-翰可',         107],
+    ['expense','cost','進貨-其他膜料',     108],
+    ['expense','cost','成本-輸出材料',     109],
+    ['expense','cost','成本-廣告外包',     110],
+    ['expense','cost','成本-DS彩貼',       111],
+    ['expense','cost','成本-穩得',         112],
+    ['expense','cost','成本-車貼材料',     113],
+    ['expense','cost','成本-人力外包',     114],
+    ['expense','cost','成本-員工薪水',     115],
+    ['expense','cost','成本-員工獎金',     116],
+    ['expense','cost','成本-學院材料',     117],
+    ['expense','cost','成本-學院講師費',   118],
+    ['expense','cost','成本-機器設備',     119],
+    ['expense','cost','成本-施工耗材',     120],
+    ['expense','cost','成本-其他',         121],
     // ── 費用 ──
     ['expense','expense','費用-租金支出',201],
     ['expense','expense','費用-專業委外',202],
@@ -717,6 +719,53 @@ if (_needAcademyMigration) {
   _insAcad.run('學院-認證考試', 24);
   _insAcad.run('學院-其他',     25);
   console.log('✅ 學院業務展開完成（4 子科目）');
+}
+
+// ── 成本科目整理 migration（依品牌/產品邏輯）───────────────────
+// 條件：舊版有「成本-大陸陳總」或「成本-犀牛皮」才執行
+const _needCostMigration =
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-大陸陳總' AND section='cost' LIMIT 1`).get() ||
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-犀牛皮'   AND section='cost' LIMIT 1`).get();
+
+if (_needCostMigration) {
+  // 刪除廢棄科目（大陸陳總已拆分品牌、可米亞刪除、LINTEC/琳得科合併）
+  ['成本-大陸陳總','成本-可米亞','成本-日本琳得科材料','成本-LINTEC'].forEach(n =>
+    db.prepare(`DELETE FROM ledger_categories WHERE name=? AND section='cost'`).run(n)
+  );
+
+  // 重新命名（old → new）
+  const _renC = db.prepare(`UPDATE ledger_categories SET name=? WHERE name=? AND section='cost'`);
+  _renC.run('進貨-LG',       '成本-LG裝漠膜');
+  _renC.run('進貨-3M',       '成本-3M裝漠膜');
+  _renC.run('進貨-保護膜',   '成本-犀牛皮');
+  _renC.run('進貨-隔熱紙',   '成本-隔熱紙');
+  _renC.run('進貨-翰可',     '成本-翰可');
+  _renC.run('進貨-其他膜料', '成本-其他裝漠膜');
+  _renC.run('成本-廣告外包', '成本-製作外包');
+
+  // 新增科目
+  const _insC = db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active) VALUES ('expense','cost',?,?,1)`);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='進貨-bodaq'`).get())      _insC.run('進貨-bodaq',      101);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='進貨-PAROI'`).get())      _insC.run('進貨-PAROI',      104);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-DS彩貼'`).get())     _insC.run('成本-DS彩貼',     111);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-學院材料'`).get())   _insC.run('成本-學院材料',   117);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-學院講師費'`).get()) _insC.run('成本-學院講師費', 118);
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='成本-其他'`).get())       _insC.run('成本-其他',       121);
+
+  // 重設排序
+  const _costOrder = [
+    '進貨-bodaq','進貨-LG','進貨-3M','進貨-PAROI',
+    '進貨-保護膜','進貨-隔熱紙','進貨-翰可','進貨-其他膜料',
+    '成本-輸出材料','成本-廣告外包',
+    '成本-DS彩貼','成本-穩得','成本-車貼材料',
+    '成本-人力外包','成本-員工薪水','成本-員工獎金',
+    '成本-學院材料','成本-學院講師費',
+    '成本-機器設備','成本-施工耗材','成本-其他',
+  ];
+  const _updC = db.prepare(`UPDATE ledger_categories SET sort_order=?,active=1 WHERE name=? AND section='cost'`);
+  _costOrder.forEach((n, i) => _updC.run(i + 101, n));
+
+  console.log('✅ 成本科目整理完成（依品牌/產品邏輯）');
 }
 
 // ── 客戶分類（含折扣設定）───────────────────────────────────
