@@ -102,6 +102,9 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
 
 // 客戶傳訊 → 建立／追加 LINE 詢問單
 async function handleClientText(event, channel) {
+  // 只處理個人 1 對 1 訊息；群組 / 多人聊天室訊息一律忽略
+  if (event.source?.type !== 'user') return;
+
   const userId = event.source?.userId;
   if (!userId) return;
   const text = event.message.text.trim();
@@ -160,6 +163,7 @@ async function handleClientText(event, channel) {
 
 // 客戶加好友歡迎語
 async function handleClientFollow(event, channel) {
+  if (event.source?.type !== 'user') return;
   const userId = event.source?.userId;
   if (!userId) return;
   const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);

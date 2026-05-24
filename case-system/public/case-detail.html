@@ -149,15 +149,6 @@
         </div>
       </div>
 
-      <!-- 轉換階段橫幅 -->
-      <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:10px;margin-bottom:14px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:10px">
-        <div>
-          <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
-          <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap" id="convertBannerBtns"></div>
-      </div>
-
       <!-- Tabs -->
       <div class="tabs">
         <div class="tab active" data-tab="basic" data-groups="inquiry,survey,deal">基本資訊</div>
@@ -226,6 +217,9 @@
               <input type="text" id="b_line_display_name" placeholder="例：王大明">
             </div>
           </div>
+          <!-- 客戶聯絡資訊卡片（選客戶後顯示） -->
+          <div id="b_client_info_card" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-top:8px;font-size:13px;color:#374151;line-height:1.8">
+          </div>
           <div class="form-group" style="margin-bottom:12px">
             <label>客戶類別</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="b_category_chips">
@@ -273,6 +267,18 @@
             <a id="b_photo_upload_link" href="#" target="_blank"
                style="display:none;padding:9px 14px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-700);text-decoration:none;white-space:nowrap">開啟 ↗</a>
           </div>
+        </div>
+
+        <!-- 儲存 ＋ 轉換階段橫幅（詢價/場勘時顯示） -->
+        <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:14px 18px;border-radius:10px;margin-top:8px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="saveBasicBtnBanner">儲存</button>
+            <div>
+              <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
+              <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="convertBannerBtns"></div>
         </div>
       </div>
 
@@ -930,8 +936,8 @@ function applyConvertButtons(group) {
   toDeal.style.display    = (group === 'inquiry' || group === 'survey') ? '' : 'none';
   toInvalid.style.display = (group === 'inquiry' || group === 'survey') ? '' : 'none';
 
+  banner.style.display = 'flex';
   if (group === 'inquiry') {
-    banner.style.display = 'flex';
     document.getElementById('convertBannerTitle').textContent = '初步估價完成？選擇下一步';
     document.getElementById('convertBannerDesc').textContent  = '確認後案件將移至對應管理階段';
     bannerBtns.innerHTML = `
@@ -939,14 +945,15 @@ function applyConvertButtons(group) {
       <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 直接成交</button>
       <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
   } else if (group === 'survey') {
-    banner.style.display = 'flex';
     document.getElementById('convertBannerTitle').textContent = '場勘完成？選擇下一步';
     document.getElementById('convertBannerDesc').textContent  = '確認成交後案件移至成交案件管理';
     bannerBtns.innerHTML = `
       <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 確認成交</button>
       <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
   } else {
-    banner.style.display = 'none';
+    document.getElementById('convertBannerTitle').textContent = '基本資訊';
+    document.getElementById('convertBannerDesc').textContent  = '儲存後立即生效';
+    bannerBtns.innerHTML = '';
   }
 }
 
@@ -1077,12 +1084,12 @@ function fillBasicForm() {
   const _cl = clients.find(x => x.id === c.client_id);
   document.getElementById('b_client').value = c.client_id || '';
   if (_cl && (_cl.source === 'line' || _cl.line_user_id)) {
-    // LINE 客戶：顯示名放到 line_display_name，客戶欄留空
     if (!c.line_display_name) document.getElementById('b_line_display_name').value = _cl.name || '';
     document.getElementById('b_client_input').value = '';
   } else {
     document.getElementById('b_client_input').value = _cl ? _cl.name : '';
   }
+  if (_cl) fillClientInfoCard(_cl);
 }
 
 function toggleInvoice() {
@@ -1130,11 +1137,13 @@ function updatePoolBanner(isOn, type) {
   }
 }
 
-document.getElementById('saveBasicBtn').addEventListener('click', async () => {
+async function doSaveBasic() {
   const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildSaveBody()) });
   if (res.ok) { showToast('已儲存'); await loadCase(); }
   else showToast('儲存失敗', 'error');
-});
+}
+document.getElementById('saveBasicBtn').addEventListener('click', doSaveBasic);
+document.getElementById('saveBasicBtnBanner')?.addEventListener('click', doSaveBasic);
 
 document.getElementById('saveEstimateBtn').addEventListener('click', async () => {
   const ie = {
@@ -2040,6 +2049,30 @@ document.getElementById('previewQuoteBtn').addEventListener('click', () => {
   }
 });
 
+function fillClientInfoCard(cl) {
+  const card = document.getElementById('b_client_info_card');
+  const rows = [];
+  if (cl.address)        rows.push(`<div>📍 ${cl.address}</div>`);
+  if (cl.contact_person) rows.push(`<div>👤 聯絡人：${cl.contact_person}</div>`);
+  if (cl.phone)          rows.push(`<div>📞 ${cl.phone}</div>`);
+  if (cl.email)          rows.push(`<div>✉️ ${cl.email}</div>`);
+  if (cl.line_user_id)   rows.push(`<div>💬 LINE：${cl.line_user_id}</div>`);
+  if (rows.length) {
+    card.innerHTML = rows.join('');
+    card.style.display = 'block';
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+function fillInvoiceFromClient(cl) {
+  if (cl.tax_id)   document.getElementById('bi_invoice_tax_id').value  = cl.tax_id;
+  if (cl.name)     document.getElementById('bi_invoice_company').value = cl.name;
+  if (cl.address)  document.getElementById('bi_invoice_address').value = cl.address;
+  if (cl.email)    document.getElementById('bi_invoice_email').value   = cl.email;
+  updateInvoiceSummary();
+}
+
 function initClientAutocomplete() {
   const input    = document.getElementById('b_client_input');
   const hidden   = document.getElementById('b_client');
@@ -2067,16 +2100,19 @@ function initClientAutocomplete() {
       el.addEventListener('mousedown', e => {
         e.preventDefault();
         hidden.value = el.dataset.id;
-        const selectedClient = clients.find(c => String(c.id) === el.dataset.id);
-        if (selectedClient && (selectedClient.source === 'line' || selectedClient.line_user_id)) {
-          // LINE 客戶：顯示名帶入 line_display_name，客戶名稱欄留空
+        const sc = clients.find(c => String(c.id) === el.dataset.id);
+        if (sc && (sc.source === 'line' || sc.line_user_id)) {
           const lineNameEl = document.getElementById('b_line_display_name');
-          if (!lineNameEl.value) lineNameEl.value = selectedClient.name || '';
+          if (!lineNameEl.value) lineNameEl.value = sc.name || '';
           input.value = '';
         } else {
           input.value = el.dataset.name;
         }
         dropdown.style.display = 'none';
+        if (sc) {
+          fillClientInfoCard(sc);
+          fillInvoiceFromClient(sc);
+        }
       });
       el.addEventListener('mouseover', () => el.style.background = '#f0f4ff');
       el.addEventListener('mouseout',  () => el.style.background = '');

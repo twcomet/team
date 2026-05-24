@@ -163,6 +163,45 @@
         </div>
       </div>
 
+      <!-- 場勘模板管理 -->
+      <div class="card" id="surveyTemplateCard" data-need="owner" style="display:none;margin-bottom:24px">
+        <div class="card-header">
+          <h3>場勘模板管理</h3>
+        </div>
+        <div class="card-body">
+          <!-- 子 Tab -->
+          <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:16px">
+            <div class="stpl-tab active" data-stab="notes" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">備註模板庫</div>
+            <div class="stpl-tab" data-stab="checklist" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">施作檢查清單模板</div>
+          </div>
+
+          <!-- 備註模板 -->
+          <div id="stab-notes">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+              <button class="btn btn-primary btn-sm" onclick="openNoteTemplateModal()">＋ 新增模板</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="noteTemplateTable">
+                <thead><tr><th>類別</th><th>關鍵字</th><th>備註內容</th><th></th></tr></thead>
+                <tbody id="noteTemplateBody">
+                  <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">載入中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 施作清單模板 -->
+          <div id="stab-checklist" style="display:none">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+              <button class="btn btn-primary btn-sm" onclick="openChecklistTemplateModal()">＋ 新增項目</button>
+            </div>
+            <div id="checklistTemplateArea">
+              <div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">載入中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 人員管理 -->
       <div class="card">
         <div class="card-header">
@@ -424,6 +463,62 @@
   </div>
 </div>
 
+<!-- 備註模板 Modal -->
+<div class="modal-overlay" id="noteTemplateModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="ntModalTitle">新增備註模板</h3>
+      <button class="modal-close" onclick="closeModal('noteTemplateModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ntId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>類別 <span style="font-size:11px;color:var(--gray-400)">（如：除膜、貼膜、電梯）</span></label>
+          <input type="text" id="ntCategory" placeholder="例：除膜">
+        </div>
+        <div class="form-group">
+          <label>關鍵字 <span style="font-size:11px;color:var(--gray-400)">（搜尋用）</span></label>
+          <input type="text" id="ntKeyword" placeholder="例：舊膜殘膠">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>備註內容 *</label>
+        <textarea id="ntContent" rows="5" placeholder="輸入場勘備註模板內容..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('noteTemplateModal')">取消</button>
+      <button class="btn btn-primary" id="ntSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 施作清單項目 Modal -->
+<div class="modal-overlay" id="checklistTemplateModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3 id="clModalTitle">新增清單項目</h3>
+      <button class="modal-close" onclick="closeModal('checklistTemplateModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="clId">
+      <div class="form-group">
+        <label>類別 * <span style="font-size:11px;color:var(--gray-400)">（如：玻璃膜、門框、牆面、電梯、一般）</span></label>
+        <input type="text" id="clCategory" placeholder="例：玻璃膜">
+      </div>
+      <div class="form-group">
+        <label>項目名稱 *</label>
+        <input type="text" id="clItem" placeholder="例：確認玻璃尺寸與規格">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('checklistTemplateModal')">取消</button>
+      <button class="btn btn-primary" id="clSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let orgs = [], roles = [], allUsers = [], customRoles = [], lineChannels = [];
@@ -447,6 +542,9 @@ async function init() {
     document.getElementById('pushModeCard').style.display = '';
     document.getElementById('gcalCard').style.display = '';
     document.getElementById('lineChannelCard').style.display = '';
+    document.getElementById('surveyTemplateCard').style.display = '';
+    await loadNoteTemplates();
+    await loadChecklistTemplates();
     const rdRes = await fetch('/api/users/role-defaults');
     if (rdRes.ok) roleDefaultsMap = await rdRes.json();
     await loadCustomRoles();
@@ -1225,6 +1323,153 @@ async function deleteChannel(id, name) {
   const res = await fetch(`/api/users/line-channels/${id}`, { method: 'DELETE' });
   if (res.ok) { await loadLineChannels(); showToast('頻道已刪除'); }
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+// ── 場勘模板管理 ─────────────────────────────────────────────
+
+// 子 tab 切換
+document.querySelectorAll('.stpl-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.stpl-tab').forEach(t => {
+      t.style.borderBottomColor = 'transparent';
+      t.style.color = 'var(--gray-500)';
+    });
+    tab.style.borderBottomColor = 'var(--primary)';
+    tab.style.color = 'var(--primary)';
+    document.getElementById('stab-notes').style.display    = tab.dataset.stab === 'notes'     ? '' : 'none';
+    document.getElementById('stab-checklist').style.display = tab.dataset.stab === 'checklist' ? '' : 'none';
+  });
+});
+
+let noteTemplates = [], checklistTemplates = [];
+
+async function loadNoteTemplates() {
+  const res = await fetch('/api/survey/note-templates');
+  if (!res.ok) return;
+  noteTemplates = await res.json();
+  const tbody = document.getElementById('noteTemplateBody');
+  if (!noteTemplates.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">尚無模板</td></tr>';
+    return;
+  }
+  tbody.innerHTML = noteTemplates.map(t => `
+    <tr>
+      <td style="font-size:13px;color:var(--gray-600)">${escHtml(t.category || '—')}</td>
+      <td><span style="background:#eff6ff;color:#1d4ed8;font-size:12px;padding:2px 8px;border-radius:12px">${escHtml(t.keyword || '—')}</span></td>
+      <td style="font-size:13px;max-width:300px;white-space:pre-wrap;word-break:break-all">${escHtml(t.content)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openNoteTemplateModal(${t.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteNoteTemplate(${t.id},'${escHtml(t.keyword||t.category||'').replace(/'/g,'\\&#39;')}')">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function loadChecklistTemplates() {
+  const res = await fetch('/api/survey/checklist-templates');
+  if (!res.ok) return;
+  const data = await res.json();
+  checklistTemplates = data.rows || [];
+  const grouped = data.grouped || {};
+  const area = document.getElementById('checklistTemplateArea');
+  if (!checklistTemplates.length) {
+    area.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">尚無項目</div>';
+    return;
+  }
+  area.innerHTML = Object.entries(grouped).map(([cat, items]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px">${escHtml(cat)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 2px">
+        ${items.map(it => `
+          <div style="display:flex;align-items:center;gap:4px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:4px 10px;font-size:13px">
+            <span>${escHtml(it.item)}</span>
+            <button onclick="openChecklistTemplateModal(${it.id})" style="background:none;border:none;cursor:pointer;color:var(--gray-400);padding:0 2px;font-size:12px" title="編輯">✎</button>
+            <button onclick="deleteChecklistTemplate(${it.id},'${escHtml(it.item).replace(/'/g,'\\&#39;')}')" style="background:none;border:none;cursor:pointer;color:#e02424;padding:0 2px;font-size:12px" title="刪除">×</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openNoteTemplateModal(id) {
+  const t = id ? noteTemplates.find(x => x.id === id) : null;
+  document.getElementById('ntId').value = t ? t.id : '';
+  document.getElementById('ntCategory').value = t ? (t.category || '') : '';
+  document.getElementById('ntKeyword').value   = t ? (t.keyword  || '') : '';
+  document.getElementById('ntContent').value   = t ? (t.content  || '') : '';
+  document.getElementById('ntModalTitle').textContent = t ? '編輯備註模板' : '新增備註模板';
+  document.getElementById('noteTemplateModal').classList.add('open');
+}
+
+document.getElementById('ntSaveBtn')?.addEventListener('click', async () => {
+  const id      = document.getElementById('ntId').value;
+  const body = {
+    category: document.getElementById('ntCategory').value.trim(),
+    keyword:  document.getElementById('ntKeyword').value.trim(),
+    content:  document.getElementById('ntContent').value.trim(),
+  };
+  if (!body.content) { showToast('請填入備註內容', 'error'); return; }
+  const res = await fetch(id ? `/api/survey/note-templates/${id}` : '/api/survey/note-templates', {
+    method: id ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    closeModal('noteTemplateModal');
+    await loadNoteTemplates();
+    showToast('備註模板已儲存');
+  } else {
+    const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
+  }
+});
+
+async function deleteNoteTemplate(id, label) {
+  if (!confirm(`確定刪除備註模板「${label}」？`)) return;
+  const res = await fetch(`/api/survey/note-templates/${id}`, { method: 'DELETE' });
+  if (res.ok) { await loadNoteTemplates(); showToast('已刪除'); }
+  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+function openChecklistTemplateModal(id) {
+  const t = id ? checklistTemplates.find(x => x.id === id) : null;
+  document.getElementById('clId').value = t ? t.id : '';
+  document.getElementById('clCategory').value = t ? (t.category || '') : '';
+  document.getElementById('clItem').value     = t ? (t.item     || '') : '';
+  document.getElementById('clModalTitle').textContent = t ? '編輯清單項目' : '新增清單項目';
+  document.getElementById('checklistTemplateModal').classList.add('open');
+}
+
+document.getElementById('clSaveBtn')?.addEventListener('click', async () => {
+  const id = document.getElementById('clId').value;
+  const body = {
+    category: document.getElementById('clCategory').value.trim(),
+    item:     document.getElementById('clItem').value.trim(),
+  };
+  if (!body.category || !body.item) { showToast('類別和項目名稱皆必填', 'error'); return; }
+  const res = await fetch(id ? `/api/survey/checklist-templates/${id}` : '/api/survey/checklist-templates', {
+    method: id ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    closeModal('checklistTemplateModal');
+    await loadChecklistTemplates();
+    showToast('清單項目已儲存');
+  } else {
+    const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
+  }
+});
+
+async function deleteChecklistTemplate(id, label) {
+  if (!confirm(`確定刪除清單項目「${label}」？`)) return;
+  const res = await fetch(`/api/survey/checklist-templates/${id}`, { method: 'DELETE' });
+  if (res.ok) { await loadChecklistTemplates(); showToast('已刪除'); }
+  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 init();
