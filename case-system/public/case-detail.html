@@ -888,6 +888,9 @@ function renderHeader() {
   sel.innerHTML = (STATUS_OPTIONS_BY_GROUP[group] || STATUS_OPTIONS_BY_GROUP.inquiry)
     .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   sel.value = caseData.status;
+  // 側欄高亮（依所屬管理階段）
+  const navMap = { inquiry: 'cases-inquiry', survey: 'cases-survey', deal: 'cases-deal' };
+  highlightNav(navMap[group] || 'cases-inquiry');
   // Tab 可見性
   applyGroupTabs(group);
   // 轉換按鈕
