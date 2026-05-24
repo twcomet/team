@@ -27,6 +27,7 @@
         <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
         <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
         <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
         <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
@@ -144,6 +145,24 @@
         </div>
       </div>
 
+      <!-- LINE 多頻道管理 -->
+      <div class="card" id="lineChannelCard" data-need="owner" style="display:none;margin-bottom:24px">
+        <div class="card-header">
+          <h3>LINE 官方帳號頻道管理</h3>
+          <button class="btn btn-primary btn-sm" id="newChannelBtn">＋ 新增頻道</button>
+        </div>
+        <div class="card-body">
+          <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px">
+            每個分店的 LINE OA 各自設定一個頻道。Webhook URL 統一填寫：<br>
+            <code id="webhookUrlDisplay" style="background:var(--gray-100);padding:3px 8px;border-radius:4px;font-size:12px;cursor:pointer" onclick="copyWebhookUrl()">載入中...</code>
+            <span style="font-size:11px;color:var(--gray-400);margin-left:6px">（點擊複製）</span>
+          </div>
+          <div id="channelList">
+            <div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">載入中...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 人員管理 -->
       <div class="card">
         <div class="card-header">
@@ -250,6 +269,9 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_reports"> 📈 財務報表
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_marketing"> 📣 行銷報表
+          </label>
         </div>
       </div>
     </div>
@@ -345,6 +367,9 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_reports"> 📈 財務報表
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_marketing"> 📣 行銷報表
+          </label>
         </div>
       </div>
     </div>
@@ -355,9 +380,53 @@
   </div>
 </div>
 
+<!-- LINE 頻道 Modal -->
+<div class="modal-overlay" id="channelModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="channelModalTitle">新增 LINE 頻道</h3>
+      <button class="modal-close" onclick="closeModal('channelModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="channelId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>頻道名稱 *</label>
+          <input type="text" id="channelName" placeholder="例：繪新國際總部、繪新台中店">
+        </div>
+        <div class="form-group">
+          <label>所屬分店</label>
+          <select id="channelOrgId"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Channel Secret * <span style="font-size:11px;color:var(--gray-400)">（LINE Developers → Basic settings）</span></label>
+        <input type="text" id="channelSecret" placeholder="留空表示不修改（編輯時）" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Channel Access Token * <span style="font-size:11px;color:var(--gray-400)">（LINE Developers → Messaging API）</span></label>
+        <textarea id="channelToken" rows="3" placeholder="留空表示不修改（編輯時）" autocomplete="off" style="font-size:12px;font-family:monospace"></textarea>
+      </div>
+      <div class="form-group">
+        <label>自動回覆訊息 <span style="font-size:11px;color:var(--gray-400)">（客戶傳訊後的自動回覆，留空使用預設）</span></label>
+        <textarea id="channelWelcome" rows="3" placeholder="您好！已收到您的訊息，我們將盡快與您聯繫 🙏"></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="channelActive" checked> 啟用此頻道
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('channelModal')">取消</button>
+      <button class="btn btn-primary" id="channelSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
-let orgs = [], roles = [], allUsers = [], customRoles = [];
+let orgs = [], roles = [], allUsers = [], customRoles = [], lineChannels = [];
 let editingUserId = null, editingRoleId = null, editingBuiltinRole = null;
 let roleLabelsMap = {}, roleDefaultsMap = {};
 
@@ -377,12 +446,14 @@ async function init() {
     document.getElementById('roleSection').style.display = '';
     document.getElementById('pushModeCard').style.display = '';
     document.getElementById('gcalCard').style.display = '';
+    document.getElementById('lineChannelCard').style.display = '';
     const rdRes = await fetch('/api/users/role-defaults');
     if (rdRes.ok) roleDefaultsMap = await rdRes.json();
     await loadCustomRoles();
     await loadAuditLogs();
     await loadPushMode();
     await loadGcalSetting();
+    await loadLineChannels();
   } else {
     document.getElementById('orgSection').style.display = 'none';
   }
@@ -487,7 +558,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -500,7 +571,7 @@ async function loadCustomRoles() {
     page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款追蹤',
     page_ledger:'收支流水帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件管理',
     page_materials:'膜料管理', page_performance:'業績報表', page_reports:'財務報表',
-    my_tasks:'我的任務',
+    page_marketing:'行銷報表', my_tasks:'我的任務',
   };
   const builtinRows = roles.filter(r => r.type === 'builtin').map(r => {
     const p = roleDefaultsMap[r.value] || {};
@@ -580,6 +651,7 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_page_materials').checked        = !!p.page_materials;
   document.getElementById('rolePerm_page_performance').checked      = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked          = !!p.page_reports;
+  document.getElementById('rolePerm_page_marketing').checked        = !!p.page_marketing;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -610,6 +682,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_materials').checked         = !!p.page_materials;
   document.getElementById('rolePerm_page_performance').checked       = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked           = !!p.page_reports;
+  document.getElementById('rolePerm_page_marketing').checked         = !!p.page_marketing;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -631,6 +704,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_materials:      document.getElementById('rolePerm_page_materials').checked,
     page_performance:    document.getElementById('rolePerm_page_performance').checked,
     page_reports:        document.getElementById('rolePerm_page_reports').checked,
+    page_marketing:      document.getElementById('rolePerm_page_marketing').checked,
   };
 
   // 系統內建角色 → 儲存到 role_defaults
@@ -801,6 +875,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_materials').checked        = !!p.page_materials;
     document.getElementById('perm_page_performance').checked      = !!p.page_performance;
     document.getElementById('perm_page_reports').checked          = !!p.page_reports;
+    document.getElementById('perm_page_marketing').checked        = !!p.page_marketing;
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
     const isHQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
@@ -818,6 +893,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_materials').checked        = false;
     document.getElementById('perm_page_performance').checked      = false;
     document.getElementById('perm_page_reports').checked          = false;
+    document.getElementById('perm_page_marketing').checked        = false;
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -894,6 +970,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials   !== undefined ? !!perms.page_materials   : !!u.is_manager);
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
+  document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
   const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
   document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
@@ -928,6 +1005,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_materials:      document.getElementById('perm_page_materials').checked,
       page_performance:    document.getElementById('perm_page_performance').checked,
       page_reports:        document.getElementById('perm_page_reports').checked,
+      page_marketing:      document.getElementById('perm_page_marketing').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
     allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))
@@ -1042,6 +1120,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_materials:      !!(p.page_materials),
       page_performance:    !!(p.page_performance),
       page_reports:        !!(p.page_reports),
+      page_marketing:      !!(p.page_marketing),
       my_tasks:            !!(p.my_tasks),
     };
     await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},
@@ -1051,6 +1130,101 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
   }
   await loadUsers();
   showToast(`已更新 ${affected.length} 位帳號的權限設定`);
+}
+
+// ── LINE 頻道管理 ──────────────────────────────────────────
+async function loadLineChannels() {
+  document.getElementById('webhookUrlDisplay').textContent = `${window.location.origin}/webhook/line`;
+  populateSelect(document.getElementById('channelOrgId'), orgs, 'id', 'name', '（不指定分店）');
+
+  const res = await fetch('/api/users/line-channels');
+  if (!res.ok) return;
+  lineChannels = await res.json();
+
+  const list = document.getElementById('channelList');
+  if (!lineChannels.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">尚無頻道設定，點擊「＋ 新增頻道」開始設定</div>';
+    return;
+  }
+  list.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>頻道名稱</th><th>所屬分店</th><th>狀態</th><th></th></tr></thead>
+    <tbody>${lineChannels.map(ch => `
+      <tr>
+        <td style="font-weight:500">${ch.channel_name}</td>
+        <td style="font-size:13px;color:#6b7280">${ch.org_name || '未指定'}</td>
+        <td><span class="badge ${ch.active ? 'badge-completed' : 'badge-closed'}">${ch.active ? '啟用' : '停用'}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="openEditChannel(${ch.id})">編輯</button>
+          <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteChannel(${ch.id},\`${ch.channel_name}\`)">刪除</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function copyWebhookUrl() {
+  const url = document.getElementById('webhookUrlDisplay').textContent;
+  navigator.clipboard.writeText(url).then(() => showToast('Webhook URL 已複製到剪貼簿'));
+}
+
+document.getElementById('newChannelBtn')?.addEventListener('click', () => {
+  document.getElementById('channelModalTitle').textContent = '新增 LINE 頻道';
+  document.getElementById('channelId').value = '';
+  document.getElementById('channelName').value = '';
+  document.getElementById('channelOrgId').value = '';
+  document.getElementById('channelSecret').value = '';
+  document.getElementById('channelToken').value = '';
+  document.getElementById('channelWelcome').value = '';
+  document.getElementById('channelActive').checked = true;
+  document.getElementById('channelModal').classList.add('open');
+});
+
+function openEditChannel(id) {
+  const ch = lineChannels.find(x => x.id === id);
+  if (!ch) return;
+  document.getElementById('channelModalTitle').textContent = `編輯頻道：${ch.channel_name}`;
+  document.getElementById('channelId').value = ch.id;
+  document.getElementById('channelName').value = ch.channel_name;
+  document.getElementById('channelOrgId').value = ch.org_id || '';
+  document.getElementById('channelSecret').value = '';
+  document.getElementById('channelToken').value = '';
+  document.getElementById('channelWelcome').value = ch.welcome_msg || '';
+  document.getElementById('channelActive').checked = ch.active !== 0;
+  document.getElementById('channelModal').classList.add('open');
+}
+
+document.getElementById('channelSaveBtn')?.addEventListener('click', async () => {
+  const id = document.getElementById('channelId').value;
+  const body = {
+    channel_name: document.getElementById('channelName').value.trim(),
+    org_id: document.getElementById('channelOrgId').value || null,
+    channel_secret: document.getElementById('channelSecret').value.trim(),
+    channel_token: document.getElementById('channelToken').value.trim(),
+    welcome_msg: document.getElementById('channelWelcome').value.trim() || null,
+    active: document.getElementById('channelActive').checked ? 1 : 0,
+  };
+  if (!body.channel_name) { showToast('請填入頻道名稱', 'error'); return; }
+  if (!id && (!body.channel_secret || !body.channel_token)) {
+    showToast('新增頻道請填入 Channel Secret 和 Access Token', 'error'); return;
+  }
+  const res = await fetch(id ? `/api/users/line-channels/${id}` : '/api/users/line-channels', {
+    method: id ? 'PUT' : 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    closeModal('channelModal');
+    await loadLineChannels();
+    showToast('LINE 頻道設定已儲存');
+  } else {
+    const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
+  }
+});
+
+async function deleteChannel(id, name) {
+  if (!confirm(`確定刪除頻道「${name}」？\n刪除後該分店 LINE OA 將無法接收訊息。`)) return;
+  const res = await fetch(`/api/users/line-channels/${id}`, { method: 'DELETE' });
+  if (res.ok) { await loadLineChannels(); showToast('頻道已刪除'); }
+  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
 init();

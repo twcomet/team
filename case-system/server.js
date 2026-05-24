@@ -64,6 +64,7 @@ app.use('/api/notifications',     require('./routes/notifications'));
 app.use('/api/settings',          require('./routes/settings'));
 app.use('/api/marketplace',       require('./routes/marketplace'));
 app.use('/api/line-inquiries',    require('./routes/line-inquiries'));
+app.use('/api/marketing',         require('./routes/marketing'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -92,6 +93,7 @@ const PAGE_PERMS = {
   reports:          'page_reports',
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
+  marketing:        'page_marketing',
 };
 
 function requirePagePerm(page) {
@@ -121,6 +123,8 @@ function requirePagePerm(page) {
       allowed = p.page_reports !== undefined ? p.page_reports === true : !!u.manage_users;
     } else if (key === 'page_performance') {
       allowed = p.page_performance !== undefined ? p.page_performance === true : !!u.manage_users;
+    } else if (key === 'page_marketing') {
+      allowed = p.page_marketing !== undefined ? p.page_marketing === true : !!u.manage_users;
     } else {
       allowed = p[key] === true;
     }
@@ -141,7 +145,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;

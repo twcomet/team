@@ -187,6 +187,46 @@ router.delete('/custom-roles/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── LINE 多頻道管理 ─────────────────────────────────────────────
+router.get('/line-channels', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  const rows = db.prepare(`
+    SELECT lc.*, o.name AS org_name
+    FROM line_channels lc
+    LEFT JOIN orgs o ON o.id = lc.org_id
+    ORDER BY lc.id ASC
+  `).all();
+  res.json(rows);
+});
+
+router.post('/line-channels', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  const { org_id, channel_name, channel_secret, channel_token, welcome_msg } = req.body;
+  if (!channel_name || !channel_secret || !channel_token) return res.status(400).json({ error: '請填寫頻道名稱、Secret 和 Token' });
+  const r = db.prepare(`INSERT INTO line_channels (org_id, channel_name, channel_secret, channel_token, welcome_msg)
+    VALUES (?,?,?,?,?)`).run(org_id || null, channel_name, channel_secret, channel_token, welcome_msg || null);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+router.put('/line-channels/:id', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  const { org_id, channel_name, channel_secret, channel_token, welcome_msg, active } = req.body;
+  if (!channel_name) return res.status(400).json({ error: '請填寫頻道名稱' });
+  db.prepare(`UPDATE line_channels SET org_id=?, channel_name=?, channel_secret=?, channel_token=?,
+    welcome_msg=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(org_id || null, channel_name,
+      channel_secret || db.prepare(`SELECT channel_secret FROM line_channels WHERE id=?`).get(req.params.id)?.channel_secret,
+      channel_token  || db.prepare(`SELECT channel_token  FROM line_channels WHERE id=?`).get(req.params.id)?.channel_token,
+      welcome_msg || null, active !== undefined ? (active ? 1 : 0) : 1, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/line-channels/:id', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  db.prepare(`DELETE FROM line_channels WHERE id=?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
 // GET /api/users/role-defaults — 取得所有系統角色預設權限
 router.get('/role-defaults', requireAuth, (req, res) => {
   if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });

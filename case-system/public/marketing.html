@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行銷報表 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.filter-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; }
+.stat-card .label { font-size:12px; color:var(--gray-500); margin-bottom:6px; }
+.stat-card .value { font-size:22px; font-weight:700; }
+.stat-card .sub   { font-size:11px; color:var(--gray-400); margin-top:4px; }
+.analysis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:20px; }
+.mini-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px; }
+.mini-card h4 { font-size:13px; font-weight:600; color:var(--gray-700); margin-bottom:12px; border-bottom:1px solid var(--gray-100); padding-bottom:8px; }
+.bar-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
+.bar-label { width:100px; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+.bar-track { flex:1; height:10px; background:var(--gray-100); border-radius:5px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:5px; transition:width .4s; }
+.bar-val   { width:36px; text-align:right; color:var(--gray-700); font-weight:600; font-size:11px; }
+.source-line     { background:#10b981; }
+.source-ig       { background:#8b5cf6; }
+.source-fb       { background:#3b82f6; }
+.source-referral { background:#f59e0b; }
+.source-bni      { background:#ef4444; }
+.source-google   { background:#22c55e; }
+.source-boss_friend { background:#ec4899; }
+.source-other    { background:#9ca3af; }
+.funnel-row { display:grid; grid-template-columns:80px 1fr 80px 80px; gap:8px; align-items:center; font-size:12px; padding:6px 0; border-bottom:1px solid var(--gray-100); }
+.funnel-row:last-child { border-bottom:none; }
+.funnel-head { font-weight:600; color:var(--gray-600); font-size:11px; }
+.month-bar-wrap { display:flex; flex-direction:column; gap:4px; }
+.month-bar-row  { display:flex; align-items:center; gap:6px; font-size:11px; }
+.month-bar-label { width:52px; color:var(--gray-500); flex-shrink:0; }
+.month-bar-track { flex:1; height:14px; background:var(--gray-100); border-radius:3px; overflow:hidden; position:relative; }
+.month-bar-inquiry { height:100%; background:#93c5fd; border-radius:3px; position:absolute; top:0; left:0; }
+.month-bar-deal    { height:100%; background:#059669; border-radius:3px; position:absolute; top:0; left:0; }
+.month-bar-val  { width:28px; text-align:right; color:var(--gray-700); font-weight:600; }
+.legend { display:flex; gap:12px; font-size:11px; color:var(--gray-500); margin-bottom:8px; }
+.legend span { display:flex; align-items:center; gap:4px; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">行銷報表</span>
+    </div>
+    <div class="page-body">
+
+      <!-- 篩選列 -->
+      <div class="filter-bar">
+        <label style="font-size:13px;font-weight:500;color:var(--gray-600)">期間</label>
+        <input type="date" id="fromDate" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <span style="font-size:13px;color:var(--gray-400)">至</span>
+        <input type="date" id="toDate" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+          <option value="">全部分店</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="queryBtn">查詢</button>
+        <button class="btn btn-ghost btn-sm" id="btn1y">近1年</button>
+        <button class="btn btn-ghost btn-sm" id="btn6m">近6月</button>
+        <button class="btn btn-ghost btn-sm" id="btn3m">近3月</button>
+      </div>
+
+      <!-- 摘要卡片 -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="label">新客戶數</div><div class="value" id="statNewClients">—</div><div class="sub">期間內</div></div>
+        <div class="stat-card"><div class="label">LINE 詢問</div><div class="value" id="statLineTotal">—</div><div class="sub" id="statLineSub">—</div></div>
+        <div class="stat-card"><div class="label">案件詢問</div><div class="value" id="statCaseTotal">—</div><div class="sub">建立案件數</div></div>
+        <div class="stat-card"><div class="label">成交案件</div><div class="value" id="statDeals">—</div><div class="sub" id="statConv">轉化率 —</div></div>
+      </div>
+
+      <!-- 分析區塊 -->
+      <div class="analysis-grid">
+
+        <!-- 客源分析 -->
+        <div class="mini-card">
+          <h4>客源分析</h4>
+          <div id="sourceChart"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+
+        <!-- 案件類型 -->
+        <div class="mini-card">
+          <h4>案件類型分布</h4>
+          <div id="caseTypeChart"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+
+        <!-- LINE 詢問轉化 -->
+        <div class="mini-card">
+          <h4>LINE 詢問狀態</h4>
+          <div id="lineChart"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+
+        <!-- 熱門關鍵字 -->
+        <div class="mini-card">
+          <h4>熱門關鍵字</h4>
+          <div id="keywordChart"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+
+      </div>
+
+      <!-- 月度趨勢：詢問 vs 成交 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>月度趨勢：詢問 vs 成交</h3></div>
+        <div class="card-body" id="funnelBody">
+          <div style="color:var(--gray-400);font-size:13px">載入中...</div>
+        </div>
+      </div>
+
+      <!-- 每月新客戶 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>每月新客戶數</h3></div>
+        <div class="card-body" id="monthlyClientsBody">
+          <div style="color:var(--gray-400);font-size:13px">載入中...</div>
+        </div>
+      </div>
+
+      <!-- 客服漏斗績效 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <h3>客服漏斗績效</h3>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm cs-tab active" data-g="day">每日</button>
+            <button class="btn btn-ghost btn-sm cs-tab" data-g="week">每週</button>
+            <button class="btn btn-ghost btn-sm cs-tab" data-g="month">每月</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div id="csFunnelTable" style="padding:16px;color:var(--gray-400);font-size:13px">載入中...</div>
+        </div>
+      </div>
+
+      <!-- 人員漏斗績效 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>人員績效分析</h3></div>
+        <div class="card-body" style="padding:0">
+          <div id="csUserTable" style="padding:16px;color:var(--gray-400);font-size:13px">載入中...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const SOURCE_LABELS = {
+  line:'LINE', ig:'Instagram', fb:'Facebook', referral:'口碑介紹',
+  bni:'BNI', google:'Google', boss_friend:'老闆人脈', other:'其他',
+};
+const SOURCE_COLORS = {
+  line:'source-line', ig:'source-ig', fb:'source-fb', referral:'source-referral',
+  bni:'source-bni', google:'source-google', boss_friend:'source-boss_friend', other:'source-other',
+};
+const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+
+let orgs = [], csGroup = 'day';
+
+async function init() {
+  await loadUser();
+  highlightNav('marketing');
+
+  // 預設期間：近1年
+  const now = new Date();
+  document.getElementById('toDate').value = now.toISOString().slice(0, 10);
+  const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
+  document.getElementById('fromDate').value = from.toISOString().slice(0, 10);
+
+  // 分店篩選（view_all_branches 才顯示）
+  if (currentUser.view_all_branches) {
+    orgs = await fetchOrgs();
+    const sel = document.getElementById('orgFilter');
+    sel.style.display = '';
+    orgs.forEach(o => sel.add(new Option(o.name, o.id)));
+  }
+
+  document.getElementById('queryBtn').addEventListener('click', () => { loadReport(); loadCsFunnel(); });
+  document.getElementById('btn1y').addEventListener('click', () => setRange(365));
+  document.getElementById('btn6m').addEventListener('click', () => setRange(180));
+  document.getElementById('btn3m').addEventListener('click', () => setRange(90));
+
+  // CS funnel group tabs
+  document.querySelectorAll('.cs-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cs-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      csGroup = btn.dataset.g;
+      loadCsFunnel();
+    });
+  });
+
+  await loadReport();
+  await loadCsFunnel();
+}
+
+function setRange(days) {
+  const now = new Date();
+  document.getElementById('toDate').value = now.toISOString().slice(0, 10);
+  const from = new Date(now); from.setDate(from.getDate() - days);
+  document.getElementById('fromDate').value = from.toISOString().slice(0, 10);
+  loadReport();
+  loadCsFunnel();
+}
+
+async function loadCsFunnel() {
+  const params = new URLSearchParams({
+    from:  document.getElementById('fromDate').value,
+    to:    document.getElementById('toDate').value,
+    group: csGroup,
+  });
+  const org = document.getElementById('orgFilter').value;
+  if (org) params.set('org_id', org);
+
+  const res = await fetch('/api/marketing/cs-funnel?' + params);
+  if (!res.ok) return;
+  const d = await res.json();
+  renderCsFunnelTable(d.periods);
+  renderCsUserTable(d.byUser);
+}
+
+function pct(num, den) {
+  if (!den) return '—';
+  return Math.round(num / den * 100) + '%';
+}
+
+function renderCsFunnelTable(periods) {
+  const el = document.getElementById('csFunnelTable');
+  if (!periods.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">無資料</div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>期間</th>
+      <th style="text-align:right">新進詢問</th>
+      <th style="text-align:right">場勘數</th>
+      <th style="text-align:right;color:#059669">詢問→場勘率</th>
+      <th style="text-align:right">報價數</th>
+      <th style="text-align:right">成交數</th>
+      <th style="text-align:right;color:#059669">報價→成交率</th>
+    </tr></thead>
+    <tbody>${periods.map(r => `<tr>
+      <td style="font-weight:500;font-size:13px">${r.period}</td>
+      <td style="text-align:right">${r.inquiries}</td>
+      <td style="text-align:right">${r.surveyed}</td>
+      <td style="text-align:right;color:#059669;font-weight:600">${pct(r.surveyed, r.inquiries)}</td>
+      <td style="text-align:right">${r.quoted_cnt}</td>
+      <td style="text-align:right">${r.deals}</td>
+      <td style="text-align:right;color:#059669;font-weight:600">${pct(r.deals, r.quoted_cnt)}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function renderCsUserTable(byUser) {
+  const el = document.getElementById('csUserTable');
+  if (!byUser.length) { el.innerHTML = '<div style="padding:16px;color:var(--gray-400);font-size:13px">無資料</div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>人員</th>
+      <th style="text-align:right">新進詢問</th>
+      <th style="text-align:right">場勘數</th>
+      <th style="text-align:right;color:#059669">詢問→場勘率</th>
+      <th style="text-align:right">報價數</th>
+      <th style="text-align:right">成交數</th>
+      <th style="text-align:right;color:#059669">報價→成交率</th>
+    </tr></thead>
+    <tbody>${byUser.map(r => `<tr>
+      <td style="font-weight:500">${r.name || '（未指定）'}<br><span style="font-size:11px;color:var(--gray-400)">${r.username || ''}</span></td>
+      <td style="text-align:right">${r.inquiries}</td>
+      <td style="text-align:right">${r.surveyed}</td>
+      <td style="text-align:right;color:#059669;font-weight:600">${pct(r.surveyed, r.inquiries)}</td>
+      <td style="text-align:right">${r.quoted_cnt}</td>
+      <td style="text-align:right">${r.deals}</td>
+      <td style="text-align:right;color:#059669;font-weight:600">${pct(r.deals, r.quoted_cnt)}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+async function loadReport() {
+  const params = new URLSearchParams({
+    from: document.getElementById('fromDate').value,
+    to:   document.getElementById('toDate').value,
+  });
+  const org = document.getElementById('orgFilter').value;
+  if (org) params.set('org_id', org);
+
+  const res = await fetch('/api/marketing/summary?' + params);
+  if (!res.ok) return;
+  const d = await res.json();
+  renderStats(d);
+  renderSourceChart(d.sourceStats);
+  renderCaseTypeChart(d.caseTypeStats);
+  renderLineChart(d.lineStats);
+  renderKeywords(d.keywords);
+  renderFunnel(d.monthlyFunnel);
+  renderMonthlyClients(d.monthlyClients);
+}
+
+function renderStats(d) {
+  const totalClients = d.monthlyClients.reduce((s, r) => s + r.cnt, 0);
+  const totalCases   = d.monthlyFunnel.reduce((s, r) => s + r.total, 0);
+  const totalDeals   = d.monthlyFunnel.reduce((s, r) => s + r.deals, 0);
+  const conv = totalCases > 0 ? Math.round(totalDeals / totalCases * 100) : 0;
+
+  document.getElementById('statNewClients').textContent = totalClients;
+  document.getElementById('statLineTotal').textContent  = d.lineStats?.total ?? 0;
+  document.getElementById('statLineSub').textContent    = `未結 ${(d.lineStats?.new_cnt ?? 0) + (d.lineStats?.in_progress ?? 0)} 件`;
+  document.getElementById('statCaseTotal').textContent  = totalCases;
+  document.getElementById('statDeals').textContent      = totalDeals;
+  document.getElementById('statConv').textContent       = `轉化率 ${conv}%`;
+}
+
+function barRows(items, labelFn, colorFn, valFn) {
+  if (!items.length) return '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">無資料</div>';
+  const max = Math.max(...items.map(x => x.cnt));
+  return items.map(x => `
+    <div class="bar-row">
+      <div class="bar-label" title="${labelFn(x)}">${labelFn(x)}</div>
+      <div class="bar-track"><div class="bar-fill ${colorFn(x)}" style="width:${max ? Math.round(x.cnt/max*100) : 0}%"></div></div>
+      <div class="bar-val">${valFn ? valFn(x) : x.cnt}</div>
+    </div>`).join('');
+}
+
+function renderSourceChart(data) {
+  document.getElementById('sourceChart').innerHTML = barRows(
+    data,
+    x => SOURCE_LABELS[x.source] || x.source,
+    x => SOURCE_COLORS[x.source] || 'source-other',
+    x => x.cnt + ' 人'
+  );
+}
+
+function renderCaseTypeChart(data) {
+  document.getElementById('caseTypeChart').innerHTML = barRows(
+    data,
+    x => CASE_TYPE_LABELS[x.case_type] || x.case_type,
+    () => 'bar-fill',
+    x => `${x.cnt} 件（成交 ${x.deals}）`
+  );
+  // override bar-fill to use primary color
+  document.querySelectorAll('#caseTypeChart .bar-fill').forEach(el => {
+    el.style.background = 'var(--primary)';
+  });
+}
+
+function renderLineChart(data) {
+  if (!data || !data.total) {
+    document.getElementById('lineChart').innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">無資料</div>';
+    return;
+  }
+  const items = [
+    { label: '新詢問', cnt: data.new_cnt || 0, color: '#3b82f6' },
+    { label: '處理中', cnt: data.in_progress || 0, color: '#f59e0b' },
+    { label: '已結束', cnt: data.closed_cnt || 0, color: '#10b981' },
+  ];
+  const max = Math.max(...items.map(x => x.cnt));
+  document.getElementById('lineChart').innerHTML = items.map(x => `
+    <div class="bar-row">
+      <div class="bar-label">${x.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${max ? Math.round(x.cnt/max*100) : 0}%;background:${x.color}"></div></div>
+      <div class="bar-val">${x.cnt} 件</div>
+    </div>`).join('');
+}
+
+function renderKeywords(data) {
+  if (!data.length) {
+    document.getElementById('keywordChart').innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">尚無關鍵字資料</div>';
+    return;
+  }
+  const max = Math.max(...data.map(x => x.cnt));
+  document.getElementById('keywordChart').innerHTML = data.map(x => `
+    <div class="bar-row">
+      <div class="bar-label" title="${x.keyword}">${x.keyword}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.cnt/max*100)}%;background:#8b5cf6"></div></div>
+      <div class="bar-val">${x.cnt}</div>
+    </div>`).join('');
+}
+
+function renderFunnel(data) {
+  const el = document.getElementById('funnelBody');
+  if (!data.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">無資料</div>'; return; }
+  const maxTotal = Math.max(...data.map(x => x.total)) || 1;
+  el.innerHTML = `
+    <div class="legend">
+      <span><span class="dot" style="background:#93c5fd"></span> 詢問建案</span>
+      <span><span class="dot" style="background:#059669"></span> 已成交</span>
+    </div>
+    <div class="month-bar-wrap">
+      ${data.map(x => {
+        const inquiryW = Math.round(x.total / maxTotal * 100);
+        const dealW    = x.total > 0 ? Math.round(x.deals / x.total * inquiryW) : 0;
+        const conv     = x.total > 0 ? Math.round(x.deals / x.total * 100) : 0;
+        return `<div class="month-bar-row">
+          <div class="month-bar-label">${x.month}</div>
+          <div class="month-bar-track" style="height:18px">
+            <div class="month-bar-inquiry" style="width:${inquiryW}%"></div>
+            <div class="month-bar-deal"    style="width:${dealW}%"></div>
+          </div>
+          <div class="month-bar-val" style="width:60px;color:var(--gray-600)">${x.total} 件</div>
+          <div style="width:50px;font-size:11px;color:#059669">${conv > 0 ? conv+'%' : ''}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderMonthlyClients(data) {
+  const el = document.getElementById('monthlyClientsBody');
+  if (!data.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">無資料</div>'; return; }
+  const max = Math.max(...data.map(x => x.cnt)) || 1;
+  el.innerHTML = `<div class="month-bar-wrap">
+    ${data.map(x => `
+      <div class="month-bar-row">
+        <div class="month-bar-label">${x.month}</div>
+        <div class="month-bar-track" style="height:18px">
+          <div class="month-bar-inquiry" style="width:${Math.round(x.cnt/max*100)}%;background:#10b981"></div>
+        </div>
+        <div class="month-bar-val" style="width:50px;color:var(--gray-700)">${x.cnt} 人</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
