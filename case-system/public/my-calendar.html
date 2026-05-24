@@ -12,10 +12,10 @@
 .cal-nav button:hover { background:var(--gray-100); }
 .cal-month-title { font-size:18px; font-weight:700; min-width:120px; text-align:center; }
 
-.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:0; border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:0 !important; background:var(--gray-100); border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; }
 .cal-header-cell { background:var(--gray-50); padding:8px 4px; text-align:center; font-size:12px; font-weight:600; color:var(--gray-500); border-bottom:1px solid var(--gray-200); }
 .cal-header-cell.weekend { color:#e02424; }
-.cal-day { min-height:80px; padding:4px; border-right:1px solid var(--gray-100); border-bottom:1px solid var(--gray-100); background:#fff; vertical-align:top; }
+.cal-day { display:block; width:auto; height:auto; min-height:80px; padding:4px; border-right:1px solid var(--gray-100); border-bottom:1px solid var(--gray-100); border-radius:0; background:#fff; vertical-align:top; text-align:left; line-height:normal; font-size:inherit; font-weight:inherit; margin-bottom:0; }
 .cal-day:nth-child(7n) { border-right:none; }
 .cal-day.other-month { background:var(--gray-50); }
 .cal-day.today { background:#fffbeb; }
