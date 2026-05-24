@@ -946,6 +946,51 @@ if (!hqExists) {
   console.log('請登入後至「人員管理」修改密碼。');
 }
 
+// ── 批次建帳號 seed（2026-05-24）─────────────────────────────
+{
+  const hqOrg = db.prepare(`SELECT id FROM orgs WHERE type='hq' LIMIT 1`).get();
+  const hqId  = hqOrg?.id || null;
+
+  const seedUsers = [
+    // 工程部
+    { name: '陳怡仲', username: 'VP01', pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 1 },
+    { name: '呂紹銘', username: 'A01',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '李傳恩', username: 'A02',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '劉申鴻', username: 'A03',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '林天鈞', username: 'A04',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '鄭名汎', username: 'A05',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '黃維宏', username: 'A06',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '林冠捷', username: 'A07',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
+    { name: '吳坤陽', username: 'A08',  pw: '45917816', role: 'contractor_install', dept: '工程部',       mgr: 0 },
+    { name: '鍾畚傑', username: 'A09',  pw: '45917816', role: 'contractor_install', dept: '工程部',       mgr: 0 },
+    // 業務
+    { name: '王洪義', username: 'S01',  pw: '45917816', role: 'hq_sales',           dept: '總公司業務部', mgr: 1 },
+    // 客服
+    { name: '劉珮琪', username: 'C01',  pw: '45917816', role: 'hq_cs',             dept: '客服部',       mgr: 1 },
+    { name: '林君忻', username: 'C02',  pw: '45917816', role: 'hq_cs',             dept: '客服部',       mgr: 0 },
+    { name: '葉宛亭', username: 'C03',  pw: '45917816', role: 'hq_cs',             dept: '客服部',       mgr: 0 },
+    // 行銷
+    { name: '戴玉娟', username: 'M01',  pw: '45917816', role: 'hq_sales',           dept: '行銷部',       mgr: 1 },
+    { name: '王智民', username: 'M02',  pw: '45917817', role: 'hq_sales',           dept: '行銷部',       mgr: 0 },
+    // 台北店
+    { name: 'Ken',   username: 'T01',  pw: '45917817', role: 'branch_sales',       dept: '台北業務部',   mgr: 1 },
+  ];
+
+  const ins = db.prepare(`
+    INSERT OR IGNORE INTO users (name, username, password, role, org_id, department, is_manager, active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+  `);
+  let created = 0;
+  for (const u of seedUsers) {
+    const exists = db.prepare(`SELECT id FROM users WHERE username = ?`).get(u.username);
+    if (!exists) {
+      ins.run(u.name, u.username, bcrypt.hashSync(u.pw, 8), u.role, hqId, u.dept, u.mgr);
+      created++;
+    }
+  }
+  if (created > 0) console.log(`批次建帳號完成：新增 ${created} 個帳號`);
+}
+
 // ══════════════════════════════════════════════════════════════
 // 派案系統擴充 v3.0 — Phase 1 Schema
 // ══════════════════════════════════════════════════════════════
