@@ -262,6 +262,8 @@ router.put('/:id', requireAuth, (req, res) => {
     material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
   } = req.body;
 
+  const prev = db.prepare(`SELECT sales_id, cs_id FROM cases WHERE id=?`).get(req.params.id);
+
   db.prepare(`
     UPDATE cases SET
       client_id=?, case_type=?, title=?, description=?, location=?,
@@ -303,6 +305,27 @@ router.put('/:id', requireAuth, (req, res) => {
 
   db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'update', 'cases', ?, ?)`)
     .run(req.session.user.id, req.params.id, `更新案件資訊`);
+
+  // 負責業務 / 客服變更時推派通知
+  if (prev) {
+    const caseInfo = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(req.params.id);
+    const url = `/case-detail?id=${req.params.id}`;
+    const pushMode = db.prepare(`SELECT value FROM settings WHERE key='push_mode'`).get()?.value || 'manual';
+    const notifyUser = (uid, role) => {
+      if (!uid || uid == req.session.user.id) return;
+      const label = role === 'sales' ? '負責業務' : '負責客服';
+      const title = `您被指派為「${label}」`;
+      const body  = `案件 ${caseInfo?.case_number || ''} ${caseInfo?.title || ''}`;
+      db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'assign','cases',?,?)`)
+        .run(uid, title, body, req.params.id, url);
+      if (pushMode === 'auto') {
+        const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+        if (u?.line_user_id) pushMessage(u.line_user_id, `【繪新指派通知】\n${title}\n${body}`);
+      }
+    };
+    if (String(sales_id || '') !== String(prev.sales_id || '')) notifyUser(sales_id, 'sales');
+    if (String(cs_id    || '') !== String(prev.cs_id    || '')) notifyUser(cs_id,    'cs');
+  }
 
   recalcLaborCost(Number(req.params.id));
   res.json({ ok: true });
