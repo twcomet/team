@@ -1265,8 +1265,10 @@ db.exec(`
 _addCol('cases', 'case_group', 'TEXT DEFAULT NULL');
 // 依現有狀態補值（冪等）
 db.exec(`UPDATE cases SET case_group='deal'    WHERE case_group IS NULL AND status IN ('contracted','payment','closed','invalid')`);
-db.exec(`UPDATE cases SET case_group='survey'  WHERE case_group IS NULL AND status IN ('initial_estimate','survey','quoted')`);
+db.exec(`UPDATE cases SET case_group='survey'  WHERE case_group IS NULL AND status IN ('survey','quoted')`);
 db.exec(`UPDATE cases SET case_group='inquiry' WHERE case_group IS NULL`);
+// initial_estimate 歸屬詢價管理（從 survey 移至 inquiry）
+db.exec(`UPDATE cases SET case_group='inquiry' WHERE status='initial_estimate' AND case_group='survey'`);
 
 // 合約簽署
 _addCol('users', 'contract_signed_at',  'DATETIME DEFAULT NULL');

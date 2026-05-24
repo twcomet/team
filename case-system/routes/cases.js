@@ -94,8 +94,8 @@ function calcItem(item) {
 
 // ── 案件 CRUD ─────────────────────────────────────────────────
 const STATUS_GROUP_MAP = {
-  inquiry: 'inquiry',
-  initial_estimate: 'survey', survey: 'survey', quoted: 'survey',
+  inquiry: 'inquiry', initial_estimate: 'inquiry',
+  survey: 'survey', quoted: 'survey',
   contracted: 'deal', payment: 'deal', closed: 'deal',
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
