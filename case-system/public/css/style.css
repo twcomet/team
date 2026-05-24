@@ -54,7 +54,7 @@ body { font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-se
 .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; font-size: 14px; color: rgba(255,255,255,.75); text-decoration: none; cursor: pointer; transition: background .15s, color .15s; border: none; background: none; width: 100%; }
 .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
-.nav-item.active { background: rgba(255,0,128,.2); color: #fff; border-left: 3px solid var(--primary); padding-left: 17px; }
+.nav-item.active { background: rgba(255,0,128,.45); color: #fff; border-left: 3px solid var(--primary); padding-left: 17px; font-weight: 600; }
 .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
 .sidebar-user { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
 .sidebar-user .user-name { font-weight: 600; }
