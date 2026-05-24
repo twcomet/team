@@ -994,6 +994,37 @@ if (!hqExists) {
   db.prepare(`UPDATE users SET name='鍾矞傑' WHERE username='A09' AND name='鍾畚傑'`).run();
 }
 
+// ── 權限修正（2026-05-25）────────────────────────────────────
+// 陳怡仲為技術副總，角色應為 vp（才有管理員權限、可看金額）
+db.prepare(`UPDATE users SET role='vp' WHERE username='VP01' AND role='hq_tech'`).run();
+
+// 行銷部（M01 戴玉娟、M02 王智民）：hq_sales 預設看不到行銷頁面，需額外開通
+for (const uname of ['M01', 'M02']) {
+  const u = db.prepare(`SELECT id, permissions FROM users WHERE username=?`).get(uname);
+  if (u) {
+    const p = u.permissions ? JSON.parse(u.permissions) : {};
+    if (!p.page_marketing) {
+      p.page_marketing = true;
+      db.prepare(`UPDATE users SET permissions=? WHERE id=?`).run(JSON.stringify(p), u.id);
+    }
+  }
+}
+
+// ── 測試用：預先簽署新帳號合約，測試完畢後清除 ───────────────
+// 狀態：PRESIGN = 測試中（跳過合約頁）；NULL = 正式上線時需簽署
+// 切換：將下方 PRESIGN_FOR_TESTING 改為 false 後部署即可清除
+const PRESIGN_FOR_TESTING = true;
+const TEST_ACCOUNTS = ['VP01','A01','A02','A03','A04','A05','A06','A07','A08','A09',
+                       'S01','C01','C02','C03','M01','M02','T01'];
+if (PRESIGN_FOR_TESTING) {
+  const stmt = db.prepare(`UPDATE users SET contract_signed_at=CURRENT_TIMESTAMP, contract_type='employee' WHERE username=? AND contract_signed_at IS NULL`);
+  for (const u of TEST_ACCOUNTS) stmt.run(u);
+} else {
+  // 清除測試簽署，讓使用者正式登入時重新簽署
+  const stmt = db.prepare(`UPDATE users SET contract_signed_at=NULL, contract_signature=NULL, contract_type=NULL WHERE username=?`);
+  for (const u of TEST_ACCOUNTS) stmt.run(u);
+}
+
 // ══════════════════════════════════════════════════════════════
 // 派案系統擴充 v3.0 — Phase 1 Schema
 // ══════════════════════════════════════════════════════════════
