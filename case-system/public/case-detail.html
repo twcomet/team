@@ -447,7 +447,14 @@
           </div>
           <div class="form-row">
             <div class="form-group"><label>場勘日期 *</label><input type="date" id="sf_date"></div>
+            <div class="form-group"><label>場勘時間</label><input type="time" id="sf_time"></div>
+          </div>
+          <div class="form-row">
             <div class="form-group"><label>場勘人員</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
+            <div class="form-group" style="flex:2">
+              <label>調度留言 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（會出現在 LINE 通知裡）</span></label>
+              <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工">
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group"><label>現場聯絡人</label><input type="text" id="sf_contact" placeholder="王先生"></div>
@@ -499,9 +506,13 @@
           <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
         </div>
         <!-- 操作按鈕 -->
-        <div style="display:flex;gap:8px;margin-bottom:20px">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" id="sf_saveBtn">儲存場勘單</button>
           <button class="btn btn-ghost" id="sf_printBtn">📄 存成 PDF</button>
+          <button class="btn btn-secondary" id="sf_completeSurveyBtn" style="display:none;background:#059669;color:#fff;border-color:#059669">
+            ✓ 標記場勘完成
+          </button>
+          <span id="sf_notifyBadge" style="display:none;font-size:12px;color:#059669;padding:4px 10px;background:#d1fae5;border-radius:20px"></span>
         </div>
         <!-- 分享 / 發信 -->
         <div id="sf_shareSection" class="sf-tab-section" style="display:none">
@@ -899,6 +910,8 @@ function renderHeader() {
   // 側欄高亮（依所屬管理階段）
   const navMap = { inquiry: 'cases-inquiry', survey: 'cases-survey', deal: 'cases-deal' };
   highlightNav(navMap[group] || 'cases-inquiry');
+  // 場勘完成按鈕可見性
+  if (typeof sf_updateCompleteBtn === 'function') sf_updateCompleteBtn();
   // Tab 可見性
   applyGroupTabs(group);
   // 轉換按鈕
@@ -1426,6 +1439,7 @@ async function loadSurveyTab() {
   } else {
     sf_renderFindings([]);
   }
+  sf_updateCompleteBtn();
 
   // 備註模板按鈕
   const ntBtn = document.getElementById('sf_noteTemplateBtn');
@@ -1528,18 +1542,24 @@ function sf_removeChecklistCat(cat) {
 }
 
 function sf_fillForm(f) {
-  document.getElementById('sf_date').value      = f.survey_date || '';
-  document.getElementById('sf_surveyor').value  = f.surveyor_id || '';
-  document.getElementById('sf_contact').value   = f.site_contact || '';
-  document.getElementById('sf_phone').value     = f.site_phone || '';
-  document.getElementById('sf_address').value   = f.site_address || '';
-  document.getElementById('sf_photos').value    = f.photos_note || '';
-  document.getElementById('sf_notes').value     = f.extra_notes || '';
-  document.getElementById('sf_cs_notes').value  = f.cs_notes || '';
+  document.getElementById('sf_date').value          = f.survey_date || '';
+  document.getElementById('sf_time').value          = f.survey_time || '';
+  document.getElementById('sf_surveyor').value      = f.surveyor_id || '';
+  document.getElementById('sf_dispatch_note').value = f.dispatch_note || '';
+  document.getElementById('sf_contact').value       = f.site_contact || '';
+  document.getElementById('sf_phone').value         = f.site_phone || '';
+  document.getElementById('sf_address').value       = f.site_address || '';
+  document.getElementById('sf_photos').value        = f.photos_note || '';
+  document.getElementById('sf_notes').value         = f.extra_notes || '';
+  document.getElementById('sf_cs_notes').value      = f.cs_notes || '';
   sf_renderFindings(f.findings || []);
-  // 還原 checklist state
   sfChecklistState = Array.isArray(f.checklist_data) ? f.checklist_data : [];
   sf_renderChecklist();
+}
+
+function sf_updateCompleteBtn() {
+  const btn = document.getElementById('sf_completeSurveyBtn');
+  btn.style.display = (caseData?.status === 'survey_scheduled') ? '' : 'none';
 }
 
 function sf_updateStatus(status, signedAt, token) {
@@ -1619,9 +1639,13 @@ document.getElementById('sf_addFindingBtn').addEventListener('click', () => {
 });
 
 document.getElementById('sf_saveBtn').addEventListener('click', async () => {
+  const surveyorId  = document.getElementById('sf_surveyor').value || null;
+  const prevSurveyor = sfData?.surveyor_id;
   const body = {
-    surveyor_id:    document.getElementById('sf_surveyor').value || null,
+    surveyor_id:    surveyorId,
     survey_date:    document.getElementById('sf_date').value || null,
+    survey_time:    document.getElementById('sf_time').value || null,
+    dispatch_note:  document.getElementById('sf_dispatch_note').value.trim() || null,
     site_contact:   document.getElementById('sf_contact').value || null,
     site_phone:     document.getElementById('sf_phone').value || null,
     site_address:   document.getElementById('sf_address').value || null,
@@ -1660,7 +1684,34 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
       sfData = { ...sfData, status:'sent' };
       sf_updateStatus('sent', null, data.token || sfData.share_token);
     }
+    // 通知徽章：場勘人員有指派（新增或變更）
+    if (surveyorId && String(surveyorId) !== String(prevSurveyor || '')) {
+      const surveyorName = users.find(u => String(u.id) === String(surveyorId))?.name || '場勘人員';
+      const badge = document.getElementById('sf_notifyBadge');
+      badge.textContent = `✅ 已通知 ${surveyorName}`;
+      badge.style.display = '';
+      setTimeout(() => { badge.style.display = 'none'; }, 6000);
+    }
+    // 重新載入案件資料（狀態可能已升為 survey_scheduled）
+    await loadCase();
+    sf_updateCompleteBtn();
   } else { showToast('儲存失敗', 'error'); }
+});
+
+document.getElementById('sf_completeSurveyBtn').addEventListener('click', async () => {
+  if (!confirm('確認標記此案件為「已場勘」？')) return;
+  const res = await fetch(`/api/cases/${caseId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...buildSaveBody(), status: 'surveyed' }),
+  });
+  if (res.ok) {
+    showToast('已標記場勘完成');
+    await loadCase();
+    sf_updateCompleteBtn();
+  } else {
+    showToast('操作失敗', 'error');
+  }
 });
 
 document.getElementById('sf_printBtn').addEventListener('click', () => {
