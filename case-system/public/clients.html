@@ -184,6 +184,8 @@
         <div id="cm_ocr_status" style="font-size:12px;margin-top:6px;color:#6b7280"></div>
       </div>
 
+      <!-- ── 基本資訊 ── -->
+      <div class="modal-section-title">基本資訊</div>
       <div class="form-row">
         <div class="form-group"><label>客戶抬頭 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
         <div class="form-group"><label>聯絡人</label><input type="text" id="cm_contact_person" placeholder="負責人姓名"></div>
@@ -192,11 +194,6 @@
         <div class="form-group"><label>電話</label><input type="tel" id="cm_phone" placeholder="0912-345-678"></div>
         <div class="form-group"><label>Email</label><input type="email" id="cm_email"></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>統一編號</label><input type="text" id="cm_tax_id" placeholder="12345678"></div>
-        <div class="form-group"><label>電子發票代碼</label><input type="text" id="cm_einvoice_code" placeholder="（選填）"></div>
-      </div>
-      <div class="form-group"><label>名片地址</label><input type="text" id="cm_address"></div>
       <div class="form-row">
         <div class="form-group"><label>客戶分類</label>
           <select id="cm_category_id" onchange="onCategoryChange()">
@@ -229,6 +226,27 @@
           </select>
         </div>
       </div>
+
+      <!-- ── 發票資訊 ── -->
+      <div class="modal-section-title" style="margin-top:4px">發票資訊</div>
+      <div class="form-row">
+        <div class="form-group"><label>統一編號</label><input type="text" id="cm_tax_id" placeholder="12345678"></div>
+        <div class="form-group"><label>電子發票代碼</label><input type="text" id="cm_einvoice_code" placeholder="（選填）"></div>
+      </div>
+      <div class="form-group"><label>發票地址</label><input type="text" id="cm_address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>收發票 Email</label><input type="email" id="cm_invoice_email" placeholder="會計／財務部門 Email"></div>
+        <div class="form-group"><label>開發票習慣</label>
+          <div style="display:flex;gap:16px;padding-top:7px">
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="cm_invoice_needs" value="yes"> 要開發票</label>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="cm_invoice_needs" value="no"> 不開發票</label>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="cm_invoice_needs" value=""> 未設定</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 商務條件 ── -->
+      <div class="modal-section-title" style="margin-top:4px">商務條件</div>
       <div class="form-row">
         <div class="form-group"><label>付款條件</label><input type="text" id="cm_payment_terms" placeholder="例：月結30天"></div>
         <div class="form-group"><label>優惠條件</label><input type="text" id="cm_discount_terms" placeholder="例：9折"></div>
@@ -237,6 +255,9 @@
         <div class="form-group"><label>資本額</label><input type="text" id="cm_capital" placeholder="（選填）"></div>
         <div class="form-group"><label>折扣（1.0 = 全額）</label><input type="number" id="cm_discount" value="1" step="0.01" min="0" max="1"></div>
       </div>
+
+      <!-- ── 其他資訊 ── -->
+      <div class="modal-section-title" style="margin-top:4px">其他資訊</div>
       <div class="form-row">
         <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="cm_referrer" placeholder="（選填）"></div>
         <div class="form-group"><label>LINE 群組名稱</label><input type="text" id="cm_line_group_name" placeholder="例：@繪新-信義案"></div>
@@ -594,6 +615,9 @@ function openClientModal(id) {
     document.getElementById('cm_tax_id').value          = c.tax_id || '';
     document.getElementById('cm_einvoice_code').value   = c.einvoice_code || '';
     document.getElementById('cm_address').value         = c.address || '';
+    document.getElementById('cm_invoice_email').value   = c.invoice_email || '';
+    const inv = document.querySelector(`input[name="cm_invoice_needs"][value="${c.invoice_needs || ''}"]`);
+    if (inv) inv.checked = true;
     document.getElementById('cm_client_level').value    = c.client_level || '';
     document.getElementById('cm_category_id').value     = c.category_id || '';
     onCategoryChange();
@@ -607,8 +631,9 @@ function openClientModal(id) {
     document.getElementById('cm_notes').value            = c.notes || '';
   } else {
     ['cm_name','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
-     'cm_address','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_line_group_name','cm_notes']
+     'cm_address','cm_invoice_email','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_line_group_name','cm_notes']
       .forEach(id => document.getElementById(id).value = '');
+    document.querySelector('input[name="cm_invoice_needs"][value=""]').checked = true;
     document.getElementById('cm_source').value       = '';
     document.getElementById('cm_client_level').value = '';
     document.getElementById('cm_category_id').value  = '';
@@ -652,6 +677,8 @@ async function saveClient() {
     tax_id:          g('cm_tax_id'),
     einvoice_code:   g('cm_einvoice_code'),
     address:         g('cm_address'),
+    invoice_email:   g('cm_invoice_email'),
+    invoice_needs:   document.querySelector('input[name="cm_invoice_needs"]:checked')?.value || null,
     client_level:    g('cm_client_level'),
     source:          g('cm_source'),
     payment_terms:   g('cm_payment_terms'),

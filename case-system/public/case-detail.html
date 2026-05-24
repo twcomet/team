@@ -2136,6 +2136,8 @@ function fillInvoiceFromClient(cl) {
 }
 
 // ── 新增客戶 Modal ────────────────────────────────────────────
+let _ncTags = [];
+
 async function openNewClientModal() {
   // 載入分類選單
   const catSel = document.getElementById('nc_category_id');
@@ -2146,31 +2148,112 @@ async function openNewClientModal() {
       cats.forEach(c => catSel.add(new Option(c.name, c.id)));
     }
   }
+  // 載入標籤
+  if (!_ncTags.length) {
+    const tr = await fetch('/api/tags');
+    if (tr.ok) _ncTags = await tr.json();
+  }
+  ncRenderTagPicker([]);
+
   // 清空欄位
-  ['nc_name','nc_contact_person','nc_phone','nc_email',
-   'nc_tax_id','nc_einvoice_code','nc_address','nc_notes'].forEach(id => {
+  ['nc_name','nc_contact_person','nc_phone','nc_email','nc_tax_id','nc_einvoice_code',
+   'nc_address','nc_invoice_email','nc_payment_terms','nc_discount_terms',
+   'nc_capital','nc_referrer','nc_line_group_name','nc_notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('nc_source').value = '';
   document.getElementById('nc_category_id').value = '';
+  document.getElementById('nc_client_level').value = '';
+  document.getElementById('nc_discount').value = '1';
+  const unset = document.querySelector('input[name="nc_invoice_needs"][value=""]');
+  if (unset) unset.checked = true;
+  // 清空 OCR
+  document.getElementById('nc_card_filename').textContent = '（支援 JPG、PNG）';
+  document.getElementById('nc_card_file').value = '';
+  document.getElementById('nc_ocr_btn').style.display = 'none';
+  document.getElementById('nc_ocr_status').textContent = '';
+
   document.getElementById('newClientModal').classList.add('open');
   setTimeout(() => document.getElementById('nc_name').focus(), 100);
 }
 
+function ncRenderTagPicker(selectedIds) {
+  const el = document.getElementById('nc_tags_picker');
+  el.innerHTML = _ncTags.map(t => {
+    const sel = selectedIds.includes(t.id);
+    return `<label class="tag-check-item" style="${sel ? `background:${t.color}20` : ''}">
+      <input type="checkbox" value="${t.id}" ${sel ? 'checked' : ''} style="accent-color:${t.color}">
+      <span class="client-tag" style="background:${t.color}">${t.name}</span>
+    </label>`;
+  }).join('') || `<span style="font-size:12px;color:var(--gray-400)">尚無標籤，請先至「客戶管理」新增標籤</span>`;
+}
+
+// ── OCR 名片辨識（新增客戶 modal）──
+document.getElementById('nc_card_file').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  document.getElementById('nc_card_filename').textContent = file.name;
+  document.getElementById('nc_ocr_btn').style.display = 'inline-flex';
+  document.getElementById('nc_ocr_status').textContent = '';
+});
+
+document.getElementById('nc_ocr_btn').addEventListener('click', async () => {
+  const file = document.getElementById('nc_card_file').files[0];
+  if (!file) return;
+  const btn    = document.getElementById('nc_ocr_btn');
+  const status = document.getElementById('nc_ocr_status');
+  btn.disabled = true;
+  btn.textContent = '辨識中…';
+  status.textContent = '正在辨識名片，請稍候…';
+  status.style.color = '#6b7280';
+  try {
+    const form = new FormData();
+    form.append('card', file);
+    const res  = await fetch('/api/clients/ocr-card', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '辨識失敗');
+    const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
+    fill('nc_name',           data.name);
+    fill('nc_contact_person', data.contact_person || data.name);
+    fill('nc_phone',          data.phone);
+    fill('nc_email',          data.email);
+    fill('nc_address',        data.address);
+    fill('nc_tax_id',         data.tax_id);
+    status.textContent = '✅ 辨識完成，請確認並補齊資料';
+    status.style.color = '#057a55';
+  } catch (e) {
+    status.textContent = '❌ ' + e.message;
+    status.style.color = '#e02424';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '辨識並填入';
+  }
+});
+
 document.getElementById('saveNewClientBtn').addEventListener('click', async () => {
   const name = document.getElementById('nc_name').value.trim();
   if (!name) { showToast('請填入客戶名稱', 'error'); return; }
+  const g = id => document.getElementById(id).value.trim() || null;
   const body = {
     name,
-    contact_person: document.getElementById('nc_contact_person').value.trim() || null,
-    phone:          document.getElementById('nc_phone').value.trim() || null,
-    email:          document.getElementById('nc_email').value.trim() || null,
+    contact_person: g('nc_contact_person'),
+    phone:          g('nc_phone'),
+    email:          g('nc_email'),
     source:         document.getElementById('nc_source').value || null,
     category_id:    document.getElementById('nc_category_id').value || null,
-    tax_id:         document.getElementById('nc_tax_id').value.trim() || null,
-    einvoice_code:  document.getElementById('nc_einvoice_code').value.trim() || null,
-    address:        document.getElementById('nc_address').value.trim() || null,
-    notes:          document.getElementById('nc_notes').value.trim() || null,
+    client_level:   document.getElementById('nc_client_level').value || null,
+    tax_id:         g('nc_tax_id'),
+    einvoice_code:  g('nc_einvoice_code'),
+    address:        g('nc_address'),
+    invoice_email:  g('nc_invoice_email'),
+    invoice_needs:  document.querySelector('input[name="nc_invoice_needs"]:checked')?.value || null,
+    payment_terms:  g('nc_payment_terms'),
+    discount_terms: g('nc_discount_terms'),
+    capital:        g('nc_capital'),
+    discount:       parseFloat(document.getElementById('nc_discount').value) || 1,
+    referrer:       g('nc_referrer'),
+    line_group_name: g('nc_line_group_name'),
+    notes:          g('nc_notes'),
   };
   const res = await fetch('/api/clients', {
     method: 'POST',
@@ -2183,6 +2266,11 @@ document.getElementById('saveNewClientBtn').addEventListener('click', async () =
     return;
   }
   const { id } = await res.json();
+  // 儲存標籤
+  const tag_ids = [...document.querySelectorAll('#nc_tags_picker input[type=checkbox]:checked')].map(el => +el.value);
+  if (tag_ids.length) {
+    await fetch(`/api/tags/client/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tag_ids}) });
+  }
   const newClient = { id, ...body };
   clients.push(newClient);
   // 自動選入案件欄位
@@ -2558,8 +2646,22 @@ init();
     </div>
     <div class="modal-body">
 
-      <!-- 基本資訊 -->
-      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">基本資訊</div>
+      <!-- 名片上傳 OCR -->
+      <div style="margin-bottom:16px;padding:12px 14px;background:#f0f4ff;border-radius:8px;border:1px dashed #93c5fd">
+        <div style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:8px">📷 上傳名片自動辨識</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="cursor:pointer">
+            <input type="file" id="nc_card_file" accept="image/*" style="display:none">
+            <span class="btn btn-ghost btn-sm">選擇名片圖片</span>
+          </label>
+          <span id="nc_card_filename" style="font-size:12px;color:#6b7280">（支援 JPG、PNG）</span>
+          <button class="btn btn-primary btn-sm" id="nc_ocr_btn" style="display:none">辨識並填入</button>
+        </div>
+        <div id="nc_ocr_status" style="font-size:12px;margin-top:6px;color:#6b7280"></div>
+      </div>
+
+      <!-- ── 基本資訊 ── -->
+      <div class="modal-section-title">基本資訊</div>
       <div class="form-row">
         <div class="form-group"><label>客戶名稱 / 公司名 *</label><input type="text" id="nc_name" placeholder="王大明 / 信義裝潢有限公司"></div>
         <div class="form-group"><label>聯絡人</label><input type="text" id="nc_contact_person" placeholder="負責窗口姓名"></div>
@@ -2567,6 +2669,23 @@ init();
       <div class="form-row">
         <div class="form-group"><label>電話</label><input type="tel" id="nc_phone" placeholder="0912-345-678"></div>
         <div class="form-group"><label>Email</label><input type="email" id="nc_email" placeholder="example@mail.com"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>客戶分類</label>
+          <select id="nc_category_id">
+            <option value="">不指定</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>客戶等級</label>
+          <select id="nc_client_level">
+            <option value="">不指定</option>
+            <option value="A">A 級（優質常客）</option>
+            <option value="B">B 級（一般）</option>
+            <option value="C">C 級（潛在）</option>
+          </select>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -2583,25 +2702,47 @@ init();
             <option value="other">其他</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>客戶分類</label>
-          <select id="nc_category_id">
-            <option value="">不指定</option>
-          </select>
-        </div>
       </div>
 
-      <!-- 開發票資訊 -->
-      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-top:6px;margin-bottom:10px;padding-top:14px;border-top:1px solid var(--gray-200)">
-        開發票資訊
-      </div>
+      <!-- ── 發票資訊 ── -->
+      <div class="modal-section-title">發票資訊</div>
       <div class="form-row">
         <div class="form-group"><label>統一編號</label><input type="text" id="nc_tax_id" placeholder="12345678" maxlength="8"></div>
         <div class="form-group"><label>電子發票載具 / 愛心碼</label><input type="text" id="nc_einvoice_code" placeholder="（選填）"></div>
       </div>
       <div class="form-group"><label>發票地址</label><input type="text" id="nc_address" placeholder="公司或通訊地址"></div>
+      <div class="form-row">
+        <div class="form-group"><label>收發票 Email</label><input type="email" id="nc_invoice_email" placeholder="會計／財務部門 Email"></div>
+        <div class="form-group"><label>開發票習慣</label>
+          <div style="display:flex;gap:16px;padding-top:7px">
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="nc_invoice_needs" value="yes"> 要開發票</label>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="nc_invoice_needs" value="no"> 不開發票</label>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:400"><input type="radio" name="nc_invoice_needs" value=""> 未設定</label>
+          </div>
+        </div>
+      </div>
 
-      <!-- 備註 -->
+      <!-- ── 商務條件 ── -->
+      <div class="modal-section-title">商務條件</div>
+      <div class="form-row">
+        <div class="form-group"><label>付款條件</label><input type="text" id="nc_payment_terms" placeholder="例：月結30天"></div>
+        <div class="form-group"><label>優惠條件</label><input type="text" id="nc_discount_terms" placeholder="例：9折"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>資本額</label><input type="text" id="nc_capital" placeholder="（選填）"></div>
+        <div class="form-group"><label>折扣（1.0 = 全額）</label><input type="number" id="nc_discount" value="1" step="0.01" min="0" max="1"></div>
+      </div>
+
+      <!-- ── 其他資訊 ── -->
+      <div class="modal-section-title">其他資訊</div>
+      <div class="form-row">
+        <div class="form-group"><label>介紹人 / 來源備註</label><input type="text" id="nc_referrer" placeholder="（選填）"></div>
+        <div class="form-group"><label>LINE 群組名稱</label><input type="text" id="nc_line_group_name" placeholder="例：@繪新-信義案"></div>
+      </div>
+      <div class="form-group">
+        <label>標籤</label>
+        <div id="nc_tags_picker" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--gray-300);border-radius:8px;min-height:38px"></div>
+      </div>
       <div class="form-group" style="margin-bottom:0"><label>備註</label><textarea id="nc_notes" rows="2" placeholder="其他補充說明…"></textarea></div>
 
     </div>

@@ -117,6 +117,10 @@ tr:hover td { background: var(--gray-50); }
 .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--gray-500); line-height: 1; }
 .modal-body { padding: 24px; }
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 10px; }
+.modal-section-title { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em; padding: 10px 0 8px; border-top: 1px solid var(--gray-200); margin-top: 8px; }
+.client-tag { display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500;color:#fff; }
+.tag-check-item { display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer; }
+.tag-check-item:hover { background:var(--gray-100); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 

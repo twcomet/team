@@ -269,6 +269,8 @@ _addCol('clients',    'payment_terms',     'TEXT');
 _addCol('clients',    'discount_terms',    'TEXT');
 _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
+_addCol('clients',    'invoice_email',     'TEXT');
+_addCol('clients',    'invoice_needs',     'TEXT');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
