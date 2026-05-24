@@ -29,6 +29,14 @@
 .scan-label { display:flex; align-items:center; gap:8px; padding:7px 14px; background:#fff; border:1px solid #7dd3fc; color:#0369a1; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s; }
 .scan-label:hover { background:#e0f2fe; }
 #scanImg { max-height:100px; border-radius:6px; border:1px solid var(--gray-200); margin-top:8px; display:block; }
+.ledger-tabs { display:flex; gap:0; margin-bottom:0; border-bottom:2px solid var(--gray-200); }
+.ledger-tab { padding:9px 22px; font-size:13px; font-weight:500; cursor:pointer; border:none; background:none; color:var(--gray-500); border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s; }
+.ledger-tab.active.tab-all     { color:#374151; border-bottom-color:#374151; }
+.ledger-tab.active.tab-income  { color:#057a55; border-bottom-color:#057a55; }
+.ledger-tab.active.tab-expense { color:#e02424; border-bottom-color:#e02424; }
+.ledger-tab:hover:not(.active) { color:var(--gray-700); }
+.tr-income td:first-child { border-left:3px solid #057a55; }
+.tr-expense td:first-child { border-left:3px solid #e02424; }
 </style>
 </head>
 <body>
@@ -62,7 +70,8 @@
       <span class="page-title">收支流水帳</span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" id="manageCatBtn" style="display:none" onclick="openCatModal()">管理科目</button>
-        <button class="btn btn-primary btn-sm" onclick="openLedgerModal()">＋ 新增</button>
+        <button class="btn btn-sm" style="background:#057a55;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('income')">＋ 收入</button>
+        <button class="btn btn-sm" style="background:#e02424;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('expense')">＋ 支出</button>
       </div>
     </div>
     <div class="page-body">
@@ -70,12 +79,6 @@
       <div class="filter-bar">
         <label style="font-size:13px;color:var(--gray-600)">月份</label>
         <input type="month" id="filterMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-        <label style="font-size:13px;color:var(--gray-600)">類型</label>
-        <select id="filterLedgerType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部</option>
-          <option value="income">收入</option>
-          <option value="expense">支出</option>
-        </select>
         <span id="orgFilterWrap" style="display:none;align-items:center;gap:6px">
           <label style="font-size:13px;color:var(--gray-600)">店別</label>
           <select id="filterOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
@@ -87,7 +90,13 @@
 
       <div class="stats-grid" id="ledgerStats"></div>
 
-      <div class="card">
+      <div class="ledger-tabs">
+        <button class="ledger-tab tab-all active" data-tab="all"     onclick="setTab('all')">總覽</button>
+        <button class="ledger-tab tab-income"      data-tab="income"  onclick="setTab('income')">收入</button>
+        <button class="ledger-tab tab-expense"     data-tab="expense" onclick="setTab('expense')">支出</button>
+      </div>
+
+      <div class="card" style="border-top-left-radius:0;border-top-right-radius:0">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
             <table>
@@ -215,6 +224,7 @@
 <script src="/js/common.js"></script>
 <script>
 let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
+let activeTab = 'all';
 
 async function init() {
   await loadUser();
@@ -229,11 +239,10 @@ async function init() {
   await loadLedger();
 
   document.getElementById('filterMonth').addEventListener('change', loadLedger);
-  document.getElementById('filterLedgerType').addEventListener('change', applyFilter);
   document.getElementById('filterOrg').addEventListener('change', loadLedger);
   document.getElementById('clearLedgerBtn').addEventListener('click', () => {
-    document.getElementById('filterLedgerType').value = '';
     document.getElementById('filterOrg').value = '';
+    setTab('all');
     loadLedger();
   });
   document.getElementById('ledgerCaseSearch').addEventListener('input', onCaseSearch);
@@ -284,10 +293,18 @@ async function loadLedger() {
 }
 
 function applyFilter() {
-  const type = document.getElementById('filterLedgerType').value;
-  const rows = type ? allLedger.filter(r => r.type === type) : allLedger;
+  const rows = activeTab !== 'all' ? allLedger.filter(r => r.type === activeTab) : allLedger;
   renderStats(rows);
   renderTable(rows);
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.ledger-tab').forEach(t => {
+    const isActive = t.dataset.tab === tab;
+    t.classList.toggle('active', isActive);
+  });
+  applyFilter();
 }
 
 function renderStats(rows) {
@@ -310,7 +327,7 @@ function renderTable(rows) {
     return;
   }
   tbody.innerHTML = rows.map(r => `
-    <tr>
+    <tr class="tr-${r.type}">
       <td>${fmtDate(r.date)}</td>
       <td><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
       <td>${r.category}</td>
@@ -348,11 +365,13 @@ function updateCategoryOptions() {
   sel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
 }
 
-function openLedgerModal(entry=null) {
+function openLedgerModal(arg=null) {
+  const entry = (arg && typeof arg === 'object') ? arg : null;
+  const presetType = (typeof arg === 'string') ? arg : 'expense';
   document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : '新增帳務記錄';
   document.getElementById('ledgerEntryId').value    = entry ? entry.id : '';
   document.getElementById('ledgerDate').value       = entry ? entry.date : new Date().toISOString().slice(0,10);
-  document.getElementById('ledgerType').value       = entry ? entry.type : 'expense';
+  document.getElementById('ledgerType').value       = entry ? entry.type : presetType;
   updateCategoryOptions();
   if (entry) document.getElementById('ledgerCategory').value = entry.category;
   document.getElementById('ledgerAmount').value      = entry ? entry.amount : '';
@@ -419,7 +438,7 @@ async function handleScanImage(event) {
   const compressed = await new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      const MAX = 800;
+      const MAX = 600;
       const scale = Math.min(1, MAX / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');
       canvas.width  = Math.round(img.width  * scale);
