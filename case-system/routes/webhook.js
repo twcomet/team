@@ -199,6 +199,7 @@ router.post('/line-staff', express.raw({ type: '*/*' }), (req, res) => {
 
 // 員工／學員傳訊：「綁定 帳號」指令
 async function handleStaffText(event) {
+  if (event.source?.type !== 'user') return;
   const userId = event.source?.userId;
   if (!userId) return;
   const text = event.message.text.trim();
@@ -232,6 +233,7 @@ async function handleStaffText(event) {
 
 // 員工／學員加好友歡迎語
 async function handleStaffFollow(event) {
+  if (event.source?.type !== 'user') return;
   const userId = event.source?.userId;
   if (!userId) return;
   const profile = await lineGet(`/v2/bot/profile/${userId}`, STAFF_TOKEN());

@@ -151,6 +151,7 @@ let caseId, formData = null, surveyors = [];
 
 async function init() {
   await loadUser();
+  highlightNav('cases-survey');
   caseId = new URLSearchParams(location.search).get('case_id');
   if (!caseId) { location.href = '/cases'; return; }
 
