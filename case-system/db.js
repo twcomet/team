@@ -1261,6 +1261,13 @@ db.exec(`
   );
 `);
 
+// 案件所屬模組（用於 invalid 案件的歸屬）
+_addCol('cases', 'case_group', 'TEXT DEFAULT NULL');
+// 依現有狀態補值（冪等）
+db.exec(`UPDATE cases SET case_group='deal'    WHERE case_group IS NULL AND status IN ('contracted','payment','closed','invalid')`);
+db.exec(`UPDATE cases SET case_group='survey'  WHERE case_group IS NULL AND status IN ('initial_estimate','survey','quoted')`);
+db.exec(`UPDATE cases SET case_group='inquiry' WHERE case_group IS NULL`);
+
 // 合約簽署
 _addCol('users', 'contract_signed_at',  'DATETIME DEFAULT NULL');
 _addCol('users', 'contract_type',       "TEXT DEFAULT NULL");

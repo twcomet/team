@@ -26,21 +26,23 @@
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
-            <nav class="sidebar-nav">
-        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
-        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
-        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
-        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
-        <a class="nav-item" data-page="cases"          href="/cases">          <span class="icon">📋</span>案件管理</a>
-        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
-        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
-        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
-        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
-        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
-        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
-        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
-        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
-        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
@@ -51,20 +53,16 @@
 
   <div class="main-content">
     <div class="top-bar">
-      <span class="page-title">案件管理</span>
+      <span class="page-title" id="pageTitle"></span>
       <div style="display:flex;gap:8px">
         <input type="text" id="searchInput" placeholder="🔍 搜尋案號、客戶、項目…"
                style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:220px">
-        <button class="btn btn-primary btn-sm" id="newCaseBtn">＋ 新增案件</button>
+        <button class="btn btn-primary btn-sm" id="newCaseBtn" style="display:none">＋ 新增案件</button>
       </div>
     </div>
     <div class="page-body">
-
-      <!-- 案件流程管道 -->
       <div class="pipeline" id="pipeline"></div>
-
-      <!-- 案件類型 tab -->
-      <div class="case-type-tabs">
+      <div class="case-type-tabs" id="caseTypeTabs" style="display:none">
         <span class="type-tab active" data-type="">全部類型</span>
         <span class="type-tab" data-type="home">居家</span>
         <span class="type-tab" data-type="commercial">商空</span>
@@ -75,21 +73,11 @@
         <span class="type-tab" data-type="output">輸出</span>
         <span class="type-tab" data-type="other">其他</span>
       </div>
-
-      <!-- 案件清單 -->
       <div class="card">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
-                  <th>施工日</th><th>業務</th><th>狀態</th>
-                  <th id="amountHeader">報價／成交</th>
-                  <th>毛利</th><th>收款</th>
-                  <th id="poolHeader" style="display:none">案件池</th>
-                </tr>
-              </thead>
+              <thead id="tableHead"></thead>
               <tbody id="casesBody"></tbody>
             </table>
           </div>
@@ -99,12 +87,12 @@
   </div>
 </div>
 
-<!-- 新增案件 Modal（快速建立，詳細在 case-detail 頁面填） -->
+<!-- 新增案件 Modal -->
 <div class="modal-overlay" id="newCaseModal">
   <div class="modal" style="max-width:520px">
-    <div class="modal-header"><h3>新增案件</h3><button class="modal-close" onclick="document.getElementById('newCaseModal').classList.remove('open')">×</button></div>
+    <div class="modal-header"><h3 id="newCaseModalTitle">新增案件</h3><button class="modal-close" onclick="document.getElementById('newCaseModal').classList.remove('open')">×</button></div>
     <div class="modal-body">
-      <div class="form-row">
+      <div class="form-row" id="caseTypeRow">
         <div class="form-group">
           <label>案件類型</label>
           <select id="nc_type">
@@ -140,7 +128,7 @@
         <div class="form-group"><label>負責業務</label><select id="nc_sales"></select></div>
       </div>
       <div class="form-group"><label>施工地點</label><input type="text" id="nc_location" placeholder="地址或簡稱"></div>
-      <div class="form-group"><label>說明（可留空，稍後在案件頁填）</label><textarea id="nc_desc" rows="2"></textarea></div>
+      <div class="form-group"><label>說明（可留空）</label><textarea id="nc_desc" rows="2"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('newCaseModal').classList.remove('open')">取消</button>
@@ -149,7 +137,7 @@
   </div>
 </div>
 
-<!-- 案件池設定 Modal -->
+<!-- 案件池設定 Modal（僅 deal 模式） -->
 <div class="modal-overlay" id="poolModal">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
@@ -210,13 +198,51 @@
 
 <script src="/js/common.js"></script>
 <script>
-const STAGE_ORDER = ['initial_estimate','survey','quoted','contracted','payment','closed','invalid'];
-const STAGE_NAMES = {
-  initial_estimate:'初步估價', survey:'場勘', quoted:'出報價單',
-  contracted:'成交派案', payment:'完工請款', closed:'結案保存', invalid:'無效',
+// ── 模式偵測 ─────────────────────────────────────────────────
+const PATH = location.pathname;
+const MODE = PATH === '/cases-deal' ? 'deal' : PATH === '/cases-inquiry' ? 'inquiry' : 'survey';
+
+const CFG = {
+  inquiry: {
+    title: '詢價管理',
+    nav: 'cases-inquiry',
+    group: 'inquiry',
+    stages: ['inquiry', 'invalid'],
+    stageNames: { inquiry: '詢價', invalid: '無效' },
+    hiddenByDefault: new Set(['invalid']),
+    showAmounts: false,
+    showTypeTabs: false,
+    defaultStatus: 'inquiry',
+    showNewBtn: true,
+  },
+  survey: {
+    title: '場勘案件管理',
+    nav: 'cases-survey',
+    group: 'survey',
+    stages: ['initial_estimate', 'survey', 'quoted', 'invalid'],
+    stageNames: { initial_estimate: '初步估價', survey: '場勘', quoted: '出報價單', invalid: '無效' },
+    hiddenByDefault: new Set(['invalid']),
+    showAmounts: false,
+    showTypeTabs: true,
+    defaultStatus: 'initial_estimate',
+    showNewBtn: true,
+  },
+  deal: {
+    title: '成交案件管理',
+    nav: 'cases-deal',
+    group: 'deal',
+    stages: ['contracted', 'payment', 'closed', 'invalid'],
+    stageNames: { contracted: '成交派案', payment: '完工請款', closed: '結案保存', invalid: '無效' },
+    hiddenByDefault: new Set(['closed', 'invalid']),
+    showAmounts: true,
+    showTypeTabs: true,
+    defaultStatus: 'contracted',
+    showNewBtn: false,
+  },
 };
-const HIDDEN_STAGES = new Set(['closed','invalid']); // 結案/無效預設不顯示在列表
-const TYPE_NAMES  = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+
+const cfg = CFG[MODE];
+const TYPE_NAMES = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
 const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca3af' };
 
 let allCases = [], clients = [], salesUsers = [];
@@ -224,28 +250,49 @@ let activeStatus = '', activeType = '';
 
 async function init() {
   await loadUser();
-  highlightNav('cases');
-  if (!currentUser.can_see_amounts) {
-    document.getElementById('amountHeader').style.display = 'none';
-  }
-  if (currentUser.manage_users) {
-    document.getElementById('poolHeader').style.display = '';
-    // 預載區域清單
+  document.getElementById('pageTitle').textContent = cfg.title;
+  document.title = cfg.title + ' — 繪新管理系統';
+  highlightNav(cfg.nav);
+
+  if (cfg.showNewBtn) document.getElementById('newCaseBtn').style.display = '';
+  if (cfg.showTypeTabs) document.getElementById('caseTypeTabs').style.display = '';
+
+  if (MODE === 'deal' && currentUser.manage_users) {
     fetch('/api/marketplace/regions').then(r => r.json()).then(regs => {
       const sel = document.getElementById('pool_region');
       regs.forEach(r => sel.add(new Option(r.name, r.id)));
     });
   }
+
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
+  renderTableHead();
   await loadCases();
 }
 
+function renderTableHead() {
+  const h = document.getElementById('tableHead');
+  if (MODE === 'inquiry') {
+    h.innerHTML = `<tr><th>案號</th><th>客戶</th><th>項目</th><th>建立日期</th><th>負責業務</th><th>狀態</th></tr>`;
+  } else if (MODE === 'survey') {
+    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>狀態</th><th>估價</th></tr>`;
+  } else {
+    h.innerHTML = `<tr>
+      <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
+      <th>施工日</th><th>業務</th><th>狀態</th>
+      <th id="amountHeader" ${!currentUser?.can_see_amounts ? 'style="display:none"' : ''}>報價／成交</th>
+      <th>毛利</th><th>收款</th>
+      <th id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
+    </tr>`;
+  }
+}
+
 async function loadCases(params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch('/api/cases' + (qs ? '?' + qs : ''));
+  const qs = new URLSearchParams({ group: cfg.group, ...params }).toString();
+  const res = await fetch('/api/cases?' + qs);
+  if (!res.ok) { allCases = []; renderPipeline([]); renderTable([]); return; }
   allCases = await res.json();
   renderPipeline(allCases);
   renderTable(allCases);
@@ -253,11 +300,11 @@ async function loadCases(params = {}) {
 
 function renderPipeline(cases) {
   const counts = {};
-  STAGE_ORDER.forEach(s => counts[s] = 0);
+  cfg.stages.forEach(s => counts[s] = 0);
   cases.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
-  document.getElementById('pipeline').innerHTML = STAGE_ORDER.map(s => `
+  document.getElementById('pipeline').innerHTML = cfg.stages.map(s => `
     <div class="pipeline-stage${activeStatus === s ? ' active' : ''}" onclick="filterByStatus('${s}')">
-      <span class="count">${counts[s]}</span>${STAGE_NAMES[s]}
+      <span class="count">${counts[s]}</span>${cfg.stageNames[s]}
     </div>
   `).join('');
 }
@@ -266,46 +313,76 @@ function renderTable(cases) {
   const filtered = cases.filter(c => {
     if (activeType && c.case_type !== activeType) return false;
     if (activeStatus) return c.status === activeStatus;
-    return !HIDDEN_STAGES.has(c.status); // 預設隱藏完工保存/無效
+    return !cfg.hiddenByDefault.has(c.status);
   });
   const tbody = document.getElementById('casesBody');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
+    const cols = MODE === 'inquiry' ? 6 : MODE === 'survey' ? 8 : 10;
+    tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
-  tbody.innerHTML = filtered.map(c => {
-    const price = c.final_price || c.quoted_price;
-    const margin = c.gross_margin_pct;
-    const marginDot = margin == null ? '' : margin < 40
-      ? `<span class="margin-dot margin-red"></span>`
-      : margin < 60 ? `<span class="margin-dot margin-yellow"></span>`
-      : `<span class="margin-dot margin-green"></span>`;
-    const priorityStyle = PRIORITY_COLORS[c.priority] ? `color:${PRIORITY_COLORS[c.priority]}` : '';
-    return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+  tbody.innerHTML = filtered.map(c => getCaseRow(c)).join('');
+}
+
+function getCaseRow(c) {
+  const priorityStyle = PRIORITY_COLORS[c.priority] ? `color:${PRIORITY_COLORS[c.priority]}` : '';
+  const link = `onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer"`;
+
+  if (MODE === 'inquiry') {
+    return `<tr ${link}>
+      <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td>${c.client_name || '—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
+      <td>${fmtDate(c.created_at)}</td>
+      <td>${c.sales_name || '—'}</td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>`;
+  }
+
+  if (MODE === 'survey') {
+    return `<tr ${link}>
       <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
       <td>${c.client_name || '—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-      <td>${fmtDate(c.scheduled_date)}</td>
+      <td>${fmtDate(c.survey_date)}</td>
       <td>${c.sales_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
-      <td ${!currentUser.can_see_amounts ? 'style="display:none"' : ''}>${price ? fmt(price) : '—'}</td>
-      <td>${marginDot}${margin != null ? margin + '%' : '—'}</td>
-      <td>${paymentBadge(c.payment_status)}</td>
-      <td id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">
-        ${c.outsource_open
-          ? `<button onclick="event.stopPropagation();openPoolModal(${c.id},true)" style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池中</button>`
-          : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 10px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
-        }
-      </td>
+      <td>${c.quoted_price ? fmt(c.quoted_price) : '—'}</td>
     </tr>`;
-  }).join('');
+  }
+
+  // deal mode
+  const price = c.final_price || c.quoted_price;
+  const margin = c.gross_margin_pct;
+  const marginDot = margin == null ? '' : margin < 40
+    ? `<span class="margin-dot margin-red"></span>`
+    : margin < 60 ? `<span class="margin-dot margin-yellow"></span>`
+    : `<span class="margin-dot margin-green"></span>`;
+  return `<tr ${link}>
+    <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+    <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
+    <td>${c.client_name || '—'}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
+    <td>${fmtDate(c.scheduled_date)}</td>
+    <td>${c.sales_name || '—'}</td>
+    <td>${statusBadge(c.status)}</td>
+    <td ${!currentUser.can_see_amounts ? 'style="display:none"' : ''}>${price ? fmt(price) : '—'}</td>
+    <td>${marginDot}${margin != null ? margin + '%' : '—'}</td>
+    <td>${paymentBadge(c.payment_status)}</td>
+    <td style="${currentUser?.manage_users ? '' : 'display:none'}">
+      ${c.outsource_open
+        ? `<button onclick="event.stopPropagation();openPoolModal(${c.id},true)" style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池中</button>`
+        : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 10px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
+      }
+    </td>
+  </tr>`;
 }
 
 function filterByStatus(s) {
   activeStatus = activeStatus === s ? '' : s;
   document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
-    el.classList.toggle('active', STAGE_ORDER[i] === activeStatus);
+    el.classList.toggle('active', cfg.stages[i] === activeStatus);
   });
   renderTable(allCases);
 }
@@ -329,20 +406,18 @@ document.getElementById('searchInput').addEventListener('input', e => {
   }, 400);
 });
 
-// ── 案件池快速設定 ─────────────────────────────────────────
+// ── 案件池（僅 deal 模式）─────────────────────────────────────
 let poolTargetId = null;
 function openPoolModal(caseId, isOpen) {
   poolTargetId = caseId;
   document.getElementById('poolModalTitle').textContent = isOpen ? '修改案件池設定' : '加入案件池';
   document.getElementById('poolRemoveBtn').style.display = isOpen ? '' : 'none';
-  // 找目前設定
   const c = allCases.find(x => x.id === caseId);
   const types = JSON.parse(c?.outsource_types || '[]');
   document.getElementById('pt_full').checked    = types.includes('full');
   document.getElementById('pt_survey').checked  = types.includes('survey');
   document.getElementById('pt_install').checked = types.includes('install');
-  const regionSel = document.getElementById('pool_region');
-  regionSel.value = c?.region_id || '';
+  document.getElementById('pool_region').value  = c?.region_id || '';
   document.getElementById('poolModal').classList.add('open');
 }
 async function savePoolSetting(open) {
@@ -360,16 +435,17 @@ async function savePoolSetting(open) {
   } else { showToast('操作失敗', 'error'); }
 }
 
-// 新增案件
+// ── 新增案件 ─────────────────────────────────────────────────
 document.getElementById('newCaseBtn').addEventListener('click', () => {
+  document.getElementById('newCaseModalTitle').textContent = MODE === 'inquiry' ? '新增詢價案件' : '新增場勘案件';
+  document.getElementById('caseTypeRow').style.display = MODE === 'inquiry' ? 'none' : '';
   document.getElementById('newCaseModal').classList.add('open');
 });
 
-// 快速新增客戶
 document.getElementById('quickAddClientBtn').addEventListener('click', () => {
-  document.getElementById('qc_name').value  = '';
-  document.getElementById('qc_phone').value = '';
-  document.getElementById('qc_email').value = '';
+  document.getElementById('qc_name').value   = '';
+  document.getElementById('qc_phone').value  = '';
+  document.getElementById('qc_email').value  = '';
   document.getElementById('qc_source').value = '';
   document.getElementById('quickClientModal').classList.add('open');
 });
@@ -378,16 +454,10 @@ document.getElementById('saveQuickClientBtn').addEventListener('click', async ()
   if (!name) { showToast('請填入客戶姓名', 'error'); return; }
   const res = await fetch('/api/clients', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      name,
-      phone:  document.getElementById('qc_phone').value || null,
-      email:  document.getElementById('qc_email').value || null,
-      source: document.getElementById('qc_source').value || null,
-    })
+    body: JSON.stringify({ name, phone: document.getElementById('qc_phone').value || null, email: document.getElementById('qc_email').value || null, source: document.getElementById('qc_source').value || null })
   });
   if (res.ok) {
     const { id } = await res.json();
-    // 重新載入客戶清單並選中新建的
     clients = await fetchClients();
     document.getElementById('nc_client').value       = id;
     document.getElementById('nc_client_input').value = name;
@@ -401,12 +471,13 @@ document.getElementById('createCaseBtn').addEventListener('click', async () => {
   if (!title) { showToast('請填入項目名稱', 'error'); return; }
   const body = {
     title,
-    case_type:  document.getElementById('nc_type').value,
-    priority:   document.getElementById('nc_priority').value,
-    client_id:  document.getElementById('nc_client').value || null,
-    sales_id:   document.getElementById('nc_sales').value || null,
-    location:   document.getElementById('nc_location').value || null,
-    description:document.getElementById('nc_desc').value || null,
+    status:    cfg.defaultStatus,
+    case_type: MODE === 'inquiry' ? 'other' : document.getElementById('nc_type').value,
+    priority:  document.getElementById('nc_priority').value,
+    client_id: document.getElementById('nc_client').value || null,
+    sales_id:  document.getElementById('nc_sales').value || null,
+    location:  document.getElementById('nc_location').value || null,
+    description: document.getElementById('nc_desc').value || null,
   };
   const res = await fetch('/api/cases', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) {
@@ -416,20 +487,15 @@ document.getElementById('createCaseBtn').addEventListener('click', async () => {
 });
 
 function initClientAC(inputId, hiddenId, dropdownId) {
-  const input    = document.getElementById(inputId);
-  const hidden   = document.getElementById(hiddenId);
+  const input = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
   const dropdown = document.getElementById(dropdownId);
   if (!input) return;
-
   function showDropdown(q) {
     const kw = q.trim().toLowerCase();
     const matched = kw
-      ? clients.filter(c =>
-          c.name.toLowerCase().includes(kw) ||
-          (c.contact_person || '').toLowerCase().includes(kw) ||
-          (c.phone || '').includes(kw)
-        ).slice(0, 30)
-      : clients.slice(0, 20);
+      ? clients.filter(c => c.name.toLowerCase().includes(kw) || (c.contact_person||'').toLowerCase().includes(kw) || (c.phone||'').includes(kw)).slice(0,30)
+      : clients.slice(0,20);
     if (!matched.length) { dropdown.style.display = 'none'; return; }
     dropdown.innerHTML = matched.map(c => `
       <div data-id="${c.id}" data-name="${c.name}"
@@ -439,20 +505,15 @@ function initClientAC(inputId, hiddenId, dropdownId) {
       </div>`).join('');
     dropdown.style.display = 'block';
     dropdown.querySelectorAll('div[data-id]').forEach(el => {
-      el.addEventListener('mousedown', e => {
-        e.preventDefault();
-        hidden.value = el.dataset.id;
-        input.value  = el.dataset.name;
-        dropdown.style.display = 'none';
-      });
-      el.addEventListener('mouseover', () => el.style.background = '#f0f4ff');
-      el.addEventListener('mouseout',  () => el.style.background = '');
+      el.addEventListener('mousedown', e => { e.preventDefault(); hidden.value=el.dataset.id; input.value=el.dataset.name; dropdown.style.display='none'; });
+      el.addEventListener('mouseover', () => el.style.background='#f0f4ff');
+      el.addEventListener('mouseout',  () => el.style.background='');
     });
   }
   input.addEventListener('input',  () => showDropdown(input.value));
   input.addEventListener('focus',  () => showDropdown(input.value));
-  input.addEventListener('blur',   () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
-  input.addEventListener('keydown', e => { if (e.key === 'Escape') { dropdown.style.display = 'none'; } });
+  input.addEventListener('blur',   () => setTimeout(() => { dropdown.style.display='none'; }, 150));
+  input.addEventListener('keydown', e => { if (e.key==='Escape') dropdown.style.display='none'; });
 }
 
 init();

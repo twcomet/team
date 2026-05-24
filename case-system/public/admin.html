@@ -16,7 +16,9 @@
         <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
         <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
         <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
-        <a class="nav-item" data-page="cases"          href="/cases">          <span class="icon">📋</span>案件管理</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
         <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
         <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
         <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
@@ -236,6 +238,9 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_dispatch_pool"> 🏊 派案池管理
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_cases_deal"> ✅ 成交案件管理
+          </label>
         </div>
       </div>
     </div>
@@ -318,6 +323,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_dispatch_pool"> 🏊 派案池管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_cases_deal"> ✅ 成交案件管理
           </label>
         </div>
       </div>
@@ -502,7 +510,8 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   ['rolePerm_is_manager','rolePerm_can_see_amounts','rolePerm_view_all_branches',
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
    'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
-   'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_dispatch_pool']
+   'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_dispatch_pool',
+   'rolePerm_page_cases_deal']
     .forEach(id => document.getElementById(id).checked = id.includes('page_cases') || id.includes('page_line_inquiries') || id.includes('page_clients') || id.includes('page_calendar') || id.includes('my_tasks'));
   document.getElementById('roleModal').classList.add('open');
 });
@@ -527,6 +536,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
   document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
+  document.getElementById('rolePerm_page_cases_deal').checked        = !!p.page_cases_deal;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -546,6 +556,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_payments:       document.getElementById('rolePerm_page_payments').checked,
     page_ledger:         document.getElementById('rolePerm_page_ledger').checked,
     page_dispatch_pool:  document.getElementById('rolePerm_page_dispatch_pool').checked,
+    page_cases_deal:     document.getElementById('rolePerm_page_cases_deal').checked,
   };
   const view_all_branches = document.getElementById('rolePerm_view_all_branches').checked;
   const url = id ? `/api/users/custom-roles/${id}` : '/api/users/custom-roles';
@@ -684,9 +695,10 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_payments').checked        = !!p.page_payments;
     document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
     document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
+    document.getElementById('perm_page_cases_deal').checked       = !!p.page_cases_deal;
   } else {
-    // 系統內建角色：約聘/學員預設全關（只開我的任務）；內部員工預設全開
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
+    const isHQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
     document.getElementById('userIsManager').checked              = false;
     document.getElementById('userCanSeeAmounts').checked          = false;
     document.getElementById('perm_page_dashboard').checked        = !isContractor;
@@ -694,9 +706,10 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
     document.getElementById('perm_page_clients').checked          = !isContractor;
     document.getElementById('perm_page_calendar').checked         = !isContractor;
-    document.getElementById('perm_page_payments').checked         = false; // 財務預設關閉，需手動開
+    document.getElementById('perm_page_payments').checked         = false;
     document.getElementById('perm_page_ledger').checked           = false;
     document.getElementById('perm_page_dispatch_pool').checked    = false;
+    document.getElementById('perm_page_cases_deal').checked       = isHQ;
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -770,7 +783,9 @@ function openEditUser(id) {
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
   document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
-  document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true); // 約聘預設開啟
+  const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+  document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
+  document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
   const allowedIds = u.allowed_org_ids ? JSON.parse(u.allowed_org_ids) : [];
   renderAllowedOrgs(u.org_id, allowedIds);
   document.getElementById('userModal').classList.add('open');
@@ -798,6 +813,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_payments:       document.getElementById('perm_page_payments').checked,
       page_ledger:         document.getElementById('perm_page_ledger').checked,
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
+      page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
     allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))

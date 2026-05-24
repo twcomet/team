@@ -75,6 +75,9 @@ app.get('/', (req, res) => {
 const PAGE_PERMS = {
   dashboard:        'page_dashboard',
   cases:            'page_cases',
+  'cases-inquiry':  'page_cases',
+  'cases-survey':   'page_cases',
+  'cases-deal':     'page_cases_deal',
   'case-detail':    'page_cases',
   clients:          'page_clients',
   calendar:         'page_calendar',
@@ -108,8 +111,10 @@ function requirePagePerm(page) {
     } else if (key === 'page_ledger') {
       allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
     } else if (key === 'page_dispatch_pool') {
-      // 舊 session 無此 key 時退回 manage_users
       allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : !!u.manage_users;
+    } else if (key === 'page_cases_deal') {
+      const HQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+      allowed = p.page_cases_deal !== undefined ? p.page_cases_deal === true : HQ.includes(u.role);
     } else {
       allowed = p[key] === true;
     }
@@ -130,12 +135,16 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
+  // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
+  const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
   app.get(`/${page}`, requireAuth, requireContract, requirePagePerm(page), (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', `${page}.html`));
+    res.sendFile(path.join(__dirname, 'public', htmlFile));
   });
 });
+// /cases 舊路由 → 導向 cases-survey
+app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
 
 // 公開場勘簽名頁（客戶用，不需登入）
 app.get('/sign/:token', (req, res) => {

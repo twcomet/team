@@ -93,9 +93,24 @@ function calcItem(item) {
 }
 
 // ── 案件 CRUD ─────────────────────────────────────────────────
+const STATUS_GROUP_MAP = {
+  inquiry: 'inquiry',
+  initial_estimate: 'survey', survey: 'survey', quoted: 'survey',
+  contracted: 'deal', payment: 'deal', closed: 'deal',
+};
+const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const { status, case_type, date_from, date_to, search } = req.query;
+  const { status, case_type, date_from, date_to, search, group } = req.query;
+
+  // 成交案件管理需要額外權限
+  if (group === 'deal') {
+    const p = me.permissions || {};
+    const canSeeDeals = me.role === 'owner' || (p.page_cases_deal !== undefined ? p.page_cases_deal : HQ_ROLES.includes(me.role));
+    if (!canSeeDeals) return res.status(403).json({ error: '無成交案件管理權限' });
+  }
+
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
 
   let q = `
@@ -123,6 +138,7 @@ router.get('/', requireAuth, (req, res) => {
     q += ` AND EXISTS (SELECT 1 FROM dispatch_users du JOIN dispatches d ON du.dispatch_id = d.id WHERE d.case_id = c.id AND du.user_id = ?)`;
     p.push(me.id);
   }
+  if (group)     { q += ` AND c.case_group = ?`;      p.push(group); }
   if (status)    { q += ` AND c.status = ?`;         p.push(status); }
   if (req.query.active) { q += ` AND c.status NOT IN ('closed','invalid')`; }
   if (case_type) { q += ` AND c.case_type = ?`;      p.push(case_type); }
@@ -209,20 +225,22 @@ router.get('/:id', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const { client_id, case_type, title, description, location, sales_id, is_outsourced, outsource_type, priority, notes } = req.body;
+  const { client_id, case_type, title, description, location, sales_id, is_outsourced, outsource_type, priority, notes, status: initStatus } = req.body;
   if (!title) return res.status(400).json({ error: '請填入項目名稱' });
 
+  const startStatus = initStatus || 'initial_estimate';
+  const case_group = STATUS_GROUP_MAP[startStatus] || 'survey';
   const case_number = genCaseNumber(me.org_id);
   const result = db.prepare(`
     INSERT INTO cases (org_id, case_number, client_id, case_type, title, description, location,
-                       sales_id, is_outsourced, outsource_type, priority, notes, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       sales_id, is_outsourced, outsource_type, priority, notes, created_by, status, case_group)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(me.org_id, case_number,
-         client_id ?? null, case_type || 'inquiry',
+         client_id ?? null, case_type || 'other',
          title, description ?? null, location ?? null,
          sales_id ?? null,
          is_outsourced ? 1 : 0, outsource_type ?? null,
-         priority || 'normal', notes ?? null, me.id);
+         priority || 'normal', notes ?? null, me.id, startStatus, case_group);
 
   db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create', 'cases', ?, ?)`)
     .run(me.id, result.lastInsertRowid, `建立案件 ${case_number}`);
@@ -273,6 +291,11 @@ router.put('/:id', requireAuth, (req, res) => {
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     req.params.id,
   );
+
+  // 當狀態更新時自動同步 case_group（invalid 保留原 group）
+  if (status && status !== 'invalid' && STATUS_GROUP_MAP[status]) {
+    db.prepare(`UPDATE cases SET case_group=? WHERE id=?`).run(STATUS_GROUP_MAP[status], req.params.id);
+  }
 
   db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'update', 'cases', ?, ?)`)
     .run(req.session.user.id, req.params.id, `更新案件資訊`);

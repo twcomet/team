@@ -18,9 +18,10 @@ router.post('/login', (req, res) => {
 
   const def = getRoleDef(user.role);
   const isOwner = user.role === 'owner';
-  // 約聘/學員/經銷商：預設拒絕（whitelist）；內部員工：預設允許（blacklist）
   const RESTRICTED_ROLES = ['contractor_install','contractor_sales','dealer'];
   const isContractor = RESTRICTED_ROLES.includes(user.role);
+  const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+  const isHQ = HQ_ROLES.includes(user.role);
   const perms = user.permissions ? JSON.parse(user.permissions) : {};
   // explicit = 明確指定的預設（覆蓋 role 預設）; 未指定則 contractor=false, 內部=true
   const perm = (key, explicit) => {
@@ -52,9 +53,10 @@ router.post('/login', (req, res) => {
       page_calendar:       perm('page_calendar'),
       page_payments:       perm('page_payments'),
       page_ledger:         perm('page_ledger'),
-      page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers), // 預設與 manage_users 一致
+      page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers),
+      page_cases_deal:     perm('page_cases_deal', isHQ), // 成交案件管理：僅總部人員預設開放
       page_admin:          def.manageUsers,
-      my_tasks:            perm('my_tasks', isContractor), // 約聘預設開啟我的任務
+      my_tasks:            perm('my_tasks', isContractor),
     },
   };
 

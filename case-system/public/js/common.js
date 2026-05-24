@@ -6,6 +6,7 @@ const ROLE_LABELS = {
   contractor_sales:'約聘業務', dealer:'經銷商',
 };
 const STATUS_LABELS = {
+  inquiry:          '0.詢價',
   initial_estimate: '1.初步估價',
   survey:           '2.場勘',
   quoted:           '3.出報價單',
@@ -43,6 +44,9 @@ async function loadUser() {
   const pageMap = {
     dashboard:        p.page_dashboard,
     cases:            p.page_cases,
+    'cases-inquiry':  p.page_cases,
+    'cases-survey':   p.page_cases,
+    'cases-deal':     p.page_cases_deal !== undefined ? p.page_cases_deal : false,
     'case-detail':    p.page_cases,
     clients:          p.page_clients,
     calendar:         p.page_calendar,
