@@ -43,6 +43,7 @@ router.delete('/categories/:id', requireOwner, (req, res) => {
 // GET /api/ledger?from=&to=&type=&org_id=
 router.get('/', requireAuth, (req, res) => {
   const user = req.session.user;
+  if (user.role !== 'owner' && !user.permissions?.page_ledger) return res.status(403).json({ error: '無收支流水帳權限' });
   const { from, to, type } = req.query;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(user, 'l.org_id');
 

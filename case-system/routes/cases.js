@@ -99,7 +99,7 @@ const STATUS_GROUP_MAP = {
   quote_draft: 'survey', quoted: 'survey',
   contracted: 'deal', payment: 'deal', closed: 'deal',
 };
-const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;

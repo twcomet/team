@@ -115,7 +115,7 @@ function requirePagePerm(page) {
     } else if (key === 'page_dispatch_pool') {
       allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : !!u.manage_users;
     } else if (key === 'page_cases_deal') {
-      const HQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+      const HQ = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
       allowed = p.page_cases_deal !== undefined ? p.page_cases_deal === true : HQ.includes(u.role);
     } else if (key === 'page_materials') {
       allowed = p.page_materials !== undefined ? p.page_materials === true : !!u.manage_users;

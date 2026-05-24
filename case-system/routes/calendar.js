@@ -7,6 +7,7 @@ const router = express.Router();
 // 回傳該月份的派工記錄 + 有施工日期的案件，與每日目標
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
+  if (me.role !== 'owner' && !me.permissions?.page_calendar) return res.status(403).json({ error: '無派單行事曆權限' });
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
   const { sql: orgSqlT, params: orgPsT } = orgFilterSQL(me, 'org_id');
   const year  = parseInt(req.query.year)  || new Date().getFullYear();
