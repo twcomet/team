@@ -21,6 +21,17 @@ app.use('/webhook', require('./routes/webhook'));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
+// 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html']);
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
+    return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
