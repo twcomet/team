@@ -6,14 +6,18 @@ const ROLE_LABELS = {
   contractor_sales:'約聘業務', dealer:'經銷商',
 };
 const STATUS_LABELS = {
-  inquiry:          '0.詢價',
-  initial_estimate: '1.初步估價',
-  survey:           '2.場勘',
-  quoted:           '3.出報價單',
-  contracted:       '4.成交派案',
-  payment:          '5.完工請款',
-  closed:           '6.結案保存',
-  invalid:          '7.無效案件保存',
+  inquiry:           '詢價',
+  initial_estimate:  '初步估價',
+  survey_pending:    '待排場勘',
+  survey_scheduled:  '已排場勘',
+  surveyed:          '已場勘',
+  quote_draft:       '已建報價資料',
+  quoted:            '已發報價單',
+  contracted:        '成交派案',
+  payment:           '完工請款',
+  closed:            '結案保存',
+  invalid:           '無效保存',
+  tech_accepted:     '技師已接案',
 };
 const PAYMENT_LABELS = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
 const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };

@@ -116,17 +116,12 @@
         <span class="page-title" id="caseTitle">載入中…</span>
         <span id="caseNumber" style="font-size:13px;color:var(--gray-500);font-family:monospace"></span>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="statusSelect" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="initial_estimate">1.初步估價</option>
-          <option value="survey">2.場勘</option>
-          <option value="quoted">3.出報價單</option>
-          <option value="contracted">4.成交派案</option>
-          <option value="payment">5.完工請款</option>
-          <option value="closed">6.結案保存</option>
-          <option value="invalid">7.無效案件保存</option>
-        </select>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="statusSelect" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"></select>
         <button class="btn btn-primary btn-sm" id="saveBasicBtn">儲存</button>
+        <button class="btn btn-secondary btn-sm" id="toSurveyBtn" style="display:none">→ 轉場勘案件</button>
+        <button class="btn btn-primary btn-sm" id="toDealBtn" style="display:none">✓ 確認成交</button>
+        <button class="btn btn-ghost btn-sm" id="toInvalidBtn" style="display:none;color:#e02424">✕ 無效保存</button>
       </div>
     </div>
     <div class="page-body">
@@ -154,16 +149,26 @@
         </div>
       </div>
 
+      <!-- 轉換階段橫幅 -->
+      <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:10px;margin-bottom:14px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:10px">
+        <div>
+          <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
+          <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="convertBannerBtns"></div>
+      </div>
+
       <!-- Tabs -->
       <div class="tabs">
-        <div class="tab active" data-tab="basic">基本資訊</div>
-        <div class="tab" data-tab="quote">報價明細</div>
-        <div class="tab" data-tab="survey">場勘</div>
-        <div class="tab" data-tab="dispatch">派工記錄</div>
-        <div class="tab" data-tab="material">膜料使用</div>
-        <div class="tab" data-tab="payment">收款</div>
-        <div class="tab" data-tab="log">歷程</div>
-        <div class="tab" data-tab="outsource" data-need="manage_users">派案設定</div>
+        <div class="tab active" data-tab="basic" data-groups="inquiry,survey,deal">基本資訊</div>
+        <div class="tab" data-tab="estimate" data-groups="inquiry,survey,deal">初步估價紀錄</div>
+        <div class="tab" data-tab="survey" data-groups="survey,deal">場勘</div>
+        <div class="tab" data-tab="quote" data-groups="survey,deal">正式報價單</div>
+        <div class="tab" data-tab="dispatch" data-groups="deal">派工記錄</div>
+        <div class="tab" data-tab="material" data-groups="deal">膜料使用</div>
+        <div class="tab" data-tab="payment" data-groups="deal">收款</div>
+        <div class="tab" data-tab="log" data-groups="inquiry,survey,deal">歷程</div>
+        <div class="tab" data-tab="outsource" data-groups="deal" data-need="manage_users">派案設定</div>
       </div>
 
       <!-- 基本資訊 -->
@@ -271,7 +276,37 @@
         </div>
       </div>
 
-      <!-- 報價明細 -->
+      <!-- 初步估價紀錄 -->
+      <div class="tab-pane" id="tab-estimate">
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">客戶需求說明</h4>
+          <textarea id="ie_requirements" rows="4" placeholder="記錄客戶描述的施作需求、位置、材質偏好、特殊狀況…"
+            style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+        </div>
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">初估金額</h4>
+          <div class="form-row" style="max-width:480px">
+            <div class="form-group">
+              <label>初估最低（元）</label>
+              <input type="number" id="ie_price_min" placeholder="例：15000" min="0"
+                style="padding:9px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:14px;width:100%">
+            </div>
+            <div class="form-group">
+              <label>初估最高（元）</label>
+              <input type="number" id="ie_price_max" placeholder="例：20000" min="0"
+                style="padding:9px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:14px;width:100%">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>給客戶的說明</label>
+            <textarea id="ie_client_msg" rows="3" placeholder="例：以上為初步估計，正式報價請待場勘後確認，實際費用依現場狀況可能略有調整。"
+              style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="saveEstimateBtn">儲存初步估價紀錄</button>
+      </div>
+
+      <!-- 正式報價單（原報價明細） -->
       <div class="tab-pane" id="tab-quote">
 
         <!-- 報價單管理面板 -->
@@ -711,15 +746,41 @@
 <script src="/js/common.js"></script>
 <script>
 // ── 常數 ───────────────────────────────────────────────────
-const STAGES = [
-  {key:'initial_estimate', label:'初步估價'},
-  {key:'survey',           label:'場勘'},
-  {key:'quoted',           label:'出報價單'},
-  {key:'contracted',       label:'成交派案'},
-  {key:'payment',          label:'完工請款'},
-  {key:'closed',           label:'結案保存'},
-  {key:'invalid',          label:'無效'},
-];
+const STAGES_BY_GROUP = {
+  inquiry: [
+    {key:'inquiry',          label:'詢價'},
+    {key:'initial_estimate', label:'初步估價'},
+    {key:'invalid',          label:'無效'},
+  ],
+  survey: [
+    {key:'survey_pending',   label:'待排場勘'},
+    {key:'survey_scheduled', label:'已排場勘'},
+    {key:'surveyed',         label:'已場勘'},
+    {key:'quote_draft',      label:'已建報價資料'},
+    {key:'quoted',           label:'已發報價單'},
+    {key:'invalid',          label:'無效'},
+  ],
+  deal: [
+    {key:'contracted', label:'成交派案'},
+    {key:'payment',    label:'完工請款'},
+    {key:'closed',     label:'結案保存'},
+    {key:'invalid',    label:'無效'},
+  ],
+};
+const STATUS_OPTIONS_BY_GROUP = {
+  inquiry: [
+    ['inquiry','詢價'],['initial_estimate','初步估價'],['invalid','無效保存'],
+  ],
+  survey: [
+    ['survey_pending','待排場勘'],['survey_scheduled','已排場勘'],
+    ['surveyed','已場勘'],['quote_draft','已建報價資料'],
+    ['quoted','已發報價單'],['invalid','無效保存'],
+  ],
+  deal: [
+    ['contracted','成交派案'],['payment','完工請款'],
+    ['closed','結案保存'],['invalid','無效保存'],
+  ],
+};
 const ITEM_TYPES = [
   '牆面','電視牆','天花板','門片','門框','防火門','系統櫃','玻璃',
   '電梯廂內壁','電梯門板','電梯廂外壁','車體','廣告板','其他'
@@ -815,10 +876,134 @@ function renderHeader() {
   document.title = `${caseData.case_number} — 繪新管理系統`;
   document.getElementById('caseTitle').textContent = caseData.title;
   document.getElementById('caseNumber').textContent = caseData.case_number;
-  document.getElementById('statusSelect').value = caseData.status;
+  // 動態填充狀態選單
+  const group = caseData.case_group || 'inquiry';
+  const sel = document.getElementById('statusSelect');
+  sel.innerHTML = (STATUS_OPTIONS_BY_GROUP[group] || STATUS_OPTIONS_BY_GROUP.inquiry)
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  sel.value = caseData.status;
+  // Tab 可見性
+  applyGroupTabs(group);
+  // 轉換按鈕
+  applyConvertButtons(group);
+  // 初步估價紀錄
+  if (caseData.initial_estimate_data) {
+    try {
+      const ie = JSON.parse(caseData.initial_estimate_data);
+      document.getElementById('ie_requirements').value = ie.requirements || '';
+      document.getElementById('ie_price_min').value    = ie.price_min ?? '';
+      document.getElementById('ie_price_max').value    = ie.price_max ?? '';
+      document.getElementById('ie_client_msg').value   = ie.client_msg || '';
+    } catch {}
+  }
+}
+
+function applyGroupTabs(group) {
+  document.querySelectorAll('.tab[data-groups]').forEach(tab => {
+    const show = tab.dataset.groups.split(',').includes(group);
+    tab.style.display = show ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-pane').forEach(pane => {
+    // pane visibility follows tab visibility
+    const tabEl = document.querySelector(`.tab[data-tab="${pane.id.replace('tab-','')}"]`);
+    if (tabEl && tabEl.style.display === 'none') pane.classList.remove('active');
+  });
+  // 確保第一個可見 tab 是 active
+  const firstVisible = document.querySelector('.tab[data-groups]:not([style*="none"])');
+  const anyActive = document.querySelector('.tab.active:not([style*="none"])');
+  if (!anyActive && firstVisible) {
+    document.querySelectorAll('.tab,.tab-pane').forEach(el => el.classList.remove('active'));
+    firstVisible.classList.add('active');
+    const pane = document.getElementById('tab-' + firstVisible.dataset.tab);
+    if (pane) pane.classList.add('active');
+  }
+}
+
+function applyConvertButtons(group) {
+  const toSurvey  = document.getElementById('toSurveyBtn');
+  const toDeal    = document.getElementById('toDealBtn');
+  const toInvalid = document.getElementById('toInvalidBtn');
+  const banner    = document.getElementById('convertBanner');
+  const bannerBtns = document.getElementById('convertBannerBtns');
+
+  toSurvey.style.display  = group === 'inquiry' ? '' : 'none';
+  toDeal.style.display    = (group === 'inquiry' || group === 'survey') ? '' : 'none';
+  toInvalid.style.display = (group === 'inquiry' || group === 'survey') ? '' : 'none';
+
+  if (group === 'inquiry') {
+    banner.style.display = 'flex';
+    document.getElementById('convertBannerTitle').textContent = '初步估價完成？選擇下一步';
+    document.getElementById('convertBannerDesc').textContent  = '確認後案件將移至對應管理階段';
+    bannerBtns.innerHTML = `
+      <button class="btn btn-secondary btn-sm" onclick="convertCase('survey')">→ 轉場勘案件</button>
+      <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 直接成交</button>
+      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
+  } else if (group === 'survey') {
+    banner.style.display = 'flex';
+    document.getElementById('convertBannerTitle').textContent = '場勘完成？選擇下一步';
+    document.getElementById('convertBannerDesc').textContent  = '確認成交後案件移至成交案件管理';
+    bannerBtns.innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 確認成交</button>
+      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+async function convertCase(targetGroup) {
+  const STATUS_MAP = { survey: 'survey_pending', deal: 'contracted', invalid: 'invalid' };
+  const targetStatus = STATUS_MAP[targetGroup];
+  const labels = { survey: '場勘案件', deal: '成交案件', invalid: '無效保存' };
+  if (!confirm(`確認要將此案件轉為「${labels[targetGroup]}」？`)) return;
+  const res = await fetch(`/api/cases/${caseId}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ ...buildSaveBody(), status: targetStatus }),
+  });
+  if (res.ok) {
+    showToast(`已轉為${labels[targetGroup]}`);
+    await loadCase();
+    // 跳回對應管理頁
+    const pages = { survey: '/cases-survey', deal: '/cases-deal', invalid: '/cases-inquiry' };
+    if (pages[targetGroup]) setTimeout(() => location.href = pages[targetGroup], 1000);
+  } else { showToast('操作失敗', 'error'); }
+}
+
+function buildSaveBody() {
+  return {
+    case_type:          document.getElementById('b_case_type').value,
+    priority:           document.getElementById('b_priority').value,
+    title:              document.getElementById('b_title').value,
+    line_display_name:  document.getElementById('b_line_display_name').value || null,
+    client_category:    document.getElementById('b_client_category').value.trim() || null,
+    location:           document.getElementById('b_location').value,
+    desired_entry_date: document.getElementById('b_desired_entry_date').value || null,
+    scheduled_date:     document.getElementById('b_scheduled_date').value || null,
+    cs_id:              document.getElementById('b_cs').value || null,
+    sales_id:           document.getElementById('b_sales').value || null,
+    line_source:        document.getElementById('b_line_source').value || null,
+    keyword:            document.getElementById('b_keyword').value || null,
+    description:        document.getElementById('b_desc').value,
+    notes:              document.getElementById('b_notes').value,
+    entry_info:         document.getElementById('b_entry_info').value || null,
+    photo_upload_url:   document.getElementById('b_photo_upload_url').value || null,
+    client_id:          document.getElementById('b_client').value || null,
+    is_outsourced:      poolIsOn,
+    outsource_type:     poolIsOn ? poolType : null,
+    invoice_tax_id:     document.getElementById('bi_invoice_tax_id').value || null,
+    invoice_company:    document.getElementById('bi_invoice_company').value || null,
+    invoice_email:      document.getElementById('bi_invoice_email').value || null,
+    invoice_address:    document.getElementById('bi_invoice_address').value || null,
+    invoice_item_desc:  caseData.invoice_item_desc || null,
+    status:             document.getElementById('statusSelect').value,
+    payment_status:     caseData.payment_status || 'unpaid',
+    payment_received:   caseData.payment_received || 0,
+  };
 }
 
 function renderPipeline() {
+  const group  = caseData.case_group || 'inquiry';
+  const STAGES = (STAGES_BY_GROUP[group] || STAGES_BY_GROUP.inquiry).filter(s => s.key !== 'invalid');
   const idx = STAGES.findIndex(s => s.key === caseData.status);
   document.getElementById('statusPipeline').innerHTML = STAGES.map((s, i) => `
     <div class="sp-item">
@@ -946,40 +1131,29 @@ function updatePoolBanner(isOn, type) {
 }
 
 document.getElementById('saveBasicBtn').addEventListener('click', async () => {
-  const body = {
-    case_type:          document.getElementById('b_case_type').value,
-    priority:           document.getElementById('b_priority').value,
-    title:              document.getElementById('b_title').value,
-    line_display_name:  document.getElementById('b_line_display_name').value || null,
-    client_category:    document.getElementById('b_client_category').value.trim() || null,
-    location:           document.getElementById('b_location').value,
-    desired_entry_date: document.getElementById('b_desired_entry_date').value || null,
-    scheduled_date:     document.getElementById('b_scheduled_date').value || null,
-    cs_id:              document.getElementById('b_cs').value || null,
-    sales_id:           document.getElementById('b_sales').value || null,
-    line_source:        document.getElementById('b_line_source').value || null,
-    keyword:            document.getElementById('b_keyword').value || null,
-    description:        document.getElementById('b_desc').value,
-    notes:              document.getElementById('b_notes').value,
-    entry_info:         document.getElementById('b_entry_info').value || null,
-    photo_upload_url:   document.getElementById('b_photo_upload_url').value || null,
-    client_id:          document.getElementById('b_client').value || null,
-    is_outsourced:      poolIsOn,
-    outsource_type:     poolIsOn ? poolType : null,
-    // 開發票資訊
-    invoice_tax_id:     document.getElementById('bi_invoice_tax_id').value || null,
-    invoice_company:    document.getElementById('bi_invoice_company').value || null,
-    invoice_email:      document.getElementById('bi_invoice_email').value || null,
-    invoice_address:    document.getElementById('bi_invoice_address').value || null,
-    invoice_item_desc:  caseData.invoice_item_desc || null,
-    status:             document.getElementById('statusSelect').value,
-    payment_status:     caseData.payment_status || 'unpaid',
-    payment_received:   caseData.payment_received || 0,
-  };
-  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildSaveBody()) });
   if (res.ok) { showToast('已儲存'); await loadCase(); }
   else showToast('儲存失敗', 'error');
 });
+
+document.getElementById('saveEstimateBtn').addEventListener('click', async () => {
+  const ie = {
+    requirements: document.getElementById('ie_requirements').value || null,
+    price_min:    parseFloat(document.getElementById('ie_price_min').value) || null,
+    price_max:    parseFloat(document.getElementById('ie_price_max').value) || null,
+    client_msg:   document.getElementById('ie_client_msg').value || null,
+  };
+  const res = await fetch(`/api/cases/${caseId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ...buildSaveBody(), initial_estimate_data: JSON.stringify(ie) }),
+  });
+  if (res.ok) { showToast('初步估價紀錄已儲存'); await loadCase(); }
+  else showToast('儲存失敗', 'error');
+});
+
+document.getElementById('toSurveyBtn').addEventListener('click', () => convertCase('survey'));
+document.getElementById('toDealBtn').addEventListener('click',   () => convertCase('deal'));
+document.getElementById('toInvalidBtn').addEventListener('click',() => convertCase('invalid'));
 
 // ── 報價明細 ───────────────────────────────────────────────
 function renderItems(items) {

@@ -95,7 +95,8 @@ function calcItem(item) {
 // ── 案件 CRUD ─────────────────────────────────────────────────
 const STATUS_GROUP_MAP = {
   inquiry: 'inquiry', initial_estimate: 'inquiry',
-  survey: 'survey', quoted: 'survey',
+  survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
+  quote_draft: 'survey', quoted: 'survey',
   contracted: 'deal', payment: 'deal', closed: 'deal',
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
@@ -260,6 +261,7 @@ router.put('/:id', requireAuth, (req, res) => {
     survey_date, surveyor_id, cs_id,
     entry_info, photo_upload_url,
     material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
+    initial_estimate_data,
   } = req.body;
 
   const prev = db.prepare(`SELECT sales_id, cs_id FROM cases WHERE id=?`).get(req.params.id);
@@ -278,6 +280,7 @@ router.put('/:id', requireAuth, (req, res) => {
       survey_date=?, surveyor_id=?, cs_id=?,
       entry_info=?, photo_upload_url=?,
       material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
+      initial_estimate_data=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -295,6 +298,7 @@ router.put('/:id', requireAuth, (req, res) => {
     survey_date ?? null, surveyor_id ?? null, cs_id ?? null,
     entry_info ?? null, photo_upload_url ?? null,
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
+    initial_estimate_data ?? null,
     req.params.id,
   );
 
