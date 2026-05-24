@@ -37,34 +37,33 @@ async function loadUser() {
   if (orgEl)  orgEl.textContent  = currentUser.org_name || '';
 
   const p = currentUser.permissions || {};
+  const mu = !!currentUser.manage_users;
 
-  // 依權限隱藏側邊欄項目
+  // 依權限隱藏側邊欄項目（所有頁面都在此管控）
   const pageMap = {
-    dashboard: p.page_dashboard,
-    cases:     p.page_cases,
-    clients:   p.page_clients,
-    calendar:  p.page_calendar,
-    payments:  p.page_payments,
-    admin:     currentUser.manage_users,
-    reports:   currentUser.manage_users,
+    dashboard:        p.page_dashboard,
+    cases:            p.page_cases,
+    'case-detail':    p.page_cases,
+    clients:          p.page_clients,
+    calendar:         p.page_calendar,
+    payments:         p.page_payments,
+    ledger:           p.page_payments,
+    'line-inquiries': p.page_cases,
+    'dispatch-detail':p.page_cases,
+    'my-tasks':       p.my_tasks,
+    admin:            mu,
+    reports:          mu,
+    performance:      mu,
+    materials:        mu,
+    'dispatch-pool':  mu,
+    marketplace:      true,   // 市集所有人可見
   };
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     const page = el.dataset.page;
-    if (page in pageMap && pageMap[page] === false) el.style.display = 'none';
+    if (page in pageMap && !pageMap[page]) el.style.display = 'none';
   });
 
-  // 如果有「我的任務」權限，在側邊欄新增（或顯示）my-tasks 連結
-  if (p.my_tasks) {
-    const nav = document.querySelector('.sidebar-nav');
-    if (nav && !document.querySelector('[data-page="my-tasks"]')) {
-      const a = document.createElement('a');
-      a.className = 'nav-item'; a.dataset.page = 'my-tasks'; a.href = '/my-tasks';
-      a.innerHTML = '<span class="icon">📌</span>我的任務';
-      nav.insertBefore(a, nav.children[1]); // 放在總覽下方
-    }
-  }
-
-  if (!currentUser.manage_users) {
+  if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
   if (currentUser.role !== 'owner') {

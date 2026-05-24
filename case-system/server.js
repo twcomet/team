@@ -61,17 +61,22 @@ app.get('/', (req, res) => {
 
 // 頁面 → 對應的 permission key（owner 永遠放行）
 const PAGE_PERMS = {
-  dashboard:  'page_dashboard',
-  cases:      'page_cases',
-  'case-detail': 'page_cases',
-  clients:    'page_clients',
-  calendar:   'page_calendar',
-  payments:   'page_payments',
-  admin:      'manage_users',
-  materials:  'manage_users',
-  reports:       'manage_users',
-  performance:   'manage_users',
-  'dispatch-pool': 'manage_users',
+  dashboard:        'page_dashboard',
+  cases:            'page_cases',
+  'case-detail':    'page_cases',
+  clients:          'page_clients',
+  calendar:         'page_calendar',
+  payments:         'page_payments',
+  ledger:           'page_payments',
+  'line-inquiries': 'page_cases',
+  'dispatch-detail':'page_cases',
+  'survey-form':    'page_cases',
+  'quote-form':     'page_cases',
+  admin:            'manage_users',
+  materials:        'manage_users',
+  reports:          'manage_users',
+  performance:      'manage_users',
+  'dispatch-pool':  'manage_users',
 };
 
 function requirePagePerm(page) {
@@ -83,7 +88,7 @@ function requirePagePerm(page) {
     if (!key) return next();
     // page_xxx 存在 u.permissions；manage_users 直接在 u
     const p = u.permissions || {};
-    const allowed = key === 'manage_users' ? !!u.manage_users : (p[key] !== false);
+    const allowed = key === 'manage_users' ? !!u.manage_users : (p[key] === true);
     if (!allowed) return res.redirect('/my-tasks');
     next();
   };

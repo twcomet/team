@@ -18,9 +18,17 @@ router.post('/login', (req, res) => {
 
   const def = getRoleDef(user.role);
   const isOwner = user.role === 'owner';
+  // 約聘/學員/經銷商：預設拒絕（whitelist）；內部員工：預設允許（blacklist）
+  const RESTRICTED_ROLES = ['contractor_install','contractor_sales','dealer'];
+  const isContractor = RESTRICTED_ROLES.includes(user.role);
   const perms = user.permissions ? JSON.parse(user.permissions) : {};
-  // owner 一律全開；其他人依 permissions 欄位，預設 true（向後相容）
-  const perm = (key, def2 = true) => isOwner ? true : (perms[key] ?? def2);
+  // explicit = 明確指定的預設（覆蓋 role 預設）; 未指定則 contractor=false, 內部=true
+  const perm = (key, explicit) => {
+    if (isOwner) return true;
+    if (perms[key] !== undefined) return !!perms[key];
+    if (explicit !== undefined) return explicit;
+    return !isContractor;
+  };
 
   req.session.user = {
     id: user.id,
@@ -42,7 +50,7 @@ router.post('/login', (req, res) => {
       page_calendar:  perm('page_calendar'),
       page_payments:  perm('page_payments'),
       page_admin:     def.manageUsers,
-      my_tasks:       perm('my_tasks', false),
+      my_tasks:       perm('my_tasks', isContractor), // 約聘預設開啟我的任務
     },
   };
 
