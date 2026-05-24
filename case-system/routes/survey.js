@@ -39,6 +39,7 @@ router.get('/cases/:id/survey-form', requireAuth, (req, res) => {
     WHERE sf.case_id = ? ORDER BY sf.created_at DESC LIMIT 1`).get(req.params.id);
   if (!form) return res.json(null);
   try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
+  try { form.checklist_data = JSON.parse(form.checklist_data || '[]'); } catch { form.checklist_data = []; }
   res.json(form);
 });
 
@@ -47,7 +48,7 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
-          findings, photos_note, extra_notes, dispatch_note } = req.body;
+          findings, photos_note, extra_notes, dispatch_note, cs_notes, checklist_data } = req.body;
 
   const existing = db.prepare(`SELECT id FROM survey_forms WHERE case_id = ?`).get(case_id);
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
@@ -55,13 +56,15 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const token = genToken();
   const result = db.prepare(`
     INSERT INTO survey_forms (case_id, share_token, surveyor_id, survey_date, survey_time,
-      site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note,
+      cs_notes, checklist_data, created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(case_id, token,
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
-    photos_note ?? null, extra_notes ?? null, dispatch_note ?? null, me.id);
+    photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
+    cs_notes ?? null, JSON.stringify(checklist_data ?? []), me.id);
 
   // 通知場勘人員
   if (surveyor_id) {
@@ -82,7 +85,8 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
 router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
-          findings, photos_note, extra_notes, dispatch_note, status } = req.body;
+          findings, photos_note, extra_notes, dispatch_note, status,
+          cs_notes, checklist_data } = req.body;
 
   // 判斷場勘人員是否有變更 → 需重新通知
   const old = db.prepare(`SELECT surveyor_id FROM survey_forms WHERE case_id=?`).get(req.params.id);
@@ -90,12 +94,14 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
 
   db.prepare(`UPDATE survey_forms SET
     surveyor_id=?, survey_date=?, survey_time=?, site_contact=?, site_phone=?, site_address=?,
-    findings=?, photos_note=?, extra_notes=?, dispatch_note=?, status=?, updated_at=CURRENT_TIMESTAMP
+    findings=?, photos_note=?, extra_notes=?, dispatch_note=?,
+    cs_notes=?, checklist_data=?, status=?, updated_at=CURRENT_TIMESTAMP
     WHERE case_id=?`).run(
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
+    cs_notes ?? null, JSON.stringify(checklist_data ?? []),
     status || 'draft', req.params.id);
 
   // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
@@ -124,6 +130,7 @@ router.get('/sign/:token', (req, res) => {
   `).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到場勘單' });
   try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
+  try { form.checklist_data = JSON.parse(form.checklist_data || '[]'); } catch { form.checklist_data = []; }
   res.json(form);
 });
 
@@ -174,6 +181,64 @@ router.post('/sign/:token', (req, res) => {
   // 案件狀態升為 surveyed
   db.prepare(`UPDATE cases SET status='surveyed', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(form.case_id);
 
+  res.json({ ok: true });
+});
+
+// ── 備註模板庫 CRUD ──────────────────────────────────────────
+router.get('/note-templates', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT * FROM survey_note_templates ORDER BY category, sort_order, id`).all();
+  res.json(rows);
+});
+
+router.post('/note-templates', requireAuth, (req, res) => {
+  const { category, keyword, content, sort_order } = req.body;
+  if (!keyword || !content) return res.status(400).json({ error: '缺少 keyword 或 content' });
+  const r = db.prepare(`INSERT INTO survey_note_templates (category, keyword, content, sort_order) VALUES (?,?,?,?)`)
+    .run(category || '一般', keyword, content, sort_order ?? 0);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+router.put('/note-templates/:id', requireAuth, (req, res) => {
+  const { category, keyword, content, sort_order } = req.body;
+  db.prepare(`UPDATE survey_note_templates SET category=?, keyword=?, content=?, sort_order=? WHERE id=?`)
+    .run(category || '一般', keyword, content, sort_order ?? 0, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/note-templates/:id', requireAuth, (req, res) => {
+  db.prepare(`DELETE FROM survey_note_templates WHERE id=?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── 施作檢查清單模板庫 CRUD ──────────────────────────────────
+router.get('/checklist-templates', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT * FROM survey_checklist_templates ORDER BY category, sort_order, id`).all();
+  // 回傳依 category 分組
+  const grouped = {};
+  rows.forEach(r => {
+    if (!grouped[r.category]) grouped[r.category] = [];
+    grouped[r.category].push(r);
+  });
+  res.json({ rows, grouped, categories: Object.keys(grouped) });
+});
+
+router.post('/checklist-templates', requireAuth, (req, res) => {
+  const { category, item, sort_order } = req.body;
+  if (!category || !item) return res.status(400).json({ error: '缺少 category 或 item' });
+  const r = db.prepare(`INSERT INTO survey_checklist_templates (category, item, sort_order) VALUES (?,?,?)`)
+    .run(category, item, sort_order ?? 0);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+router.put('/checklist-templates/:id', requireAuth, (req, res) => {
+  const { category, item, sort_order } = req.body;
+  db.prepare(`UPDATE survey_checklist_templates SET category=?, item=?, sort_order=? WHERE id=?`)
+    .run(category, item, sort_order ?? 0, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/checklist-templates/:id', requireAuth, (req, res) => {
+  db.prepare(`DELETE FROM survey_checklist_templates WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 

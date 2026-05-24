@@ -1317,4 +1317,72 @@ db.exec(`
   );
 `);
 
+// 場勘單：客服備註 + 施作檢查清單
+_addCol('survey_forms', 'cs_notes',      'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'checklist_data','TEXT DEFAULT NULL');
+
+// 場勘備註模板庫
+db.exec(`
+  CREATE TABLE IF NOT EXISTS survey_note_templates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    category   TEXT NOT NULL DEFAULT '一般',
+    keyword    TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 施作項目檢查清單模板庫
+db.exec(`
+  CREATE TABLE IF NOT EXISTS survey_checklist_templates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    category   TEXT NOT NULL,
+    item       TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0
+  );
+`);
+
+// 預設模板資料（僅首次建表時插入）
+const _hasNoteTemplates = db.prepare(`SELECT COUNT(*) as n FROM survey_note_templates`).get().n;
+if (!_hasNoteTemplates) {
+  const insNote = db.prepare(`INSERT INTO survey_note_templates (category, keyword, content, sort_order) VALUES (?,?,?,?)`);
+  [
+    ['除膜', '除舊膜',    '注意事項：現場需先除舊膜，請確認除殘膠工具已備齊，並告知客戶可能有輕微痕跡。', 1],
+    ['骨料', '骨料打磨',  '注意事項：牆面或物件有骨料，場勘時請確認打磨程度，並評估是否需額外收費。', 2],
+    ['矽利康', '矽利康',  '注意事項：玻璃四周矽利康老化或黴斑，建議先更換再施作，請現場確認並告知客戶。', 3],
+    ['貼膜', '貼膜注意',  '注意事項：施作面是否乾淨平整？有油漬、灰塵請先處理。貼膜後請勿碰水 24 小時。', 4],
+    ['電梯', '電梯注意',  '注意事項：請確認電梯尺寸（寬×高×深）、材質（不鏽鋼/烤漆/木紋）、及可使用時段。', 5],
+    ['隔熱', '隔熱紙',    '注意事項：量測玻璃尺寸時請含框架內緣，確認是否有Low-E玻璃（隔熱紙需對應膜種）。', 6],
+  ].forEach(([cat, kw, content, ord]) => insNote.run(cat, kw, content, ord));
+}
+
+const _hasChecklists = db.prepare(`SELECT COUNT(*) as n FROM survey_checklist_templates`).get().n;
+if (!_hasChecklists) {
+  const insCk = db.prepare(`INSERT INTO survey_checklist_templates (category, item, sort_order) VALUES (?,?,?)`);
+  [
+    ['玻璃膜', '確認玻璃尺寸（含四邊框邊）',       1],
+    ['玻璃膜', '確認玻璃是否有裂痕或破損',          2],
+    ['玻璃膜', '確認矽利康狀況（是否需更換）',       3],
+    ['玻璃膜', '確認玻璃是否為 Low-E 玻璃',        4],
+    ['玻璃膜', '確認採光方向（東/南/西/北向）',      5],
+    ['門框',   '確認門框材質（不鏽鋼/鋁/木/烤漆）', 1],
+    ['門框',   '確認門框尺寸（含轉角弧度）',         2],
+    ['門框',   '確認是否需倒角或熱貼',              3],
+    ['門框',   '確認舊膜狀況（是否需除膜）',         4],
+    ['牆面',   '確認牆面材質（油漆/壁紙/磁磚/RC）', 1],
+    ['牆面',   '確認牆面是否有骨料或凹凸不平',       2],
+    ['牆面',   '確認油漆附著力（用膠帶測試）',       3],
+    ['牆面',   '確認施作面積（寬×高）',             4],
+    ['電梯',   '確認電梯廂尺寸（寬×高×深）',        1],
+    ['電梯',   '確認材質（不鏽鋼/烤漆/木紋貼皮）',  2],
+    ['電梯',   '確認可施作時段與管委會許可',         3],
+    ['電梯',   '確認是否有舊膜需先除去',             4],
+    ['電梯',   '確認電梯門板（外門/內門/雙面）',     5],
+    ['一般',   '確認客戶聯絡方式正確',              1],
+    ['一般',   '確認進場時間與停車方式',             2],
+    ['一般',   '確認是否需搭電梯或有限制樓層',       3],
+  ].forEach(([cat, item, ord]) => insCk.run(cat, item, ord));
+}
+
 module.exports = db;
