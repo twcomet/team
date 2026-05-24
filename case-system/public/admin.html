@@ -640,13 +640,17 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
       body: JSON.stringify({ default_perms }),
     });
     if (res.ok) {
-      roleDefaultsMap[editingBuiltinRole] = default_perms;
+      const savedRole = editingBuiltinRole;
+      const savedLabel = document.getElementById('roleModalTitle').textContent.replace('編輯預設權限：','');
+      roleDefaultsMap[savedRole] = default_perms;
       closeModal('roleModal');
       document.getElementById('roleLabel').disabled = false;
       document.getElementById('roleLabelRow').style.display = '';
       editingBuiltinRole = null;
       await loadCustomRoles();
       showToast('預設權限已儲存');
+      // 提示是否同步更新現有帳號
+      await promptUpdateRoleUsers(savedRole, savedLabel, default_perms);
     } else {
       const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
     }
@@ -1025,7 +1029,6 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
 
   const p = typeof default_perms === 'string' ? JSON.parse(default_perms) : default_perms;
   for (const u of affected) {
-    const perms = u.permissions ? JSON.parse(u.permissions) : {};
     const newPerms = {
       page_dashboard:      !!(p.page_dashboard),
       page_cases:          !!(p.page_cases ?? true),
@@ -1035,6 +1038,10 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_payments:       !!(p.page_payments),
       page_ledger:         !!(p.page_ledger),
       page_dispatch_pool:  !!(p.page_dispatch_pool),
+      page_cases_deal:     !!(p.page_cases_deal),
+      page_materials:      !!(p.page_materials),
+      page_performance:    !!(p.page_performance),
+      page_reports:        !!(p.page_reports),
       my_tasks:            !!(p.my_tasks),
     };
     await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},

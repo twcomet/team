@@ -56,41 +56,61 @@ function genCaseNumber() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Webhook 1：繪新國際（客戶頻道）
-// LINE Developer Console Webhook URL：/webhook/line
+// Webhook 1：客戶頻道（支援多分店 LINE OA）
+// 所有分店的 LINE Developer Console Webhook URL 都設為：/webhook/line
 // ══════════════════════════════════════════════════════════════
 
 router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   res.status(200).end();
 
   const sig = req.headers['x-line-signature'];
-  if (!sig || !verifySignature(req.body, sig, CLIENT_SECRET())) return;
+  if (!sig) return;
+
+  const rawBody = req.body;
+
+  // 先嘗試 DB 裡的多頻道設定，再 fallback 到環境變數
+  const dbChannels = db.prepare(`SELECT * FROM line_channels WHERE active=1`).all();
+  let matchedChannel = null;
+
+  for (const ch of dbChannels) {
+    if (verifySignature(rawBody, sig, ch.channel_secret)) {
+      matchedChannel = ch;
+      break;
+    }
+  }
+
+  // fallback：環境變數（原有頻道，視為總部）
+  if (!matchedChannel && verifySignature(rawBody, sig, CLIENT_SECRET())) {
+    const hqOrg = db.prepare(`SELECT id FROM orgs WHERE type='hq' LIMIT 1`).get();
+    matchedChannel = { id: null, org_id: hqOrg?.id || null, channel_token: CLIENT_TOKEN(), welcome_msg: null };
+  }
+
+  if (!matchedChannel) return;
 
   let payload;
-  try { payload = JSON.parse(req.body.toString()); } catch { return; }
+  try { payload = JSON.parse(rawBody.toString()); } catch { return; }
 
   for (const event of (payload.events || [])) {
     if (event.type === 'message' && event.message?.type === 'text') {
-      handleClientText(event).catch(err => console.error('CLIENT webhook error:', err));
+      handleClientText(event, matchedChannel).catch(err => console.error('CLIENT webhook error:', err));
     }
     if (event.type === 'follow') {
-      handleClientFollow(event).catch(err => console.error('CLIENT follow error:', err));
+      handleClientFollow(event, matchedChannel).catch(err => console.error('CLIENT follow error:', err));
     }
   }
 });
 
-// 客戶傳訊 → 建立／追加 LINE 詢問單（不直接建案）
-async function handleClientText(event) {
+// 客戶傳訊 → 建立／追加 LINE 詢問單
+async function handleClientText(event, channel) {
   const userId = event.source?.userId;
   if (!userId) return;
   const text = event.message.text.trim();
 
-  const profile     = await lineGet(`/v2/bot/profile/${userId}`, CLIENT_TOKEN());
+  const profile     = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
   const displayName = profile?.displayName || 'LINE用戶';
 
-  const hqOrg   = db.prepare(`SELECT id FROM orgs WHERE type='hq' LIMIT 1`).get();
   const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
-  const orgId   = hqOrg?.id   || null;
+  const orgId   = channel.org_id || null;
   const sysId   = sysUser?.id || null;
 
   // 確保 clients 記錄存在
@@ -103,12 +123,13 @@ async function handleClientText(event) {
     client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(r.lastInsertRowid);
   }
 
-  // 找最近一筆開放中的詢問（new 或 in_progress），若無則建新的
+  // 找同一頻道最近一筆開放中的詢問，若無則建新的
   const openInquiry = db.prepare(`
     SELECT * FROM line_inquiries
     WHERE line_user_id=? AND status IN ('new','in_progress')
+      AND (channel_id IS ? OR channel_id IS NULL)
     ORDER BY created_at DESC LIMIT 1
-  `).get(userId);
+  `).get(userId, channel.id || null);
 
   let inquiryId;
   if (openInquiry) {
@@ -119,14 +140,12 @@ async function handleClientText(event) {
           message_count=message_count+1, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(text.slice(0, 200), inquiryId);
-    console.log(`LINE詢問追加訊息：inquiry#${inquiryId} from ${displayName}`);
   } else {
     const r = db.prepare(`
-      INSERT INTO line_inquiries (line_user_id, client_id, display_name, last_message, message_count)
-      VALUES (?, ?, ?, ?, 1)
-    `).run(userId, client.id, displayName, text.slice(0, 200));
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, last_message, message_count, org_id, channel_id)
+      VALUES (?, ?, ?, ?, 1, ?, ?)
+    `).run(userId, client.id, displayName, text.slice(0, 200), orgId, channel.id || null);
     inquiryId = r.lastInsertRowid;
-    console.log(`LINE新詢問建立：inquiry#${inquiryId} from ${displayName}`);
   }
 
   db.prepare(`
@@ -134,24 +153,20 @@ async function handleClientText(event) {
     VALUES (?, 'in', 'text', ?)
   `).run(inquiryId, text);
 
-  await reply(event.replyToken,
-    `您好 ${displayName}！已收到您的訊息 🙏\n\n` +
-    `我們的客服人員將在工作時間內盡快與您聯繫，感謝您的耐心等候！`,
-    CLIENT_TOKEN()
-  );
+  const welcomeBack = channel.welcome_msg ||
+    `您好 ${displayName}！已收到您的訊息 🙏\n\n我們的客服人員將在工作時間內盡快與您聯繫，感謝您的耐心等候！`;
+  await reply(event.replyToken, welcomeBack, channel.channel_token);
 }
 
 // 客戶加好友歡迎語
-async function handleClientFollow(event) {
+async function handleClientFollow(event, channel) {
   const userId = event.source?.userId;
   if (!userId) return;
-  const profile = await lineGet(`/v2/bot/profile/${userId}`, CLIENT_TOKEN());
+  const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
   const name    = profile?.displayName || 'LINE用戶';
-  await reply(event.replyToken,
-    `您好 ${name}！歡迎加入繪新國際 🎨\n\n` +
-    `有任何裝潢貼膜需求，直接傳訊息給我們，我們會立即為您建立詢問單並安排客服聯繫！`,
-    CLIENT_TOKEN()
-  );
+  const welcome = channel.welcome_msg ||
+    `您好 ${name}！歡迎加入繪新國際 🎨\n\n有任何裝潢貼膜需求，直接傳訊息給我們，我們會立即為您安排客服聯繫！`;
+  await reply(event.replyToken, welcome, channel.channel_token);
 }
 
 // ══════════════════════════════════════════════════════════════

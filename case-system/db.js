@@ -1287,6 +1287,23 @@ _addCol('dispatch_queue', 'completion_notes',   'TEXT DEFAULT NULL');
 _addCol('dispatch_queue', 'completion_photos',  "TEXT DEFAULT '[]'");
 _addCol('dispatch_queue', 'progress_updated_at','DATETIME DEFAULT NULL');
 
+// LINE 多頻道管理
+db.exec(`
+  CREATE TABLE IF NOT EXISTS line_channels (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id        INTEGER REFERENCES orgs(id),
+    channel_name  TEXT NOT NULL,
+    channel_secret TEXT NOT NULL,
+    channel_token  TEXT NOT NULL,
+    welcome_msg    TEXT,
+    active         INTEGER DEFAULT 1,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+_addCol('line_inquiries', 'org_id',     'INTEGER REFERENCES orgs(id)');
+_addCol('line_inquiries', 'channel_id', 'INTEGER REFERENCES line_channels(id)');
+
 // 系統內建角色的預設權限設定
 db.exec(`
   CREATE TABLE IF NOT EXISTS role_defaults (
