@@ -240,7 +240,11 @@ const _addCol = (table, col, def) => {
   const has = db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === col);
   if (!has) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
 };
-_addCol('cases', 'line_source',      'TEXT');
+_addCol('cases', 'line_source',        'TEXT');
+_addCol('cases', 'line_display_name', 'TEXT');
+_addCol('cases', 'client_category',   'TEXT');
+_addCol('cases', 'desired_entry_date','TEXT');
+_addCol('cases', 'cs_id',             'INTEGER REFERENCES users(id)');
 _addCol('cases', 'keyword',          'TEXT');
 _addCol('cases', 'deposit_amount',   'REAL');
 _addCol('cases', 'material_ordered', 'INTEGER DEFAULT 0');

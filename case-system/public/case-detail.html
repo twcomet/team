@@ -63,6 +63,13 @@
 .sf-status-draft  { background:#f9fafb; border:1px solid var(--gray-200); }
 .sf-status-sent   { background:#dbeafe; border:1px solid #93c5fd; color:#1e40af; }
 .sf-status-signed { background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; }
+.info-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; margin-bottom:14px; }
+.info-section-title { font-size:12px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
+.pool-banner { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; margin-bottom:14px; gap:12px; flex-wrap:wrap; }
+.pool-banner.off { background:#f9fafb; border:2px dashed var(--gray-300); }
+.pool-banner.on  { background:#d1fae5; border:1px solid #6ee7b7; }
+.invoice-toggle { cursor:pointer; display:flex; align-items:center; gap:6px; user-select:none; }
+.invoice-toggle:hover { color:var(--primary); }
 @media print {
   .sidebar, .top-bar, .tabs, .tab-pane:not(#tab-survey), #sf_saveBtn, #sf_printBtn, #sf_shareSection { display:none!important; }
   #tab-survey { display:block!important; }
@@ -89,6 +96,7 @@
         <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
         <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
         <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
         <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div class="sidebar-user">
@@ -123,6 +131,26 @@
       <!-- 狀態時間軸 -->
       <div class="status-pipeline" id="statusPipeline"></div>
 
+      <!-- 發配到派案池 行動橫幅 -->
+      <div class="pool-banner off" id="poolBanner">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">🏊</span>
+          <div>
+            <div id="poolBannerTitle" style="font-weight:600;font-size:14px">發配到派案池</div>
+            <div id="poolBannerDesc" style="font-size:12px;color:var(--gray-500);margin-top:1px">將工項外包給約聘技師或學員承接</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="poolBannerType" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+            <option value="full">全案外包（業務＋場勘＋施工）</option>
+            <option value="survey_only">僅場勘</option>
+            <option value="install_only">僅施工</option>
+          </select>
+          <button class="btn btn-sm" id="poolBannerBtn" style="white-space:nowrap">設定外包</button>
+          <button class="btn btn-ghost btn-sm" id="poolBannerCancel" style="display:none;color:#e02424">取消外包</button>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="tabs">
         <div class="tab active" data-tab="basic">基本資訊</div>
@@ -137,67 +165,124 @@
 
       <!-- 基本資訊 -->
       <div class="tab-pane active" id="tab-basic">
-        <div class="form-row" style="margin-bottom:16px">
-          <div class="form-group"><label>案件類型</label>
-            <select id="b_case_type">
-              <option value="home">居家</option>
-              <option value="commercial">商空</option>
-              <option value="elevator">電梯</option>
-              <option value="glass">玻璃</option>
-              <option value="extra">外快</option>
-              <option value="outsource">外包</option>
-              <option value="output">輸出</option>
+
+        <!-- ① 案件基本資訊 -->
+        <div class="info-section">
+          <div class="info-section-title">案件基本資訊</div>
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="form-group" style="margin-bottom:0"><label>案件類型</label>
+              <select id="b_case_type">
+                <option value="home">居家</option>
+                <option value="commercial">商空</option>
+                <option value="elevator">電梯</option>
+                <option value="glass">玻璃</option>
+                <option value="extra">外快</option>
+                <option value="outsource">外包</option>
+                <option value="output">輸出</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0"><label>優先程度</label>
+              <select id="b_priority">
+                <option value="normal">一般</option><option value="high">優先</option>
+                <option value="urgent">緊急</option><option value="low">低優先</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label>項目名稱</label><input type="text" id="b_title"></div>
+        </div>
+
+        <!-- ② 客戶資訊 -->
+        <div class="info-section">
+          <div class="info-section-title">客戶資訊</div>
+          <div class="form-row">
+            <div class="form-group" style="position:relative;flex:2">
+              <label>客戶名稱</label>
+              <input type="text" id="b_client_input" placeholder="輸入姓名或公司名篩選…" autocomplete="off"
+                     style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;outline:none">
+              <input type="hidden" id="b_client">
+              <div id="b_client_dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:220px;overflow-y:auto"></div>
+            </div>
+            <div class="form-group">
+              <label>LINE ID 名稱 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（LINE詢問顯示名）</span></label>
+              <input type="text" id="b_line_display_name" placeholder="例：王大明">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>客戶類別</label>
+            <select id="b_client_category">
+              <option value="">請選擇</option>
+              <option value="direct">直客</option>
+              <option value="designer">設計師</option>
+              <option value="contractor">建商</option>
+              <option value="package">統包</option>
+              <option value="dealer">經銷商</option>
               <option value="other">其他</option>
             </select>
           </div>
-          <div class="form-group"><label>優先度</label>
-            <select id="b_priority">
-              <option value="normal">一般</option><option value="high">優先</option>
-              <option value="urgent">緊急</option><option value="low">低優先</option>
-            </select>
+        </div>
+
+        <!-- ③ 開發票資訊 (可收合) -->
+        <div class="info-section">
+          <div class="info-section-title invoice-toggle" onclick="toggleInvoice()">
+            開發票資訊
+            <span id="invoiceToggleIcon" style="font-size:12px;color:var(--gray-400);transition:transform .2s">▾</span>
+            <span id="invoiceSummary" style="font-size:11px;color:var(--gray-400);font-weight:400;margin-left:4px"></span>
+          </div>
+          <div id="invoiceSectionBody" style="display:none">
+            <div class="form-row">
+              <div class="form-group"><label>統一編號</label><input type="text" id="bi_invoice_tax_id" placeholder="8碼統編" maxlength="8" oninput="updateInvoiceSummary()"></div>
+              <div class="form-group"><label>抬頭（公司名稱）</label><input type="text" id="bi_invoice_company" placeholder="統一發票抬頭" oninput="updateInvoiceSummary()"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Email</label><input type="email" id="bi_invoice_email" placeholder="發票寄送 Email"></div>
+              <div class="form-group"><label>公司地址</label><input type="text" id="bi_invoice_address"></div>
+            </div>
           </div>
         </div>
-        <div class="form-group"><label>項目名稱</label><input type="text" id="b_title"></div>
-        <div class="form-row">
-          <div class="form-group" style="position:relative">
-            <label>客戶</label>
-            <input type="text" id="b_client_input" placeholder="輸入姓名或公司名篩選…" autocomplete="off"
-                   style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;outline:none">
-            <input type="hidden" id="b_client">
-            <div id="b_client_dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:220px;overflow-y:auto"></div>
+
+        <!-- ④ 案件進度與人員 -->
+        <div class="info-section">
+          <div class="info-section-title">案件進度與人員</div>
+          <div class="form-group"><label>案場地址</label><input type="text" id="b_location"></div>
+          <div class="form-row">
+            <div class="form-group"><label>希望進場時間</label><input type="date" id="b_desired_entry_date"></div>
+            <div class="form-group"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
           </div>
-          <div class="form-group"><label>負責業務</label><select id="b_sales"></select></div>
+          <div class="form-row">
+            <div class="form-group"><label>場勘日期</label><input type="date" id="b_survey_date"></div>
+            <div class="form-group"><label>場勘人員</label><select id="b_surveyor"></select></div>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <div class="form-group" style="margin-bottom:0"><label>負責業務</label><select id="b_sales"></select></div>
+            <div class="form-group" style="margin-bottom:0"><label>負責客服</label><select id="b_cs"></select></div>
+          </div>
         </div>
-        <div class="form-row">
-          <div class="form-group" style="flex:2"><label>施工地點</label><input type="text" id="b_location"></div>
-          <div class="form-group"><label>施工日期</label><input type="date" id="b_scheduled_date"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>場勘日期</label><input type="date" id="b_survey_date"></div>
-          <div class="form-group"><label>場勘人員</label><select id="b_surveyor"></select></div>
-        </div>
+
+        <!-- 其他資訊 -->
         <div class="form-row">
           <div class="form-group"><label>Line@ 來源名稱</label><input type="text" id="b_line_source" placeholder="例：@繪新台北"></div>
           <div class="form-group"><label>關鍵字</label><input type="text" id="b_keyword" placeholder="例：辦公室貼膜、隔熱紙"></div>
         </div>
         <div class="form-group"><label>需求說明</label><textarea id="b_desc" rows="4"></textarea></div>
-        <div class="form-row" style="margin-top:8px">
-          <div style="display:flex;align-items:center;gap:12px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-              <input type="checkbox" id="b_outsourced"> 外包給學員／約聘
-            </label>
-            <select id="b_outsource_type" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
-              <option value="full">全案外包（業務＋場勘＋施工）</option>
-              <option value="survey_only">僅場勘</option>
-              <option value="install_only">僅施工</option>
-            </select>
-          </div>
+
+        <!-- 外包 / 訂料 (保留，與上方橫幅連動) -->
+        <div style="display:flex;gap:20px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="b_outsourced"> 外包給學員／約聘
+          </label>
+          <select id="b_outsource_type" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+            <option value="full">全案外包（業務＋場勘＋施工）</option>
+            <option value="survey_only">僅場勘</option>
+            <option value="install_only">僅施工</option>
+          </select>
           <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
             <input type="checkbox" id="b_material_ordered"> 已訂料
           </label>
         </div>
-        <div class="form-group" style="margin-top:16px"><label>備註</label><textarea id="b_notes" rows="2"></textarea></div>
-        <div class="form-group"><label>進場資訊</label><textarea id="b_entry_info" rows="2" placeholder="門禁密碼、停車位置、進場注意事項…"></textarea></div>
+
+        <div class="form-group"><label>備註</label><textarea id="b_notes" rows="2"></textarea></div>
+        <div class="form-group" id="b_entry_info_wrap" style="display:none"><label>進場資訊</label><textarea id="b_entry_info" rows="2" placeholder="門禁密碼、停車位置、進場注意事項…"></textarea></div>
         <div class="form-group"><label>完工照上傳網址</label><input type="url" id="b_photo_upload_url" placeholder="https://forms.gle/..."></div>
       </div>
 
@@ -636,7 +721,33 @@ async function init() {
   });
 
   document.getElementById('b_outsourced').addEventListener('change', e => {
-    document.getElementById('b_outsource_type').style.display = e.target.checked ? 'block' : 'none';
+    const checked = e.target.checked;
+    document.getElementById('b_outsource_type').style.display = checked ? 'block' : 'none';
+    updatePoolBanner(checked, checked ? (document.getElementById('b_outsource_type').value || 'full') : null);
+  });
+  document.getElementById('b_outsource_type').addEventListener('change', e => {
+    if (document.getElementById('b_outsourced').checked) updatePoolBanner(true, e.target.value);
+  });
+
+  // Pool banner buttons
+  document.getElementById('poolBannerBtn').addEventListener('click', () => {
+    const isOn = document.getElementById('b_outsourced').checked;
+    if (!isOn) {
+      document.getElementById('b_outsourced').checked = true;
+      document.getElementById('b_outsource_type').style.display = 'block';
+    }
+    const type = document.getElementById('poolBannerType').value;
+    document.getElementById('b_outsource_type').value = type;
+    updatePoolBanner(true, type);
+  });
+  document.getElementById('poolBannerCancel').addEventListener('click', () => {
+    document.getElementById('b_outsourced').checked = false;
+    document.getElementById('b_outsource_type').style.display = 'none';
+    updatePoolBanner(false, null);
+  });
+  document.getElementById('poolBannerType').addEventListener('change', e => {
+    document.getElementById('b_outsource_type').value = e.target.value;
+    if (document.getElementById('b_outsourced').checked) updatePoolBanner(true, e.target.value);
   });
 }
 
@@ -677,60 +788,148 @@ function renderPipeline() {
 }
 
 // ── 基本資訊 ───────────────────────────────────────────────
+const CLIENT_CATEGORY_LABELS = { direct:'直客', designer:'設計師', contractor:'建商', package:'統包', dealer:'經銷商', other:'其他' };
+
 function fillBasicForm() {
   const c = caseData;
-  document.getElementById('b_case_type').value = c.case_type || 'inquiry';
+  document.getElementById('b_case_type').value = c.case_type || 'other';
   document.getElementById('b_priority').value  = c.priority  || 'normal';
-  document.getElementById('b_title').value          = c.title || '';
-  document.getElementById('b_location').value       = c.location || '';
-  document.getElementById('b_scheduled_date').value = c.scheduled_date || '';
-  document.getElementById('b_survey_date').value    = c.survey_date    || '';
-  document.getElementById('b_line_source').value = c.line_source || '';
-  document.getElementById('b_keyword').value    = c.keyword || '';
-  document.getElementById('b_desc').value       = c.description || '';
+  document.getElementById('b_title').value           = c.title || '';
+  document.getElementById('b_line_display_name').value = c.line_display_name || '';
+  document.getElementById('b_client_category').value  = c.client_category || '';
+  document.getElementById('b_location').value         = c.location || '';
+  document.getElementById('b_desired_entry_date').value = c.desired_entry_date || '';
+  document.getElementById('b_scheduled_date').value   = c.scheduled_date || '';
+  document.getElementById('b_survey_date').value      = c.survey_date || '';
+  document.getElementById('b_line_source').value      = c.line_source || '';
+  document.getElementById('b_keyword').value          = c.keyword || '';
+  document.getElementById('b_desc').value             = c.description || '';
   document.getElementById('b_notes').value            = c.notes || '';
   document.getElementById('b_entry_info').value       = c.entry_info || '';
   document.getElementById('b_photo_upload_url').value = c.photo_upload_url || '';
-  document.getElementById('b_outsourced').checked      = !!c.is_outsourced;
+  document.getElementById('b_outsourced').checked       = !!c.is_outsourced;
   document.getElementById('b_material_ordered').checked = !!c.material_ordered;
+
+  // 開發票資訊
+  const biTax = document.getElementById('bi_invoice_tax_id');
+  const biCo  = document.getElementById('bi_invoice_company');
+  const biEm  = document.getElementById('bi_invoice_email');
+  const biAd  = document.getElementById('bi_invoice_address');
+  biTax.value = c.invoice_tax_id   || '';
+  biCo.value  = c.invoice_company  || '';
+  biEm.value  = c.invoice_email    || '';
+  biAd.value  = c.invoice_address  || '';
+  // 同步到付款 tab
+  document.getElementById('p_invoice_company').value  = c.invoice_company  || '';
+  document.getElementById('p_invoice_tax_id').value   = c.invoice_tax_id   || '';
+  document.getElementById('p_invoice_address').value  = c.invoice_address  || '';
+  document.getElementById('p_invoice_email').value    = c.invoice_email    || '';
+  document.getElementById('p_invoice_item_desc').value = c.invoice_item_desc || '';
+  updateInvoiceSummary();
+
+  // 進場資訊：場勘以後才顯示
+  const entryWrap = document.getElementById('b_entry_info_wrap');
+  const surveyStatuses = ['survey','quoted','contracted','payment','closed'];
+  if (entryWrap) entryWrap.style.display = surveyStatuses.includes(c.status) ? '' : 'none';
+
+  // 外包橫幅
+  const outsourceType = c.is_outsourced ? (c.outsource_type || 'full') : null;
+  updatePoolBanner(!!c.is_outsourced, outsourceType);
   if (c.is_outsourced) {
     document.getElementById('b_outsource_type').style.display = 'block';
     document.getElementById('b_outsource_type').value = c.outsource_type || 'full';
   }
+
+  const internalRoles = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr','branch_manager','branch_sales','branch_tech'];
   const salesList = users.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
+  const csList    = users.filter(u => internalRoles.includes(u.role));
   initClientAutocomplete();
   populateSelect(document.getElementById('b_sales'),    salesList, 'id', 'name', '（未指定）');
   populateSelect(document.getElementById('b_surveyor'), users,     'id', 'name', '（未指定）');
+  populateSelect(document.getElementById('b_cs'),       csList,    'id', 'name', '（未指定）');
   const _cl = clients.find(x => x.id === c.client_id);
   document.getElementById('b_client').value       = c.client_id || '';
   document.getElementById('b_client_input').value = _cl ? _cl.name : '';
   document.getElementById('b_sales').value    = c.sales_id    || '';
   document.getElementById('b_surveyor').value = c.surveyor_id || '';
+  document.getElementById('b_cs').value       = c.cs_id       || '';
+}
+
+function toggleInvoice() {
+  const body = document.getElementById('invoiceSectionBody');
+  const icon = document.getElementById('invoiceToggleIcon');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  icon.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function updateInvoiceSummary() {
+  const tax = document.getElementById('bi_invoice_tax_id').value;
+  const co  = document.getElementById('bi_invoice_company').value;
+  document.getElementById('invoiceSummary').textContent = (co || tax) ? `${co || ''} ${tax ? '統編:'+tax : ''}`.trim() : '（點擊填寫）';
+}
+
+const OUTSOURCE_TYPE_LABELS = { full:'全案外包', survey_only:'僅場勘', install_only:'僅施工' };
+function updatePoolBanner(isOn, type) {
+  const banner = document.getElementById('poolBanner');
+  const title  = document.getElementById('poolBannerTitle');
+  const desc   = document.getElementById('poolBannerDesc');
+  const btn    = document.getElementById('poolBannerBtn');
+  const cancel = document.getElementById('poolBannerCancel');
+  const sel    = document.getElementById('poolBannerType');
+  if (isOn) {
+    banner.className = 'pool-banner on';
+    title.textContent = '✅ 已發配到派案池';
+    desc.textContent  = OUTSOURCE_TYPE_LABELS[type] || type;
+    btn.textContent   = '修改設定';
+    btn.className     = 'btn btn-ghost btn-sm';
+    sel.style.display = 'block';
+    sel.value         = type || 'full';
+    cancel.style.display = '';
+  } else {
+    banner.className  = 'pool-banner off';
+    title.textContent = '發配到派案池';
+    desc.textContent  = '將工項外包給約聘技師或學員承接';
+    btn.textContent   = '設定外包';
+    btn.className     = 'btn btn-primary btn-sm';
+    sel.style.display = 'none';
+    cancel.style.display = 'none';
+  }
 }
 
 document.getElementById('saveBasicBtn').addEventListener('click', async () => {
   const body = {
-    case_type:        document.getElementById('b_case_type').value,
-    priority:         document.getElementById('b_priority').value,
-    title:            document.getElementById('b_title').value,
-    location:         document.getElementById('b_location').value,
-    scheduled_date:   document.getElementById('b_scheduled_date').value || null,
-    survey_date:      document.getElementById('b_survey_date').value    || null,
-    surveyor_id:      document.getElementById('b_surveyor').value       || null,
-    line_source:      document.getElementById('b_line_source').value || null,
-    keyword:          document.getElementById('b_keyword').value || null,
-    description:      document.getElementById('b_desc').value,
-    notes:            document.getElementById('b_notes').value,
-    entry_info:       document.getElementById('b_entry_info').value || null,
-    photo_upload_url: document.getElementById('b_photo_upload_url').value || null,
-    client_id:        document.getElementById('b_client').value || null,
-    sales_id:         document.getElementById('b_sales').value  || null,
-    is_outsourced:    document.getElementById('b_outsourced').checked,
-    outsource_type:   document.getElementById('b_outsource_type').value || null,
-    material_ordered: document.getElementById('b_material_ordered').checked,
-    status:           document.getElementById('statusSelect').value,
-    payment_status:   caseData.payment_status || 'unpaid',
-    payment_received: caseData.payment_received || 0,
+    case_type:          document.getElementById('b_case_type').value,
+    priority:           document.getElementById('b_priority').value,
+    title:              document.getElementById('b_title').value,
+    line_display_name:  document.getElementById('b_line_display_name').value || null,
+    client_category:    document.getElementById('b_client_category').value || null,
+    location:           document.getElementById('b_location').value,
+    desired_entry_date: document.getElementById('b_desired_entry_date').value || null,
+    scheduled_date:     document.getElementById('b_scheduled_date').value || null,
+    survey_date:        document.getElementById('b_survey_date').value || null,
+    surveyor_id:        document.getElementById('b_surveyor').value || null,
+    cs_id:              document.getElementById('b_cs').value || null,
+    sales_id:           document.getElementById('b_sales').value || null,
+    line_source:        document.getElementById('b_line_source').value || null,
+    keyword:            document.getElementById('b_keyword').value || null,
+    description:        document.getElementById('b_desc').value,
+    notes:              document.getElementById('b_notes').value,
+    entry_info:         document.getElementById('b_entry_info').value || null,
+    photo_upload_url:   document.getElementById('b_photo_upload_url').value || null,
+    client_id:          document.getElementById('b_client').value || null,
+    is_outsourced:      document.getElementById('b_outsourced').checked,
+    outsource_type:     document.getElementById('b_outsource_type').value || null,
+    material_ordered:   document.getElementById('b_material_ordered').checked,
+    // 開發票資訊（從 basic info tab 的 bi_ 欄位）
+    invoice_tax_id:     document.getElementById('bi_invoice_tax_id').value || null,
+    invoice_company:    document.getElementById('bi_invoice_company').value || null,
+    invoice_email:      document.getElementById('bi_invoice_email').value || null,
+    invoice_address:    document.getElementById('bi_invoice_address').value || null,
+    invoice_item_desc:  caseData.invoice_item_desc || null,
+    status:             document.getElementById('statusSelect').value,
+    payment_status:     caseData.payment_status || 'unpaid',
+    payment_received:   caseData.payment_received || 0,
   };
   const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) { showToast('已儲存'); await loadCase(); }
