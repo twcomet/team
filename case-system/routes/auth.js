@@ -44,13 +44,15 @@ router.post('/login', (req, res) => {
     manage_users: def.manageUsers,
     manage_orgs: def.manageOrgs,
     permissions: {
-      page_dashboard: perm('page_dashboard'),
-      page_cases:     perm('page_cases'),
-      page_clients:   perm('page_clients'),
-      page_calendar:  perm('page_calendar'),
-      page_payments:  perm('page_payments'),
-      page_admin:     def.manageUsers,
-      my_tasks:       perm('my_tasks', isContractor), // 約聘預設開啟我的任務
+      page_dashboard:      perm('page_dashboard'),
+      page_cases:          perm('page_cases'),
+      page_line_inquiries: perm('page_line_inquiries'),
+      page_clients:        perm('page_clients'),
+      page_calendar:       perm('page_calendar'),
+      page_payments:       perm('page_payments'),
+      page_ledger:         perm('page_ledger'),
+      page_admin:          def.manageUsers,
+      my_tasks:            perm('my_tasks', isContractor), // 約聘預設開啟我的任務
     },
   };
 

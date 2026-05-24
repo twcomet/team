@@ -200,6 +200,9 @@
             <input type="checkbox" id="rolePerm_page_cases"> 📋 案件管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_line_inquiries"> 💬 LINE 詢問
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_clients"> 👥 客戶管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -207,6 +210,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_payments"> 💰 收款追蹤
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_ledger"> 📒 收支流水帳
           </label>
         </div>
       </div>
@@ -267,6 +273,9 @@
             <input type="checkbox" id="perm_page_cases"> 📋 案件管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_line_inquiries"> 💬 LINE 詢問
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_clients"> 👥 客戶管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -274,6 +283,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_payments"> 💰 收款追蹤
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_ledger"> 📒 收支流水帳
           </label>
         </div>
       </div>
@@ -378,7 +390,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -420,8 +432,9 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   document.getElementById('roleLabel').value = '';
   ['rolePerm_is_manager','rolePerm_can_see_amounts','rolePerm_view_all_branches',
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
-   'rolePerm_page_clients','rolePerm_page_calendar','rolePerm_page_payments']
-    .forEach(id => document.getElementById(id).checked = id.includes('page_cases') || id.includes('page_clients') || id.includes('page_calendar') || id.includes('my_tasks'));
+   'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
+   'rolePerm_page_payments','rolePerm_page_ledger']
+    .forEach(id => document.getElementById(id).checked = id.includes('page_cases') || id.includes('page_line_inquiries') || id.includes('page_clients') || id.includes('page_calendar') || id.includes('my_tasks'));
   document.getElementById('roleModal').classList.add('open');
 });
 
@@ -436,12 +449,14 @@ function openEditRole(id) {
   document.getElementById('rolePerm_is_manager').checked = !!p.is_manager;
   document.getElementById('rolePerm_can_see_amounts').checked = !!p.can_see_amounts;
   document.getElementById('rolePerm_view_all_branches').checked = r.view_all_branches === 1;
-  document.getElementById('rolePerm_page_dashboard').checked = !!p.page_dashboard;
-  document.getElementById('rolePerm_my_tasks').checked = !!p.my_tasks;
-  document.getElementById('rolePerm_page_cases').checked = !!(p.page_cases ?? true);
-  document.getElementById('rolePerm_page_clients').checked = !!(p.page_clients ?? true);
-  document.getElementById('rolePerm_page_calendar').checked = !!(p.page_calendar ?? true);
-  document.getElementById('rolePerm_page_payments').checked = !!p.page_payments;
+  document.getElementById('rolePerm_page_dashboard').checked       = !!p.page_dashboard;
+  document.getElementById('rolePerm_my_tasks').checked              = !!p.my_tasks;
+  document.getElementById('rolePerm_page_cases').checked            = !!(p.page_cases ?? true);
+  document.getElementById('rolePerm_page_line_inquiries').checked   = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!(p.page_cases ?? true);
+  document.getElementById('rolePerm_page_clients').checked          = !!(p.page_clients ?? true);
+  document.getElementById('rolePerm_page_calendar').checked         = !!(p.page_calendar ?? true);
+  document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
+  document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -450,14 +465,16 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
   const label = document.getElementById('roleLabel').value.trim();
   if (!label) { showToast('請填入角色名稱', 'error'); return; }
   const default_perms = {
-    is_manager:       document.getElementById('rolePerm_is_manager').checked,
-    can_see_amounts:  document.getElementById('rolePerm_can_see_amounts').checked,
-    page_dashboard:   document.getElementById('rolePerm_page_dashboard').checked,
-    my_tasks:         document.getElementById('rolePerm_my_tasks').checked,
-    page_cases:       document.getElementById('rolePerm_page_cases').checked,
-    page_clients:     document.getElementById('rolePerm_page_clients').checked,
-    page_calendar:    document.getElementById('rolePerm_page_calendar').checked,
-    page_payments:    document.getElementById('rolePerm_page_payments').checked,
+    is_manager:          document.getElementById('rolePerm_is_manager').checked,
+    can_see_amounts:     document.getElementById('rolePerm_can_see_amounts').checked,
+    page_dashboard:      document.getElementById('rolePerm_page_dashboard').checked,
+    my_tasks:            document.getElementById('rolePerm_my_tasks').checked,
+    page_cases:          document.getElementById('rolePerm_page_cases').checked,
+    page_line_inquiries: document.getElementById('rolePerm_page_line_inquiries').checked,
+    page_clients:        document.getElementById('rolePerm_page_clients').checked,
+    page_calendar:       document.getElementById('rolePerm_page_calendar').checked,
+    page_payments:       document.getElementById('rolePerm_page_payments').checked,
+    page_ledger:         document.getElementById('rolePerm_page_ledger').checked,
   };
   const view_all_branches = document.getElementById('rolePerm_view_all_branches').checked;
   const url = id ? `/api/users/custom-roles/${id}` : '/api/users/custom-roles';
@@ -567,23 +584,27 @@ function applyRoleDefaults(roleValue) {
     const p = JSON.parse(roleDef.default_perms);
     document.getElementById('userIsManager').checked       = !!p.is_manager;
     document.getElementById('userCanSeeAmounts').checked   = !!p.can_see_amounts;
-    document.getElementById('perm_page_dashboard').checked = !!p.page_dashboard;
-    document.getElementById('perm_my_tasks').checked       = !!p.my_tasks;
-    document.getElementById('perm_page_cases').checked     = !!p.page_cases;
-    document.getElementById('perm_page_clients').checked   = !!p.page_clients;
-    document.getElementById('perm_page_calendar').checked  = !!p.page_calendar;
-    document.getElementById('perm_page_payments').checked  = !!p.page_payments;
+    document.getElementById('perm_page_dashboard').checked      = !!p.page_dashboard;
+    document.getElementById('perm_my_tasks').checked             = !!p.my_tasks;
+    document.getElementById('perm_page_cases').checked           = !!p.page_cases;
+    document.getElementById('perm_page_line_inquiries').checked  = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!p.page_cases;
+    document.getElementById('perm_page_clients').checked         = !!p.page_clients;
+    document.getElementById('perm_page_calendar').checked        = !!p.page_calendar;
+    document.getElementById('perm_page_payments').checked        = !!p.page_payments;
+    document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
   } else {
     // 系統內建角色：約聘/學員預設全關（只開我的任務）；內部員工預設全開
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
-    document.getElementById('userIsManager').checked       = false;
-    document.getElementById('userCanSeeAmounts').checked   = false;
-    document.getElementById('perm_page_dashboard').checked = !isContractor;
-    document.getElementById('perm_page_cases').checked     = !isContractor;
-    document.getElementById('perm_page_clients').checked   = !isContractor;
-    document.getElementById('perm_page_calendar').checked  = !isContractor;
-    document.getElementById('perm_page_payments').checked  = false; // 財務預設關閉，需手動開
-    document.getElementById('perm_my_tasks').checked       = isContractor;
+    document.getElementById('userIsManager').checked              = false;
+    document.getElementById('userCanSeeAmounts').checked          = false;
+    document.getElementById('perm_page_dashboard').checked        = !isContractor;
+    document.getElementById('perm_page_cases').checked            = !isContractor;
+    document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
+    document.getElementById('perm_page_clients').checked          = !isContractor;
+    document.getElementById('perm_page_calendar').checked         = !isContractor;
+    document.getElementById('perm_page_payments').checked         = false; // 財務預設關閉，需手動開
+    document.getElementById('perm_page_ledger').checked           = false;
+    document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
 
@@ -643,12 +664,14 @@ function openEditUser(id) {
     if (perms[key] !== undefined) return !!perms[key];
     return isContractorU ? contractorDefault : !isContractorU;
   };
-  document.getElementById('perm_page_dashboard').checked = editPerm('page_dashboard');
-  document.getElementById('perm_page_cases').checked     = editPerm('page_cases');
-  document.getElementById('perm_page_clients').checked   = editPerm('page_clients');
-  document.getElementById('perm_page_calendar').checked  = editPerm('page_calendar');
-  document.getElementById('perm_page_payments').checked  = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
-  document.getElementById('perm_my_tasks').checked       = editPerm('my_tasks', true); // 約聘預設開啟
+  document.getElementById('perm_page_dashboard').checked      = editPerm('page_dashboard');
+  document.getElementById('perm_page_cases').checked           = editPerm('page_cases');
+  document.getElementById('perm_page_line_inquiries').checked  = editPerm('page_line_inquiries');
+  document.getElementById('perm_page_clients').checked         = editPerm('page_clients');
+  document.getElementById('perm_page_calendar').checked        = editPerm('page_calendar');
+  document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
+  document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
+  document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true); // 約聘預設開啟
   document.getElementById('userModal').classList.add('open');
 }
 
@@ -666,12 +689,14 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: 1,
     permissions: {
-      page_dashboard: document.getElementById('perm_page_dashboard').checked,
-      page_cases:     document.getElementById('perm_page_cases').checked,
-      page_clients:   document.getElementById('perm_page_clients').checked,
-      page_calendar:  document.getElementById('perm_page_calendar').checked,
-      page_payments:  document.getElementById('perm_page_payments').checked,
-      my_tasks:       document.getElementById('perm_my_tasks').checked,
+      page_dashboard:      document.getElementById('perm_page_dashboard').checked,
+      page_cases:          document.getElementById('perm_page_cases').checked,
+      page_line_inquiries: document.getElementById('perm_page_line_inquiries').checked,
+      page_clients:        document.getElementById('perm_page_clients').checked,
+      page_calendar:       document.getElementById('perm_page_calendar').checked,
+      page_payments:       document.getElementById('perm_page_payments').checked,
+      page_ledger:         document.getElementById('perm_page_ledger').checked,
+      my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
   };
   if (!id) body.password = password;
@@ -772,12 +797,14 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
   for (const u of affected) {
     const perms = u.permissions ? JSON.parse(u.permissions) : {};
     const newPerms = {
-      page_dashboard: !!(p.page_dashboard),
-      page_cases:     !!(p.page_cases ?? true),
-      page_clients:   !!(p.page_clients ?? true),
-      page_calendar:  !!(p.page_calendar ?? true),
-      page_payments:  !!(p.page_payments),
-      my_tasks:       !!(p.my_tasks),
+      page_dashboard:      !!(p.page_dashboard),
+      page_cases:          !!(p.page_cases ?? true),
+      page_line_inquiries: p.page_line_inquiries !== undefined ? !!(p.page_line_inquiries) : !!(p.page_cases ?? true),
+      page_clients:        !!(p.page_clients ?? true),
+      page_calendar:       !!(p.page_calendar ?? true),
+      page_payments:       !!(p.page_payments),
+      page_ledger:         !!(p.page_ledger),
+      my_tasks:            !!(p.my_tasks),
     };
     await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ name: u.name, role: u.role, department: u.department,

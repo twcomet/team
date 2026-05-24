@@ -67,8 +67,8 @@ const PAGE_PERMS = {
   clients:          'page_clients',
   calendar:         'page_calendar',
   payments:         'page_payments',
-  ledger:           'page_payments',
-  'line-inquiries': 'page_cases',
+  ledger:           'page_ledger',
+  'line-inquiries': 'page_line_inquiries',
   'dispatch-detail':'page_cases',
   'survey-form':    'page_cases',
   'quote-form':     'page_cases',
@@ -86,9 +86,19 @@ function requirePagePerm(page) {
     if (u.role === 'owner') return next();
     const key = PAGE_PERMS[page];
     if (!key) return next();
-    // page_xxx 存在 u.permissions；manage_users 直接在 u
     const p = u.permissions || {};
-    const allowed = key === 'manage_users' ? !!u.manage_users : (p[key] === true);
+    let allowed;
+    if (key === 'manage_users') {
+      allowed = !!u.manage_users;
+    } else if (key === 'page_line_inquiries') {
+      // 舊 session 無此 key 時退回 page_cases
+      allowed = p.page_line_inquiries !== undefined ? p.page_line_inquiries === true : p.page_cases === true;
+    } else if (key === 'page_ledger') {
+      // 舊 session 無此 key 時退回 page_payments
+      allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
+    } else {
+      allowed = p[key] === true;
+    }
     if (!allowed) return res.redirect('/my-tasks');
     next();
   };
