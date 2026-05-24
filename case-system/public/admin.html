@@ -14,6 +14,7 @@
             <nav class="sidebar-nav">
         <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
         <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
         <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
         <a class="nav-item" data-page="cases"          href="/cases">          <span class="icon">📋</span>案件管理</a>
         <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
@@ -120,6 +121,24 @@
             </label>
           </div>
           <div style="font-size:12px;color:var(--gray-400);margin-top:10px">建議平時使用「人工推播」節省額度，重要派工再手動發送</div>
+        </div>
+      </div>
+
+      <!-- 行事曆公告設定（owner only） -->
+      <div class="card" id="gcalCard" data-need="owner" style="display:none">
+        <div class="card-header"><h3>行事曆公告設定</h3></div>
+        <div class="card-body">
+          <div style="font-size:13px;color:var(--gray-600);margin-bottom:10px">
+            填入 Google 行事曆的 iCal 連結，所有人員的「我的行事曆」將顯示公告事件（橘色）。<br>
+            <span style="font-size:12px;color:var(--gray-400)">取得方式：Google 日曆 → 設定 → 選擇日曆 → 整合日曆 → 「行事曆的公開網址 (iCal 格式)」</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="url" id="gcalIcalUrl" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
+              style="flex:1;min-width:260px;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <button class="btn btn-primary btn-sm" id="gcalSaveBtn">儲存</button>
+            <button class="btn btn-sm" id="gcalClearBtn" style="border:1px solid var(--gray-300);background:none;color:var(--gray-600)">清除</button>
+          </div>
+          <div id="gcalStatus" style="font-size:12px;margin-top:6px;color:var(--gray-400)"></div>
         </div>
       </div>
 
@@ -331,9 +350,11 @@ async function init() {
     document.getElementById('auditSection').style.display = '';
     document.getElementById('roleSection').style.display = '';
     document.getElementById('pushModeCard').style.display = '';
+    document.getElementById('gcalCard').style.display = '';
     await loadCustomRoles();
     await loadAuditLogs();
     await loadPushMode();
+    await loadGcalSetting();
   } else {
     document.getElementById('orgSection').style.display = 'none';
   }
@@ -368,6 +389,41 @@ async function loadPushMode() {
       });
       showToast(`已切換為「${r.value === 'auto' ? '主動推播' : '人工推播'}」`);
     });
+  });
+}
+
+async function loadGcalSetting() {
+  const res = await fetch('/api/settings');
+  if (!res.ok) return;
+  const s = await res.json();
+  const input = document.getElementById('gcalIcalUrl');
+  const status = document.getElementById('gcalStatus');
+  if (s.gcal_ical_url) {
+    input.value = s.gcal_ical_url;
+    status.textContent = '已設定';
+    status.style.color = '#057a55';
+  }
+  document.getElementById('gcalSaveBtn').addEventListener('click', async () => {
+    const url = input.value.trim();
+    await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gcal_ical_url: url }),
+    });
+    status.textContent = url ? '已儲存' : '已清除';
+    status.style.color = '#057a55';
+    showToast('行事曆 iCal 連結已更新');
+  });
+  document.getElementById('gcalClearBtn').addEventListener('click', async () => {
+    input.value = '';
+    await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gcal_ical_url: '' }),
+    });
+    status.textContent = '已清除';
+    status.style.color = 'var(--gray-400)';
+    showToast('已清除 iCal 連結');
   });
 }
 

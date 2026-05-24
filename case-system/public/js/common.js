@@ -51,6 +51,7 @@ async function loadUser() {
     'line-inquiries': p.page_line_inquiries !== undefined ? p.page_line_inquiries : p.page_cases,
     'dispatch-detail':p.page_cases,
     'my-tasks':       p.my_tasks,
+    'my-calendar':    true,   // 所有人可見
     admin:            mu,
     reports:          mu,
     performance:      mu,

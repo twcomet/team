@@ -56,6 +56,7 @@ app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
+app.use('/api/my-calendar',     require('./routes/my-calendar'));
 app.use('/api/dispatch-detail',   require('./routes/dispatch-detail'));
 app.use('/api/materials',         require('./routes/materials'));
 app.use('/api/reports',           require('./routes/reports'));
@@ -129,7 +130,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, requireContract, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));
