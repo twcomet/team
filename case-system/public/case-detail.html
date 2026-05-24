@@ -879,6 +879,104 @@ async function init() {
 
   // 完工資料夾連結按鈕
   document.getElementById('b_photo_upload_url').addEventListener('input', syncFolderLink);
+
+  // ── 新增客戶 modal（modal HTML 在 script 區塊之後，需在 await 後才能綁定）──
+  document.getElementById('nc_card_file').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    document.getElementById('nc_card_filename').textContent = file.name;
+    document.getElementById('nc_ocr_btn').style.display = 'inline-flex';
+    document.getElementById('nc_ocr_status').textContent = '';
+  });
+
+  document.getElementById('nc_ocr_btn').addEventListener('click', async () => {
+    const file = document.getElementById('nc_card_file').files[0];
+    if (!file) return;
+    const btn    = document.getElementById('nc_ocr_btn');
+    const status = document.getElementById('nc_ocr_status');
+    btn.disabled = true;
+    btn.textContent = '辨識中…';
+    status.textContent = '正在辨識名片，請稍候…';
+    status.style.color = '#6b7280';
+    try {
+      const form = new FormData();
+      form.append('card', file);
+      const res  = await fetch('/api/clients/ocr-card', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '辨識失敗');
+      const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
+      fill('nc_name',           data.name);
+      fill('nc_contact_person', data.contact_person || data.name);
+      fill('nc_phone',          data.phone);
+      fill('nc_email',          data.email);
+      fill('nc_address',        data.address);
+      fill('nc_tax_id',         data.tax_id);
+      status.textContent = '✅ 辨識完成，請確認並補齊資料';
+      status.style.color = '#057a55';
+    } catch (e) {
+      status.textContent = '❌ ' + e.message;
+      status.style.color = '#e02424';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '辨識並填入';
+    }
+  });
+
+  document.getElementById('saveNewClientBtn').addEventListener('click', async () => {
+    const name = document.getElementById('nc_name').value.trim();
+    if (!name) { showToast('請填入客戶名稱', 'error'); return; }
+    const g = id => document.getElementById(id).value.trim() || null;
+    const body = {
+      name,
+      contact_person: g('nc_contact_person'),
+      phone:          g('nc_phone'),
+      email:          g('nc_email'),
+      source:         document.getElementById('nc_source').value || null,
+      category_id:    document.getElementById('nc_category_id').value || null,
+      client_level:   document.getElementById('nc_client_level').value || null,
+      tax_id:         g('nc_tax_id'),
+      einvoice_code:  g('nc_einvoice_code'),
+      address:        g('nc_address'),
+      invoice_email:  g('nc_invoice_email'),
+      invoice_needs:  document.querySelector('input[name="nc_invoice_needs"]:checked')?.value || null,
+      payment_terms:  g('nc_payment_terms'),
+      discount_terms: g('nc_discount_terms'),
+      capital:        g('nc_capital'),
+      discount:       parseFloat(document.getElementById('nc_discount').value) || 1,
+      referrer:       g('nc_referrer'),
+      line_group_name: g('nc_line_group_name'),
+      notes:          g('nc_notes'),
+    };
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      showToast(e.error || '新增失敗', 'error');
+      return;
+    }
+    const { id } = await res.json();
+    const tag_ids = [...document.querySelectorAll('#nc_tags_picker input[type=checkbox]:checked')].map(el => +el.value);
+    if (tag_ids.length) {
+      await fetch(`/api/tags/client/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tag_ids}) });
+    }
+    const newClient = { id, ...body };
+    clients.push(newClient);
+    document.getElementById('b_client').value = id;
+    if (newClient.source === 'line') {
+      const lineEl = document.getElementById('b_line_display_name');
+      if (!lineEl.value) lineEl.value = name;
+      document.getElementById('b_client_input').value = '';
+    } else {
+      document.getElementById('b_client_input').value = name;
+    }
+    fillClientInfoCard(newClient);
+    fillInvoiceFromClient(newClient);
+    closeModal('newClientModal');
+    showToast(`客戶「${name}」已新增`);
+  });
 }
 
 async function loadCase() {
@@ -2188,105 +2286,6 @@ function ncRenderTagPicker(selectedIds) {
   }).join('') || `<span style="font-size:12px;color:var(--gray-400)">尚無標籤，請先至「客戶管理」新增標籤</span>`;
 }
 
-// ── OCR 名片辨識（新增客戶 modal）──
-document.getElementById('nc_card_file').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  document.getElementById('nc_card_filename').textContent = file.name;
-  document.getElementById('nc_ocr_btn').style.display = 'inline-flex';
-  document.getElementById('nc_ocr_status').textContent = '';
-});
-
-document.getElementById('nc_ocr_btn').addEventListener('click', async () => {
-  const file = document.getElementById('nc_card_file').files[0];
-  if (!file) return;
-  const btn    = document.getElementById('nc_ocr_btn');
-  const status = document.getElementById('nc_ocr_status');
-  btn.disabled = true;
-  btn.textContent = '辨識中…';
-  status.textContent = '正在辨識名片，請稍候…';
-  status.style.color = '#6b7280';
-  try {
-    const form = new FormData();
-    form.append('card', file);
-    const res  = await fetch('/api/clients/ocr-card', { method: 'POST', body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '辨識失敗');
-    const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
-    fill('nc_name',           data.name);
-    fill('nc_contact_person', data.contact_person || data.name);
-    fill('nc_phone',          data.phone);
-    fill('nc_email',          data.email);
-    fill('nc_address',        data.address);
-    fill('nc_tax_id',         data.tax_id);
-    status.textContent = '✅ 辨識完成，請確認並補齊資料';
-    status.style.color = '#057a55';
-  } catch (e) {
-    status.textContent = '❌ ' + e.message;
-    status.style.color = '#e02424';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '辨識並填入';
-  }
-});
-
-document.getElementById('saveNewClientBtn').addEventListener('click', async () => {
-  const name = document.getElementById('nc_name').value.trim();
-  if (!name) { showToast('請填入客戶名稱', 'error'); return; }
-  const g = id => document.getElementById(id).value.trim() || null;
-  const body = {
-    name,
-    contact_person: g('nc_contact_person'),
-    phone:          g('nc_phone'),
-    email:          g('nc_email'),
-    source:         document.getElementById('nc_source').value || null,
-    category_id:    document.getElementById('nc_category_id').value || null,
-    client_level:   document.getElementById('nc_client_level').value || null,
-    tax_id:         g('nc_tax_id'),
-    einvoice_code:  g('nc_einvoice_code'),
-    address:        g('nc_address'),
-    invoice_email:  g('nc_invoice_email'),
-    invoice_needs:  document.querySelector('input[name="nc_invoice_needs"]:checked')?.value || null,
-    payment_terms:  g('nc_payment_terms'),
-    discount_terms: g('nc_discount_terms'),
-    capital:        g('nc_capital'),
-    discount:       parseFloat(document.getElementById('nc_discount').value) || 1,
-    referrer:       g('nc_referrer'),
-    line_group_name: g('nc_line_group_name'),
-    notes:          g('nc_notes'),
-  };
-  const res = await fetch('/api/clients', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const e = await res.json();
-    showToast(e.error || '新增失敗', 'error');
-    return;
-  }
-  const { id } = await res.json();
-  // 儲存標籤
-  const tag_ids = [...document.querySelectorAll('#nc_tags_picker input[type=checkbox]:checked')].map(el => +el.value);
-  if (tag_ids.length) {
-    await fetch(`/api/tags/client/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tag_ids}) });
-  }
-  const newClient = { id, ...body };
-  clients.push(newClient);
-  // 自動選入案件欄位
-  document.getElementById('b_client').value = id;
-  if (newClient.source === 'line') {
-    const lineEl = document.getElementById('b_line_display_name');
-    if (!lineEl.value) lineEl.value = name;
-    document.getElementById('b_client_input').value = '';
-  } else {
-    document.getElementById('b_client_input').value = name;
-  }
-  fillClientInfoCard(newClient);
-  fillInvoiceFromClient(newClient);
-  closeModal('newClientModal');
-  showToast(`客戶「${name}」已新增`);
-});
 
 function initClientAutocomplete() {
   const input    = document.getElementById('b_client_input');
