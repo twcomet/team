@@ -214,6 +214,9 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_ledger"> 📒 收支流水帳
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_dispatch_pool"> 🏊 派案池管理
+          </label>
         </div>
       </div>
     </div>
@@ -286,6 +289,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_ledger"> 📒 收支流水帳
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_dispatch_pool"> 🏊 派案池管理
           </label>
         </div>
       </div>
@@ -390,7 +396,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -433,7 +439,7 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   ['rolePerm_is_manager','rolePerm_can_see_amounts','rolePerm_view_all_branches',
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
    'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
-   'rolePerm_page_payments','rolePerm_page_ledger']
+   'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_dispatch_pool']
     .forEach(id => document.getElementById(id).checked = id.includes('page_cases') || id.includes('page_line_inquiries') || id.includes('page_clients') || id.includes('page_calendar') || id.includes('my_tasks'));
   document.getElementById('roleModal').classList.add('open');
 });
@@ -457,6 +463,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_calendar').checked         = !!(p.page_calendar ?? true);
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
   document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
+  document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -475,6 +482,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_calendar:       document.getElementById('rolePerm_page_calendar').checked,
     page_payments:       document.getElementById('rolePerm_page_payments').checked,
     page_ledger:         document.getElementById('rolePerm_page_ledger').checked,
+    page_dispatch_pool:  document.getElementById('rolePerm_page_dispatch_pool').checked,
   };
   const view_all_branches = document.getElementById('rolePerm_view_all_branches').checked;
   const url = id ? `/api/users/custom-roles/${id}` : '/api/users/custom-roles';
@@ -592,6 +600,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_calendar').checked        = !!p.page_calendar;
     document.getElementById('perm_page_payments').checked        = !!p.page_payments;
     document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
+    document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
   } else {
     // 系統內建角色：約聘/學員預設全關（只開我的任務）；內部員工預設全開
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
@@ -604,6 +613,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_calendar').checked         = !isContractor;
     document.getElementById('perm_page_payments').checked         = false; // 財務預設關閉，需手動開
     document.getElementById('perm_page_ledger').checked           = false;
+    document.getElementById('perm_page_dispatch_pool').checked    = false;
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -671,6 +681,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_calendar').checked        = editPerm('page_calendar');
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
+  document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true); // 約聘預設開啟
   document.getElementById('userModal').classList.add('open');
 }
@@ -696,6 +707,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_calendar:       document.getElementById('perm_page_calendar').checked,
       page_payments:       document.getElementById('perm_page_payments').checked,
       page_ledger:         document.getElementById('perm_page_ledger').checked,
+      page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
   };
@@ -804,6 +816,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_calendar:       !!(p.page_calendar ?? true),
       page_payments:       !!(p.page_payments),
       page_ledger:         !!(p.page_ledger),
+      page_dispatch_pool:  !!(p.page_dispatch_pool),
       my_tasks:            !!(p.my_tasks),
     };
     await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},

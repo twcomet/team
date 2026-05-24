@@ -51,6 +51,7 @@ router.post('/login', (req, res) => {
       page_calendar:       perm('page_calendar'),
       page_payments:       perm('page_payments'),
       page_ledger:         perm('page_ledger'),
+      page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers), // 預設與 manage_users 一致
       page_admin:          def.manageUsers,
       my_tasks:            perm('my_tasks', isContractor), // 約聘預設開啟我的任務
     },

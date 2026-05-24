@@ -55,7 +55,7 @@ async function loadUser() {
     reports:          mu,
     performance:      mu,
     materials:        mu,
-    'dispatch-pool':  mu,
+    'dispatch-pool':  p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
     marketplace:      true,   // 市集所有人可見
   };
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {

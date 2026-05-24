@@ -76,7 +76,7 @@ const PAGE_PERMS = {
   materials:        'manage_users',
   reports:          'manage_users',
   performance:      'manage_users',
-  'dispatch-pool':  'manage_users',
+  'dispatch-pool':  'page_dispatch_pool',
 };
 
 function requirePagePerm(page) {
@@ -94,8 +94,10 @@ function requirePagePerm(page) {
       // 舊 session 無此 key 時退回 page_cases
       allowed = p.page_line_inquiries !== undefined ? p.page_line_inquiries === true : p.page_cases === true;
     } else if (key === 'page_ledger') {
-      // 舊 session 無此 key 時退回 page_payments
       allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
+    } else if (key === 'page_dispatch_pool') {
+      // 舊 session 無此 key 時退回 manage_users
+      allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : !!u.manage_users;
     } else {
       allowed = p[key] === true;
     }
