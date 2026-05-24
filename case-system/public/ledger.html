@@ -46,6 +46,7 @@
         <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
         <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
         <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
         <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
         <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
@@ -409,17 +410,31 @@ async function handleScanImage(event) {
   resultEl.textContent = '';
   statusEl.textContent = '⏳ 辨識中…';
 
-  // 顯示預覽
+  // 顯示預覽並壓縮（最大 800px，避免超過 body size 限制）
   const dataUrl = await new Promise(resolve => {
     const r = new FileReader(); r.onload = e => resolve(e.target.result); r.readAsDataURL(file);
   });
   imgEl.src = dataUrl;
 
+  const compressed = await new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.src = dataUrl;
+  });
+
   try {
     const res = await fetch('/api/ledger/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_base64: dataUrl.split(',')[1], mime_type: file.type })
+      body: JSON.stringify({ image_base64: compressed.split(',')[1], mime_type: 'image/jpeg' })
     });
 
     if (!res.ok) {

@@ -85,9 +85,25 @@ router.get('/performance', requireAuth, (req, res) => {
     GROUP BY month ORDER BY month
   `).all(...params);
 
+  // 依膜料品牌
+  const byFilm = db.prepare(`
+    SELECT t.film_brand, COUNT(*) as case_count, SUM(t.case_value) as gross_value
+    FROM (
+      SELECT DISTINCT dm.film_brand, c.id,
+        COALESCE(c.final_price, c.quoted_price, 0) as case_value
+      FROM cases c
+      JOIN dispatches d ON d.case_id = c.id
+      JOIN dispatch_materials dm ON dm.dispatch_id = d.id
+      ${where}
+      AND dm.film_brand IS NOT NULL AND dm.film_brand != ''
+    ) t
+    GROUP BY t.film_brand
+    ORDER BY gross_value DESC
+  `).all(...params);
+
   // 案件明細
   const cases = db.prepare(`
-    SELECT c.case_number, c.title, c.client_name, c.case_type,
+    SELECT c.id, c.case_number, c.title, c.client_name, c.case_type,
            c.sales_name, c.scheduled_date,
            COALESCE(c.final_price, c.quoted_price, 0) as value,
            COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
@@ -100,7 +116,7 @@ router.get('/performance', requireAuth, (req, res) => {
     ORDER BY c.created_at DESC
   `).all(...params);
 
-  res.json({ summary, byType, bySales, byMonth, cases });
+  res.json({ summary, byType, bySales, byMonth, byFilm, cases });
 });
 
 // ── 現金流量表 GET /api/reports/cashflow?from=&to=&org_id= ────

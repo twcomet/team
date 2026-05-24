@@ -19,8 +19,8 @@ app.set('trust proxy', 1);
 // LINE webhook 必須在 express.json() 之前，才能取得 raw body 做簽名驗證
 app.use('/webhook', require('./routes/webhook'));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
@@ -69,7 +69,8 @@ const PAGE_PERMS = {
   payments:   'page_payments',
   admin:      'manage_users',
   materials:  'manage_users',
-  reports:       'manage_users',   // 財務報表：老闆專屬
+  reports:       'manage_users',
+  performance:   'manage_users',
   'dispatch-pool': 'manage_users',
 };
 
@@ -100,7 +101,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   app.get(`/${page}`, requireAuth, requireContract, requirePagePerm(page), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', `${page}.html`));

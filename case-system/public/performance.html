@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>業績報表 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.filter-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+.period-tab { padding:6px 16px; border-radius:20px; border:1px solid var(--gray-300); background:#fff; cursor:pointer; font-size:13px; font-weight:500; color:var(--gray-600); }
+.period-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+.stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; }
+.stat-card .label { font-size:12px; color:var(--gray-500); margin-bottom:6px; }
+.stat-card .value { font-size:20px; font-weight:700; }
+.stat-card .value.success { color:#057a55; }
+.stat-card .value.danger  { color:#e02424; }
+.analysis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:20px; }
+.mini-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px; }
+.mini-card h4 { font-size:13px; font-weight:600; color:var(--gray-700); margin-bottom:12px; border-bottom:1px solid var(--gray-100); padding-bottom:8px; }
+.bar-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
+.bar-label { width:90px; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bar-track { flex:1; height:8px; background:var(--gray-100); border-radius:4px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:4px; transition:width .4s; }
+.bar-val   { width:80px; text-align:right; color:var(--gray-700); font-weight:500; }
+.bar-cnt   { width:36px; text-align:right; color:var(--gray-400); font-size:11px; }
+.empty-analysis { color:var(--gray-400); font-size:13px; padding:12px 0; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases"          href="/cases">          <span class="icon">📋</span>案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">業績報表</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 列印</button>
+    </div>
+    <div class="page-body">
+
+      <!-- 期間 + 篩選 -->
+      <div class="filter-bar">
+        <button class="period-tab active" onclick="setPeriod('day')">日</button>
+        <button class="period-tab"        onclick="setPeriod('month')">月</button>
+        <button class="period-tab"        onclick="setPeriod('year')">年</button>
+        <input type="date"  id="pickDay"   style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+        <input type="month" id="pickMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <select id="pickYear" style="display:none;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"></select>
+
+        <select id="filterType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部類型</option>
+          <option value="home">居家</option>
+          <option value="commercial">商空</option>
+          <option value="elevator">電梯</option>
+          <option value="glass">玻璃</option>
+          <option value="extra">外快</option>
+          <option value="outsource">外包</option>
+          <option value="output">輸出</option>
+          <option value="other">其他</option>
+        </select>
+
+        <select id="filterSales" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部業務</option>
+        </select>
+
+        <select id="filterFilm" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部膜料</option>
+        </select>
+
+        <span id="orgFilterWrap" style="display:none;align-items:center;gap:6px">
+          <label style="font-size:13px;color:var(--gray-600)">店別</label>
+          <select id="filterOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部</option>
+          </select>
+        </span>
+
+        <button class="btn btn-primary btn-sm" onclick="load()">查詢</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearFilter()">清除</button>
+      </div>
+
+      <!-- 統計卡 -->
+      <div class="stats-grid" id="perfStats"></div>
+
+      <!-- 三維分析 -->
+      <div class="analysis-grid">
+        <div class="mini-card">
+          <h4>依案件類型</h4>
+          <div id="byType"></div>
+        </div>
+        <div class="mini-card">
+          <h4>依業務人員</h4>
+          <div id="bySales"></div>
+        </div>
+        <div class="mini-card">
+          <h4>依膜料品牌</h4>
+          <div id="byFilm"></div>
+        </div>
+      </div>
+
+      <!-- 案件明細 -->
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>案號</th><th>客戶</th><th>項目</th><th>類型</th>
+                  <th>業務</th><th>施工日</th>
+                  <th style="text-align:right">成交金額</th>
+                  <th style="text-align:right">含稅</th>
+                  <th style="text-align:right">已收</th>
+                  <th style="text-align:right">待收</th>
+                  <th>狀態</th>
+                </tr>
+              </thead>
+              <tbody id="caseTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let periodType = 'month';
+let rawData = null;
+
+const PAY_BADGE = {
+  unpaid:  '<span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:20px;font-size:11px">未收款</span>',
+  partial: '<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:20px;font-size:11px">部分收款</span>',
+  paid:    '<span style="background:#dcfce7;color:#14532d;padding:2px 7px;border-radius:20px;font-size:11px">已收款</span>',
+  overdue: '<span style="background:#fde8e8;color:#e02424;padding:2px 7px;border-radius:20px;font-size:11px">逾期</span>',
+};
+
+async function init() {
+  await loadUser();
+  highlightNav('performance');
+
+  const now = new Date();
+  document.getElementById('pickDay').value   = now.toISOString().slice(0,10);
+  document.getElementById('pickMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const ySel = document.getElementById('pickYear');
+  for (let y = now.getFullYear(); y >= 2020; y--) {
+    const o = document.createElement('option'); o.value = y; o.textContent = `${y} 年`; ySel.appendChild(o);
+  }
+
+  // 店別
+  if (currentUser?.view_all_branches) {
+    document.getElementById('orgFilterWrap').style.display = 'flex';
+    const res = await fetch('/api/orgs');
+    const orgs = await res.json();
+    const sel = document.getElementById('filterOrg');
+    orgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; sel.appendChild(opt); });
+  }
+
+  await load();
+}
+
+function setPeriod(type) {
+  periodType = type;
+  document.querySelectorAll('.period-tab').forEach((b,i) => b.classList.toggle('active', ['day','month','year'][i]===type));
+  document.getElementById('pickDay').style.display   = type==='day'   ? '' : 'none';
+  document.getElementById('pickMonth').style.display = type==='month' ? '' : 'none';
+  document.getElementById('pickYear').style.display  = type==='year'  ? '' : 'none';
+}
+
+function getDateRange() {
+  if (periodType === 'day') {
+    const d = document.getElementById('pickDay').value;
+    return { from: d, to: d };
+  }
+  if (periodType === 'month') {
+    const m = document.getElementById('pickMonth').value;
+    const [y, mo] = m.split('-').map(Number);
+    return { from: `${m}-01`, to: `${m}-${String(new Date(y,mo,0).getDate()).padStart(2,'0')}` };
+  }
+  const y = document.getElementById('pickYear').value;
+  return { from: `${y}-01-01`, to: `${y}-12-31` };
+}
+
+async function load() {
+  const { from, to } = getDateRange();
+  const org = document.getElementById('filterOrg')?.value || '';
+  const qs  = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
+  rawData = await fetch(`/api/reports/performance?${qs}`).then(r => r.json());
+
+  // Populate dynamic selects
+  populateSalesFilter(rawData.bySales);
+  populateFilmFilter(rawData.byFilm);
+
+  applyFilter();
+}
+
+function populateSalesFilter(bySales) {
+  const sel = document.getElementById('filterSales');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部業務</option>';
+  (bySales || []).forEach(r => {
+    const o = document.createElement('option'); o.value = r.name; o.textContent = r.name; sel.appendChild(o);
+  });
+  if (cur) sel.value = cur;
+}
+
+function populateFilmFilter(byFilm) {
+  const sel = document.getElementById('filterFilm');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部膜料</option>';
+  (byFilm || []).forEach(r => {
+    const o = document.createElement('option'); o.value = r.film_brand; o.textContent = r.film_brand; sel.appendChild(o);
+  });
+  if (cur) sel.value = cur;
+}
+
+function clearFilter() {
+  document.getElementById('filterType').value  = '';
+  document.getElementById('filterSales').value = '';
+  document.getElementById('filterFilm').value  = '';
+  applyFilter();
+}
+
+function applyFilter() {
+  if (!rawData) return;
+  const fType  = document.getElementById('filterType').value;
+  const fSales = document.getElementById('filterSales').value;
+  const fFilm  = document.getElementById('filterFilm').value;
+
+  let cases = rawData.cases || [];
+  if (fType)  cases = cases.filter(c => c.case_type === fType);
+  if (fSales) cases = cases.filter(c => (c.sales_name||'未指定') === fSales);
+
+  // Film filter: need to cross-ref if possible — for now filter locally by byFilm case_count hint
+  // Since API doesn't return film per case, film filter is advisory (highlights summary only)
+
+  renderStats(cases);
+  renderAnalysis(cases, fFilm);
+  renderTable(cases);
+}
+
+function renderStats(cases) {
+  const gross    = cases.reduce((s,c) => s + (c.value||0), 0);
+  const tax      = cases.reduce((s,c) => s + (c.tax_value||0), 0);
+  const received = cases.reduce((s,c) => s + (c.received||0), 0);
+  const outstanding = tax - received;
+  document.getElementById('perfStats').innerHTML = `
+    <div class="stat-card"><div class="label">成交案件數</div><div class="value">${cases.length} 件</div></div>
+    <div class="stat-card"><div class="label">成交總額（未稅）</div><div class="value">${fmt(gross)}</div></div>
+    <div class="stat-card"><div class="label">含稅總額</div><div class="value">${fmt(tax)}</div></div>
+    <div class="stat-card"><div class="label">已收款</div><div class="value success">${fmt(received)}</div></div>
+    <div class="stat-card"><div class="label">待收款</div><div class="value ${outstanding>0?'danger':'success'}">${fmt(outstanding)}</div></div>
+  `;
+}
+
+function barRows(items, labelKey, valKey, cntKey, color) {
+  if (!items || !items.length) return '<div class="empty-analysis">無資料</div>';
+  const max = Math.max(...items.map(r => r[valKey]||0), 1);
+  return items.map(r => `
+    <div class="bar-row">
+      <span class="bar-label" title="${r[labelKey]}">${r[labelKey]}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${((r[valKey]||0)/max*100).toFixed(1)}%;background:${color}"></div></div>
+      <span class="bar-val">${fmt(r[valKey]||0)}</span>
+      <span class="bar-cnt">${r[cntKey]}件</span>
+    </div>`).join('');
+}
+
+function renderAnalysis(cases, fFilm) {
+  // byType from filtered cases
+  const typeMap = {};
+  cases.forEach(c => {
+    const k = CASE_TYPE_LABELS[c.case_type] || c.case_type || '其他';
+    if (!typeMap[k]) typeMap[k] = { label:k, gross:0, count:0 };
+    typeMap[k].gross += c.value||0; typeMap[k].count++;
+  });
+  const byType = Object.values(typeMap).sort((a,b)=>b.gross-a.gross);
+  document.getElementById('byType').innerHTML = byType.length
+    ? barRows(byType.map(r=>({label:r.label,gross:r.gross,count:r.count})), 'label', 'gross', 'count', 'var(--primary)')
+    : '<div class="empty-analysis">無資料</div>';
+
+  // bySales from filtered cases
+  const salesMap = {};
+  cases.forEach(c => {
+    const k = c.sales_name || '未指定';
+    if (!salesMap[k]) salesMap[k] = { name:k, gross:0, count:0 };
+    salesMap[k].gross += c.value||0; salesMap[k].count++;
+  });
+  const bySales = Object.values(salesMap).sort((a,b)=>b.gross-a.gross);
+  document.getElementById('bySales').innerHTML = bySales.length
+    ? barRows(bySales.map(r=>({film_brand:r.name,gross_value:r.gross,case_count:r.count})), 'film_brand', 'gross_value', 'case_count', '#10b981')
+    : '<div class="empty-analysis">無資料</div>';
+
+  // byFilm from API (full dataset, not filtered by case)
+  const filmData = fFilm
+    ? (rawData.byFilm||[]).filter(r => r.film_brand === fFilm)
+    : (rawData.byFilm||[]);
+  document.getElementById('byFilm').innerHTML = filmData.length
+    ? barRows(filmData, 'film_brand', 'gross_value', 'case_count', '#f59e0b')
+    : '<div class="empty-analysis">尚無膜料使用記錄</div>';
+}
+
+function renderTable(cases) {
+  const tbody = document.getElementById('caseTable');
+  if (!cases.length) {
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📋</div>此期間無符合案件</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = cases.map(c => {
+    const outstanding = (c.tax_value||0) - (c.received||0);
+    return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <td><code style="font-size:11px">${c.case_number}</code></td>
+      <td>${c.client_name||'—'}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
+      <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type}</td>
+      <td>${c.sales_name||'—'}</td>
+      <td>${c.scheduled_date||'—'}</td>
+      <td style="text-align:right">${c.value?fmt(c.value):'—'}</td>
+      <td style="text-align:right;font-weight:600">${c.tax_value?fmt(c.tax_value):'—'}</td>
+      <td style="text-align:right;color:#057a55">${c.received?fmt(c.received):'—'}</td>
+      <td style="text-align:right;color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓'}</td>
+      <td>${PAY_BADGE[c.payment_status]||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
