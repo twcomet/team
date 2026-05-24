@@ -206,7 +206,13 @@
           <div class="info-section-title">客戶資訊</div>
           <div class="form-row" style="margin-bottom:12px">
             <div class="form-group" style="position:relative;flex:2;margin-bottom:0">
-              <label>客戶名稱</label>
+              <label style="display:flex;align-items:center;justify-content:space-between">
+                客戶名稱
+                <button type="button" onclick="openNewClientModal()"
+                  style="font-size:11px;font-weight:500;color:var(--primary);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px">
+                  ＋ 新增客戶
+                </button>
+              </label>
               <input type="text" id="b_client_input" placeholder="輸入姓名或公司名篩選…" autocomplete="off"
                      style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;outline:none">
               <input type="hidden" id="b_client">
@@ -795,6 +801,8 @@ const BRANDS = ['PAROI（日本）','BODAQ（韓國）','LG BENIF（韓國）','
 
 let caseId, caseData, users = [], clients = [], quoteData = null, pushMode = 'manual';
 let poolIsOn = false, poolType = 'full';
+
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 
 function syncFolderLink() {
   const v = (document.getElementById('b_photo_upload_url').value || '').trim();
@@ -2076,6 +2084,71 @@ function fillInvoiceFromClient(cl) {
   updateInvoiceSummary();
 }
 
+// ── 新增客戶 Modal ────────────────────────────────────────────
+async function openNewClientModal() {
+  // 載入分類選單
+  const catSel = document.getElementById('nc_category_id');
+  if (catSel.options.length <= 1) {
+    const res = await fetch('/api/categories');
+    if (res.ok) {
+      const cats = await res.json();
+      cats.forEach(c => catSel.add(new Option(c.name, c.id)));
+    }
+  }
+  // 清空欄位
+  ['nc_name','nc_contact_person','nc_phone','nc_email',
+   'nc_tax_id','nc_einvoice_code','nc_address','nc_notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('nc_source').value = '';
+  document.getElementById('nc_category_id').value = '';
+  document.getElementById('newClientModal').classList.add('open');
+  setTimeout(() => document.getElementById('nc_name').focus(), 100);
+}
+
+document.getElementById('saveNewClientBtn').addEventListener('click', async () => {
+  const name = document.getElementById('nc_name').value.trim();
+  if (!name) { showToast('請填入客戶名稱', 'error'); return; }
+  const body = {
+    name,
+    contact_person: document.getElementById('nc_contact_person').value.trim() || null,
+    phone:          document.getElementById('nc_phone').value.trim() || null,
+    email:          document.getElementById('nc_email').value.trim() || null,
+    source:         document.getElementById('nc_source').value || null,
+    category_id:    document.getElementById('nc_category_id').value || null,
+    tax_id:         document.getElementById('nc_tax_id').value.trim() || null,
+    einvoice_code:  document.getElementById('nc_einvoice_code').value.trim() || null,
+    address:        document.getElementById('nc_address').value.trim() || null,
+    notes:          document.getElementById('nc_notes').value.trim() || null,
+  };
+  const res = await fetch('/api/clients', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const e = await res.json();
+    showToast(e.error || '新增失敗', 'error');
+    return;
+  }
+  const { id } = await res.json();
+  const newClient = { id, ...body };
+  clients.push(newClient);
+  // 自動選入案件欄位
+  document.getElementById('b_client').value = id;
+  if (newClient.source === 'line') {
+    const lineEl = document.getElementById('b_line_display_name');
+    if (!lineEl.value) lineEl.value = name;
+    document.getElementById('b_client_input').value = '';
+  } else {
+    document.getElementById('b_client_input').value = name;
+  }
+  fillClientInfoCard(newClient);
+  fillInvoiceFromClient(newClient);
+  closeModal('newClientModal');
+  showToast(`客戶「${name}」已新增`);
+});
+
 function initClientAutocomplete() {
   const input    = document.getElementById('b_client_input');
   const hidden   = document.getElementById('b_client');
@@ -2421,6 +2494,69 @@ init();
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('matLogModal').classList.remove('open')">取消</button>
       <button class="btn btn-primary" onclick="saveMatLog()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增客戶 Modal -->
+<div class="modal-overlay" id="newClientModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3>新增客戶資料</h3>
+      <button class="modal-close" onclick="closeModal('newClientModal')">×</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- 基本資訊 -->
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">基本資訊</div>
+      <div class="form-row">
+        <div class="form-group"><label>客戶名稱 / 公司名 *</label><input type="text" id="nc_name" placeholder="王大明 / 信義裝潢有限公司"></div>
+        <div class="form-group"><label>聯絡人</label><input type="text" id="nc_contact_person" placeholder="負責窗口姓名"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>電話</label><input type="tel" id="nc_phone" placeholder="0912-345-678"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="nc_email" placeholder="example@mail.com"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>來源</label>
+          <select id="nc_source">
+            <option value="">不指定</option>
+            <option value="line">Line@</option>
+            <option value="ig">Instagram</option>
+            <option value="fb">Facebook</option>
+            <option value="referral">客戶介紹</option>
+            <option value="bni">BNI</option>
+            <option value="google">Google 搜尋</option>
+            <option value="boss_friend">老闆的親友</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>客戶分類</label>
+          <select id="nc_category_id">
+            <option value="">不指定</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 開發票資訊 -->
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-top:6px;margin-bottom:10px;padding-top:14px;border-top:1px solid var(--gray-200)">
+        開發票資訊
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>統一編號</label><input type="text" id="nc_tax_id" placeholder="12345678" maxlength="8"></div>
+        <div class="form-group"><label>電子發票載具 / 愛心碼</label><input type="text" id="nc_einvoice_code" placeholder="（選填）"></div>
+      </div>
+      <div class="form-group"><label>發票地址</label><input type="text" id="nc_address" placeholder="公司或通訊地址"></div>
+
+      <!-- 備註 -->
+      <div class="form-group" style="margin-bottom:0"><label>備註</label><textarea id="nc_notes" rows="2" placeholder="其他補充說明…"></textarea></div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('newClientModal')">取消</button>
+      <button class="btn btn-primary" id="saveNewClientBtn">儲存客戶</button>
     </div>
   </div>
 </div>
