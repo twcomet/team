@@ -962,7 +962,7 @@ if (!hqExists) {
     { name: '黃維宏', username: 'A06',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
     { name: '林冠捷', username: 'A07',  pw: '45917816', role: 'hq_tech',            dept: '工程部',       mgr: 0 },
     { name: '吳坤陽', username: 'A08',  pw: '45917816', role: 'contractor_install', dept: '工程部',       mgr: 0 },
-    { name: '鍾畚傑', username: 'A09',  pw: '45917816', role: 'contractor_install', dept: '工程部',       mgr: 0 },
+    { name: '鍾矞傑', username: 'A09',  pw: '45917816', role: 'contractor_install', dept: '工程部',       mgr: 0 },
     // 業務
     { name: '王洪義', username: 'S01',  pw: '45917816', role: 'hq_sales',           dept: '總公司業務部', mgr: 1 },
     // 客服
@@ -989,6 +989,9 @@ if (!hqExists) {
     }
   }
   if (created > 0) console.log(`批次建帳號完成：新增 ${created} 個帳號`);
+
+  // 修正 A09 姓名錯字
+  db.prepare(`UPDATE users SET name='鍾矞傑' WHERE username='A09' AND name='鍾畚傑'`).run();
 }
 
 // ══════════════════════════════════════════════════════════════
