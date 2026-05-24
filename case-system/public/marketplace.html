@@ -7,48 +7,135 @@
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
-.mp-tabs { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:24px; }
-.mp-tab  { padding:10px 24px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+/* ── Tabs ─────────────────────────────────────────────────── */
+.mp-tabs { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:20px; overflow-x:auto; }
+.mp-tab  { padding:10px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer;
+           border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; }
 .mp-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
 .mp-pane { display:none; }
 .mp-pane.active { display:block; }
 
-/* 案件卡片 */
-.case-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px; margin-bottom:14px; transition:box-shadow .15s; }
+/* ── 評分 Banner ─────────────────────────────────────────── */
+.rating-banner { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff;
+  border-radius:12px; padding:16px 20px; margin-bottom:20px;
+  display:none; align-items:center; gap:16px; flex-wrap:wrap; }
+
+/* ── 案件卡片 ──────────────────────────────────────────────── */
+.case-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+  padding:18px; margin-bottom:12px; transition:box-shadow .15s; }
 .case-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
-.case-card .cc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
-.case-card .cc-title { font-size:16px; font-weight:600; color:var(--gray-900); }
-.case-card .cc-meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
-.cc-tag { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; background:var(--gray-100); color:var(--gray-600); }
+.cc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  margin-bottom:10px; flex-wrap:wrap; }
+.cc-title { font-size:16px; font-weight:600; color:var(--gray-900); }
+.cc-sub   { font-size:12px; color:var(--gray-400); margin-top:2px; }
+.cc-meta  { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.cc-tag   { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500;
+            background:var(--gray-100); color:var(--gray-600); }
 .cc-tag.type-full    { background:#dbeafe; color:#1e40af; }
 .cc-tag.type-survey  { background:#fef3c7; color:#92400e; }
 .cc-tag.type-install { background:#d1fae5; color:#065f46; }
+.cc-tag.tag-urgent   { background:#fee2e2; color:#991b1b; }
 .cc-amount { font-size:18px; font-weight:700; color:var(--primary); }
-.cc-apply-btn { padding:8px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; }
+.cc-desc  { font-size:13px; color:var(--gray-600); margin-bottom:10px; line-height:1.5; }
+.cc-info-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
+.cc-info-item { font-size:13px; color:var(--gray-600); display:flex; align-items:center; gap:4px; }
+
+/* 申請按鈕 */
+.cc-apply-btn { padding:9px 20px; border-radius:8px; font-size:14px; font-weight:600;
+  cursor:pointer; border:none; min-width:120px; }
 .cc-apply-btn.pending  { background:#fef3c7; color:#92400e; cursor:default; }
 .cc-apply-btn.approved { background:#d1fae5; color:#065f46; cursor:default; }
 .cc-apply-btn.rejected { background:#fee2e2; color:#991b1b; }
 .cc-apply-btn.available { background:var(--primary); color:#fff; }
 .cc-apply-btn.available:hover { background:#1a40b8; }
 
-/* 分潤計算顯示 */
-.share-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px; margin-top:12px; font-size:13px; }
+/* ── 任務卡片 ──────────────────────────────────────────────── */
+.task-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+  padding:18px; margin-bottom:12px; }
+.task-card.urgent-task { border-left:4px solid #ef4444; }
+.task-header { display:flex; justify-content:space-between; align-items:flex-start;
+  gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+
+/* 進度條 */
+.progress-steps { display:flex; align-items:center; gap:0; margin:14px 0 12px; }
+.progress-step  { flex:1; text-align:center; position:relative; }
+.progress-step::before { content:''; position:absolute; top:14px; left:50%; right:-50%;
+  height:2px; background:var(--gray-200); z-index:0; }
+.progress-step:last-child::before { display:none; }
+.progress-step.done::before { background:var(--primary); }
+.ps-dot  { width:28px; height:28px; border-radius:50%; border:2px solid var(--gray-300);
+  background:#fff; margin:0 auto 6px; display:flex; align-items:center; justify-content:center;
+  font-size:13px; position:relative; z-index:1; }
+.progress-step.active .ps-dot { border-color:var(--primary); background:var(--primary); color:#fff; }
+.progress-step.done   .ps-dot { border-color:var(--primary); background:var(--primary); color:#fff; }
+.ps-label { font-size:11px; color:var(--gray-500); }
+.progress-step.active .ps-label { color:var(--primary); font-weight:600; }
+.progress-step.done   .ps-label { color:var(--primary); }
+
+/* 進度操作按鈕 */
+.progress-btns { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.progress-btn  { padding:10px 18px; border-radius:8px; font-size:14px; font-weight:600;
+  cursor:pointer; border:none; flex:1; min-width:120px; }
+.progress-btn.start { background:#3b82f6; color:#fff; }
+.progress-btn.start:hover { background:#2563eb; }
+.progress-btn.done  { background:#10b981; color:#fff; }
+.progress-btn.done:hover { background:#059669; }
+.progress-btn.photo { background:#f0fdf4; color:#065f46; border:1px solid #a7f3d0; }
+.progress-btn.photo:hover { background:#dcfce7; }
+
+/* 客戶資訊卡 */
+.client-box { background:#f0fdf4; border-radius:8px; padding:12px 14px; font-size:13px; margin:10px 0; }
+.client-box-title { font-weight:600; color:#065f46; margin-bottom:6px; }
+.client-row { margin-bottom:3px; }
+.client-row a { color:#065f46; text-decoration:none; }
+.client-row a:hover { text-decoration:underline; }
+
+/* 完工照片 */
+.photos-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:8px; margin-top:10px; }
+.photo-thumb { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;
+  border:1px solid var(--gray-200); cursor:pointer; }
+.upload-area { border:2px dashed var(--gray-300); border-radius:8px; padding:16px;
+  text-align:center; cursor:pointer; color:var(--gray-500); font-size:13px; margin-top:8px; }
+.upload-area:hover { border-color:var(--primary); color:var(--primary); }
+.upload-area input { display:none; }
+
+/* 分潤計算 */
+.share-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px;
+  padding:14px; margin-top:12px; font-size:13px; }
 .share-row { display:flex; justify-content:space-between; padding:4px 0; }
-.share-row.total { font-weight:700; border-top:1px solid var(--gray-200); margin-top:6px; padding-top:8px; color:var(--primary); }
+.share-row.total { font-weight:700; border-top:1px solid var(--gray-200);
+  margin-top:6px; padding-top:8px; color:var(--primary); }
 
-/* 我的申請 */
-.app-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:18px; margin-bottom:12px; }
-.app-status-pending  { background:#fef3c7; color:#92400e; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
-.app-status-approved { background:#d1fae5; color:#065f46; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
-.app-status-rejected { background:#fee2e2; color:#991b1b; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
-
-/* 評分星星 */
-.stars { color:#f59e0b; font-size:16px; letter-spacing:2px; }
+/* 我的申請卡 */
+.app-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+  padding:18px; margin-bottom:12px; }
+.app-status-pending  { background:#fef3c7; color:#92400e; padding:3px 10px;
+  border-radius:20px; font-size:12px; font-weight:600; }
+.app-status-approved { background:#d1fae5; color:#065f46; padding:3px 10px;
+  border-radius:20px; font-size:12px; font-weight:600; }
+.app-status-rejected { background:#fee2e2; color:#991b1b; padding:3px 10px;
+  border-radius:20px; font-size:12px; font-weight:600; }
 
 /* 申請 Modal */
-.apply-type-btn { padding:12px 20px; border:2px solid var(--gray-200); border-radius:10px; cursor:pointer; background:#fff; font-size:14px; font-weight:500; text-align:center; flex:1; }
+.apply-type-btn { padding:12px 16px; border:2px solid var(--gray-200); border-radius:10px;
+  cursor:pointer; background:#fff; font-size:14px; font-weight:500; text-align:center; flex:1; min-width:100px; }
 .apply-type-btn.selected { border-color:var(--primary); background:#eff6ff; color:var(--primary); }
 .apply-type-btn:hover { border-color:var(--primary); }
+
+/* 完成 Modal */
+#completeModal .form-group { margin-bottom:14px; }
+
+/* 手機版優化 */
+@media (max-width:600px) {
+  .case-card, .task-card, .app-card { padding:14px; }
+  .cc-apply-btn, .progress-btn { width:100%; }
+  .progress-btns { flex-direction:column; }
+  .cc-head { flex-direction:column; }
+  .cc-amount { font-size:20px; }
+  .progress-steps { overflow-x:auto; }
+}
+
+.stars { color:#f59e0b; letter-spacing:2px; }
 </style>
 </head>
 <body>
@@ -58,23 +145,23 @@
       <h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2>
       <p id="sidebarOrgName"></p>
     </div>
-            <nav class="sidebar-nav">
-        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
-        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
-        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
-        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
-        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
-        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
-        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
-        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
-        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
-        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
-        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
-        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
-        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
-        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
-        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
-        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">  <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">   <span class="icon">🔍</span>場勘案件管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">     <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
     <div style="padding:16px;margin-top:auto">
       <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:2px" id="sidebarUserName"></div>
@@ -89,23 +176,25 @@
     </div>
 
     <div class="content" style="max-width:860px">
-      <!-- 學員評分摘要 -->
-      <div id="ratingBanner" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:16px;flex-wrap:wrap">
+
+      <!-- 評分 Banner -->
+      <div id="ratingBanner" class="rating-banner">
         <div>
-          <div style="font-size:13px;opacity:.85">我的評分</div>
+          <div style="font-size:12px;opacity:.8">我的評分</div>
           <div id="ratingValue" style="font-size:28px;font-weight:700"></div>
         </div>
-        <div style="font-size:13px;opacity:.85" id="ratingCount"></div>
         <div id="ratingStars" class="stars" style="font-size:20px"></div>
+        <div style="font-size:13px;opacity:.8" id="ratingCount"></div>
       </div>
 
-      <!-- Tab -->
+      <!-- Tabs -->
       <div class="mp-tabs">
         <div class="mp-tab active" data-tab="market">案件廣場</div>
         <div class="mp-tab" data-tab="tasks">我的任務 <span id="tasksBadge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;margin-left:4px"></span></div>
         <div class="mp-tab" data-tab="my">我的申請</div>
       </div>
 
+      <!-- ── 案件廣場 ────────────────────────────────────── -->
       <div class="mp-pane active" id="tab-market">
         <div id="filterBar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <select id="filterType" onchange="renderMarket()" style="padding:6px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
@@ -126,11 +215,12 @@
         <div id="marketList"></div>
       </div>
 
-      <!-- 我的任務（HQ 直接指派）-->
+      <!-- ── 我的任務 ────────────────────────────────────── -->
       <div class="mp-pane" id="tab-tasks">
         <div id="tasksList"></div>
       </div>
 
+      <!-- ── 我的申請 ────────────────────────────────────── -->
       <div class="mp-pane" id="tab-my">
         <div id="myAppList"></div>
       </div>
@@ -138,7 +228,7 @@
   </div>
 </div>
 
-<!-- 申請 Modal -->
+<!-- ── 申請 Modal ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="applyModal">
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
@@ -151,8 +241,6 @@
         <label style="font-weight:600;margin-bottom:8px;display:block">申請類型 *</label>
         <div id="applyTypeBtns" style="display:flex;gap:10px;flex-wrap:wrap"></div>
       </div>
-
-      <!-- 分潤預覽 -->
       <div id="sharePreview" style="display:none" class="share-box">
         <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">分潤預估</div>
         <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span id="sp_total">—</span></div>
@@ -171,36 +259,72 @@
   </div>
 </div>
 
+<!-- ── 完工回報 Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="completeModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>完工回報</h3>
+      <button class="modal-close" onclick="closeModal('completeModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="completeModalTitle" style="font-weight:600;margin-bottom:12px;color:var(--gray-700)"></div>
+      <div class="form-group">
+        <label style="display:block;margin-bottom:6px;font-weight:500">完工備註（選填）</label>
+        <textarea id="completeNotes" rows="3" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;resize:vertical" placeholder="例如：施工面積、特殊狀況、客戶反應..."></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:block;margin-bottom:6px;font-weight:500">上傳完工照片（最多 10 張）</label>
+        <div class="upload-area" onclick="document.getElementById('photoInput').click()">
+          <div style="font-size:24px;margin-bottom:4px">📷</div>
+          <div>點擊選擇照片（JPG/PNG，每張最大 10MB）</div>
+          <input type="file" id="photoInput" accept="image/*" multiple onchange="previewPhotos(this)">
+        </div>
+        <div id="photoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('completeModal')">取消</button>
+      <button class="btn btn-primary" onclick="submitComplete()" id="completeSubmitBtn">確認完工</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 照片燈箱 ─────────────────────────────────────────────── -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:pointer" onclick="document.getElementById('lightbox').style.display='none'">
+  <img id="lightboxImg" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain">
+</div>
+
 <script src="/js/common.js"></script>
 <script>
-const CASE_TYPE_MAP = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+const CASE_TYPE_MAP  = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
 const APPLY_TYPE_MAP = { full:'全案負責', survey:'場勘', install:'施工' };
 const APPLY_TYPE_DESC = {
   full:    '業務＋場勘＋施工＋售後，全程負責',
   survey:  '僅負責場勘丈量，總部負責售後',
   install: '僅負責施工安裝，總部負責售後',
 };
-// 分潤比例（可分潤金額 × %）
 const SHARE_RATES = {
   full:    { label:'全案業務', pct:0.3 },
   survey:  { label:'場勘師傅', pct:0.20 },
   install: { label:'施工師傅', pct:0.30 },
 };
+const PROGRESS_LABELS = { pending:'待處理', in_progress:'進行中', completed:'已完成' };
 
 let marketData = [], myApps = [], myTasks = [];
 let applyingCase = null, selectedApplyType = null;
+let completingCaseId = null, selectedFiles = [];
 
 async function init() {
   currentUser = await loadUser();
   if (!currentUser) return;
+  highlightNav('marketplace');
 
-  // 載入評分摘要
   const ratingRes = await fetch(`/api/marketplace/student/${currentUser.id}`);
   if (ratingRes.ok) {
     const { avg, count } = await ratingRes.json();
     if (count > 0) {
       document.getElementById('ratingBanner').style.display = 'flex';
-      document.getElementById('ratingValue').textContent = avg;
+      document.getElementById('ratingValue').textContent = Number(avg).toFixed(1);
       document.getElementById('ratingCount').textContent = `共 ${count} 筆評分`;
       document.getElementById('ratingStars').textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
     }
@@ -231,6 +355,7 @@ async function loadAll() {
   renderMyTasks();
 }
 
+// ── 案件廣場 ───────────────────────────────────────────────
 function renderMarket() {
   const el = document.getElementById('marketList');
   const typeFilter  = document.getElementById('filterType').value;
@@ -251,30 +376,36 @@ function renderMarket() {
       `<span class="cc-tag type-${t}">${APPLY_TYPE_MAP[t] || t}</span>`
     ).join('');
     const statusBtn = renderApplyBtn(c);
-    const amountHtml = c.final_price
-      ? `<span class="cc-amount">$${Number(c.final_price).toLocaleString()}</span>`
-      : c.quoted_price
-        ? `<span class="cc-amount">約 $${Number(c.quoted_price).toLocaleString()}</span>`
-        : '';
+    const amountHtml = c.final_price || c.quoted_price
+      ? `<div class="cc-amount">${c.final_price ? '$'+Number(c.final_price).toLocaleString() : '約 $'+Number(c.quoted_price).toLocaleString()}</div>`
+      : '';
+    const dateHtml = c.scheduled_date
+      ? `<span class="cc-info-item">📅 施工日：${c.scheduled_date}</span>` : '';
+    const locationHtml = c.location
+      ? `<span class="cc-info-item">📍 ${c.location}</span>` : '';
+    const regionHtml = c.region_name
+      ? `<span class="cc-tag">${c.region_name}</span>` : '';
+
     return `
     <div class="case-card">
       <div class="cc-head">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="cc-title">${c.title}</div>
-          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${c.case_number} · ${c.org_name || ''}</div>
+          <div class="cc-sub">${c.case_number}${c.org_name ? ' · ' + c.org_name : ''}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;flex-shrink:0">
           ${amountHtml}
           ${c.avg_rating ? `<div class="stars" style="font-size:12px;margin-top:4px">${'★'.repeat(Math.round(c.avg_rating))} ${c.avg_rating}</div>` : ''}
         </div>
       </div>
       <div class="cc-meta">
         <span class="cc-tag">${CASE_TYPE_MAP[c.case_type] || c.case_type}</span>
-        ${c.location ? `<span class="cc-tag">📍 ${c.location}</span>` : ''}
+        ${regionHtml}
         ${types}
       </div>
-      ${c.description ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:10px">${c.description.slice(0,120)}${c.description.length>120?'…':''}</div>` : ''}
-      <div style="display:flex;justify-content:flex-end">
+      ${(dateHtml || locationHtml) ? `<div class="cc-info-row">${dateHtml}${locationHtml}</div>` : ''}
+      ${c.description ? `<div class="cc-desc">${c.description.slice(0,150)}${c.description.length>150?'…':''}</div>` : ''}
+      <div style="display:flex;justify-content:flex-end;margin-top:6px">
         ${statusBtn}
       </div>
     </div>`;
@@ -282,12 +413,198 @@ function renderMarket() {
 }
 
 function renderApplyBtn(c) {
-  if (c.app_status === 'pending')  return `<span class="cc-apply-btn pending">審核中…</span>`;
+  if (c.app_status === 'pending')  return `<span class="cc-apply-btn pending">⏳ 審核中…</span>`;
   if (c.app_status === 'approved') return `<span class="cc-apply-btn approved">✅ 已接案（${APPLY_TYPE_MAP[c.app_type]}）</span>`;
   if (c.app_status === 'rejected') return `<button class="cc-apply-btn rejected" onclick="openApply(${c.id})">重新申請</button>`;
   return `<button class="cc-apply-btn available" onclick="openApply(${c.id})">我要接這個案件</button>`;
 }
 
+// ── 我的任務 ───────────────────────────────────────────────
+function renderMyTasks() {
+  const el = document.getElementById('tasksList');
+  const pending = myTasks.filter(t => t.dq_status === 'pending');
+  const badge = document.getElementById('tasksBadge');
+  if (pending.length) { badge.style.display = ''; badge.textContent = pending.length; }
+  else badge.style.display = 'none';
+
+  if (!myTasks.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📬</div>目前沒有指定任務</div>`;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const PROG_STEPS = ['pending','in_progress','completed'];
+
+  el.innerHTML = myTasks.map(t => {
+    const progress  = t.task_progress || 'pending';
+    const progIdx   = PROG_STEPS.indexOf(progress);
+    const isAccepted = t.dq_status === 'accepted';
+    const isUrgent   = t.scheduled_date && t.scheduled_date <= today;
+
+    const clientHtml = isAccepted ? `
+      <div class="client-box">
+        <div class="client-box-title">📋 客戶資訊</div>
+        ${t.client_name    ? `<div class="client-row">姓名：${t.client_name}</div>` : ''}
+        ${t.client_phone   ? `<div class="client-row">電話：<a href="tel:${t.client_phone}">${t.client_phone}</a></div>` : ''}
+        ${t.client_address ? `<div class="client-row">地址：${t.client_address}</div>` : ''}
+      </div>` : '';
+
+    const progressHtml = isAccepted ? `
+      <div class="progress-steps">
+        ${PROG_STEPS.map((s, i) => `
+          <div class="progress-step ${i < progIdx ? 'done' : i === progIdx ? 'active' : ''}">
+            <div class="ps-dot">${i < progIdx ? '✓' : i + 1}</div>
+            <div class="ps-label">${PROGRESS_LABELS[s]}</div>
+          </div>
+          ${i < PROG_STEPS.length - 1 ? '' : ''}`
+        ).join('')}
+      </div>` : '';
+
+    const actionHtml = (() => {
+      if (t.dq_status === 'pending') return `
+        <div class="progress-btns">
+          <button class="progress-btn start" onclick="respondTask(${t.id}, true)">接受任務</button>
+          <button class="btn btn-ghost" style="flex:1;min-width:120px;color:#e02424" onclick="respondTask(${t.id}, false)">拒絕</button>
+        </div>
+        ${t.response_deadline ? `<div style="font-size:11px;color:var(--gray-400);margin-top:6px">請在 ${t.response_deadline?.slice(0,16).replace('T',' ')} 前回覆</div>` : ''}`;
+
+      if (isAccepted && progress === 'pending') return `
+        <div class="progress-btns">
+          <button class="progress-btn start" onclick="updateProgress(${t.id}, 'in_progress')">開始施工</button>
+        </div>`;
+      if (isAccepted && progress === 'in_progress') return `
+        <div class="progress-btns">
+          <button class="progress-btn photo" onclick="openComplete(${t.id}, '${escHtml(t.title)}')">上傳完工照片 &amp; 回報</button>
+          <button class="progress-btn done" onclick="openComplete(${t.id}, '${escHtml(t.title)}')">完工回報</button>
+        </div>`;
+      if (isAccepted && progress === 'completed') return `
+        <div style="font-size:13px;color:#059669;font-weight:600;margin-top:8px">✅ 已完工回報</div>
+        <button class="progress-btn photo" style="margin-top:8px;flex:none" onclick="openComplete(${t.id}, '${escHtml(t.title)}')">補充照片</button>`;
+      return '';
+    })();
+
+    const photosHtml = (t.completion_photos || []).length ? `
+      <div style="margin-top:10px">
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">完工照片</div>
+        <div class="photos-grid">
+          ${t.completion_photos.map(p => `<img class="photo-thumb" src="${p}" onclick="openLightbox('${p}')" alt="完工照片">`).join('')}
+        </div>
+      </div>` : '';
+
+    const notesHtml = t.completion_notes ? `
+      <div style="font-size:13px;color:var(--gray-600);margin-top:8px;padding:8px 10px;background:var(--gray-50);border-radius:6px">備註：${t.completion_notes}</div>` : '';
+
+    return `
+    <div class="task-card${isUrgent && isAccepted ? ' urgent-task' : ''}">
+      <div class="task-header">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:600">${t.title}</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${t.case_number}${t.region_name ? ' · ' + t.region_name : ''}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right">
+          ${t.dq_status === 'accepted' ? renderProgressBadge(progress) : `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">⏳ 等待確認</span>`}
+        </div>
+      </div>
+      <div class="cc-info-row">
+        ${t.scheduled_date ? `<span class="cc-info-item${isUrgent ? ';color:#ef4444;font-weight:600' : ''}">📅 施工日：${t.scheduled_date}${isUrgent ? ' ⚠️' : ''}</span>` : ''}
+        ${t.location ? `<span class="cc-info-item">📍 ${t.location}</span>` : ''}
+        <span class="cc-info-item">🏷️ ${CASE_TYPE_MAP[t.case_type] || t.case_type}</span>
+      </div>
+      ${clientHtml}
+      ${progressHtml}
+      ${notesHtml}
+      ${photosHtml}
+      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+function renderProgressBadge(p) {
+  const map = {
+    pending:     `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">待處理</span>`,
+    in_progress: `<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">進行中</span>`,
+    completed:   `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">✅ 已完工</span>`,
+  };
+  return map[p] || '';
+}
+
+async function updateProgress(caseId, progress) {
+  const res = await fetch(`/api/marketplace/tasks/${caseId}/progress`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_progress: progress }),
+  });
+  if (res.ok) { showToast('進度已更新'); await loadAll(); }
+  else { const e = await res.json().catch(()=>({})); showToast(e.error || '更新失敗', 'error'); }
+}
+
+async function respondTask(caseId, accept) {
+  let reason = '';
+  if (!accept) reason = prompt('拒絕原因（選填）') || '';
+  const res = await fetch(`/api/marketplace/tasks/${caseId}/respond`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accept, reason }),
+  });
+  if (res.ok) { showToast(accept ? '✅ 已接受任務' : '已拒絕'); await loadAll(); }
+  else { const e = await res.json().catch(()=>({})); showToast(e.error || '操作失敗', 'error'); }
+}
+
+// ── 完工 Modal ─────────────────────────────────────────────
+function openComplete(caseId, title) {
+  completingCaseId = caseId;
+  selectedFiles = [];
+  document.getElementById('completeModalTitle').textContent = title;
+  document.getElementById('completeNotes').value = '';
+  document.getElementById('photoPreview').innerHTML = '';
+  document.getElementById('photoInput').value = '';
+  document.getElementById('completeModal').classList.add('open');
+}
+
+function previewPhotos(input) {
+  selectedFiles = Array.from(input.files);
+  const preview = document.getElementById('photoPreview');
+  preview.innerHTML = selectedFiles.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    return `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-200)">`;
+  }).join('');
+}
+
+async function submitComplete() {
+  const notes = document.getElementById('completeNotes').value.trim();
+  const btn = document.getElementById('completeSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '送出中…';
+
+  try {
+    // 上傳照片
+    if (selectedFiles.length) {
+      const fd = new FormData();
+      selectedFiles.forEach(f => fd.append('photos', f));
+      const pRes = await fetch(`/api/marketplace/tasks/${completingCaseId}/photos`, { method:'POST', body:fd });
+      if (!pRes.ok) { const e = await pRes.json().catch(()=>({})); throw new Error(e.error || '照片上傳失敗'); }
+    }
+
+    // 更新進度
+    const pRes = await fetch(`/api/marketplace/tasks/${completingCaseId}/progress`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_progress: 'completed', completion_notes: notes }),
+    });
+    if (!pRes.ok) { const e = await pRes.json().catch(()=>({})); throw new Error(e.error || '回報失敗'); }
+
+    closeModal('completeModal');
+    showToast('✅ 完工回報已送出！');
+    await loadAll();
+  } catch (e) {
+    showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '確認完工';
+  }
+}
+
+// ── 我的申請 ───────────────────────────────────────────────
 function renderMyApps() {
   const el = document.getElementById('myAppList');
   if (!myApps.length) {
@@ -302,93 +619,31 @@ function renderMyApps() {
     }[a.status] || '';
 
     const clientHtml = a.status === 'approved' ? `
-      <div style="margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px">
-        <div style="font-weight:600;color:#065f46;margin-bottom:6px">📋 客戶資訊（已解鎖）</div>
-        ${a.client_name    ? `<div>姓名：${a.client_name}</div>` : ''}
-        ${a.client_phone   ? `<div>電話：${a.client_phone}</div>` : ''}
-        ${a.client_address ? `<div>地址：${a.client_address}</div>` : ''}
+      <div class="client-box">
+        <div class="client-box-title">📋 客戶資訊（已解鎖）</div>
+        ${a.client_name    ? `<div class="client-row">姓名：${a.client_name}</div>` : ''}
+        ${a.client_phone   ? `<div class="client-row">電話：<a href="tel:${a.client_phone}">${a.client_phone}</a></div>` : ''}
+        ${a.client_address ? `<div class="client-row">地址：${a.client_address}</div>` : ''}
       </div>` : '';
-
-    const shareHtml = a.status === 'approved' ? renderShareCalc(a) : '';
 
     return `
     <div class="app-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
         <div>
           <div style="font-size:15px;font-weight:600">${a.title}</div>
           <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${a.case_number} · 申請類型：${APPLY_TYPE_MAP[a.apply_type]}</div>
         </div>
         ${statusHtml}
       </div>
-      ${a.hq_note ? `<div style="font-size:13px;color:var(--gray-500);margin-top:8px;padding:8px 10px;background:var(--gray-50);border-radius:6px">備注：${a.hq_note}</div>` : ''}
+      ${a.hq_note ? `<div style="font-size:13px;color:var(--gray-500);padding:8px 10px;background:var(--gray-50);border-radius:6px;margin-bottom:8px">備注：${a.hq_note}</div>` : ''}
       ${clientHtml}
-      ${shareHtml}
+      ${a.status === 'approved' ? renderShareCalc(a) : ''}
     </div>`;
   }).join('');
 }
 
-function renderMyTasks() {
-  const el = document.getElementById('tasksList');
-  // 更新 badge
-  const pending = myTasks.filter(t => t.dq_status === 'pending');
-  const badge = document.getElementById('tasksBadge');
-  if (pending.length) { badge.style.display = ''; badge.textContent = pending.length; }
-  else badge.style.display = 'none';
-
-  if (!myTasks.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📬</div>目前沒有指定任務</div>`;
-    return;
-  }
-  const ST_MAP = {
-    pending:  `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">⏳ 等待確認</span>`,
-    accepted: `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">✅ 已接案</span>`,
-  };
-  el.innerHTML = myTasks.map(t => `
-    <div class="app-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <div>
-          <div style="font-size:15px;font-weight:600">${t.title}</div>
-          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${t.case_number}${t.region_name ? ' · ' + t.region_name : ''}</div>
-        </div>
-        ${ST_MAP[t.dq_status] || ''}
-      </div>
-      ${t.location ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:6px">📍 ${t.location}</div>` : ''}
-      ${t.dq_status === 'accepted' && t.client_name ? `
-        <div style="padding:10px 12px;background:#f0fdf4;border-radius:8px;font-size:13px;margin-bottom:10px">
-          <div style="font-weight:600;color:#065f46;margin-bottom:4px">📋 客戶資訊</div>
-          <div>姓名：${t.client_name}</div>
-          ${t.client_phone ? `<div>電話：${t.client_phone}</div>` : ''}
-          ${t.client_address ? `<div>地址：${t.client_address}</div>` : ''}
-        </div>` : ''}
-      ${t.dq_status === 'pending' ? `
-        <div style="display:flex;gap:10px;margin-top:8px">
-          <button class="btn btn-primary" onclick="respondTask(${t.id}, true)">接受任務</button>
-          <button class="btn btn-ghost" style="color:#e02424" onclick="respondTask(${t.id}, false)">拒絕</button>
-        </div>` : ''}
-      ${t.response_deadline && t.dq_status === 'pending' ? `
-        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">請在 ${t.response_deadline?.slice(0,16).replace('T',' ')} 前回覆</div>` : ''}
-    </div>`).join('');
-}
-
-async function respondTask(caseId, accept) {
-  let reason = '';
-  if (!accept) reason = prompt('拒絕原因（選填）') || '';
-  const res = await fetch(`/api/marketplace/tasks/${caseId}/respond`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accept, reason }),
-  });
-  if (res.ok) {
-    showToast(accept ? '✅ 已接受任務' : '已拒絕');
-    await loadAll();
-  } else {
-    const err = await res.json().catch(() => ({}));
-    showToast(err.error || '操作失敗', 'error');
-  }
-}
-
 function renderShareCalc(a) {
-  const total    = a.final_price || a.quoted_price;
+  const total = a.final_price || a.quoted_price;
   if (!total) return '';
   const mat      = a.material_cost || 0;
   const gross    = total - mat;
@@ -399,7 +654,7 @@ function renderShareCalc(a) {
   const myShare  = rate ? Math.round(shareable * rate.pct) : 0;
 
   return `
-  <div class="share-box" style="margin-top:12px">
+  <div class="share-box">
     <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">分潤預估</div>
     <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span>$${Number(total).toLocaleString()}</span></div>
     <div class="share-row"><span style="color:var(--gray-500)">材料成本</span><span>$${Number(mat).toLocaleString()}</span></div>
@@ -407,25 +662,20 @@ function renderShareCalc(a) {
     <div class="share-row"><span style="color:var(--gray-500)">場勘費</span><span>$${Number(survey).toLocaleString()}</span></div>
     <div class="share-row"><span style="color:var(--gray-500)">施工費</span><span>$${Number(install).toLocaleString()}</span></div>
     <div class="share-row total"><span>可分潤金額</span><span>$${Number(shareable).toLocaleString()}</span></div>
-    ${rate ? `<div style="font-size:12px;color:var(--primary);margin-top:8px;font-weight:600">
-      我的分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ $${myShare.toLocaleString()}
-    </div>` : ''}
-    <div style="font-size:11px;color:var(--gray-400);margin-top:6px;line-height:1.6">
-      分潤比例：總部30%・負責業務10~20%・監工10%・施工30%・品保10%
-    </div>
+    ${rate ? `<div style="font-size:12px;color:var(--primary);margin-top:8px;font-weight:600">我的分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ $${myShare.toLocaleString()}</div>` : ''}
+    <div style="font-size:11px;color:var(--gray-400);margin-top:6px;line-height:1.6">分潤比例：總部30%・負責業務10~20%・監工10%・施工30%・品保10%</div>
   </div>`;
 }
 
-// ── 申請 Modal ────────────────────────────────────────────────
+// ── 申請 Modal ─────────────────────────────────────────────
 function openApply(caseId) {
   const c = marketData.find(x => x.id === caseId);
   if (!c) return;
-  applyingCase = c;
-  selectedApplyType = null;
+  applyingCase = c; selectedApplyType = null;
 
   document.getElementById('applyInfo').innerHTML = `
     <strong>${c.title}</strong>
-    <div style="font-size:12px;color:var(--gray-500);margin-top:4px">${c.case_number} · ${c.location || ''} · ${CASE_TYPE_MAP[c.case_type]}</div>
+    <div style="font-size:12px;color:var(--gray-500);margin-top:4px">${c.case_number}${c.location ? ' · ' + c.location : ''} · ${CASE_TYPE_MAP[c.case_type]}</div>
   `;
 
   const types = c.outsource_types || [];
@@ -448,20 +698,19 @@ function selectApplyType(t) {
   const c = applyingCase;
   const total = c.final_price || c.quoted_price;
   if (total) {
-    const mat      = c.material_cost || 0;
-    const gross    = total - mat;
-    const survey   = c.survey_fee || 0;
-    const install  = c.install_fee || 0;
+    const mat       = c.material_cost || 0;
+    const gross     = total - mat;
+    const survey    = c.survey_fee || 0;
+    const install   = c.install_fee || 0;
     const shareable = Math.max(0, gross - survey - install);
-    const rate     = SHARE_RATES[t];
-
-    document.getElementById('sp_total').textContent    = `$${Number(total).toLocaleString()}`;
-    document.getElementById('sp_mat').textContent      = `$${Number(mat).toLocaleString()}`;
-    document.getElementById('sp_gross').textContent    = `$${Number(gross).toLocaleString()}`;
-    document.getElementById('sp_survey').textContent   = `$${Number(survey).toLocaleString()}`;
-    document.getElementById('sp_install').textContent  = `$${Number(install).toLocaleString()}`;
+    const rate      = SHARE_RATES[t];
+    document.getElementById('sp_total').textContent     = `$${Number(total).toLocaleString()}`;
+    document.getElementById('sp_mat').textContent       = `$${Number(mat).toLocaleString()}`;
+    document.getElementById('sp_gross').textContent     = `$${Number(gross).toLocaleString()}`;
+    document.getElementById('sp_survey').textContent    = `$${Number(survey).toLocaleString()}`;
+    document.getElementById('sp_install').textContent   = `$${Number(install).toLocaleString()}`;
     document.getElementById('sp_shareable').textContent = `$${Number(shareable).toLocaleString()}`;
-    document.getElementById('sp_breakdown').innerHTML  = rate
+    document.getElementById('sp_breakdown').innerHTML   = rate
       ? `我的預估分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ <strong style="color:var(--primary)">$${Math.round(shareable*rate.pct).toLocaleString()}</strong>`
       : '';
     document.getElementById('sharePreview').style.display = '';
@@ -475,17 +724,17 @@ async function submitApply() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apply_type: selectedApplyType }),
   });
-  if (res.ok) {
-    closeModal('applyModal');
-    showToast('申請已送出，等待總部審核');
-    await loadAll();
-  } else {
-    const err = await res.json().catch(() => ({}));
-    showToast(err.error || '申請失敗', 'error');
-  }
+  if (res.ok) { closeModal('applyModal'); showToast('申請已送出，等待總部審核'); await loadAll(); }
+  else { const e = await res.json().catch(()=>({})); showToast(e.error || '申請失敗', 'error'); }
 }
 
+// ── 工具 ───────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+function escHtml(s) { return (s||'').replace(/'/g, "\\'"); }
 
 init();
 </script>

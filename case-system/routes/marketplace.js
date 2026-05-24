@@ -1,8 +1,19 @@
 const express = require('express');
+const path    = require('path');
+const fs      = require('fs');
+const multer  = require('multer');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router = express.Router();
+
+const UPLOAD_DIR = path.join(__dirname, '../public/uploads/completion');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename:    (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+});
+const upload = multer({ storage: uploadStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ── 案件廣場（區域過濾）──────────────────────────────────────
 
@@ -44,10 +55,11 @@ router.get('/my-tasks', requireAuth, (req, res) => {
   const uid = req.session.user.id;
   const tasks = db.prepare(`
     SELECT c.id, c.case_number, c.case_type, c.location,
-           c.title, c.description, c.status, c.created_at,
+           c.title, c.description, c.status, c.created_at, c.scheduled_date,
            cl.name AS client_name, cl.phone AS client_phone, cl.address AS client_address,
            r.name AS region_name,
-           dq.id AS dq_id, dq.status AS dq_status, dq.notified_at, dq.response_deadline
+           dq.id AS dq_id, dq.status AS dq_status, dq.notified_at, dq.response_deadline,
+           dq.task_progress, dq.completion_notes, dq.completion_photos, dq.progress_updated_at
     FROM cases c
     LEFT JOIN clients cl ON cl.id = c.client_id
     LEFT JOIN regions r  ON r.id  = c.region_id
@@ -55,9 +67,50 @@ router.get('/my-tasks', requireAuth, (req, res) => {
                                 AND dq.status IN ('pending','accepted')
     WHERE c.assigned_technician_id = ?
       AND c.outsource_open = 0
-    ORDER BY c.updated_at DESC
+    ORDER BY c.scheduled_date ASC, c.updated_at DESC
   `).all(uid, uid);
-  res.json(tasks);
+  res.json(tasks.map(t => ({ ...t, completion_photos: JSON.parse(t.completion_photos || '[]') })));
+});
+
+// PUT /api/marketplace/tasks/:caseId/progress — 更新任務進度
+router.put('/tasks/:caseId/progress', requireAuth, (req, res) => {
+  const uid = req.session.user.id;
+  const { task_progress, completion_notes } = req.body;
+  const valid = ['pending','in_progress','completed'];
+  if (!valid.includes(task_progress)) return res.status(400).json({ error: '無效進度狀態' });
+
+  const dq = db.prepare(`SELECT id FROM dispatch_queue WHERE case_id=? AND technician_id=? AND status='accepted'`).get(req.params.caseId, uid);
+  if (!dq) return res.status(404).json({ error: '任務不存在或尚未接受' });
+
+  db.prepare(`UPDATE dispatch_queue SET task_progress=?, completion_notes=?, progress_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(task_progress, completion_notes || null, dq.id);
+
+  if (task_progress === 'completed') {
+    const me = db.prepare(`SELECT name FROM users WHERE id=?`).get(uid);
+    const c  = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(req.params.caseId);
+    const hqUsers = db.prepare(`SELECT id, line_user_id FROM users WHERE role IN ('owner','manager','staff') AND active=1`).all();
+    const notif = db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'dispatch','cases',?,?)`);
+    const msg = `✅ 技師完工回報\n技師：${me?.name}\n案件：${c?.case_number} ${c?.title}${completion_notes ? '\n備註：' + completion_notes : ''}`;
+    for (const u of hqUsers) {
+      notif.run(u.id, '技師完工回報', `${me?.name} 完成 ${c?.case_number}`, req.params.caseId, `/case-detail?id=${req.params.caseId}`);
+      if (u.line_user_id) pushMessage(u.line_user_id, msg);
+    }
+  }
+  res.json({ ok: true });
+});
+
+// POST /api/marketplace/tasks/:caseId/photos — 上傳完工照片
+router.post('/tasks/:caseId/photos', requireAuth, upload.array('photos', 10), (req, res) => {
+  const uid = req.session.user.id;
+  const dq = db.prepare(`SELECT id, completion_photos FROM dispatch_queue WHERE case_id=? AND technician_id=? AND status='accepted'`).get(req.params.caseId, uid);
+  if (!dq) return res.status(404).json({ error: '任務不存在或尚未接受' });
+
+  const existing = JSON.parse(dq.completion_photos || '[]');
+  const newPhotos = (req.files || []).map(f => `/uploads/completion/${f.filename}`);
+  const all = [...existing, ...newPhotos];
+  db.prepare(`UPDATE dispatch_queue SET completion_photos=?, progress_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(JSON.stringify(all), dq.id);
+  res.json({ ok: true, photos: all });
 });
 
 // GET /api/marketplace/my — 技師的申請記錄

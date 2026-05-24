@@ -79,13 +79,38 @@
         <p style="font-size:12px;color:var(--gray-500);margin-top:8px">將此連結傳給客戶，客戶可在手機上查看場勘資料並簽名確認。</p>
       </div>
 
+      <!-- 指派場勘人員 -->
+      <div class="sf-section" style="border:2px solid var(--primary);background:#f0f7ff">
+        <h4 style="color:var(--primary);display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">👤</span> 指派場勘人員
+          <span id="assignedBadge" style="display:none;font-size:12px;background:#d1fae5;color:#065f46;padding:2px 10px;border-radius:20px;font-weight:500;margin-left:4px"></span>
+        </h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label style="font-weight:600">指派給 *</label>
+            <select id="sf_surveyor" style="border:1.5px solid var(--primary)"></select>
+          </div>
+          <div class="form-group">
+            <label style="font-weight:600">場勘日期 *</label>
+            <input type="date" id="sf_date" style="border:1.5px solid var(--primary)">
+          </div>
+          <div class="form-group">
+            <label>場勘時間</label>
+            <input type="time" id="sf_time" placeholder="例：14:00">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>指派備注（只有場勘人員看得到）</label>
+          <textarea id="sf_dispatch_note" rows="2" placeholder="例：請帶測量工具、注意停車問題、客戶偏好下午時段…"></textarea>
+        </div>
+        <div id="notifHint" style="font-size:12px;color:var(--primary);margin-top:6px;display:none">
+          ✉️ 儲存後將自動發送系統通知與 LINE 訊息給場勘人員
+        </div>
+      </div>
+
       <!-- 基本資訊 -->
       <div class="sf-section">
-        <h4>場勘基本資訊</h4>
-        <div class="form-row">
-          <div class="form-group"><label>場勘日期 *</label><input type="date" id="sf_date"></div>
-          <div class="form-group"><label>場勘人員</label><select id="sf_surveyor"></select></div>
-        </div>
+        <h4>現場資訊</h4>
         <div class="form-row">
           <div class="form-group"><label>現場聯絡人</label><input type="text" id="sf_contact" placeholder="王先生"></div>
           <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
@@ -140,7 +165,10 @@ async function init() {
   // 場勘人員選單（技術 + owner）
   const users = await fetchUsers();
   surveyors = users.filter(u => ['owner','hq_tech','branch_tech','contractor_install','hq_cs','hq_sales','branch_manager'].includes(u.role));
-  populateSelect(document.getElementById('sf_surveyor'), surveyors, 'id', 'name', '請選擇');
+  populateSelect(document.getElementById('sf_surveyor'), surveyors, 'id', 'name', '— 請選擇場勘人員 —');
+
+  // 選單變動時顯示通知提示
+  document.getElementById('sf_surveyor').addEventListener('change', updateNotifHint);
 
   // 預設地址
   document.getElementById('sf_address').value = c.location || '';
@@ -155,22 +183,45 @@ async function init() {
     fillForm(formData);
     updateStatusBar(formData.status, formData.client_signed_at, formData.share_token);
   } else {
-    // 預設今天
     document.getElementById('sf_date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('sf_surveyor').value = currentUser.id;
     renderFindings([]);
   }
+  updateNotifHint();
 }
 
 function fillForm(f) {
-  document.getElementById('sf_date').value    = f.survey_date || '';
-  document.getElementById('sf_surveyor').value= f.surveyor_id || '';
-  document.getElementById('sf_contact').value = f.site_contact || '';
-  document.getElementById('sf_phone').value   = f.site_phone || '';
-  document.getElementById('sf_address').value = f.site_address || '';
-  document.getElementById('sf_photos').value  = f.photos_note || '';
-  document.getElementById('sf_notes').value   = f.extra_notes || '';
+  document.getElementById('sf_date').value          = f.survey_date || '';
+  document.getElementById('sf_time').value          = f.survey_time || '';
+  document.getElementById('sf_surveyor').value      = f.surveyor_id || '';
+  document.getElementById('sf_dispatch_note').value = f.dispatch_note || '';
+  document.getElementById('sf_contact').value       = f.site_contact || '';
+  document.getElementById('sf_phone').value         = f.site_phone || '';
+  document.getElementById('sf_address').value       = f.site_address || '';
+  document.getElementById('sf_photos').value        = f.photos_note || '';
+  document.getElementById('sf_notes').value         = f.extra_notes || '';
   renderFindings(f.findings || []);
+  // 顯示已指派的人名
+  if (f.surveyor_name) {
+    const badge = document.getElementById('assignedBadge');
+    badge.textContent = '已指派：' + f.surveyor_name;
+    badge.style.display = '';
+  }
+}
+
+function updateNotifHint() {
+  const sel = document.getElementById('sf_surveyor');
+  const hint = document.getElementById('notifHint');
+  const badge = document.getElementById('assignedBadge');
+  const selectedName = sel.options[sel.selectedIndex]?.text;
+  const hasChange = sel.value && (!formData || String(formData.surveyor_id) !== sel.value);
+  hint.style.display = hasChange ? '' : 'none';
+  if (sel.value && !hasChange && formData?.surveyor_name) {
+    badge.textContent = '已指派：' + formData.surveyor_name;
+    badge.style.display = '';
+  } else if (sel.value) {
+    badge.textContent = sel.value ? '指派：' + selectedName : '';
+    badge.style.display = sel.value ? '' : 'none';
+  }
 }
 
 function updateStatusBar(status, signedAt, token) {
@@ -238,16 +289,21 @@ function markDirty() {} // 可在此加 dirty flag
 
 // ── 儲存 ──────────────────────────────────────────────────
 document.getElementById('saveBtn').addEventListener('click', async () => {
+  const surveyorId = document.getElementById('sf_surveyor').value || null;
+  const willNotify = surveyorId && (!formData || String(formData.surveyor_id) !== surveyorId);
+
   const body = {
-    surveyor_id:  document.getElementById('sf_surveyor').value || null,
-    survey_date:  document.getElementById('sf_date').value || null,
-    site_contact: document.getElementById('sf_contact').value || null,
-    site_phone:   document.getElementById('sf_phone').value || null,
-    site_address: document.getElementById('sf_address').value || null,
-    findings:     getFindings(),
-    photos_note:  document.getElementById('sf_photos').value || null,
-    extra_notes:  document.getElementById('sf_notes').value || null,
-    status:       formData?.status || 'draft',
+    surveyor_id:   surveyorId,
+    survey_date:   document.getElementById('sf_date').value || null,
+    survey_time:   document.getElementById('sf_time').value || null,
+    site_contact:  document.getElementById('sf_contact').value || null,
+    site_phone:    document.getElementById('sf_phone').value || null,
+    site_address:  document.getElementById('sf_address').value || null,
+    findings:      getFindings(),
+    photos_note:   document.getElementById('sf_photos').value || null,
+    extra_notes:   document.getElementById('sf_notes').value || null,
+    dispatch_note: document.getElementById('sf_dispatch_note').value || null,
+    status:        formData?.status || 'draft',
   };
 
   let res;
@@ -263,12 +319,18 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
   if (res.ok) {
     const data = await res.json();
-    showToast('場勘單已儲存');
-    // 重新載入最新狀態
+    showToast(willNotify ? '場勘單已儲存，已通知場勘人員 ✉️' : '場勘單已儲存');
     const sfRes = await fetch(`/api/survey/cases/${caseId}/survey-form`);
     formData = await sfRes.json();
-    if (formData) updateStatusBar(formData.status, formData.client_signed_at, formData.share_token);
-    // 傳送給客戶（更新狀態為 sent）
+    if (formData) {
+      updateStatusBar(formData.status, formData.client_signed_at, formData.share_token);
+      updateNotifHint();
+      if (formData.surveyor_name) {
+        const badge = document.getElementById('assignedBadge');
+        badge.textContent = '已指派：' + formData.surveyor_name;
+        badge.style.display = '';
+      }
+    }
     if (data.token && formData?.status === 'draft') {
       await fetch(`/api/survey/cases/${caseId}/survey-form`, {
         method:'PUT', headers:{'Content-Type':'application/json'},

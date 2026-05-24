@@ -57,9 +57,9 @@ async function loadUser() {
     'my-tasks':       p.my_tasks,
     'my-calendar':    true,   // 所有人可見
     admin:            mu,
-    reports:          mu,
-    performance:      mu,
-    materials:        mu,
+    reports:          p.page_reports      !== undefined ? p.page_reports      : mu,
+    performance:      p.page_performance  !== undefined ? p.page_performance  : mu,
+    materials:        p.page_materials    !== undefined ? p.page_materials    : mu,
     'dispatch-pool':  p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
     marketplace:      true,   // 市集所有人可見
   };

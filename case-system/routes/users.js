@@ -187,4 +187,24 @@ router.delete('/custom-roles/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/users/role-defaults — 取得所有系統角色預設權限
+router.get('/role-defaults', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  const rows = db.prepare(`SELECT role_value, default_perms FROM role_defaults`).all();
+  const map = {};
+  rows.forEach(r => { map[r.role_value] = JSON.parse(r.default_perms || '{}'); });
+  res.json(map);
+});
+
+// PUT /api/users/role-defaults/:roleValue — 儲存系統角色預設權限
+router.put('/role-defaults/:roleValue', requireAuth, (req, res) => {
+  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  const { default_perms } = req.body;
+  db.prepare(`INSERT INTO role_defaults (role_value, default_perms, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(role_value) DO UPDATE SET default_perms=excluded.default_perms, updated_at=CURRENT_TIMESTAMP`)
+    .run(req.params.roleValue, JSON.stringify(default_perms || {}));
+  res.json({ ok: true });
+});
+
 module.exports = router;

@@ -2,7 +2,19 @@ const express    = require('express');
 const crypto     = require('crypto');
 const db         = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { pushMessage } = require('./webhook');
 const router     = express.Router();
+
+function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNote, assignerName) {
+  if (!surveyorId) return;
+  const tech = db.prepare(`SELECT id, name, line_user_id FROM users WHERE id=?`).get(surveyorId);
+  if (!tech) return;
+  const dateStr = [surveyDate, surveyTime].filter(Boolean).join(' ');
+  const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}`;
+  db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'dispatch','cases',?,?)`)
+    .run(tech.id, '您有場勘任務', `${caseData.case_number} ${caseData.title}${dateStr ? ' @ ' + dateStr : ''}`, caseData.id, `/survey-form?case_id=${caseData.id}`);
+  if (tech.line_user_id) pushMessage(tech.line_user_id, msg);
+}
 
 function createMailer() {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
@@ -19,9 +31,10 @@ function genToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-// 取得某案件的場勘單（或建立新的）
+// 取得某案件的場勘單
 router.get('/cases/:id/survey-form', requireAuth, (req, res) => {
-  let form = db.prepare(`SELECT sf.*, u.name as surveyor_name FROM survey_forms sf
+  let form = db.prepare(`SELECT sf.*, u.name as surveyor_name, u.username as surveyor_username
+    FROM survey_forms sf
     LEFT JOIN users u ON u.id = sf.surveyor_id
     WHERE sf.case_id = ? ORDER BY sf.created_at DESC LIMIT 1`).get(req.params.id);
   if (!form) return res.json(null);
@@ -33,22 +46,28 @@ router.get('/cases/:id/survey-form', requireAuth, (req, res) => {
 router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
   const me = req.session.user;
-  const { surveyor_id, survey_date, site_contact, site_phone, site_address,
-          findings, photos_note, extra_notes } = req.body;
+  const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
+          findings, photos_note, extra_notes, dispatch_note } = req.body;
 
   const existing = db.prepare(`SELECT id FROM survey_forms WHERE case_id = ?`).get(case_id);
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
 
   const token = genToken();
   const result = db.prepare(`
-    INSERT INTO survey_forms (case_id, share_token, surveyor_id, survey_date,
-      site_contact, site_phone, site_address, findings, photos_note, extra_notes, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    INSERT INTO survey_forms (case_id, share_token, surveyor_id, survey_date, survey_time,
+      site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note, created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(case_id, token,
-    surveyor_id ?? me.id, survey_date ?? null,
+    surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
-    photos_note ?? null, extra_notes ?? null, me.id);
+    photos_note ?? null, extra_notes ?? null, dispatch_note ?? null, me.id);
+
+  // 通知場勘人員
+  if (surveyor_id) {
+    const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(case_id);
+    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name);
+  }
 
   // 案件狀態升為 survey_scheduled
   const c = db.prepare(`SELECT status FROM cases WHERE id=?`).get(case_id);
@@ -61,18 +80,29 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
 
 // 更新場勘單
 router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
-  const { surveyor_id, survey_date, site_contact, site_phone, site_address,
-          findings, photos_note, extra_notes, status } = req.body;
+  const me = req.session.user;
+  const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
+          findings, photos_note, extra_notes, dispatch_note, status } = req.body;
+
+  // 判斷場勘人員是否有變更 → 需重新通知
+  const old = db.prepare(`SELECT surveyor_id FROM survey_forms WHERE case_id=?`).get(req.params.id);
+  const surveyorChanged = old && String(old.surveyor_id) !== String(surveyor_id ?? '');
 
   db.prepare(`UPDATE survey_forms SET
-    surveyor_id=?, survey_date=?, site_contact=?, site_phone=?, site_address=?,
-    findings=?, photos_note=?, extra_notes=?, status=?, updated_at=CURRENT_TIMESTAMP
+    surveyor_id=?, survey_date=?, survey_time=?, site_contact=?, site_phone=?, site_address=?,
+    findings=?, photos_note=?, extra_notes=?, dispatch_note=?, status=?, updated_at=CURRENT_TIMESTAMP
     WHERE case_id=?`).run(
-    surveyor_id ?? null, survey_date ?? null,
+    surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
-    photos_note ?? null, extra_notes ?? null,
+    photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     status || 'draft', req.params.id);
+
+  // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
+  if (surveyorChanged && surveyor_id) {
+    const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(req.params.id);
+    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name);
+  }
 
   const form = db.prepare(`SELECT share_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
   res.json({ ok: true, token: form?.share_token });

@@ -196,7 +196,7 @@
     <div class="modal-header"><h3 id="roleModalTitle">新增自訂角色</h3><button class="modal-close" onclick="closeModal('roleModal')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="roleId">
-      <div class="form-group"><label>角色名稱 *</label><input type="text" id="roleLabel" placeholder="例：倉管、學院講師、會計"></div>
+      <div class="form-group" id="roleLabelRow"><label>角色名稱 *</label><input type="text" id="roleLabel" placeholder="例：倉管、學院講師、會計"></div>
       <div style="display:flex;gap:24px;margin:12px 0 16px">
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="rolePerm_is_manager"> 主管職
@@ -240,6 +240,15 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_cases_deal"> ✅ 成交案件管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_materials"> 🎞️ 膜料管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_performance"> 🏆 業績報表
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_reports"> 📈 財務報表
           </label>
         </div>
       </div>
@@ -327,6 +336,15 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_cases_deal"> ✅ 成交案件管理
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_materials"> 🎞️ 膜料管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_performance"> 🏆 業績報表
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_reports"> 📈 財務報表
+          </label>
         </div>
       </div>
     </div>
@@ -340,8 +358,8 @@
 <script src="/js/common.js"></script>
 <script>
 let orgs = [], roles = [], allUsers = [], customRoles = [];
-let editingUserId = null, editingRoleId = null;
-let roleLabelsMap = {};
+let editingUserId = null, editingRoleId = null, editingBuiltinRole = null;
+let roleLabelsMap = {}, roleDefaultsMap = {};
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -359,6 +377,8 @@ async function init() {
     document.getElementById('roleSection').style.display = '';
     document.getElementById('pushModeCard').style.display = '';
     document.getElementById('gcalCard').style.display = '';
+    const rdRes = await fetch('/api/users/role-defaults');
+    if (rdRes.ok) roleDefaultsMap = await rdRes.json();
     await loadCustomRoles();
     await loadAuditLogs();
     await loadPushMode();
@@ -474,12 +494,29 @@ async function loadCustomRoles() {
   customRoles = res.ok ? await res.json() : [];
   const tbody = document.getElementById('roleBody');
 
-  // 系統角色（唯讀）
-  const builtinRows = roles.filter(r => r.type === 'builtin').map(r =>
-    `<tr><td></td><td style="font-weight:500">${r.label}</td><td><code style="font-size:11px">${r.value}</code></td>
-     <td style="color:#6b7280;font-size:12px">（依個別帳號設定）</td>
-     <td><span class="badge badge-completed" style="font-size:11px">系統</span></td><td></td></tr>`
-  );
+  // 系統角色
+  const ALL_PAGE_NAMES = {
+    page_dashboard:'總覽', page_cases:'案件管理', page_line_inquiries:'LINE詢問',
+    page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款追蹤',
+    page_ledger:'收支流水帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件管理',
+    page_materials:'膜料管理', page_performance:'業績報表', page_reports:'財務報表',
+    my_tasks:'我的任務',
+  };
+  const builtinRows = roles.filter(r => r.type === 'builtin').map(r => {
+    const p = roleDefaultsMap[r.value] || {};
+    const hasDefaults = Object.keys(p).length > 0;
+    const pages = hasDefaults
+      ? Object.entries(ALL_PAGE_NAMES).filter(([k]) => p[k]).map(([,v]) => v).join('、') || '（全部關閉）'
+      : '（尚未設定，依個別帳號）';
+    return `<tr>
+      <td></td>
+      <td style="font-weight:500">${r.label}</td>
+      <td><code style="font-size:11px">${r.value}</code></td>
+      <td style="font-size:12px;color:${hasDefaults ? '#374151' : '#9ca3af'}">${pages}</td>
+      <td><span class="badge badge-completed" style="font-size:11px">系統</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openEditBuiltinRole('${r.value}','${r.label}')">編輯預設</button></td>
+    </tr>`;
+  });
 
   const customRows = customRoles.map(r => {
     const p = JSON.parse(r.default_perms || '{}');
@@ -516,10 +553,43 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   document.getElementById('roleModal').classList.add('open');
 });
 
+function openEditBuiltinRole(roleValue, label) {
+  editingBuiltinRole = roleValue;
+  editingRoleId = null;
+  document.getElementById('roleModalTitle').textContent = `編輯預設權限：${label}`;
+  document.getElementById('roleId').value = '';
+  document.getElementById('roleLabel').value = label;
+  document.getElementById('roleLabel').disabled = true;
+  // 隱藏識別碼欄位（系統角色不能改）
+  document.getElementById('roleLabelRow').style.display = 'none';
+
+  const p = roleDefaultsMap[roleValue] || {};
+  document.getElementById('rolePerm_is_manager').checked            = !!p.is_manager;
+  document.getElementById('rolePerm_can_see_amounts').checked       = !!p.can_see_amounts;
+  document.getElementById('rolePerm_view_all_branches').checked     = false;
+  document.getElementById('rolePerm_page_dashboard').checked        = !!p.page_dashboard;
+  document.getElementById('rolePerm_my_tasks').checked              = !!p.my_tasks;
+  document.getElementById('rolePerm_page_cases').checked            = p.page_cases !== undefined ? !!p.page_cases : true;
+  document.getElementById('rolePerm_page_line_inquiries').checked   = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!p.page_cases;
+  document.getElementById('rolePerm_page_clients').checked          = p.page_clients !== undefined ? !!p.page_clients : true;
+  document.getElementById('rolePerm_page_calendar').checked         = p.page_calendar !== undefined ? !!p.page_calendar : true;
+  document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
+  document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
+  document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
+  document.getElementById('rolePerm_page_cases_deal').checked       = !!p.page_cases_deal;
+  document.getElementById('rolePerm_page_materials').checked        = !!p.page_materials;
+  document.getElementById('rolePerm_page_performance').checked      = !!p.page_performance;
+  document.getElementById('rolePerm_page_reports').checked          = !!p.page_reports;
+  document.getElementById('roleModal').classList.add('open');
+}
+
 function openEditRole(id) {
   const r = customRoles.find(x => x.id === id);
   if (!r) return;
+  editingBuiltinRole = null;
   editingRoleId = id;
+  document.getElementById('roleLabel').disabled = false;
+  document.getElementById('roleLabelRow').style.display = '';
   const p = JSON.parse(r.default_perms || '{}');
   document.getElementById('roleModalTitle').textContent = `編輯角色：${r.label}`;
   document.getElementById('roleId').value = r.id;
@@ -537,13 +607,14 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('rolePerm_page_cases_deal').checked        = !!p.page_cases_deal;
+  document.getElementById('rolePerm_page_materials').checked         = !!p.page_materials;
+  document.getElementById('rolePerm_page_performance').checked       = !!p.page_performance;
+  document.getElementById('rolePerm_page_reports').checked           = !!p.page_reports;
   document.getElementById('roleModal').classList.add('open');
 }
 
 document.getElementById('roleSaveBtn').addEventListener('click', async () => {
   const id = document.getElementById('roleId').value;
-  const label = document.getElementById('roleLabel').value.trim();
-  if (!label) { showToast('請填入角色名稱', 'error'); return; }
   const default_perms = {
     is_manager:          document.getElementById('rolePerm_is_manager').checked,
     can_see_amounts:     document.getElementById('rolePerm_can_see_amounts').checked,
@@ -557,7 +628,34 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_ledger:         document.getElementById('rolePerm_page_ledger').checked,
     page_dispatch_pool:  document.getElementById('rolePerm_page_dispatch_pool').checked,
     page_cases_deal:     document.getElementById('rolePerm_page_cases_deal').checked,
+    page_materials:      document.getElementById('rolePerm_page_materials').checked,
+    page_performance:    document.getElementById('rolePerm_page_performance').checked,
+    page_reports:        document.getElementById('rolePerm_page_reports').checked,
   };
+
+  // 系統內建角色 → 儲存到 role_defaults
+  if (editingBuiltinRole) {
+    const res = await fetch(`/api/users/role-defaults/${editingBuiltinRole}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ default_perms }),
+    });
+    if (res.ok) {
+      roleDefaultsMap[editingBuiltinRole] = default_perms;
+      closeModal('roleModal');
+      document.getElementById('roleLabel').disabled = false;
+      document.getElementById('roleLabelRow').style.display = '';
+      editingBuiltinRole = null;
+      await loadCustomRoles();
+      showToast('預設權限已儲存');
+    } else {
+      const e = await res.json(); showToast(e.error || '儲存失敗', 'error');
+    }
+    return;
+  }
+
+  // 自訂角色
+  const label = document.getElementById('roleLabel').value.trim();
+  if (!label) { showToast('請填入角色名稱', 'error'); return; }
   const view_all_branches = document.getElementById('rolePerm_view_all_branches').checked;
   const url = id ? `/api/users/custom-roles/${id}` : '/api/users/custom-roles';
   const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ label, default_perms, view_all_branches }) });
@@ -568,7 +666,6 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     populateSelect(document.getElementById('userRole'), roles, 'value', 'label', '請選擇角色');
     await loadCustomRoles();
     showToast('角色已儲存');
-    // 若是修改既有角色，提示是否更新受影響帳號
     if (id) {
       const cr = customRoles.find(r => r.id === Number(id));
       if (cr) await promptUpdateRoleUsers(cr.code, label, default_perms);
@@ -681,9 +778,10 @@ function renderAllowedOrgs(ownOrgId, allowedIds = []) {
 // 依角色套用預設權限（建帳號時 + 切換角色時共用）
 function applyRoleDefaults(roleValue) {
   const roleDef = roles.find(r => r.value === roleValue);
-  if (roleDef && roleDef.default_perms) {
-    // 自訂角色：用其定義的預設
-    const p = JSON.parse(roleDef.default_perms);
+  // 優先：自訂角色的 default_perms，其次：系統角色的 role_defaults DB 設定
+  const dbPerms = roleDef?.default_perms ? JSON.parse(roleDef.default_perms) : roleDefaultsMap[roleValue];
+  if (dbPerms) {
+    const p = dbPerms;
     document.getElementById('userIsManager').checked       = !!p.is_manager;
     document.getElementById('userCanSeeAmounts').checked   = !!p.can_see_amounts;
     document.getElementById('perm_page_dashboard').checked      = !!p.page_dashboard;
@@ -696,6 +794,9 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
     document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
     document.getElementById('perm_page_cases_deal').checked       = !!p.page_cases_deal;
+    document.getElementById('perm_page_materials').checked        = !!p.page_materials;
+    document.getElementById('perm_page_performance').checked      = !!p.page_performance;
+    document.getElementById('perm_page_reports').checked          = !!p.page_reports;
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
     const isHQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
@@ -710,6 +811,9 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_ledger').checked           = false;
     document.getElementById('perm_page_dispatch_pool').checked    = false;
     document.getElementById('perm_page_cases_deal').checked       = isHQ;
+    document.getElementById('perm_page_materials').checked        = false;
+    document.getElementById('perm_page_performance').checked      = false;
+    document.getElementById('perm_page_reports').checked          = false;
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -783,6 +887,9 @@ function openEditUser(id) {
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
   document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
+  document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials   !== undefined ? !!perms.page_materials   : !!u.is_manager);
+  document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
+  document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
   const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
   document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
@@ -814,6 +921,9 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_ledger:         document.getElementById('perm_page_ledger').checked,
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
       page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
+      page_materials:      document.getElementById('perm_page_materials').checked,
+      page_performance:    document.getElementById('perm_page_performance').checked,
+      page_reports:        document.getElementById('perm_page_reports').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
     allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))

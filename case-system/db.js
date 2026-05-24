@@ -1277,4 +1277,23 @@ _addCol('users', 'contract_signature',  'TEXT DEFAULT NULL');
 // 可視店別（JSON 陣列，null=只看自己）
 _addCol('users', 'allowed_org_ids',     'TEXT DEFAULT NULL');
 
+// 場勘單指派欄位
+_addCol('survey_forms', 'survey_time',   'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'dispatch_note', 'TEXT DEFAULT NULL');
+
+// 派案任務進度追蹤
+_addCol('dispatch_queue', 'task_progress',      "TEXT DEFAULT 'pending'");
+_addCol('dispatch_queue', 'completion_notes',   'TEXT DEFAULT NULL');
+_addCol('dispatch_queue', 'completion_photos',  "TEXT DEFAULT '[]'");
+_addCol('dispatch_queue', 'progress_updated_at','DATETIME DEFAULT NULL');
+
+// 系統內建角色的預設權限設定
+db.exec(`
+  CREATE TABLE IF NOT EXISTS role_defaults (
+    role_value   TEXT PRIMARY KEY,
+    default_perms TEXT NOT NULL DEFAULT '{}',
+    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 module.exports = db;

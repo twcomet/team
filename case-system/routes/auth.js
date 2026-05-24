@@ -54,7 +54,10 @@ router.post('/login', (req, res) => {
       page_payments:       perm('page_payments'),
       page_ledger:         perm('page_ledger'),
       page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers),
-      page_cases_deal:     perm('page_cases_deal', isHQ), // 成交案件管理：僅總部人員預設開放
+      page_cases_deal:     perm('page_cases_deal', isHQ),
+      page_materials:      perm('page_materials', def.manageUsers),
+      page_performance:    perm('page_performance', def.manageUsers),
+      page_reports:        perm('page_reports', def.manageUsers),
       page_admin:          def.manageUsers,
       my_tasks:            perm('my_tasks', isContractor),
     },
