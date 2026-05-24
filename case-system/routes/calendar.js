@@ -1,19 +1,20 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, orgFilter } = require('../middleware/auth');
+const { requireAuth, orgFilterSQL } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/calendar?year=2026&month=5
 // 回傳該月份的派工記錄 + 有施工日期的案件，與每日目標
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const filter = orgFilter(me);
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
+  const { sql: orgSqlT, params: orgPsT } = orgFilterSQL(me, 'org_id');
   const year  = parseInt(req.query.year)  || new Date().getFullYear();
   const month = parseInt(req.query.month) || new Date().getMonth() + 1;
   const dateFrom = `${year}-${String(month).padStart(2,'0')}-01`;
   const dateTo   = `${year}-${String(month).padStart(2,'0')}-31`;
 
-  const orgCond = filter.org_id ? `AND c.org_id = ${filter.org_id}` : '';
+  const orgCond = orgSql ? `AND ${orgSql}` : '';
 
   // 派工記錄
   const dispatched = db.prepare(`
@@ -38,7 +39,7 @@ router.get('/', requireAuth, (req, res) => {
       ${orgCond}
     GROUP BY d.id
     ORDER BY d.scheduled_date, d.scheduled_time
-  `).all(dateFrom, dateTo);
+  `).all(dateFrom, dateTo, ...orgPs);
 
   // 有施工日期但無派工記錄的案件
   const dispatchedCaseIds = dispatched.map(d => d.id);
@@ -66,14 +67,15 @@ router.get('/', requireAuth, (req, res) => {
       ${orgCond}
       ${excludeClause}
     ORDER BY c.scheduled_date
-  `).all(dateFrom, dateTo);
+  `).all(dateFrom, dateTo, ...orgPs);
 
   const cases = [...dispatched, ...scheduled];
 
+  const orgCondT = orgSqlT ? `AND ${orgSqlT}` : '';
   const targets = db.prepare(`
     SELECT date, target_amount FROM daily_targets
-    WHERE date BETWEEN ? AND ? ${filter.org_id ? `AND org_id = ${filter.org_id}` : ''}
-  `).all(dateFrom, dateTo);
+    WHERE date BETWEEN ? AND ? ${orgCondT}
+  `).all(dateFrom, dateTo, ...orgPsT);
 
   res.json({ cases, targets });
 });

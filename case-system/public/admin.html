@@ -245,6 +245,13 @@
         <div class="form-group"><label>角色 *</label><select id="userRole"></select></div>
         <div class="form-group"><label>部門</label><input type="text" id="userDept" placeholder="例：業務部、技術部"></div>
       </div>
+      <!-- 可視店別 -->
+      <div class="form-group" id="allowedOrgsWrap" style="margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px">可視店別
+          <span style="font-size:11px;color:var(--gray-400);font-weight:400">（勾選後可在各功能看到該店資料）</span>
+        </label>
+        <div id="allowedOrgsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px;margin-top:4px"></div>
+      </div>
       <div style="display:flex;gap:24px;margin-top:4px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userIsManager"> 主管職
@@ -579,10 +586,30 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userOrgId').value = currentUser.org_id;
   // 新增人員：先依選取角色決定預設值
   applyRoleDefaults(document.getElementById('userRole').value);
+  renderAllowedOrgs(parseInt(document.getElementById('userOrgId').value) || 0, []);
   document.getElementById('userModal').classList.add('open');
 });
 
 const CONTRACTOR_ROLES = ['contractor_install','contractor_sales','dealer'];
+const BUILTIN_VIEW_ALL = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
+
+function renderAllowedOrgs(ownOrgId, allowedIds = []) {
+  const roleVal = document.getElementById('userRole').value;
+  const roleDef = roles.find(r => r.value === roleVal);
+  const isViewAll = BUILTIN_VIEW_ALL.includes(roleVal) || roleDef?.view_all_branches === 1;
+  const listEl = document.getElementById('allowedOrgsList');
+  if (isViewAll) {
+    listEl.innerHTML = '<span style="color:#057a55;font-size:13px">✅ 此角色可看全部分店，無需設定</span>';
+    return;
+  }
+  listEl.innerHTML = orgs.map(o => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:${o.id === ownOrgId ? 'default' : 'pointer'}">
+      <input type="checkbox" value="${o.id}" class="allowed-org-cb"
+        ${o.id === ownOrgId ? 'checked disabled' : (allowedIds.includes(o.id) ? 'checked' : '')}>
+      ${o.name}${o.id === ownOrgId ? ' <span style="font-size:10px;color:var(--gray-400)">(所屬)</span>' : ''}
+    </label>
+  `).join('') || '<span style="color:var(--gray-400);font-size:13px">尚無分店資料</span>';
+}
 
 // 依角色套用預設權限（建帳號時 + 切換角色時共用）
 function applyRoleDefaults(roleValue) {
@@ -621,6 +648,11 @@ function applyRoleDefaults(roleValue) {
 // 選角色時自動帶入預設權限
 document.getElementById('userRole').addEventListener('change', function() {
   applyRoleDefaults(this.value);
+  renderAllowedOrgs(parseInt(document.getElementById('userOrgId').value) || 0, []);
+});
+// 切換所屬組織時重繪可視店別
+document.getElementById('userOrgId').addEventListener('change', function() {
+  renderAllowedOrgs(parseInt(this.value) || 0, []);
 });
 
 async function unbindLine(userId) {
@@ -683,6 +715,8 @@ function openEditUser(id) {
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
   document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true); // 約聘預設開啟
+  const allowedIds = u.allowed_org_ids ? JSON.parse(u.allowed_org_ids) : [];
+  renderAllowedOrgs(u.org_id, allowedIds);
   document.getElementById('userModal').classList.add('open');
 }
 
@@ -710,6 +744,8 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
+    allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))
+      .map(cb => parseInt(cb.value)),
   };
   if (!id) body.password = password;
   if (!body.name || !body.role) { showToast('請填入必要欄位', 'error'); return; }

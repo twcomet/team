@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireOwner, orgFilter } = require('../middleware/auth');
+const { requireAuth, requireOwner, orgFilterSQL } = require('../middleware/auth');
 const router = express.Router();
 
 const log = (uid, action, entity, eid, detail) =>
@@ -44,7 +44,7 @@ router.delete('/categories/:id', requireOwner, (req, res) => {
 router.get('/', requireAuth, (req, res) => {
   const user = req.session.user;
   const { from, to, type } = req.query;
-  const orgRestrict = orgFilter(user);
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(user, 'l.org_id');
 
   let sql = `
     SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title,
@@ -58,8 +58,8 @@ router.get('/', requireAuth, (req, res) => {
   const params = [];
 
   // 非跨分店角色只能看自己的 org
-  if (orgRestrict.org_id) {
-    sql += ' AND l.org_id = ?'; params.push(orgRestrict.org_id);
+  if (orgSql) {
+    sql += ` AND ${orgSql}`; params.push(...orgPs);
   } else if (req.query.org_id) {
     sql += ' AND l.org_id = ?'; params.push(req.query.org_id);
   }

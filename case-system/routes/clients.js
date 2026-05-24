@@ -1,36 +1,28 @@
 const express = require('express');
 const multer  = require('multer');
 const db = require('../db');
-const { requireAuth, orgFilter } = require('../middleware/auth');
+const { requireAuth, orgFilterSQL } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const filter = orgFilter(me);
-  const clients = filter.org_id
-    ? db.prepare(`
-        SELECT c.*, cc.name AS category_name, cc.discount_rate AS category_discount,
-          (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
-            AND cs.status IN ('contracted','payment','closed')
-            AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
-          (SELECT COALESCE(SUM(cs.final_price),0) FROM cases cs WHERE cs.client_id=c.id
-            AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
-          (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
-            FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
-        FROM clients c LEFT JOIN client_categories cc ON cc.id = c.category_id WHERE c.org_id = ? ORDER BY c.name
-      `).all(filter.org_id)
-    : db.prepare(`
-        SELECT c.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
-          (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
-            AND cs.status IN ('contracted','payment','closed')
-            AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
-          (SELECT COALESCE(SUM(cs.final_price),0) FROM cases cs WHERE cs.client_id=c.id
-            AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
-          (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
-            FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
-        FROM clients c LEFT JOIN orgs o ON c.org_id = o.id LEFT JOIN client_categories cc ON cc.id = c.category_id ORDER BY c.name
-      `).all();
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
+  const clients = db.prepare(`
+      SELECT c.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
+        (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
+          AND cs.status IN ('contracted','payment','closed')
+          AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
+        (SELECT COALESCE(SUM(cs.final_price),0) FROM cases cs WHERE cs.client_id=c.id
+          AND cs.status IN ('contracted','payment','closed')) AS total_revenue,
+        (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
+          FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=c.id) AS tags_csv
+      FROM clients c
+      LEFT JOIN orgs o ON c.org_id = o.id
+      LEFT JOIN client_categories cc ON cc.id = c.category_id
+      ${orgSql ? `WHERE ${orgSql}` : ''}
+      ORDER BY c.name
+    `).all(...orgPs);
   clients.forEach(c => {
     c.tags = c.tags_csv
       ? c.tags_csv.split(',').map(s => { const [id,name,color]=s.split('|'); return {id:+id,name,color}; })

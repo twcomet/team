@@ -7,7 +7,7 @@ const router = express.Router();
 // 取得使用者清單（依權限過濾）
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department,
+  let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department, u.allowed_org_ids,
                       u.is_manager, u.can_see_amounts, u.service_areas, u.active,
                       u.permissions, u.sort_order, u.daily_cost, u.line_user_id, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
@@ -35,7 +35,7 @@ router.post('/reorder', requireAuth, (req, res) => {
 router.post('/', requireCanManageUsers, (req, res) => {
   const me = req.session.user;
   const { name, username, password, role, org_id, department, is_manager,
-          can_see_amounts, service_areas } = req.body;
+          can_see_amounts, service_areas, allowed_org_ids } = req.body;
 
   // 非 owner 只能建立自己分店的人
   if (me.role !== 'owner' && org_id != me.org_id) {
@@ -49,14 +49,15 @@ router.post('/', requireCanManageUsers, (req, res) => {
   try {
     const result = db.prepare(`
       INSERT INTO users (name, username, password, role, org_id, department,
-                         is_manager, can_see_amounts, service_areas)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         is_manager, can_see_amounts, service_areas, allowed_org_ids)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(name, username, hash, role,
            org_id || me.org_id,
            department || null,
            is_manager ? 1 : 0,
            can_see_amounts ? 1 : 0,
-           JSON.stringify(service_areas || []));
+           JSON.stringify(service_areas || []),
+           allowed_org_ids?.length ? JSON.stringify(allowed_org_ids) : null);
 
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create_user', 'users', ?, ?)`)
       .run(me.id, result.lastInsertRowid, `新增帳號：${username} (${role})`);
@@ -80,10 +81,13 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   }
 
   const { name, role, department, is_manager, can_see_amounts, service_areas, active, permissions, daily_cost } = req.body;
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=?, daily_cost=? WHERE id=?`)
+  const newAllowed = 'allowed_org_ids' in req.body
+    ? (req.body.allowed_org_ids?.length ? JSON.stringify(req.body.allowed_org_ids) : null)
+    : target.allowed_org_ids;
+  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=? WHERE id=?`)
     .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0,
          JSON.stringify(service_areas || []), active ?? 1,
-         JSON.stringify(permissions || {}), daily_cost ?? null, req.params.id);
+         JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）
   if ('line_user_id' in req.body) {
     db.prepare(`UPDATE users SET line_user_id=? WHERE id=?`).run(req.body.line_user_id || null, req.params.id);

@@ -60,11 +60,21 @@ function requireCanManageUsers(req, res, next) {
   next();
 }
 
-// 根據使用者角色加上 org 過濾條件
+// 根據使用者角色加上 org 過濾條件（舊版，向後相容）
 function orgFilter(user) {
   const def = getRoleDef(user.role);
   if (def.viewAllBranches) return {}; // 不限制
   return { org_id: user.org_id };     // 只看自己的分店
 }
 
-module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCanManageUsers, orgFilter };
+// 回傳 { sql, params } 可直接插入 WHERE 子句（支援多店別）
+function orgFilterSQL(user, col) {
+  if (user.view_all_branches) return { sql: '', params: [] };
+  const extra = Array.isArray(user.allowed_org_ids) ? user.allowed_org_ids : [];
+  const ids = [...new Set([user.org_id, ...extra].filter(Boolean))];
+  if (ids.length === 0) return { sql: '', params: [] };
+  if (ids.length === 1) return { sql: `${col} = ?`, params: [ids[0]] };
+  return { sql: `${col} IN (${ids.map(() => '?').join(',')})`, params: ids };
+}
+
+module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCanManageUsers, orgFilter, orgFilterSQL };

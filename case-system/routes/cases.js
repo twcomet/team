@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, orgFilter } = require('../middleware/auth');
+const { requireAuth, orgFilter, orgFilterSQL } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router = express.Router();
 
@@ -96,7 +96,7 @@ function calcItem(item) {
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, case_type, date_from, date_to, search } = req.query;
-  const filter = orgFilter(me);
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
 
   let q = `
     SELECT c.*,
@@ -114,7 +114,7 @@ router.get('/', requireAuth, (req, res) => {
   `;
   const p = [];
 
-  if (filter.org_id)   { q += ` AND c.org_id = ?`;           p.push(filter.org_id); }
+  if (orgSql) { q += ` AND ${orgSql}`; p.push(...orgPs); }
   if (me.role === 'hq_tech' || me.role === 'branch_tech') {
     // 技術人員只看有被派工的案件（透過 dispatches）
     q += ` AND EXISTS (SELECT 1 FROM dispatch_users du JOIN dispatches d ON du.dispatch_id = d.id WHERE d.case_id = c.id AND du.user_id = ?)`;
@@ -453,18 +453,18 @@ router.post('/:id/dispatches/:did/push', requireAuth, async (req, res) => {
 // ── 統計 ─────────────────────────────────────────────────────
 router.get('/stats/summary', requireAuth, (req, res) => {
   const me = req.session.user;
-  const filter = orgFilter(me);
-  const orgCond = filter.org_id ? `AND c.org_id = ${filter.org_id}` : '';
+  const { sql: orgSql2, params: orgPs2 } = orgFilterSQL(me, 'c.org_id');
+  const orgCond = orgSql2 ? `AND ${orgSql2}` : '';
   const today = new Date().toISOString().split('T')[0];
   const monthStart = today.slice(0, 7) + '-01';
 
   res.json({
-    total:        db.prepare(`SELECT COUNT(*) n FROM cases c WHERE 1=1 ${orgCond}`).get().n,
-    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('confirmed','scheduled','in_progress') ${orgCond}`).get().n,
-    unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='confirmed' AND (scheduled_date IS NULL OR scheduled_date='') ${orgCond}`).get().n,
-    today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today).n,
-    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','quoted') ${orgCond}`).get().n,
-    month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? ${orgCond}`).get(monthStart).n,
+    total:        db.prepare(`SELECT COUNT(*) n FROM cases c WHERE 1=1 ${orgCond}`).get(...orgPs2).n,
+    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('confirmed','scheduled','in_progress') ${orgCond}`).get(...orgPs2).n,
+    unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='confirmed' AND (scheduled_date IS NULL OR scheduled_date='') ${orgCond}`).get(...orgPs2).n,
+    today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today, ...orgPs2).n,
+    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','quoted') ${orgCond}`).get(...orgPs2).n,
+    month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? ${orgCond}`).get(monthStart, ...orgPs2).n,
   });
 });
 

@@ -1262,8 +1262,10 @@ db.exec(`
 `);
 
 // 合約簽署
-_addCol('users', 'contract_signed_at', 'DATETIME DEFAULT NULL');
-_addCol('users', 'contract_type',      "TEXT DEFAULT NULL");
-_addCol('users', 'contract_signature', 'TEXT DEFAULT NULL');
+_addCol('users', 'contract_signed_at',  'DATETIME DEFAULT NULL');
+_addCol('users', 'contract_type',       "TEXT DEFAULT NULL");
+_addCol('users', 'contract_signature',  'TEXT DEFAULT NULL');
+// 可視店別（JSON 陣列，null=只看自己）
+_addCol('users', 'allowed_org_ids',     'TEXT DEFAULT NULL');
 
 module.exports = db;

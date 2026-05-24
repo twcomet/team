@@ -41,6 +41,7 @@ router.post('/login', (req, res) => {
     can_see_amounts: !!user.can_see_amounts,
     is_manager: !!user.is_manager,
     view_all_branches: def.viewAllBranches,
+    allowed_org_ids: user.allowed_org_ids ? JSON.parse(user.allowed_org_ids) : [],
     manage_users: def.manageUsers,
     manage_orgs: def.manageOrgs,
     permissions: {
