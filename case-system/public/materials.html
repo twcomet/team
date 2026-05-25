@@ -924,14 +924,21 @@ async function searchCase() {
   const el = document.getElementById('l_case_results');
   if (!q) { el.style.display = 'none'; return; }
   caseSearchTimer = setTimeout(async () => {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=cases`);
-    const items = res.ok ? await res.json() : [];
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) { el.style.display = 'none'; return; }
+    const data = await res.json();
+    const items = data.results || [];
     if (!items.length) { el.style.display = 'none'; return; }
-    el.innerHTML = items.slice(0,6).map(c =>
-      `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
-        onmousedown="selectCase(${c.id},'${c.case_number}','${(c.title||'').replace(/'/g,'')}')">
-        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span> ${c.title||''}
-      </div>`).join('');
+    el.innerHTML = items.slice(0, 6).map(r => {
+      const c = r.case;
+      const label = [c.case_number, c.client_name, c.title].filter(Boolean).join(' · ');
+      return `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
+        onmousedown="selectCase(${c.id},'${c.case_number}','${(c.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span>
+        ${c.client_name ? `<span style="color:var(--gray-400)"> · ${c.client_name}</span>` : ''}
+        ${c.title ? `<span> ${c.title}</span>` : ''}
+      </div>`;
+    }).join('');
     el.style.display = 'block';
   }, 300);
 }
