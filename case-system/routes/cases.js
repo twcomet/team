@@ -118,12 +118,14 @@ router.get('/', requireAuth, (req, res) => {
     SELECT c.*,
            cl.name  as client_name, cl.phone as client_phone,
            s.name   as sales_name,
+           cs.name  as cs_name,
            sv.name  as surveyor_name,
            o.name   as org_name,
            ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
     FROM cases c
     LEFT JOIN clients cl ON c.client_id   = cl.id
     LEFT JOIN users   s  ON c.sales_id    = s.id
+    LEFT JOIN users   cs ON c.cs_id       = cs.id
     LEFT JOIN users   sv ON c.surveyor_id = sv.id
     LEFT JOIN orgs    o  ON c.org_id      = o.id
     WHERE 1=1
@@ -147,7 +149,7 @@ router.get('/', requireAuth, (req, res) => {
   if (date_to)   { q += ` AND c.scheduled_date <= ?`; p.push(date_to); }
   if (search)    { q += ` AND (c.title LIKE ? OR c.case_number LIKE ? OR cl.name LIKE ?)`; const s = `%${search}%`; p.push(s,s,s); }
 
-  q += ` ORDER BY c.updated_at DESC`;
+  q += group === 'inquiry' ? ` ORDER BY c.created_at DESC` : ` ORDER BY c.updated_at DESC`;
   res.json(db.prepare(q).all(...p));
 });
 

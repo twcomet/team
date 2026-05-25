@@ -302,7 +302,7 @@ const CFG = {
     nav: 'cases-inquiry',
     group: 'inquiry',
     stages: ['inquiry', 'initial_estimate', 'invalid'],
-    stageNames: { inquiry: '詢價', initial_estimate: '初步估價', invalid: '無效' },
+    stageNames: { inquiry: '詢價需初步估價', initial_estimate: '已初步估價', invalid: '已估價無效保存' },
     hiddenByDefault: new Set(['invalid']),
     showAmounts: false,
     showTypeTabs: false,
@@ -376,7 +376,7 @@ async function init() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th><th>客戶</th><th>項目</th><th>建立日期</th><th>負責業務</th><th>狀態</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th></tr>`;
   } else if (MODE === 'survey') {
     h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>狀態</th><th>估價</th></tr>`;
   } else {
@@ -417,8 +417,9 @@ function renderTable(cases) {
     return !cfg.hiddenByDefault.has(c.status);
   });
   const tbody = document.getElementById('casesBody');
+  if (MODE === 'inquiry') filtered.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 6 : MODE === 'survey' ? 8 : 10;
+    const cols = MODE === 'inquiry' ? 8 : MODE === 'survey' ? 8 : 10;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -432,10 +433,12 @@ function getCaseRow(c) {
   if (MODE === 'inquiry') {
     return `<tr ${link}>
       <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td style="white-space:nowrap">${fmtDate(c.created_at)}</td>
       <td>${c.client_name || '—'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-500);font-size:13px">${c.location || '—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-      <td>${fmtDate(c.created_at)}</td>
       <td>${c.sales_name || '—'}</td>
+      <td>${c.cs_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
     </tr>`;
   }

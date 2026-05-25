@@ -141,7 +141,7 @@ router.post('/:id/convert', requireAuth, (req, res) => {
       case_number, org_id, case_type, client_id,
       title, description, line_source, source_type,
       status, priority, created_by, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'initial_estimate', 'normal', ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'normal', ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, case_type, inq.client_id,
     title || `LINE詢問｜${inq.display_name}`,

@@ -6,8 +6,8 @@ const ROLE_LABELS = {
   contractor_sales:'約聘業務', dealer:'經銷商',
 };
 const STATUS_LABELS = {
-  inquiry:           '詢價',
-  initial_estimate:  '初步估價',
+  inquiry:           '詢價需初步估價',
+  initial_estimate:  '已初步估價',
   survey_pending:    '待排場勘',
   survey_scheduled:  '已排場勘',
   surveyed:          '已場勘',
