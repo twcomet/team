@@ -371,6 +371,18 @@ input[type=number] { -moz-appearance: textfield; }
           </div>
         </div>
 
+        <!-- 卷料長度（模式 B 限定） -->
+        <div id="rollLengthWrap" style="display:none">
+          <div class="block-label">卷料長度</div>
+          <div class="price-field" style="margin-top:0">
+            <label>每卷長度</label>
+            <div class="price-iw">
+              <input type="number" id="rollLength" value="50" min="1" max="200" step="1" oninput="onRollLengthChange()" />
+              <span class="p-unit">公尺</span>
+            </div>
+          </div>
+        </div>
+
         <!-- 3. 材料明細 -->
         <div>
           <div class="block-label">材料明細</div>
@@ -446,10 +458,11 @@ input[type=number] { -moz-appearance: textfield; }
 <script src="/js/common.js"></script>
 <script>
   /* ── 狀態 ── */
-  let rowCount  = 0;
-  let filmWidth = 122;
-  let filmMode  = 'A';       // 'A' 裝潢膜  'B' 防爆/隔熱紙
-  let calcMode  = 'no_loss'; // 'no_loss' | 'with_loss' | 'splice'
+  let rowCount    = 0;
+  let filmWidth   = 122;
+  let filmMode    = 'A';       // 'A' 裝潢膜  'B' 防爆/隔熱紙
+  let calcMode    = 'no_loss'; // 'no_loss' | 'with_loss' | 'splice'
+  let rollLengthM = 50;        // 每卷長度（公尺）
 
   const FILMS = {
     122: { name: '裝潢膜',    defaultPrice: 200, mode: 'A' },
@@ -467,8 +480,9 @@ input[type=number] { -moz-appearance: textfield; }
     document.getElementById('unitPrice').value = film.defaultPrice;
 
     const isModeB = filmMode === 'B';
-    document.getElementById('modeBOptions').style.display = isModeB ? '' : 'none';
-    document.getElementById('metersBox').style.display    = isModeB ? 'none' : '';
+    document.getElementById('modeBOptions').style.display  = isModeB ? '' : 'none';
+    document.getElementById('rollLengthWrap').style.display = isModeB ? '' : 'none';
+    document.getElementById('metersBox').style.display     = isModeB ? 'none' : '';
 
     // 重置計算方式
     if (!isModeB) { calcMode = 'no_loss'; }
@@ -486,7 +500,11 @@ input[type=number] { -moz-appearance: textfield; }
     calcMode = mode;
     document.querySelectorAll('.calc-mode-btn').forEach(b => b.classList.remove('active'));
     label.classList.add('active');
-    document.getElementById('splicePanel').style.display = mode === 'splice' ? '' : 'none';
+    calculate();
+  }
+
+  function onRollLengthChange() {
+    rollLengthM = parseFloat(document.getElementById('rollLength').value) || 50;
     calculate();
   }
 
@@ -631,7 +649,9 @@ input[type=number] { -moz-appearance: textfield; }
     if (!hasAny) {
       setTotalCai(null);
       setPrice(null);
-      document.getElementById('splicePanel').innerHTML = '';
+      const sp = document.getElementById('splicePanel');
+      sp.innerHTML = '';
+      sp.style.display = 'none';
       return;
     }
 
@@ -642,7 +662,7 @@ input[type=number] { -moz-appearance: textfield; }
       renderSplicePanel(result, pieces);
     } else {
       totalCai = pieces.reduce((sum, p) => sum + calcRowCaiB(p.w, p.h, p.qty), 0);
-      document.getElementById('splicePanel').innerHTML = '';
+      renderSimpleLayoutPanel(pieces);
     }
 
     setTotalCai(totalCai);
@@ -673,6 +693,181 @@ input[type=number] { -moz-appearance: textfield; }
     dpEl.textContent = (totalPrice > 0 && disc > 0)
       ? 'NT$ ' + fmt(Math.round(totalPrice * disc / 10), 0)
       : '—';
+  }
+
+  /* ── 不含損料 / 含損料 排版圖 ── */
+  function computeLayoutSections(pieces) {
+    return pieces.map((p, ri) => {
+      let lengthCm, perRow;
+      if (calcMode === 'no_loss') {
+        perRow = Math.max(1, Math.floor(filmWidth / p.w));
+        lengthCm = Math.ceil(p.qty / perRow) * p.h;
+      } else {
+        perRow = 1;
+        lengthCm = p.h * p.qty;
+      }
+      return { ...p, lengthCm, perRow,
+        color:  PIECE_COLORS[ri % PIECE_COLORS.length],
+        border: PIECE_BORDERS[ri % PIECE_BORDERS.length],
+        label:  String.fromCharCode(65 + (ri % 26)),
+      };
+    });
+  }
+
+  function drawSimpleLayoutCanvas(sections, fw) {
+    const totalCm = sections.reduce((s, sec) => s + sec.lengthCm, 0);
+    if (!totalCm) return null;
+
+    const MAX_H  = 320;
+    const SCALE  = Math.min(4.0, MAX_H / totalCm);
+    const FW_D   = Math.min(160, Math.round(fw * 0.9));
+    const ML = 52, MR = 76, MT = 32, MB = 48;
+
+    const usedDispH = Math.round(totalCm * SCALE);
+    const cW = ML + FW_D + MR;
+    const cH = MT + usedDispH + MB;
+
+    const canvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = cW * dpr;
+    canvas.height = cH * dpr;
+    canvas.style.cssText = `width:${cW}px;height:${cH}px;display:block;max-width:100%`;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillRect(0, 0, cW, cH);
+
+    const rx = ML, ry = MT;
+
+    ctx.fillStyle = '#374151';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`← 膜寬 ${fw} cm →`, rx + FW_D / 2, ry - 10);
+
+    let curY = ry;
+    sections.forEach(sec => {
+      const secH = Math.max(4, Math.round(sec.lengthCm * SCALE));
+      ctx.fillStyle = sec.color;
+      ctx.fillRect(rx, curY, FW_D, secH);
+      ctx.strokeStyle = sec.border;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx + 0.5, curY + 0.5, FW_D - 1, secH - 1);
+
+      if (secH >= 18) {
+        const fs = Math.min(11, secH / 2.2);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = `bold ${fs}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`${sec.label}：${sec.w}×${sec.h}×${sec.qty}`, rx + FW_D / 2, curY + secH * 0.42 + fs / 2);
+        if (secH >= 36) {
+          ctx.font = `9px sans-serif`;
+          ctx.fillStyle = '#374151';
+          ctx.fillText(`${fmt(sec.lengthCm / 100, 2)} m`, rx + FW_D / 2, curY + secH * 0.72 + 5);
+        }
+      }
+
+      const mStr = fmt(sec.lengthCm / 100, 2);
+      ctx.fillStyle = sec.border;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${sec.label} ${mStr}m`, rx + FW_D + 5, curY + secH / 2 + 4);
+      curY += secH;
+    });
+
+    // 左側刻度線
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rx - 2, ry);
+    ctx.lineTo(rx - 2, curY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('0m', rx - 6, ry + 5);
+
+    const totalM = totalCm / 100;
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(totalM, 2) + 'm', rx - 6, curY + 4);
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(rx - 10, curY);
+    ctx.lineTo(rx + FW_D + 10, curY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(rx + 0.75, ry + 0.75, FW_D - 1.5, usedDispH - 1.5);
+
+    const rollsNeeded = Math.ceil(totalM / rollLengthM);
+    const sumText = rollsNeeded <= 1
+      ? `共需 ${fmt(totalM, 2)} 公尺（1 卷 ${rollLengthM}m 即可）`
+      : `共需 ${fmt(totalM, 2)} 公尺（需 ${rollsNeeded} 卷）`;
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(sumText, rx + FW_D / 2, curY + MB - 10);
+
+    return canvas;
+  }
+
+  function renderSimpleLayoutPanel(pieces) {
+    const panel = document.getElementById('splicePanel');
+    if (!pieces.length) { panel.innerHTML = ''; panel.style.display = 'none'; return; }
+
+    const sections = computeLayoutSections(pieces);
+    const totalCm  = sections.reduce((s, sec) => s + sec.lengthCm, 0);
+    const totalM   = totalCm / 100;
+    const rollsNeeded = Math.ceil(totalM / rollLengthM);
+    const modeLabel   = calcMode === 'no_loss' ? '不含損料' : '含損料';
+
+    let html = `<div class="splice-result">
+      <div class="sr-title">📐 排版圖（${modeLabel}）：需 <strong>&nbsp;${fmt(totalM, 2)}&nbsp;</strong> 公尺`;
+    html += rollsNeeded <= 1
+      ? ` <span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">1 卷 ${rollLengthM}m 即可</span>`
+      : ` <span style="font-size:11px;font-weight:400;color:#c2410c;margin-left:auto">需 ${rollsNeeded} 卷（每卷 ${rollLengthM}m）</span>`;
+    html += `</div>`;
+
+    sections.forEach(sec => {
+      const perInfo = calcMode === 'no_loss' ? `每行排 ${sec.perRow} 片` : '全幅';
+      html += `<div class="sr-strip">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <span style="width:12px;height:12px;background:${sec.color};border:1.5px solid ${sec.border};border-radius:3px;display:inline-block;flex-shrink:0"></span>
+          <strong>${sec.label}</strong>&nbsp;${sec.w}×${sec.h}cm × ${sec.qty}片
+        </span>
+        <span style="color:var(--gray-500)">${perInfo} → ${fmt(sec.lengthCm / 100, 2)} 公尺</span>
+      </div>`;
+    });
+
+    html += `
+      <div id="layoutDiagramWrap" style="overflow-x:auto;padding:4px 0;margin-top:4px"></div>
+      <button onclick="downloadLayoutDiagram()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:4px">⬇ 下載排版圖</button>
+    </div>`;
+
+    panel.innerHTML = html;
+    panel.style.display = '';
+
+    const canvas = drawSimpleLayoutCanvas(sections, filmWidth);
+    if (canvas) {
+      canvas.id = 'layoutCanvas';
+      document.getElementById('layoutDiagramWrap').appendChild(canvas);
+    }
+  }
+
+  function downloadLayoutDiagram() {
+    const canvas = document.getElementById('layoutCanvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = '排版圖.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
   }
 
   /* ── 拼料演算法（寬度精確排列） ── */
