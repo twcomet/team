@@ -7,99 +7,130 @@
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
-.calc-wrap {
-  max-width: 560px;
-}
+/* ── 隱藏 number 輸入的上下箭頭 ── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 
-.section-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--gray-400);
-  margin-bottom: 12px;
-}
+/* ── 內容最大寬度 ── */
+.calc-body { max-width: 620px; display: flex; flex-direction: column; gap: 16px; }
 
-/* 多筆明細 */
-.rows-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 32px;
+/* ── 膜料類型選擇 ── */
+.film-type-group {
+  display: flex;
   gap: 8px;
-  padding: 0 2px;
-  margin-bottom: 6px;
+  flex-wrap: wrap;
 }
-.rows-header span {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--gray-400);
-  text-align: center;
-}
-.rows-header span:last-child { visibility: hidden; }
-
-#rows-container {
+.film-btn {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 16px;
+  border: 2px solid var(--gray-200);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all .15s;
+  flex: 1;
+  min-width: 140px;
 }
+.film-btn:hover { border-color: var(--primary-light); background: var(--primary-bg); }
+.film-btn.active { border-color: var(--primary); background: var(--primary-bg); }
+.film-btn .film-name { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+.film-btn.active .film-name { color: var(--primary-dark); }
+.film-btn .film-width { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.film-btn.active .film-width { color: var(--primary); font-weight: 600; }
+
+/* ── 區塊標題 ── */
+.block-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+}
+
+/* ── 輸入明細表 ── */
+.table-card {
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.table-head {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.5fr 36px;
+  gap: 0;
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 0 12px;
+}
+.table-head span {
+  padding: 9px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  letter-spacing: .04em;
+}
+.table-head span:not(:first-child) { text-align: right; }
+
+.rows-list { display: flex; flex-direction: column; }
 
 .row-item {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 32px;
-  gap: 8px;
+  grid-template-columns: 2fr 1.2fr 1.5fr 36px;
   align-items: center;
+  padding: 6px 12px;
+  gap: 0;
+  border-bottom: 1px solid var(--gray-100);
 }
-
-.row-item .iw {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
+.row-item:last-child { border-bottom: none; }
 
 .row-item input {
   width: 100%;
-  padding: 8px 34px 8px 10px;
-  border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--gray-800);
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gray-900);
   outline: none;
-  transition: border-color 0.15s;
+  background: transparent;
+  transition: border-color .12s, background .12s;
   text-align: right;
-  background: #fff;
 }
-.row-item input:focus { border-color: var(--primary); }
-.row-item input[readonly] {
-  background: var(--gray-50);
+.row-item input:hover { border-color: var(--gray-200); background: var(--gray-50); }
+.row-item input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(255,0,128,.1); }
+.row-item input.sub-input {
   color: var(--primary-dark);
-  font-weight: 600;
+  font-weight: 700;
   cursor: default;
 }
+.row-item input.sub-input:hover,
+.row-item input.sub-input:focus { border-color: transparent; background: transparent; box-shadow: none; }
 
-.row-unit {
-  position: absolute;
-  right: 8px;
-  font-size: 10px;
-  color: var(--gray-400);
-  pointer-events: none;
-}
+.row-item .cell { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.row-item .cell:first-child { justify-content: flex-start; }
+.row-item .cell-unit { font-size: 11px; color: var(--gray-400); white-space: nowrap; flex-shrink: 0; }
 
 .del-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #fca5a5;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 6px;
+  background: transparent;
   color: #ef4444;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
-  flex-shrink: 0;
+  transition: background .12s;
+  margin: auto;
 }
 .del-btn:hover { background: #fef2f2; }
-.del-btn:disabled { opacity: 0.25; cursor: default; }
+.del-btn:disabled { opacity: .2; cursor: default; }
 
 .add-row-btn {
   display: flex;
@@ -107,124 +138,87 @@
   justify-content: center;
   gap: 6px;
   width: 100%;
-  padding: 9px;
-  border: 1.5px dashed var(--gray-300);
-  border-radius: 8px;
+  padding: 10px;
+  border: none;
+  border-top: 1px dashed var(--gray-200);
   background: var(--gray-50);
   color: var(--primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  margin-top: 4px;
+  transition: background .12s;
 }
-.add-row-btn:hover { background: #fdf0f8; border-color: var(--primary); }
+.add-row-btn:hover { background: var(--primary-bg); }
 
-/* 摘要 */
-.summary-grid {
+/* ── 合計欄 ── */
+.summary-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.summary-box {
-  background: var(--gray-50);
+.sum-box {
+  background: #fff;
   border: 1px solid var(--gray-200);
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 14px 18px;
 }
-.summary-box .s-label {
-  font-size: 12px;
-  color: var(--gray-400);
-  margin-bottom: 4px;
-}
-.summary-box .s-val {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--primary-dark);
-}
-.summary-box .s-unit {
-  font-size: 12px;
-  color: var(--gray-400);
-  margin-left: 3px;
-}
+.sum-box .s-label { font-size: 12px; color: var(--gray-500); margin-bottom: 6px; }
+.sum-box .s-val { font-size: 26px; font-weight: 700; color: var(--primary-dark); line-height: 1; }
+.sum-box .s-unit { font-size: 13px; color: var(--gray-500); margin-left: 4px; }
 
-/* 報價輸入 */
-.price-row {
+/* ── 報價輸入 ── */
+.price-field {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.price-row label {
-  font-size: 14px;
-  color: var(--gray-600);
-  font-weight: 500;
-  flex: 0 0 120px;
-}
-.price-row .iw {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.price-row input {
-  width: 100%;
-  padding: 10px 52px 10px 14px;
-  border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  font-size: 15px;
-  color: var(--gray-800);
-  outline: none;
-  transition: border-color 0.15s;
   background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 12px 18px;
 }
-.price-row input:focus { border-color: var(--primary); }
-.price-unit {
-  position: absolute;
-  right: 12px;
-  font-size: 11px;
-  color: var(--gray-400);
-  pointer-events: none;
+.price-field label { font-size: 14px; color: var(--gray-700); font-weight: 500; flex: 0 0 130px; }
+.price-field .price-iw { flex: 1; position: relative; display: flex; align-items: center; }
+.price-field input {
+  width: 100%;
+  padding: 9px 46px 9px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-900);
+  outline: none;
+  transition: border-color .12s;
+  text-align: right;
 }
+.price-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,0,128,.1); }
+.price-field .p-unit { position: absolute; right: 12px; font-size: 12px; color: var(--gray-400); pointer-events: none; }
 
-/* 結果區塊 */
+/* ── 結果卡片 ── */
 .result-card {
   border-radius: 12px;
   padding: 18px 22px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
 }
-.result-card.primary {
-  background: var(--primary);
-  color: #fff;
-}
-.result-card.discount {
-  background: #7c3aed;
-  color: #fff;
-}
-.result-card .r-label {
-  font-size: 14px;
-  font-weight: 600;
-  opacity: 0.8;
-}
-.result-card .r-val {
-  font-size: 1.9rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
+.result-card.pink { background: var(--primary); }
+.result-card.purple { background: #7c3aed; }
+.result-card .rc-label { font-size: 14px; font-weight: 600; color: rgba(255,255,255,.8); }
+.result-card .rc-val { font-size: 2rem; font-weight: 700; color: #fff; letter-spacing: -.02em; }
 
-/* 折扣區 */
-.discount-box {
+/* ── 折扣區 ── */
+.discount-wrap {
   background: #faf5ff;
-  border: 1px solid #ddd6fe;
+  border: 1px solid #e9d5ff;
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
-.discount-box .section-label { color: #7c3aed; margin-bottom: 0; }
+.discount-wrap .block-label { color: #7c3aed; margin-bottom: 0; }
 
+/* ── 重置按鈕 ── */
 .reset-btn {
   width: 100%;
   padding: 11px;
@@ -235,20 +229,15 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background .12s;
 }
-.reset-btn:hover { background: var(--gray-50); color: var(--gray-700); }
+.reset-btn:hover { background: var(--gray-100); color: var(--gray-700); }
 
 .formula-note {
   font-size: 11px;
   color: var(--gray-400);
   text-align: center;
-  line-height: 1.8;
-}
-
-hr.calc-divider {
-  border: none;
-  border-top: 1px solid var(--gray-100);
+  line-height: 1.9;
 }
 </style>
 </head>
@@ -283,120 +272,141 @@ hr.calc-divider {
     </div>
   </aside>
 
-  <main class="main-content">
-    <div class="page-header">
-      <h1>🧮 快速報價</h1>
-      <p class="page-subtitle">膜料材數計算 · 寬度固定 122 公分</p>
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">🧮 快速報價</span>
     </div>
+    <div class="page-body">
+      <div class="calc-body">
 
-    <div class="card calc-wrap">
-      <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
-
-        <!-- 多筆明細 -->
+        <!-- 1. 膜料類型 -->
         <div>
-          <div class="section-label">材料明細</div>
-          <div class="rows-header">
-            <span>長度（公尺）</span>
-            <span>數量（條）</span>
-            <span>小計（公尺）</span>
-            <span></span>
-          </div>
-          <div id="rows-container"></div>
-          <button class="add-row-btn" onclick="addRow()">＋ 新增一筆</button>
-        </div>
-
-        <hr class="calc-divider" />
-
-        <!-- 合計 -->
-        <div>
-          <div class="section-label">合計</div>
-          <div class="summary-grid">
-            <div class="summary-box">
-              <div class="s-label">總米數</div>
-              <div><span class="s-val" id="totalMeters">—</span><span class="s-unit" id="totalMetersUnit"></span></div>
-            </div>
-            <div class="summary-box">
-              <div class="s-label">總才數</div>
-              <div><span class="s-val" id="totalCai">—</span><span class="s-unit" id="totalCaiUnit"></span></div>
-            </div>
+          <div class="block-label">膜料類型</div>
+          <div class="film-type-group">
+            <button class="film-btn active" data-width="122" onclick="selectFilm(this)">
+              <span class="film-name">裝潢膜</span>
+              <span class="film-width">寬度 122 公分</span>
+            </button>
+            <button class="film-btn" data-width="150" onclick="selectFilm(this)">
+              <span class="film-name">防爆玻璃膜</span>
+              <span class="film-width">寬度 150 公分</span>
+            </button>
+            <button class="film-btn" data-width="152" onclick="selectFilm(this)">
+              <span class="film-name">隔熱紙</span>
+              <span class="film-width">寬度 152 公分</span>
+            </button>
           </div>
         </div>
 
-        <hr class="calc-divider" />
-
-        <!-- 報價 -->
+        <!-- 2. 材料明細 -->
         <div>
-          <div class="section-label">報價</div>
-          <div class="price-row">
-            <label>連工帶料單價</label>
-            <div class="iw">
-              <input type="number" id="unitPrice" placeholder="0" min="0" step="1" oninput="calculate()" />
-              <span class="price-unit">元／才</span>
+          <div class="block-label">材料明細</div>
+          <div class="table-card">
+            <div class="table-head">
+              <span>長度</span>
+              <span>數量</span>
+              <span>小計</span>
+              <span></span>
             </div>
+            <div class="rows-list" id="rowsList"></div>
+            <button class="add-row-btn" onclick="addRow()">＋ 新增一筆</button>
           </div>
         </div>
 
-        <!-- 總價 -->
-        <div class="result-card primary">
-          <span class="r-label">總價</span>
-          <span class="r-val" id="totalPrice">—</span>
+        <!-- 3. 合計 -->
+        <div class="summary-row">
+          <div class="sum-box">
+            <div class="s-label">總米數</div>
+            <div><span class="s-val" id="totalMeters">—</span><span class="s-unit" id="totalMetersUnit"></span></div>
+          </div>
+          <div class="sum-box">
+            <div class="s-label">總才數</div>
+            <div><span class="s-val" id="totalCai">—</span><span class="s-unit" id="totalCaiUnit"></span></div>
+          </div>
         </div>
 
-        <!-- 折扣 -->
-        <div class="discount-box">
-          <div class="section-label">行銷優惠折扣</div>
-          <div class="price-row">
+        <!-- 4. 報價 -->
+        <div class="price-field">
+          <label>連工帶料單價</label>
+          <div class="price-iw">
+            <input type="number" id="unitPrice" placeholder="0" min="0" step="1" oninput="calculate()" />
+            <span class="p-unit">元／才</span>
+          </div>
+        </div>
+
+        <!-- 5. 總價 -->
+        <div class="result-card pink">
+          <span class="rc-label">總價</span>
+          <span class="rc-val" id="totalPrice">—</span>
+        </div>
+
+        <!-- 6. 折扣 -->
+        <div class="discount-wrap">
+          <div class="block-label">行銷優惠折扣</div>
+          <div class="price-field" style="border:none;padding:0;background:transparent;">
             <label style="color:#7c3aed">折數</label>
-            <div class="iw">
+            <div class="price-iw">
               <input type="number" id="discount" placeholder="例：8" min="0" max="10" step="0.1" oninput="calculate()" />
-              <span class="price-unit">折</span>
+              <span class="p-unit">折</span>
             </div>
           </div>
-          <div class="result-card discount">
-            <span class="r-label">優惠價</span>
-            <span class="r-val" id="discountPrice">—</span>
+          <div class="result-card purple">
+            <span class="rc-label">優惠價</span>
+            <span class="rc-val" id="discountPrice">—</span>
           </div>
         </div>
 
         <button class="reset-btn" onclick="resetAll()">清除全部</button>
 
-        <p class="formula-note">
-          每筆小計 = 長度 × 數量 &nbsp;｜&nbsp; 才數 = 122 × (總米數 × 100) ÷ 900<br />
-          總價 = 才數 × 單價 &nbsp;｜&nbsp; 優惠價 = 總價 × 折數 ÷ 10
+        <p class="formula-note" id="formulaNote">
+          才數 = 寬度(cm) × 總米數(cm) ÷ 900 &nbsp;｜&nbsp; 總價 = 才數 × 單價
         </p>
 
       </div>
     </div>
-  </main>
+  </div>
 </div>
 
 <script src="/js/common.js"></script>
 <script>
   let rowCount = 0;
+  let filmWidth = 122;
+
+  const FILMS = [
+    { name: '裝潢膜',    width: 122 },
+    { name: '防爆玻璃膜', width: 150 },
+    { name: '隔熱紙',   width: 152 },
+  ];
+
+  function selectFilm(btn) {
+    document.querySelectorAll('.film-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filmWidth = parseInt(btn.dataset.width);
+    calculate();
+  }
 
   function addRow() {
     rowCount++;
     const id = rowCount;
-    const container = document.getElementById('rows-container');
     const row = document.createElement('div');
     row.className = 'row-item';
     row.dataset.id = id;
     row.innerHTML = `
-      <div class="iw">
-        <input type="number" class="length-input" placeholder="0" min="0" step="any" oninput="onRowInput(${id})" />
-        <span class="row-unit">m</span>
+      <div class="cell">
+        <input type="number" class="length-input" placeholder="公尺" min="0" step="any" oninput="onRowInput(${id})" />
+        <span class="cell-unit">m</span>
       </div>
-      <div class="iw">
-        <input type="number" class="qty-input" placeholder="0" min="0" step="1" oninput="onRowInput(${id})" />
-        <span class="row-unit">條</span>
+      <div class="cell">
+        <input type="number" class="qty-input" placeholder="條" min="0" step="1" oninput="onRowInput(${id})" />
+        <span class="cell-unit">條</span>
       </div>
-      <div class="iw">
+      <div class="cell">
         <input type="text" class="sub-input" readonly placeholder="—" />
-        <span class="row-unit">m</span>
+        <span class="cell-unit">m</span>
       </div>
       <button class="del-btn" onclick="deleteRow(${id})" title="刪除">×</button>
     `;
-    container.appendChild(row);
+    document.getElementById('rowsList').appendChild(row);
     updateDelBtns();
     row.querySelector('.length-input').focus();
   }
@@ -421,8 +431,7 @@ hr.calc-divider {
   }
 
   function calculate() {
-    let totalMeters = 0;
-    let hasAny = false;
+    let totalMeters = 0, hasAny = false;
     document.querySelectorAll('.row-item').forEach(row => {
       const len = parseFloat(row.querySelector('.length-input').value) || 0;
       const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
@@ -430,39 +439,28 @@ hr.calc-divider {
       totalMeters += len * qty;
     });
 
-    const totalCai = 122 * (totalMeters * 100) / 900;
-    const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const totalCai   = filmWidth * (totalMeters * 100) / 900;
+    const unitPrice  = parseFloat(document.getElementById('unitPrice').value) || 0;
     const totalPrice = totalCai * unitPrice;
 
-    const mEl = document.getElementById('totalMeters');
-    const muEl = document.getElementById('totalMetersUnit');
-    const cEl = document.getElementById('totalCai');
-    const cuEl = document.getElementById('totalCaiUnit');
-
-    if (hasAny) {
-      mEl.textContent = fmt(totalMeters, 2); muEl.textContent = ' 公尺';
-      cEl.textContent = fmt(totalCai, 2);    cuEl.textContent = ' 才';
-    } else {
-      mEl.textContent = '—'; muEl.textContent = '';
-      cEl.textContent = '—'; cuEl.textContent = '';
-    }
+    document.getElementById('totalMeters').textContent   = hasAny ? fmt(totalMeters, 2) : '—';
+    document.getElementById('totalMetersUnit').textContent = hasAny ? ' 公尺' : '';
+    document.getElementById('totalCai').textContent      = hasAny ? fmt(totalCai, 2) : '—';
+    document.getElementById('totalCaiUnit').textContent  = hasAny ? ' 才' : '';
 
     const pEl = document.getElementById('totalPrice');
-    if (totalPrice > 0) {
-      pEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice), 0);
-    } else if (hasAny && !unitPrice) {
-      pEl.textContent = '請輸入單價';
-    } else {
-      pEl.textContent = '—';
-    }
+    if (totalPrice > 0)           pEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice), 0);
+    else if (hasAny && !unitPrice) pEl.textContent = '請輸入單價';
+    else                           pEl.textContent = '—';
 
-    const discVal = parseFloat(document.getElementById('discount').value);
+    const disc = parseFloat(document.getElementById('discount').value);
     const dpEl = document.getElementById('discountPrice');
-    if (totalPrice > 0 && !isNaN(discVal) && discVal > 0) {
-      dpEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice * discVal / 10), 0);
-    } else {
-      dpEl.textContent = '—';
-    }
+    dpEl.textContent = (totalPrice > 0 && disc > 0)
+      ? 'NT$ ' + fmt(Math.round(totalPrice * disc / 10), 0)
+      : '—';
+
+    document.getElementById('formulaNote').textContent =
+      `才數 = ${filmWidth}cm × 總米數(cm) ÷ 900　｜　總價 = 才數 × 單價`;
   }
 
   function fmt(n, dec) {
@@ -470,7 +468,7 @@ hr.calc-divider {
   }
 
   function resetAll() {
-    document.getElementById('rows-container').innerHTML = '';
+    document.getElementById('rowsList').innerHTML = '';
     document.getElementById('unitPrice').value = '';
     document.getElementById('discount').value = '';
     rowCount = 0;
