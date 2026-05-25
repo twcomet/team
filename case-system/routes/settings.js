@@ -3,7 +3,7 @@ const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
-const ALLOWED_KEYS = ['push_mode', 'gcal_ical_url'];
+const ALLOWED_KEYS = ['push_mode', 'gcal_ical_url', 'gcal_ical_urls'];
 
 router.get('/', requireAuth, (req, res) => {
   const rows = db.prepare(`SELECT key, value FROM settings WHERE key IN (${ALLOWED_KEYS.map(()=>'?').join(',')})`).all(...ALLOWED_KEYS);

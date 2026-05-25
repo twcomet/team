@@ -5,47 +5,63 @@ const { requireAuth } = require('../middleware/auth');
 const router  = express.Router();
 
 // iCal 快取（15 分鐘 TTL，避免頻繁拉 Google）
-let icalCache = { events: [], fetchedAt: 0 };
+let icalCache = { events: [], fetchedAt: 0, urlsKey: '' };
 const CACHE_TTL = 15 * 60 * 1000;
 
+function getConfiguredUrls() {
+  const multi  = db.prepare(`SELECT value FROM settings WHERE key='gcal_ical_urls'`).get();
+  const single = db.prepare(`SELECT value FROM settings WHERE key='gcal_ical_url'`).get();
+  let urls = [];
+  if (multi?.value) {
+    try { urls = JSON.parse(multi.value).filter(Boolean); } catch {}
+  }
+  // 向下相容：舊的單一 URL 若不在清單裡就補進來
+  if (single?.value && !urls.includes(single.value)) urls.push(single.value);
+  return urls;
+}
+
 async function fetchGCalEvents() {
-  const now = Date.now();
-  if (now - icalCache.fetchedAt < CACHE_TTL) return icalCache.events;
+  const now  = Date.now();
+  const urls = getConfiguredUrls();
+  if (!urls.length) return [];
 
-  const setting = db.prepare(`SELECT value FROM settings WHERE key='gcal_ical_url'`).get();
-  if (!setting?.value) return [];
+  const urlsKey = urls.join('|');
+  if (now - icalCache.fetchedAt < CACHE_TTL && icalCache.urlsKey === urlsKey) {
+    return icalCache.events;
+  }
 
-  try {
-    const raw = await ical.async.fromURL(setting.value);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const limit = new Date(today); limit.setDate(limit.getDate() + 90);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const limit = new Date(today); limit.setDate(limit.getDate() + 90);
 
-    const events = Object.values(raw)
+  const parseEvents = raw =>
+    Object.values(raw)
       .filter(e => e.type === 'VEVENT' && e.start)
       .map(e => {
         const start = e.start instanceof Date ? e.start : new Date(e.start);
         const end   = e.end   instanceof Date ? e.end   : (e.end ? new Date(e.end) : start);
         return {
-          id:      e.uid,
-          title:   e.summary  || '(公告)',
-          note:    e.description || '',
-          date:    start.toISOString().slice(0, 10),
-          end_date:end.toISOString().slice(0, 10),
-          source:  'gcal',
+          id:       e.uid,
+          title:    e.summary     || '(公告)',
+          note:     e.description || '',
+          date:     start.toISOString().slice(0, 10),
+          end_date: end.toISOString().slice(0, 10),
+          source:   'gcal',
         };
       })
-      .filter(e => {
-        const d = new Date(e.date);
-        return d >= today && d <= limit;
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .filter(e => { const d = new Date(e.date); return d >= today && d <= limit; });
 
-    icalCache = { events, fetchedAt: now };
-    return events;
-  } catch {
-    return icalCache.events; // 失敗回傳上次快取
-  }
+  const results = await Promise.allSettled(urls.map(url => ical.async.fromURL(url)));
+
+  const seen = new Set();
+  const events = results
+    .filter(r => r.status === 'fulfilled')
+    .flatMap(r => parseEvents(r.value))
+    .filter(e => !seen.has(e.id) && seen.add(e.id))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  icalCache = { events, fetchedAt: now, urlsKey };
+  return events;
 }
 
 // GET /api/my-calendar?year=&month=

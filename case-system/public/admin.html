@@ -129,17 +129,18 @@
 
       <!-- 行事曆公告設定（owner only） -->
       <div class="card" id="gcalCard" data-need="owner" style="display:none">
-        <div class="card-header"><h3>行事曆公告設定</h3></div>
+        <div class="card-header">
+          <h3>行事曆公告設定</h3>
+          <button class="btn btn-ghost btn-sm" id="gcalAddBtn">＋ 新增行事曆</button>
+        </div>
         <div class="card-body">
-          <div style="font-size:13px;color:var(--gray-600);margin-bottom:10px">
-            填入 Google 行事曆的 iCal 連結，所有人員的「我的行事曆」將顯示公告事件（橘色）。<br>
+          <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px">
+            填入 Google 行事曆的 iCal 連結，所有人員的「我的行事曆」將顯示公告事件（橘色）。可追蹤多個行事曆。<br>
             <span style="font-size:12px;color:var(--gray-400)">取得方式：Google 日曆 → 設定 → 選擇日曆 → 整合日曆 → 「行事曆的公開網址 (iCal 格式)」</span>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="url" id="gcalIcalUrl" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
-              style="flex:1;min-width:260px;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-            <button class="btn btn-primary btn-sm" id="gcalSaveBtn">儲存</button>
-            <button class="btn btn-sm" id="gcalClearBtn" style="border:1px solid var(--gray-300);background:none;color:var(--gray-600)">清除</button>
+          <div id="gcalUrlList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-primary btn-sm" id="gcalSaveBtn">儲存全部</button>
           </div>
           <div id="gcalStatus" style="font-size:12px;margin-top:6px;color:var(--gray-400)"></div>
         </div>
@@ -492,38 +493,65 @@ async function loadPushMode() {
   });
 }
 
+let gcalUrls = [];
+
+function renderGcalUrls() {
+  const list = document.getElementById('gcalUrlList');
+  if (!gcalUrls.length) gcalUrls = [''];
+  list.innerHTML = gcalUrls.map((url, i) => `
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="url" class="gcal-url-input" data-idx="${i}" value="${url.replace(/"/g,'&quot;')}"
+        placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"
+        style="flex:1;min-width:260px;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+      <button class="gcal-del-btn" data-idx="${i}"
+        style="border:1px solid #fca5a5;background:none;color:#dc2626;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:14px">✕</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.gcal-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      gcalUrls.splice(Number(btn.dataset.idx), 1);
+      if (!gcalUrls.length) gcalUrls = [''];
+      renderGcalUrls();
+    });
+  });
+}
+
 async function loadGcalSetting() {
   const res = await fetch('/api/settings');
   if (!res.ok) return;
   const s = await res.json();
-  const input = document.getElementById('gcalIcalUrl');
   const status = document.getElementById('gcalStatus');
-  if (s.gcal_ical_url) {
-    input.value = s.gcal_ical_url;
-    status.textContent = '已設定';
-    status.style.color = '#057a55';
+
+  if (s.gcal_ical_urls) {
+    try { gcalUrls = JSON.parse(s.gcal_ical_urls).filter(Boolean); } catch { gcalUrls = []; }
+  } else if (s.gcal_ical_url) {
+    gcalUrls = [s.gcal_ical_url];
   }
-  document.getElementById('gcalSaveBtn').addEventListener('click', async () => {
-    const url = input.value.trim();
-    await fetch('/api/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gcal_ical_url: url }),
-    });
-    status.textContent = url ? '已儲存' : '已清除';
-    status.style.color = '#057a55';
-    showToast('行事曆 iCal 連結已更新');
+  if (!gcalUrls.length) gcalUrls = [''];
+  renderGcalUrls();
+
+  const count = gcalUrls.filter(Boolean).length;
+  if (count) { status.textContent = `已設定 ${count} 個行事曆`; status.style.color = '#057a55'; }
+
+  document.getElementById('gcalAddBtn').addEventListener('click', () => {
+    const inputs = document.querySelectorAll('.gcal-url-input');
+    inputs.forEach(inp => { gcalUrls[Number(inp.dataset.idx)] = inp.value.trim(); });
+    gcalUrls.push('');
+    renderGcalUrls();
   });
-  document.getElementById('gcalClearBtn').addEventListener('click', async () => {
-    input.value = '';
+
+  document.getElementById('gcalSaveBtn').addEventListener('click', async () => {
+    const inputs = document.querySelectorAll('.gcal-url-input');
+    inputs.forEach(inp => { gcalUrls[Number(inp.dataset.idx)] = inp.value.trim(); });
+    const urls = gcalUrls.filter(Boolean);
     await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gcal_ical_url: '' }),
+      body: JSON.stringify({ gcal_ical_urls: JSON.stringify(urls) }),
     });
-    status.textContent = '已清除';
-    status.style.color = 'var(--gray-400)';
-    showToast('已清除 iCal 連結');
+    status.textContent = `已儲存 ${urls.length} 個行事曆`;
+    status.style.color = '#057a55';
+    showToast('行事曆設定已儲存');
   });
 }
 
