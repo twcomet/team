@@ -134,11 +134,21 @@ router.get('/sign/:token', (req, res) => {
   res.json(form);
 });
 
-// PATCH /api/survey/cases/:id/fee  → 更新場勘費 & 是否已收
+// PATCH /api/survey/cases/:id/fee  → 更新場勘費相關欄位
 router.patch('/cases/:id/fee', requireAuth, (req, res) => {
-  const { survey_fee, survey_fee_paid } = req.body;
-  db.prepare(`UPDATE cases SET survey_fee=?, survey_fee_paid=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(survey_fee ?? null, survey_fee_paid ? 1 : 0, req.params.id);
+  const { survey_fee, survey_fee_paid, survey_fee_required, survey_fee_waive_note, survey_fee_actual } = req.body;
+  db.prepare(`UPDATE cases SET
+    survey_fee=?, survey_fee_paid=?,
+    survey_fee_required=?, survey_fee_waive_note=?, survey_fee_actual=?,
+    updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(
+      survey_fee ?? null,
+      survey_fee_paid ? 1 : 0,
+      survey_fee_required ?? null,
+      survey_fee_waive_note || null,
+      survey_fee_actual ?? null,
+      req.params.id
+    );
   res.json({ ok: true });
 });
 

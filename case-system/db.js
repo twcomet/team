@@ -283,7 +283,10 @@ if (!_hasDispatch) {
   db.exec(`UPDATE users SET accept_dispatch = 1
     WHERE role IN ('hq_tech','branch_tech','contractor_install','contractor_sales')`);
 }
-_addCol('cases',     'survey_fee_paid',   'INTEGER DEFAULT 0');
+_addCol('cases',     'survey_fee_paid',       'INTEGER DEFAULT 0');
+_addCol('cases',     'survey_fee_required',   'INTEGER');  // 1=需收, 0=不需收, NULL=未設定
+_addCol('cases',     'survey_fee_waive_note', 'TEXT');     // 不需收原因
+_addCol('cases',     'survey_fee_actual',     'REAL');     // 師傅實收金額
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');
 _addCol('cases',     'outsource_cost',    'REAL');

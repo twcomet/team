@@ -471,14 +471,6 @@
             <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
           </div>
           <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
-          <div style="display:flex;gap:16px;align-items:center;margin-top:4px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px;font-size:14px">
-              場勘費 $<input type="number" id="sf_fee" placeholder="0" min="0" style="width:100px;padding:5px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
-            </div>
-            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-              <input type="checkbox" id="sf_fee_paid"> 已收取場勘費
-            </label>
-          </div>
         </div>
 
         <!-- 場勘項目 -->
@@ -515,6 +507,74 @@
           <div class="form-group"><label>拍照紀錄說明</label><textarea id="sf_photos" rows="2" placeholder="照片拍攝位置、特殊狀況紀錄…"></textarea></div>
           <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
         </div>
+        <!-- 💴 場勘費 -->
+        <div class="sf-tab-section" style="border:2px solid #fbbf24">
+          <h4 class="sf-tab-title" style="font-size:18px;font-weight:800;color:#92400e;margin-bottom:18px;display:flex;align-items:center;gap:8px">
+            💴 場勘費
+          </h4>
+
+          <!-- 客服填寫區 -->
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:#92400e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">客服填寫區</div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:14px;font-weight:600;color:var(--gray-700);white-space:nowrap">預設金額</label>
+                <span style="font-size:16px;color:var(--gray-500)">$</span>
+                <input type="number" id="sf_fee" placeholder="0" min="0"
+                  style="width:110px;padding:7px 10px;border:1px solid #fcd34d;border-radius:8px;font-size:18px;font-weight:700;background:#fff">
+                <span style="font-size:14px;color:var(--gray-500)">元</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label id="sf_req_yes_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
+                  <input type="radio" name="sf_fee_required" id="sf_req_yes" value="1" onchange="sf_onFeeRequiredChange()"> 需收場勘費
+                </label>
+                <label id="sf_req_no_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
+                  <input type="radio" name="sf_fee_required" id="sf_req_no" value="0" onchange="sf_onFeeRequiredChange()"> 不需收場勘費
+                </label>
+              </div>
+            </div>
+            <div id="sf_waiveNoteWrap" style="display:none">
+              <div class="form-group" style="margin:0">
+                <label>不需收原因（選填）</label>
+                <input type="text" id="sf_fee_waive_note" placeholder="例：已包含在報價中、客戶舊友優惠…">
+              </div>
+            </div>
+          </div>
+
+          <!-- 師傅回報區 -->
+          <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:16px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-500);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">師傅回報區</div>
+            <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">
+              <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;cursor:pointer">
+                <input type="checkbox" id="sf_fee_paid" style="width:17px;height:17px;accent-color:var(--primary)"> 已收場勘費
+              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px;color:var(--gray-600)">實收金額</span>
+                <span style="font-size:15px;color:var(--gray-500)">$</span>
+                <input type="number" id="sf_fee_actual" placeholder="請輸入實收金額" min="0"
+                  style="width:160px;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:15px;font-weight:600;background:#fff">
+                <span style="font-size:14px;color:var(--gray-500)">元</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 客戶簽收欄（列印用） -->
+          <div style="border:2px dashed #d1d5db;border-radius:8px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--gray-600);margin-bottom:14px">場勘費簽收欄</div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap">
+              <div style="flex:1;min-width:180px">
+                <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">客戶簽名</div>
+                <div style="height:56px;border-bottom:1.5px solid var(--gray-400)"></div>
+              </div>
+              <div style="flex:1;min-width:180px">
+                <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">簽收日期</div>
+                <div style="height:56px;border-bottom:1.5px solid var(--gray-400)"></div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:10px">以上欄位由客戶親簽確認，師傅留存副本</div>
+          </div>
+        </div>
+
         <!-- 操作按鈕 -->
         <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" id="sf_saveBtn">儲存場勘單</button>
@@ -1678,8 +1738,16 @@ async function loadSurveyTab() {
   document.getElementById('sf_contact').value  = caseData.client_name || '';
   document.getElementById('sf_phone').value    = caseData.client_phone || '';
   document.getElementById('sf_date').value     = new Date().toISOString().split('T')[0];
-  document.getElementById('sf_fee').value      = caseData.survey_fee != null ? caseData.survey_fee : '';
-  document.getElementById('sf_fee_paid').checked = !!caseData.survey_fee_paid;
+  document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
+  document.getElementById('sf_fee_paid').checked  = !!caseData.survey_fee_paid;
+  document.getElementById('sf_fee_actual').value  = caseData.survey_fee_actual != null ? caseData.survey_fee_actual : '';
+  if (caseData.survey_fee_required === 1) {
+    document.getElementById('sf_req_yes').checked = true;
+  } else if (caseData.survey_fee_required === 0) {
+    document.getElementById('sf_req_no').checked = true;
+  }
+  if (caseData.survey_fee_waive_note) document.getElementById('sf_fee_waive_note').value = caseData.survey_fee_waive_note;
+  sf_onFeeRequiredChange();
   sel.value = currentUser.id;
 
   // 客戶資訊快覽列
@@ -1734,6 +1802,18 @@ async function loadSurveyTab() {
     if (!cat) return;
     sf_addChecklistCategory(cat);
   });
+}
+
+function sf_onFeeRequiredChange() {
+  const required = document.getElementById('sf_req_yes').checked;
+  const notRequired = document.getElementById('sf_req_no').checked;
+  document.getElementById('sf_waiveNoteWrap').style.display = notRequired ? '' : 'none';
+  const yesLbl = document.getElementById('sf_req_yes_label');
+  const noLbl  = document.getElementById('sf_req_no_label');
+  yesLbl.style.borderColor = required ? 'var(--primary)' : 'var(--gray-200)';
+  yesLbl.style.background  = required ? 'var(--primary-bg)' : '#fff';
+  noLbl.style.borderColor  = notRequired ? '#f97316' : 'var(--gray-200)';
+  noLbl.style.background   = notRequired ? '#fff7ed' : '#fff';
 }
 
 function sf_renderNoteTemplates(q) {
@@ -1933,8 +2013,11 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
   await fetch(`/api/survey/cases/${caseId}/fee`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      survey_fee:      parseFloat(document.getElementById('sf_fee').value) || null,
-      survey_fee_paid: document.getElementById('sf_fee_paid').checked,
+      survey_fee:            parseFloat(document.getElementById('sf_fee').value) || null,
+      survey_fee_paid:       document.getElementById('sf_fee_paid').checked,
+      survey_fee_required:   document.getElementById('sf_req_yes').checked ? 1 : document.getElementById('sf_req_no').checked ? 0 : null,
+      survey_fee_waive_note: document.getElementById('sf_fee_waive_note').value || null,
+      survey_fee_actual:     parseFloat(document.getElementById('sf_fee_actual').value) || null,
     })
   });
 
