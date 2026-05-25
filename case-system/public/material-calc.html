@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>快速報價 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.calc-wrap {
+  max-width: 560px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-400);
+  margin-bottom: 12px;
+}
+
+/* 多筆明細 */
+.rows-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 32px;
+  gap: 8px;
+  padding: 0 2px;
+  margin-bottom: 6px;
+}
+.rows-header span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-400);
+  text-align: center;
+}
+.rows-header span:last-child { visibility: hidden; }
+
+#rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.row-item .iw {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.row-item input {
+  width: 100%;
+  padding: 8px 34px 8px 10px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--gray-800);
+  outline: none;
+  transition: border-color 0.15s;
+  text-align: right;
+  background: #fff;
+}
+.row-item input:focus { border-color: var(--primary); }
+.row-item input[readonly] {
+  background: var(--gray-50);
+  color: var(--primary-dark);
+  font-weight: 600;
+  cursor: default;
+}
+
+.row-unit {
+  position: absolute;
+  right: 8px;
+  font-size: 10px;
+  color: var(--gray-400);
+  pointer-events: none;
+}
+
+.del-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fff;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.del-btn:hover { background: #fef2f2; }
+.del-btn:disabled { opacity: 0.25; cursor: default; }
+
+.add-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: 8px;
+  background: var(--gray-50);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-top: 4px;
+}
+.add-row-btn:hover { background: #fdf0f8; border-color: var(--primary); }
+
+/* 摘要 */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.summary-box {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.summary-box .s-label {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-bottom: 4px;
+}
+.summary-box .s-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.summary-box .s-unit {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-left: 3px;
+}
+
+/* 報價輸入 */
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.price-row label {
+  font-size: 14px;
+  color: var(--gray-600);
+  font-weight: 500;
+  flex: 0 0 120px;
+}
+.price-row .iw {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.price-row input {
+  width: 100%;
+  padding: 10px 52px 10px 14px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--gray-800);
+  outline: none;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+.price-row input:focus { border-color: var(--primary); }
+.price-unit {
+  position: absolute;
+  right: 12px;
+  font-size: 11px;
+  color: var(--gray-400);
+  pointer-events: none;
+}
+
+/* 結果區塊 */
+.result-card {
+  border-radius: 12px;
+  padding: 18px 22px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.result-card.primary {
+  background: var(--primary);
+  color: #fff;
+}
+.result-card.discount {
+  background: #7c3aed;
+  color: #fff;
+}
+.result-card .r-label {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.result-card .r-val {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* 折扣區 */
+.discount-box {
+  background: #faf5ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.discount-box .section-label { color: #7c3aed; margin-bottom: 0; }
+
+.reset-btn {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--gray-500);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.reset-btn:hover { background: var(--gray-50); color: var(--gray-700); }
+
+.formula-note {
+  font-size: 11px;
+  color: var(--gray-400);
+  text-align: center;
+  line-height: 1.8;
+}
+
+hr.calc-divider {
+  border: none;
+  border-top: 1px solid var(--gray-100);
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+      <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" onclick="logout()">登出</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>🧮 快速報價</h1>
+      <p class="page-subtitle">膜料材數計算 · 寬度固定 122 公分</p>
+    </div>
+
+    <div class="card calc-wrap">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- 多筆明細 -->
+        <div>
+          <div class="section-label">材料明細</div>
+          <div class="rows-header">
+            <span>長度（公尺）</span>
+            <span>數量（條）</span>
+            <span>小計（公尺）</span>
+            <span></span>
+          </div>
+          <div id="rows-container"></div>
+          <button class="add-row-btn" onclick="addRow()">＋ 新增一筆</button>
+        </div>
+
+        <hr class="calc-divider" />
+
+        <!-- 合計 -->
+        <div>
+          <div class="section-label">合計</div>
+          <div class="summary-grid">
+            <div class="summary-box">
+              <div class="s-label">總米數</div>
+              <div><span class="s-val" id="totalMeters">—</span><span class="s-unit" id="totalMetersUnit"></span></div>
+            </div>
+            <div class="summary-box">
+              <div class="s-label">總才數</div>
+              <div><span class="s-val" id="totalCai">—</span><span class="s-unit" id="totalCaiUnit"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="calc-divider" />
+
+        <!-- 報價 -->
+        <div>
+          <div class="section-label">報價</div>
+          <div class="price-row">
+            <label>連工帶料單價</label>
+            <div class="iw">
+              <input type="number" id="unitPrice" placeholder="0" min="0" step="1" oninput="calculate()" />
+              <span class="price-unit">元／才</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 總價 -->
+        <div class="result-card primary">
+          <span class="r-label">總價</span>
+          <span class="r-val" id="totalPrice">—</span>
+        </div>
+
+        <!-- 折扣 -->
+        <div class="discount-box">
+          <div class="section-label">行銷優惠折扣</div>
+          <div class="price-row">
+            <label style="color:#7c3aed">折數</label>
+            <div class="iw">
+              <input type="number" id="discount" placeholder="例：8" min="0" max="10" step="0.1" oninput="calculate()" />
+              <span class="price-unit">折</span>
+            </div>
+          </div>
+          <div class="result-card discount">
+            <span class="r-label">優惠價</span>
+            <span class="r-val" id="discountPrice">—</span>
+          </div>
+        </div>
+
+        <button class="reset-btn" onclick="resetAll()">清除全部</button>
+
+        <p class="formula-note">
+          每筆小計 = 長度 × 數量 &nbsp;｜&nbsp; 才數 = 122 × (總米數 × 100) ÷ 900<br />
+          總價 = 才數 × 單價 &nbsp;｜&nbsp; 優惠價 = 總價 × 折數 ÷ 10
+        </p>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+  let rowCount = 0;
+
+  function addRow() {
+    rowCount++;
+    const id = rowCount;
+    const container = document.getElementById('rows-container');
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.dataset.id = id;
+    row.innerHTML = `
+      <div class="iw">
+        <input type="number" class="length-input" placeholder="0" min="0" step="any" oninput="onRowInput(${id})" />
+        <span class="row-unit">m</span>
+      </div>
+      <div class="iw">
+        <input type="number" class="qty-input" placeholder="0" min="0" step="1" oninput="onRowInput(${id})" />
+        <span class="row-unit">條</span>
+      </div>
+      <div class="iw">
+        <input type="text" class="sub-input" readonly placeholder="—" />
+        <span class="row-unit">m</span>
+      </div>
+      <button class="del-btn" onclick="deleteRow(${id})" title="刪除">×</button>
+    `;
+    container.appendChild(row);
+    updateDelBtns();
+    row.querySelector('.length-input').focus();
+  }
+
+  function deleteRow(id) {
+    document.querySelector(`.row-item[data-id="${id}"]`)?.remove();
+    updateDelBtns();
+    calculate();
+  }
+
+  function updateDelBtns() {
+    const rows = document.querySelectorAll('.row-item');
+    rows.forEach(r => { r.querySelector('.del-btn').disabled = rows.length === 1; });
+  }
+
+  function onRowInput(id) {
+    const row = document.querySelector(`.row-item[data-id="${id}"]`);
+    const len = parseFloat(row.querySelector('.length-input').value) || 0;
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    row.querySelector('.sub-input').value = (len || qty) ? fmt(len * qty, 2) : '';
+    calculate();
+  }
+
+  function calculate() {
+    let totalMeters = 0;
+    let hasAny = false;
+    document.querySelectorAll('.row-item').forEach(row => {
+      const len = parseFloat(row.querySelector('.length-input').value) || 0;
+      const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+      if (len || qty) hasAny = true;
+      totalMeters += len * qty;
+    });
+
+    const totalCai = 122 * (totalMeters * 100) / 900;
+    const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const totalPrice = totalCai * unitPrice;
+
+    const mEl = document.getElementById('totalMeters');
+    const muEl = document.getElementById('totalMetersUnit');
+    const cEl = document.getElementById('totalCai');
+    const cuEl = document.getElementById('totalCaiUnit');
+
+    if (hasAny) {
+      mEl.textContent = fmt(totalMeters, 2); muEl.textContent = ' 公尺';
+      cEl.textContent = fmt(totalCai, 2);    cuEl.textContent = ' 才';
+    } else {
+      mEl.textContent = '—'; muEl.textContent = '';
+      cEl.textContent = '—'; cuEl.textContent = '';
+    }
+
+    const pEl = document.getElementById('totalPrice');
+    if (totalPrice > 0) {
+      pEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice), 0);
+    } else if (hasAny && !unitPrice) {
+      pEl.textContent = '請輸入單價';
+    } else {
+      pEl.textContent = '—';
+    }
+
+    const discVal = parseFloat(document.getElementById('discount').value);
+    const dpEl = document.getElementById('discountPrice');
+    if (totalPrice > 0 && !isNaN(discVal) && discVal > 0) {
+      dpEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice * discVal / 10), 0);
+    } else {
+      dpEl.textContent = '—';
+    }
+  }
+
+  function fmt(n, dec) {
+    return n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: dec });
+  }
+
+  function resetAll() {
+    document.getElementById('rows-container').innerHTML = '';
+    document.getElementById('unitPrice').value = '';
+    document.getElementById('discount').value = '';
+    rowCount = 0;
+    calculate();
+    addRow();
+  }
+
+  highlightNav('material-calc');
+  addRow();
+</script>
+</body>
+</html>

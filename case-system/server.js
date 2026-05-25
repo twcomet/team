@@ -145,7 +145,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
