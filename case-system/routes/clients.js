@@ -56,26 +56,27 @@ router.post('/ocr-card', requireAuth, upload.single('card'), async (req, res) =>
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
-            { type: 'text', text: `請辨識這張名片上的資訊，以 JSON 格式回傳，欄位如下（找不到的填 null）：
-{
-  "name": "公司名稱或個人姓名",
-  "contact_person": "聯絡人姓名（若與公司名不同）",
-  "phone": "電話（行動或市話，取第一個）",
-  "email": "email",
-  "address": "地址",
-  "tax_id": "統一編號（8位數字）",
-  "title": "職稱"
-}
-只回傳 JSON，不要其他說明。` }
+            { type: 'text', text: `這是一張名片圖片。請辨識名片上的資訊，只回傳以下 JSON 格式（找不到的填 null），不要任何說明文字：
+{"name":null,"contact_person":null,"phone":null,"email":null,"address":null,"tax_id":null,"title":null}` }
           ]
         }]
       })
     });
-    const data = await resp.json();
-    const text = data.content?.[0]?.text || '';
+    const apiData = await resp.json();
+    // Anthropic API 本身回傳錯誤
+    if (!resp.ok || apiData.type === 'error') {
+      const msg = apiData.error?.message || `API 錯誤 ${resp.status}`;
+      return res.status(500).json({ error: `辨識服務錯誤：${msg}` });
+    }
+    const text = apiData.content?.[0]?.text?.trim() || '';
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return res.status(422).json({ error: '無法解析名片內容', raw: text });
-    res.json(JSON.parse(match[0]));
+    if (!match) {
+      // Claude 說明無法辨識（圖片不是名片等）
+      const hint = text.length > 0 ? `（${text.slice(0, 60)}）` : '';
+      return res.status(422).json({ error: `圖片中找不到名片資訊，請確認上傳的是名片照片${hint}` });
+    }
+    const parsed = JSON.parse(match[0]);
+    res.json(parsed);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
