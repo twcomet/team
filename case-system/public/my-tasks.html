@@ -8,39 +8,47 @@
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
 .task-card {
-  background:#fff; border:1px solid var(--gray-200); border-radius:10px;
-  padding:14px 16px; margin-bottom:10px; transition:box-shadow .15s;
-  position:relative;
+  background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+  margin-bottom:12px; overflow:hidden; transition:box-shadow .15s;
 }
-.task-card:hover { box-shadow:0 2px 8px rgba(26,86,219,.12); border-color:var(--primary); }
-.task-card.overdue { border-left:3px solid #ef4444; background:#fff8f8; }
-.task-card.today   { border-left:3px solid #f59e0b; background:#fffbeb; }
+.task-card:hover { box-shadow:0 2px 10px rgba(26,86,219,.13); }
+.task-card.overdue { border-color:#fca5a5; }
+.task-card.today   { border-color:#fcd34d; }
 
-.task-card-top {
-  display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px;
+/* 任務主題橫幅 */
+.task-theme {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 16px; font-size:13px; font-weight:700; letter-spacing:.3px;
+  cursor:pointer; user-select:none;
 }
-.task-date-row { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--gray-500); }
-.task-date-tag {
-  font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px;
-}
+.task-theme:hover { filter:brightness(.96); }
+.task-theme .theme-icon { font-size:16px; }
+.task-theme .theme-label { flex:1; }
+.task-theme .theme-arrow { font-size:12px; opacity:.6; }
+
+.theme-survey    { background:#dbeafe; color:#1e40af; border-bottom:1px solid #bfdbfe; }
+.theme-install   { background:#ffedd5; color:#9a3412; border-bottom:1px solid #fed7aa; }
+.theme-aftersales{ background:#f3e8ff; color:#6b21a8; border-bottom:1px solid #e9d5ff; }
+.theme-surveyor  { background:#d1fae5; color:#065f46; border-bottom:1px solid #a7f3d0; }
+.theme-sales     { background:#fef9c3; color:#713f12; border-bottom:1px solid #fde68a; }
+.theme-cs        { background:#fee2e2; color:#7f1d1d; border-bottom:1px solid #fca5a5; }
+.theme-multi     { background:#f1f5f9; color:#334155; border-bottom:1px solid #e2e8f0; }
+
+/* 카드 바디 */
+.task-body { padding:12px 16px 14px; }
+.task-date-row { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--gray-500); margin-bottom:6px; }
+.task-date-tag { font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; }
 .tag-overdue { background:#fee2e2; color:#dc2626; }
 .tag-today   { background:#fef3c7; color:#b45309; }
 .tag-days    { background:#ede9fe; color:#6d28d9; }
 
-.task-title { font-size:15px; font-weight:600; margin-bottom:4px; cursor:pointer; }
-.task-title:hover { text-decoration:underline; color:var(--primary); }
-.task-client { font-size:13px; color:var(--gray-600); margin-bottom:8px; }
+.task-title  { font-size:15px; font-weight:600; margin-bottom:4px; }
+.task-client { font-size:13px; color:var(--gray-600); margin-bottom:10px; }
+.task-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .task-badges { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-.task-role-badge {
-  font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600;
-}
-.role-dispatch  { background:#dbeafe; color:#1d4ed8; }
-.role-surveyor  { background:#d1fae5; color:#065f46; }
-.role-sales     { background:#ede9fe; color:#6d28d9; }
-.role-cs        { background:#fee2e2; color:#991b1b; }
 
 .dismiss-btn {
-  flex-shrink:0; font-size:12px; padding:4px 12px;
+  flex-shrink:0; font-size:12px; padding:4px 14px;
   background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;
   border-radius:6px; cursor:pointer; font-weight:600; white-space:nowrap;
   transition:background .15s;
@@ -49,12 +57,13 @@
 .dismiss-btn:disabled { opacity:.5; cursor:default; }
 
 .section-label {
-  font-size:12px; font-weight:700; color:var(--gray-500); text-transform:uppercase;
-  letter-spacing:.5px; margin:24px 0 10px; display:flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:700; color:var(--gray-400); letter-spacing:.6px;
+  margin:28px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--gray-100);
+  display:flex; align-items:center; gap:6px;
 }
-.section-label.overdue-label { color:#dc2626; }
-.section-label.today-label   { color:#b45309; }
-.section-label.future-label  { color:#6d28d9; }
+.section-label.lbl-overdue { color:#dc2626; border-color:#fecaca; }
+.section-label.lbl-week    { color:#b45309; border-color:#fde68a; }
+.section-label.lbl-month   { color:#6d28d9; border-color:#ddd6fe; }
 </style>
 </head>
 <body>
@@ -100,73 +109,123 @@
 
 <script src="/js/common.js"></script>
 <script>
-const DISPATCH_LABELS = { survey:'場勘', install:'施工', aftersales:'維修' };
+// ── 主題定義 ─────────────────────────────────────────────────
+const THEMES = {
+  survey:     { icon:'🔍', label:'場勘任務',    cls:'theme-survey',     url: t => `/survey-form?case_id=${t.id}` },
+  install:    { icon:'🔨', label:'施工任務',    cls:'theme-install',    url: t => `/dispatch-detail?id=${t.id}` },
+  aftersales: { icon:'🔧', label:'維修任務',    cls:'theme-aftersales', url: t => `/dispatch-detail?id=${t.id}` },
+  surveyor:   { icon:'📋', label:'場勘員',      cls:'theme-surveyor',   url: t => `/survey-form?case_id=${t.id}` },
+  sales:      { icon:'💼', label:'案件負責業務', cls:'theme-sales',      url: t => `/case-detail?id=${t.id}` },
+  cs:         { icon:'🎧', label:'案件負責客服', cls:'theme-cs',         url: t => `/case-detail?id=${t.id}` },
+};
+
+// 每張卡片可能有多個主題（例如同時被施工派工又是負責業務）
+function getThemes(t) {
+  const result = [];
+  if (t.next_dispatch) {
+    const [dtype] = t.next_dispatch.split('|');
+    if (THEMES[dtype]) result.push(dtype);
+  } else if (t.dispatch_count > 0) {
+    // 有歷史派工但無近期派工：顯示已派工
+    result.push('install');
+  }
+  if (t.is_surveyor) result.push('surveyor');
+  if (t.was_assigned) {
+    if (t.cs_id == currentUser.id)    result.push('cs');
+    if (t.sales_id == currentUser.id) result.push('sales');
+    // 若 sales_id/cs_id 不符合（可能已換人），仍顯示業務指派
+    if (!result.includes('cs') && !result.includes('sales')) result.push('sales');
+  }
+  // 去重
+  return [...new Set(result)];
+}
+
+// 主要主題：決定點擊跳轉 URL（取第一個）
+function primaryTheme(t) {
+  const keys = getThemes(t);
+  return keys.length ? THEMES[keys[0]] : null;
+}
 
 function dayDiff(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr + 'T00:00:00');
-  const t = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
-  return Math.round((d - t) / 86400000);
+  const now = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
+  return Math.round((d - now) / 86400000);
 }
 
 function dateTag(diff) {
   if (diff === null) return '';
-  if (diff < 0)  return `<span class="task-date-tag tag-overdue">逾期${Math.abs(diff)}天</span>`;
+  if (diff < 0)  return `<span class="task-date-tag tag-overdue">逾期 ${Math.abs(diff)} 天</span>`;
   if (diff === 0) return `<span class="task-date-tag tag-today">當天任務</span>`;
   if (diff <= 10) {
-    const md = new Date(new Date().getTime() + diff * 86400000);
+    const md = new Date(Date.now() + diff * 86400000);
     const mmdd = `${md.getMonth()+1}/${md.getDate()}`;
-    return `<span class="task-date-tag tag-days">${diff}天後 (${mmdd})</span>`;
+    return `<span class="task-date-tag tag-days">${diff} 天後（${mmdd}）</span>`;
   }
   return '';
 }
 
-function roleBadges(t) {
-  const parts = [];
-  if (t.next_dispatch) {
-    const [dtype] = t.next_dispatch.split('|');
-    parts.push(`<span class="task-role-badge role-dispatch">${DISPATCH_LABELS[dtype] || dtype}</span>`);
-  } else if (t.dispatch_count > 0) {
-    parts.push(`<span class="task-role-badge role-dispatch">已派工</span>`);
-  }
-  if (t.is_surveyor) parts.push(`<span class="task-role-badge role-surveyor">場勘員</span>`);
-  if (t.was_assigned) parts.push(`<span class="task-role-badge role-sales">業務指派</span>`);
-  return parts.join('');
-}
+function renderThemeBanner(t) {
+  const keys = getThemes(t);
+  if (!keys.length) return '';
 
-function taskDetailUrl(t) {
-  const useFull = currentUser.permissions && currentUser.permissions.page_cases !== false;
-  return `${useFull ? '/case-detail' : '/dispatch-detail'}?id=${t.id}`;
+  if (keys.length === 1) {
+    const th = THEMES[keys[0]];
+    const url = th.url(t);
+    return `<div class="task-theme ${th.cls}" onclick="location.href='${url}'">
+      <span class="theme-icon">${th.icon}</span>
+      <span class="theme-label">${th.label}</span>
+      <span class="theme-arrow">→ 開啟</span>
+    </div>`;
+  }
+
+  // 多主題：顯示所有，各自可點擊
+  const chips = keys.map(k => {
+    const th = THEMES[k];
+    return `<span onclick="event.stopPropagation();location.href='${th.url(t)}'"
+      style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;background:rgba(0,0,0,.07)">
+      ${th.icon} ${th.label}
+    </span>`;
+  }).join('');
+
+  return `<div class="task-theme theme-multi">
+    <span class="theme-label" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-size:12px;opacity:.7;white-space:nowrap">指派任務：</span>${chips}
+    </span>
+  </div>`;
 }
 
 function renderCard(t) {
   const diff = dayDiff(t.scheduled_date);
   const isOverdue = diff !== null && diff < 0;
   const isToday   = diff === 0;
-  const dateDisplay = t.scheduled_date
-    ? `📅 ${t.scheduled_date}　${dateTag(diff)}`
+
+  const dispatchDate = t.next_dispatch ? t.next_dispatch.split('|')[1] : null;
+  const displayDate  = dispatchDate || t.scheduled_date;
+  const displayDiff  = dispatchDate ? dayDiff(dispatchDate) : diff;
+
+  const dateDisplay = displayDate
+    ? `📅 ${displayDate}　${dateTag(displayDiff)}`
     : '📅 未排日期';
 
   return `
     <div class="task-card${isOverdue ? ' overdue' : isToday ? ' today' : ''}" id="tc-${t.id}">
-      <div class="task-card-top">
-        <div style="flex:1;min-width:0">
-          <div class="task-date-row">${dateDisplay}</div>
-          <div class="task-title" onclick="location.href='${taskDetailUrl(t)}'">
-            ${t.title}
-          </div>
-          <div class="task-client">
-            👤 ${t.client_name || '—'}${t.client_phone ? `　📞 ${t.client_phone}` : ''}
-            ${t.location ? `　📍 ${t.location}` : ''}
-          </div>
+      ${renderThemeBanner(t)}
+      <div class="task-body">
+        <div class="task-date-row">${dateDisplay}</div>
+        <div class="task-title">${t.title}</div>
+        <div class="task-client">
+          👤 ${t.client_name || '—'}${t.client_phone ? `　📞 ${t.client_phone}` : ''}
+          ${t.location ? `　📍 ${t.location}` : ''}
         </div>
-        <button class="dismiss-btn" onclick="dismissTask(${t.id}, this)">已完成</button>
-      </div>
-      <div class="task-badges">
-        ${statusBadge(t.status)}
-        ${currentUser.can_see_amounts && t.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(t.final_price)}</span>` : ''}
-        ${paymentBadge(t.payment_status)}
-        ${roleBadges(t)}
+        <div class="task-footer">
+          <div class="task-badges">
+            ${statusBadge(t.status)}
+            ${currentUser.can_see_amounts && t.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(t.final_price)}</span>` : ''}
+            ${paymentBadge(t.payment_status)}
+          </div>
+          <button class="dismiss-btn" onclick="dismissTask(${t.id}, this)">已完成</button>
+        </div>
       </div>
     </div>`;
 }
@@ -183,8 +242,9 @@ async function dismissTask(caseId, btn) {
   if (r.ok) {
     const card = document.getElementById(`tc-${caseId}`);
     if (card) {
-      card.style.transition = 'opacity .3s';
+      card.style.transition = 'opacity .3s,transform .3s';
       card.style.opacity = '0';
+      card.style.transform = 'translateY(-4px)';
       setTimeout(() => card.remove(), 320);
     }
   } else {
@@ -208,19 +268,25 @@ async function init() {
     return;
   }
 
-  const today10 = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
-  const today30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const todayStr = new Date().toISOString().slice(0, 10);
+  const day10    = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+  const day30    = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
-  const overdue  = tasks.filter(t => t.scheduled_date && t.scheduled_date < todayStr);
-  const near10   = tasks.filter(t => t.scheduled_date && t.scheduled_date >= todayStr && t.scheduled_date <= today10);
-  const near30   = tasks.filter(t => t.scheduled_date && t.scheduled_date > today10 && t.scheduled_date <= today30);
-  const noDate   = tasks.filter(t => !t.scheduled_date);
+  // 使用 next_dispatch 日期優先（若無則用 scheduled_date）排序用
+  function sortDate(t) {
+    if (t.next_dispatch) return t.next_dispatch.split('|')[1] || '9999-12-31';
+    return t.scheduled_date || '9999-12-31';
+  }
+
+  const overdue = tasks.filter(t => { const d = sortDate(t); return d < todayStr; });
+  const near10  = tasks.filter(t => { const d = sortDate(t); return d >= todayStr && d <= day10; });
+  const near30  = tasks.filter(t => { const d = sortDate(t); return d > day10 && d <= day30; });
+  const noDate  = tasks.filter(t => !t.scheduled_date && !t.next_dispatch);
 
   el.innerHTML =
-    renderSection('🔴 已逾期任務', 'overdue-label', overdue) +
-    renderSection('📌 本週任務（近10天）', 'today-label', near10) +
-    renderSection('🟡 本月任務', 'future-label', near30) +
+    renderSection('🔴 已逾期任務', 'lbl-overdue', overdue) +
+    renderSection('📌 本週任務（近 10 天）', 'lbl-week', near10) +
+    renderSection('🟡 本月任務', 'lbl-month', near30) +
     renderSection('⚪ 未排日期', '', noDate);
 }
 

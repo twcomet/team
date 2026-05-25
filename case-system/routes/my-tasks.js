@@ -15,6 +15,7 @@ router.get('/', requireAuth, (req, res) => {
   const tasks = db.prepare(`
     SELECT c.id, c.case_number, c.title, c.status, c.scheduled_date, c.survey_date,
            c.quoted_price, c.final_price, c.payment_status, c.location,
+           c.sales_id, c.cs_id,
            cl.name AS client_name, cl.phone AS client_phone,
            CASE WHEN c.surveyor_id = ? THEN 1 ELSE 0 END AS is_surveyor,
            (SELECT d.dispatch_type || '|' || d.scheduled_date
