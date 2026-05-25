@@ -304,14 +304,45 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .case-banner .cb-label { color: #1d4ed8; font-weight: 600; flex-shrink: 0; }
 .case-banner .cb-name  { color: #374151; flex: 1; }
-.case-banner select {
+.case-banner .case-search-wrap {
   flex: 1;
-  padding: 6px 10px;
+  position: relative;
+}
+.case-banner .case-search-wrap input {
+  width: 100%;
+  padding: 7px 10px;
   border: 1px solid var(--gray-300);
   border-radius: 8px;
   font-size: 13px;
   color: var(--gray-800);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
 }
+.case-banner .case-search-wrap input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,0,128,.08); }
+.case-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  z-index: 200;
+  max-height: 210px;
+  overflow-y: auto;
+  display: none;
+}
+.case-opt {
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--gray-700);
+  border-bottom: 1px solid var(--gray-100);
+}
+.case-opt:last-child { border-bottom: none; }
+.case-opt:hover { background: var(--primary-bg); color: var(--primary-dark); }
 
 /* ── 儲存估價按鈕 ── */
 .save-est-btn {
@@ -405,9 +436,12 @@ input[type=number] { -moz-appearance: textfield; }
           <div class="block-label">關聯案件（選填，儲存後自動標記已完成初步估價）</div>
           <div class="case-banner" id="caseBanner">
             <span class="cb-label">案件</span>
-            <select id="caseSelect" onchange="onCaseSelect()">
-              <option value="">— 不關聯案件（僅計算）—</option>
-            </select>
+            <div class="case-search-wrap">
+              <input type="text" id="caseSearch" autocomplete="off"
+                placeholder="🔍 輸入案號、案件名稱或客戶名稱…"
+                oninput="onCaseSearch()" onfocus="onCaseSearchFocus()">
+              <div class="case-dropdown" id="caseDropdown"></div>
+            </div>
           </div>
         </div>
 
@@ -415,17 +449,17 @@ input[type=number] { -moz-appearance: textfield; }
         <div>
           <div class="block-label">膜料類型</div>
           <div class="film-type-group">
-            <button class="film-btn active" data-width="122" onclick="selectFilm(this)">
+            <button class="film-btn active" data-film="deco" onclick="selectFilm(this)">
               <span class="film-name">裝潢膜</span>
               <span class="film-width">寬度 122 公分</span>
             </button>
-            <button class="film-btn" data-width="150" onclick="selectFilm(this)">
+            <button class="film-btn" data-film="glass" onclick="selectFilm(this)">
               <span class="film-name">防爆玻璃膜</span>
-              <span class="film-width">寬度 150 公分</span>
+              <span class="film-width">預設 152 公分（可調）</span>
             </button>
-            <button class="film-btn" data-width="152" onclick="selectFilm(this)">
+            <button class="film-btn" data-film="heat" onclick="selectFilm(this)">
               <span class="film-name">隔熱紙</span>
-              <span class="film-width">寬度 152 公分</span>
+              <span class="film-width">預設 152 公分（可調）</span>
             </button>
           </div>
         </div>
@@ -456,8 +490,12 @@ input[type=number] { -moz-appearance: textfield; }
         <div>
           <div class="block-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             材料明細
-            <span id="rollLengthInlineWrap" style="display:none;align-items:center;gap:4px;font-size:12px;font-weight:400;color:var(--gray-600)">
-              每卷
+            <span id="rollLengthInlineWrap" style="display:none;align-items:center;gap:5px;font-size:12px;font-weight:400;color:var(--gray-600)">
+              寬度
+              <input type="number" id="rollWidth" value="152" min="50" max="300" step="1"
+                style="width:46px;padding:2px 5px;border:1px solid var(--gray-300);border-radius:5px;font-size:12px;text-align:center;color:var(--gray-800);background:#fff"
+                oninput="onRollWidthChange()">
+              cm ｜ 每卷
               <input type="number" id="rollLength" value="50" min="1" max="200" step="1"
                 style="width:46px;padding:2px 5px;border:1px solid var(--gray-300);border-radius:5px;font-size:12px;text-align:center;color:var(--gray-800);background:#fff"
                 oninput="onRollLengthChange()">
@@ -548,32 +586,36 @@ input[type=number] { -moz-appearance: textfield; }
   let filmMode    = 'A';       // 'A' 裝潢膜  'B' 防爆/隔熱紙
   let calcMode    = 'no_loss'; // 'no_loss' | 'with_loss' | 'splice'
   let rollLengthM = 50;        // 每卷長度（公尺）
+  let rollWidthCm = 152;       // 每卷寬度（公分，模式 B 可調）
 
   const FILMS = {
-    122: { name: '裝潢膜',    defaultPrice: 200, mode: 'A' },
-    150: { name: '防爆玻璃膜', defaultPrice: 400, mode: 'B' },
-    152: { name: '隔熱紙',   defaultPrice: 180, mode: 'B' },
+    deco:  { name: '裝潢膜',    defaultPrice: 200, mode: 'A', defaultWidth: 122 },
+    glass: { name: '防爆玻璃膜', defaultPrice: 400, mode: 'B', defaultWidth: 152 },
+    heat:  { name: '隔熱紙',    defaultPrice: 180, mode: 'B', defaultWidth: 152 },
   };
 
   /* ── 切換膜料 ── */
   function selectFilm(btn) {
     document.querySelectorAll('.film-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    filmWidth = parseInt(btn.dataset.width);
-    const film = FILMS[filmWidth];
-    filmMode = film.mode;
+    const film = FILMS[btn.dataset.film];
+    filmMode  = film.mode;
+    filmWidth = film.defaultWidth;
     document.getElementById('unitPrice').value = film.defaultPrice;
 
     const isModeB = filmMode === 'B';
-    document.getElementById('modeBOptions').style.display  = isModeB ? '' : 'none';
-    document.getElementById('rollLengthInlineWrap').style.display = isModeB ? 'inline-flex' : 'none';
-    document.getElementById('metersBox').style.display     = isModeB ? 'none' : '';
+    document.getElementById('modeBOptions').style.display         = isModeB ? '' : 'none';
+    document.getElementById('rollLengthInlineWrap').style.display  = isModeB ? 'inline-flex' : 'none';
+    document.getElementById('metersBox').style.display            = isModeB ? 'none' : '';
 
-    // 重置計算方式
+    if (isModeB) {
+      rollWidthCm = film.defaultWidth;
+      document.getElementById('rollWidth').value = film.defaultWidth;
+    }
+
     if (!isModeB) { calcMode = 'no_loss'; }
     document.getElementById('splicePanel').style.display = 'none';
 
-    // 更新表頭並重建列
     updateTableHeaders();
     document.getElementById('rowsList').innerHTML = '';
     rowCount = 0;
@@ -585,6 +627,12 @@ input[type=number] { -moz-appearance: textfield; }
     calcMode = mode;
     document.querySelectorAll('.calc-mode-btn').forEach(b => b.classList.remove('active'));
     label.classList.add('active');
+    calculate();
+  }
+
+  function onRollWidthChange() {
+    rollWidthCm = parseFloat(document.getElementById('rollWidth').value) || 152;
+    filmWidth   = rollWidthCm;
     calculate();
   }
 
@@ -1115,42 +1163,78 @@ input[type=number] { -moz-appearance: textfield; }
   }
 
   /* ── 案件整合 ── */
-  let linkedCaseId = null;
+  let linkedCaseId   = null;
   let linkedCaseName = '';
   let currentUserName = '';
+  let allCases = [];
+
+  function caseLabel(c) {
+    return `${c.case_number} ${c.title}（${c.client_name || '無客戶'}）`;
+  }
 
   async function initCaseIntegration() {
     await loadUser();
     highlightNav('material-calc');
     currentUserName = typeof currentUser !== 'undefined' ? (currentUser.name || '') : '';
 
-    // 讀取 URL param
     const params = new URLSearchParams(location.search);
     const caseIdParam = params.get('case_id');
 
-    // 載入詢價中案件清單
     const res = await fetch('/api/cases?group=inquiry&limit=200');
     const data = res.ok ? await res.json() : { items: [] };
-    const cases = data.items || [];
-
-    const sel = document.getElementById('caseSelect');
-    cases.forEach(c => {
-      const opt = new Option(`${c.case_number} ${c.title}（${c.client_name || '無客戶'}）`, c.id);
-      sel.add(opt);
-    });
+    allCases = data.items || [];
 
     if (caseIdParam) {
-      sel.value = caseIdParam;
-      onCaseSelect();
+      const found = allCases.find(c => String(c.id) === String(caseIdParam));
+      if (found) selectCase(found.id, caseLabel(found));
     }
   }
 
-  function onCaseSelect() {
-    const sel = document.getElementById('caseSelect');
-    linkedCaseId = sel.value ? Number(sel.value) : null;
-    linkedCaseName = sel.value ? sel.options[sel.selectedIndex].text : '';
+  function onCaseSearchFocus() {
+    showCaseDropdown(document.getElementById('caseSearch').value.toLowerCase().trim());
+  }
+
+  function onCaseSearch() {
+    showCaseDropdown(document.getElementById('caseSearch').value.toLowerCase().trim());
+  }
+
+  function showCaseDropdown(q) {
+    const dropdown = document.getElementById('caseDropdown');
+    const filtered = q
+      ? allCases.filter(c =>
+          (c.case_number || '').toLowerCase().includes(q) ||
+          (c.title || '').toLowerCase().includes(q) ||
+          (c.client_name || '').toLowerCase().includes(q))
+      : allCases;
+
+    let html = `<div class="case-opt" onclick="selectCase(null,'')">— 不關聯案件（僅計算）—</div>`;
+    const show = filtered.slice(0, 12);
+    show.forEach(c => {
+      const lbl = caseLabel(c).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += `<div class="case-opt" onclick="selectCase(${c.id},'${lbl}')">${caseLabel(c)}</div>`;
+    });
+    if (!show.length && q) {
+      html += `<div style="padding:10px 14px;font-size:13px;color:var(--gray-400)">找不到符合的案件</div>`;
+    }
+    dropdown.innerHTML = html;
+    dropdown.style.display = '';
+  }
+
+  function selectCase(id, name) {
+    linkedCaseId   = id || null;
+    linkedCaseName = name || '';
+    document.getElementById('caseSearch').value = id ? name : '';
+    document.getElementById('caseDropdown').style.display = 'none';
     updateSaveBox();
   }
+
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('caseBanner');
+    if (wrap && !wrap.contains(e.target)) {
+      const dd = document.getElementById('caseDropdown');
+      if (dd) dd.style.display = 'none';
+    }
+  });
 
   function updateSaveBox() {
     const saveBox = document.getElementById('saveEstBox');
