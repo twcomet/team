@@ -675,35 +675,136 @@ input[type=number] { -moz-appearance: textfield; }
       : '—';
   }
 
-  /* ── 拼料演算法（條帶排列法） ── */
+  /* ── 拼料演算法（寬度精確排列） ── */
+  const PIECE_COLORS  = ['#bfdbfe','#bbf7d0','#fde68a','#fecaca','#e9d5ff','#fed7aa','#a5f3fc','#d9f99d'];
+  const PIECE_BORDERS = ['#2563eb','#16a34a','#d97706','#dc2626','#9333ea','#ea580c','#0891b2','#65a30d'];
+
   function runSpliceAlgorithm(rows, fw) {
-    // 展開每一片（考慮數量）
     let items = [];
-    rows.forEach(p => {
-      for (let i = 0; i < p.qty; i++) items.push({ w: p.w, h: p.h, area: p.w * p.h });
+    rows.forEach((p, ri) => {
+      const label = String.fromCharCode(65 + (ri % 26));
+      for (let i = 0; i < p.qty; i++) {
+        items.push({
+          w: p.w, h: p.h, area: p.w * p.h, label, rowIdx: ri,
+          color: PIECE_COLORS[ri % PIECE_COLORS.length],
+          border: PIECE_BORDERS[ri % PIECE_BORDERS.length],
+        });
+      }
     });
-    // 按高度遞減排序，再按面積遞減
     items.sort((a, b) => b.h - a.h || b.area - a.area);
 
     const strips = [];
     for (const item of items) {
       let placed = false;
       for (const s of strips) {
-        // 可放入：高度符合 且 剩餘面積足夠
-        if (item.h <= s.height && item.area <= s.remaining) {
-          s.remaining -= item.area;
+        const usedW = s.pieces.reduce((sum, p) => sum + p.w, 0);
+        if (item.h <= s.height && usedW + item.w <= fw) {
+          item.x = usedW;
           s.pieces.push(item);
           placed = true;
           break;
         }
       }
       if (!placed) {
-        const total = item.h * fw;
-        strips.push({ height: item.h, fw, total, remaining: total - item.area, pieces: [item] });
+        item.x = 0;
+        strips.push({ height: item.h, fw, total: item.h * fw, pieces: [item] });
       }
     }
+    strips.forEach(s => {
+      s.usedArea  = s.pieces.reduce((sum, p) => sum + p.w * p.h, 0);
+      s.usedWidth = s.pieces.reduce((sum, p) => sum + p.w, 0);
+    });
     const totalCai = strips.reduce((sum, s) => sum + s.total / 900, 0);
     return { strips, totalCai, fw };
+  }
+
+  /* ── Canvas 排料圖 ── */
+  function renderDiagram(result) {
+    const { strips, fw } = result;
+    if (!strips.length) return null;
+
+    const SCALE   = Math.min(1.8, 200 / fw);
+    const SW      = Math.round(fw * SCALE);   // strip display width (px)
+    const GAP     = 18;
+    const ML      = 8;
+    const MT      = 28;
+    const MB      = 22;
+
+    const maxH    = Math.max(...strips.map(s => s.height));
+    const cW      = ML + strips.length * (SW + GAP) - GAP + ML;
+    const cH      = MT + Math.round(maxH * SCALE) + MB;
+
+    const canvas  = document.createElement('canvas');
+    const dpr     = window.devicePixelRatio || 1;
+    canvas.width  = cW * dpr;
+    canvas.height = cH * dpr;
+    canvas.style.width  = cW + 'px';
+    canvas.style.height = cH + 'px';
+    canvas.style.display = 'block';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillRect(0, 0, cW, cH);
+
+    strips.forEach((strip, si) => {
+      const sx = ML + si * (SW + GAP);
+      const sy = MT;
+      const sH = Math.round(strip.height * SCALE);
+
+      // 條號標籤
+      ctx.fillStyle = '#6b7280';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`第 ${si + 1} 條`, sx + SW / 2, sy - 10);
+
+      // 廢料底色（灰）
+      ctx.fillStyle = '#d1d5db';
+      ctx.fillRect(sx, sy, SW, sH);
+
+      // 每一片
+      strip.pieces.forEach(piece => {
+        const px = sx + Math.round(piece.x * SCALE);
+        const py = sy;
+        const pw = Math.round(piece.w * SCALE);
+        const ph = Math.round(piece.h * SCALE);
+
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(px, py, pw, ph);
+
+        ctx.strokeStyle = piece.border;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px + 0.75, py + 0.75, pw - 1.5, ph - 1.5);
+
+        if (pw >= 18 && ph >= 20) {
+          ctx.fillStyle = '#1e3a5f';
+          ctx.textAlign = 'center';
+          if (ph >= 44) {
+            ctx.font = `bold ${Math.min(13, Math.floor(pw / 2.2))}px sans-serif`;
+            ctx.fillText(piece.label, px + pw / 2, py + ph / 2 - 5);
+            ctx.font = `${Math.min(10, Math.floor(pw / 2.8))}px sans-serif`;
+            ctx.fillStyle = '#374151';
+            ctx.fillText(`${piece.w}×${piece.h}`, px + pw / 2, py + ph / 2 + 8);
+          } else {
+            ctx.font = `bold ${Math.min(11, Math.floor(pw / 2))}px sans-serif`;
+            ctx.fillText(piece.label, px + pw / 2, py + ph / 2 + 4);
+          }
+        }
+      });
+
+      // 條框
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx + 0.5, sy + 0.5, SW - 1, sH - 1);
+
+      // 尺寸標註
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${fw}×${strip.height}cm`, sx + SW / 2, sy + sH + 14);
+    });
+
+    return canvas;
   }
 
   /* ── 渲染排料分析 ── */
@@ -715,23 +816,54 @@ input[type=number] { -moz-appearance: textfield; }
     const cls = canFitAll ? '' : ' warn';
     const icon = canFitAll ? '✅' : '⚠️';
 
+    // 圖例
+    const legendItems = rows.map((p, ri) => {
+      const label = String.fromCharCode(65 + (ri % 26));
+      const col   = PIECE_COLORS[ri % PIECE_COLORS.length];
+      const bdr   = PIECE_BORDERS[ri % PIECE_BORDERS.length];
+      return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px">
+        <span style="width:14px;height:14px;background:${col};border:1.5px solid ${bdr};border-radius:3px;flex-shrink:0"></span>
+        ${label}：${p.w}×${p.h}cm × ${p.qty}片
+      </span>`;
+    }).join('');
+
     let html = `<div class="splice-result${cls}">
       <div class="sr-title">${icon} 排料分析：共需 <strong>&nbsp;${strips.length}&nbsp;</strong> 條膜料
         ${savedPct > 0 ? `<span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">較含損料節省 ${savedPct}%</span>` : ''}
       </div>`;
 
     strips.forEach((s, i) => {
-      const usedArea  = s.total - s.remaining;
-      const usePct    = Math.round(usedArea / s.total * 100);
-      const pDesc     = s.pieces.map(p => `${p.w}×${p.h}`).join('、');
+      const usePct = Math.round(s.usedArea / s.total * 100);
+      const pDesc  = s.pieces.map(p => `${p.label}(${p.w}×${p.h})`).join('、');
       html += `<div class="sr-strip">
         <span>第 ${i+1} 條：${s.height} × ${fw} cm（${fmt(s.total/900,2)} 才）</span>
-        <span>使用率 ${usePct}%｜包含：${pDesc} cm</span>
+        <span>使用率 ${usePct}%｜${pDesc}</span>
       </div>`;
     });
-    html += `</div>`;
+
+    html += `
+      <div id="diagramWrap" style="overflow-x:auto;padding:4px 0"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${legendItems}</div>
+      <button onclick="downloadDiagram()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:2px">⬇ 下載排料圖</button>
+    </div>`;
+
     document.getElementById('splicePanel').innerHTML = html;
     document.getElementById('splicePanel').style.display = '';
+
+    const canvas = renderDiagram(result);
+    if (canvas) {
+      canvas.id = 'layoutCanvas';
+      document.getElementById('diagramWrap').appendChild(canvas);
+    }
+  }
+
+  function downloadDiagram() {
+    const canvas = document.getElementById('layoutCanvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = '排料圖.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
   }
 
   function fmt(n, dec) {

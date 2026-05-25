@@ -363,6 +363,17 @@ db.exec(`CREATE TABLE IF NOT EXISTS materials (
 );`);
 _addCol('materials', 'location', 'TEXT');  // 舊 DB 補欄位
 
+// ── 膜料異動紀錄（資料更動 Log）────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS material_change_logs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  material_id INTEGER REFERENCES materials(id) ON DELETE SET NULL,
+  org_id      INTEGER REFERENCES orgs(id),
+  action      TEXT NOT NULL,
+  detail      TEXT,
+  changed_by  INTEGER REFERENCES users(id),
+  changed_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);`);
+
 // ── 膜料使用紀錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,

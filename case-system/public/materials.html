@@ -74,6 +74,21 @@
 .case-option .case-num { font-family:monospace; font-size:11px; color:var(--gray-500); white-space:nowrap; }
 .case-option .case-title { font-weight:600; flex:1; }
 .case-option .case-client { font-size:12px; color:var(--gray-500); white-space:nowrap; }
+
+/* 膜料異動紀錄 */
+.activity-item { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--gray-100); font-size:13px; }
+.activity-item:last-child { border-bottom:none; }
+.activity-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.activity-icon.create   { background:#dcfce7; }
+.activity-icon.edit     { background:#e0e7ff; }
+.activity-icon.delete   { background:#fee2e2; }
+.activity-icon.purchase { background:#dbeafe; }
+.activity-icon.store_sale, .activity-icon.academy, .activity-icon.ecommerce { background:#fef9c3; }
+.activity-icon.adjust   { background:var(--gray-100); }
+.activity-body { flex:1; min-width:0; }
+.activity-detail { color:var(--gray-700); line-height:1.4; }
+.activity-meta { font-size:11px; color:var(--gray-400); margin-top:2px; }
+.activity-user { font-weight:600; color:var(--gray-600); }
 </style>
 </head>
 <body>
@@ -114,6 +129,15 @@
     </div>
     <div class="page-body">
       <div class="stats-grid" id="statsGrid"></div>
+
+      <!-- 膜料異動紀錄 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header" style="cursor:default">
+          <h3>膜料異動紀錄</h3>
+          <button id="activityToggleBtn" onclick="toggleActivity()" class="btn btn-ghost btn-sm">展開全部</button>
+        </div>
+        <div id="activityList" style="padding:0 20px 4px"></div>
+      </div>
 
       <div class="card">
         <div class="card-header">
@@ -360,7 +384,59 @@ const LOG_LABELS = {
 async function init() {
   await loadUser();
   highlightNav('materials');
-  await Promise.all([loadMaterials(), loadBranches(), loadActiveCases()]);
+  await Promise.all([loadMaterials(), loadBranches(), loadActiveCases(), loadActivity()]);
+}
+
+/* ── 膜料異動紀錄 ── */
+let activityAll = [];
+let activityExpanded = false;
+const ACTIVITY_DEFAULT = 5;
+
+const ACTION_ICON = {
+  create:'➕', edit:'✏️', delete:'🗑️',
+  purchase:'📦', store_sale:'🛒', academy:'🏫', ecommerce:'🌐', adjust:'🔧',
+};
+const ACTION_LABEL = {
+  create:'新增', edit:'編輯', delete:'刪除',
+  purchase:'進貨', store_sale:'門市銷售', academy:'學院使用', ecommerce:'電商訂單', adjust:'庫存調整',
+};
+
+async function loadActivity() {
+  const res = await fetch('/api/materials/activity?limit=100');
+  activityAll = res.ok ? await res.json() : [];
+  renderActivity();
+}
+
+function toggleActivity() {
+  activityExpanded = !activityExpanded;
+  document.getElementById('activityToggleBtn').textContent = activityExpanded ? '收起' : '展開全部';
+  renderActivity();
+}
+
+function renderActivity() {
+  const list = document.getElementById('activityList');
+  if (!activityAll.length) {
+    list.innerHTML = '<p style="color:var(--gray-400);font-size:13px;padding:12px 0">尚無異動紀錄</p>';
+    return;
+  }
+  const items = activityExpanded ? activityAll : activityAll.slice(0, ACTIVITY_DEFAULT);
+  list.innerHTML = items.map(log => {
+    const icon  = ACTION_ICON[log.action]  || '📋';
+    const label = ACTION_LABEL[log.action] || log.action;
+    const dt    = new Date(log.changed_at);
+    const dateStr = `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+    return `<div class="activity-item">
+      <div class="activity-icon ${log.action}">${icon}</div>
+      <div class="activity-body">
+        <div class="activity-detail">${log.detail || `${label}膜料`}</div>
+        <div class="activity-meta"><span class="activity-user">${log.user_name || '—'}</span> · ${dateStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (!activityExpanded && activityAll.length > ACTIVITY_DEFAULT) {
+    list.innerHTML += `<p style="font-size:12px;color:var(--gray-400);padding:8px 0 4px">共 ${activityAll.length} 筆，點「展開全部」查看更多</p>`;
+  }
 }
 
 async function loadActiveCases() {
@@ -747,8 +823,7 @@ async function saveMat() {
   if (res.ok) {
     const data = await res.json();
     closeMatModal();
-    await loadMaterials();
-    // 若有設定初始庫存，展開捲料讓使用者確認
+    await Promise.all([loadMaterials(), loadActivity()]);
     if (!editMatId && body.stock_meters > 0 && data.id) {
       expandedRows.add(data.id);
       applyFilters();
@@ -760,7 +835,7 @@ async function deleteMat(id) {
   if (!confirm('確定刪除此膜料型號？相關捲料和紀錄也會一併刪除。')) return;
   await fetch(`/api/materials/${id}`, { method:'DELETE' });
   expandedRows.delete(id);
-  await loadMaterials();
+  await Promise.all([loadMaterials(), loadActivity()]);
 }
 
 // ── 捲料 CRUD ────────────────────────────────────────────────
@@ -822,7 +897,7 @@ async function saveRoll() {
   if (res.ok) {
     closeRollModal();
     expandedRows.add(rollTargetMatId);
-    await loadMaterials();
+    await Promise.all([loadMaterials(), loadActivity()]);
   }
 }
 
@@ -882,8 +957,7 @@ async function saveLog() {
   });
   if (res.ok) {
     closeLogModal();
-    await loadMaterials();
-    // 重新載入展開的捲料
+    await Promise.all([loadMaterials(), loadActivity()]);
     expandedRows.forEach(id => loadRolls(id));
   }
 }

@@ -45,10 +45,14 @@ router.post('/', requireAuth, (req, res) => {
     `).run(roll.lastInsertRowid, matId, org_id, stock_meters, uid);
   }
 
+  db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'create', ?, ?)`)
+    .run(matId, org_id, `新增膜料型號：${brand} ${model}`, uid);
+
   res.json({ id: matId });
 });
 
 router.put('/:id', requireAuth, (req, res) => {
+  const { org_id, id: uid } = req.session.user;
   const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
   db.prepare(`
@@ -56,13 +60,20 @@ router.put('/:id', requireAuth, (req, res) => {
     WHERE id=? AND org_id=?
   `).run(brand, model, color || null, spec || null, location || null,
          unit_cost || 0, unit_price || 0, stock_meters || 0, notes || null,
-         req.params.id, req.session.user.org_id);
+         req.params.id, org_id);
+  db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'edit', ?, ?)`)
+    .run(req.params.id, org_id, `編輯膜料資料：${brand} ${model}`, uid);
   res.json({ ok: true });
 });
 
 router.delete('/:id', requireAuth, (req, res) => {
-  db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`)
-    .run(req.params.id, req.session.user.org_id);
+  const { org_id, id: uid } = req.session.user;
+  const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+  db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`).run(req.params.id, org_id);
+  if (mat) {
+    db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (NULL, ?, 'delete', ?, ?)`)
+      .run(org_id, `刪除膜料型號：${mat.brand} ${mat.model}`, uid);
+  }
   res.json({ ok: true });
 });
 
@@ -118,6 +129,12 @@ router.post('/:matId/rolls', requireAuth, (req, res) => {
     INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by)
     VALUES (?, ?, ?, 'purchase', ?, ?, ?)
   `).run(r.lastInsertRowid, req.params.matId, org_id, initial_meters, notes || null, uid);
+
+  const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=?`).get(req.params.matId);
+  if (mat) {
+    db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'purchase', ?, ?)`)
+      .run(req.params.matId, org_id, `進貨 ${initial_meters}米：${mat.brand} ${mat.model}`, uid);
+  }
 
   res.json({ id: r.lastInsertRowid });
 });
@@ -234,6 +251,18 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   `).run(req.params.rid, roll.material_id, org_id, log_type,
          case_id || null, delta, notes || null, uid);
 
+  if (['store_sale','academy','ecommerce','adjust'].includes(log_type)) {
+    const logLabels = { store_sale:'門市銷售', academy:'學院使用', ecommerce:'電商訂單', adjust:'庫存調整' };
+    const matInfo = db.prepare(`SELECT brand, model FROM materials WHERE id=?`).get(roll.material_id);
+    if (matInfo) {
+      db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, ?, ?, ?)`)
+        .run(roll.material_id, org_id,
+             log_type,
+             `${logLabels[log_type]} ${Math.abs(delta)}米：${matInfo.brand} ${matInfo.model}`,
+             uid);
+    }
+  }
+
   res.json({ ok: true, remaining: newRemaining });
 });
 
@@ -257,6 +286,26 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
 
   db.prepare(`DELETE FROM material_logs WHERE id = ?`).run(req.params.id);
   res.json({ ok: true });
+});
+
+// GET /activity — 全站膜料異動紀錄（最新 N 筆）
+router.get('/activity', requireAuth, (req, res) => {
+  const { org_id, view_all_branches } = req.session.user;
+  const limit  = Math.min(parseInt(req.query.limit) || 50, 200);
+  const params = view_all_branches ? [limit] : [org_id, limit];
+  const where  = view_all_branches ? '' : 'WHERE l.org_id = ?';
+  const logs   = db.prepare(`
+    SELECT l.id, l.material_id, l.action, l.detail, l.changed_at,
+           u.name AS user_name,
+           m.brand, m.model
+    FROM material_change_logs l
+    LEFT JOIN users u ON u.id = l.changed_by
+    LEFT JOIN materials m ON m.id = l.material_id
+    ${where}
+    ORDER BY l.changed_at DESC
+    LIMIT ?
+  `).all(...params);
+  res.json(logs);
 });
 
 module.exports = router;
