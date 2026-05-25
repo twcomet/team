@@ -119,11 +119,15 @@ function renderCalendar() {
   const targetMap = {};
   calData.targets.forEach(t => { targetMap[t.date] = t.target_amount; });
 
-  // 預計算：同一個案件跨多日派工時，各日人數加總作為分母
-  const caseTotalWorkers = {};
+  // 預計算：同一案件的派工總人數（有指定人員時）& 派工天數（無人員時的 fallback）
+  const caseTotalWorkers = {};  // case_id → 總人數（所有派工日加總）
+  const caseDispatchDays = {};  // case_id → 派工天數（fallback 用）
   calData.cases.forEach(c => {
-    if (c.source === 'dispatch' && c.worker_count > 0) {
-      caseTotalWorkers[c.id] = (caseTotalWorkers[c.id] || 0) + c.worker_count;
+    if (c.source === 'dispatch') {
+      caseDispatchDays[c.id] = (caseDispatchDays[c.id] || 0) + 1;
+      if (c.worker_count > 0) {
+        caseTotalWorkers[c.id] = (caseTotalWorkers[c.id] || 0) + c.worker_count;
+      }
     }
   });
 
@@ -144,9 +148,16 @@ function renderCalendar() {
     const target = targetMap[dateStr] || defaultTarget;
     const revenue = cases.reduce((s, c) => {
       const price = c.final_price || c.quoted_price || 0;
-      if (c.source === 'dispatch' && c.worker_count > 0) {
-        const total = caseTotalWorkers[c.id] || c.worker_count;
-        return s + (price / total * c.worker_count);
+      if (c.source === 'dispatch') {
+        const totalWorkers = caseTotalWorkers[c.id] || 0;
+        if (totalWorkers > 0 && c.worker_count > 0) {
+          // 按人數加權攤分
+          return s + (price / totalWorkers * c.worker_count);
+        } else {
+          // fallback：同一案件跨多日時平均攤分（避免重複計算）
+          const days = caseDispatchDays[c.id] || 1;
+          return s + (price / days);
+        }
       }
       return s + price;
     }, 0);

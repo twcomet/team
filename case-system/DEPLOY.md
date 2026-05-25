@@ -89,3 +89,35 @@ SQLite 檔案在 `case-system/huixin.db`，建議每日備份：
 ```
 https://your-domain.com/api/line/webhook
 ```
+
+---
+
+## Zeabur 部署（目前使用）
+
+### 資料持久化（跨裝置同步的關鍵）
+
+Zeabur 每次部署會重建 Docker image，若 SQLite 放在 container 內會被清空。  
+必須掛載 Persistent Volume 並設定 `DB_PATH` 環境變數：
+
+**步驟：**
+1. Zeabur Dashboard → 服務 → Storage → 新增 Volume，掛載路徑設為 `/data`
+2. 環境變數設定：
+   ```
+   DB_PATH=/data/huixin.db
+   SESSION_SECRET=<隨機長字串>
+   NODE_ENV=production
+   ```
+
+設定後，`huixin.db`（案件資料）和 `sessions.db`（登入 session）都會存在 `/data/`，  
+重新部署不會遺失資料，所有裝置存取同一份資料庫。
+
+### 快速確認資料是否在持久化路徑
+登入後呼叫（需 owner 帳號）：
+```
+GET /api/auth/me → 確認 session 正常
+```
+或在 Zeabur 的 Terminal 執行：
+```bash
+ls -lh /data/
+```
+若看到 `huixin.db`，表示持久化設定正確。
