@@ -853,7 +853,7 @@ async function loadUsers() {
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
       <td style="display:flex;gap:6px;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button>
-        <button class="btn btn-ghost btn-sm" style="color:#e02424;border-color:#fca5a5" onclick="deleteUser(${u.id},'${u.name}')" ${u.role==='owner'?'disabled title="最高管理者無法刪除"':''}>刪除</button>
+        ${u.role!=='owner' ? `<button class="btn btn-ghost btn-sm" style="color:#e02424;border-color:#fca5a5" onclick="deleteUser(${u.id},'${u.name}')">刪除</button>` : ''}
       </td>
     </tr>
   `).join('') || '<tr><td colspan="8"><div class="empty-state">尚無人員</div></td></tr>';
