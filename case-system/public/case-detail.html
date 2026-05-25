@@ -567,75 +567,123 @@
 
       <!-- 收款 -->
       <div class="tab-pane" id="tab-payment">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:800px">
+        <div style="max-width:680px">
 
-          <!-- 左欄：金額 -->
-          <div>
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">金額資訊</h4>
-            <div class="form-group"><label>場勘費</label><input type="number" id="p_survey_fee" placeholder="（無）" min="0"></div>
-            <div class="form-group"><label>成交金額（未稅）</label><input type="number" id="p_final_price" placeholder="同報價則留空" oninput="updateVat()"></div>
-            <div style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                <span style="color:var(--gray-500)">稅金 5%</span>
-                <span id="p_vat_display" style="font-weight:500">—</span>
+          <!-- ① 案件金額與收款 -->
+          <div style="border:1px solid var(--gray-200);border-radius:12px;margin-bottom:16px;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--gray-50);cursor:pointer;user-select:none" onclick="togglePayBlock('payAmountBody','payAmountIcon')">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:14px;font-weight:700;color:var(--gray-700)">💰 案件金額與收款</span>
+                <span id="payStatusChip" style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600"></span>
               </div>
-              <div style="display:flex;justify-content:space-between">
-                <span style="color:var(--gray-700);font-weight:600">含稅總金額</span>
-                <span id="p_total_display" style="font-weight:700;color:var(--primary)">—</span>
+              <span id="payAmountIcon" style="color:var(--gray-400);transition:transform .2s;font-size:13px">▾</span>
+            </div>
+            <div id="payAmountBody" style="padding:18px 20px">
+              <!-- 成交金額 + 開發票 -->
+              <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:12px">
+                <div class="form-group" style="margin:0;flex:1">
+                  <label>成交金額（未稅）</label>
+                  <input type="number" id="p_final_price" placeholder="同報價則留空" min="0" oninput="updatePayCalc()">
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-bottom:10px;white-space:nowrap">
+                  <input type="checkbox" id="p_needs_invoice" onchange="updatePayCalc()"> 開發票（含稅）
+                </label>
+              </div>
+              <!-- 稅金 / 含稅（僅開發票時顯示）-->
+              <div id="p_vat_row" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                  <span style="color:var(--gray-500)">稅金 5%</span>
+                  <span id="p_vat_display" style="font-weight:500;color:var(--gray-700)">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="font-weight:600;color:var(--gray-700)">含稅總金額</span>
+                  <span id="p_total_display" style="font-weight:700;color:var(--primary)">—</span>
+                </div>
+              </div>
+              <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 16px">
+              <!-- 場勘費 -->
+              <div class="form-group"><label>已付場勘費</label>
+                <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              </div>
+              <!-- 訂金 -->
+              <div class="form-group"><label>訂金</label>
+                <input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              </div>
+              <!-- 尾款 -->
+              <div class="form-group"><label>尾款</label>
+                <input type="number" id="p_balance_paid" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              </div>
+              <!-- 保留款 + 請款通知日期 -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                <div class="form-group" style="margin:0"><label>保留款</label>
+                  <input type="number" id="p_retention_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+                </div>
+                <div class="form-group" style="margin:0"><label>請款通知日期</label>
+                  <input type="date" id="p_retention_due_date">
+                  <div style="font-size:11px;color:var(--gray-400);margin-top:3px">到期時自動通知會計請款</div>
+                </div>
+              </div>
+              <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
+              <!-- 應付總金額 + 收款狀態 -->
+              <div style="background:var(--gray-50);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付總金額（尚未收）</div>
+                  <div id="p_outstanding_display" style="font-size:22px;font-weight:700">—</div>
+                </div>
+                <div id="p_status_badge" style="font-size:12px;padding:6px 14px;border-radius:20px;font-weight:600;text-align:center"></div>
               </div>
             </div>
-            <div class="form-group"><label>訂金</label><input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updateBalance()"></div>
-            <div style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
-              <div style="display:flex;justify-content:space-between">
-                <span style="color:var(--gray-700);font-weight:600">尾款</span>
-                <span id="p_balance_display" style="font-weight:700">—</span>
+          </div>
+
+          <!-- ② 發票資訊（開發票時才顯示，可收合） -->
+          <div id="invoiceBlock" style="border:1px solid #bae6fd;border-radius:12px;margin-bottom:16px;overflow:hidden;display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f0f9ff;cursor:pointer;user-select:none" onclick="togglePayBlock('invoiceBody','invoiceIcon')">
+              <span style="font-size:14px;font-weight:700;color:#0369a1">🧾 發票資訊</span>
+              <span id="invoiceIcon" style="color:#7dd3fc;transition:transform .2s;font-size:13px">▾</span>
+            </div>
+            <div id="invoiceBody" style="padding:18px 20px">
+              <div class="form-row">
+                <div class="form-group"><label>公司名稱（抬頭）</label><input type="text" id="p_invoice_company" placeholder="統一發票抬頭"></div>
+                <div class="form-group"><label>統一編號</label><input type="text" id="p_invoice_tax_id" placeholder="8碼統編" maxlength="8"></div>
+              </div>
+              <div class="form-group"><label>發票地址</label><input type="text" id="p_invoice_address"></div>
+              <div class="form-row">
+                <div class="form-group"><label>發票 Email</label><input type="email" id="p_invoice_email"></div>
+                <div class="form-group"><label>品名（發票用）</label><input type="text" id="p_invoice_item_desc" placeholder="例：室內裝潢貼膜施工費"></div>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group"><label>收款狀態</label>
-                <select id="p_payment_status">
-                  <option value="unpaid">未收款</option><option value="partial">部分收款</option>
-                  <option value="paid">已收款</option><option value="overdue">逾期</option>
-                </select>
-              </div>
-              <div class="form-group"><label>到期日</label><input type="date" id="p_payment_due_date"></div>
+          </div>
+
+          <!-- ③ 收款備註 -->
+          <div class="form-group" style="margin-bottom:16px">
+            <label>收款備註</label>
+            <textarea id="p_payment_notes" rows="2" placeholder="發票號碼、匯款帳號、催收進度…"></textarea>
+          </div>
+
+          <!-- ④ 成本費用 -->
+          <div style="border:1px solid var(--gray-200);border-radius:12px;overflow:hidden;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--gray-50);cursor:pointer;user-select:none" onclick="togglePayBlock('costBody','costIcon')">
+              <span style="font-size:14px;font-weight:700;color:var(--gray-700)">📊 成本費用</span>
+              <span id="costIcon" style="color:var(--gray-400);transition:transform .2s;font-size:13px">▾</span>
             </div>
-            <div class="form-group"><label>已收金額</label><input type="number" id="p_payment_received"></div>
-            <div class="form-group"><label>收款備註</label><textarea id="p_payment_notes" rows="2" placeholder="發票號碼、匯款帳號、催收進度…"></textarea></div>
+            <div id="costBody" style="padding:18px 20px">
+              <div class="form-row-3" style="margin-bottom:10px">
+                <div class="form-group" style="margin:0"><label>材料成本</label><input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+                <div class="form-group" style="margin:0"><label>外包成本</label><input type="number" id="p_outsource_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+                <div class="form-group" style="margin:0"><label>施工成本</label><input type="number" id="p_install_fee" placeholder="0" min="0" oninput="updateProfit()"></div>
+              </div>
+              <div class="form-row" style="margin-bottom:14px">
+                <div class="form-group" style="margin:0"><label>運費</label><input type="number" id="p_shipping_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+                <div class="form-group" style="margin:0"><label>其他費用</label><input type="number" id="p_other_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+              </div>
+              <div style="background:var(--gray-50);border-radius:8px;padding:14px;font-size:13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center" id="profitSummary">
+                <div><div style="color:var(--gray-500);margin-bottom:4px">總成本</div><div id="p_total_cost" style="font-weight:700;font-size:16px">—</div></div>
+                <div><div style="color:var(--gray-500);margin-bottom:4px">毛利</div><div id="p_profit" style="font-weight:700;font-size:16px">—</div></div>
+                <div><div style="color:var(--gray-500);margin-bottom:4px">毛利率</div><div id="p_margin" style="font-weight:700;font-size:16px">—</div></div>
+              </div>
+            </div>
           </div>
 
-          <!-- 右欄：發票資訊 -->
-          <div>
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--gray-700)">發票資訊</h4>
-            <div class="form-group"><label>公司名稱</label><input type="text" id="p_invoice_company" placeholder="統一發票抬頭"></div>
-            <div class="form-group"><label>統一編號</label><input type="text" id="p_invoice_tax_id" placeholder="8碼統編" maxlength="8"></div>
-            <div class="form-group"><label>發票地址</label><input type="text" id="p_invoice_address"></div>
-            <div class="form-group"><label>發票 Email</label><input type="email" id="p_invoice_email"></div>
-            <div class="form-group"><label>品名（發票用）</label><input type="text" id="p_invoice_item_desc" placeholder="例：室內裝潢貼膜施工費"></div>
-          </div>
-        </div>
-
-        <!-- 成本費用 -->
-        <div style="margin-top:24px;border:1px solid var(--gray-200);border-radius:10px;padding:20px;max-width:800px">
-          <h4 style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--gray-700)">成本費用</h4>
-          <div class="form-row-3" style="margin-bottom:10px">
-            <div class="form-group" style="margin:0"><label>材料成本</label><input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
-            <div class="form-group" style="margin:0"><label>外包成本</label><input type="number" id="p_outsource_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
-            <div class="form-group" style="margin:0"><label>施工成本</label><input type="number" id="p_install_fee" placeholder="0" min="0" oninput="updateProfit()"></div>
-          </div>
-          <div class="form-row" style="margin-bottom:14px">
-            <div class="form-group" style="margin:0"><label>運費</label><input type="number" id="p_shipping_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
-            <div class="form-group" style="margin:0"><label>其他費用</label><input type="number" id="p_other_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
-          </div>
-          <!-- 毛利摘要 -->
-          <div style="background:var(--gray-50);border-radius:8px;padding:14px;font-size:13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center" id="profitSummary">
-            <div><div style="color:var(--gray-500);margin-bottom:4px">總成本</div><div id="p_total_cost" style="font-weight:700;font-size:16px">—</div></div>
-            <div><div style="color:var(--gray-500);margin-bottom:4px">毛利</div><div id="p_profit" style="font-weight:700;font-size:16px">—</div></div>
-            <div><div style="color:var(--gray-500);margin-bottom:4px">毛利率</div><div id="p_margin" style="font-weight:700;font-size:16px">—</div></div>
-          </div>
-        </div>
-
-        <div style="margin-top:20px">
           <button class="btn btn-primary" id="savePaymentBtn">更新收款 ／ 發票資訊</button>
         </div>
       </div>
@@ -832,7 +880,7 @@ const ITEM_TYPES = [
 ];
 const BRANDS = ['PAROI（日本）','BODAQ（韓國）','LG BENIF（韓國）','WD穩得','3M DI-NOC','Avery','Lintec','其他'];
 
-let caseId, caseData, users = [], clients = [], quoteData = null, pushMode = 'manual';
+let caseId, caseData, users = [], allUsers = [], clients = [], quoteData = null, pushMode = 'manual';
 let poolIsOn = false, poolType = 'full';
 
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
@@ -849,8 +897,8 @@ async function init() {
   await loadUser();
   caseId = new URLSearchParams(location.search).get('id');
   if (!caseId) { location.href = '/cases'; return; }
-  const [usersRes, clientsRes, settingsRes] = await Promise.all([fetchDispatchUsers(), fetchClients(), fetch('/api/settings')]);
-  users = usersRes; clients = clientsRes;
+  const [usersRes, allUsersRes, clientsRes, settingsRes] = await Promise.all([fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings')]);
+  users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
 
@@ -1215,8 +1263,8 @@ function fillBasicForm() {
   // 外包橫幅
   updatePoolBanner(!!c.is_outsourced, c.is_outsourced ? (c.outsource_type || 'full') : null);
 
-  const salesList = users.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
-  const csList    = users.filter(u => ['owner','vp','hq_cs'].includes(u.role));
+  const salesList = allUsers.filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role));
+  const csList    = allUsers.filter(u => u.role === 'hq_cs');
   initClientAutocomplete();
   populateSelect(document.getElementById('b_sales'), salesList, 'id', 'name', '（未指定）');
   populateSelect(document.getElementById('b_cs'),    csList,    'id', 'name', '（未指定）');
