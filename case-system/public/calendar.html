@@ -171,8 +171,8 @@ function renderCalendar() {
     }
 
     const pillsHtml = cases.slice(0, 3).map(c => {
-      const name = c.installer_name ? `${c.installer_name}｜` : '';
-      return `<div class="cal-case-pill ${c.status}" title="${c.title}">${name}${c.client_name || c.title}</div>`;
+      const parts = [c.title, c.client_name, c.installer_name].filter(Boolean);
+      return `<div class="cal-case-pill ${c.status}" title="${parts.join('｜')}">${parts.join('｜')}</div>`;
     }).join('') + (cases.length > 3 ? `<div style="font-size:11px;color:#6b7280">+${cases.length - 3} 件</div>` : '');
 
     html += `
