@@ -156,9 +156,7 @@ async function handleClientText(event, channel) {
     VALUES (?, 'in', 'text', ?)
   `).run(inquiryId, text);
 
-  const welcomeBack = channel.welcome_msg ||
-    `您好 ${displayName}！已收到您的訊息 🙏\n\n我們的客服人員將在工作時間內盡快與您聯繫，感謝您的耐心等候！`;
-  await reply(event.replyToken, welcomeBack, channel.channel_token);
+  // 自動回覆已關閉：訊息收進系統但不主動回覆客戶
 }
 
 // 客戶加好友歡迎語
