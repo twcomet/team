@@ -6,6 +6,7 @@
 <title>行銷報表 — 繪新管理系統</title>
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 .filter-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
 .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
@@ -133,9 +134,24 @@
 
       </div>
 
-      <!-- 月度趨勢：詢問 vs 成交 -->
+      <!-- 每日趨勢線性圖 -->
       <div class="card" style="margin-bottom:20px">
-        <div class="card-header"><h3>月度趨勢：詢問 vs 成交</h3></div>
+        <div class="card-header">
+          <h3>每日趨勢：詢問建案 vs 成交</h3>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm trend-tab active" data-t="day">每日</button>
+            <button class="btn btn-ghost btn-sm trend-tab" data-t="month">每月</button>
+          </div>
+        </div>
+        <div class="card-body" id="trendChartWrap" style="position:relative;height:260px">
+          <div id="trendLoading" style="color:var(--gray-400);font-size:13px">載入中...</div>
+          <canvas id="trendChart" style="display:none"></canvas>
+        </div>
+      </div>
+
+      <!-- 月度趨勢：詢問 vs 成交（橫條圖） -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>月度漏斗：詢問 vs 成交</h3></div>
         <div class="card-body" id="funnelBody">
           <div style="color:var(--gray-400);font-size:13px">載入中...</div>
         </div>
@@ -188,7 +204,7 @@ const SOURCE_COLORS = {
 };
 const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
 
-let orgs = [], csGroup = 'day';
+let orgs = [], csGroup = 'day', trendMode = 'day', trendChartInst = null;
 
 async function init() {
   await loadUser();
@@ -209,6 +225,17 @@ async function init() {
   }
 
   document.getElementById('queryBtn').addEventListener('click', () => { loadReport(); loadCsFunnel(); });
+
+  // 線性圖 日/月 切換
+  document.querySelectorAll('.trend-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.trend-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      trendMode = btn.dataset.t;
+      if (window._lastDailyTrend && window._lastMonthlyFunnel)
+        renderTrendChart(window._lastDailyTrend, window._lastMonthlyFunnel);
+    });
+  });
   document.getElementById('btn1y').addEventListener('click', () => setRange(365));
   document.getElementById('btn6m').addEventListener('click', () => setRange(180));
   document.getElementById('btn3m').addEventListener('click', () => setRange(90));
@@ -309,6 +336,13 @@ function renderCsUserTable(byUser) {
   </table></div>`;
 }
 
+function showLoadError(ids, msg) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ ${msg}</div>`;
+  });
+}
+
 async function loadReport() {
   const params = new URLSearchParams({
     from: document.getElementById('fromDate').value,
@@ -317,9 +351,23 @@ async function loadReport() {
   const org = document.getElementById('orgFilter').value;
   if (org) params.set('org_id', org);
 
-  const res = await fetch('/api/marketing/summary?' + params);
-  if (!res.ok) return;
-  const d = await res.json();
+  let res, d;
+  try {
+    res = await fetch('/api/marketing/summary?' + params);
+    d = await res.json();
+  } catch (e) {
+    showLoadError(['sourceChart','caseTypeChart','lineChart','keywordChart','funnelBody','monthlyClientsBody','trendLoading'], '網路錯誤，請重新整理');
+    return;
+  }
+  if (!res.ok) {
+    const errMsg = d?.error || `伺服器錯誤 ${res.status}`;
+    showLoadError(['sourceChart','caseTypeChart','lineChart','keywordChart','funnelBody','monthlyClientsBody','trendLoading'], errMsg);
+    return;
+  }
+
+  window._lastDailyTrend    = d.dailyTrend    || [];
+  window._lastMonthlyFunnel = d.monthlyFunnel || [];
+
   renderStats(d);
   renderSourceChart(d.sourceStats);
   renderCaseTypeChart(d.caseTypeStats);
@@ -327,6 +375,7 @@ async function loadReport() {
   renderKeywords(d.keywords);
   renderFunnel(d.monthlyFunnel);
   renderMonthlyClients(d.monthlyClients);
+  renderTrendChart(d.dailyTrend, d.monthlyFunnel);
 }
 
 function renderStats(d) {
@@ -434,6 +483,75 @@ function renderFunnel(data) {
         </div>`;
       }).join('')}
     </div>`;
+}
+
+function renderTrendChart(dailyData, monthlyData) {
+  const loading = document.getElementById('trendLoading');
+  const canvas  = document.getElementById('trendChart');
+  if (!loading || !canvas) return;
+
+  const src = trendMode === 'day' ? dailyData : monthlyData;
+  if (!src || !src.length) {
+    loading.textContent = '無資料';
+    loading.style.display = '';
+    canvas.style.display = 'none';
+    return;
+  }
+
+  loading.style.display = 'none';
+  canvas.style.display = '';
+
+  const labels   = src.map(r => r.day || r.month);
+  const inquiries = src.map(r => r.inquiries || r.total || 0);
+  const deals     = src.map(r => r.deals || 0);
+
+  if (trendChartInst) { trendChartInst.destroy(); trendChartInst = null; }
+
+  trendChartInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '詢問建案',
+          data: inquiries,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,.08)',
+          tension: 0.3,
+          pointRadius: trendMode === 'day' ? 2 : 4,
+          fill: true,
+        },
+        {
+          label: '成交',
+          data: deals,
+          borderColor: '#059669',
+          backgroundColor: 'rgba(5,150,105,.08)',
+          tension: 0.3,
+          pointRadius: trendMode === 'day' ? 2 : 4,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: trendMode === 'day' ? 12 : 24, font: { size: 11 }, maxRotation: 30 },
+          grid: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0, font: { size: 11 } },
+          grid: { color: 'rgba(0,0,0,.05)' },
+        },
+      },
+    },
+  });
 }
 
 function renderMonthlyClients(data) {
