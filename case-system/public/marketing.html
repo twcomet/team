@@ -272,11 +272,21 @@ async function loadCsFunnel() {
   const org = document.getElementById('orgFilter').value;
   if (org) params.set('org_id', org);
 
-  const res = await fetch('/api/marketing/cs-funnel?' + params);
-  if (!res.ok) return;
-  const d = await res.json();
-  renderCsFunnelTable(d.periods);
-  renderCsUserTable(d.byUser);
+  try {
+    const res = await fetch('/api/marketing/cs-funnel?' + params);
+    const d = await res.json();
+    if (!res.ok) {
+      const msg = d?.error || `伺服器錯誤 ${res.status}`;
+      document.getElementById('csFunnelTable').innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ ${msg}</div>`;
+      document.getElementById('csUserTable').innerHTML   = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ ${msg}</div>`;
+      return;
+    }
+    renderCsFunnelTable(d.periods);
+    renderCsUserTable(d.byUser);
+  } catch (e) {
+    document.getElementById('csFunnelTable').innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ 網路錯誤，請重新整理</div>`;
+    document.getElementById('csUserTable').innerHTML   = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ 網路錯誤，請重新整理</div>`;
+  }
 }
 
 function pct(num, den) {
@@ -570,7 +580,13 @@ function renderMonthlyClients(data) {
   </div>`;
 }
 
-init();
+init().catch(err => {
+  console.error('[marketing init]', err);
+  ['sourceChart','caseTypeChart','lineChart','keywordChart','funnelBody','monthlyClientsBody','trendLoading','csFunnelTable','csUserTable'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.textContent.includes('載入中')) el.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ 頁面初始化失敗：${err.message}</div>`;
+  });
+});
 </script>
 </body>
 </html>
