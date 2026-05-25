@@ -55,12 +55,36 @@ router.put('/:id', requireAuth, (req, res) => {
   const { org_id, id: uid } = req.session.user;
   const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
+
   db.prepare(`
     UPDATE materials SET brand=?, model=?, color=?, spec=?, location=?, unit_cost=?, unit_price=?, stock_meters=?, notes=?
     WHERE id=? AND org_id=?
   `).run(brand, model, color || null, spec || null, location || null,
          unit_cost || 0, unit_price || 0, stock_meters || 0, notes || null,
          req.params.id, org_id);
+
+  // 若編輯後有庫存但完全沒有捲料紀錄 → 自動補建初始捲料，避免銷貨找不到可用捲料
+  const meters = parseFloat(stock_meters) || 0;
+  if (meters > 0) {
+    const rollCount = db.prepare(`SELECT COUNT(*) as cnt FROM material_rolls WHERE material_id = ? AND org_id = ?`)
+      .get(req.params.id, org_id)?.cnt || 0;
+    if (rollCount === 0) {
+      const today    = new Date().toISOString().slice(0, 10);
+      const orgName  = db.prepare(`SELECT name FROM orgs WHERE id = ?`).get(org_id)?.name || '總部';
+      const dateCode = today.replace(/-/g, '');
+      const rollNo   = `${brand.trim()}-${model.trim()}-${dateCode}-01`;
+      const roll     = db.prepare(`
+        INSERT INTO material_rolls (material_id, org_id, roll_no, initial_meters, remaining_meters, purchase_date, unit_cost, location, branch, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(req.params.id, org_id, rollNo, meters, meters, today,
+             unit_cost || 0, location || null, orgName, uid);
+      db.prepare(`
+        INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by)
+        VALUES (?, ?, ?, 'purchase', ?, '編輯膜料時補建初始捲料', ?)
+      `).run(roll.lastInsertRowid, req.params.id, org_id, meters, uid);
+    }
+  }
+
   db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'edit', ?, ?)`)
     .run(req.params.id, org_id, `編輯膜料資料：${brand} ${model}`, uid);
   res.json({ ok: true });
