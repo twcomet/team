@@ -107,14 +107,40 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
 // 刪除人員（僅 owner 可刪，且不可刪自己）
 router.delete('/:id', requireCanManageUsers, (req, res) => {
   const me = req.session.user;
-  const target = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.params.id);
-  if (!target) return res.status(404).json({ error: '使用者不存在' });
-  if (target.role === 'owner') return res.status(403).json({ error: '無法刪除最高管理者帳號' });
-  if (target.id === me.id) return res.status(403).json({ error: '無法刪除自己的帳號' });
-  db.prepare(`DELETE FROM users WHERE id = ?`).run(req.params.id);
-  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
-    .run(me.id, 'delete', 'users', req.params.id, `刪除帳號：${target.username}（${target.name}）`);
-  res.json({ ok: true });
+  try {
+    const target = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.params.id);
+    if (!target) return res.status(404).json({ error: '使用者不存在' });
+    if (target.role === 'owner') return res.status(403).json({ error: '無法刪除最高管理者帳號' });
+    if (target.id === me.id) return res.status(403).json({ error: '無法刪除自己的帳號' });
+    const uid = Number(req.params.id);
+    // 先清除所有 FK 參照，避免 FOREIGN KEY constraint failed
+    db.exec(`PRAGMA foreign_keys=OFF`);
+    try {
+      db.prepare(`UPDATE clients SET created_by=NULL WHERE created_by=?`).run(uid);
+      db.prepare(`UPDATE cases SET sales_id=NULL WHERE sales_id=?`).run(uid);
+      db.prepare(`UPDATE cases SET created_by=NULL WHERE created_by=?`).run(uid);
+      db.prepare(`UPDATE cases SET cs_id=NULL WHERE cs_id=?`).run(uid);
+      db.prepare(`UPDATE cases SET surveyor_id=NULL WHERE surveyor_id=?`).run(uid);
+      db.prepare(`UPDATE dispatches SET created_by=NULL WHERE created_by=?`).run(uid);
+      db.prepare(`DELETE FROM dispatch_users WHERE user_id=?`).run(uid);
+      db.prepare(`DELETE FROM notifications WHERE user_id=?`).run(uid);
+      db.prepare(`UPDATE profit_shares SET user_id=NULL WHERE user_id=?`).run(uid);
+      db.prepare(`UPDATE audit_logs SET user_id=NULL WHERE user_id=?`).run(uid);
+      db.prepare(`UPDATE material_rolls SET created_by=NULL WHERE created_by=?`).run(uid);
+      db.prepare(`UPDATE material_logs SET logged_by=NULL WHERE logged_by=?`).run(uid);
+      db.prepare(`UPDATE material_change_logs SET changed_by=NULL WHERE changed_by=?`).run(uid);
+      db.prepare(`UPDATE dispatch_materials SET created_by=NULL WHERE created_by=?`).run(uid);
+      db.prepare(`DELETE FROM users WHERE id=?`).run(uid);
+    } finally {
+      db.exec(`PRAGMA foreign_keys=ON`);
+    }
+    db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+      .run(me.id, 'delete', 'users', uid, `刪除帳號：${target.username}（${target.name}）`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('delete user error:', e);
+    res.status(500).json({ error: '刪除失敗：' + e.message });
+  }
 });
 
 // 啟用 / 停用人員

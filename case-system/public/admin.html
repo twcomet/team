@@ -1111,7 +1111,11 @@ async function deleteUser(id, name) {
   if (!confirm(`確定永久刪除「${name}」的帳號？\n此操作無法復原。`)) return;
   const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
   if (res.ok) { showToast(`已刪除帳號：${name}`); await loadUsers(); }
-  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+  else {
+    let msg = '刪除失敗';
+    try { const e = await res.json(); msg = e.error || msg; } catch (_) {}
+    showToast(msg, 'error');
+  }
 }
 
 async function deleteCurrentUser() {
