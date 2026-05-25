@@ -218,6 +218,57 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .discount-wrap .block-label { color: #7c3aed; margin-bottom: 0; }
 
+/* ── 模式 B 五欄表格 ── */
+.table-card.mode-b .table-head,
+.table-card.mode-b .row-item {
+  grid-template-columns: 1.2fr 1.2fr 0.9fr 1.3fr 40px;
+}
+
+/* ── 計算方式選擇器 ── */
+.calc-mode-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.calc-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border: 2px solid var(--gray-200);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all .15s;
+  flex: 1;
+  min-width: 110px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--gray-600);
+  gap: 3px;
+}
+.calc-mode-btn input { display: none; }
+.calc-mode-btn small { font-size: 11px; font-weight: 400; color: var(--gray-400); }
+.calc-mode-btn:hover { border-color: var(--primary-light); background: var(--primary-bg); }
+.calc-mode-btn.active { border-color: var(--primary); background: var(--primary-bg); color: var(--primary-dark); }
+.calc-mode-btn.active small { color: var(--primary); }
+
+/* ── 排料分析結果 ── */
+.splice-result {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.splice-result.warn { background: #fff7ed; border-color: #fed7aa; }
+.splice-result .sr-title { font-size: 13px; font-weight: 700; color: #15803d; display: flex; align-items: center; gap: 6px; }
+.splice-result.warn .sr-title { color: #c2410c; }
+.splice-result .sr-strip { font-size: 12px; color: #374151; background: rgba(0,0,0,.04); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; }
+.splice-result .sr-strip span { color: var(--gray-500); }
+
 /* ── 重置按鈕 ── */
 .reset-btn {
   width: 100%;
@@ -298,11 +349,33 @@ input[type=number] { -moz-appearance: textfield; }
           </div>
         </div>
 
-        <!-- 2. 材料明細 -->
+        <!-- 2. 計算方式（模式 B 限定） -->
+        <div id="modeBOptions" style="display:none">
+          <div class="block-label">計算方式</div>
+          <div class="calc-mode-group">
+            <label class="calc-mode-btn active" onclick="setCalcMode('no_loss',this)">
+              <input type="radio" name="calcMode" value="no_loss" checked>
+              不含損料
+              <small>以實際尺寸計算</small>
+            </label>
+            <label class="calc-mode-btn" onclick="setCalcMode('with_loss',this)">
+              <input type="radio" name="calcMode" value="with_loss">
+              含損料
+              <small>膜寬 × 高計算</small>
+            </label>
+            <label class="calc-mode-btn" onclick="setCalcMode('splice',this)">
+              <input type="radio" name="calcMode" value="splice">
+              拼料計算
+              <small>自動最佳化排料</small>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. 材料明細 -->
         <div>
           <div class="block-label">材料明細</div>
-          <div class="table-card">
-            <div class="table-head">
+          <div class="table-card" id="tableCard">
+            <div class="table-head" id="tableHead">
               <span>長度</span>
               <span>數量</span>
               <span>小計</span>
@@ -313,9 +386,12 @@ input[type=number] { -moz-appearance: textfield; }
           </div>
         </div>
 
-        <!-- 3. 合計 -->
+        <!-- 4. 排料分析（拼料模式限定） -->
+        <div id="splicePanel" style="display:none"></div>
+
+        <!-- 5. 合計 -->
         <div class="summary-row">
-          <div class="sum-box">
+          <div class="sum-box" id="metersBox">
             <div class="s-label">總米數</div>
             <div><span class="s-val" id="totalMeters">—</span><span class="s-unit" id="totalMetersUnit"></span></div>
           </div>
@@ -369,47 +445,111 @@ input[type=number] { -moz-appearance: textfield; }
 
 <script src="/js/common.js"></script>
 <script>
-  let rowCount = 0;
+  /* ── 狀態 ── */
+  let rowCount  = 0;
   let filmWidth = 122;
+  let filmMode  = 'A';       // 'A' 裝潢膜  'B' 防爆/隔熱紙
+  let calcMode  = 'no_loss'; // 'no_loss' | 'with_loss' | 'splice'
 
   const FILMS = {
-    122: { name: '裝潢膜',    defaultPrice: 200 },
-    150: { name: '防爆玻璃膜', defaultPrice: 400 },
-    152: { name: '隔熱紙',   defaultPrice: 180 },
+    122: { name: '裝潢膜',    defaultPrice: 200, mode: 'A' },
+    150: { name: '防爆玻璃膜', defaultPrice: 400, mode: 'B' },
+    152: { name: '隔熱紙',   defaultPrice: 180, mode: 'B' },
   };
 
+  /* ── 切換膜料 ── */
   function selectFilm(btn) {
     document.querySelectorAll('.film-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filmWidth = parseInt(btn.dataset.width);
-    document.getElementById('unitPrice').value = FILMS[filmWidth].defaultPrice;
+    const film = FILMS[filmWidth];
+    filmMode = film.mode;
+    document.getElementById('unitPrice').value = film.defaultPrice;
+
+    const isModeB = filmMode === 'B';
+    document.getElementById('modeBOptions').style.display = isModeB ? '' : 'none';
+    document.getElementById('metersBox').style.display    = isModeB ? 'none' : '';
+
+    // 重置計算方式
+    if (!isModeB) { calcMode = 'no_loss'; }
+    document.getElementById('splicePanel').style.display = 'none';
+
+    // 更新表頭並重建列
+    updateTableHeaders();
+    document.getElementById('rowsList').innerHTML = '';
+    rowCount = 0;
+    addRow();
+  }
+
+  /* ── 切換計算方式（模式 B） ── */
+  function setCalcMode(mode, label) {
+    calcMode = mode;
+    document.querySelectorAll('.calc-mode-btn').forEach(b => b.classList.remove('active'));
+    label.classList.add('active');
+    document.getElementById('splicePanel').style.display = mode === 'splice' ? '' : 'none';
     calculate();
   }
 
+  /* ── 表頭 ── */
+  function updateTableHeaders() {
+    const tc = document.getElementById('tableCard');
+    const th = document.getElementById('tableHead');
+    if (filmMode === 'A') {
+      tc.classList.remove('mode-b');
+      th.innerHTML = '<span>長度</span><span>數量</span><span>小計</span><span></span>';
+    } else {
+      tc.classList.add('mode-b');
+      th.innerHTML = '<span>寬 (cm)</span><span>高 (cm)</span><span>數量 (片)</span><span>才數</span><span></span>';
+    }
+  }
+
+  /* ── 新增列 ── */
   function addRow() {
     rowCount++;
     const id = rowCount;
     const row = document.createElement('div');
     row.className = 'row-item';
     row.dataset.id = id;
-    row.innerHTML = `
-      <div class="cell">
-        <input type="number" class="length-input" placeholder="公尺" min="0" step="any" oninput="onRowInput(${id})" />
-        <span class="cell-unit">m</span>
-      </div>
-      <div class="cell">
-        <input type="number" class="qty-input" placeholder="條" min="0" step="1" oninput="onRowInput(${id})" />
-        <span class="cell-unit">條</span>
-      </div>
-      <div class="cell">
-        <input type="text" class="sub-input" readonly placeholder="—" />
-        <span class="cell-unit">m</span>
-      </div>
-      <button class="del-btn" onclick="deleteRow(${id})" title="刪除">×</button>
-    `;
+
+    if (filmMode === 'A') {
+      row.innerHTML = `
+        <div class="cell">
+          <input type="number" class="length-input" placeholder="公尺" min="0" step="any" oninput="onRowInput(${id})" />
+          <span class="cell-unit">m</span>
+        </div>
+        <div class="cell">
+          <input type="number" class="qty-input" placeholder="條" min="0" step="1" oninput="onRowInput(${id})" />
+          <span class="cell-unit">條</span>
+        </div>
+        <div class="cell">
+          <input type="text" class="sub-input" readonly placeholder="—" />
+          <span class="cell-unit">m</span>
+        </div>
+        <button class="del-btn" onclick="deleteRow(${id})" title="刪除">×</button>`;
+    } else {
+      row.innerHTML = `
+        <div class="cell">
+          <input type="number" class="w-input" placeholder="寬" min="0" step="any" oninput="onRowInputB(${id})" />
+          <span class="cell-unit">cm</span>
+        </div>
+        <div class="cell">
+          <input type="number" class="h-input" placeholder="高" min="0" step="any" oninput="onRowInputB(${id})" />
+          <span class="cell-unit">cm</span>
+        </div>
+        <div class="cell">
+          <input type="number" class="qty-input" placeholder="片" min="1" step="1" value="1" oninput="onRowInputB(${id})" />
+          <span class="cell-unit">片</span>
+        </div>
+        <div class="cell">
+          <input type="text" class="sub-input" readonly placeholder="—" />
+          <span class="cell-unit">才</span>
+        </div>
+        <button class="del-btn" onclick="deleteRow(${id})" title="刪除">×</button>`;
+    }
+
     document.getElementById('rowsList').appendChild(row);
     updateDelBtns();
-    row.querySelector('.length-input').focus();
+    row.querySelector('input:not(.sub-input)').focus();
   }
 
   function deleteRow(id) {
@@ -423,6 +563,7 @@ input[type=number] { -moz-appearance: textfield; }
     rows.forEach(r => { r.querySelector('.del-btn').disabled = rows.length === 1; });
   }
 
+  /* ── 模式 A 列計算 ── */
   function onRowInput(id) {
     const row = document.querySelector(`.row-item[data-id="${id}"]`);
     const len = parseFloat(row.querySelector('.length-input').value) || 0;
@@ -431,27 +572,100 @@ input[type=number] { -moz-appearance: textfield; }
     calculate();
   }
 
+  /* ── 模式 B 列計算 ── */
+  function onRowInputB(id) {
+    const row  = document.querySelector(`.row-item[data-id="${id}"]`);
+    const w    = parseFloat(row.querySelector('.w-input').value) || 0;
+    const h    = parseFloat(row.querySelector('.h-input').value) || 0;
+    const qty  = parseFloat(row.querySelector('.qty-input').value) || 1;
+    const cai  = calcRowCaiB(w, h, qty);
+    row.querySelector('.sub-input').value = (w && h) ? fmt(cai, 3) : '';
+    calculate();
+  }
+
+  function calcRowCaiB(w, h, qty) {
+    if (calcMode === 'no_loss')   return (w * h) / 900 * qty;
+    if (calcMode === 'with_loss') return (filmWidth * h) / 900 * qty;
+    // splice 模式：顯示實際面積（參考值），總才數由演算法決定
+    return (w * h) / 900 * qty;
+  }
+
+  /* ── 主計算 ── */
   function calculate() {
+    if (filmMode === 'A') calcModeA();
+    else                  calcModeB();
+  }
+
+  function calcModeA() {
     let totalMeters = 0, hasAny = false;
     document.querySelectorAll('.row-item').forEach(row => {
-      const len = parseFloat(row.querySelector('.length-input').value) || 0;
-      const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+      const len = parseFloat(row.querySelector('.length-input')?.value) || 0;
+      const qty = parseFloat(row.querySelector('.qty-input')?.value) || 0;
       if (len || qty) hasAny = true;
       totalMeters += len * qty;
     });
+    const totalCai = filmWidth * (totalMeters * 100) / 900;
 
-    const totalCai   = filmWidth * (totalMeters * 100) / 900;
-    const unitPrice  = parseFloat(document.getElementById('unitPrice').value) || 0;
-    const totalPrice = totalCai * unitPrice;
-
-    document.getElementById('totalMeters').textContent   = hasAny ? fmt(totalMeters, 2) : '—';
+    document.getElementById('totalMeters').textContent    = hasAny ? fmt(totalMeters, 2) : '—';
     document.getElementById('totalMetersUnit').textContent = hasAny ? ' 公尺' : '';
-    document.getElementById('totalCai').textContent      = hasAny ? fmt(totalCai, 2) : '—';
-    document.getElementById('totalCaiUnit').textContent  = hasAny ? ' 才' : '';
+    setTotalCai(hasAny ? totalCai : null);
+    setPrice(hasAny ? totalCai : null);
+    document.getElementById('formulaNote').textContent =
+      `才數 = ${filmWidth}cm × 總米數(cm) ÷ 900　｜　總價 = 才數 × 單價`;
+  }
 
+  function calcModeB() {
+    const rowEls = [...document.querySelectorAll('.row-item')];
+    let pieces = [], hasAny = false;
+    rowEls.forEach(row => {
+      const w   = parseFloat(row.querySelector('.w-input')?.value) || 0;
+      const h   = parseFloat(row.querySelector('.h-input')?.value) || 0;
+      const qty = parseFloat(row.querySelector('.qty-input')?.value) || 1;
+      if (w && h) { hasAny = true; pieces.push({ w, h, qty }); }
+      // 更新每列顯示
+      const cai = (w && h) ? calcRowCaiB(w, h, qty) : 0;
+      const sub = row.querySelector('.sub-input');
+      if (sub) sub.value = (w && h) ? fmt(cai, 3) : '';
+    });
+
+    if (!hasAny) {
+      setTotalCai(null);
+      setPrice(null);
+      document.getElementById('splicePanel').innerHTML = '';
+      return;
+    }
+
+    let totalCai;
+    if (calcMode === 'splice') {
+      const result = runSpliceAlgorithm(pieces, filmWidth);
+      totalCai = result.totalCai;
+      renderSplicePanel(result, pieces);
+    } else {
+      totalCai = pieces.reduce((sum, p) => sum + calcRowCaiB(p.w, p.h, p.qty), 0);
+      document.getElementById('splicePanel').innerHTML = '';
+    }
+
+    setTotalCai(totalCai);
+    setPrice(totalCai);
+
+    const modeLabel = calcMode === 'no_loss' ? '不含損料' : calcMode === 'with_loss' ? `含損料（膜寬${filmWidth}cm）` : '拼料計算';
+    document.getElementById('formulaNote').textContent =
+      `【${modeLabel}】才數 = 各片材數加總　｜　總價 = 才數 × 單價`;
+  }
+
+  /* ── 共用：設定合計才數 ── */
+  function setTotalCai(cai) {
+    document.getElementById('totalCai').textContent     = cai != null ? fmt(cai, 2) : '—';
+    document.getElementById('totalCaiUnit').textContent = cai != null ? ' 才' : '';
+  }
+
+  /* ── 共用：設定價格 ── */
+  function setPrice(cai) {
+    const unitPrice  = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const totalPrice = (cai || 0) * unitPrice;
     const pEl = document.getElementById('totalPrice');
     if (totalPrice > 0)           pEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice), 0);
-    else if (hasAny && !unitPrice) pEl.textContent = '請輸入單價';
+    else if (cai && !unitPrice)    pEl.textContent = '請輸入單價';
     else                           pEl.textContent = '—';
 
     const disc = parseFloat(document.getElementById('discount').value);
@@ -459,19 +673,76 @@ input[type=number] { -moz-appearance: textfield; }
     dpEl.textContent = (totalPrice > 0 && disc > 0)
       ? 'NT$ ' + fmt(Math.round(totalPrice * disc / 10), 0)
       : '—';
+  }
 
-    document.getElementById('formulaNote').textContent =
-      `才數 = ${filmWidth}cm × 總米數(cm) ÷ 900　｜　總價 = 才數 × 單價`;
+  /* ── 拼料演算法（條帶排列法） ── */
+  function runSpliceAlgorithm(rows, fw) {
+    // 展開每一片（考慮數量）
+    let items = [];
+    rows.forEach(p => {
+      for (let i = 0; i < p.qty; i++) items.push({ w: p.w, h: p.h, area: p.w * p.h });
+    });
+    // 按高度遞減排序，再按面積遞減
+    items.sort((a, b) => b.h - a.h || b.area - a.area);
+
+    const strips = [];
+    for (const item of items) {
+      let placed = false;
+      for (const s of strips) {
+        // 可放入：高度符合 且 剩餘面積足夠
+        if (item.h <= s.height && item.area <= s.remaining) {
+          s.remaining -= item.area;
+          s.pieces.push(item);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        const total = item.h * fw;
+        strips.push({ height: item.h, fw, total, remaining: total - item.area, pieces: [item] });
+      }
+    }
+    const totalCai = strips.reduce((sum, s) => sum + s.total / 900, 0);
+    return { strips, totalCai, fw };
+  }
+
+  /* ── 渲染排料分析 ── */
+  function renderSplicePanel(result, rows) {
+    const { strips, totalCai, fw } = result;
+    const withLossCai = rows.reduce((sum, p) => sum + (fw * p.h / 900) * p.qty, 0);
+    const savedPct = withLossCai > 0 ? Math.round((1 - totalCai / withLossCai) * 100) : 0;
+    const canFitAll = strips.length === 1;
+    const cls = canFitAll ? '' : ' warn';
+    const icon = canFitAll ? '✅' : '⚠️';
+
+    let html = `<div class="splice-result${cls}">
+      <div class="sr-title">${icon} 排料分析：共需 <strong>&nbsp;${strips.length}&nbsp;</strong> 條膜料
+        ${savedPct > 0 ? `<span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">較含損料節省 ${savedPct}%</span>` : ''}
+      </div>`;
+
+    strips.forEach((s, i) => {
+      const usedArea  = s.total - s.remaining;
+      const usePct    = Math.round(usedArea / s.total * 100);
+      const pDesc     = s.pieces.map(p => `${p.w}×${p.h}`).join('、');
+      html += `<div class="sr-strip">
+        <span>第 ${i+1} 條：${s.height} × ${fw} cm（${fmt(s.total/900,2)} 才）</span>
+        <span>使用率 ${usePct}%｜包含：${pDesc} cm</span>
+      </div>`;
+    });
+    html += `</div>`;
+    document.getElementById('splicePanel').innerHTML = html;
+    document.getElementById('splicePanel').style.display = '';
   }
 
   function fmt(n, dec) {
-    return n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: dec });
+    return n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: dec ?? 2 });
   }
 
   function resetAll() {
     document.getElementById('rowsList').innerHTML = '';
     document.getElementById('unitPrice').value = FILMS[filmWidth].defaultPrice;
     document.getElementById('discount').value = '';
+    document.getElementById('splicePanel').innerHTML = '';
     rowCount = 0;
     calculate();
     addRow();
