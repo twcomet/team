@@ -189,6 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchUsers() {
   const r = await fetch('/api/users'); return r.ok ? r.json() : [];
 }
+async function fetchDispatchUsers() {
+  const r = await fetch('/api/users?dispatch=1'); return r.ok ? r.json() : [];
+}
 async function fetchClients() {
   const r = await fetch('/api/clients'); return r.ok ? r.json() : [];
 }

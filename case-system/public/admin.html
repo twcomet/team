@@ -319,6 +319,9 @@
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userCanSeeAmounts"> 可查看案件金額
         </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+          <input type="checkbox" id="userAcceptDispatch"> 接收派工
+        </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px">
           每日成本 $<input type="number" id="userDailyCost" placeholder="0" min="0" style="width:90px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
         </label>
@@ -870,6 +873,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userDept').value = '';
   document.getElementById('userIsManager').checked = false;
   document.getElementById('userCanSeeAmounts').checked = false;
+  document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userDailyCost').value = '';
   document.getElementById('lineBindStatus').innerHTML = '<span style="color:var(--gray-400)">新增帳號後員工自行綁定</span>';
   document.getElementById('userUsername').disabled = false;
@@ -994,6 +998,7 @@ function openEditUser(id) {
   document.getElementById('userDept').value = u.department || '';
   document.getElementById('userIsManager').checked = !!u.is_manager;
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
+  document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
   if (u.line_user_id) {
@@ -1056,6 +1061,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     department: document.getElementById('userDept').value,
     is_manager: document.getElementById('userIsManager').checked,
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
+    accept_dispatch: document.getElementById('userAcceptDispatch').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: 1,
     permissions: {

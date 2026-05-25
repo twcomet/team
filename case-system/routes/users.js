@@ -5,18 +5,22 @@ const { requireAuth, requireCanManageUsers, ROLE_DEFS } = require('../middleware
 const router = express.Router();
 
 // 取得使用者清單（依權限過濾）
+// ?dispatch=1  → 只回傳 accept_dispatch=1 且 active=1 的人（派工清單用）
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
+  const dispatchOnly = req.query.dispatch === '1';
   let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department, u.allowed_org_ids,
                       u.is_manager, u.can_see_amounts, u.service_areas, u.active,
-                      u.permissions, u.sort_order, u.daily_cost, u.line_user_id, o.name as org_name
+                      u.permissions, u.sort_order, u.daily_cost, u.line_user_id,
+                      u.accept_dispatch, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
   const params = [];
+  const where = [];
 
-  if (!me.view_all_branches) {
-    query += ` WHERE u.org_id = ?`;
-    params.push(me.org_id);
-  }
+  if (!me.view_all_branches) where.push(`u.org_id = ?`) && params.push(me.org_id);
+  if (dispatchOnly) { where.push(`u.accept_dispatch = 1`); where.push(`u.active = 1`); }
+
+  if (where.length) query += ` WHERE ` + where.join(' AND ');
   query += ` ORDER BY u.sort_order, o.type DESC, u.name`;
   res.json(db.prepare(query).all(...params));
 });
@@ -80,14 +84,15 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
     if (target.role === 'owner') return res.status(403).json({ error: '無法修改最高管理者' });
   }
 
-  const { name, role, department, is_manager, can_see_amounts, service_areas, active, permissions, daily_cost } = req.body;
+  const { name, role, department, is_manager, can_see_amounts, service_areas, active, permissions, daily_cost, accept_dispatch } = req.body;
   const newAllowed = 'allowed_org_ids' in req.body
     ? (req.body.allowed_org_ids?.length ? JSON.stringify(req.body.allowed_org_ids) : null)
     : target.allowed_org_ids;
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=? WHERE id=?`)
+  const dispatchVal = accept_dispatch !== undefined ? (accept_dispatch ? 1 : 0) : (target.accept_dispatch ?? 0);
+  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=? WHERE id=?`)
     .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0,
          JSON.stringify(service_areas || []), active ?? 1,
-         JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, req.params.id);
+         JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）
   if ('line_user_id' in req.body) {
     db.prepare(`UPDATE users SET line_user_id=? WHERE id=?`).run(req.body.line_user_id || null, req.params.id);

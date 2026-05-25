@@ -276,6 +276,13 @@ _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
 _addCol('users',      'line_notify_token', 'TEXT');
 _addCol('users',      'line_user_id',      'TEXT');
+// 僅在欄位不存在時才新增，並對技術類角色設預設 1
+const _hasDispatch = db.prepare(`PRAGMA table_info(users)`).all().some(c => c.name === 'accept_dispatch');
+if (!_hasDispatch) {
+  db.exec(`ALTER TABLE users ADD COLUMN accept_dispatch INTEGER DEFAULT 0`);
+  db.exec(`UPDATE users SET accept_dispatch = 1
+    WHERE role IN ('hq_tech','branch_tech','contractor_install','contractor_sales')`);
+}
 _addCol('cases',     'survey_fee_paid',   'INTEGER DEFAULT 0');
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');

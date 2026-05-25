@@ -849,7 +849,7 @@ async function init() {
   await loadUser();
   caseId = new URLSearchParams(location.search).get('id');
   if (!caseId) { location.href = '/cases'; return; }
-  const [usersRes, clientsRes, settingsRes] = await Promise.all([fetchUsers(), fetchClients(), fetch('/api/settings')]);
+  const [usersRes, clientsRes, settingsRes] = await Promise.all([fetchDispatchUsers(), fetchClients(), fetch('/api/settings')]);
   users = usersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
@@ -1498,7 +1498,7 @@ async function deleteDispatch(did) {
 
 function buildUserCheckboxes(selectedIds = []) {
   const container = document.getElementById('d_users');
-  const techUsers = users.filter(u => u.active !== 0);
+  const techUsers = users; // 已由 API ?dispatch=1 過濾
   container.innerHTML = techUsers.map(u => `
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--gray-200);${selectedIds.includes(u.id)?'background:#dbeafe;border-color:var(--primary)':''}">
       <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">
