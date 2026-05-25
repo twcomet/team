@@ -974,7 +974,7 @@ async function unbindLine(userId) {
       permissions: perms, daily_cost: u.daily_cost, line_user_id: null,
     }),
   });
-  if (res.ok) { showToast('已解除 LINE 綁定'); await loadData(); openEditUser(userId); }
+  if (res.ok) { showToast('已解除 LINE 綁定'); await loadUsers(); openEditUser(userId); }
   else showToast('解除失敗', 'error');
 }
 
@@ -1104,7 +1104,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
 async function deleteUser(id, name) {
   if (!confirm(`確定永久刪除「${name}」的帳號？\n此操作無法復原。`)) return;
   const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-  if (res.ok) { showToast(`已刪除帳號：${name}`); await loadData(); }
+  if (res.ok) { showToast(`已刪除帳號：${name}`); await loadUsers(); }
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
@@ -1131,7 +1131,7 @@ async function toggleUserActive() {
   if (res.ok) {
     showToast(`帳號已${action}`);
     closeModal('userModal');
-    await loadData();
+    await loadUsers();
   } else {
     const e = await res.json();
     showToast(e.error || `${action}失敗`, 'error');
