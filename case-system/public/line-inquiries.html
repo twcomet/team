@@ -293,6 +293,7 @@ async function openInquiry(id) {
       <div class="client-grid">
         <div class="cf"><label>姓名</label><input id="cf-name"    value="${escHtml(data.display_name||'')}" placeholder="LINE 顯示名稱"></div>
         <div class="cf"><label>電話</label><input id="cf-phone"   value="${escHtml(data.phone||'')}"        placeholder="聯絡電話"></div>
+        <div class="cf"><label>LINE 客戶顯示名稱</label><input value="${escHtml(data.line_original_name||data.display_name||'')}" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default"></div>
         <div class="cf"><label>Email</label><input id="cf-email"  value="${escHtml(data.email||'')}"        placeholder="電子信箱"></div>
         <div class="cf"><label>地址</label><input id="cf-address" value="${escHtml(data.address||'')}"      placeholder="施工地址"></div>
       </div>

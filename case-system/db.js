@@ -289,6 +289,10 @@ _addCol('cases',     'photo_upload_url',  'TEXT');
 _addCol('cases',     'outsource_cost',    'REAL');
 _addCol('cases',     'shipping_cost',     'REAL');
 _addCol('cases',     'other_cost',        'REAL');
+_addCol('cases',     'balance_paid',      'REAL');
+_addCol('cases',     'retention_amount',  'REAL');
+_addCol('cases',     'retention_due_date','TEXT');
+_addCol('cases',     'needs_invoice',     'INTEGER DEFAULT 0');
 // materials.location 移到 CREATE TABLE 之後處理（避免全新 DB 的 ALTER TABLE 時序錯誤）
 
 // ── 個別捲料 ──────────────────────────────────────────────────
@@ -1404,8 +1408,11 @@ db.exec(`
     updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
-_addCol('line_inquiries', 'org_id',     'INTEGER REFERENCES orgs(id)');
-_addCol('line_inquiries', 'channel_id', 'INTEGER REFERENCES line_channels(id)');
+_addCol('line_inquiries', 'org_id',             'INTEGER REFERENCES orgs(id)');
+_addCol('line_inquiries', 'channel_id',         'INTEGER REFERENCES line_channels(id)');
+_addCol('line_inquiries', 'line_original_name', 'TEXT');
+// 舊紀錄補寫 line_original_name（只補 NULL 且 display_name 有值的）
+db.exec(`UPDATE line_inquiries SET line_original_name=display_name WHERE line_original_name IS NULL AND display_name IS NOT NULL`);
 
 // 系統內建角色的預設權限設定
 db.exec(`

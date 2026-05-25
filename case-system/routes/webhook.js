@@ -145,9 +145,9 @@ async function handleClientText(event, channel) {
     `).run(text.slice(0, 200), inquiryId);
   } else {
     const r = db.prepare(`
-      INSERT INTO line_inquiries (line_user_id, client_id, display_name, last_message, message_count, org_id, channel_id)
-      VALUES (?, ?, ?, ?, 1, ?, ?)
-    `).run(userId, client.id, displayName, text.slice(0, 200), orgId, channel.id || null);
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    `).run(userId, client.id, displayName, displayName, text.slice(0, 200), orgId, channel.id || null);
     inquiryId = r.lastInsertRowid;
   }
 
