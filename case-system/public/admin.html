@@ -266,6 +266,9 @@
             <input type="checkbox" id="rolePerm_page_materials"> 🎞️ 膜料管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_material_calc"> 🧮 快速報價
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_performance"> 🏆 業績報表
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -362,6 +365,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_materials"> 🎞️ 膜料管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_material_calc"> 🧮 快速報價
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_performance"> 🏆 業績報表
@@ -588,7 +594,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_material_calc:'快速報價', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -600,7 +606,7 @@ async function loadCustomRoles() {
     page_dashboard:'總覽', page_cases:'案件管理', page_line_inquiries:'LINE詢問',
     page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款追蹤',
     page_ledger:'收支流水帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件管理',
-    page_materials:'膜料管理', page_performance:'業績報表', page_reports:'財務報表',
+    page_materials:'膜料管理', page_material_calc:'快速報價', page_performance:'業績報表', page_reports:'財務報表',
     page_marketing:'行銷報表', my_tasks:'我的任務',
   };
   const builtinRows = roles.filter(r => r.type === 'builtin').map(r => {
@@ -679,6 +685,7 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('rolePerm_page_cases_deal').checked       = !!p.page_cases_deal;
   document.getElementById('rolePerm_page_materials').checked        = !!p.page_materials;
+  document.getElementById('rolePerm_page_material_calc').checked    = p.page_material_calc !== undefined ? !!p.page_material_calc : true;
   document.getElementById('rolePerm_page_performance').checked      = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked          = !!p.page_reports;
   document.getElementById('rolePerm_page_marketing').checked        = !!p.page_marketing;
@@ -710,6 +717,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('rolePerm_page_cases_deal').checked        = !!p.page_cases_deal;
   document.getElementById('rolePerm_page_materials').checked         = !!p.page_materials;
+  document.getElementById('rolePerm_page_material_calc').checked     = p.page_material_calc !== undefined ? !!p.page_material_calc : true;
   document.getElementById('rolePerm_page_performance').checked       = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked           = !!p.page_reports;
   document.getElementById('rolePerm_page_marketing').checked         = !!p.page_marketing;
@@ -732,6 +740,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_dispatch_pool:  document.getElementById('rolePerm_page_dispatch_pool').checked,
     page_cases_deal:     document.getElementById('rolePerm_page_cases_deal').checked,
     page_materials:      document.getElementById('rolePerm_page_materials').checked,
+    page_material_calc:  document.getElementById('rolePerm_page_material_calc').checked,
     page_performance:    document.getElementById('rolePerm_page_performance').checked,
     page_reports:        document.getElementById('rolePerm_page_reports').checked,
     page_marketing:      document.getElementById('rolePerm_page_marketing').checked,
@@ -903,6 +912,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
     document.getElementById('perm_page_cases_deal').checked       = !!p.page_cases_deal;
     document.getElementById('perm_page_materials').checked        = !!p.page_materials;
+    document.getElementById('perm_page_material_calc').checked    = p.page_material_calc !== undefined ? !!p.page_material_calc : true;
     document.getElementById('perm_page_performance').checked      = !!p.page_performance;
     document.getElementById('perm_page_reports').checked          = !!p.page_reports;
     document.getElementById('perm_page_marketing').checked        = !!p.page_marketing;
@@ -921,6 +931,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_dispatch_pool').checked    = false;
     document.getElementById('perm_page_cases_deal').checked       = isHQ;
     document.getElementById('perm_page_materials').checked        = false;
+    document.getElementById('perm_page_material_calc').checked    = true;
     document.getElementById('perm_page_performance').checked      = false;
     document.getElementById('perm_page_reports').checked          = false;
     document.getElementById('perm_page_marketing').checked        = false;
@@ -998,6 +1009,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
   document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
   document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials   !== undefined ? !!perms.page_materials   : !!u.is_manager);
+  document.getElementById('perm_page_material_calc').checked    = isOwner ? true : (perms.page_material_calc !== undefined ? !!perms.page_material_calc : true);
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
   document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
@@ -1033,6 +1045,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
       page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
       page_materials:      document.getElementById('perm_page_materials').checked,
+      page_material_calc:  document.getElementById('perm_page_material_calc').checked,
       page_performance:    document.getElementById('perm_page_performance').checked,
       page_reports:        document.getElementById('perm_page_reports').checked,
       page_marketing:      document.getElementById('perm_page_marketing').checked,
@@ -1148,6 +1161,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_dispatch_pool:  !!(p.page_dispatch_pool),
       page_cases_deal:     !!(p.page_cases_deal),
       page_materials:      !!(p.page_materials),
+      page_material_calc:  p.page_material_calc !== undefined ? !!(p.page_material_calc) : true,
       page_performance:    !!(p.page_performance),
       page_reports:        !!(p.page_reports),
       page_marketing:      !!(p.page_marketing),

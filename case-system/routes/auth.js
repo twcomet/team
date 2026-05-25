@@ -60,6 +60,7 @@ router.post('/login', (req, res) => {
       page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers),
       page_cases_deal:     perm('page_cases_deal',  ['vp','hq_cs','hq_sales','hq_accounting','hq_hr'].includes(user.role)),
       page_materials:      perm('page_materials',   def.manageUsers),
+      page_material_calc:  perm('page_material_calc', true),
       page_performance:    perm('page_performance', def.manageUsers),
       page_reports:        perm('page_reports',     def.manageUsers),
       page_marketing:      perm('page_marketing',   def.manageUsers),

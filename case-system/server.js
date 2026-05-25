@@ -90,6 +90,7 @@ const PAGE_PERMS = {
   'quote-form':     'page_cases',
   admin:            'manage_users',
   materials:        'page_materials',
+  'material-calc':  'page_material_calc',
   reports:          'page_reports',
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
@@ -117,6 +118,8 @@ function requirePagePerm(page) {
     } else if (key === 'page_cases_deal') {
       const HQ = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
       allowed = p.page_cases_deal !== undefined ? p.page_cases_deal === true : HQ.includes(u.role);
+    } else if (key === 'page_material_calc') {
+      allowed = p.page_material_calc !== undefined ? p.page_material_calc === true : true;
     } else if (key === 'page_materials') {
       allowed = p.page_materials !== undefined ? p.page_materials === true : !!u.manage_users;
     } else if (key === 'page_reports') {
