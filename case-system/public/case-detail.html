@@ -2042,66 +2042,103 @@ function updateProfit() {
   document.getElementById('p_margin').textContent     = margin !== null ? `${margin}%` : '—';
   document.getElementById('p_margin').style.color     = margin !== null ? profitColor : '';
 }
-function updateVat() {
-  const base = parseFloat(document.getElementById('p_final_price').value) || 0;
-  const vat  = base * 0.05;
-  const total = base + vat;
-  document.getElementById('p_vat_display').textContent   = base ? fmt(vat)   : '—';
-  document.getElementById('p_total_display').textContent = base ? fmt(total) : '—';
-  updateBalance();
-  updateProfit();
+function togglePayBlock(bodyId, iconId) {
+  const body = document.getElementById(bodyId);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  const icon = document.getElementById(iconId);
+  if (icon) icon.style.transform = isOpen ? 'rotate(-90deg)' : '';
 }
-function updateBalance() {
-  const base    = parseFloat(document.getElementById('p_final_price').value) || 0;
-  const total   = base * 1.05;
-  const deposit = parseFloat(document.getElementById('p_deposit_amount').value) || 0;
-  const balance = total - deposit;
-  document.getElementById('p_balance_display').textContent = (base || deposit) ? fmt(balance) : '—';
+
+function updatePayCalc() {
+  const final    = parseFloat(document.getElementById('p_final_price').value) || 0;
+  const needsVAT = document.getElementById('p_needs_invoice').checked;
+  const vat      = needsVAT ? Math.round(final * 0.05) : 0;
+  const totalInc = final + vat;
+
+  document.getElementById('p_vat_row').style.display          = needsVAT ? '' : 'none';
+  document.getElementById('p_vat_display').textContent         = final ? fmt(vat)      : '—';
+  document.getElementById('p_total_display').textContent       = final ? fmt(totalInc) : '—';
+  document.getElementById('invoiceBlock').style.display         = needsVAT ? '' : 'none';
+
+  const survey    = parseFloat(document.getElementById('p_survey_fee').value)       || 0;
+  const deposit   = parseFloat(document.getElementById('p_deposit_amount').value)   || 0;
+  const balance   = parseFloat(document.getElementById('p_balance_paid').value)     || 0;
+  const retention = parseFloat(document.getElementById('p_retention_amount').value) || 0;
+  const totalPaid = survey + deposit + balance;
+  const outstanding = final ? Math.max(0, totalInc - totalPaid - retention) : 0;
+
+  document.getElementById('p_outstanding_display').textContent = (final || totalPaid) ? fmt(outstanding) : '—';
+
+  let key = 'unpaid', label = 'A 全案未收款', bg = '#fee2e2', fg = '#991b1b';
+  if (!final && !totalPaid) {
+    // A – 什麼都沒收
+  } else if (final && outstanding <= 0 && retention > 0) {
+    key = 'partial'; label = 'D 保留款待請款'; bg = '#fef3c7'; fg = '#92400e';
+  } else if (final && outstanding <= 0 && retention === 0) {
+    key = 'paid'; label = '✓ 已全額收款'; bg = '#dcfce7'; fg = '#166534';
+  } else if (deposit > 0 && balance === 0 && outstanding > 0) {
+    key = 'partial'; label = 'C 已收訂金待尾款'; bg = '#dbeafe'; fg = '#1e40af';
+  } else if (totalPaid > 0) {
+    key = 'partial'; label = 'B 部分收款'; bg = '#fef3c7'; fg = '#92400e';
+  }
+
+  [document.getElementById('p_status_badge'), document.getElementById('payStatusChip')].forEach(el => {
+    if (!el) return;
+    el.textContent = label;
+    el.style.background = bg;
+    el.style.color = fg;
+  });
+  window._autoPayStatus = key;
+  updateProfit();
 }
 
 function fillPaymentForm() {
   const c = caseData;
-  document.getElementById('p_survey_fee').value        = c.survey_fee != null ? c.survey_fee : '';
-  document.getElementById('p_final_price').value       = c.final_price != null ? c.final_price : '';
-  document.getElementById('p_deposit_amount').value    = c.deposit_amount != null ? c.deposit_amount : '';
-  document.getElementById('p_payment_status').value    = c.payment_status || 'unpaid';
-  document.getElementById('p_payment_received').value  = c.payment_received || '';
-  document.getElementById('p_payment_due_date').value  = c.payment_due_date || '';
-  document.getElementById('p_payment_notes').value     = c.payment_notes || '';
-  document.getElementById('p_invoice_company').value   = c.invoice_company || '';
-  document.getElementById('p_invoice_tax_id').value    = c.invoice_tax_id || '';
-  document.getElementById('p_invoice_address').value   = c.invoice_address || '';
-  document.getElementById('p_invoice_email').value     = c.invoice_email || '';
-  document.getElementById('p_invoice_item_desc').value = c.invoice_item_desc || '';
-  document.getElementById('p_material_cost').value   = c.material_cost  != null ? c.material_cost  : '';
-  document.getElementById('p_outsource_cost').value  = c.outsource_cost != null ? c.outsource_cost : '';
-  document.getElementById('p_install_fee').value     = c.install_fee    != null ? c.install_fee    : '';
-  document.getElementById('p_shipping_cost').value   = c.shipping_cost  != null ? c.shipping_cost  : '';
-  document.getElementById('p_other_cost').value      = c.other_cost     != null ? c.other_cost     : '';
-  updateProfit();
-  updateVat();
+  document.getElementById('p_final_price').value        = c.final_price      != null ? c.final_price      : '';
+  document.getElementById('p_needs_invoice').checked    = !!c.needs_invoice;
+  document.getElementById('p_survey_fee').value         = c.survey_fee       != null ? c.survey_fee       : '';
+  document.getElementById('p_deposit_amount').value     = c.deposit_amount   != null ? c.deposit_amount   : '';
+  document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
+  document.getElementById('p_retention_amount').value   = c.retention_amount != null ? c.retention_amount : '';
+  document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
+  document.getElementById('p_payment_notes').value      = c.payment_notes    || '';
+  document.getElementById('p_invoice_company').value    = c.invoice_company  || '';
+  document.getElementById('p_invoice_tax_id').value     = c.invoice_tax_id   || '';
+  document.getElementById('p_invoice_address').value    = c.invoice_address  || '';
+  document.getElementById('p_invoice_email').value      = c.invoice_email    || '';
+  document.getElementById('p_invoice_item_desc').value  = c.invoice_item_desc || '';
+  document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
+  document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
+  document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';
+  document.getElementById('p_shipping_cost').value      = c.shipping_cost    != null ? c.shipping_cost    : '';
+  document.getElementById('p_other_cost').value         = c.other_cost       != null ? c.other_cost       : '';
+  updatePayCalc();
 }
 
 document.getElementById('savePaymentBtn').addEventListener('click', async () => {
   const body = {
     ...caseData,
-    survey_fee:          parseFloat(document.getElementById('p_survey_fee').value) || null,
-    final_price:         parseFloat(document.getElementById('p_final_price').value) || null,
-    deposit_amount:      parseFloat(document.getElementById('p_deposit_amount').value) || null,
-    payment_status:      document.getElementById('p_payment_status').value,
-    payment_received:    parseFloat(document.getElementById('p_payment_received').value) || 0,
-    payment_due_date:    document.getElementById('p_payment_due_date').value || null,
-    payment_notes:       document.getElementById('p_payment_notes').value,
-    invoice_company:     document.getElementById('p_invoice_company').value || null,
-    invoice_tax_id:      document.getElementById('p_invoice_tax_id').value || null,
-    invoice_address:     document.getElementById('p_invoice_address').value || null,
-    invoice_email:       document.getElementById('p_invoice_email').value || null,
-    invoice_item_desc:   document.getElementById('p_invoice_item_desc').value || null,
-    material_cost:  parseFloat(document.getElementById('p_material_cost').value)  || null,
-    outsource_cost: parseFloat(document.getElementById('p_outsource_cost').value) || null,
-    install_fee:    parseFloat(document.getElementById('p_install_fee').value)    || null,
-    shipping_cost:  parseFloat(document.getElementById('p_shipping_cost').value)  || null,
-    other_cost:     parseFloat(document.getElementById('p_other_cost').value)     || null,
+    final_price:        parseFloat(document.getElementById('p_final_price').value)        || null,
+    needs_invoice:      document.getElementById('p_needs_invoice').checked ? 1 : 0,
+    survey_fee:         parseFloat(document.getElementById('p_survey_fee').value)         || null,
+    deposit_amount:     parseFloat(document.getElementById('p_deposit_amount').value)     || null,
+    balance_paid:       parseFloat(document.getElementById('p_balance_paid').value)       || null,
+    retention_amount:   parseFloat(document.getElementById('p_retention_amount').value)   || null,
+    retention_due_date: document.getElementById('p_retention_due_date').value             || null,
+    payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
+    payment_notes:      document.getElementById('p_payment_notes').value                  || null,
+    invoice_company:    document.getElementById('p_invoice_company').value                || null,
+    invoice_tax_id:     document.getElementById('p_invoice_tax_id').value                 || null,
+    invoice_address:    document.getElementById('p_invoice_address').value                || null,
+    invoice_email:      document.getElementById('p_invoice_email').value                  || null,
+    invoice_item_desc:  document.getElementById('p_invoice_item_desc').value              || null,
+    material_cost:      parseFloat(document.getElementById('p_material_cost').value)      || null,
+    outsource_cost:     parseFloat(document.getElementById('p_outsource_cost').value)     || null,
+    install_fee:        parseFloat(document.getElementById('p_install_fee').value)        || null,
+    shipping_cost:      parseFloat(document.getElementById('p_shipping_cost').value)      || null,
+    other_cost:         parseFloat(document.getElementById('p_other_cost').value)         || null,
   };
   const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) { showToast('收款 ／ 發票資訊已更新'); await loadCase(); }
