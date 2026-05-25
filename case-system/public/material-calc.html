@@ -12,8 +12,8 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; }
 
-/* ── 內容最大寬度 ── */
-.calc-body { max-width: 620px; display: flex; flex-direction: column; gap: 16px; }
+/* ── 內容最大寬度，水平置中 ── */
+.calc-body { max-width: 680px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 
 /* ── 膜料類型選擇 ── */
 .film-type-group {
@@ -67,8 +67,8 @@ input[type=number] { -moz-appearance: textfield; }
   padding: 0 12px;
 }
 .table-head span {
-  padding: 9px 8px;
-  font-size: 11px;
+  padding: 11px 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--gray-500);
   letter-spacing: .04em;
@@ -79,9 +79,9 @@ input[type=number] { -moz-appearance: textfield; }
 
 .row-item {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.5fr 36px;
+  grid-template-columns: 2fr 1.2fr 1.5fr 40px;
   align-items: center;
-  padding: 6px 12px;
+  padding: 8px 14px;
   gap: 0;
   border-bottom: 1px solid var(--gray-100);
 }
@@ -89,11 +89,11 @@ input[type=number] { -moz-appearance: textfield; }
 
 .row-item input {
   width: 100%;
-  padding: 8px 10px;
+  padding: 11px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: 500;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--gray-900);
   outline: none;
   background: transparent;
@@ -112,11 +112,11 @@ input[type=number] { -moz-appearance: textfield; }
 
 .row-item .cell { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .row-item .cell:first-child { justify-content: flex-start; }
-.row-item .cell-unit { font-size: 11px; color: var(--gray-400); white-space: nowrap; flex-shrink: 0; }
+.row-item .cell-unit { font-size: 13px; color: var(--gray-400); white-space: nowrap; flex-shrink: 0; }
 
 .del-btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 1px solid #fca5a5;
   border-radius: 6px;
   background: transparent;
@@ -372,16 +372,17 @@ input[type=number] { -moz-appearance: textfield; }
   let rowCount = 0;
   let filmWidth = 122;
 
-  const FILMS = [
-    { name: '裝潢膜',    width: 122 },
-    { name: '防爆玻璃膜', width: 150 },
-    { name: '隔熱紙',   width: 152 },
-  ];
+  const FILMS = {
+    122: { name: '裝潢膜',    defaultPrice: 200 },
+    150: { name: '防爆玻璃膜', defaultPrice: 400 },
+    152: { name: '隔熱紙',   defaultPrice: 180 },
+  };
 
   function selectFilm(btn) {
     document.querySelectorAll('.film-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filmWidth = parseInt(btn.dataset.width);
+    document.getElementById('unitPrice').value = FILMS[filmWidth].defaultPrice;
     calculate();
   }
 
@@ -469,7 +470,7 @@ input[type=number] { -moz-appearance: textfield; }
 
   function resetAll() {
     document.getElementById('rowsList').innerHTML = '';
-    document.getElementById('unitPrice').value = '';
+    document.getElementById('unitPrice').value = FILMS[filmWidth].defaultPrice;
     document.getElementById('discount').value = '';
     rowCount = 0;
     calculate();
@@ -477,6 +478,7 @@ input[type=number] { -moz-appearance: textfield; }
   }
 
   highlightNav('material-calc');
+  document.getElementById('unitPrice').value = 200;
   addRow();
 </script>
 </body>
