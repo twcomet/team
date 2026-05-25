@@ -758,6 +758,27 @@
         <div id="d_users" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
       </div>
       <div class="form-group"><label>備註</label><textarea id="d_notes" rows="2"></textarea></div>
+      <div style="border-top:1px solid var(--gray-200);margin:12px 0 14px;padding-top:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:10px;letter-spacing:.5px">進場資訊</div>
+        <div class="form-group">
+          <label>建議下貨地點／如何進場下貨</label>
+          <input type="text" id="d_unloading_location" placeholder="例：地下室 B1 停車場入口卸貨">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>是否有臨時停車位【預留】</label>
+            <input type="text" id="d_has_parking" placeholder="例：有 2 個，需預留">
+          </div>
+          <div class="form-group">
+            <label>可以施工到幾點</label>
+            <input type="time" id="d_work_until">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>需要換證或密碼</label>
+          <input type="text" id="d_access_code" placeholder="例：大廳換證、電梯密碼 1234">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('dispatchModal').classList.remove('open')">取消</button>
@@ -1442,6 +1463,13 @@ function renderDispatches(dispatches) {
         ${d.material ? `<span style="margin-left:16px">🎨 ${d.material}</span>` : ''}
       </div>
       ${d.notes ? `<div style="font-size:12px;color:#6b7280;margin-top:6px">${d.notes}</div>` : ''}
+      ${(d.unloading_location || d.has_parking || d.work_until || d.access_code) ? `
+      <div style="margin-top:8px;padding:8px 10px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;display:flex;flex-wrap:wrap;gap:6px 16px">
+        ${d.unloading_location ? `<span>📦 下貨：${d.unloading_location}</span>` : ''}
+        ${d.has_parking        ? `<span>🚗 停車：${d.has_parking}</span>` : ''}
+        ${d.work_until         ? `<span>🕐 施工至：${d.work_until}</span>` : ''}
+        ${d.access_code        ? `<span>🔑 換證／密碼：${d.access_code}</span>` : ''}
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1897,6 +1925,10 @@ document.getElementById('addDispatchBtn').addEventListener('click', () => {
   document.getElementById('d_hours').value  = '';
   document.getElementById('d_material').value = '';
   document.getElementById('d_notes').value  = '';
+  document.getElementById('d_unloading_location').value = '';
+  document.getElementById('d_has_parking').value        = '';
+  document.getElementById('d_work_until').value         = '';
+  document.getElementById('d_access_code').value        = '';
   buildUserCheckboxes([]);
   document.getElementById('dispatchModal').classList.add('open');
 });
@@ -1913,6 +1945,10 @@ function editDispatch(did) {
   document.getElementById('d_hours').value  = d.estimated_hours || '';
   document.getElementById('d_material').value = d.material || '';
   document.getElementById('d_notes').value  = d.notes || '';
+  document.getElementById('d_unloading_location').value = d.unloading_location || '';
+  document.getElementById('d_has_parking').value        = d.has_parking || '';
+  document.getElementById('d_work_until').value         = d.work_until || '';
+  document.getElementById('d_access_code').value        = d.access_code || '';
   const ids = d.installer_ids ? d.installer_ids.split(',').map(Number) : [];
   buildUserCheckboxes(ids);
   document.getElementById('dispatchModal').classList.add('open');
@@ -1926,9 +1962,13 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
     status:         document.getElementById('d_status').value,
     scheduled_date: document.getElementById('d_date').value,
     scheduled_time: document.getElementById('d_time').value || null,
-    estimated_hours:parseFloat(document.getElementById('d_hours').value) || null,
-    material:       document.getElementById('d_material').value || null,
-    notes:          document.getElementById('d_notes').value || null,
+    estimated_hours:      parseFloat(document.getElementById('d_hours').value) || null,
+    material:             document.getElementById('d_material').value || null,
+    notes:                document.getElementById('d_notes').value || null,
+    unloading_location:   document.getElementById('d_unloading_location').value || null,
+    has_parking:          document.getElementById('d_has_parking').value || null,
+    work_until:           document.getElementById('d_work_until').value || null,
+    access_code:          document.getElementById('d_access_code').value || null,
     user_ids,
   };
   if (!body.scheduled_date) { showToast('請選擇日期', 'error'); return; }

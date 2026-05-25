@@ -1405,6 +1405,12 @@ _addCol('cases', 'initial_estimate_data', 'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'cs_notes',      'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'checklist_data','TEXT DEFAULT NULL');
 
+// 派工：進場資訊欄位
+_addCol('dispatches', 'unloading_location', 'TEXT DEFAULT NULL');
+_addCol('dispatches', 'has_parking',        'TEXT DEFAULT NULL');
+_addCol('dispatches', 'work_until',         'TEXT DEFAULT NULL');
+_addCol('dispatches', 'access_code',        'TEXT DEFAULT NULL');
+
 // 場勘備註模板庫
 db.exec(`
   CREATE TABLE IF NOT EXISTS survey_note_templates (

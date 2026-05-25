@@ -421,15 +421,19 @@ router.get('/:id/dispatches', requireAuth, (req, res) => {
 
 router.post('/:id/dispatches', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
-  const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, user_ids } = req.body;
+  const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, user_ids,
+          unloading_location, has_parking, work_until, access_code } = req.body;
   if (!scheduled_date) return res.status(400).json({ error: '請選擇派工日期' });
 
   const result = db.prepare(`
-    INSERT INTO dispatches (case_id, dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO dispatches (case_id, dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes,
+      unloading_location, has_parking, work_until, access_code, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(case_id, dispatch_type || 'install', scheduled_date,
          scheduled_time ?? null, estimated_hours ?? null,
-         material ?? null, notes ?? null, req.session.user.id);
+         material ?? null, notes ?? null,
+         unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
+         req.session.user.id);
 
   const did = result.lastInsertRowid;
   if (Array.isArray(user_ids)) {
@@ -461,14 +465,18 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
 });
 
 router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
-  const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, actual_hours, material, material_used, status, notes, user_ids } = req.body;
+  const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, actual_hours, material, material_used, status, notes, user_ids,
+          unloading_location, has_parking, work_until, access_code } = req.body;
   db.prepare(`
     UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
-      actual_hours=?, material=?, material_used=?, status=?, notes=?
+      actual_hours=?, material=?, material_used=?, status=?, notes=?,
+      unloading_location=?, has_parking=?, work_until=?, access_code=?
     WHERE id=? AND case_id=?
   `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
          actual_hours ?? null, material ?? null, material_used ?? null,
-         status || 'pending', notes ?? null, req.params.did, req.params.id);
+         status || 'pending', notes ?? null,
+         unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
+         req.params.did, req.params.id);
 
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   if (Array.isArray(user_ids)) {
