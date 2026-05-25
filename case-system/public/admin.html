@@ -381,9 +381,15 @@
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('userModal')">取消</button>
-      <button class="btn btn-primary" id="userSaveBtn">儲存</button>
+    <div class="modal-footer" style="justify-content:space-between">
+      <div id="userActiveActions" style="display:none;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="toggleActiveBtn" onclick="toggleUserActive()"></button>
+        <button class="btn btn-sm" style="background:#fef2f2;color:#e02424;border:1px solid #fca5a5" id="deleteUserBtn" onclick="deleteCurrentUser()">刪除帳號</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="closeModal('userModal')">取消</button>
+        <button class="btn btn-primary" id="userSaveBtn">儲存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -443,6 +449,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 async function init() {
   await loadUser();
   if (!currentUser.manage_users) { location.href = '/dashboard'; return; }
+  window._currentUserId = currentUser.id;
   highlightNav('admin');
   [orgs, roles] = await Promise.all([fetchOrgs(), fetchRoles()]);
   roleLabelsMap = Object.fromEntries(roles.map(r => [r.value, r.label]));
@@ -844,7 +851,10 @@ async function loadUsers() {
       <td style="font-size:13px;color:#6b7280">${u.org_name || '—'}</td>
       <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button></td>
+      <td style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" style="color:#e02424;border-color:#fca5a5" onclick="deleteUser(${u.id},'${u.name}')" ${u.role==='owner'?'disabled title="最高管理者無法刪除"':''}>刪除</button>
+      </td>
     </tr>
   `).join('') || '<tr><td colspan="8"><div class="empty-state">尚無人員</div></td></tr>';
   initDrag(tbody, '/api/users/reorder');
@@ -1018,6 +1028,20 @@ function openEditUser(id) {
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
   const allowedIds = u.allowed_org_ids ? JSON.parse(u.allowed_org_ids) : [];
   renderAllowedOrgs(u.org_id, allowedIds);
+
+  // 啟用/停用 與 刪除 按鈕（只在編輯時顯示，且自己和 owner 不能操作）
+  const actEl = document.getElementById('userActiveActions');
+  const toggleBtn = document.getElementById('toggleActiveBtn');
+  const deleteBtn = document.getElementById('deleteUserBtn');
+  const isSelf = u.id === (window._currentUserId || 0);
+  const canOperate = !isOwner && !isSelf;
+  actEl.style.display = canOperate ? 'flex' : 'none';
+  if (canOperate) {
+    toggleBtn.textContent = u.active ? '⛔ 停用帳號' : '✅ 啟用帳號';
+    toggleBtn.dataset.active = u.active ? '1' : '0';
+    deleteBtn.style.display = '';
+  }
+
   document.getElementById('userModal').classList.add('open');
 }
 
@@ -1075,6 +1099,44 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     showToast(e.error || '儲存失敗', 'error');
   }
 });
+
+// ── 刪除人員 ──────────────────────────────────────────────
+async function deleteUser(id, name) {
+  if (!confirm(`確定永久刪除「${name}」的帳號？\n此操作無法復原。`)) return;
+  const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+  if (res.ok) { showToast(`已刪除帳號：${name}`); await loadData(); }
+  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+async function deleteCurrentUser() {
+  const id = document.getElementById('userId').value;
+  const name = document.getElementById('userName').value;
+  if (!id) return;
+  closeModal('userModal');
+  await deleteUser(id, name);
+}
+
+async function toggleUserActive() {
+  const id = document.getElementById('userId').value;
+  const name = document.getElementById('userName').value;
+  const btn = document.getElementById('toggleActiveBtn');
+  const isActive = btn.dataset.active === '1';
+  const action = isActive ? '停用' : '啟用';
+  if (!confirm(`確定${action}「${name}」的帳號？`)) return;
+  const res = await fetch(`/api/users/${id}/active`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: !isActive }),
+  });
+  if (res.ok) {
+    showToast(`帳號已${action}`);
+    closeModal('userModal');
+    await loadData();
+  } else {
+    const e = await res.json();
+    showToast(e.error || `${action}失敗`, 'error');
+  }
+}
 
 // ── 操作紀錄 ──────────────────────────────────────────────
 const ACTION_LABELS = {

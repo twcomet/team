@@ -99,6 +99,33 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   res.json({ ok: true });
 });
 
+// 刪除人員（僅 owner 可刪，且不可刪自己）
+router.delete('/:id', requireCanManageUsers, (req, res) => {
+  const me = req.session.user;
+  const target = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.params.id);
+  if (!target) return res.status(404).json({ error: '使用者不存在' });
+  if (target.role === 'owner') return res.status(403).json({ error: '無法刪除最高管理者帳號' });
+  if (target.id === me.id) return res.status(403).json({ error: '無法刪除自己的帳號' });
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(req.params.id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'delete', 'users', req.params.id, `刪除帳號：${target.username}（${target.name}）`);
+  res.json({ ok: true });
+});
+
+// 啟用 / 停用人員
+router.patch('/:id/active', requireCanManageUsers, (req, res) => {
+  const me = req.session.user;
+  const target = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.params.id);
+  if (!target) return res.status(404).json({ error: '使用者不存在' });
+  if (target.role === 'owner') return res.status(403).json({ error: '無法停用最高管理者' });
+  if (target.id === me.id) return res.status(403).json({ error: '無法停用自己的帳號' });
+  const active = req.body.active ? 1 : 0;
+  db.prepare(`UPDATE users SET active = ? WHERE id = ?`).run(active, req.params.id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'update_user', 'users', req.params.id, `${active ? '啟用' : '停用'}帳號：${target.username}`);
+  res.json({ ok: true });
+});
+
 // 修改密碼（本人或 owner）
 router.put('/:id/password', requireAuth, (req, res) => {
   const me = req.session.user;
