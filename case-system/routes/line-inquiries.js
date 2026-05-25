@@ -21,10 +21,14 @@ router.get('/', requireAuth, (req, res) => {
   const rows  = db.prepare(`
     SELECT i.*,
            c.phone, c.email, c.address,
-           cc.case_number AS converted_case_number
+           cc.case_number AS converted_case_number,
+           su.name AS sales_name,
+           cu.name AS cs_name
     FROM line_inquiries i
-    LEFT JOIN clients c ON i.client_id = c.id
+    LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
+    LEFT JOIN users   su ON i.sales_id = su.id
+    LEFT JOIN users   cu ON i.cs_id = cu.id
     ${ws}
     ORDER BY i.last_message_at DESC
     LIMIT ? OFFSET ?
@@ -45,10 +49,14 @@ router.get('/stats', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, (req, res) => {
   const inq = db.prepare(`
     SELECT i.*, c.phone, c.email, c.address,
-           cc.case_number AS converted_case_number
+           cc.case_number AS converted_case_number,
+           su.name AS sales_name, su.id AS sales_id_val,
+           cu.name AS cs_name,    cu.id AS cs_id_val
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
+    LEFT JOIN users   su ON i.sales_id = su.id
+    LEFT JOIN users   cu ON i.cs_id = cu.id
     WHERE i.id=?
   `).get(req.params.id);
   if (!inq) return res.status(404).json({ error: 'not found' });
@@ -62,6 +70,14 @@ router.get('/:id', requireAuth, (req, res) => {
   `).all(req.params.id);
 
   res.json({ ...inq, messages });
+});
+
+// ── 指派負責業務 / 負責客服 ───────────────────────────────────
+router.put('/:id/assign', requireAuth, (req, res) => {
+  const { sales_id, cs_id } = req.body;
+  db.prepare(`UPDATE line_inquiries SET sales_id=?, cs_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(sales_id || null, cs_id || null, req.params.id);
+  res.json({ ok: true });
 });
 
 // ── 更新狀態 ─────────────────────────────────────────────────

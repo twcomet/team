@@ -601,33 +601,37 @@
                 </div>
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 16px">
-              <!-- 場勘費 -->
-              <div class="form-group"><label>已付場勘費</label>
+              <!-- 已付廠刊費 -->
+              <div class="form-group"><label>已付廠刊費</label>
                 <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
               </div>
-              <!-- 訂金 -->
-              <div class="form-group"><label>訂金</label>
+              <!-- 已付訂金 -->
+              <div class="form-group"><label>已付訂金</label>
                 <input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
               </div>
-              <!-- 尾款 -->
-              <div class="form-group"><label>尾款</label>
+              <!-- 已付尾款 -->
+              <div class="form-group"><label>已付尾款</label>
                 <input type="number" id="p_balance_paid" placeholder="（無）" min="0" oninput="updatePayCalc()">
               </div>
-              <!-- 保留款 + 請款通知日期 -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-                <div class="form-group" style="margin:0"><label>保留款</label>
+              <!-- 應收保留款 + 請款通知日期 -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+                <div class="form-group" style="margin:0"><label>應收保留款</label>
                   <input type="number" id="p_retention_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
                 </div>
                 <div class="form-group" style="margin:0"><label>請款通知日期</label>
                   <input type="date" id="p_retention_due_date">
-                  <div style="font-size:11px;color:var(--gray-400);margin-top:3px">到期時自動通知會計請款</div>
+                  <div style="font-size:11px;color:var(--gray-400);margin-top:3px">到期自動通知會計請款</div>
                 </div>
               </div>
+              <!-- 已請保留款 -->
+              <div class="form-group"><label>已請保留款</label>
+                <input type="number" id="p_retention_invoiced" placeholder="（尚未請款）" min="0" oninput="updatePayCalc()">
+              </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
-              <!-- 應付總金額 + 收款狀態 -->
+              <!-- 應付餘額 + 收款狀態 -->
               <div style="background:var(--gray-50);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
                 <div>
-                  <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付總金額（尚未收）</div>
+                  <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付餘額（不含保留款）</div>
                   <div id="p_outstanding_display" style="font-size:22px;font-weight:700">—</div>
                 </div>
                 <div id="p_status_badge" style="font-size:12px;padding:6px 14px;border-radius:20px;font-weight:600;text-align:center"></div>
@@ -637,9 +641,12 @@
 
           <!-- ② 發票資訊（開發票時才顯示，可收合） -->
           <div id="invoiceBlock" style="border:1px solid #bae6fd;border-radius:12px;margin-bottom:16px;overflow:hidden;display:none">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f0f9ff;cursor:pointer;user-select:none" onclick="togglePayBlock('invoiceBody','invoiceIcon')">
-              <span style="font-size:14px;font-weight:700;color:#0369a1">🧾 發票資訊</span>
-              <span id="invoiceIcon" style="color:#7dd3fc;transition:transform .2s;font-size:13px">▾</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f0f9ff;user-select:none">
+              <span style="font-size:14px;font-weight:700;color:#0369a1;cursor:pointer" onclick="togglePayBlock('invoiceBody','invoiceIcon')">🧾 發票資訊</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button onclick="openClientForInvoice()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:13px;cursor:pointer;font-weight:700;line-height:1.8" title="前往客戶管理編輯發票資料">＋</button>
+                <span id="invoiceIcon" style="color:#7dd3fc;transition:transform .2s;font-size:13px;cursor:pointer" onclick="togglePayBlock('invoiceBody','invoiceIcon')">▾</span>
+              </div>
             </div>
             <div id="invoiceBody" style="padding:18px 20px">
               <div class="form-row">
@@ -647,6 +654,10 @@
                 <div class="form-group"><label>統一編號</label><input type="text" id="p_invoice_tax_id" placeholder="8碼統編" maxlength="8"></div>
               </div>
               <div class="form-group"><label>發票地址</label><input type="text" id="p_invoice_address"></div>
+              <div class="form-row">
+                <div class="form-group"><label>聯絡人</label><input type="text" id="p_invoice_contact" placeholder="聯絡人姓名"></div>
+                <div class="form-group"><label>聯絡人電話</label><input type="text" id="p_invoice_phone" placeholder="聯絡電話"></div>
+              </div>
               <div class="form-row">
                 <div class="form-group"><label>發票 Email</label><input type="email" id="p_invoice_email"></div>
                 <div class="form-group"><label>品名（發票用）</label><input type="text" id="p_invoice_item_desc" placeholder="例：室內裝潢貼膜施工費"></div>
@@ -2062,18 +2073,21 @@ function updatePayCalc() {
   document.getElementById('p_total_display').textContent       = final ? fmt(totalInc) : '—';
   document.getElementById('invoiceBlock').style.display         = needsVAT ? '' : 'none';
 
-  const survey    = parseFloat(document.getElementById('p_survey_fee').value)       || 0;
-  const deposit   = parseFloat(document.getElementById('p_deposit_amount').value)   || 0;
-  const balance   = parseFloat(document.getElementById('p_balance_paid').value)     || 0;
-  const retention = parseFloat(document.getElementById('p_retention_amount').value) || 0;
-  const totalPaid = survey + deposit + balance;
-  const outstanding = final ? Math.max(0, totalInc - totalPaid - retention) : 0;
+  const survey       = parseFloat(document.getElementById('p_survey_fee').value)          || 0;
+  const deposit      = parseFloat(document.getElementById('p_deposit_amount').value)      || 0;
+  const balance      = parseFloat(document.getElementById('p_balance_paid').value)        || 0;
+  const retention    = parseFloat(document.getElementById('p_retention_amount').value)    || 0;
+  const retInvoiced  = parseFloat(document.getElementById('p_retention_invoiced').value)  || 0;
+  const totalPaid    = survey + deposit + balance;
+  const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention) : 0;
 
   document.getElementById('p_outstanding_display').textContent = (final || totalPaid) ? fmt(outstanding) : '—';
 
   let key = 'unpaid', label = 'A 全案未收款', bg = '#fee2e2', fg = '#991b1b';
   if (!final && !totalPaid) {
     // A – 什麼都沒收
+  } else if (final && outstanding <= 0 && retention > 0 && retInvoiced >= retention) {
+    key = 'paid'; label = '✓ 全案已收完款'; bg = '#dcfce7'; fg = '#166534';
   } else if (final && outstanding <= 0 && retention > 0) {
     key = 'partial'; label = 'D 保留款待請款'; bg = '#fef3c7'; fg = '#92400e';
   } else if (final && outstanding <= 0 && retention === 0) {
@@ -2095,7 +2109,8 @@ function updatePayCalc() {
 }
 
 function fillPaymentForm() {
-  const c = caseData;
+  const c  = caseData;
+  const cl = clients.find(x => x.id === c.client_id);
   document.getElementById('p_final_price').value        = c.final_price      != null ? c.final_price      : '';
   document.getElementById('p_needs_invoice').checked    = !!c.needs_invoice;
   document.getElementById('p_survey_fee').value         = c.survey_fee       != null ? c.survey_fee       : '';
@@ -2103,12 +2118,16 @@ function fillPaymentForm() {
   document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
   document.getElementById('p_retention_amount').value   = c.retention_amount != null ? c.retention_amount : '';
   document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
+  document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
   document.getElementById('p_payment_notes').value      = c.payment_notes    || '';
-  document.getElementById('p_invoice_company').value    = c.invoice_company  || '';
-  document.getElementById('p_invoice_tax_id').value     = c.invoice_tax_id   || '';
-  document.getElementById('p_invoice_address').value    = c.invoice_address  || '';
-  document.getElementById('p_invoice_email').value      = c.invoice_email    || '';
+  // 發票欄位：案件層級有值優先，否則從客戶資料帶入
+  document.getElementById('p_invoice_company').value    = c.invoice_company   || cl?.name             || '';
+  document.getElementById('p_invoice_tax_id').value     = c.invoice_tax_id    || cl?.tax_id           || '';
+  document.getElementById('p_invoice_address').value    = c.invoice_address   || cl?.address          || '';
+  document.getElementById('p_invoice_email').value      = c.invoice_email     || cl?.invoice_email || cl?.email || '';
   document.getElementById('p_invoice_item_desc').value  = c.invoice_item_desc || '';
+  document.getElementById('p_invoice_contact').value    = c.invoice_contact   || '';
+  document.getElementById('p_invoice_phone').value      = c.invoice_phone     || '';
   document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
   document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
   document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';
@@ -2134,6 +2153,9 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     invoice_address:    document.getElementById('p_invoice_address').value                || null,
     invoice_email:      document.getElementById('p_invoice_email').value                  || null,
     invoice_item_desc:  document.getElementById('p_invoice_item_desc').value              || null,
+    invoice_contact:    document.getElementById('p_invoice_contact').value                || null,
+    invoice_phone:      document.getElementById('p_invoice_phone').value                  || null,
+    retention_invoiced: parseFloat(document.getElementById('p_retention_invoiced').value) || null,
     material_cost:      parseFloat(document.getElementById('p_material_cost').value)      || null,
     outsource_cost:     parseFloat(document.getElementById('p_outsource_cost').value)     || null,
     install_fee:        parseFloat(document.getElementById('p_install_fee').value)        || null,
@@ -2144,6 +2166,11 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
   if (res.ok) { showToast('收款 ／ 發票資訊已更新'); await loadCase(); }
   else showToast('儲存失敗', 'error');
 });
+
+function openClientForInvoice() {
+  if (caseData.client_id) window.open(`/clients`, '_blank');
+  else showToast('請先設定客戶', 'error');
+}
 
 // ── 歷程 ───────────────────────────────────────────────────
 function renderMatUsage(dispatchList, logList) {

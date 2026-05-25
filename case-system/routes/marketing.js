@@ -55,7 +55,7 @@ router.get('/summary', requireAuth, (req, res) => {
     SELECT COUNT(*) as total,
            SUM(CASE WHEN status='new' THEN 1 ELSE 0 END) as new_cnt,
            SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) as in_progress,
-           SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) as closed_cnt
+           SUM(CASE WHEN status IN ('converted','invalid') THEN 1 ELSE 0 END) as closed_cnt
     FROM line_inquiries
     WHERE (created_at BETWEEN ? AND ?) ${of.where}
   `).get(fromDate, toEnd, ...of.params);

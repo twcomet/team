@@ -186,10 +186,12 @@ let currentStatus = 'all';
 let currentId     = null;
 let searchTimer   = null;
 let inquiries     = [];
+let allUsers      = [];
 
 async function init() {
   await loadUser();
   highlightNav('line-inquiries');
+  allUsers = await fetchUsers();
   loadStats();
   loadList();
 
@@ -237,7 +239,10 @@ function renderList() {
     el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px">沒有符合的詢問</div>`;
     return;
   }
-  el.innerHTML = inquiries.map(i => `
+  el.innerHTML = inquiries.map(i => {
+    const salesBadge = i.sales_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
+    const csBadge    = i.cs_name    ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
+    return `
     <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})">
       <div class="ic-name">
         ${escHtml(i.display_name || 'LINE用戶')}
@@ -247,10 +252,13 @@ function renderList() {
       <div class="ic-snippet">${escHtml(i.last_message || '')}</div>
       <div class="ic-meta">
         <span>${escHtml(i.phone || '')}</span>
-        <span>${fmtTime(i.last_message_at)}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          ${salesBadge || csBadge ? `<div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${salesBadge}${csBadge}</div>` : ''}
+          <span>${fmtTime(i.last_message_at)}</span>
+        </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── 詳情 ──────────────────────────────────────────────────
@@ -264,13 +272,34 @@ async function openInquiry(id) {
   const data = await fetch(`/api/line-inquiries/${id}`).then(r => r.json()).catch(() => null);
   if (!data) { panel.innerHTML = `<div style="padding:24px;color:#dc2626">載入失敗</div>`; return; }
 
+  const salesOpts = allUsers
+    .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
+    .map(u => `<option value="${u.id}"${data.sales_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
+  const csOpts = allUsers
+    .filter(u => ['hq_cs','owner','vp'].includes(u.role))
+    .map(u => `<option value="${u.id}"${data.cs_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
+
   panel.innerHTML = `
     <div class="det-header">
-      <div>
+      <div style="flex:1">
         <div style="font-size:16px;font-weight:700;color:var(--gray-900)">${escHtml(data.display_name || 'LINE用戶')}</div>
         <div style="font-size:12px;color:var(--gray-500);margin-top:2px">
           建立：${fmtTime(data.created_at)}　共 ${data.message_count} 則訊息
           <span class="s-badge s-${data.status}" style="margin-left:6px">${sLabel(data.status)}</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--gray-500);white-space:nowrap">負責業務</span>
+            <select id="inq-sales" onchange="saveSalesCs(${id})" style="padding:3px 6px;border:1px solid #c4b5fd;border-radius:6px;font-size:12px;background:#faf5ff;color:#6d28d9">
+              <option value="">（未指定）</option>${salesOpts}
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:11px;color:var(--gray-500);white-space:nowrap">負責客服</span>
+            <select id="inq-cs" onchange="saveSalesCs(${id})" style="padding:3px 6px;border:1px solid #fca5a5;border-radius:6px;font-size:12px;background:#fff5f5;color:#991b1b">
+              <option value="">（未指定）</option>${csOpts}
+            </select>
+          </div>
         </div>
       </div>
       <div class="det-actions">
@@ -394,6 +423,17 @@ async function sendReply(id) {
     const err = await r.json().catch(() => ({}));
     showToast(err.error || '傳送失敗', 'error');
   }
+}
+
+// ── 指派負責業務 / 負責客服 ───────────────────────────────
+async function saveSalesCs(id) {
+  const sales_id = document.getElementById('inq-sales')?.value || null;
+  const cs_id    = document.getElementById('inq-cs')?.value    || null;
+  await fetch(`/api/line-inquiries/${id}/assign`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sales_id: sales_id || null, cs_id: cs_id || null })
+  });
+  loadList();
 }
 
 // ── 轉案 ──────────────────────────────────────────────────
