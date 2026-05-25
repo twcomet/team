@@ -189,7 +189,7 @@
       <!-- ── 基本資訊 ── -->
       <div class="modal-section-title">基本資訊</div>
       <div class="form-row">
-        <div class="form-group"><label>客戶抬頭 / 公司名 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
+        <div class="form-group"><label>客戶/公司名稱 *</label><input type="text" id="cm_name" placeholder="王大明 / 信義裝潢有限公司"></div>
         <div class="form-group"><label>聯絡人</label><input type="text" id="cm_contact_person" placeholder="負責人姓名"></div>
       </div>
       <div class="form-row">
@@ -231,6 +231,7 @@
 
       <!-- ── 發票資訊 ── -->
       <div class="modal-section-title" style="margin-top:4px">發票資訊</div>
+      <div class="form-group"><label>公司抬頭</label><input type="text" id="cm_invoice_title" placeholder="統一發票上的公司名稱（若與客戶名稱相同可留空）"></div>
       <div class="form-row">
         <div class="form-group"><label>統一編號</label><input type="text" id="cm_tax_id" placeholder="12345678"></div>
         <div class="form-group"><label>電子發票代碼</label><input type="text" id="cm_einvoice_code" placeholder="（選填）"></div>
@@ -611,6 +612,7 @@ function openClientModal(id) {
     const c = allClients.find(x => x.id === id);
     if (!c) return;
     document.getElementById('cm_name').value           = c.name || '';
+    document.getElementById('cm_invoice_title').value   = c.invoice_title || '';
     document.getElementById('cm_contact_person').value  = c.contact_person || '';
     document.getElementById('cm_phone').value           = c.phone || '';
     document.getElementById('cm_email').value           = c.email || '';
@@ -632,7 +634,7 @@ function openClientModal(id) {
     document.getElementById('cm_line_group_name').value  = c.line_group_name || '';
     document.getElementById('cm_notes').value            = c.notes || '';
   } else {
-    ['cm_name','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
+    ['cm_name','cm_invoice_title','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
      'cm_address','cm_invoice_email','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_line_group_name','cm_notes']
       .forEach(id => document.getElementById(id).value = '');
     document.querySelector('input[name="cm_invoice_needs"][value=""]').checked = true;
@@ -681,6 +683,7 @@ async function saveClient() {
     address:         g('cm_address'),
     invoice_email:   g('cm_invoice_email'),
     invoice_needs:   document.querySelector('input[name="cm_invoice_needs"]:checked')?.value || null,
+    invoice_title:   g('cm_invoice_title'),
     client_level:    g('cm_client_level'),
     source:          g('cm_source'),
     payment_terms:   g('cm_payment_terms'),
@@ -735,6 +738,7 @@ document.getElementById('cm_ocr_btn').addEventListener('click', async () => {
     // 填入欄位（只覆蓋空白的，讓客服可以手動保留已填的值）
     const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
     fill('cm_name',           data.name);
+    fill('cm_invoice_title',  data.name);
     fill('cm_contact_person', data.contact_person || data.name);
     fill('cm_phone',          data.phone);
     fill('cm_email',          data.email);

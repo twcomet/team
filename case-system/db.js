@@ -271,6 +271,7 @@ _addCol('clients',    'referrer',          'TEXT');
 _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('clients',    'invoice_email',     'TEXT');
 _addCol('clients',    'invoice_needs',     'TEXT');
+_addCol('clients',    'invoice_title',     'TEXT');  // 公司抬頭（發票用，可與客戶名稱不同）
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');

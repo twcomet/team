@@ -1112,6 +1112,7 @@ async function init() {
       if (!res.ok) throw new Error(data.error || '辨識失敗');
       const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
       fill('nc_name',           data.name);
+      fill('nc_invoice_title',  data.name);
       fill('nc_contact_person', data.contact_person || data.name);
       fill('nc_phone',          data.phone);
       fill('nc_email',          data.email);
@@ -1142,6 +1143,7 @@ async function init() {
       client_level:   document.getElementById('nc_client_level').value || null,
       tax_id:         g('nc_tax_id'),
       einvoice_code:  g('nc_einvoice_code'),
+      invoice_title:  g('nc_invoice_title'),
       address:        g('nc_address'),
       invoice_email:  g('nc_invoice_email'),
       invoice_needs:  document.querySelector('input[name="nc_invoice_needs"]:checked')?.value || null,
@@ -2633,7 +2635,7 @@ async function openNewClientModal() {
   ncRenderTagPicker([]);
 
   // 清空欄位
-  ['nc_name','nc_contact_person','nc_phone','nc_email','nc_tax_id','nc_einvoice_code',
+  ['nc_name','nc_invoice_title','nc_contact_person','nc_phone','nc_email','nc_tax_id','nc_einvoice_code',
    'nc_address','nc_invoice_email','nc_payment_terms','nc_discount_terms',
    'nc_capital','nc_referrer','nc_line_group_name','nc_notes'].forEach(id => {
     document.getElementById(id).value = '';
@@ -3041,7 +3043,7 @@ init();
       <!-- ── 基本資訊 ── -->
       <div class="modal-section-title">基本資訊</div>
       <div class="form-row">
-        <div class="form-group"><label>客戶名稱 / 公司名 *</label><input type="text" id="nc_name" placeholder="王大明 / 信義裝潢有限公司"></div>
+        <div class="form-group"><label>客戶/公司名稱 *</label><input type="text" id="nc_name" placeholder="王大明 / 信義裝潢有限公司"></div>
         <div class="form-group"><label>聯絡人</label><input type="text" id="nc_contact_person" placeholder="負責窗口姓名"></div>
       </div>
       <div class="form-row">
@@ -3084,6 +3086,7 @@ init();
 
       <!-- ── 發票資訊 ── -->
       <div class="modal-section-title">發票資訊</div>
+      <div class="form-group"><label>公司抬頭</label><input type="text" id="nc_invoice_title" placeholder="統一發票上的公司名稱（若與客戶名稱相同可留空）"></div>
       <div class="form-row">
         <div class="form-group"><label>統一編號</label><input type="text" id="nc_tax_id" placeholder="12345678" maxlength="8"></div>
         <div class="form-group"><label>電子發票載具 / 愛心碼</label><input type="text" id="nc_einvoice_code" placeholder="（選填）"></div>

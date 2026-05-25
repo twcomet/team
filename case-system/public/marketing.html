@@ -207,7 +207,12 @@ const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯'
 let orgs = [], csGroup = 'day', trendMode = 'day', trendChartInst = null;
 
 async function init() {
-  await loadUser();
+  // loadUser timeout 防護：10 秒內沒回應就顯示錯誤
+  const userLoaded = await Promise.race([
+    loadUser(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('伺服器回應超時，請重新整理')), 10000))
+  ]);
+  if (!userLoaded) return; // session 過期已被重導
   highlightNav('marketing');
 
   // 預設期間：近1年
