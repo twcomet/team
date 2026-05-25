@@ -353,7 +353,7 @@ async function init() {
 
   if (cfg.showNewBtn) document.getElementById('newCaseBtn').style.display = '';
   if (cfg.showTypeTabs) document.getElementById('caseTypeTabs').style.display = '';
-  if (MODE === 'survey' && currentUser.role === 'owner') {
+  if (MODE === 'survey' && currentUser.manage_users) {
     document.getElementById('templateMgmtBtn').style.display = '';
   }
 
@@ -623,9 +623,14 @@ let noteTemplates = [], checklistTemplates = [];
 
 function toggleTemplateMgmt() {
   _tmplOpen = !_tmplOpen;
-  document.getElementById('surveyTemplateMgmt').style.display = _tmplOpen ? '' : 'none';
+  const section = document.getElementById('surveyTemplateMgmt');
+  section.style.display = _tmplOpen ? '' : 'none';
   document.getElementById('templateMgmtBtn').textContent = _tmplOpen ? '✕ 關閉模板' : '⚙️ 模板管理';
-  if (_tmplOpen) { loadNoteTemplates(); loadChecklistTemplates(); }
+  if (_tmplOpen) {
+    loadNoteTemplates();
+    loadChecklistTemplates();
+    setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
 }
 
 document.querySelectorAll('.stpl-tab').forEach(tab => {
