@@ -1506,4 +1506,15 @@ if (!_hasChecklists) {
   ].forEach(([cat, item, ord]) => insCk.run(cat, item, ord));
 }
 
+// 我的任務：使用者手動標記已完成
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_task_dismissals (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL,
+    case_id      INTEGER NOT NULL,
+    dismissed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, case_id)
+  )
+`);
+
 module.exports = db;
