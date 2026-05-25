@@ -63,16 +63,14 @@ router.get('/summary', requireAuth, (req, res) => {
       GROUP BY case_type ORDER BY cnt DESC
     `).all(fromDate, toEnd, ...of.params);
 
-    // line_inquiries 用獨立 org 過濾（欄名相同，保留相容）
-    const lineOf = buildOrgFilter(me, 'org_id', org_id);
+    // line_inquiries — 不加日期限制，顯示所有（含全期）資料
     const lineStats = db.prepare(`
       SELECT COUNT(*) as total,
              SUM(CASE WHEN status='new'         THEN 1 ELSE 0 END) as new_cnt,
              SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) as in_progress,
              SUM(CASE WHEN status IN ('converted','invalid') THEN 1 ELSE 0 END) as closed_cnt
       FROM line_inquiries
-      WHERE (created_at BETWEEN ? AND ?) ${lineOf.where}
-    `).get(fromDate, toEnd, ...lineOf.params);
+    `).get();
 
     const keywords = db.prepare(`
       SELECT keyword, COUNT(*) as cnt

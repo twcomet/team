@@ -216,17 +216,12 @@ async function init() {
   const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
   document.getElementById('fromDate').value = from.toISOString().slice(0, 10);
 
-  // 分店篩選（view_all_branches 才顯示）
-  if (currentUser.view_all_branches) {
-    orgs = await fetchOrgs();
-    const sel = document.getElementById('orgFilter');
-    sel.style.display = '';
-    orgs.forEach(o => sel.add(new Option(o.name, o.id)));
-  }
-
+  // 所有按鈕事件先綁定，確保不因後續 async 流程失敗而失效
   document.getElementById('queryBtn').addEventListener('click', () => { loadReport(); loadCsFunnel(); });
+  document.getElementById('btn1y').addEventListener('click', () => setRange(365));
+  document.getElementById('btn6m').addEventListener('click', () => setRange(180));
+  document.getElementById('btn3m').addEventListener('click', () => setRange(90));
 
-  // 線性圖 日/月 切換
   document.querySelectorAll('.trend-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.trend-tab').forEach(b => b.classList.remove('active'));
@@ -236,11 +231,7 @@ async function init() {
         renderTrendChart(window._lastDailyTrend, window._lastMonthlyFunnel);
     });
   });
-  document.getElementById('btn1y').addEventListener('click', () => setRange(365));
-  document.getElementById('btn6m').addEventListener('click', () => setRange(180));
-  document.getElementById('btn3m').addEventListener('click', () => setRange(90));
 
-  // CS funnel group tabs
   document.querySelectorAll('.cs-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.cs-tab').forEach(b => b.classList.remove('active'));
@@ -249,6 +240,14 @@ async function init() {
       loadCsFunnel();
     });
   });
+
+  // 分店篩選（view_all_branches 才顯示）
+  if (currentUser?.view_all_branches) {
+    orgs = await fetchOrgs();
+    const sel = document.getElementById('orgFilter');
+    sel.style.display = '';
+    orgs.forEach(o => sel.add(new Option(o.name, o.id)));
+  }
 
   await loadReport();
   await loadCsFunnel();
