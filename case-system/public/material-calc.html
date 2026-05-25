@@ -331,7 +331,7 @@ input[type=number] { -moz-appearance: textfield; }
 
 /* ── 列印版 ── */
 @media print {
-  .sidebar, .top-bar, .film-type-group, #modeBOptions, #rollLengthWrap,
+  .sidebar, .top-bar, .film-type-group, #modeBOptions, #rollLengthInlineWrap,
   .table-card .add-row-btn, .del-btn, .price-field, .discount-wrap,
   .reset-btn, .formula-note, #saveEstBox, #caseSelectorWrap,
   .calc-mode-group, .add-row-btn { display: none !important; }
@@ -452,21 +452,18 @@ input[type=number] { -moz-appearance: textfield; }
           </div>
         </div>
 
-        <!-- 卷料長度（模式 B 限定） -->
-        <div id="rollLengthWrap" style="display:none">
-          <div class="block-label">卷料長度</div>
-          <div class="price-field" style="margin-top:0">
-            <label>每卷長度</label>
-            <div class="price-iw">
-              <input type="number" id="rollLength" value="50" min="1" max="200" step="1" oninput="onRollLengthChange()" />
-              <span class="p-unit">公尺</span>
-            </div>
-          </div>
-        </div>
-
         <!-- 3. 材料明細 -->
         <div>
-          <div class="block-label">材料明細</div>
+          <div class="block-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            材料明細
+            <span id="rollLengthInlineWrap" style="display:none;align-items:center;gap:4px;font-size:12px;font-weight:400;color:var(--gray-600)">
+              每卷
+              <input type="number" id="rollLength" value="50" min="1" max="200" step="1"
+                style="width:46px;padding:2px 5px;border:1px solid var(--gray-300);border-radius:5px;font-size:12px;text-align:center;color:var(--gray-800);background:#fff"
+                oninput="onRollLengthChange()">
+              公尺
+            </span>
+          </div>
           <div class="table-card" id="tableCard">
             <div class="table-head" id="tableHead">
               <span>長度</span>
@@ -569,7 +566,7 @@ input[type=number] { -moz-appearance: textfield; }
 
     const isModeB = filmMode === 'B';
     document.getElementById('modeBOptions').style.display  = isModeB ? '' : 'none';
-    document.getElementById('rollLengthWrap').style.display = isModeB ? '' : 'none';
+    document.getElementById('rollLengthInlineWrap').style.display = isModeB ? 'inline-flex' : 'none';
     document.getElementById('metersBox').style.display     = isModeB ? 'none' : '';
 
     // 重置計算方式
@@ -783,18 +780,28 @@ input[type=number] { -moz-appearance: textfield; }
       : '—';
   }
 
-  /* ── 不含損料 / 含損料 排版圖 ── */
+  /* ── 排版圖：共用資料結構與 canvas 繪製 ── */
+
+  // 計算各區段的廢料資訊（no_loss / with_loss）
   function computeLayoutSections(pieces) {
     return pieces.map((p, ri) => {
-      let lengthCm, perRow;
+      let lengthCm, perRow, rows;
       if (calcMode === 'no_loss') {
-        perRow = Math.max(1, Math.floor(filmWidth / p.w));
-        lengthCm = Math.ceil(p.qty / perRow) * p.h;
+        perRow   = Math.max(1, Math.floor(filmWidth / p.w));
+        rows     = Math.ceil(p.qty / perRow);
+        lengthCm = rows * p.h;
       } else {
-        perRow = 1;
+        perRow   = 1;
+        rows     = p.qty;
         lengthCm = p.h * p.qty;
       }
-      return { ...p, lengthCm, perRow,
+      const materialAreaCm2 = filmWidth * lengthCm;
+      const pieceAreaCm2    = p.w * p.h * p.qty;
+      const wastePct = materialAreaCm2 > 0
+        ? Math.round((materialAreaCm2 - pieceAreaCm2) / materialAreaCm2 * 100) : 0;
+      return {
+        ...p, lengthCm, perRow, rows,
+        wastePct, materialCai: materialAreaCm2 / 900,
         color:  PIECE_COLORS[ri % PIECE_COLORS.length],
         border: PIECE_BORDERS[ri % PIECE_BORDERS.length],
         label:  String.fromCharCode(65 + (ri % 26)),
@@ -802,18 +809,54 @@ input[type=number] { -moz-appearance: textfield; }
     });
   }
 
-  function drawSimpleLayoutCanvas(sections, fw) {
-    const totalCm = sections.reduce((s, sec) => s + sec.lengthCm, 0);
-    if (!totalCm) return null;
+  // 將 sections 轉成 canvas 繪製用的 strip 格式
+  function buildCanvasStrips(sections) {
+    return sections.map(sec => {
+      const inRow = Math.min(sec.perRow, sec.qty);
+      const pieces = Array.from({ length: inRow }, (_, i) => ({
+        x: i * sec.w, w: sec.w, h: sec.h,
+        color: sec.color, border: sec.border, label: sec.label,
+      }));
+      return { height: sec.h, fw: filmWidth, pieces,
+        rows: sec.rows, wastePct: sec.wastePct,
+        lengthCm: sec.lengthCm, materialCai: sec.materialCai };
+    });
+  }
 
-    const MAX_H  = 320;
-    const SCALE  = Math.min(4.0, MAX_H / totalCm);
-    const FW_D   = Math.min(160, Math.round(fw * 0.9));
-    const ML = 52, MR = 76, MT = 32, MB = 48;
+  // 將拼料演算法結果轉成 canvas strip 格式
+  function buildCanvasStripsFromSplice(result) {
+    return result.strips.map(s => {
+      const usedArea  = s.pieces.reduce((sum, p) => sum + p.w * p.h, 0);
+      const totalArea = s.fw * s.height;
+      const wastePct  = totalArea > 0 ? Math.round((totalArea - usedArea) / totalArea * 100) : 0;
+      return {
+        height: s.height, fw: s.fw,
+        pieces: s.pieces.map(p => ({ x: p.x, w: p.w, h: p.h,
+          color: p.color, border: p.border, label: p.label })),
+        rows: 1, wastePct,
+        lengthCm: s.height, materialCai: s.total / 900,
+      };
+    });
+  }
 
-    const usedDispH = Math.round(totalCm * SCALE);
-    const cW = ML + FW_D + MR;
-    const cH = MT + usedDispH + MB;
+  // 統一 canvas：灰色 = 膜料全寬，彩色 = 實際用料，灰色剩餘 = 損耗
+  function drawUnifiedCanvas(strips) {
+    if (!strips.length) return null;
+    const fw = strips[0].fw;
+    const FW_PX  = 180;
+    const HSCALE = FW_PX / fw;
+    const GAP = 6, ANNOT = 13;
+    const ML = 8, MR = 78, MT = 28, MB = 14;
+
+    const rawH = strips.map(s => Math.max(18, Math.round(s.height * HSCALE)));
+    const gaps  = strips.length - 1;
+    const totalRaw = rawH.reduce((a, h) => a + h, 0) + gaps * (GAP + ANNOT);
+    const MAX_H = 360;
+    const compress = totalRaw > MAX_H ? MAX_H / totalRaw : 1;
+    const sH = rawH.map(h => Math.max(14, Math.round(h * compress)));
+
+    const cW = ML + FW_PX + MR;
+    const cH = MT + sH.reduce((a, h) => a + h, 0) + gaps * (GAP + ANNOT) + MB;
 
     const canvas = document.createElement('canvas');
     const dpr = window.devicePixelRatio || 1;
@@ -825,137 +868,128 @@ input[type=number] { -moz-appearance: textfield; }
     ctx.fillStyle = '#f9fafb';
     ctx.fillRect(0, 0, cW, cH);
 
-    const rx = ML, ry = MT;
-
     ctx.fillStyle = '#374151';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`← 膜寬 ${fw} cm →`, rx + FW_D / 2, ry - 10);
+    ctx.fillText(`← 膜寬 ${fw} cm →`, ML + FW_PX / 2, MT - 10);
 
-    let curY = ry;
-    sections.forEach(sec => {
-      const secH = Math.max(4, Math.round(sec.lengthCm * SCALE));
-      ctx.fillStyle = sec.color;
-      ctx.fillRect(rx, curY, FW_D, secH);
-      ctx.strokeStyle = sec.border;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(rx + 0.5, curY + 0.5, FW_D - 1, secH - 1);
+    let curY = MT;
+    strips.forEach((strip, si) => {
+      const sh = sH[si];
 
-      if (secH >= 18) {
-        const fs = Math.min(11, secH / 2.2);
-        ctx.fillStyle = '#1e293b';
-        ctx.font = `bold ${fs}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(`${sec.label}：${sec.w}×${sec.h}×${sec.qty}`, rx + FW_D / 2, curY + secH * 0.42 + fs / 2);
-        if (secH >= 36) {
-          ctx.font = `9px sans-serif`;
-          ctx.fillStyle = '#374151';
-          ctx.fillText(`${fmt(sec.lengthCm / 100, 2)} m`, rx + FW_D / 2, curY + secH * 0.72 + 5);
+      // 灰色背景 = 膜料全寬（含損耗）
+      ctx.fillStyle = '#d1d5db';
+      ctx.fillRect(ML, curY, FW_PX, sh);
+
+      // 彩色 = 實際用料（按 piece 位置繪製）
+      strip.pieces.forEach(piece => {
+        const px = ML + Math.round(piece.x * HSCALE);
+        const pw = Math.max(2, Math.round(piece.w * HSCALE));
+        const ph = piece.h ? Math.max(2, Math.round(piece.h / strip.height * sh)) : sh;
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(px, curY, pw, ph);
+        ctx.strokeStyle = piece.border;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, curY + 0.5, pw - 1, ph - 1);
+        if (pw >= 18 && ph >= 12) {
+          ctx.fillStyle = '#1e293b';
+          ctx.font = `bold ${Math.min(10, Math.floor(ph * 0.5))}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText(piece.label, px + pw / 2, curY + ph / 2 + 3.5);
         }
-      }
+      });
 
-      const mStr = fmt(sec.lengthCm / 100, 2);
-      ctx.fillStyle = sec.border;
+      // strip 外框
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ML + 0.5, curY + 0.5, FW_PX - 1, sh - 1);
+
+      // 右側標註
+      const rx = ML + FW_PX + 7;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`${sec.label} ${mStr}m`, rx + FW_D + 5, curY + secH / 2 + 4);
-      curY += secH;
+      ctx.fillStyle = '#374151';
+      ctx.fillText(`${fmt(strip.lengthCm / 100, 2)} m`, rx, curY + sh * 0.37 + 4);
+      if (strip.rows > 1) {
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText(`×${strip.rows} 行`, rx, curY + sh * 0.63 + 4);
+        ctx.fillStyle = strip.wastePct > 30 ? '#c2410c' : '#6b7280';
+        ctx.fillText(`損耗 ${strip.wastePct}%`, rx, curY + sh * 0.89 + 4);
+      } else {
+        ctx.fillStyle = strip.wastePct > 30 ? '#c2410c' : '#6b7280';
+        ctx.fillText(`損耗 ${strip.wastePct}%`, rx, curY + sh * 0.67 + 4);
+      }
+
+      if (si < strips.length - 1) {
+        curY += sh + GAP + ANNOT;
+      }
     });
-
-    // 左側刻度線
-    ctx.strokeStyle = '#d1d5db';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(rx - 2, ry);
-    ctx.lineTo(rx - 2, curY);
-    ctx.stroke();
-
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('0m', rx - 6, ry + 5);
-
-    const totalM = totalCm / 100;
-    ctx.fillStyle = '#dc2626';
-    ctx.font = 'bold 11px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(fmt(totalM, 2) + 'm', rx - 6, curY + 4);
-
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(rx - 10, curY);
-    ctx.lineTo(rx + FW_D + 10, curY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.strokeStyle = '#9ca3af';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(rx + 0.75, ry + 0.75, FW_D - 1.5, usedDispH - 1.5);
-
-    const rollsNeeded = Math.ceil(totalM / rollLengthM);
-    const sumText = rollsNeeded <= 1
-      ? `共需 ${fmt(totalM, 2)} 公尺（1 卷 ${rollLengthM}m 即可）`
-      : `共需 ${fmt(totalM, 2)} 公尺（需 ${rollsNeeded} 卷）`;
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(sumText, rx + FW_D / 2, curY + MB - 10);
 
     return canvas;
   }
 
-  function renderSimpleLayoutPanel(pieces) {
-    const panel = document.getElementById('splicePanel');
-    if (!pieces.length) { panel.innerHTML = ''; panel.style.display = 'none'; return; }
-
-    const sections = computeLayoutSections(pieces);
-    const totalCm  = sections.reduce((s, sec) => s + sec.lengthCm, 0);
-    const totalM   = totalCm / 100;
-    const rollsNeeded = Math.ceil(totalM / rollLengthM);
-    const modeLabel   = calcMode === 'no_loss' ? '不含損料' : '含損料';
-
-    let html = `<div class="splice-result">
-      <div class="sr-title">📐 排版圖（${modeLabel}）：需 <strong>&nbsp;${fmt(totalM, 2)}&nbsp;</strong> 公尺`;
-    html += rollsNeeded <= 1
-      ? ` <span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">1 卷 ${rollLengthM}m 即可</span>`
-      : ` <span style="font-size:11px;font-weight:400;color:#c2410c;margin-left:auto">需 ${rollsNeeded} 卷（每卷 ${rollLengthM}m）</span>`;
-    html += `</div>`;
-
-    sections.forEach(sec => {
-      const perInfo = calcMode === 'no_loss' ? `每行排 ${sec.perRow} 片` : '全幅';
-      html += `<div class="sr-strip">
-        <span style="display:inline-flex;align-items:center;gap:6px">
-          <span style="width:12px;height:12px;background:${sec.color};border:1.5px solid ${sec.border};border-radius:3px;display:inline-block;flex-shrink:0"></span>
-          <strong>${sec.label}</strong>&nbsp;${sec.w}×${sec.h}cm × ${sec.qty}片
-        </span>
-        <span style="color:var(--gray-500)">${perInfo} → ${fmt(sec.lengthCm / 100, 2)} 公尺</span>
-      </div>`;
-    });
-
-    html += `
-      <div id="layoutDiagramWrap" style="overflow-x:auto;padding:4px 0;margin-top:4px"></div>
-      <button onclick="downloadLayoutDiagram()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:4px">⬇ 下載排版圖</button>
-    </div>`;
-
-    panel.innerHTML = html;
-    panel.style.display = '';
-
-    const canvas = drawSimpleLayoutCanvas(sections, filmWidth);
-    if (canvas) {
-      canvas.id = 'layoutCanvas';
-      document.getElementById('layoutDiagramWrap').appendChild(canvas);
-    }
-  }
-
-  function downloadLayoutDiagram() {
+  function downloadLayoutCanvas() {
     const canvas = document.getElementById('layoutCanvas');
     if (!canvas) return;
     const a = document.createElement('a');
     a.download = '排版圖.png';
     a.href = canvas.toDataURL('image/png');
     a.click();
+  }
+
+  function renderSimpleLayoutPanel(pieces) {
+    const panel = document.getElementById('splicePanel');
+    if (!pieces.length) { panel.innerHTML = ''; panel.style.display = 'none'; return; }
+
+    const sections    = computeLayoutSections(pieces);
+    const totalM      = sections.reduce((s, sec) => s + sec.lengthCm, 0) / 100;
+    const rollsNeeded = Math.ceil(totalM / rollLengthM);
+    const modeLabel   = calcMode === 'no_loss' ? '不含損料' : '含損料';
+
+    const totalMaterialCai = sections.reduce((s, sec) => s + sec.materialCai, 0);
+    const totalPieceCai    = sections.reduce((s, sec) => s + sec.w * sec.h * sec.qty / 900, 0);
+    const totalWastePct    = totalMaterialCai > 0
+      ? Math.round((totalMaterialCai - totalPieceCai) / totalMaterialCai * 100) : 0;
+
+    let html = `<div class="splice-result">
+      <div class="sr-title">📐 排版圖（${modeLabel}）：需 <strong>&nbsp;${fmt(totalM, 2)}&nbsp;</strong> 公尺`;
+    html += rollsNeeded <= 1
+      ? ` <span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">1 卷 ${rollLengthM}m 即可</span>`
+      : ` <span style="font-size:11px;font-weight:400;color:#c2410c;margin-left:auto">需 ${rollsNeeded} 卷（每卷 ${rollLengthM}m）</span>`;
+    html += `</div>
+      <div class="sr-strip" style="background:#fef3c7">
+        <span style="color:#92400e;font-weight:600">總損耗率</span>
+        <span style="color:#92400e;font-weight:700">${totalWastePct}%</span>
+      </div>`;
+
+    sections.forEach(sec => {
+      const perInfo = calcMode === 'no_loss'
+        ? `每行 ${sec.perRow} 片 × ${sec.rows} 行`
+        : `${sec.qty} 行`;
+      html += `<div class="sr-strip">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <span style="width:12px;height:12px;background:${sec.color};border:1.5px solid ${sec.border};border-radius:3px;display:inline-block;flex-shrink:0"></span>
+          <strong>${sec.label}</strong>&nbsp;${sec.w}×${sec.h}cm×${sec.qty}片（${perInfo}）
+        </span>
+        <span style="text-align:right;line-height:1.6;color:var(--gray-600)">
+          ${fmt(sec.lengthCm / 100, 2)} 公尺<br>損耗 ${sec.wastePct}%｜${fmt(sec.materialCai, 2)} 才
+        </span>
+      </div>`;
+    });
+
+    html += `<div id="layoutDiagramWrap" style="overflow-x:auto;padding:4px 0;margin-top:4px"></div>
+      <button onclick="downloadLayoutCanvas()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:4px">⬇ 下載排版圖</button>
+    </div>`;
+
+    panel.innerHTML = html;
+    panel.style.display = '';
+
+    const strips = buildCanvasStrips(sections);
+    const canvas = drawUnifiedCanvas(strips);
+    if (canvas) {
+      canvas.id = 'layoutCanvas';
+      document.getElementById('layoutDiagramWrap').appendChild(canvas);
+    }
   }
 
   /* ── 拼料演算法（寬度精確排列） ── */
@@ -1001,152 +1035,69 @@ input[type=number] { -moz-appearance: textfield; }
     return { strips, totalCai, fw };
   }
 
-  /* ── Canvas 排料圖 ── */
-  function renderDiagram(result) {
-    const { strips, fw } = result;
-    if (!strips.length) return null;
-
-    const SCALE   = Math.min(1.8, 200 / fw);
-    const SW      = Math.round(fw * SCALE);   // strip display width (px)
-    const GAP     = 18;
-    const ML      = 8;
-    const MT      = 28;
-    const MB      = 22;
-
-    const maxH    = Math.max(...strips.map(s => s.height));
-    const cW      = ML + strips.length * (SW + GAP) - GAP + ML;
-    const cH      = MT + Math.round(maxH * SCALE) + MB;
-
-    const canvas  = document.createElement('canvas');
-    const dpr     = window.devicePixelRatio || 1;
-    canvas.width  = cW * dpr;
-    canvas.height = cH * dpr;
-    canvas.style.width  = cW + 'px';
-    canvas.style.height = cH + 'px';
-    canvas.style.display = 'block';
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = '#f9fafb';
-    ctx.fillRect(0, 0, cW, cH);
-
-    strips.forEach((strip, si) => {
-      const sx = ML + si * (SW + GAP);
-      const sy = MT;
-      const sH = Math.round(strip.height * SCALE);
-
-      // 條號標籤
-      ctx.fillStyle = '#6b7280';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`第 ${si + 1} 條`, sx + SW / 2, sy - 10);
-
-      // 廢料底色（灰）
-      ctx.fillStyle = '#d1d5db';
-      ctx.fillRect(sx, sy, SW, sH);
-
-      // 每一片
-      strip.pieces.forEach(piece => {
-        const px = sx + Math.round(piece.x * SCALE);
-        const py = sy;
-        const pw = Math.round(piece.w * SCALE);
-        const ph = Math.round(piece.h * SCALE);
-
-        ctx.fillStyle = piece.color;
-        ctx.fillRect(px, py, pw, ph);
-
-        ctx.strokeStyle = piece.border;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(px + 0.75, py + 0.75, pw - 1.5, ph - 1.5);
-
-        if (pw >= 18 && ph >= 20) {
-          ctx.fillStyle = '#1e3a5f';
-          ctx.textAlign = 'center';
-          if (ph >= 44) {
-            ctx.font = `bold ${Math.min(13, Math.floor(pw / 2.2))}px sans-serif`;
-            ctx.fillText(piece.label, px + pw / 2, py + ph / 2 - 5);
-            ctx.font = `${Math.min(10, Math.floor(pw / 2.8))}px sans-serif`;
-            ctx.fillStyle = '#374151';
-            ctx.fillText(`${piece.w}×${piece.h}`, px + pw / 2, py + ph / 2 + 8);
-          } else {
-            ctx.font = `bold ${Math.min(11, Math.floor(pw / 2))}px sans-serif`;
-            ctx.fillText(piece.label, px + pw / 2, py + ph / 2 + 4);
-          }
-        }
-      });
-
-      // 條框
-      ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 0.5, sy + 0.5, SW - 1, sH - 1);
-
-      // 尺寸標註
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${fw}×${strip.height}cm`, sx + SW / 2, sy + sH + 14);
-    });
-
-    return canvas;
-  }
-
-  /* ── 渲染排料分析 ── */
+  /* ── 渲染拼料分析（統一 splice-result 樣式） ── */
   function renderSplicePanel(result, rows) {
-    const { strips, totalCai, fw } = result;
-    const withLossCai = rows.reduce((sum, p) => sum + (fw * p.h / 900) * p.qty, 0);
-    const savedPct = withLossCai > 0 ? Math.round((1 - totalCai / withLossCai) * 100) : 0;
-    const canFitAll = strips.length === 1;
-    const cls = canFitAll ? '' : ' warn';
+    const { strips, fw } = result;
+    const withLossCai  = rows.reduce((sum, p) => sum + (fw * p.h / 900) * p.qty, 0);
+    const totalUsedCai = strips.reduce((sum, s) => sum + s.usedArea / 900, 0);
+    const totalMatCai  = strips.reduce((sum, s) => sum + s.total / 900, 0);
+    const savedPct     = withLossCai > 0 ? Math.round((1 - totalMatCai / withLossCai) * 100) : 0;
+    const totalWastePct = totalMatCai > 0
+      ? Math.round((totalMatCai - totalUsedCai) / totalMatCai * 100) : 0;
+    const totalM      = strips.reduce((sum, s) => sum + s.height, 0) / 100;
+    const rollsNeeded = Math.ceil(totalM / rollLengthM);
+    const canFitAll   = strips.length === 1;
+    const cls  = canFitAll ? '' : ' warn';
     const icon = canFitAll ? '✅' : '⚠️';
 
-    // 圖例
     const legendItems = rows.map((p, ri) => {
       const label = String.fromCharCode(65 + (ri % 26));
       const col   = PIECE_COLORS[ri % PIECE_COLORS.length];
       const bdr   = PIECE_BORDERS[ri % PIECE_BORDERS.length];
       return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px">
         <span style="width:14px;height:14px;background:${col};border:1.5px solid ${bdr};border-radius:3px;flex-shrink:0"></span>
-        ${label}：${p.w}×${p.h}cm × ${p.qty}片
+        ${label}：${p.w}×${p.h}cm×${p.qty}片
       </span>`;
     }).join('');
 
     let html = `<div class="splice-result${cls}">
-      <div class="sr-title">${icon} 排料分析：共需 <strong>&nbsp;${strips.length}&nbsp;</strong> 條膜料
+      <div class="sr-title">${icon} 拼料計算：共需 <strong>&nbsp;${strips.length}&nbsp;</strong> 條膜料
         ${savedPct > 0 ? `<span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">較含損料節省 ${savedPct}%</span>` : ''}
+      </div>
+      <div class="sr-strip">
+        <span>共需 ${fmt(totalM, 2)} 公尺</span>
+        <span>${rollsNeeded <= 1 ? `1 卷 ${rollLengthM}m 即可` : `需 ${rollsNeeded} 卷（每卷 ${rollLengthM}m）`}</span>
+      </div>
+      <div class="sr-strip" style="background:#fef3c7">
+        <span style="color:#92400e;font-weight:600">總損耗率</span>
+        <span style="color:#92400e;font-weight:700">${totalWastePct}%</span>
       </div>`;
 
     strips.forEach((s, i) => {
-      const usePct = Math.round(s.usedArea / s.total * 100);
-      const pDesc  = s.pieces.map(p => `${p.label}(${p.w}×${p.h})`).join('、');
+      const stripWastePct = s.total > 0 ? Math.round((s.total - s.usedArea) / s.total * 100) : 0;
+      const pDesc = s.pieces.map(p => `${p.label}(${p.w}×${p.h})`).join('、');
       html += `<div class="sr-strip">
-        <span>第 ${i+1} 條：${s.height} × ${fw} cm（${fmt(s.total/900,2)} 才）</span>
-        <span>使用率 ${usePct}%｜${pDesc}</span>
+        <span>第 ${i+1} 條：${fw}×${s.height}cm｜${pDesc}</span>
+        <span style="text-align:right;line-height:1.6;color:var(--gray-600)">
+          ${fmt(s.height / 100, 2)} 公尺<br>損耗 ${stripWastePct}%｜${fmt(s.total/900, 2)} 才
+        </span>
       </div>`;
     });
 
-    html += `
-      <div id="diagramWrap" style="overflow-x:auto;padding:4px 0"></div>
+    html += `<div id="layoutDiagramWrap" style="overflow-x:auto;padding:4px 0"></div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${legendItems}</div>
-      <button onclick="downloadDiagram()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:2px">⬇ 下載排料圖</button>
+      <button onclick="downloadLayoutCanvas()" style="align-self:flex-end;font-size:12px;color:#6b7280;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:2px">⬇ 下載排版圖</button>
     </div>`;
 
     document.getElementById('splicePanel').innerHTML = html;
     document.getElementById('splicePanel').style.display = '';
 
-    const canvas = renderDiagram(result);
+    const canvasStrips = buildCanvasStripsFromSplice(result);
+    const canvas = drawUnifiedCanvas(canvasStrips);
     if (canvas) {
       canvas.id = 'layoutCanvas';
-      document.getElementById('diagramWrap').appendChild(canvas);
+      document.getElementById('layoutDiagramWrap').appendChild(canvas);
     }
-  }
-
-  function downloadDiagram() {
-    const canvas = document.getElementById('layoutCanvas');
-    if (!canvas) return;
-    const a = document.createElement('a');
-    a.download = '排料圖.png';
-    a.href = canvas.toDataURL('image/png');
-    a.click();
   }
 
   function fmt(n, dec) {
