@@ -290,6 +290,63 @@ input[type=number] { -moz-appearance: textfield; }
   text-align: center;
   line-height: 1.9;
 }
+
+/* ── 關聯案件橫幅 ── */
+.case-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.case-banner .cb-label { color: #1d4ed8; font-weight: 600; flex-shrink: 0; }
+.case-banner .cb-name  { color: #374151; flex: 1; }
+.case-banner select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--gray-800);
+}
+
+/* ── 儲存估價按鈕 ── */
+.save-est-btn {
+  width: 100%;
+  padding: 13px;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.save-est-btn:hover    { background: #0284c7; }
+.save-est-btn:disabled { background: #7dd3fc; cursor: default; }
+
+/* ── 列印版 ── */
+@media print {
+  .sidebar, .top-bar, .film-type-group, #modeBOptions, #rollLengthWrap,
+  .table-card .add-row-btn, .del-btn, .price-field, .discount-wrap,
+  .reset-btn, .formula-note, #saveEstBox, #caseSelectorWrap,
+  .calc-mode-group, .add-row-btn { display: none !important; }
+  .app-layout { display: block !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; }
+  .page-body { padding: 0 !important; }
+  .calc-body { max-width: 100% !important; }
+  #printHeader { display: block !important; }
+  body { font-size: 12px; }
+  .result-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .splice-result { display: none !important; }
+}
+@media screen {
+  #printHeader { display: none; }
+}
 </style>
 </head>
 <body>
@@ -329,6 +386,30 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
     <div class="page-body">
       <div class="calc-body">
+
+        <!-- 列印標頭（螢幕隱藏，列印時顯示） -->
+        <div id="printHeader" style="display:none;margin-bottom:16px">
+          <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:12px">
+            <div style="font-size:18px;font-weight:700">繪新國際有限公司</div>
+            <div style="font-size:15px;font-weight:600;margin-top:4px">初步估價單</div>
+          </div>
+          <div style="background:#fff7ed;border:1.5px solid #f97316;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:#c2410c;text-align:center;margin-bottom:12px">
+            ⚠ 此為初步估價，非正式報價單，實際報價依現場丈量為準
+          </div>
+          <div id="printCaseInfo" style="font-size:12px;color:#374151;margin-bottom:10px"></div>
+          <div style="font-size:11px;color:#6b7280">製表日期：<span id="printDate"></span>　　製表人：<span id="printUser"></span></div>
+        </div>
+
+        <!-- 關聯案件選擇 -->
+        <div id="caseSelectorWrap">
+          <div class="block-label">關聯案件（選填，儲存後自動標記已完成初步估價）</div>
+          <div class="case-banner" id="caseBanner">
+            <span class="cb-label">案件</span>
+            <select id="caseSelect" onchange="onCaseSelect()">
+              <option value="">— 不關聯案件（僅計算）—</option>
+            </select>
+          </div>
+        </div>
 
         <!-- 1. 膜料類型 -->
         <div>
@@ -445,6 +526,13 @@ input[type=number] { -moz-appearance: textfield; }
         </div>
 
         <button class="reset-btn" onclick="resetAll()">清除全部</button>
+
+        <!-- 儲存估價 & PDF -->
+        <div id="saveEstBox" style="display:none;display:flex;flex-direction:column;gap:10px">
+          <button class="save-est-btn" id="saveEstBtn" onclick="saveEstimate()">💾 儲存初步估價到案件</button>
+          <button class="reset-btn" onclick="printEstimate()" style="color:#0ea5e9;border-color:#0ea5e9">🖨 下載 PDF（列印）</button>
+        </div>
+        <button class="reset-btn" id="pdfOnlyBtn" style="display:none;color:#0ea5e9;border-color:#0ea5e9" onclick="printEstimate()">🖨 下載 PDF（列印）</button>
 
         <p class="formula-note" id="formulaNote">
           才數 = 寬度(cm) × 總米數(cm) ÷ 900 &nbsp;｜&nbsp; 總價 = 才數 × 單價
@@ -1075,9 +1163,141 @@ input[type=number] { -moz-appearance: textfield; }
     addRow();
   }
 
-  highlightNav('material-calc');
+  /* ── 案件整合 ── */
+  let linkedCaseId = null;
+  let linkedCaseName = '';
+  let currentUserName = '';
+
+  async function initCaseIntegration() {
+    await loadUser();
+    highlightNav('material-calc');
+    currentUserName = typeof currentUser !== 'undefined' ? (currentUser.name || '') : '';
+
+    // 讀取 URL param
+    const params = new URLSearchParams(location.search);
+    const caseIdParam = params.get('case_id');
+
+    // 載入詢價中案件清單
+    const res = await fetch('/api/cases?group=inquiry&limit=200');
+    const data = res.ok ? await res.json() : { items: [] };
+    const cases = data.items || [];
+
+    const sel = document.getElementById('caseSelect');
+    cases.forEach(c => {
+      const opt = new Option(`${c.case_number} ${c.title}（${c.client_name || '無客戶'}）`, c.id);
+      sel.add(opt);
+    });
+
+    if (caseIdParam) {
+      sel.value = caseIdParam;
+      onCaseSelect();
+    }
+  }
+
+  function onCaseSelect() {
+    const sel = document.getElementById('caseSelect');
+    linkedCaseId = sel.value ? Number(sel.value) : null;
+    linkedCaseName = sel.value ? sel.options[sel.selectedIndex].text : '';
+    updateSaveBox();
+  }
+
+  function updateSaveBox() {
+    const saveBox = document.getElementById('saveEstBox');
+    const pdfBtn  = document.getElementById('pdfOnlyBtn');
+    if (linkedCaseId) {
+      saveBox.style.display = 'flex';
+      pdfBtn.style.display = 'none';
+    } else {
+      saveBox.style.display = 'none';
+      pdfBtn.style.display = '';
+    }
+  }
+
+  async function saveEstimate() {
+    if (!linkedCaseId) return;
+    const btn = document.getElementById('saveEstBtn');
+    btn.disabled = true;
+    btn.textContent = '儲存中…';
+
+    const items = [];
+    document.querySelectorAll('.row-item').forEach(row => {
+      if (filmMode === 'A') {
+        const len = parseFloat(row.querySelector('.length-input')?.value) || 0;
+        const qty = parseFloat(row.querySelector('.qty-input')?.value) || 0;
+        if (len && qty) items.push({ length_m: len, qty });
+      } else {
+        const w = parseFloat(row.querySelector('.w-input')?.value) || 0;
+        const h = parseFloat(row.querySelector('.h-input')?.value) || 0;
+        const qty = parseFloat(row.querySelector('.qty-input')?.value) || 1;
+        if (w && h) items.push({ w, h, qty });
+      }
+    });
+
+    const totalCaiText = document.getElementById('totalCai').textContent;
+    const totalCai = parseFloat(totalCaiText.replace(/,/g, '')) || null;
+    const totalPriceText = document.getElementById('totalPrice').textContent;
+    const totalPrice = parseFloat(totalPriceText.replace(/[^0-9.]/g, '')) || null;
+    const discPriceText = document.getElementById('discountPrice').textContent;
+    const discountPrice = parseFloat(discPriceText.replace(/[^0-9.]/g, '')) || null;
+
+    const filmName = document.querySelector('.film-btn.active .film-name')?.textContent || '';
+
+    const body = {
+      tool_type: 'material_calc',
+      film_type: filmName,
+      film_width: filmWidth,
+      calc_mode: filmMode === 'A' ? 'meter' : calcMode,
+      roll_length_m: rollLengthM,
+      items,
+      total_cai: totalCai,
+      unit_price: parseFloat(document.getElementById('unitPrice').value) || null,
+      total_price: totalPrice,
+      discount: parseFloat(document.getElementById('discount').value) || null,
+      discount_price: discountPrice || null,
+      advance_status: true,
+    };
+
+    const r = await fetch(`/api/cases/${linkedCaseId}/initial-estimates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+
+    if (r.ok && d.ok) {
+      btn.textContent = '✅ 已儲存！案件已標記「已完成初步估價」';
+      btn.style.background = '#16a34a';
+      setTimeout(() => {
+        btn.textContent = '💾 儲存初步估價到案件';
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 3000);
+    } else {
+      btn.textContent = '❌ 儲存失敗，請重試';
+      btn.style.background = '#dc2626';
+      btn.disabled = false;
+    }
+  }
+
+  function printEstimate() {
+    // 填入列印標頭資訊
+    document.getElementById('printDate').textContent = new Date().toLocaleDateString('zh-TW');
+    document.getElementById('printUser').textContent = currentUserName;
+    const caseInfo = document.getElementById('printCaseInfo');
+    caseInfo.textContent = linkedCaseName ? `關聯案件：${linkedCaseName}` : '';
+    const filmName = document.querySelector('.film-btn.active .film-name')?.textContent || '';
+    const modeName = filmMode === 'A' ? '依米數計算' :
+                     calcMode === 'no_loss' ? '不含損料' :
+                     calcMode === 'with_loss' ? '含損料' : '拼料計算';
+    if (filmName) caseInfo.innerHTML += `<br>膜料：${filmName}（${filmWidth}cm）・計算方式：${modeName}`;
+    window.print();
+  }
+
+  // 初始化
   document.getElementById('unitPrice').value = 200;
   addRow();
+  updateSaveBox();
+  initCaseIntegration().catch(console.error);
 </script>
 </body>
 </html>

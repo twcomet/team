@@ -408,7 +408,7 @@ async function init() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th style="${currentUser?.manage_users?'':'display:none'}">操作</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th>操作</th></tr>`;
   } else if (MODE === 'survey') {
     h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
   } else {
@@ -473,9 +473,11 @@ function getCaseRow(c) {
       <td>${c.sales_name || '—'}</td>
       <td>${c.cs_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
-      <td onclick="event.stopPropagation()" style="${currentUser?.manage_users?'':'display:none'}">
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <a href="/material-calc?case_id=${c.id}"
+          style="padding:3px 10px;border-radius:12px;font-size:11px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;text-decoration:none;display:inline-block;margin-right:4px">🧮 快速報價</a>
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${currentUser?.manage_users?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }

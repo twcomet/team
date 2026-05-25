@@ -1532,5 +1532,28 @@ _addCol('cases', 'invalid_reason_tags', 'TEXT');
 _addCol('cases', 'invalid_at',          'DATETIME');
 _addCol('cases', 'invalided_by',        'INTEGER REFERENCES users(id)');
 _addCol('cases', 'prev_status',         'TEXT');
+_addCol('cases', 'initial_estimate_at', 'DATETIME');
+
+// 初步估價紀錄（支援多種快速報價工具）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS initial_estimates (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id        INTEGER REFERENCES cases(id) ON DELETE CASCADE,
+    tool_type      TEXT NOT NULL DEFAULT 'material_calc',
+    film_type      TEXT,
+    film_width     INTEGER,
+    calc_mode      TEXT,
+    roll_length_m  INTEGER,
+    items          TEXT DEFAULT '[]',
+    total_cai      REAL,
+    unit_price     REAL,
+    total_price    REAL,
+    discount       REAL,
+    discount_price REAL,
+    note           TEXT,
+    created_by     INTEGER REFERENCES users(id),
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 
 module.exports = db;

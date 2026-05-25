@@ -528,11 +528,13 @@ router.post('/:id/dispatches/:did/push', requireAuth, async (req, res) => {
 
 // ── 狀態推進 PATCH /:id/advance ──────────────────────────────
 const ADVANCE_MAP = {
-  surveyed:   { next: 'quote_draft', tsCol: 'quote_draft_at',  byCol: 'quote_drafted_by' },
-  quote_draft:{ next: 'quoted',      tsCol: 'quoted_at',       byCol: 'quoted_by'        },
-  quoted:     { next: 'contracted',  tsCol: 'contracted_at',   byCol: null               },
-  contracted: { next: 'payment',     tsCol: 'payment_at',      byCol: null               },
-  payment:    { next: 'closed',      tsCol: 'closed_at',       byCol: null               },
+  inquiry:          { next: 'initial_estimate', tsCol: 'initial_estimate_at', byCol: null },
+  initial_estimate: { next: 'survey_pending',   tsCol: null,                  byCol: null },
+  surveyed:         { next: 'quote_draft',      tsCol: 'quote_draft_at',      byCol: 'quote_drafted_by' },
+  quote_draft:      { next: 'quoted',           tsCol: 'quoted_at',           byCol: 'quoted_by'        },
+  quoted:           { next: 'contracted',       tsCol: 'contracted_at',       byCol: null               },
+  contracted:       { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
+  payment:          { next: 'closed',           tsCol: 'closed_at',           byCol: null               },
 };
 router.patch('/:id/advance', requireAuth, (req, res) => {
   const me = req.session.user;
@@ -556,7 +558,8 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
   }
 
   const newGroup = STATUS_GROUP_MAP[t.next] || null;
-  let sets = `status=?, prev_status=?, ${t.tsCol}=COALESCE(${t.tsCol}, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP`;
+  let sets = `status=?, prev_status=?, updated_at=CURRENT_TIMESTAMP`;
+  if (t.tsCol) sets += `, ${t.tsCol}=COALESCE(${t.tsCol}, CURRENT_TIMESTAMP)`;
   const params = [t.next, c.status];
   if (newGroup) { sets += `, case_group=?`; params.push(newGroup); }
   if (t.byCol)  { sets += `, ${t.byCol}=COALESCE(${t.byCol}, ?)`; params.push(me.id); }
@@ -642,6 +645,7 @@ router.delete('/:id', requireAuth, (req, res) => {
     db.prepare(`DELETE FROM quote_sheets        WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM survey_forms        WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM case_applications   WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM initial_estimates   WHERE case_id=?`).run(id);
     // LINE 詢問單僅解除關聯，不刪除紀錄
     db.prepare(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id=?`).run(id);
     // 保修案解除關聯
@@ -654,6 +658,45 @@ router.delete('/:id', requireAuth, (req, res) => {
   })();
 
   res.json({ ok: true });
+});
+
+// ── 初步估價紀錄 ─────────────────────────────────────────────
+router.get('/:id/initial-estimates', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT ie.*, u.name as created_by_name
+    FROM initial_estimates ie
+    LEFT JOIN users u ON u.id = ie.created_by
+    WHERE ie.case_id = ?
+    ORDER BY ie.created_at DESC
+  `).all(req.params.id);
+  rows.forEach(r => { try { r.items = JSON.parse(r.items || '[]'); } catch { r.items = []; } });
+  res.json(rows);
+});
+
+router.post('/:id/initial-estimates', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const case_id = Number(req.params.id);
+  const { tool_type, film_type, film_width, calc_mode, roll_length_m, items,
+          total_cai, unit_price, total_price, discount, discount_price, note, advance_status } = req.body;
+
+  const result = db.prepare(`
+    INSERT INTO initial_estimates
+      (case_id, tool_type, film_type, film_width, calc_mode, roll_length_m, items,
+       total_cai, unit_price, total_price, discount, discount_price, note, created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(case_id, tool_type || 'material_calc', film_type ?? null, film_width ?? null,
+         calc_mode ?? null, roll_length_m ?? null, JSON.stringify(items || []),
+         total_cai ?? null, unit_price ?? null, total_price ?? null,
+         discount ?? null, discount_price ?? null, note ?? null, me.id);
+
+  if (advance_status) {
+    const c = db.prepare(`SELECT status FROM cases WHERE id=?`).get(case_id);
+    if (c?.status === 'inquiry') {
+      db.prepare(`UPDATE cases SET status='initial_estimate', initial_estimate_at=COALESCE(initial_estimate_at, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(case_id);
+    }
+  }
+
+  res.json({ ok: true, id: result.lastInsertRowid });
 });
 
 // ── 統計 ─────────────────────────────────────────────────────
