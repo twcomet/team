@@ -178,8 +178,8 @@ router.post('/sign/:token', (req, res) => {
   db.prepare(`UPDATE survey_forms SET status='signed', client_signature=?, client_signed_at=CURRENT_TIMESTAMP WHERE share_token=?`)
     .run(signature, req.params.token);
 
-  // 案件狀態升為 surveyed
-  db.prepare(`UPDATE cases SET status='surveyed', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(form.case_id);
+  // 案件狀態升為 surveyed，記錄完成時間
+  db.prepare(`UPDATE cases SET status='surveyed', surveyed_at=COALESCE(surveyed_at, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(form.case_id);
 
   res.json({ ok: true });
 });

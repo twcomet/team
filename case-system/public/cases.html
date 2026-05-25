@@ -32,7 +32,7 @@
       <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
       <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
       <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
-      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
       <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
       <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
       <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
@@ -290,6 +290,38 @@
   </div>
 </div>
 
+<!-- 無效案件 Modal -->
+<div class="modal-overlay" id="invalidModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3>標記無效</h3></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#6b7280;margin:0 0 12px">請選擇或填寫無效原因：</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" id="invalidTagsWrap">
+        <span class="invalid-tag" data-tag="報價太貴">報價太貴</span>
+        <span class="invalid-tag" data-tag="已找到其他廠商">已找到其他廠商</span>
+        <span class="invalid-tag" data-tag="等待太久">等待太久</span>
+        <span class="invalid-tag" data-tag="客戶失聯">客戶失聯</span>
+        <span class="invalid-tag" data-tag="需求改變">需求改變</span>
+        <span class="invalid-tag" data-tag="暫緩施工">暫緩施工</span>
+        <span class="invalid-tag" data-tag="預算不足">預算不足</span>
+      </div>
+      <textarea id="invalidReason" rows="3" placeholder="補充說明（選填）"
+        style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('invalidModal')">取消</button>
+      <button class="btn btn-danger" onclick="doInvalidate()">確認無效</button>
+    </div>
+  </div>
+</div>
+<style>
+.invalid-tag {
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+  background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none;
+}
+.invalid-tag.active { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 600; }
+</style>
+
 <script src="/js/common.js"></script>
 <script>
 // ── 模式偵測 ─────────────────────────────────────────────────
@@ -310,7 +342,7 @@ const CFG = {
     showNewBtn: true,
   },
   survey: {
-    title: '場勘案件管理',
+    title: '場勘管理',
     nav: 'cases-survey',
     group: 'survey',
     stages: ['survey_pending', 'survey_scheduled', 'surveyed', 'quote_draft', 'quoted', 'invalid'],
@@ -376,9 +408,9 @@ async function init() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th style="${currentUser?.manage_users?'':'display:none'}">操作</th></tr>`;
   } else if (MODE === 'survey') {
-    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>狀態</th><th>估價</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
   } else {
     h.innerHTML = `<tr>
       <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
@@ -386,6 +418,7 @@ function renderTableHead() {
       <th id="amountHeader" ${!currentUser?.can_see_amounts ? 'style="display:none"' : ''}>報價／成交</th>
       <th>毛利</th><th>收款</th>
       <th id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
+      <th>操作</th>
     </tr>`;
   }
 }
@@ -419,7 +452,7 @@ function renderTable(cases) {
   const tbody = document.getElementById('casesBody');
   if (MODE === 'inquiry') filtered.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 8 : MODE === 'survey' ? 8 : 10;
+    const cols = MODE === 'inquiry' ? 9 : MODE === 'survey' ? 10 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -440,10 +473,17 @@ function getCaseRow(c) {
       <td>${c.sales_name || '—'}</td>
       <td>${c.cs_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
+      <td onclick="event.stopPropagation()" style="${currentUser?.manage_users?'':'display:none'}">
+        <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
+          style="padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+      </td>
     </tr>`;
   }
 
   if (MODE === 'survey') {
+    const handler = c.status === 'quoted' ? (c.quoted_name || c.cs_name || '—')
+                  : c.status === 'quote_draft' ? (c.quote_drafted_name || c.cs_name || '—')
+                  : (c.cs_name || '—');
     return `<tr ${link}>
       <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
@@ -451,8 +491,10 @@ function getCaseRow(c) {
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
       <td>${fmtDate(c.survey_date)}</td>
       <td>${c.sales_name || '—'}</td>
+      <td style="font-size:13px;color:#6b7280">${handler}</td>
       <td>${statusBadge(c.status)}</td>
       <td>${c.quoted_price ? fmt(c.quoted_price) : '—'}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">${surveyActionBtns(c)}</td>
     </tr>`;
   }
 
@@ -480,6 +522,7 @@ function getCaseRow(c) {
         : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 10px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
       }
     </td>
+    <td onclick="event.stopPropagation()" style="white-space:nowrap">${dealActionBtns(c)}</td>
   </tr>`;
 }
 
@@ -762,6 +805,108 @@ async function deleteChecklistTemplate(id, label) {
   const res = await fetch(`/api/survey/checklist-templates/${id}`, { method: 'DELETE' });
   if (res.ok) { await loadChecklistTemplates(); showToast('已刪除'); }
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+// ── 狀態操作按鈕 ──────────────────────────────────────────────
+function surveyActionBtns(c) {
+  const ADV = { surveyed: '已建報價單', quote_draft: '已發報價單', quoted: '確認成交' };
+  const INVALIDATABLE = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+  const parts = [];
+  if (ADV[c.status]) {
+    parts.push(`<button onclick="advanceCase(${c.id},'${c.status}')"
+      style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dc2626;color:#fff;border:none;cursor:pointer;white-space:nowrap">${ADV[c.status]}</button>`);
+  }
+  if (INVALIDATABLE.has(c.status)) {
+    parts.push(`<button onclick="openInvalidModal(${c.id})"
+      style="padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">無效</button>`);
+  }
+  if (currentUser?.manage_users && c.prev_status) {
+    parts.push(`<button onclick="doStepBack(${c.id})"
+      style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
+  }
+  if (currentUser?.manage_users) {
+    parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
+      style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
+  }
+  return parts.join('') || '—';
+}
+
+function dealActionBtns(c) {
+  const parts = [];
+  if (c.status === 'contracted') {
+    parts.push(`<button onclick="advanceCase(${c.id},'contracted')"
+      style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dc2626;color:#fff;border:none;cursor:pointer;white-space:nowrap">完工請款</button>`);
+  } else if (c.status === 'payment') {
+    const isPaid = c.payment_status === 'paid';
+    parts.push(`<button onclick="advanceCase(${c.id},'payment')"
+      style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;border:none;white-space:nowrap;${isPaid ? 'background:#dc2626;color:#fff;cursor:pointer' : 'background:#e5e7eb;color:#9ca3af;cursor:not-allowed'}"
+      ${isPaid ? '' : 'disabled title="收款未完成，無法結案"'}>確認結案</button>`);
+  }
+  if (currentUser?.manage_users && c.prev_status) {
+    parts.push(`<button onclick="doStepBack(${c.id})"
+      style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
+  }
+  if (currentUser?.manage_users) {
+    parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
+      style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
+  }
+  return parts.join('') || '—';
+}
+
+async function advanceCase(id, status) {
+  const r = await fetch(`/api/cases/${id}/advance`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+  });
+  const d = await r.json();
+  if (d.needConfirm) {
+    if (!confirm(d.warning)) return;
+    const r2 = await fetch(`/api/cases/${id}/advance`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ force: true })
+    });
+    const d2 = await r2.json();
+    if (d2.ok) { showToast('狀態已更新'); loadCases(); }
+    else showToast(d2.error || '操作失敗', 'error');
+  } else if (d.ok) { showToast('狀態已更新'); loadCases(); }
+  else showToast(d.error || '操作失敗', 'error');
+}
+
+let _invalidId = null;
+function openInvalidModal(id) {
+  _invalidId = id;
+  document.getElementById('invalidReason').value = '';
+  document.querySelectorAll('.invalid-tag').forEach(t => t.classList.remove('active'));
+  document.getElementById('invalidModal').classList.add('open');
+}
+document.getElementById('invalidTagsWrap').addEventListener('click', e => {
+  const tag = e.target.closest('.invalid-tag');
+  if (tag) tag.classList.toggle('active');
+});
+async function doInvalidate() {
+  const reason = document.getElementById('invalidReason').value.trim();
+  const tags   = [...document.querySelectorAll('.invalid-tag.active')].map(t => t.dataset.tag);
+  if (!reason && !tags.length) { showToast('請填寫無效原因', 'error'); return; }
+  const r = await fetch(`/api/cases/${_invalidId}/invalidate`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ reason, tags })
+  });
+  const d = await r.json();
+  if (d.ok) { closeModal('invalidModal'); showToast('案件已標記無效'); loadCases(); }
+  else showToast(d.error || '操作失敗', 'error');
+}
+
+async function deleteCase(id, caseNumber) {
+  if (!confirm(`確定要刪除案件「${caseNumber}」？\n\n此操作無法復原，相關派工、場勘單、報價單資料將一併刪除。`)) return;
+  const r = await fetch(`/api/cases/${id}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) { showToast('案件已刪除'); loadCases(); }
+  else showToast(d.error || '刪除失敗', 'error');
+}
+
+async function doStepBack(id) {
+  if (!confirm('確定退回上一個步驟？此操作僅限管理者。')) return;
+  const r = await fetch(`/api/cases/${id}/step-back`, { method: 'PATCH', headers: {'Content-Type':'application/json'} });
+  const d = await r.json();
+  if (d.ok) { showToast('已退回：' + (STATUS_LABELS[d.new_status] || d.new_status)); loadCases(); }
+  else showToast(d.error || '操作失敗', 'error');
 }
 
 init();

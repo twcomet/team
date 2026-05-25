@@ -89,7 +89,7 @@
         <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
         <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
         <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
-        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘案件管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
         <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
         <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
         <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
@@ -123,6 +123,7 @@
         <button class="btn btn-secondary btn-sm" id="toSurveyBtn" style="display:none">→ 轉場勘案件</button>
         <button class="btn btn-primary btn-sm" id="toDealBtn" style="display:none">✓ 確認成交</button>
         <button class="btn btn-ghost btn-sm" id="toInvalidBtn" style="display:none;color:#e02424">✕ 無效保存</button>
+        <button class="btn btn-ghost btn-sm" id="deleteCaseBtn" style="display:none;color:#9ca3af;margin-left:8px" onclick="deleteCaseInDetail()">🗑 刪除案件</button>
       </div>
     </div>
     <div class="page-body">
@@ -272,6 +273,14 @@
           <div style="display:flex;gap:8px;align-items:center">
             <input type="url" id="b_photo_upload_url" placeholder="貼上 Google 雲端硬碟資料夾連結" style="flex:1">
             <a id="b_photo_upload_link" href="#" target="_blank"
+               style="display:none;padding:9px 14px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-700);text-decoration:none;white-space:nowrap">開啟 ↗</a>
+          </div>
+        </div>
+        <div class="form-group" id="b_external_quote_wrap" style="display:none">
+          <label>外部報價單連結（Google 雲端）</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="url" id="b_external_quote_url" placeholder="貼上 Google 雲端報價單連結" style="flex:1">
+            <a id="b_external_quote_link" href="#" target="_blank"
                style="display:none;padding:9px 14px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-700);text-decoration:none;white-space:nowrap">開啟 ↗</a>
           </div>
         </div>
@@ -1095,6 +1104,9 @@ function renderHeader() {
   applyGroupTabs(group);
   // 轉換按鈕
   applyConvertButtons(group);
+  // 刪除按鈕（僅管理者可見）
+  const delBtn = document.getElementById('deleteCaseBtn');
+  if (delBtn) delBtn.style.display = currentUser?.manage_users ? '' : 'none';
   // 初步估價紀錄
   if (caseData.initial_estimate_data) {
     try {
@@ -1134,10 +1146,23 @@ function applyConvertButtons(group) {
   const toInvalid = document.getElementById('toInvalidBtn');
   const banner    = document.getElementById('convertBanner');
   const bannerBtns = document.getElementById('convertBannerBtns');
+  const status = caseData.status;
 
   toSurvey.style.display  = group === 'inquiry' ? '' : 'none';
-  toDeal.style.display    = (group === 'inquiry' || group === 'survey') ? '' : 'none';
-  toInvalid.style.display = (group === 'inquiry' || group === 'survey') ? '' : 'none';
+  toDeal.style.display    = 'none';
+  toInvalid.style.display = 'none';
+
+  const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+  const invalidBtn = INVALIDATABLE.has(status)
+    ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="openDetailInvalidModal()">✕ 標記無效</button>` : '';
+
+  const ADVANCE_CFG = {
+    surveyed:    { label: '已建報價單', color: '#dc2626' },
+    quote_draft: { label: '已發報價單', color: '#dc2626' },
+    quoted:      { label: '✓ 確認成交', color: '#16a34a' },
+    contracted:  { label: '完工請款',   color: '#dc2626' },
+    payment:     { label: '確認結案',   color: caseData.payment_status === 'paid' ? '#dc2626' : '#9ca3af' },
+  };
 
   banner.style.display = 'flex';
   if (group === 'inquiry') {
@@ -1146,18 +1171,73 @@ function applyConvertButtons(group) {
     bannerBtns.innerHTML = `
       <button class="btn btn-secondary btn-sm" onclick="convertCase('survey')">→ 轉場勘案件</button>
       <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 直接成交</button>
-      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
+      ${invalidBtn}`;
   } else if (group === 'survey') {
-    document.getElementById('convertBannerTitle').textContent = '場勘完成？選擇下一步';
-    document.getElementById('convertBannerDesc').textContent  = '確認成交後案件移至成交案件管理';
-    bannerBtns.innerHTML = `
-      <button class="btn btn-primary btn-sm" onclick="convertCase('deal')">✓ 確認成交</button>
-      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="convertCase('invalid')">✕ 無效保存</button>`;
+    const adv = ADVANCE_CFG[status];
+    const advBtn = adv
+      ? `<button class="btn btn-sm" style="background:${adv.color};color:#fff;font-weight:600" onclick="advanceInDetail()">${adv.label}</button>` : '';
+    document.getElementById('convertBannerTitle').textContent = '場勘管理 ─ 下一步';
+    document.getElementById('convertBannerDesc').textContent  = '完成後狀態將自動推進';
+    bannerBtns.innerHTML = advBtn + (advBtn ? '&nbsp;&nbsp;' : '') + invalidBtn;
+  } else if (group === 'deal') {
+    const adv = ADVANCE_CFG[status];
+    const isPaid = caseData.payment_status === 'paid';
+    const advBtn = adv
+      ? `<button class="btn btn-sm" style="background:${adv.color};color:#fff;font-weight:600;${status==='payment'&&!isPaid?'opacity:.5;cursor:not-allowed':''}"
+           onclick="advanceInDetail()" ${status==='payment'&&!isPaid?'disabled title="收款未完成，無法結案"':''}>${adv.label}</button>` : '';
+    document.getElementById('convertBannerTitle').textContent = '成交管理 ─ 下一步';
+    document.getElementById('convertBannerDesc').textContent  = '請確認完成後再推進';
+    bannerBtns.innerHTML = advBtn;
   } else {
     document.getElementById('convertBannerTitle').textContent = '基本資訊';
     document.getElementById('convertBannerDesc').textContent  = '儲存後立即生效';
     bannerBtns.innerHTML = '';
   }
+}
+
+async function advanceInDetail() {
+  const r = await fetch(`/api/cases/${caseId}/advance`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+  });
+  const d = await r.json();
+  if (d.needConfirm) {
+    if (!confirm(d.warning)) return;
+    const r2 = await fetch(`/api/cases/${caseId}/advance`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ force: true })
+    });
+    const d2 = await r2.json();
+    if (d2.ok) { showToast('狀態已更新'); await loadCase(); }
+    else showToast(d2.error || '操作失敗', 'error');
+  } else if (d.ok) { showToast('狀態已更新'); await loadCase(); }
+  else showToast(d.error || '操作失敗', 'error');
+}
+
+function openDetailInvalidModal() {
+  document.getElementById('detailInvalidReason').value = '';
+  document.querySelectorAll('.detail-invalid-tag').forEach(t => t.classList.remove('active'));
+  document.getElementById('detailInvalidModal').classList.add('open');
+}
+async function deleteCaseInDetail() {
+  const num = caseData?.case_number || '';
+  if (!confirm(`確定要刪除案件「${num}」？\n\n此操作無法復原，相關派工、場勘單、報價單資料將一併刪除。`)) return;
+  const r = await fetch(`/api/cases/${caseId}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.ok) {
+    showToast('案件已刪除');
+    setTimeout(() => { location.href = '/cases'; }, 800);
+  } else showToast(d.error || '刪除失敗', 'error');
+}
+
+async function doDetailInvalidate() {
+  const reason = document.getElementById('detailInvalidReason').value.trim();
+  const tags   = [...document.querySelectorAll('.detail-invalid-tag.active')].map(t => t.dataset.tag);
+  if (!reason && !tags.length) { showToast('請填寫無效原因', 'error'); return; }
+  const r = await fetch(`/api/cases/${caseId}/invalidate`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ reason, tags })
+  });
+  const d = await r.json();
+  if (d.ok) { document.getElementById('detailInvalidModal').classList.remove('open'); showToast('案件已標記無效'); await loadCase(); }
+  else showToast(d.error || '操作失敗', 'error');
 }
 
 async function convertCase(targetGroup) {
@@ -1197,6 +1277,7 @@ function buildSaveBody() {
     notes:              document.getElementById('b_notes').value,
     entry_info:         document.getElementById('b_entry_info').value || null,
     photo_upload_url:   document.getElementById('b_photo_upload_url').value || null,
+    external_quote_url: document.getElementById('b_external_quote_url').value || null,
     client_id:          document.getElementById('b_client').value || null,
     is_outsourced:      poolIsOn,
     outsource_type:     poolIsOn ? poolType : null,
@@ -1245,6 +1326,19 @@ function fillBasicForm() {
   document.getElementById('b_entry_info').value        = c.entry_info || '';
   document.getElementById('b_photo_upload_url').value  = c.photo_upload_url || '';
   syncFolderLink();
+
+  // 外部報價單連結（quote_draft / quoted 時顯示）
+  const extQuoteWrap = document.getElementById('b_external_quote_wrap');
+  const extQuoteUrl  = document.getElementById('b_external_quote_url');
+  const extQuoteLink = document.getElementById('b_external_quote_link');
+  const showExtQuote = ['quote_draft','quoted','contracted','payment','closed'].includes(c.status);
+  if (extQuoteWrap) extQuoteWrap.style.display = showExtQuote ? '' : 'none';
+  if (extQuoteUrl)  extQuoteUrl.value = c.external_quote_url || '';
+  if (extQuoteLink) {
+    const v = (c.external_quote_url || '').trim();
+    extQuoteLink.style.display = v ? '' : 'none';
+    extQuoteLink.href = v || '#';
+  }
 
   // 客戶類別（chip + text input）
   const catVal = c.client_category || '';
@@ -2897,5 +2991,48 @@ init();
     </div>
   </div>
 </div>
+
+<!-- 無效案件 Modal（案件詳情頁用）-->
+<div class="modal-overlay" id="detailInvalidModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3>標記無效</h3></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#6b7280;margin:0 0 12px">請選擇或填寫無效原因：</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" id="detailInvalidTagsWrap">
+        <span class="detail-invalid-tag" data-tag="報價太貴">報價太貴</span>
+        <span class="detail-invalid-tag" data-tag="已找到其他廠商">已找到其他廠商</span>
+        <span class="detail-invalid-tag" data-tag="等待太久">等待太久</span>
+        <span class="detail-invalid-tag" data-tag="客戶失聯">客戶失聯</span>
+        <span class="detail-invalid-tag" data-tag="需求改變">需求改變</span>
+        <span class="detail-invalid-tag" data-tag="暫緩施工">暫緩施工</span>
+        <span class="detail-invalid-tag" data-tag="預算不足">預算不足</span>
+      </div>
+      <textarea id="detailInvalidReason" rows="3" placeholder="補充說明（選填）"
+        style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('detailInvalidModal').classList.remove('open')">取消</button>
+      <button class="btn btn-danger" onclick="doDetailInvalidate()">確認無效</button>
+    </div>
+  </div>
+</div>
+<style>
+.detail-invalid-tag {
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+  background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none;
+}
+.detail-invalid-tag.active { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 600; }
+</style>
+<script>
+document.getElementById('detailInvalidTagsWrap').addEventListener('click', e => {
+  const tag = e.target.closest('.detail-invalid-tag');
+  if (tag) tag.classList.toggle('active');
+});
+document.getElementById('b_external_quote_url')?.addEventListener('input', function() {
+  const link = document.getElementById('b_external_quote_link');
+  const v = this.value.trim();
+  if (link) { link.style.display = v ? '' : 'none'; link.href = v || '#'; }
+});
+</script>
 </body>
 </html>

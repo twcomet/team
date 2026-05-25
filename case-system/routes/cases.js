@@ -120,14 +120,20 @@ router.get('/', requireAuth, (req, res) => {
            s.name   as sales_name,
            cs.name  as cs_name,
            sv.name  as surveyor_name,
+           qdb.name as quote_drafted_name,
+           qb.name  as quoted_name,
+           inv.name as invalided_name,
            o.name   as org_name,
            ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
     FROM cases c
-    LEFT JOIN clients cl ON c.client_id   = cl.id
-    LEFT JOIN users   s  ON c.sales_id    = s.id
-    LEFT JOIN users   cs ON c.cs_id       = cs.id
-    LEFT JOIN users   sv ON c.surveyor_id = sv.id
-    LEFT JOIN orgs    o  ON c.org_id      = o.id
+    LEFT JOIN clients cl  ON c.client_id        = cl.id
+    LEFT JOIN users   s   ON c.sales_id         = s.id
+    LEFT JOIN users   cs  ON c.cs_id            = cs.id
+    LEFT JOIN users   sv  ON c.surveyor_id      = sv.id
+    LEFT JOIN users   qdb ON c.quote_drafted_by = qdb.id
+    LEFT JOIN users   qb  ON c.quoted_by        = qb.id
+    LEFT JOIN users   inv ON c.invalided_by     = inv.id
+    LEFT JOIN orgs    o   ON c.org_id           = o.id
     WHERE 1=1
   `;
   const p = [];
@@ -518,6 +524,136 @@ router.post('/:id/dispatches/:did/push', requireAuth, async (req, res) => {
     if (u?.line_user_id) { pushMessage(u.line_user_id, msg); sent++; }
   }
   res.json({ ok: true, sent, total: uids.length });
+});
+
+// ── 狀態推進 PATCH /:id/advance ──────────────────────────────
+const ADVANCE_MAP = {
+  surveyed:   { next: 'quote_draft', tsCol: 'quote_draft_at',  byCol: 'quote_drafted_by' },
+  quote_draft:{ next: 'quoted',      tsCol: 'quoted_at',       byCol: 'quoted_by'        },
+  quoted:     { next: 'contracted',  tsCol: 'contracted_at',   byCol: null               },
+  contracted: { next: 'payment',     tsCol: 'payment_at',      byCol: null               },
+  payment:    { next: 'closed',      tsCol: 'closed_at',       byCol: null               },
+};
+router.patch('/:id/advance', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const c = db.prepare(`SELECT status, payment_status, prev_status FROM cases WHERE id=?`).get(req.params.id);
+  if (!c) return res.status(404).json({ error: '找不到案件' });
+
+  const t = ADVANCE_MAP[c.status];
+  if (!t) return res.status(400).json({ error: '此狀態無法推進' });
+
+  // 結案需收款完成
+  if (c.status === 'payment' && c.payment_status !== 'paid')
+    return res.status(400).json({ error: '尚未完成收款，無法結案' });
+
+  // 完工請款前警示：有未完成派工
+  if (c.status === 'contracted' && !req.body.force) {
+    const inc = db.prepare(
+      `SELECT COUNT(*) cnt FROM dispatches WHERE case_id=? AND status NOT IN ('done','cancelled')`
+    ).get(req.params.id);
+    if (inc.cnt > 0)
+      return res.status(200).json({ warning: `此案件尚有 ${inc.cnt} 筆未完成派工，確定要繼續？`, needConfirm: true });
+  }
+
+  const newGroup = STATUS_GROUP_MAP[t.next] || null;
+  let sets = `status=?, prev_status=?, ${t.tsCol}=COALESCE(${t.tsCol}, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP`;
+  const params = [t.next, c.status];
+  if (newGroup) { sets += `, case_group=?`; params.push(newGroup); }
+  if (t.byCol)  { sets += `, ${t.byCol}=COALESCE(${t.byCol}, ?)`; params.push(me.id); }
+  params.push(req.params.id);
+  db.prepare(`UPDATE cases SET ${sets} WHERE id=?`).run(...params);
+
+  db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'advance', 'cases', req.params.id, `${c.status} → ${t.next}`);
+  res.json({ ok: true, new_status: t.next });
+});
+
+// ── 標記無效 PATCH /:id/invalidate ──────────────────────────
+const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+router.patch('/:id/invalidate', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { reason, tags } = req.body;
+  const c = db.prepare(`SELECT status FROM cases WHERE id=?`).get(req.params.id);
+  if (!c) return res.status(404).json({ error: '找不到案件' });
+  if (!INVALIDATABLE.has(c.status)) return res.status(400).json({ error: '此狀態無法標記無效' });
+
+  db.prepare(`UPDATE cases SET status='invalid', prev_status=?, invalid_reason=?, invalid_reason_tags=?,
+    invalid_at=CURRENT_TIMESTAMP, invalided_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(c.status, reason || null, tags ? JSON.stringify(tags) : null, me.id, req.params.id);
+
+  db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'invalidate', 'cases', req.params.id, `無效：${reason || '未填理由'}`);
+  res.json({ ok: true });
+});
+
+// ── 退回上一步 PATCH /:id/step-back ─────────────────────────
+router.patch('/:id/step-back', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!me.manage_users && me.role !== 'owner')
+    return res.status(403).json({ error: '僅限管理者可退回狀態' });
+
+  const c = db.prepare(`SELECT status, prev_status FROM cases WHERE id=?`).get(req.params.id);
+  if (!c || !c.prev_status) return res.status(400).json({ error: '無法退回（無前一狀態記錄）' });
+
+  const newGroup = STATUS_GROUP_MAP[c.prev_status] || null;
+  let sets = `status=?, prev_status=NULL, updated_at=CURRENT_TIMESTAMP`;
+  const params = [c.prev_status];
+  if (newGroup) { sets += `, case_group=?`; params.push(newGroup); }
+  params.push(req.params.id);
+  db.prepare(`UPDATE cases SET ${sets} WHERE id=?`).run(...params);
+
+  db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'step_back', 'cases', req.params.id, `退回：${c.status} → ${c.prev_status}`);
+  res.json({ ok: true, new_status: c.prev_status });
+});
+
+// ── 刪除案件 DELETE /:id（限管理者）────────────────────────────
+router.delete('/:id', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!me.manage_users && me.role !== 'owner')
+    return res.status(403).json({ error: '僅限管理者可刪除案件' });
+
+  const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
+  if (!c) return res.status(404).json({ error: '找不到案件' });
+
+  db.transaction(() => {
+    const id = req.params.id;
+    // 先清關聯子資料（無 CASCADE 的表）
+    const dispIds = db.prepare(`SELECT id FROM dispatches WHERE case_id=?`).all(id).map(r => r.id);
+    if (dispIds.length) {
+      const ph = dispIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM dispatch_users    WHERE dispatch_id IN (${ph})`).run(...dispIds);
+    }
+    db.prepare(`DELETE FROM dispatches          WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM notifications       WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM profit_shares       WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM material_logs       WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM ledger_entries      WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM case_ratings        WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM dispatch_queue      WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM site_surveys        WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM quotations          WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM quality_checks      WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM ratings             WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM user_task_dismissals WHERE case_id=?`).run(id);
+    // 有 CASCADE 的表（仍明確清除）
+    db.prepare(`DELETE FROM case_items          WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM dispatch_materials  WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM quote_sheets        WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM survey_forms        WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM case_applications   WHERE case_id=?`).run(id);
+    // LINE 詢問單僅解除關聯，不刪除紀錄
+    db.prepare(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id=?`).run(id);
+    // 保修案解除關聯
+    db.prepare(`UPDATE warranty_cases SET original_case_id=NULL WHERE original_case_id=?`).run(id);
+    // 最後刪除案件本身
+    db.prepare(`DELETE FROM cases WHERE id=?`).run(id);
+
+    db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+      .run(me.id, 'delete', 'cases', id, `刪除案件 ${c.case_number} ${c.title}`);
+  })();
+
+  res.json({ ok: true });
 });
 
 // ── 統計 ─────────────────────────────────────────────────────

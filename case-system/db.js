@@ -1517,4 +1517,20 @@ db.exec(`
   )
 `);
 
+// 狀態流程追蹤欄位（步驟時間戳記 + 承辦人）
+_addCol('cases', 'surveyed_at',         'DATETIME');
+_addCol('cases', 'quote_draft_at',      'DATETIME');
+_addCol('cases', 'quote_drafted_by',    'INTEGER REFERENCES users(id)');
+_addCol('cases', 'quoted_at',           'DATETIME');
+_addCol('cases', 'quoted_by',           'INTEGER REFERENCES users(id)');
+_addCol('cases', 'contracted_at',       'DATETIME');
+_addCol('cases', 'payment_at',          'DATETIME');
+_addCol('cases', 'closed_at',           'DATETIME');
+_addCol('cases', 'external_quote_url',  'TEXT');
+_addCol('cases', 'invalid_reason',      'TEXT');
+_addCol('cases', 'invalid_reason_tags', 'TEXT');
+_addCol('cases', 'invalid_at',          'DATETIME');
+_addCol('cases', 'invalided_by',        'INTEGER REFERENCES users(id)');
+_addCol('cases', 'prev_status',         'TEXT');
+
 module.exports = db;
