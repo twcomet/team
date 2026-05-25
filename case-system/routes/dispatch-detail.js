@@ -29,9 +29,11 @@ router.get('/:id', requireAuth, (req, res) => {
            c.case_type, c.scheduled_date, c.survey_date, c.status,
            c.notes, c.entry_info, c.photo_upload_url,
            cl.name AS client_name, cl.phone AS client_phone,
-           cl.address AS client_address, cl.contact_person
+           cl.address AS client_address, cl.contact_person,
+           su.name AS surveyor_name
     FROM cases c
     LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN users  su ON su.id = c.surveyor_id
     WHERE c.id = ?
   `).get(caseId);
 
