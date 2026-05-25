@@ -644,13 +644,24 @@ async function loadRolls(matId) {
             <tbody>`;
         rLogs.forEach(l => {
           const isIn = l.meters > 0;
-          html += `<tr>
+          const isCancelled = l.status === 'cancelled';
+          const caseLabel = l.case_number
+            ? `<a href="/case-detail?id=${l.case_id}" style="color:var(--primary);text-decoration:none">
+                 ${l.case_number}
+               </a>
+               ${l.case_title  ? `<br><span style="color:var(--gray-500)">${l.case_title}</span>` : ''}
+               ${l.client_name ? `<br><span style="color:var(--gray-400)">👤 ${l.client_name}</span>` : ''}`
+            : '—';
+          html += `<tr style="${isCancelled?'opacity:.45;text-decoration:line-through':''}">
             <td style="color:var(--gray-500)">${l.logged_at ? l.logged_at.slice(0,16) : '—'}</td>
-            <td><span class="log-type-badge log-${l.log_type}">${LOG_LABELS[l.log_type]||l.log_type}</span></td>
+            <td>
+              <span class="log-type-badge log-${l.log_type}">${LOG_LABELS[l.log_type]||l.log_type}</span>
+              ${isCancelled ? '<span style="font-size:10px;color:var(--gray-400)">（已沖銷）</span>' : ''}
+            </td>
             <td style="font-weight:600;color:${isIn?'var(--success)':'var(--danger)'}">
               ${isIn?'+':''}${l.meters} 米
             </td>
-            <td style="font-size:12px">${l.case_number?`<a href="/case-detail?id=${l.case_id}" style="color:var(--primary)">${l.case_number}</a>`:'—'}</td>
+            <td style="font-size:12px;line-height:1.5">${caseLabel}</td>
             <td style="font-size:12px">${l.logger_name||'—'}</td>
             <td style="font-size:12px;color:var(--gray-500)">${l.notes||''}</td>
           </tr>`;

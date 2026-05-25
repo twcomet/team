@@ -188,11 +188,13 @@ router.get('/:matId/logs', requireAuth, (req, res) => {
   const org_id = req.session.user.org_id;
   const logs = db.prepare(`
     SELECT l.*, r.roll_no, u.name AS logger_name,
-           c.title AS case_title, c.case_number
+           c.title AS case_title, c.case_number,
+           cl.name AS client_name
     FROM material_logs l
     LEFT JOIN material_rolls r ON r.id = l.roll_id
     LEFT JOIN users u ON u.id = l.logged_by
     LEFT JOIN cases c ON c.id = l.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
     WHERE l.material_id = ? AND l.org_id = ?
     ORDER BY l.logged_at DESC
   `).all(req.params.matId, org_id);
@@ -218,10 +220,13 @@ router.post('/case-reserves', requireAuth, (req, res) => {
 router.get('/rolls/:rid/logs', requireAuth, (req, res) => {
   const org_id = req.session.user.org_id;
   const logs = db.prepare(`
-    SELECT l.*, u.name AS logger_name, c.title AS case_title, c.case_number
+    SELECT l.*, u.name AS logger_name,
+           c.title AS case_title, c.case_number,
+           cl.name AS client_name
     FROM material_logs l
     LEFT JOIN users u ON u.id = l.logged_by
     LEFT JOIN cases c ON c.id = l.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
     WHERE l.roll_id = ? AND l.org_id = ?
     ORDER BY l.logged_at DESC
   `).all(req.params.rid, org_id);
@@ -241,21 +246,32 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   const isOut = log_type !== 'purchase';
   const delta = isOut ? -Math.abs(meters) : Math.abs(meters);
 
-  // 若為實際出料（case_cut / case_loss），自動取消同案件同捲料的保留
+  // 若為實際出料（case_cut / case_loss），自動取消同案件的所有保留
   if (['case_cut', 'case_loss'].includes(log_type) && case_id) {
-    const reserves = db.prepare(`
+    // 1. 取消綁定同一捲料的保留
+    const rollReserves = db.prepare(`
       SELECT * FROM material_logs
       WHERE roll_id = ? AND case_id = ? AND log_type = 'reserve' AND status = 'active'
     `).all(req.params.rid, case_id);
-    for (const r of reserves) {
-      // 還原米數（r.meters 是負數）
+    for (const r of rollReserves) {
       db.prepare(`UPDATE material_rolls SET remaining_meters = remaining_meters - ? WHERE id = ?`)
         .run(r.meters, r.roll_id);
       db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
         .run(r.meters, r.material_id, org_id);
       db.prepare(`UPDATE material_logs SET status = 'cancelled' WHERE id = ?`).run(r.id);
     }
-    // 重新取得最新 remaining_meters（因為可能已被還原）
+    // 2. 取消未綁定捲料（roll_id IS NULL）但同膜料同案件的保留
+    const matReserves = db.prepare(`
+      SELECT * FROM material_logs
+      WHERE roll_id IS NULL AND material_id = ? AND case_id = ? AND log_type = 'reserve' AND status = 'active'
+    `).all(roll.material_id, case_id);
+    for (const r of matReserves) {
+      // roll_id 為 NULL，只還原 materials.stock_meters
+      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
+        .run(r.meters, r.material_id, org_id);
+      db.prepare(`UPDATE material_logs SET status = 'cancelled' WHERE id = ?`).run(r.id);
+    }
+    // 重新取得最新 remaining_meters（保留還原後可能改變）
     const fresh = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id = ?`).get(req.params.rid);
     roll.remaining_meters = fresh ? fresh.remaining_meters : roll.remaining_meters;
   }
