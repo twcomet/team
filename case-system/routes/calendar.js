@@ -29,6 +29,7 @@ router.get('/', requireAuth, (req, res) => {
       c.final_price, c.quoted_price,
       cl.name         AS client_name,
       GROUP_CONCAT(u.name, '、') AS installer_name,
+      COUNT(DISTINCT du.user_id) AS worker_count,
       'dispatch'      AS source
     FROM dispatches d
     JOIN cases c ON d.case_id = c.id

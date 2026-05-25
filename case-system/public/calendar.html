@@ -119,6 +119,14 @@ function renderCalendar() {
   const targetMap = {};
   calData.targets.forEach(t => { targetMap[t.date] = t.target_amount; });
 
+  // 預計算：同一個案件跨多日派工時，各日人數加總作為分母
+  const caseTotalWorkers = {};
+  calData.cases.forEach(c => {
+    if (c.source === 'dispatch' && c.worker_count > 0) {
+      caseTotalWorkers[c.id] = (caseTotalWorkers[c.id] || 0) + c.worker_count;
+    }
+  });
+
   // 案件按日期分組
   const casesByDate = {};
   calData.cases.forEach(c => {
@@ -134,7 +142,14 @@ function renderCalendar() {
     const isToday = dateStr === today;
     const cases = casesByDate[dateStr] || [];
     const target = targetMap[dateStr] || defaultTarget;
-    const revenue = cases.reduce((s, c) => s + (c.final_price || c.quoted_price || 0), 0);
+    const revenue = cases.reduce((s, c) => {
+      const price = c.final_price || c.quoted_price || 0;
+      if (c.source === 'dispatch' && c.worker_count > 0) {
+        const total = caseTotalWorkers[c.id] || c.worker_count;
+        return s + (price / total * c.worker_count);
+      }
+      return s + price;
+    }, 0);
 
     let revenueHtml = '';
     if (target && currentUser.can_see_amounts) {
