@@ -474,8 +474,6 @@ function getCaseRow(c) {
       <td>${c.cs_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
-        <a href="/material-calc?case_id=${c.id}"
-          style="padding:3px 10px;border-radius:12px;font-size:11px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;text-decoration:none;display:inline-block;margin-right:4px">🧮 快速報價</a>
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${currentUser?.manage_users?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>

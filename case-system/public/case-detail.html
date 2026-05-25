@@ -300,6 +300,16 @@
 
       <!-- 初步估價紀錄 -->
       <div class="tab-pane" id="tab-estimate">
+        <div class="sf-tab-section" style="background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1d4ed8">🧮 快速報價工具</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">依膜料尺寸自動計算才數與報價，計算結果可直接儲存至此案件</div>
+          </div>
+          <a id="openCalcBtn" href="#" target="_blank"
+            style="padding:9px 18px;background:#0ea5e9;color:#fff;font-size:13px;font-weight:700;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0">
+            🧮 開啟快速報價
+          </a>
+        </div>
         <div class="sf-tab-section">
           <h4 class="sf-tab-title">客戶需求說明</h4>
           <textarea id="ie_requirements" rows="4" placeholder="記錄客戶描述的施作需求、位置、材質偏好、特殊狀況…"
@@ -977,6 +987,8 @@ async function init() {
   await loadUser();
   caseId = new URLSearchParams(location.search).get('id');
   if (!caseId) { location.href = '/cases'; return; }
+  const calcBtn = document.getElementById('openCalcBtn');
+  if (calcBtn) calcBtn.href = `/material-calc?case_id=${caseId}`;
   const [usersRes, allUsersRes, clientsRes, settingsRes] = await Promise.all([fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings')]);
   users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }

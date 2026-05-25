@@ -378,14 +378,22 @@ async function loadReport() {
   window._lastDailyTrend    = d.dailyTrend    || [];
   window._lastMonthlyFunnel = d.monthlyFunnel || [];
 
-  renderStats(d);
-  renderSourceChart(d.sourceStats);
-  renderCaseTypeChart(d.caseTypeStats);
-  renderLineChart(d.lineStats);
-  renderKeywords(d.keywords);
-  renderFunnel(d.monthlyFunnel);
-  renderMonthlyClients(d.monthlyClients);
-  renderTrendChart(d.dailyTrend, d.monthlyFunnel);
+  function safeRender(fn, fallbackId) {
+    try { fn(); } catch (e) {
+      console.error(fallbackId, e);
+      const el = document.getElementById(fallbackId);
+      if (el) el.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px 0">⚠️ 渲染錯誤：${e.message}</div>`;
+    }
+  }
+
+  safeRender(() => renderStats(d), 'statsGrid');
+  safeRender(() => renderSourceChart(d.sourceStats || []), 'sourceChart');
+  safeRender(() => renderCaseTypeChart(d.caseTypeStats || []), 'caseTypeChart');
+  safeRender(() => renderLineChart(d.lineStats), 'lineChart');
+  safeRender(() => renderKeywords(d.keywords || []), 'keywordChart');
+  safeRender(() => renderFunnel(d.monthlyFunnel || []), 'funnelBody');
+  safeRender(() => renderMonthlyClients(d.monthlyClients || []), 'monthlyClientsBody');
+  safeRender(() => renderTrendChart(d.dailyTrend || [], d.monthlyFunnel || []), 'trendLoading');
 }
 
 function renderStats(d) {
@@ -499,6 +507,10 @@ function renderTrendChart(dailyData, monthlyData) {
   const loading = document.getElementById('trendLoading');
   const canvas  = document.getElementById('trendChart');
   if (!loading || !canvas) return;
+  if (typeof Chart === 'undefined') {
+    loading.innerHTML = '<div style="color:#dc2626;font-size:12px">⚠️ 圖表庫載入失敗，請重新整理頁面</div>';
+    return;
+  }
 
   const src = trendMode === 'day' ? dailyData : monthlyData;
   if (!src || !src.length) {
