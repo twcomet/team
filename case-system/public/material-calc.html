@@ -470,12 +470,12 @@ input[type=number] { -moz-appearance: textfield; }
           <div class="calc-mode-group">
             <label class="calc-mode-btn active" onclick="setCalcMode('no_loss',this)">
               <input type="radio" name="calcMode" value="no_loss" checked>
-              不含損料
+              實際面積
               <small>以實際尺寸計算</small>
             </label>
             <label class="calc-mode-btn" onclick="setCalcMode('with_loss',this)">
               <input type="radio" name="calcMode" value="with_loss">
-              含損料
+              各項目含損料
               <small>膜寬 × 高計算</small>
             </label>
             <label class="calc-mode-btn" onclick="setCalcMode('splice',this)">
@@ -801,7 +801,7 @@ input[type=number] { -moz-appearance: textfield; }
     setTotalCai(totalCai);
     setPrice(totalCai);
 
-    const modeLabel = calcMode === 'no_loss' ? '不含損料' : calcMode === 'with_loss' ? `含損料（膜寬${filmWidth}cm）` : '拼料計算';
+    const modeLabel = calcMode === 'no_loss' ? '實際面積' : calcMode === 'with_loss' ? `各項目含損料（膜寬${filmWidth}cm）` : '拼料計算';
     document.getElementById('formulaNote').textContent =
       `【${modeLabel}】才數 = 各片材數加總　｜　總價 = 才數 × 單價`;
   }
@@ -992,7 +992,7 @@ input[type=number] { -moz-appearance: textfield; }
     const sections    = computeLayoutSections(pieces);
     const totalM      = sections.reduce((s, sec) => s + sec.lengthCm, 0) / 100;
     const rollsNeeded = Math.ceil(totalM / rollLengthM);
-    const modeLabel   = calcMode === 'no_loss' ? '不含損料' : '含損料';
+    const modeLabel   = calcMode === 'no_loss' ? '實際面積' : '各項目含損料';
 
     const totalMaterialCai = sections.reduce((s, sec) => s + sec.materialCai, 0);
     const totalPieceCai    = sections.reduce((s, sec) => s + sec.w * sec.h * sec.qty / 900, 0);
@@ -1110,7 +1110,7 @@ input[type=number] { -moz-appearance: textfield; }
 
     let html = `<div class="splice-result${cls}">
       <div class="sr-title">${icon} 拼料計算：共需 <strong>&nbsp;${strips.length}&nbsp;</strong> 條膜料
-        ${savedPct > 0 ? `<span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">較含損料節省 ${savedPct}%</span>` : ''}
+        ${savedPct > 0 ? `<span style="font-size:11px;font-weight:400;color:#15803d;margin-left:auto">較各項目含損料節省 ${savedPct}%</span>` : ''}
       </div>
       <div class="sr-strip">
         <span>共需 ${fmt(totalM, 2)} 公尺</span>
@@ -1181,8 +1181,8 @@ input[type=number] { -moz-appearance: textfield; }
     const caseIdParam = params.get('case_id');
 
     const res = await fetch('/api/cases?group=inquiry&limit=200');
-    const data = res.ok ? await res.json() : { items: [] };
-    allCases = data.items || [];
+    const data = res.ok ? await res.json() : [];
+    allCases = Array.isArray(data) ? data : (data.items || []);
 
     if (caseIdParam) {
       const found = allCases.find(c => String(c.id) === String(caseIdParam));
@@ -1322,8 +1322,8 @@ input[type=number] { -moz-appearance: textfield; }
     caseInfo.textContent = linkedCaseName ? `關聯案件：${linkedCaseName}` : '';
     const filmName = document.querySelector('.film-btn.active .film-name')?.textContent || '';
     const modeName = filmMode === 'A' ? '依米數計算' :
-                     calcMode === 'no_loss' ? '不含損料' :
-                     calcMode === 'with_loss' ? '含損料' : '拼料計算';
+                     calcMode === 'no_loss' ? '實際面積' :
+                     calcMode === 'with_loss' ? '各項目含損料' : '拼料計算';
     if (filmName) caseInfo.innerHTML += `<br>膜料：${filmName}（${filmWidth}cm）・計算方式：${modeName}`;
     window.print();
   }

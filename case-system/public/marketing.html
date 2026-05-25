@@ -397,9 +397,9 @@ async function loadReport() {
 }
 
 function renderStats(d) {
-  const totalClients = d.monthlyClients.reduce((s, r) => s + r.cnt, 0);
-  const totalCases   = d.monthlyFunnel.reduce((s, r) => s + r.total, 0);
-  const totalDeals   = d.monthlyFunnel.reduce((s, r) => s + r.deals, 0);
+  const totalClients = (d.monthlyClients || []).reduce((s, r) => s + r.cnt, 0);
+  const totalCases   = (d.monthlyFunnel || []).reduce((s, r) => s + r.total, 0);
+  const totalDeals   = (d.monthlyFunnel || []).reduce((s, r) => s + r.deals, 0);
   const conv = totalCases > 0 ? Math.round(totalDeals / totalCases * 100) : 0;
 
   document.getElementById('statNewClients').textContent = totalClients;
