@@ -5,6 +5,7 @@ const ROLE_LABELS = {
   branch_tech:'分店技術', contractor_install:'約聘技師',
   contractor_sales:'約聘業務', dealer:'經銷商',
 };
+// 修改此處須同步 case-detail.html STAGES_BY_GROUP / STATUS_OPTIONS_BY_GROUP 及 cases.html CFG.stageNames
 const STATUS_LABELS = {
   inquiry:           '詢價需初步估價',
   initial_estimate:  '已初步估價',
@@ -182,9 +183,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const badge = document.getElementById('notifBadge');
     if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
   }
-  setTimeout(refreshNotifBadge, 3000);
   setInterval(refreshNotifBadge, 60000);
+  refreshNotifBadge();
 });
+
+// ── toast 提示 ─────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px';
+    document.body.appendChild(container);
+  }
+  container.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
 
 async function fetchUsers() {
   const r = await fetch('/api/users'); return r.ok ? r.json() : [];
@@ -209,13 +227,4 @@ function populateSelect(el, items, valueKey, labelKey, placeholder = '請選擇'
     o.value = item[valueKey]; o.textContent = item[labelKey];
     el.appendChild(o);
   });
-}
-
-function showToast(msg, type = 'success') {
-  const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:9999;
-    background:${type === 'success' ? '#057a55' : '#e02424'};color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2);`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
 }

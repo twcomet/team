@@ -220,8 +220,8 @@
               <div id="b_client_dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:200;max-height:220px;overflow-y:auto"></div>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label>LINE ID 名稱 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（LINE詢問顯示名）</span></label>
-              <input type="text" id="b_line_display_name" placeholder="例：王大明">
+              <label>LINE ID 名稱 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（LINE詢問顯示名，唯讀）</span></label>
+              <input type="text" id="b_line_display_name" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default">
             </div>
           </div>
           <!-- 客戶聯絡資訊卡片（選客戶後顯示） -->
@@ -852,9 +852,9 @@
 // ── 常數 ───────────────────────────────────────────────────
 const STAGES_BY_GROUP = {
   inquiry: [
-    {key:'inquiry',          label:'詢價'},
-    {key:'initial_estimate', label:'初步估價'},
-    {key:'invalid',          label:'無效'},
+    {key:'inquiry',          label:'詢價需初步估價'},
+    {key:'initial_estimate', label:'已初步估價'},
+    {key:'invalid',          label:'已估價無效保存'},
   ],
   survey: [
     {key:'survey_pending',   label:'待排場勘'},
@@ -873,7 +873,7 @@ const STAGES_BY_GROUP = {
 };
 const STATUS_OPTIONS_BY_GROUP = {
   inquiry: [
-    ['inquiry','詢價'],['initial_estimate','初步估價'],['invalid','無效保存'],
+    ['inquiry','詢價需初步估價'],['initial_estimate','已初步估價'],['invalid','已估價無效保存'],
   ],
   survey: [
     ['survey_pending','待排場勘'],['survey_scheduled','已排場勘'],
@@ -1253,17 +1253,11 @@ function fillBasicForm() {
     chip.classList.toggle('active', chip.dataset.val === catVal);
   });
 
-  // 開發票資訊
+  // 開發票資訊（基本資料 tab）
   document.getElementById('bi_invoice_tax_id').value  = c.invoice_tax_id  || '';
   document.getElementById('bi_invoice_company').value = c.invoice_company  || '';
   document.getElementById('bi_invoice_email').value   = c.invoice_email    || '';
   document.getElementById('bi_invoice_address').value = c.invoice_address  || '';
-  // 同步到付款 tab
-  document.getElementById('p_invoice_company').value   = c.invoice_company  || '';
-  document.getElementById('p_invoice_tax_id').value    = c.invoice_tax_id   || '';
-  document.getElementById('p_invoice_address').value   = c.invoice_address  || '';
-  document.getElementById('p_invoice_email').value     = c.invoice_email    || '';
-  document.getElementById('p_invoice_item_desc').value = c.invoice_item_desc || '';
   updateInvoiceSummary();
 
   // 進場資訊：場勘以後才顯示
