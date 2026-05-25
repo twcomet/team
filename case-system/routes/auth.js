@@ -20,14 +20,18 @@ router.post('/login', (req, res) => {
   const isOwner = user.role === 'owner';
   const RESTRICTED_ROLES = ['contractor_install','contractor_sales','dealer'];
   const isContractor = RESTRICTED_ROLES.includes(user.role);
-  const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
-  const isHQ = HQ_ROLES.includes(user.role);
   const perms = user.permissions ? JSON.parse(user.permissions) : {};
-  // explicit = 明確指定的預設（覆蓋 role 預設）; 未指定則 contractor=false, 內部=true
-  const perm = (key, explicit) => {
+
+  // 從 role_defaults 資料表讀取管理員在後台設定的角色預設
+  const rdRow = db.prepare(`SELECT default_perms FROM role_defaults WHERE role_value = ?`).get(user.role);
+  const roleDefaults = rdRow ? JSON.parse(rdRow.default_perms || '{}') : null;
+
+  // 優先順序：個人覆蓋 > 角色預設(DB) > 硬編碼 fallback > !isContractor
+  const perm = (key, fallback) => {
     if (isOwner) return true;
     if (perms[key] !== undefined) return !!perms[key];
-    if (explicit !== undefined) return explicit;
+    if (roleDefaults !== null && roleDefaults[key] !== undefined) return !!roleDefaults[key];
+    if (fallback !== undefined) return fallback;
     return !isContractor;
   };
 
@@ -50,17 +54,17 @@ router.post('/login', (req, res) => {
       page_cases:          perm('page_cases'),
       page_line_inquiries: perm('page_line_inquiries'),
       page_clients:        perm('page_clients'),
-      page_calendar:       perm('page_calendar',    !['hq_tech','branch_tech'].includes(user.role)),
+      page_calendar:       perm('page_calendar'),
       page_payments:       perm('page_payments'),
       page_ledger:         perm('page_ledger',      user.role === 'hq_accounting'),
       page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers),
       page_cases_deal:     perm('page_cases_deal',  ['vp','hq_cs','hq_sales','hq_accounting','hq_hr'].includes(user.role)),
-      page_materials:      perm('page_materials', def.manageUsers),
+      page_materials:      perm('page_materials',   def.manageUsers),
       page_performance:    perm('page_performance', def.manageUsers),
-      page_reports:        perm('page_reports', def.manageUsers),
-      page_marketing:      perm('page_marketing', def.manageUsers),
+      page_reports:        perm('page_reports',     def.manageUsers),
+      page_marketing:      perm('page_marketing',   def.manageUsers),
       page_admin:          def.manageUsers,
-      my_tasks:            perm('my_tasks', isContractor),
+      my_tasks:            perm('my_tasks',          isContractor),
     },
   };
 
