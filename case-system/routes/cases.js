@@ -669,9 +669,9 @@ router.delete('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
   if (!c) return res.status(404).json({ error: '找不到案件' });
 
-  db.transaction(() => {
+  db.exec('BEGIN');
+  try {
     const id = req.params.id;
-    // 先清關聯子資料（無 CASCADE 的表）
     const dispIds = db.prepare(`SELECT id FROM dispatches WHERE case_id=?`).all(id).map(r => r.id);
     if (dispIds.length) {
       const ph = dispIds.map(() => '?').join(',');
@@ -689,23 +689,22 @@ router.delete('/:id', requireAuth, (req, res) => {
     db.prepare(`DELETE FROM quality_checks      WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM ratings             WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM user_task_dismissals WHERE case_id=?`).run(id);
-    // 有 CASCADE 的表（仍明確清除）
     db.prepare(`DELETE FROM case_items          WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM dispatch_materials  WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM quote_sheets        WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM survey_forms        WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM case_applications   WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM initial_estimates   WHERE case_id=?`).run(id);
-    // LINE 詢問單僅解除關聯，不刪除紀錄
     db.prepare(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id=?`).run(id);
-    // 保修案解除關聯
     db.prepare(`UPDATE warranty_cases SET original_case_id=NULL WHERE original_case_id=?`).run(id);
-    // 最後刪除案件本身
     db.prepare(`DELETE FROM cases WHERE id=?`).run(id);
-
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
       .run(me.id, 'delete', 'cases', id, `刪除案件 ${c.case_number} ${c.title}`);
-  })();
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 
   res.json({ ok: true });
 });

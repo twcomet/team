@@ -1651,42 +1651,40 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
 }
 
 // ── 刪除舊版 survey 狀態案件（2026-05-26）──────────────────────────────────
-// 關閉 FK 後批次 IN 刪除，一次完成無超時風險
-try {
+{
   const ids = db.prepare(`SELECT id FROM cases WHERE status='survey'`).all().map(r => r.id);
   if (ids.length > 0) {
     const nums = ids.join(',');
+    const safeExec = (sql) => { try { db.exec(sql); } catch(e) { console.warn('  略過:', e.message.slice(0,80)); } };
     db.exec('PRAGMA foreign_keys=OFF');
-    // 先清子表（含 dispatch_users）
-    const dids = db.prepare(`SELECT id FROM dispatches WHERE case_id IN (${nums})`).all().map(r => r.id);
-    if (dids.length) db.exec(`DELETE FROM dispatch_users        WHERE dispatch_id IN (${dids.join(',')})`);
-    db.exec(`DELETE FROM dispatches              WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM notifications           WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM profit_shares           WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM material_logs           WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM ledger_entries          WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM case_ratings            WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM dispatch_queue          WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM site_surveys            WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM quotations              WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM quality_checks          WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM ratings                 WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM user_task_dismissals    WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM case_items              WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM dispatch_materials      WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM quote_sheets            WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM survey_forms            WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM case_applications       WHERE case_id IN (${nums})`);
-    db.exec(`DELETE FROM initial_estimates       WHERE case_id IN (${nums})`);
-    db.exec(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id IN (${nums})`);
-    db.exec(`UPDATE warranty_cases  SET original_case_id=NULL  WHERE original_case_id  IN (${nums})`);
+    try {
+      const dids = db.prepare(`SELECT id FROM dispatches WHERE case_id IN (${nums})`).all().map(r => r.id);
+      if (dids.length) safeExec(`DELETE FROM dispatch_users WHERE dispatch_id IN (${dids.join(',')})`);
+    } catch(e) { /* dispatches 不存在 */ }
+    safeExec(`DELETE FROM dispatches           WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM notifications        WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM profit_shares        WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM material_logs        WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM ledger_entries       WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM case_ratings         WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM dispatch_queue       WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM site_surveys         WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM quotations           WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM quality_checks       WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM ratings              WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM user_task_dismissals WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM case_items           WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM dispatch_materials   WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM quote_sheets         WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM survey_forms         WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM case_applications    WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM initial_estimates    WHERE case_id IN (${nums})`);
+    safeExec(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id IN (${nums})`);
+    safeExec(`UPDATE warranty_cases  SET original_case_id=NULL  WHERE original_case_id  IN (${nums})`);
     db.exec(`DELETE FROM cases WHERE id IN (${nums})`);
     db.exec('PRAGMA foreign_keys=ON');
     console.log(`✅ 刪除舊版 survey 案件 ${ids.length} 筆（ID: ${nums}）`);
   }
-} catch (e) {
-  db.exec('PRAGMA foreign_keys=ON');
-  console.error('❌ 刪除舊版 survey 案件失敗：', e.message);
 }
 
 module.exports = db;
