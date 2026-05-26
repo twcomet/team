@@ -1692,4 +1692,9 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
   }
 }
 
+// ── 舊「匯款」收款方式轉為「匯款至臺灣企銀」（2026-05-26）────────────────────
+db.exec(`UPDATE cases SET survey_fee_method='匯款至臺灣企銀' WHERE survey_fee_method='匯款'`);
+db.exec(`UPDATE cases SET deposit_method='匯款至臺灣企銀'   WHERE deposit_method='匯款'`);
+db.exec(`UPDATE cases SET balance_paid_method='匯款至臺灣企銀' WHERE balance_paid_method='匯款'`);
+
 module.exports = db;

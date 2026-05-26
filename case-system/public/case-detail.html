@@ -691,20 +691,37 @@
                   <span id="p_total_display" style="font-weight:700;color:var(--primary)">—</span>
                 </div>
               </div>
-              <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 16px">
-              <!-- 已付場勘費 -->
-              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
-                <div class="form-row" style="margin-bottom:8px">
-                  <div class="form-group" style="margin:0"><label>已付場勘費</label>
+              <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
+
+              <!-- 收款區塊共用樣式 -->
+              <style>
+                .pay-block { border-radius:10px; margin-bottom:10px; overflow:hidden; }
+                .pay-block-head { display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:13px; font-weight:700; }
+                .pay-block-body { padding:10px 14px 14px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+                .pay-block-body .pf { display:flex; flex-direction:column; gap:4px; }
+                .pay-block-body .pf label { font-size:11px; font-weight:600; color:var(--gray-500); white-space:nowrap; }
+                .pay-block-body .pf input,
+                .pay-block-body .pf select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; background:#fff; width:100%; }
+                .pay-block-body .pf input:focus,
+                .pay-block-body .pf select:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 2px rgba(255,0,128,.1); }
+                .pf-amount { width:110px; }
+                .pf-date   { width:140px; }
+                .pf-method { width:160px; }
+                .pf-note   { flex:1; min-width:120px; }
+              </style>
+
+              <!-- 場勘費 -->
+              <div class="pay-block" style="border:1px solid #e0e7ff;background:#f5f3ff">
+                <div class="pay-block-head" style="background:#ede9fe;color:#5b21b6">🔍 場勘費</div>
+                <div class="pay-block-body">
+                  <div class="pf pf-amount"><label>金額</label>
                     <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
                   </div>
-                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                  <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_survey_fee_date">
                   </div>
-                </div>
-                <div class="form-row" style="gap:8px">
-                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
-                    <select id="p_survey_fee_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                  <div class="pf pf-method"><label>收款方式</label>
+                    <select id="p_survey_fee_method">
                       <option value="">（未選）</option>
                       <option value="匯款至臺灣企銀">匯款至臺灣企銀</option>
                       <option value="匯款至合作金庫">匯款至合作金庫</option>
@@ -714,24 +731,24 @@
                       <option value="自訂其他">自訂其他</option>
                     </select>
                   </div>
-                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
-                    <input type="text" id="p_survey_fee_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  <div class="pf pf-note"><label>備註</label>
+                    <input type="text" id="p_survey_fee_note" placeholder="備註…">
                   </div>
                 </div>
               </div>
-              <!-- 已付訂金 -->
-              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
-                <div class="form-row" style="margin-bottom:8px">
-                  <div class="form-group" style="margin:0"><label>已付訂金</label>
+
+              <!-- 訂金 -->
+              <div class="pay-block" style="border:1px solid #d1fae5;background:#f0fdf4">
+                <div class="pay-block-head" style="background:#d1fae5;color:#065f46">💰 訂金</div>
+                <div class="pay-block-body">
+                  <div class="pf pf-amount"><label>金額</label>
                     <input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
                   </div>
-                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                  <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_deposit_date">
                   </div>
-                </div>
-                <div class="form-row" style="gap:8px">
-                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
-                    <select id="p_deposit_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                  <div class="pf pf-method"><label>收款方式</label>
+                    <select id="p_deposit_method">
                       <option value="">（未選）</option>
                       <option value="匯款至臺灣企銀">匯款至臺灣企銀</option>
                       <option value="匯款至合作金庫">匯款至合作金庫</option>
@@ -741,24 +758,24 @@
                       <option value="自訂其他">自訂其他</option>
                     </select>
                   </div>
-                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
-                    <input type="text" id="p_deposit_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  <div class="pf pf-note"><label>備註</label>
+                    <input type="text" id="p_deposit_note" placeholder="備註…">
                   </div>
                 </div>
               </div>
-              <!-- 已付尾款 -->
-              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
-                <div class="form-row" style="margin-bottom:8px">
-                  <div class="form-group" style="margin:0"><label>已付尾款</label>
+
+              <!-- 尾款 -->
+              <div class="pay-block" style="border:1px solid #fed7aa;background:#fff7ed">
+                <div class="pay-block-head" style="background:#fed7aa;color:#92400e">✅ 尾款</div>
+                <div class="pay-block-body">
+                  <div class="pf pf-amount"><label>金額</label>
                     <input type="number" id="p_balance_paid" placeholder="（無）" min="0" oninput="updatePayCalc()">
                   </div>
-                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                  <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_balance_paid_date">
                   </div>
-                </div>
-                <div class="form-row" style="gap:8px">
-                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
-                    <select id="p_balance_paid_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                  <div class="pf pf-method"><label>收款方式</label>
+                    <select id="p_balance_paid_method">
                       <option value="">（未選）</option>
                       <option value="匯款至臺灣企銀">匯款至臺灣企銀</option>
                       <option value="匯款至合作金庫">匯款至合作金庫</option>
@@ -768,24 +785,27 @@
                       <option value="自訂其他">自訂其他</option>
                     </select>
                   </div>
-                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
-                    <input type="text" id="p_balance_paid_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  <div class="pf pf-note"><label>備註</label>
+                    <input type="text" id="p_balance_paid_note" placeholder="備註…">
                   </div>
                 </div>
               </div>
-              <!-- 應收保留款 + 請款通知日期 -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
-                <div class="form-group" style="margin:0"><label>應收保留款</label>
-                  <input type="number" id="p_retention_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+
+              <!-- 保留款 -->
+              <div class="pay-block" style="border:1px solid var(--gray-200);background:var(--gray-50)">
+                <div class="pay-block-head" style="background:var(--gray-100);color:var(--gray-700)">📋 保留款</div>
+                <div class="pay-block-body">
+                  <div class="pf pf-amount"><label>應收保留款</label>
+                    <input type="number" id="p_retention_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+                  </div>
+                  <div class="pf pf-date"><label>請款通知日期</label>
+                    <input type="date" id="p_retention_due_date">
+                  </div>
+                  <div class="pf pf-note"><label>已請保留款</label>
+                    <input type="number" id="p_retention_invoiced" placeholder="（尚未請款）" min="0" oninput="updatePayCalc()">
+                  </div>
                 </div>
-                <div class="form-group" style="margin:0"><label>請款通知日期</label>
-                  <input type="date" id="p_retention_due_date">
-                  <div style="font-size:11px;color:var(--gray-400);margin-top:3px">到期自動通知會計請款</div>
-                </div>
-              </div>
-              <!-- 已請保留款 -->
-              <div class="form-group"><label>已請保留款</label>
-                <input type="number" id="p_retention_invoiced" placeholder="（尚未請款）" min="0" oninput="updatePayCalc()">
+                <div style="padding:0 14px 10px;font-size:11px;color:var(--gray-400)">到期自動通知會計請款</div>
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
               <!-- 應付餘額 + 收款狀態 -->
