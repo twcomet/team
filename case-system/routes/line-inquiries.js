@@ -198,12 +198,14 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
 
 // ── 刪除詢問（僅限已轉案 / 無效）────────────────────────────────
 router.delete('/:id', requireAuth, (req, res) => {
-  const inq = db.prepare(`SELECT status FROM line_inquiries WHERE id=?`).get(req.params.id);
+  const inq = db.prepare(`SELECT status, display_name FROM line_inquiries WHERE id=?`).get(req.params.id);
   if (!inq) return res.status(404).json({ error: 'not found' });
   if (!['converted','invalid'].includes(inq.status))
     return res.status(400).json({ error: '只有已轉案或無效的詢問才可刪除' });
   db.prepare(`DELETE FROM line_inquiry_messages WHERE inquiry_id=?`).run(req.params.id);
   db.prepare(`DELETE FROM line_inquiries WHERE id=?`).run(req.params.id);
+  db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+    .run(req.session.user.id, 'delete', 'line_inquiries', req.params.id, `刪除 LINE 詢問：${inq.display_name || ''}（${inq.status}）`);
   res.json({ ok: true });
 });
 

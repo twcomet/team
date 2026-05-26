@@ -178,7 +178,7 @@
                 <tr>
                   <th style="width:28px"></th>
                   <th>姓名</th><th>帳號</th><th>角色</th><th>所屬</th>
-                  <th>可看金額</th><th>狀態</th><th></th>
+                  <th>可看金額</th><th>可刪除</th><th>狀態</th><th></th>
                 </tr>
               </thead>
               <tbody id="userBody"></tbody>
@@ -318,6 +318,9 @@
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userCanSeeAmounts"> 可查看案件金額
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+          <input type="checkbox" id="userCanDelete"> 可刪除資料
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
@@ -853,13 +856,14 @@ async function loadUsers() {
       <td>${roleLabelsMap[u.role] || ROLE_LABELS[u.role] || u.role}</td>
       <td style="font-size:13px;color:#6b7280">${u.org_name || '—'}</td>
       <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
+      <td style="text-align:center">${u.can_delete ? '🗑️' : '—'}</td>
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
       <td style="display:flex;gap:6px;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="openEditUser(${u.id})">編輯</button>
         ${u.role!=='owner' ? `<button class="btn btn-ghost btn-sm" style="color:#e02424;border-color:#fca5a5" onclick="deleteUser(${u.id},'${u.name}')">刪除</button>` : ''}
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="8"><div class="empty-state">尚無人員</div></td></tr>';
+  `).join('') || '<tr><td colspan="9"><div class="empty-state">尚無人員</div></td></tr>';
   initDrag(tbody, '/api/users/reorder');
 }
 
@@ -873,6 +877,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userDept').value = '';
   document.getElementById('userIsManager').checked = false;
   document.getElementById('userCanSeeAmounts').checked = false;
+  document.getElementById('userCanDelete').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userDailyCost').value = '';
   document.getElementById('lineBindStatus').innerHTML = '<span style="color:var(--gray-400)">新增帳號後員工自行綁定</span>';
@@ -935,6 +940,7 @@ function applyRoleDefaults(roleValue) {
     const isHQ = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
     document.getElementById('userIsManager').checked              = false;
     document.getElementById('userCanSeeAmounts').checked          = false;
+    document.getElementById('userCanDelete').checked              = false;
     document.getElementById('perm_page_dashboard').checked        = !isContractor;
     document.getElementById('perm_page_cases').checked            = !isContractor;
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
@@ -998,6 +1004,7 @@ function openEditUser(id) {
   document.getElementById('userDept').value = u.department || '';
   document.getElementById('userIsManager').checked = !!u.is_manager;
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
+  document.getElementById('userCanDelete').checked = !!u.can_delete;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
@@ -1061,6 +1068,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     department: document.getElementById('userDept').value,
     is_manager: document.getElementById('userIsManager').checked,
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
+    can_delete: document.getElementById('userCanDelete').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: 1,
@@ -1241,7 +1249,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
     };
     await fetch(`/api/users/${u.id}`, { method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ name: u.name, role: u.role, department: u.department,
-        is_manager: !!(p.is_manager ?? u.is_manager), can_see_amounts: !!(p.can_see_amounts ?? u.can_see_amounts),
+        is_manager: !!(p.is_manager ?? u.is_manager), can_see_amounts: !!(p.can_see_amounts ?? u.can_see_amounts), can_delete: !!(p.can_delete ?? u.can_delete),
         service_areas: JSON.parse(u.service_areas || '[]'), active: u.active, permissions: newPerms }) });
   }
   await loadUsers();

@@ -194,7 +194,12 @@
       </div>
       <div class="form-group" style="position:relative">
         <label>關聯案件（選填）</label>
-        <input type="text" id="ledgerCaseSearch" placeholder="輸入案號或客戶名搜尋…" autocomplete="off">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="ledgerCaseSearch" placeholder="輸入案號或客戶名搜尋…" autocomplete="off" style="flex:1">
+          <a id="ledgerCaseLink" href="#" target="_blank"
+             style="display:none;padding:7px 10px;background:var(--primary);color:#fff;border-radius:8px;font-size:12px;text-decoration:none;white-space:nowrap;line-height:1"
+             title="在新視窗開啟案件（收款頁）">查看案件 ↗</a>
+        </div>
         <input type="hidden" id="ledgerCaseId">
         <div id="ledgerCaseSuggest" style="display:none;position:absolute;z-index:100;background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;font-size:13px;min-width:300px"></div>
       </div>
@@ -369,7 +374,7 @@ function renderTable(rows) {
         </select>
       </td>
       <td style="color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.description||'').replace(/"/g,'&quot;')}">${r.description||'—'}</td>
-      <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
+      <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}&tab=payment" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
       <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>
@@ -415,6 +420,9 @@ function openLedgerModal(arg=null) {
   document.getElementById('ledgerDescription').value = entry ? (entry.description||'') : '';
   document.getElementById('ledgerCaseSearch').value  = entry ? (entry.case_number||'') : '';
   document.getElementById('ledgerCaseId').value      = entry ? (entry.case_id||'') : '';
+  const caseLink = document.getElementById('ledgerCaseLink');
+  if (entry?.case_id) { caseLink.href = `/case-detail?id=${entry.case_id}&tab=payment`; caseLink.style.display = ''; }
+  else caseLink.style.display = 'none';
   const orgSel = document.getElementById('ledgerOrg');
   if (entry?.org_id) orgSel.value = entry.org_id;
   else if (currentUser?.org_id) orgSel.value = currentUser.org_id;
@@ -587,7 +595,7 @@ async function loadCasesForSearch() {
 function onCaseSearch(e) {
   const q = e.target.value.trim().toLowerCase();
   const box = document.getElementById('ledgerCaseSuggest');
-  if (!q) { box.style.display='none'; document.getElementById('ledgerCaseId').value=''; return; }
+  if (!q) { box.style.display='none'; clearCaseLink(); return; }
   const matches = allCases.filter(c => `${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
   box.style.display = 'block';
@@ -605,6 +613,14 @@ function selectCase(id, number) {
   document.getElementById('ledgerCaseId').value = ''+id;
   document.getElementById('ledgerCaseSearch').value = number;
   document.getElementById('ledgerCaseSuggest').style.display = 'none';
+  const link = document.getElementById('ledgerCaseLink');
+  link.href = `/case-detail?id=${id}&tab=payment`;
+  link.style.display = '';
+}
+
+function clearCaseLink() {
+  document.getElementById('ledgerCaseId').value = '';
+  document.getElementById('ledgerCaseLink').style.display = 'none';
 }
 
 init();

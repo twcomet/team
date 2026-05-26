@@ -1328,6 +1328,9 @@ _addCol('users', 'rating_avg',        'REAL DEFAULT 0');
 _addCol('users', 'completed_cases',   'INTEGER DEFAULT 0');
 _addCol('users', 'suspended_at',      'TEXT');
 _addCol('users', 'suspension_reason', 'TEXT');
+_addCol('users', 'can_delete',        'INTEGER DEFAULT 0');
+// 授予客服主管(C01)、會計(C02)、客服(C03) 刪除權限
+db.prepare(`UPDATE users SET can_delete=1 WHERE username IN ('C01','C02','C03') AND can_delete=0`).run();
 // clients
 _addCol('clients', 'region_id',      'INTEGER REFERENCES regions(id)');
 _addCol('clients', 'owner_type',     "TEXT DEFAULT 'hq'");

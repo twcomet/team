@@ -491,7 +491,7 @@ function getCaseRow(c) {
       <td>${statusBadge(c.status)}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="display:${currentUser?.manage_users?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }
@@ -840,7 +840,7 @@ function surveyActionBtns(c) {
     parts.push(`<button onclick="doStepBack(${c.id})"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
   }
-  if (currentUser?.manage_users) {
+  if (currentUser?.manage_users || currentUser?.can_delete) {
     parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
   }
@@ -862,7 +862,7 @@ function dealActionBtns(c) {
     parts.push(`<button onclick="doStepBack(${c.id})"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
   }
-  if (currentUser?.manage_users) {
+  if (currentUser?.manage_users || currentUser?.can_delete) {
     parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
   }

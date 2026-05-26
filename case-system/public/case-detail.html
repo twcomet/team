@@ -1082,6 +1082,13 @@ async function init() {
     });
   });
 
+  // URL 參數跳至指定 tab（例如 ?tab=payment）
+  const tabParam = new URLSearchParams(location.search).get('tab');
+  if (tabParam) {
+    const tabEl = document.querySelector(`.tab[data-tab="${tabParam}"]:not([style*="none"])`);
+    if (tabEl) tabEl.click();
+  }
+
   // Pool banner buttons
   document.getElementById('poolBannerBtn').addEventListener('click', () => {
     const type = document.getElementById('poolBannerType').value || 'full';
@@ -1301,7 +1308,7 @@ function renderHeader() {
   applyConvertButtons(group);
   // 刪除按鈕（僅管理者可見）
   const delBtn = document.getElementById('deleteCaseBtn');
-  if (delBtn) delBtn.style.display = currentUser?.manage_users ? '' : 'none';
+  if (delBtn) delBtn.style.display = (currentUser?.manage_users || currentUser?.can_delete) ? '' : 'none';
   // 初步估價紀錄
   if (caseData.initial_estimate_data) {
     try {

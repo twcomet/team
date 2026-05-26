@@ -549,9 +549,14 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
 });
 
 router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
+  const d = db.prepare(`SELECT dispatch_type, scheduled_date FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, req.params.id);
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, req.params.id);
   recalcLaborCost(Number(req.params.id));
+  if (d) {
+    db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
+      .run(req.session.user.id, 'delete', 'dispatches', req.params.did, `刪除派工：${d.dispatch_type} ${d.scheduled_date}（案件 #${req.params.id}）`);
+  }
   res.json({ ok: true });
 });
 
@@ -655,10 +660,10 @@ router.patch('/:id/step-back', requireAuth, (req, res) => {
   res.json({ ok: true, new_status: c.prev_status });
 });
 
-// ── 刪除案件 DELETE /:id（限管理者）────────────────────────────
+// ── 刪除案件 DELETE /:id（管理者或有刪除權限的人員）─────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
-  if (!me.manage_users && me.role !== 'owner')
+  if (!me.manage_users && me.role !== 'owner' && !me.can_delete)
     return res.status(403).json({ error: '僅限管理者可刪除案件' });
 
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
