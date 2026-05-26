@@ -64,6 +64,20 @@
 .section-label.lbl-overdue { color:#dc2626; border-color:#fecaca; }
 .section-label.lbl-week    { color:#b45309; border-color:#fde68a; }
 .section-label.lbl-month   { color:#6d28d9; border-color:#ddd6fe; }
+
+/* 出勤卡片 */
+.attend-card {
+  background:#fff; border:1px solid var(--gray-200); border-radius:12px;
+  padding:14px 20px; margin-bottom:20px; display:flex; align-items:center;
+  justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.attend-slots { display:flex; gap:20px; flex-wrap:wrap; }
+.attend-slot { font-size:13px; }
+.attend-slot .slot-label { color:var(--gray-500); font-size:12px; margin-bottom:2px; }
+.attend-slot .slot-val   { font-weight:700; font-size:15px; }
+.attend-slot .slot-val.late { color:#ef4444; }
+.attend-slot .slot-val.ok   { color:#16a34a; }
+.attend-actions { display:flex; gap:8px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -102,7 +116,64 @@
       <span class="page-title" id="pageTitle">我的任務</span>
     </div>
     <div class="page-body">
+      <!-- 出勤狀態快覽 -->
+      <div class="attend-card" id="attendCard" style="display:none">
+        <div class="attend-slots">
+          <div class="attend-slot"><div class="slot-label">今日上班打卡</div><div class="slot-val" id="attIn">—</div></div>
+          <div class="attend-slot"><div class="slot-label">今日下班打卡</div><div class="slot-val" id="attOut">—</div></div>
+          <div class="attend-slot"><div class="slot-label">狀態</div><div class="slot-val" id="attStatus">—</div></div>
+        </div>
+        <div class="attend-actions">
+          <button class="btn btn-sm btn-ghost" onclick="openLeaveModal()">申請請假</button>
+          <button class="btn btn-sm btn-ghost" onclick="openMakeupModal()">申請補打卡</button>
+        </div>
+      </div>
       <div id="taskContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 請假申請 Modal -->
+<div id="leaveModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeLeaveModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header"><div class="modal-title">申請請假</div><button class="modal-close" onclick="closeLeaveModal()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>假別</label>
+        <select id="lv_type">
+          <option value="特休">特休</option><option value="病假">病假</option>
+          <option value="事假">事假</option><option value="公假">公假</option>
+          <option value="婚假">婚假</option><option value="喪假">喪假</option>
+          <option value="補休">補休</option><option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group"><label>請假日期</label><input type="date" id="lv_date"></div>
+      <div class="form-group"><label>時數</label>
+        <select id="lv_hours">
+          <option value="1">1 小時</option><option value="2">2 小時</option>
+          <option value="3">3 小時</option><option value="4">半天（4 小時）</option>
+          <option value="6">6 小時</option><option value="8">全天（8 小時）</option>
+        </select>
+      </div>
+      <div class="form-group"><label>原因（選填）</label><textarea id="lv_reason" rows="2" placeholder="說明請假原因"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeLeaveModal()">取消</button>
+      <button class="btn btn-primary" id="lvSubmitBtn" onclick="submitLeave()">送出申請</button>
+    </div>
+  </div>
+</div>
+
+<!-- 補打卡申請 Modal -->
+<div id="makeupModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeMakeupModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header"><div class="modal-title">申請補打卡</div><button class="modal-close" onclick="closeMakeupModal()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>補打卡日期</label><input type="date" id="mk_date"></div>
+      <div class="form-group"><label>原因</label><textarea id="mk_reason" rows="3" placeholder="請說明忘記打卡的原因"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeMakeupModal()">取消</button>
+      <button class="btn btn-primary" id="mkSubmitBtn" onclick="submitMakeup()">送出申請</button>
     </div>
   </div>
 </div>
@@ -254,10 +325,71 @@ async function dismissTask(caseId, btn) {
   }
 }
 
+// ── 出勤快覽 ────────────────────────────────────────────────
+async function loadAttendance() {
+  const res = await fetch('/api/attendance/today');
+  if (!res.ok) return;
+  const a = await res.json();
+  document.getElementById('attendCard').style.display = '';
+  document.getElementById('attIn').textContent  = a.clock_in  || '未打卡';
+  document.getElementById('attOut').textContent = a.clock_out ? (a.auto_clock_out ? a.clock_out + '（自動）' : a.clock_out) : '—';
+  const el = document.getElementById('attStatus');
+  if (!a.clock_in) { el.textContent = '—'; el.className = 'slot-val'; }
+  else if (a.is_late) { el.textContent = '遲到'; el.className = 'slot-val late'; }
+  else { el.textContent = '正常出勤'; el.className = 'slot-val ok'; }
+}
+
+function openLeaveModal() {
+  document.getElementById('lv_date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('leaveModal').style.display = '';
+}
+function closeLeaveModal() { document.getElementById('leaveModal').style.display = 'none'; }
+
+async function submitLeave() {
+  const btn = document.getElementById('lvSubmitBtn');
+  btn.disabled = true;
+  const body = {
+    leave_type: document.getElementById('lv_type').value,
+    leave_date: document.getElementById('lv_date').value,
+    hours:      document.getElementById('lv_hours').value,
+    reason:     document.getElementById('lv_reason').value,
+  };
+  if (!body.leave_date) { showToast('請選擇請假日期', 'error'); btn.disabled = false; return; }
+  const r = await fetch('/api/attendance/leave', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (r.ok) { showToast('請假申請已送出，等待審核'); closeLeaveModal(); }
+  else showToast('送出失敗', 'error');
+  btn.disabled = false;
+}
+
+function openMakeupModal() {
+  document.getElementById('mk_date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('makeupModal').style.display = '';
+}
+function closeMakeupModal() { document.getElementById('makeupModal').style.display = 'none'; }
+
+async function submitMakeup() {
+  const btn = document.getElementById('mkSubmitBtn');
+  btn.disabled = true;
+  const body = {
+    makeup_date: document.getElementById('mk_date').value,
+    reason:      document.getElementById('mk_reason').value,
+  };
+  if (!body.makeup_date || !body.reason) { showToast('請填寫日期與原因', 'error'); btn.disabled = false; return; }
+  const r = await fetch('/api/attendance/makeup', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (r.ok) { showToast('補打卡申請已送出，等待審核'); closeMakeupModal(); }
+  else showToast('送出失敗', 'error');
+  btn.disabled = false;
+}
+
 async function init() {
   await loadUser();
   document.getElementById('pageTitle').textContent = `${currentUser.name} 的任務`;
   highlightNav('my-tasks');
+  loadAttendance();
 
   const res = await fetch('/api/my-tasks');
   const tasks = res.ok ? await res.json() : [];

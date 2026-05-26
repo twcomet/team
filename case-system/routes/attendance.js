@@ -148,6 +148,12 @@ router.post('/status', async (req, res) => {
   res.json({ name: emp.name, today, record: record || null, dispatches });
 });
 
+// ── 今日出勤（web session）──────────────────────────────────
+router.get('/today', requireAuth, (req, res) => {
+  const today = todayTW();
+  res.json(db.prepare(`SELECT * FROM attendance WHERE user_id=? AND work_date=?`).get(req.session.user.id, today) || {});
+});
+
 // ── 當月出勤（web session）──────────────────────────────────
 router.get('/monthly', requireAuth, (req, res) => {
   const { year, month } = req.query;
