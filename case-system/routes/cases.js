@@ -367,8 +367,8 @@ router.put('/:id', requireAuth, (req, res) => {
       }
       const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
       if (existing) {
-        db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=? WHERE id=?`)
-          .run(date, amount, category, desc, orgId, existing.id);
+        db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=? WHERE id=?`)
+          .run(date, amount, category, desc, orgId, me.id, existing.id);
       } else {
         db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
           .run(date, category, amount, caseId, desc, orgId, me.id, ref);

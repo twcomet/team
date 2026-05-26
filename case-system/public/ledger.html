@@ -106,8 +106,8 @@
           <div class="table-wrap">
             <table style="table-layout:fixed">
               <colgroup>
-                <col style="width:95px">   <!-- 日期 -->
-                <col style="width:55px">   <!-- 類型 -->
+                <col style="width:105px">  <!-- 日期 -->
+                <col style="width:62px">   <!-- 類型 -->
                 <col style="width:130px">  <!-- 科目 -->
                 <col>                      <!-- 說明（自動填滿剩餘） -->
                 <col style="width:105px">  <!-- 關聯案件 -->
@@ -361,8 +361,8 @@ function renderTable(rows) {
   }
   tbody.innerHTML = rows.map(r => `
     <tr class="tr-${r.type}">
-      <td>${fmtDate(r.date)}</td>
-      <td><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
+      <td style="white-space:nowrap">${fmtDate(r.date)}</td>
+      <td style="white-space:nowrap"><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
       <td>
         <select onchange="quickUpdateCategory(${r.id}, this)"
           style="padding:3px 6px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff;cursor:pointer;max-width:120px">
