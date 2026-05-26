@@ -335,7 +335,16 @@ function renderTable(rows) {
     <tr class="tr-${r.type}">
       <td>${fmtDate(r.date)}</td>
       <td><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
-      <td>${r.category}</td>
+      <td>
+        <select onchange="quickUpdateCategory(${r.id}, this)"
+          style="padding:3px 6px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff;cursor:pointer;max-width:120px">
+          ${allCategories.filter(c=>c.type===r.type && c.active).map(c=>
+            `<option value="${c.name}"${c.name===r.category?' selected':''}>${c.name}</option>`
+          ).join('')}
+          ${!allCategories.filter(c=>c.type===r.type&&c.active).find(c=>c.name===r.category)
+            ? `<option value="${r.category}" selected>${r.category}</option>` : ''}
+        </select>
+      </td>
       <td style="color:var(--gray-600)">${r.description||'—'}</td>
       <td>${r.case_number?`<code style="font-size:11px">${r.case_number}</code>`:'—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
@@ -394,6 +403,25 @@ function openLedgerModal(arg=null) {
 }
 
 function editEntry(id) { const e = allLedger.find(r=>r.id===id); if (e) openLedgerModal(e); }
+
+async function quickUpdateCategory(id, sel) {
+  const entry = allLedger.find(r => r.id === id);
+  if (!entry) return;
+  const newCat = sel.value;
+  const res = await fetch(`/api/ledger/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...entry, category: newCat }),
+  });
+  if (res.ok) {
+    entry.category = newCat;
+    sel.style.borderColor = '#10b981';
+    setTimeout(() => { sel.style.borderColor = ''; }, 1200);
+  } else {
+    showToast('更新失敗', 'error');
+    sel.value = entry.category; // 還原
+  }
+}
 
 async function deleteEntry(id) {
   if (!confirm('確定刪除這筆記錄？')) return;
