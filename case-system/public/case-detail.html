@@ -2350,7 +2350,7 @@ function fillPaymentForm() {
   document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
   document.getElementById('p_payment_notes').value      = c.payment_notes    || '';
   // 發票欄位：案件層級有值優先，否則從客戶資料帶入
-  document.getElementById('p_invoice_company').value    = c.invoice_company   || cl?.name             || '';
+  document.getElementById('p_invoice_company').value    = c.invoice_company   || cl?.invoice_title || cl?.name || '';
   document.getElementById('p_invoice_tax_id').value     = c.invoice_tax_id    || cl?.tax_id           || '';
   document.getElementById('p_invoice_address').value    = c.invoice_address   || cl?.address          || '';
   document.getElementById('p_invoice_email').value      = c.invoice_email     || cl?.invoice_email || cl?.email || '';

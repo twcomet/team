@@ -213,7 +213,7 @@ async function init() {
 // ── 統計 ──────────────────────────────────────────────────
 async function loadStats() {
   const s = await fetch('/api/line-inquiries/stats').then(r => r.json()).catch(() => ({}));
-  const total = Object.values(s).reduce((a, b) => a + b, 0);
+  const total = (s.new || 0) + (s.in_progress || 0) + (s.invalid || 0);
   document.getElementById('cnt-all').textContent         = total     ? ` ${total}` : '';
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
@@ -314,6 +314,8 @@ async function openInquiry(id) {
           ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'new')">取消隱藏</button>`
           : data.status !== 'converted' && data.status !== 'invalid'
             ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'hidden')">隱藏</button>` : ''}
+        ${data.status === 'converted' || data.status === 'invalid'
+          ? `<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;cursor:pointer" onclick="deleteInquiry(${id})">刪除</button>` : ''}
       </div>
     </div>
 
@@ -379,6 +381,19 @@ async function setStatus(id, status) {
     method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status })
   });
   loadStats(); loadList(); openInquiry(id);
+}
+
+async function deleteInquiry(id) {
+  if (!confirm('確定要刪除這筆詢問記錄？此操作無法還原。')) return;
+  const res = await fetch(`/api/line-inquiries/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    document.getElementById('detailPanel').innerHTML = `<div class="inq-empty"><span style="font-size:14px">已刪除</span></div>`;
+    currentId = null;
+    loadStats(); loadList();
+  } else {
+    const d = await res.json().catch(() => ({}));
+    alert(d.error || '刪除失敗');
+  }
 }
 
 async function saveClient(id) {

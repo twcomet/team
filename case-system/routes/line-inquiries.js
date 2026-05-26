@@ -10,7 +10,11 @@ router.get('/', requireAuth, (req, res) => {
 
   const where  = [];
   const params = [];
-  if (status && status !== 'all') { where.push(`i.status=?`); params.push(status); }
+  if (!status || status === 'all') {
+    where.push(`i.status NOT IN ('converted','hidden')`);
+  } else {
+    where.push(`i.status=?`); params.push(status);
+  }
   if (q) {
     where.push(`(i.display_name LIKE ? OR i.last_message LIKE ? OR i.staff_note LIKE ?)`);
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
@@ -187,6 +191,17 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
   `).run(inq.id, message.trim(), req.session.user.id);
 
   db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(inq.id);
+  res.json({ ok: true });
+});
+
+// ── 刪除詢問（僅限已轉案 / 無效）────────────────────────────────
+router.delete('/:id', requireAuth, (req, res) => {
+  const inq = db.prepare(`SELECT status FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq) return res.status(404).json({ error: 'not found' });
+  if (!['converted','invalid'].includes(inq.status))
+    return res.status(400).json({ error: '只有已轉案或無效的詢問才可刪除' });
+  db.prepare(`DELETE FROM line_inquiry_messages WHERE inquiry_id=?`).run(req.params.id);
+  db.prepare(`DELETE FROM line_inquiries WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 
