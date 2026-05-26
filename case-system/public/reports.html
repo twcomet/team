@@ -173,7 +173,7 @@
               <table>
                 <thead><tr>
                   <th>案號</th><th>客戶</th><th>項目</th><th>類型</th>
-                  <th>業務</th><th>施工日</th><th>成交金額</th><th>含稅</th>
+                  <th>業務</th><th>成交日期</th><th>成交金額</th><th>含稅</th>
                   <th>已收</th><th>待收</th><th>狀態</th>
                 </tr></thead>
                 <tbody id="perfTable"></tbody>
@@ -542,7 +542,7 @@ function renderPerf(d) {
           <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
           <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type}</td>
           <td>${c.sales_name||'—'}</td>
-          <td>${c.scheduled_date||'—'}</td>
+          <td>${c.contracted_date||'—'}</td>
           <td>${c.value?fmt(c.value):'—'}</td>
           <td style="font-weight:600">${c.tax_value?fmt(c.tax_value):'—'}</td>
           <td style="color:#057a55">${c.received?fmt(c.received):'—'}</td>

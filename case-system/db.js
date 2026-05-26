@@ -303,6 +303,7 @@ _addCol('cases',     'deposit_method',       'TEXT');
 _addCol('cases',     'balance_paid_date',    'DATE');
 _addCol('cases',     'balance_paid_note',    'TEXT');
 _addCol('cases',     'balance_paid_method',  'TEXT');
+_addCol('cases',     'actual_entry_date',    'DATE');
 _addCol('cases',     'retention_amount',     'REAL');
 _addCol('cases',     'retention_due_date',   'TEXT');
 _addCol('cases',     'retention_invoiced',   'REAL');

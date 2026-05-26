@@ -41,9 +41,9 @@ router.get('/performance', requireAuth, (req, res) => {
   let where = "WHERE c.status NOT IN ('invalid','initial_estimate','survey')";
   if (orgRestrict.org_id) { where += ' AND c.org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND c.org_id=?'; params.push(req.query.org_id); }
-  // 業績以第一天施工日期（scheduled_date）計算，無施工日期則 fallback 至建立日期
-  if (from) { where += ' AND COALESCE(c.scheduled_date, date(c.created_at))>=?'; params.push(from); }
-  if (to)   { where += ' AND COALESCE(c.scheduled_date, date(c.created_at))<=?'; params.push(to); }
+  // 業績以成交日期（contracted_at）計算，無成交日期則 fallback 至建立日期
+  if (from) { where += ' AND COALESCE(date(c.contracted_at), date(c.created_at))>=?'; params.push(from); }
+  if (to)   { where += ' AND COALESCE(date(c.contracted_at), date(c.created_at))<=?'; params.push(to); }
 
   // 案件彙總
   const summary = db.prepare(`
@@ -76,9 +76,9 @@ router.get('/performance', requireAuth, (req, res) => {
     GROUP BY c.sales_id ORDER BY gross_value DESC
   `).all(...params);
 
-  // 依月份（以施工日期）
+  // 依月份（以成交日期）
   const byMonth = db.prepare(`
-    SELECT strftime('%Y-%m', COALESCE(c.scheduled_date, c.created_at)) as month,
+    SELECT strftime('%Y-%m', COALESCE(c.contracted_at, c.created_at)) as month,
       COUNT(*) as count,
       SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
       SUM(COALESCE(c.payment_received, 0)) as received
@@ -106,7 +106,7 @@ router.get('/performance', requireAuth, (req, res) => {
   const cases = db.prepare(`
     SELECT c.id, c.case_number, c.title, c.case_type,
            cl.name as client_name, s.name as sales_name,
-           c.scheduled_date,
+           COALESCE(date(c.contracted_at), date(c.created_at)) as contracted_date,
            COALESCE(c.final_price, c.quoted_price, 0) as value,
            COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
            COALESCE(c.payment_received, 0) as received,
@@ -117,7 +117,7 @@ router.get('/performance', requireAuth, (req, res) => {
     LEFT JOIN users s ON s.id = c.sales_id
     LEFT JOIN clients cl ON cl.id = c.client_id
     ${where}
-    ORDER BY c.created_at DESC
+    ORDER BY contracted_date DESC
   `).all(...params);
 
   res.json({ summary, byType, bySales, byMonth, byFilm, cases });

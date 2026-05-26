@@ -201,6 +201,13 @@
             <div class="form-group" style="margin-bottom:0"><label>希望進場時間</label><input type="date" id="b_desired_entry_date"></div>
             <div class="form-group" style="margin-bottom:0"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
           </div>
+          <div class="form-row" style="margin-bottom:0;margin-top:8px">
+            <div class="form-group" style="margin-bottom:0"><label>成交日期</label><input type="date" id="b_contracted_at"></div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>實際進場日期 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（空白時從施工派工自動帶入）</span></label>
+              <input type="date" id="b_actual_entry_date">
+            </div>
+          </div>
         </div>
 
         <!-- ② 客戶資訊 -->
@@ -1456,6 +1463,8 @@ function buildSaveBody() {
     location:           document.getElementById('b_location').value,
     desired_entry_date: document.getElementById('b_desired_entry_date').value || null,
     scheduled_date:     document.getElementById('b_scheduled_date').value || null,
+    contracted_at:      document.getElementById('b_contracted_at').value || null,
+    actual_entry_date:  document.getElementById('b_actual_entry_date').value || null,
     cs_id:              document.getElementById('b_cs').value || null,
     sales_id:           document.getElementById('b_sales').value || null,
     line_source:        document.getElementById('b_line_source').value || null,
@@ -1506,6 +1515,18 @@ function fillBasicForm() {
   document.getElementById('b_location').value          = c.location || '';
   document.getElementById('b_desired_entry_date').value = c.desired_entry_date || '';
   document.getElementById('b_scheduled_date').value    = c.scheduled_date || '';
+  document.getElementById('b_contracted_at').value     = c.contracted_at ? c.contracted_at.slice(0,10) : (c.created_at ? c.created_at.slice(0,10) : '');
+  // 實際進場日期：有儲存值直接用，否則從施工派工的最早日期帶入
+  if (c.actual_entry_date) {
+    document.getElementById('b_actual_entry_date').value = c.actual_entry_date;
+  } else {
+    const installDates = (c.dispatches || [])
+      .filter(d => d.dispatch_type === 'install')
+      .map(d => d.scheduled_date)
+      .filter(Boolean)
+      .sort();
+    document.getElementById('b_actual_entry_date').value = installDates[0] || '';
+  }
   document.getElementById('b_line_source').value       = c.line_source || '';
   document.getElementById('b_keyword').value           = c.keyword || '';
   document.getElementById('b_desc').value              = c.description || '';
