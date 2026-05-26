@@ -1665,7 +1665,7 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
       if (dids.length) safeExec(`DELETE FROM dispatch_users WHERE dispatch_id IN (${dids.join(',')})`);
     } catch(e) { /* dispatches 不存在 */ }
     safeExec(`DELETE FROM dispatches           WHERE case_id IN (${nums})`);
-    safeExec(`DELETE FROM notifications        WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM notifications        WHERE entity='cases' AND entity_id IN (${nums})`);
     safeExec(`DELETE FROM profit_shares        WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM material_logs        WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM ledger_entries       WHERE case_id IN (${nums})`);

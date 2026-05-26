@@ -678,7 +678,7 @@ router.delete('/:id', requireAuth, (req, res) => {
       db.prepare(`DELETE FROM dispatch_users    WHERE dispatch_id IN (${ph})`).run(...dispIds);
     }
     db.prepare(`DELETE FROM dispatches          WHERE case_id=?`).run(id);
-    db.prepare(`DELETE FROM notifications       WHERE case_id=?`).run(id);
+    db.prepare(`DELETE FROM notifications       WHERE entity='cases' AND entity_id=?`).run(id);
     db.prepare(`DELETE FROM profit_shares       WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM material_logs       WHERE case_id=?`).run(id);
     db.prepare(`DELETE FROM ledger_entries      WHERE case_id=?`).run(id);
