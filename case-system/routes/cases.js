@@ -492,6 +492,11 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
          unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
          req.params.did, req.params.id);
 
+  // 記錄舊派工人員，用來計算新增的人
+  const oldUserIds = new Set(
+    db.prepare(`SELECT user_id FROM dispatch_users WHERE dispatch_id=?`).all(req.params.did).map(r => r.user_id)
+  );
+
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   if (Array.isArray(user_ids)) {
     user_ids.forEach(uid => {
@@ -499,7 +504,12 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
     });
   }
   recalcLaborCost(Number(req.params.id));
-  notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, user_ids, req.session.user.id);
+
+  // 只通知新增的派工人員
+  const newUserIds = Array.isArray(user_ids) ? user_ids.filter(uid => !oldUserIds.has(uid)) : [];
+  if (newUserIds.length) {
+    notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, newUserIds, req.session.user.id);
+  }
   res.json({ ok: true });
 });
 
