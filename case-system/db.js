@@ -1587,26 +1587,37 @@ db.exec(`
   );
 `);
 
-// 去除重複膜料（brand + model + color 完全相同的保留最早那筆）
+// ── 一次性清理：刪除重複的詢價案件 HX2605-086 ─────────────────
 {
-  const dupeGroups = db.prepare(`
-    SELECT brand, model, color
-    FROM materials
-    GROUP BY brand, model, color
-    HAVING COUNT(*) > 1
+  const dup = db.prepare(`SELECT id FROM cases WHERE case_number='HX2605-086'`).get();
+  if (dup) {
+    db.prepare(`DELETE FROM case_items       WHERE case_id=?`).run(dup.id);
+    db.prepare(`DELETE FROM dispatch_users   WHERE dispatch_id IN (SELECT id FROM dispatches WHERE case_id=?)`).run(dup.id);
+    db.prepare(`DELETE FROM dispatches       WHERE case_id=?`).run(dup.id);
+    db.prepare(`DELETE FROM audit_logs       WHERE entity='cases' AND entity_id=?`).run(dup.id);
+    db.prepare(`DELETE FROM cases            WHERE id=?`).run(dup.id);
+  }
+}
+
+// ── 合併重複的 LINE 詢問（同一 line_user_id 有多筆非 hidden） ──
+{
+  const dupeUsers = db.prepare(`
+    SELECT line_user_id FROM line_inquiries
+    WHERE status NOT IN ('hidden')
+    GROUP BY line_user_id HAVING COUNT(*) > 1
   `).all();
 
-  for (const g of dupeGroups) {
-    const rows = db.prepare(
-      `SELECT id FROM materials WHERE brand IS ? AND model IS ? AND color IS ? ORDER BY id ASC`
-    ).all(g.brand, g.model, g.color);
+  for (const { line_user_id } of dupeUsers) {
+    const rows = db.prepare(`
+      SELECT id, status FROM line_inquiries
+      WHERE line_user_id=? AND status NOT IN ('hidden')
+      ORDER BY CASE status WHEN 'converted' THEN 0 ELSE 1 END, id ASC
+    `).all(line_user_id);
     if (rows.length <= 1) continue;
     const keepId = rows[0].id;
     for (const { id: delId } of rows.slice(1)) {
-      db.prepare(`UPDATE material_rolls       SET material_id=? WHERE material_id=?`).run(keepId, delId);
-      db.prepare(`UPDATE material_logs        SET material_id=? WHERE material_id=?`).run(keepId, delId);
-      db.prepare(`UPDATE material_change_logs SET material_id=? WHERE material_id=?`).run(keepId, delId);
-      db.prepare(`DELETE FROM materials WHERE id=?`).run(delId);
+      db.prepare(`UPDATE line_inquiry_messages SET inquiry_id=? WHERE inquiry_id=?`).run(keepId, delId);
+      db.prepare(`DELETE FROM line_inquiries WHERE id=?`).run(delId);
     }
   }
 }
