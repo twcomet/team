@@ -378,7 +378,7 @@ function renderMarket() {
     ).join('');
     const statusBtn = renderApplyBtn(c);
     const amountHtml = c.final_price || c.quoted_price
-      ? `<div class="cc-amount">${c.final_price ? '$'+Number(c.final_price).toLocaleString() : '約 $'+Number(c.quoted_price).toLocaleString()}</div>`
+      ? `<div class="cc-amount">${c.final_price ? '$'+Math.round(Number(c.final_price)).toLocaleString() : '約 $'+Math.round(Number(c.quoted_price)).toLocaleString()}</div>`
       : '';
     const dateHtml = c.scheduled_date
       ? `<span class="cc-info-item">📅 施工日：${c.scheduled_date}</span>` : '';
@@ -657,12 +657,12 @@ function renderShareCalc(a) {
   return `
   <div class="share-box">
     <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">分潤預估</div>
-    <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span>$${Number(total).toLocaleString()}</span></div>
-    <div class="share-row"><span style="color:var(--gray-500)">材料成本</span><span>$${Number(mat).toLocaleString()}</span></div>
-    <div class="share-row"><span style="color:var(--gray-500)">毛利</span><span>$${Number(gross).toLocaleString()}</span></div>
-    <div class="share-row"><span style="color:var(--gray-500)">場勘費</span><span>$${Number(survey).toLocaleString()}</span></div>
-    <div class="share-row"><span style="color:var(--gray-500)">施工費</span><span>$${Number(install).toLocaleString()}</span></div>
-    <div class="share-row total"><span>可分潤金額</span><span>$${Number(shareable).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">總金額</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">材料成本</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">毛利</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">場勘費</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
+    <div class="share-row"><span style="color:var(--gray-500)">施工費</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
+    <div class="share-row total"><span>可分潤金額</span><span>$\${Math.round(\1).toLocaleString()}</span></div>
     ${rate ? `<div style="font-size:12px;color:var(--primary);margin-top:8px;font-weight:600">我的分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ $${myShare.toLocaleString()}</div>` : ''}
     <div style="font-size:11px;color:var(--gray-400);margin-top:6px;line-height:1.6">分潤比例：總部30%・負責業務10~20%・監工10%・施工30%・品保10%</div>
   </div>`;
@@ -705,12 +705,12 @@ function selectApplyType(t) {
     const install   = c.install_fee || 0;
     const shareable = Math.max(0, gross - survey - install);
     const rate      = SHARE_RATES[t];
-    document.getElementById('sp_total').textContent     = `$${Number(total).toLocaleString()}`;
-    document.getElementById('sp_mat').textContent       = `$${Number(mat).toLocaleString()}`;
-    document.getElementById('sp_gross').textContent     = `$${Number(gross).toLocaleString()}`;
-    document.getElementById('sp_survey').textContent    = `$${Number(survey).toLocaleString()}`;
-    document.getElementById('sp_install').textContent   = `$${Number(install).toLocaleString()}`;
-    document.getElementById('sp_shareable').textContent = `$${Number(shareable).toLocaleString()}`;
+    document.getElementById('sp_total').textContent     = `$\${Math.round(\1).toLocaleString()}`;
+    document.getElementById('sp_mat').textContent       = `$\${Math.round(\1).toLocaleString()}`;
+    document.getElementById('sp_gross').textContent     = `$\${Math.round(\1).toLocaleString()}`;
+    document.getElementById('sp_survey').textContent    = `$\${Math.round(\1).toLocaleString()}`;
+    document.getElementById('sp_install').textContent   = `$\${Math.round(\1).toLocaleString()}`;
+    document.getElementById('sp_shareable').textContent = `$\${Math.round(\1).toLocaleString()}`;
     document.getElementById('sp_breakdown').innerHTML   = rate
       ? `我的預估分潤（${rate.label} ${Math.round(rate.pct*100)}%）≈ <strong style="color:var(--primary)">$${Math.round(shareable*rate.pct).toLocaleString()}</strong>`
       : '';

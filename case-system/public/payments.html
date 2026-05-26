@@ -205,7 +205,7 @@ function applyFilter() {
 
 function renderStats(cases) {
   const total    = cases.reduce((s,c) => s+(c.final_price||0), 0);
-  const totalTax = total*1.05;
+  const totalTax = Math.round(total * 1.05);
   const received = cases.reduce((s,c) => s+(c.payment_received||0), 0);
   const outstanding = totalTax-received;
   document.getElementById('paymentStats').innerHTML = `
@@ -224,7 +224,7 @@ function renderTable(cases) {
     return;
   }
   tbody.innerHTML = cases.map(c => {
-    const base=c.final_price||c.quoted_price||0, total=base*1.05, dep=c.deposit_amount||0, recv=c.payment_received||0;
+    const base=c.final_price||c.quoted_price||0, total=Math.round(base*1.05), dep=c.deposit_amount||0, recv=c.payment_received||0;
     const outstanding=total-recv;
     return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:12px">${c.case_number}</code></td>
@@ -245,7 +245,7 @@ function renderTable(cases) {
 
 function openPayModal(id) {
   const c=allPayments.find(x=>x.id===id); if(!c) return;
-  const base=c.final_price||c.quoted_price||0, total=base*1.05;
+  const base=c.final_price||c.quoted_price||0, total=Math.round(base*1.05);
   document.getElementById('payModalTitle').textContent = `收款更新 — ${c.case_number}`;
   document.getElementById('payingCaseId').value = id;
   document.getElementById('payModalInfo').innerHTML = `

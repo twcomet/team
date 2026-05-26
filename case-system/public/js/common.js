@@ -26,7 +26,7 @@ const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯'
 function badge(text, cls) { return `<span class="badge badge-${cls}">${text}</span>`; }
 function statusBadge(s) { return badge(STATUS_LABELS[s] || s, s); }
 function paymentBadge(s) { return badge(PAYMENT_LABELS[s] || s, s); }
-function fmt(n) { return (n != null && n !== '') ? `$${Number(n).toLocaleString()}` : '—'; }
+function fmt(n) { return (n != null && n !== '') ? `$${Math.round(Number(n)).toLocaleString()}` : '—'; }
 function fmtDate(d) { return d ? d.slice(0, 10) : '—'; }
 
 let currentUser = null;
