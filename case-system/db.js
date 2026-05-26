@@ -1771,4 +1771,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS makeup_requests (
   created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
+// attendance 補欄位
+_addCol('attendance', 'location_type', "TEXT DEFAULT NULL"); // 'company' | 'site'
+
 module.exports = db;

@@ -67,6 +67,7 @@ app.use('/api/line-inquiries',    require('./routes/line-inquiries'));
 app.use('/api/marketing',             require('./routes/marketing'));
 app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 app.use('/api/hr',                    require('./routes/hr'));
+app.use('/api/attendance',            require('./routes/attendance'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -173,6 +174,212 @@ app.get('/sign/:token', (req, res) => {
 app.get('/quote/:token', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'quote-sign.html'));
 });
+
+// LIFF 打卡頁（不需登入，由 LIFF access_token 驗證身份）
+app.get('/liff/clockin', (req, res) => {
+  const liffId = process.env.LIFF_ID || '';
+  res.send(`<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>繪新 打卡</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:16px}
+h1{font-size:18px;font-weight:700;color:#1a202c;margin-bottom:4px}
+.sub{font-size:13px;color:#718096}
+.time-display{font-size:36px;font-weight:700;color:#2d3748;text-align:center;padding:16px 0;letter-spacing:2px}
+.date-display{text-align:center;color:#718096;font-size:13px;margin-top:-8px;margin-bottom:16px}
+.status-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:14px}
+.status-row:last-child{border-bottom:none}
+.status-label{color:#718096}
+.status-val{font-weight:600;color:#2d3748}
+.status-val.late{color:#e53e3e}
+.status-val.ok{color:#38a169}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .2s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-in{background:#3182ce;color:#fff;margin-bottom:10px}
+.btn-out{background:#718096;color:#fff}
+.dispatch-item{padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:13px}
+.dispatch-item:last-child{border-bottom:none}
+.dispatch-title{font-weight:600;color:#2d3748}
+.dispatch-sub{color:#718096;margin-top:2px}
+.msg{text-align:center;font-size:14px;padding:12px;border-radius:8px;margin-bottom:12px}
+.msg-success{background:#c6f6d5;color:#22543d}
+.msg-error{background:#fed7d7;color:#742a2a}
+.msg-info{background:#bee3f8;color:#2a4365}
+#loadingMsg{text-align:center;color:#718096;padding:32px}
+</style>
+</head>
+<body>
+<div id="loadingMsg">載入中...</div>
+<div id="app" style="display:none;width:100%;max-width:360px">
+  <div class="card">
+    <h1>繪新打卡系統</h1>
+    <p class="sub" id="empName">—</p>
+    <div class="time-display" id="clockDisplay">--:--</div>
+    <div class="date-display" id="dateDisplay">—</div>
+    <div id="msg"></div>
+    <button class="btn btn-in" id="btnIn" disabled>上班打卡</button>
+    <button class="btn btn-out" id="btnOut" disabled>下班打卡</button>
+  </div>
+  <div class="card" id="statusCard">
+    <div style="font-weight:600;font-size:15px;margin-bottom:8px">今日出勤</div>
+    <div class="status-row"><span class="status-label">上班</span><span class="status-val" id="stIn">—</span></div>
+    <div class="status-row"><span class="status-label">下班</span><span class="status-val" id="stOut">—</span></div>
+    <div class="status-row"><span class="status-label">狀態</span><span class="status-val" id="stLate">—</span></div>
+  </div>
+  <div class="card" id="dispatchCard" style="display:none">
+    <div style="font-weight:600;font-size:15px;margin-bottom:8px">今日派工</div>
+    <div id="dispatchList"></div>
+  </div>
+</div>
+<script>
+const LIFF_ID = '${liffId}';
+const DISPATCH_LABELS = {cut_material:'裁切材料',factory_survey:'廠勘',survey:'場勘',install:'施工',aftersales:'售後服務',other:'其他'};
+let accessToken = null;
+
+function showMsg(text, type='info') {
+  const el = document.getElementById('msg');
+  el.className = 'msg msg-' + type;
+  el.textContent = text;
+}
+
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clockDisplay').textContent = h + ':' + m;
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('zh-TW', {year:'numeric',month:'long',day:'numeric',weekday:'short'});
+}
+
+async function loadStatus() {
+  const r = await fetch('/api/attendance/status', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ access_token: accessToken })
+  });
+  if (!r.ok) { showMsg('無法取得狀態，請重試', 'error'); return; }
+  const data = await r.json();
+
+  document.getElementById('empName').textContent = data.name;
+
+  const rec = data.record;
+  document.getElementById('stIn').textContent  = rec?.clock_in  || '—';
+  document.getElementById('stOut').textContent = rec?.clock_out || '—';
+  const lateEl = document.getElementById('stLate');
+  if (!rec?.clock_in) { lateEl.textContent = '未打卡'; lateEl.className = 'status-val'; }
+  else if (rec.is_late) { lateEl.textContent = '遲到'; lateEl.className = 'status-val late'; }
+  else { lateEl.textContent = '正常'; lateEl.className = 'status-val ok'; }
+
+  document.getElementById('btnIn').disabled  = !!rec?.clock_in;
+  document.getElementById('btnOut').disabled = !rec?.clock_in || !!rec?.clock_out;
+
+  if (data.dispatches?.length) {
+    document.getElementById('dispatchCard').style.display = '';
+    document.getElementById('dispatchList').innerHTML = data.dispatches.map(d =>
+      '<div class="dispatch-item">' +
+      '<div class="dispatch-title">' + (DISPATCH_LABELS[d.dispatch_type]||d.dispatch_type) + ' — ' + (d.title||'') + '</div>' +
+      '<div class="dispatch-sub">' + (d.scheduled_time||'') + '　' + (d.location||'') + '</div>' +
+      '</div>'
+    ).join('');
+  }
+}
+
+async function doClockIn() {
+  document.getElementById('btnIn').disabled = true;
+  showMsg('定位中…', 'info');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    const r = await fetch('/api/attendance/clockin', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ access_token: accessToken, lat, lng })
+    });
+    const data = await r.json();
+    if (r.ok) {
+      showMsg('✅ 上班打卡成功！' + data.time + (data.is_late ? '（遲到）' : ''), 'success');
+      loadStatus();
+    } else {
+      showMsg(data.message || data.error || '打卡失敗', 'error');
+      document.getElementById('btnIn').disabled = false;
+    }
+  }, err => {
+    showMsg('無法取得位置：' + err.message, 'error');
+    document.getElementById('btnIn').disabled = false;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+async function doClockOut() {
+  document.getElementById('btnOut').disabled = true;
+  showMsg('定位中…', 'info');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    const r = await fetch('/api/attendance/clockout', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ access_token: accessToken, lat, lng })
+    });
+    const data = await r.json();
+    if (r.ok) {
+      showMsg('✅ 下班打卡成功！' + data.time, 'success');
+      loadStatus();
+    } else {
+      showMsg(data.error || '打卡失敗', 'error');
+      document.getElementById('btnOut').disabled = false;
+    }
+  }, err => {
+    showMsg('無法取得位置：' + err.message, 'error');
+    document.getElementById('btnOut').disabled = false;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+async function init() {
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  if (!LIFF_ID) {
+    document.getElementById('loadingMsg').textContent = '⚠️ LIFF 尚未設定，請聯絡管理員';
+    return;
+  }
+
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    accessToken = liff.getAccessToken();
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    await loadStatus();
+    document.getElementById('btnIn').addEventListener('click', doClockIn);
+    document.getElementById('btnOut').addEventListener('click', doClockOut);
+  } catch(e) {
+    document.getElementById('loadingMsg').textContent = '載入失敗：' + e.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>`);
+});
+
+// ── 自動打卡（每分鐘檢查，18:00 台灣時間自動補下班卡）────────
+const db = require('./db');
+let autoClockOutDoneDate = '';
+setInterval(() => {
+  const now = new Date();
+  const twTime = now.toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' });
+  const [twDate, twClock] = twTime.split(' ');
+  const hm = twClock.slice(0, 5);
+  if (hm === '18:00' && autoClockOutDoneDate !== twDate) {
+    autoClockOutDoneDate = twDate;
+    const missing = db.prepare(`SELECT id FROM attendance WHERE work_date=? AND clock_in IS NOT NULL AND (clock_out IS NULL OR clock_out='')`).all(twDate);
+    for (const r of missing) {
+      db.prepare(`UPDATE attendance SET clock_out='18:00', work_end='18:00', auto_clock_out=1 WHERE id=?`).run(r.id);
+    }
+    if (missing.length) console.log(`[auto-clockout] ${twDate} 自動補下班卡 ${missing.length} 筆`);
+  }
+}, 60000);
 
 app.listen(PORT, () => {
   console.log(`繪新管理系統已啟動：http://localhost:${PORT}`);

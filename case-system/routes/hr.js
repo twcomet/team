@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { pushMessage } = require('./webhook');
 const router = express.Router();
 
 function requireHR(req, res, next) {
@@ -141,6 +142,14 @@ router.put('/leave-requests/:id/review', requireAuth, requireHR, (req, res) => {
   if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
   db.prepare(`UPDATE leave_requests SET status=?, review_note=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(status, review_note||null, req.session.user.id, req.params.id);
+
+  // 推播結果給員工
+  const lr = db.prepare(`SELECT lr.*, u.line_user_id, u.name FROM leave_requests lr JOIN users u ON u.id=lr.user_id WHERE lr.id=?`).get(req.params.id);
+  if (lr?.line_user_id) {
+    const label = status === 'approved' ? '✅ 已核准' : '❌ 已拒絕';
+    const msg = `【請假審核結果】${label}\n${lr.leave_type}｜${lr.leave_date}｜${lr.hours}小時${review_note ? '\n備註：'+review_note : ''}`;
+    pushMessage(lr.line_user_id, msg).catch(() => {});
+  }
   res.json({ ok: true });
 });
 
@@ -159,6 +168,14 @@ router.put('/makeup-requests/:id/review', requireAuth, requireHR, (req, res) => 
           .run(mr.user_id, mr.makeup_date);
       }
     }
+  }
+
+  // 推播結果給員工
+  const mr2 = db.prepare(`SELECT mr.*, u.line_user_id FROM makeup_requests mr JOIN users u ON u.id=mr.user_id WHERE mr.id=?`).get(req.params.id);
+  if (mr2?.line_user_id) {
+    const label = status === 'approved' ? '✅ 已核准' : '❌ 已拒絕';
+    const msg = `【補打卡審核結果】${label}\n補打卡日期：${mr2.makeup_date}${review_note ? '\n備註：'+review_note : ''}`;
+    pushMessage(mr2.line_user_id, msg).catch(() => {});
   }
   res.json({ ok: true });
 });

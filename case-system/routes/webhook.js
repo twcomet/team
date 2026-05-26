@@ -278,11 +278,47 @@ async function handleStaffText(event) {
     return;
   }
 
-  // 其他訊息
-  await reply(event.replyToken,
-    `您好！這是繪新派單系統。\n\n若要綁定帳號接收通知，請傳送：\n綁定 你的系統帳號\n\n例如：綁定 flora`,
-    STAFF_TOKEN()
-  );
+  // 查詢員工帳號
+  const emp = db.prepare(`SELECT id, name FROM users WHERE line_user_id=? AND active=1`).get(userId);
+
+  // 請假指令：請假 特休 2026-06-01 8 請假原因
+  const leaveMatch = text.match(/^請假\s+(\S+)\s+(\d{4}-\d{2}-\d{2})\s+(\d+(?:\.\d+)?)(.*)?$/);
+  if (leaveMatch) {
+    if (!emp) { await reply(event.replyToken, '請先綁定帳號才能使用請假功能。\n指令：綁定 你的系統帳號', STAFF_TOKEN()); return; }
+    const [, leave_type, leave_date, hours, reasonRaw] = leaveMatch;
+    const valid = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+    if (!valid.includes(leave_type)) {
+      await reply(event.replyToken, `假別不正確，可用：${valid.join('、')}`, STAFF_TOKEN()); return;
+    }
+    const reason = (reasonRaw || '').trim() || null;
+    db.prepare(`INSERT INTO leave_requests (user_id, leave_type, leave_date, hours, reason) VALUES (?,?,?,?,?)`)
+      .run(emp.id, leave_type, leave_date, parseFloat(hours), reason);
+    const hrs = db.prepare(`SELECT id FROM users WHERE role IN ('owner','hq_hr') AND active=1`).all();
+    const insN = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'leave','users',?,?)`);
+    for (const h of hrs) insN.run(h.id, `${emp.name} 申請請假`, `${leave_type}｜${leave_date}｜${hours}小時${reason?'\n'+reason:''}`, emp.id, '/hr');
+    await reply(event.replyToken, `✅ 請假申請已送出！\n假別：${leave_type}\n日期：${leave_date}\n時數：${hours} 小時\n審核結果將通知您。`, STAFF_TOKEN());
+    return;
+  }
+
+  // 補打卡指令：補打卡 2026-06-01 原因說明
+  const makeupMatch = text.match(/^補打卡\s+(\d{4}-\d{2}-\d{2})\s+(.+)$/);
+  if (makeupMatch) {
+    if (!emp) { await reply(event.replyToken, '請先綁定帳號才能使用補打卡功能。\n指令：綁定 你的系統帳號', STAFF_TOKEN()); return; }
+    const [, makeup_date, reason] = makeupMatch;
+    db.prepare(`INSERT INTO makeup_requests (user_id, makeup_date, reason) VALUES (?,?,?)`)
+      .run(emp.id, makeup_date, reason);
+    const hrs = db.prepare(`SELECT id FROM users WHERE role IN ('owner','hq_hr') AND active=1`).all();
+    const insN = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'makeup','users',?,?)`);
+    for (const h of hrs) insN.run(h.id, `${emp.name} 申請補打卡`, `補打卡日期：${makeup_date}\n${reason}`, emp.id, '/hr');
+    await reply(event.replyToken, `✅ 補打卡申請已送出！\n日期：${makeup_date}\n審核結果將通知您。`, STAFF_TOKEN());
+    return;
+  }
+
+  // 說明
+  const helpText = emp
+    ? `${emp.name} 您好！可用指令：\n\n【請假】\n請假 假別 日期 時數 原因\n例：請假 特休 2026-06-01 8 出遊\n\n假別：特休、病假、事假、公假、婚假、喪假、補休、其他\n\n【補打卡】\n補打卡 日期 原因\n例：補打卡 2026-06-01 忘記打卡`
+    : `您好！這是繪新派單系統。\n\n若要綁定帳號，請傳送：\n綁定 你的系統帳號\n\n例如：綁定 flora`;
+  await reply(event.replyToken, helpText, STAFF_TOKEN());
 }
 
 // 員工／學員加好友歡迎語
