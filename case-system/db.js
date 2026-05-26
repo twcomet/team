@@ -1673,6 +1673,8 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
     safeExec(`DELETE FROM quality_checks       WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM ratings              WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM user_task_dismissals WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM revenue_shares       WHERE case_id IN (${nums})`);
+    safeExec(`DELETE FROM material_orders      WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM case_items           WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM dispatch_materials   WHERE case_id IN (${nums})`);
     safeExec(`DELETE FROM quote_sheets         WHERE case_id IN (${nums})`);
