@@ -136,6 +136,7 @@ async function handleClientText(event, channel) {
 
   let inquiryId;
   if (openInquiry) {
+    // 既有進行中詢問 → 追加訊息
     inquiryId = openInquiry.id;
     db.prepare(`
       UPDATE line_inquiries
@@ -144,6 +145,30 @@ async function handleClientText(event, channel) {
       WHERE id=?
     `).run(text.slice(0, 200), inquiryId);
   } else {
+    // 檢查是否已有尚未結案的案件（由此 LINE 帳號轉入）
+    const activeCase = db.prepare(`
+      SELECT id FROM cases
+      WHERE line_source=? AND status NOT IN ('closed','invalid')
+      LIMIT 1
+    `).get(userId);
+
+    if (activeCase) {
+      // 已有進行中案件，不建立新詢問，訊息附掛到最近一筆已轉案的詢問
+      const convertedInquiry = db.prepare(`
+        SELECT id FROM line_inquiries
+        WHERE line_user_id=? AND status='converted'
+        ORDER BY updated_at DESC LIMIT 1
+      `).get(userId);
+      if (convertedInquiry) {
+        db.prepare(`
+          INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content)
+          VALUES (?, 'in', 'text', ?)
+        `).run(convertedInquiry.id, text);
+      }
+      return; // 不建立新詢問
+    }
+
+    // 真正的新詢問 → 建立
     const r = db.prepare(`
       INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id)
       VALUES (?, ?, ?, ?, ?, 1, ?, ?)
