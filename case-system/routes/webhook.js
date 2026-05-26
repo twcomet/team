@@ -261,8 +261,9 @@ async function handleStaffText(event) {
   // 綁定指令
   const bindMatch = text.match(/^綁定\s+(\S+)$/);
   if (bindMatch) {
-    const username = bindMatch[1];
-    const emp = db.prepare(`SELECT id, name, role FROM users WHERE username=? AND active=1`).get(username);
+    const username = bindMatch[1].trim();
+    console.log(`[BIND] userId=${userId} username="${username}"`);
+    const emp = db.prepare(`SELECT id, name, role FROM users WHERE username=? AND active=1 COLLATE NOCASE`).get(username);
     if (!emp) {
       await reply(event.replyToken,
         `找不到帳號「${username}」，請確認系統登入帳號後再試。`,
@@ -312,6 +313,22 @@ async function handleStaffText(event) {
     for (const h of hrs) insN.run(h.id, `${emp.name} 申請補打卡`, `補打卡日期：${makeup_date}\n${reason}`, emp.id, '/hr');
     await reply(event.replyToken, `✅ 補打卡申請已送出！\n日期：${makeup_date}\n審核結果將通知您。`, STAFF_TOKEN());
     return;
+  }
+
+  // 請假申請（圖文選單按鈕）
+  if (text === '請假申請') {
+    const msg = emp
+      ? `📅 請假申請格式：\n\n請假 假別 日期 時數 原因\n\n例：請假 特休 2026-06-01 8 出遊\n\n可用假別：特休、病假、事假、公假、婚假、喪假、補休、其他`
+      : '請先綁定帳號。\n指令：綁定 你的系統帳號\n例：綁定 flora';
+    await reply(event.replyToken, msg, STAFF_TOKEN()); return;
+  }
+
+  // 補打卡申請（圖文選單按鈕）
+  if (text === '補打卡申請') {
+    const msg = emp
+      ? `✏️ 補打卡申請格式：\n\n補打卡 日期 原因\n\n例：補打卡 2026-06-01 忘記打卡`
+      : '請先綁定帳號。\n指令：綁定 你的系統帳號\n例：綁定 flora';
+    await reply(event.replyToken, msg, STAFF_TOKEN()); return;
   }
 
   // 說明
