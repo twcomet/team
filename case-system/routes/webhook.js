@@ -11,6 +11,22 @@ const CLIENT_TOKEN  = () => process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
 const STAFF_SECRET  = () => process.env.LINE_STAFF_CHANNEL_SECRET || '';
 const STAFF_TOKEN   = () => process.env.LINE_STAFF_CHANNEL_ACCESS_TOKEN || '';
 
+// ── LINE OAT 加好友管道對照表 ──────────────────────────────────
+const OAT_SOURCE_MAP = {
+  '6736785': 'Instagram · bio連結',
+  '6736811': 'Instagram · 限時動態',
+  '6737158': 'Instagram · 貼文留言',
+  '6736822': 'Facebook · 粉絲頁',
+  '6737168': 'Facebook · 貼文',
+  '6737262': 'Facebook · 私訊',
+  '6737171': 'YouTube · 影片說明欄',
+  '6737177': 'TikTok · 個人頁bio',
+  '6737183': 'Threads · 個人頁bio',
+  '6737187': '官網 · 首頁按鈕',
+  '6737192': '實體 · 名片',
+  '6737193': '實體 · 海報DM',
+};
+
 // ── 共用工具 ──────────────────────────────────────────────────
 
 function verifySignature(rawBody, signature, secret) {
@@ -173,11 +189,13 @@ async function handleClientText(event, channel) {
       return; // 不建立新詢問
     }
 
-    // 真正的新詢問 → 建立
+    // 真正的新詢問 → 建立（帶入 OAT 來源管道）
+    const followSrc = db.prepare(`SELECT add_source FROM line_follow_sources WHERE line_user_id=?`).get(userId);
+    const addSource = followSrc?.add_source || null;
     const r = db.prepare(`
-      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(userId, client.id, displayName, displayName, text.slice(0, 200), orgId, channel.id || null);
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(userId, client.id, displayName, displayName, text.slice(0, 200), orgId, channel.id || null, addSource);
     inquiryId = r.lastInsertRowid;
   }
 
@@ -199,6 +217,14 @@ async function handleClientFollow(event, channel) {
   const welcome = channel.welcome_msg ||
     `您好 ${name}！歡迎加入繪新國際 🎨\n\n有任何裝潢貼膜需求，直接傳訊息給我們，我們會立即為您安排客服聯繫！`;
   await reply(event.replyToken, welcome, channel.channel_token);
+
+  // 記錄 OAT 來源管道，等首則訊息時帶入詢問單
+  const oatId = event.referralInfo?.oatId?.toString();
+  const sourceName = oatId ? OAT_SOURCE_MAP[oatId] : null;
+  if (sourceName) {
+    db.prepare(`INSERT OR REPLACE INTO line_follow_sources (line_user_id, add_source) VALUES (?, ?)`)
+      .run(userId, sourceName);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -1431,8 +1431,19 @@ _addCol('line_inquiries', 'line_original_name', 'TEXT');
 // 舊紀錄補寫 line_original_name（只補 NULL 且 display_name 有值的）
 db.exec(`UPDATE line_inquiries SET line_original_name=display_name WHERE line_original_name IS NULL AND display_name IS NOT NULL`);
 // 負責業務 / 負責客服
-_addCol('line_inquiries', 'sales_id', 'INTEGER REFERENCES users(id)');
-_addCol('line_inquiries', 'cs_id',    'INTEGER REFERENCES users(id)');
+_addCol('line_inquiries', 'sales_id',   'INTEGER REFERENCES users(id)');
+_addCol('line_inquiries', 'cs_id',      'INTEGER REFERENCES users(id)');
+// 加好友來源管道（從 LINE OAT 追蹤連結識別）
+_addCol('line_inquiries', 'add_source', 'TEXT');
+
+// 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS line_follow_sources (
+    line_user_id TEXT PRIMARY KEY,
+    add_source   TEXT NOT NULL,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 
 // 系統內建角色的預設權限設定
 db.exec(`

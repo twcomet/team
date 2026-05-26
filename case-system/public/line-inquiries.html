@@ -257,8 +257,9 @@ function renderList() {
     return;
   }
   el.innerHTML = sorted.map(i => {
-    const salesBadge = i.sales_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
-    const csBadge    = i.cs_name    ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
+    const salesBadge  = i.sales_name  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
+    const csBadge     = i.cs_name     ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
+    const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
     return `
     <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})">
       <div class="ic-name">
@@ -270,6 +271,7 @@ function renderList() {
       <div class="ic-meta">
         <span>${escHtml(i.phone || '')}</span>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          ${sourceBadge ? `<div>${sourceBadge}</div>` : ''}
           ${salesBadge || csBadge ? `<div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${salesBadge}${csBadge}</div>` : ''}
           <span>${fmtTime(i.last_message_at)}</span>
         </div>
