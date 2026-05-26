@@ -4,8 +4,8 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // 公司座標（可透過環境變數覆蓋）
-const COMPANY_LAT    = parseFloat(process.env.COMPANY_LAT || '24.9023');
-const COMPANY_LNG    = parseFloat(process.env.COMPANY_LNG || '121.3466');
+const COMPANY_LAT    = parseFloat(process.env.COMPANY_LAT || '24.95744456377013');
+const COMPANY_LNG    = parseFloat(process.env.COMPANY_LNG || '121.34953081108718');
 const COMPANY_RADIUS = 500;  // 公尺
 const SITE_RADIUS    = 300;
 
