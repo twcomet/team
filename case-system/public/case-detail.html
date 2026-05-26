@@ -310,6 +310,11 @@
             🧮 開啟快速報價
           </a>
         </div>
+        <!-- 快速估價紀錄 -->
+        <div class="sf-tab-section" id="quickEstHistorySection" style="display:none">
+          <h4 class="sf-tab-title" style="margin-bottom:8px">快速估價紀錄</h4>
+          <div id="quickEstList"></div>
+        </div>
         <div class="sf-tab-section">
           <h4 class="sf-tab-title">客戶需求說明</h4>
           <textarea id="ie_requirements" rows="4" placeholder="記錄客戶描述的施作需求、位置、材質偏好、特殊狀況…"
@@ -993,6 +998,7 @@ async function init() {
   users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
+  loadQuickEstimates();
 
   // Tab 切換
   document.querySelectorAll('.tab').forEach(t => {
@@ -1002,6 +1008,7 @@ async function init() {
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
       if (t.dataset.tab === 'survey')    loadSurveyTab();
       if (t.dataset.tab === 'outsource') loadOutsourceTab();
+      if (t.dataset.tab === 'estimate')  loadQuickEstimates();
     });
   });
 
@@ -1565,6 +1572,50 @@ document.getElementById('saveEstimateBtn').addEventListener('click', async () =>
   if (res.ok) { showToast('初步估價紀錄已儲存'); await loadCase(); }
   else showToast('儲存失敗', 'error');
 });
+
+// ── 快速估價紀錄 ───────────────────────────────────────────
+async function loadQuickEstimates() {
+  const res = await fetch(`/api/cases/${caseId}/initial-estimates`);
+  if (!res.ok) return;
+  const records = await res.json();
+  const section = document.getElementById('quickEstHistorySection');
+  const list    = document.getElementById('quickEstList');
+  if (!section || !list) return;
+  if (!records.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const modeLabel = { meter:'依米數', no_loss:'實際面積', with_loss:'含損料', splice:'拼料' };
+  list.innerHTML = records.map(r => {
+    const price    = r.discount_price || r.total_price;
+    const priceStr = price ? `NT$ ${Math.round(price).toLocaleString()}` : '—';
+    const origStr  = (r.discount_price && r.total_price && r.discount_price !== r.total_price)
+                     ? `原價 NT$ ${Math.round(r.total_price).toLocaleString()}　` : '';
+    const caiStr   = r.total_cai ? `・${Number(r.total_cai).toFixed(2)} 才` : '';
+    const mode     = modeLabel[r.calc_mode] || r.calc_mode || '';
+    return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:600;color:#1e293b">${r.film_type || '快速估價'}</span>
+          ${mode ? `<span style="color:#64748b;margin-left:6px">・${mode}</span>` : ''}
+          ${caiStr ? `<span style="color:#64748b;margin-left:6px">${caiStr}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:700;color:#0ea5e9">${priceStr}</span>
+          <button onclick="applyQuickEstimate(${r.total_price||'null'}, ${r.discount_price||'null'})"
+            style="font-size:12px;padding:4px 10px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer">套用報價</button>
+        </div>
+      </div>
+      <div style="color:#94a3b8;font-size:12px;margin-top:4px">${origStr}${r.created_by_name || ''}・${(r.created_at||'').slice(0,16).replace('T',' ')}</div>
+    </div>`;
+  }).join('');
+}
+
+function applyQuickEstimate(totalPrice, discountPrice) {
+  const price = discountPrice || totalPrice;
+  if (!price) return;
+  document.getElementById('ie_price_min').value = Math.round(price);
+  document.getElementById('ie_price_max').value = Math.round(price);
+  showToast('已套用報價到初估金額，可手動調整後儲存');
+}
 
 document.getElementById('toSurveyBtn').addEventListener('click', () => convertCase('survey'));
 document.getElementById('toDealBtn').addEventListener('click',   () => convertCase('deal'));
