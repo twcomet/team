@@ -4,6 +4,23 @@ const { requireAuth, orgFilter, orgFilterSQL } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router = express.Router();
 
+// ── 地址轉座標（非阻塞，fire-and-forget）────────────────────
+async function geocodeCase(caseId, address) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey || !address) return;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=zh-TW&region=TW`;
+    const r = await fetch(url);
+    const data = await r.json();
+    if (data.status === 'OK' && data.results[0]) {
+      const { lat, lng } = data.results[0].geometry.location;
+      db.prepare(`UPDATE cases SET lat=?, lng=? WHERE id=?`).run(lat, lng, caseId);
+    }
+  } catch (e) {
+    console.error('[geocode] error:', e.message);
+  }
+}
+
 // ── 派工通知 ─────────────────────────────────────────────────
 const DISPATCH_LABELS = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
 
@@ -254,6 +271,8 @@ router.post('/', requireAuth, (req, res) => {
   db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create', 'cases', ?, ?)`)
     .run(me.id, result.lastInsertRowid, `建立案件 ${case_number}`);
 
+  if (location) geocodeCase(result.lastInsertRowid, location);
+
   res.json({ ok: true, id: result.lastInsertRowid, case_number });
 });
 
@@ -277,7 +296,7 @@ router.put('/:id', requireAuth, (req, res) => {
     initial_estimate_data,
   } = req.body;
 
-  const prev = db.prepare(`SELECT sales_id, cs_id FROM cases WHERE id=?`).get(req.params.id);
+  const prev = db.prepare(`SELECT sales_id, cs_id, location, lat, lng FROM cases WHERE id=?`).get(req.params.id);
 
   db.prepare(`
     UPDATE cases SET
@@ -353,6 +372,11 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 
   recalcLaborCost(Number(req.params.id));
+
+  // 地址變更或尚未有座標時重新 geocode
+  if (location && (location !== prev?.location || !prev?.lat)) {
+    geocodeCase(Number(req.params.id), location);
+  }
 
   // ── 自動同步收支表 ──────────────────────────────────────────
   {
@@ -766,6 +790,17 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','quoted') ${orgCond}`).get(...orgPs2).n,
     month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? ${orgCond}`).get(monthStart, ...orgPs2).n,
   });
+});
+
+// ── 地址座標補填（owner 手動觸發，處理歷史資料）────────────
+router.post('/geocode-backfill', requireAuth, async (req, res) => {
+  if (req.session.user.role !== 'owner') return res.status(403).json({ error: 'Forbidden' });
+  const cases = db.prepare(`SELECT id, location FROM cases WHERE (lat IS NULL OR lat=0) AND location IS NOT NULL AND location != ''`).all();
+  res.json({ queued: cases.length });
+  for (const c of cases) {
+    await geocodeCase(c.id, c.location);
+    await new Promise(r => setTimeout(r, 200)); // 避免超過 API 速率
+  }
 });
 
 module.exports = router;
