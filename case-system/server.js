@@ -66,6 +66,7 @@ app.use('/api/marketplace',       require('./routes/marketplace'));
 app.use('/api/line-inquiries',    require('./routes/line-inquiries'));
 app.use('/api/marketing',             require('./routes/marketing'));
 app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
+app.use('/api/hr',                    require('./routes/hr'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -96,6 +97,7 @@ const PAGE_PERMS = {
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
   marketing:        'page_marketing',
+  hr:               'page_hr',
 };
 
 function requirePagePerm(page) {
@@ -129,6 +131,8 @@ function requirePagePerm(page) {
       allowed = p.page_performance !== undefined ? p.page_performance === true : !!u.manage_users;
     } else if (key === 'page_marketing') {
       allowed = p.page_marketing !== undefined ? p.page_marketing === true : !!u.manage_users;
+    } else if (key === 'page_hr') {
+      allowed = p.page_hr !== undefined ? p.page_hr === true : ['owner','hq_hr'].includes(u.role);
     } else {
       allowed = p[key] === true;
     }
@@ -149,7 +153,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;

@@ -61,6 +61,7 @@ async function loadUser() {
     'dispatch-detail':p.page_cases,
     'my-tasks':       p.my_tasks,
     'my-calendar':    true,   // 所有人可見
+    hr:               p.page_hr !== undefined ? p.page_hr : ['owner','hq_hr'].includes(currentUser.role),
     admin:            mu,
     reports:          p.page_reports      !== undefined ? p.page_reports      : mu,
     performance:      p.page_performance  !== undefined ? p.page_performance  : mu,

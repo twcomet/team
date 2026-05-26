@@ -1697,4 +1697,78 @@ db.exec(`UPDATE cases SET survey_fee_method='匯款至臺灣企銀' WHERE survey
 db.exec(`UPDATE cases SET deposit_method='匯款至臺灣企銀'   WHERE deposit_method='匯款'`);
 db.exec(`UPDATE cases SET balance_paid_method='匯款至臺灣企銀' WHERE balance_paid_method='匯款'`);
 
+// ── 人事資料欄位（users）────────────────────────────────────────────────────
+_addCol('users', 'hire_date',          'DATE');
+_addCol('users', 'id_number',          'TEXT');
+_addCol('users', 'bank_account',       'TEXT');
+_addCol('users', 'bank_name',          'TEXT');
+_addCol('users', 'birthday',           'DATE');
+_addCol('users', 'home_address',       'TEXT');
+_addCol('users', 'emergency_contact',  'TEXT');
+_addCol('users', 'emergency_phone',    'TEXT');
+_addCol('users', 'hr_notes',           'TEXT');
+
+// ── 案件座標（自動 Geocoding 用）───────────────────────────────────────────
+_addCol('cases', 'lat', 'REAL');
+_addCol('cases', 'lng', 'REAL');
+
+// ── 打卡記錄 ────────────────────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS attendance (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        INTEGER NOT NULL REFERENCES users(id),
+  work_date      DATE NOT NULL,
+  clock_in       TEXT,
+  clock_out      TEXT,
+  work_start     TEXT,
+  work_end       TEXT,
+  is_late        INTEGER DEFAULT 0,
+  auto_clock_out INTEGER DEFAULT 0,
+  clock_in_lat   REAL,
+  clock_in_lng   REAL,
+  clock_out_lat  REAL,
+  clock_out_lng  REAL,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, work_date)
+)`);
+
+// ── 請假申請 ────────────────────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS leave_requests (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        INTEGER NOT NULL REFERENCES users(id),
+  leave_date     DATE NOT NULL,
+  leave_end_date DATE,
+  leave_type     TEXT NOT NULL,
+  hours          REAL DEFAULT 8,
+  reason         TEXT,
+  status         TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+  reviewed_by    INTEGER REFERENCES users(id),
+  reviewed_at    DATETIME,
+  review_note    TEXT,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── 特休手動調整記錄 ─────────────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS leave_adjustments (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        INTEGER NOT NULL REFERENCES users(id),
+  year           INTEGER NOT NULL,
+  days           REAL NOT NULL,
+  reason         TEXT NOT NULL,
+  adjusted_by    INTEGER NOT NULL REFERENCES users(id),
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── 補打卡申請 ───────────────────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS makeup_requests (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        INTEGER NOT NULL REFERENCES users(id),
+  makeup_date    DATE NOT NULL,
+  reason         TEXT,
+  status         TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+  reviewed_by    INTEGER REFERENCES users(id),
+  reviewed_at    DATETIME,
+  review_note    TEXT,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
 module.exports = db;

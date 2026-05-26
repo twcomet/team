@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人事資料管理</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.hr-layout { display:flex; gap:0; height:calc(100vh - 56px); overflow:hidden; }
+.hr-list { width:260px; min-width:220px; border-right:1px solid var(--gray-200); display:flex; flex-direction:column; background:#fff; flex-shrink:0; }
+.hr-list-search { padding:12px; border-bottom:1px solid var(--gray-200); }
+.hr-list-search input { width:100%; box-sizing:border-box; }
+.hr-list-body { flex:1; overflow-y:auto; }
+.hr-emp-item { padding:12px 16px; cursor:pointer; border-bottom:1px solid var(--gray-100); display:flex; align-items:center; gap:10px; }
+.hr-emp-item:hover { background:#f8fafc; }
+.hr-emp-item.active { background:#dbeafe; border-left:3px solid var(--primary); }
+.hr-emp-avatar { width:36px; height:36px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; flex-shrink:0; }
+.hr-emp-info { flex:1; min-width:0; }
+.hr-emp-name { font-size:14px; font-weight:600; color:var(--gray-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hr-emp-role { font-size:11px; color:var(--gray-500); }
+.hr-detail { flex:1; overflow-y:auto; padding:24px; }
+.hr-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--gray-400); gap:12px; }
+.hr-empty-icon { font-size:48px; }
+
+/* 待審核區塊 */
+.pending-section { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:16px 20px; margin-bottom:20px; }
+.pending-title { font-size:14px; font-weight:700; color:var(--gray-700); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.pending-badge { background:#ef4444; color:#fff; border-radius:20px; padding:1px 8px; font-size:11px; font-weight:600; }
+.pending-item { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--gray-100); font-size:13px; }
+.pending-item:last-child { border-bottom:none; }
+.pending-empty { color:var(--gray-400); font-size:13px; padding:8px 0; }
+
+/* 員工詳情 */
+.emp-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--gray-200); }
+.emp-avatar-lg { width:56px; height:56px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; flex-shrink:0; }
+.emp-title h2 { font-size:20px; font-weight:700; margin:0 0 4px; }
+.emp-title p { font-size:13px; color:var(--gray-500); margin:0; }
+
+/* 特休卡片 */
+.leave-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:20px; }
+.leave-card { background:#f8fafc; border:1px solid var(--gray-200); border-radius:10px; padding:14px; text-align:center; }
+.leave-card .lc-num { font-size:28px; font-weight:700; color:var(--primary); }
+.leave-card .lc-label { font-size:12px; color:var(--gray-500); margin-top:2px; }
+.leave-card.lc-remain { background:#f0fdf4; border-color:#bbf7d0; }
+.leave-card.lc-remain .lc-num { color:#16a34a; }
+
+/* 頁籤 */
+.hr-tabs { display:flex; gap:4px; border-bottom:2px solid var(--gray-200); margin-bottom:20px; }
+.hr-tab { padding:8px 16px; font-size:13px; font-weight:600; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.hr-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+
+/* 表單 */
+.hr-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; }
+@media(max-width:600px){ .hr-form-grid{ grid-template-columns:1fr; } }
+.hr-form-grid .form-group { margin-bottom:0; }
+.hr-form-full { grid-column:1/-1; }
+
+/* 調整記錄表 */
+.adj-table { width:100%; border-collapse:collapse; font-size:13px; }
+.adj-table th { background:#f9fafb; padding:8px 10px; text-align:left; font-weight:600; color:var(--gray-600); border-bottom:1px solid var(--gray-200); }
+.adj-table td { padding:8px 10px; border-bottom:1px solid var(--gray-100); }
+.adj-table tr:last-child td { border-bottom:none; }
+.tag-approved { background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+.tag-rejected { background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+.tag-pending  { background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+
+@media(max-width:768px){
+  .hr-list { width:100%; min-width:0; height:auto; border-right:none; border-bottom:1px solid var(--gray-200); }
+  .hr-layout { flex-direction:column; height:auto; overflow:visible; }
+  .hr-list-body { max-height:240px; }
+  .hr-detail { padding:16px; }
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/images/logo.png" alt="Logo" onerror="this.style.display='none'"><span class="logo-text">繪新管理系統</span></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr"             href="/hr">             <span class="icon">👤</span>人事資料管理</a>
+        <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">人事資料管理</span></div>
+
+    <div class="hr-layout">
+      <!-- 左側員工列表 -->
+      <div class="hr-list">
+        <div class="hr-list-search">
+          <input type="text" id="empSearch" placeholder="搜尋員工姓名…" oninput="filterEmps()">
+        </div>
+        <div class="hr-list-body" id="empList"></div>
+      </div>
+
+      <!-- 右側詳情 -->
+      <div class="hr-detail" id="hrDetail">
+        <div class="hr-empty">
+          <div class="hr-empty-icon">👤</div>
+          <div style="font-size:15px;font-weight:600">請從左側選擇員工</div>
+          <div style="font-size:13px">點選員工即可查看與編輯人事資料</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let allEmps = [];
+let currentEmpId = null;
+const LEAVE_TYPES = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+
+async function init() {
+  await loadUser();
+  highlightNav('hr');
+  await loadPendingBanner();
+  await loadEmps();
+}
+
+async function loadEmps() {
+  const res = await fetch('/api/hr/employees');
+  if (!res.ok) return;
+  allEmps = await res.json();
+  renderEmpList(allEmps);
+}
+
+function renderEmpList(list) {
+  const el = document.getElementById('empList');
+  if (!list.length) { el.innerHTML = '<div style="padding:16px;color:#9ca3af;font-size:13px;text-align:center">沒有員工資料</div>'; return; }
+  el.innerHTML = list.map(u => `
+    <div class="hr-emp-item${u.id === currentEmpId ? ' active' : ''}" onclick="selectEmp(${u.id})">
+      <div class="hr-emp-avatar">${u.name.charAt(0)}</div>
+      <div class="hr-emp-info">
+        <div class="hr-emp-name">${u.name}</div>
+        <div class="hr-emp-role">${ROLE_LABELS[u.role] || u.role}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterEmps() {
+  const q = document.getElementById('empSearch').value.trim().toLowerCase();
+  renderEmpList(q ? allEmps.filter(u => u.name.toLowerCase().includes(q)) : allEmps);
+}
+
+async function loadPendingBanner() {
+  const res = await fetch('/api/hr/pending');
+  if (!res.ok) return;
+  const { leave, makeup } = await res.json();
+  const total = leave.length + makeup.length;
+  if (!total) return;
+
+  const detail = document.getElementById('hrDetail');
+  const banner = document.createElement('div');
+  banner.id = 'pendingBanner';
+  banner.className = 'pending-section';
+  banner.innerHTML = `
+    <div class="pending-title">待審核 <span class="pending-badge">${total}</span></div>
+    ${leave.length ? `
+      <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px">請假申請</div>
+      ${leave.map(r => `
+        <div class="pending-item">
+          <span>${r.user_name}｜${r.leave_type}｜${r.leave_date}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date:''}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="reviewLeave(${r.id},'approved')">核准</button>
+            <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="reviewLeave(${r.id},'rejected')">拒絕</button>
+          </div>
+        </div>`).join('')}` : ''}
+    ${makeup.length ? `
+      <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin:10px 0 6px">補打上班卡申請</div>
+      ${makeup.map(r => `
+        <div class="pending-item">
+          <span>${r.user_name}｜補打 ${r.makeup_date}${r.reason?' — '+r.reason:''}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="reviewMakeup(${r.id},'approved')">核准</button>
+            <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="reviewMakeup(${r.id},'rejected')">拒絕</button>
+          </div>
+        </div>`).join('')}` : ''}
+  `;
+  detail.innerHTML = '';
+  detail.appendChild(banner);
+  detail.innerHTML += '<div class="hr-empty" style="margin-top:40px"><div class="hr-empty-icon">👤</div><div style="font-size:14px">請從左側選擇員工查看詳情</div></div>';
+}
+
+async function reviewLeave(id, status) {
+  const note = status === 'rejected' ? prompt('拒絕原因（可留空）') : null;
+  if (status === 'rejected' && note === null) return;
+  const res = await fetch(`/api/hr/leave-requests/${id}/review`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status, review_note: note })
+  });
+  if (res.ok) { showToast(status === 'approved' ? '已核准' : '已拒絕'); await loadPendingBanner(); if (currentEmpId) renderEmpDetail(await fetchEmp(currentEmpId)); }
+  else showToast('操作失敗','error');
+}
+
+async function reviewMakeup(id, status) {
+  const note = status === 'rejected' ? prompt('拒絕原因（可留空）') : null;
+  if (status === 'rejected' && note === null) return;
+  const res = await fetch(`/api/hr/makeup-requests/${id}/review`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status, review_note: note })
+  });
+  if (res.ok) { showToast(status === 'approved' ? '已核准' : '已拒絕'); await loadPendingBanner(); if (currentEmpId) renderEmpDetail(await fetchEmp(currentEmpId)); }
+  else showToast('操作失敗','error');
+}
+
+async function fetchEmp(id) {
+  const res = await fetch(`/api/hr/employees/${id}`);
+  return res.ok ? res.json() : null;
+}
+
+async function selectEmp(id) {
+  currentEmpId = id;
+  document.querySelectorAll('.hr-emp-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.hr-emp-item').forEach(el => { if (parseInt(el.getAttribute('onclick').match(/\d+/)[0]) === id) el.classList.add('active'); });
+  const emp = await fetchEmp(id);
+  if (emp) renderEmpDetail(emp);
+}
+
+function renderEmpDetail(emp) {
+  const detail = document.getElementById('hrDetail');
+  const pending = document.getElementById('pendingBanner');
+  detail.innerHTML = '';
+  if (pending) detail.appendChild(pending);
+
+  const div = document.createElement('div');
+  div.id = 'empDetailContent';
+  div.innerHTML = `
+    <div class="emp-header">
+      <div class="emp-avatar-lg">${emp.name.charAt(0)}</div>
+      <div class="emp-title">
+        <h2>${emp.name}</h2>
+        <p>${ROLE_LABELS[emp.role] || emp.role}${emp.department ? '　' + emp.department : ''}</p>
+      </div>
+    </div>
+
+    <!-- 特休快覽 -->
+    <div class="leave-cards">
+      <div class="leave-card"><div class="lc-num">${emp.leave_entitlement}</div><div class="lc-label">${emp.leave_year} 年應得天數</div></div>
+      <div class="leave-card"><div class="lc-num">${emp.leave_used}</div><div class="lc-label">已請特休</div></div>
+      <div class="leave-card"><div class="lc-num" style="color:${emp.leave_adjustments>=0?'#16a34a':'#ef4444'}">${emp.leave_adjustments>=0?'+':''}${emp.leave_adjustments}</div><div class="lc-label">手動調整</div></div>
+      <div class="leave-card lc-remain"><div class="lc-num">${emp.leave_remaining}</div><div class="lc-label">剩餘天數</div></div>
+    </div>
+
+    <!-- 頁籤 -->
+    <div class="hr-tabs">
+      <div class="hr-tab active" data-tab="basic" onclick="switchTab(this,'basic')">基本資料</div>
+      <div class="hr-tab" data-tab="leave" onclick="switchTab(this,'leave')">特休管理</div>
+      <div class="hr-tab" data-tab="requests" onclick="switchTab(this,'requests')">請假紀錄</div>
+      <div class="hr-tab" data-tab="attendance" onclick="switchTab(this,'attendance')">出勤紀錄</div>
+    </div>
+
+    <!-- 基本資料 -->
+    <div id="tab-basic">
+      <form id="hrForm" onsubmit="saveHR(event,${emp.id})">
+        <div class="hr-form-grid">
+          <div class="form-group"><label>到職日期</label><input type="date" name="hire_date" value="${emp.hire_date||''}"></div>
+          <div class="form-group"><label>生日</label><input type="date" name="birthday" value="${emp.birthday||''}"></div>
+          <div class="form-group"><label>身分證字號</label><input type="text" name="id_number" value="${emp.id_number||''}" placeholder="A123456789"></div>
+          <div class="form-group"><label>銀行名稱</label><input type="text" name="bank_name" value="${emp.bank_name||''}" placeholder="台灣企銀"></div>
+          <div class="form-group hr-form-full"><label>銀行帳號</label><input type="text" name="bank_account" value="${emp.bank_account||''}" placeholder="000-0000000-000000"></div>
+          <div class="form-group hr-form-full"><label>居住地址</label><input type="text" name="home_address" value="${emp.home_address||''}"></div>
+          <div class="form-group"><label>緊急聯絡人</label><input type="text" name="emergency_contact" value="${emp.emergency_contact||''}"></div>
+          <div class="form-group"><label>緊急聯絡電話</label><input type="text" name="emergency_phone" value="${emp.emergency_phone||''}"></div>
+          <div class="form-group hr-form-full"><label>人事備註</label><textarea name="hr_notes" rows="3">${emp.hr_notes||''}</textarea></div>
+        </div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end">
+          <button type="submit" class="btn btn-primary">儲存基本資料</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 特休管理 -->
+    <div id="tab-leave" style="display:none">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px">
+        到職日：<strong>${emp.hire_date||'未設定'}</strong>　計算基準：歷年制（每年 1/1）
+        ${emp.hire_date?`<span style="margin-left:16px">${emp.leave_year} 年年資應得 <strong>${emp.leave_entitlement} 天</strong></span>`:''}
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">新增手動調整</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0;flex:1;min-width:80px"><label style="font-size:12px">天數（負數=扣除）</label><input type="number" id="adj_days" step="0.5" placeholder="例：-3 或 2"></div>
+          <div class="form-group" style="margin:0;flex:2;min-width:120px"><label style="font-size:12px">原因</label>
+            <select id="adj_reason"><option value="兌換獎金">兌換獎金</option><option value="主管補給">主管補給</option><option value="上年遞延">上年遞延</option><option value="更正">更正</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="addAdjustment(${emp.id})">新增</button>
+        </div>
+      </div>
+
+      ${emp.leave_adjustment_list?.length ? `
+      <table class="adj-table">
+        <thead><tr><th>日期</th><th>天數</th><th>原因</th><th>操作人</th></tr></thead>
+        <tbody>${emp.leave_adjustment_list.map(a => `
+          <tr>
+            <td>${a.created_at?.slice(0,10)||''}</td>
+            <td style="color:${a.days>=0?'#16a34a':'#ef4444'};font-weight:600">${a.days>=0?'+':''}${a.days}</td>
+            <td>${a.reason}</td>
+            <td>${a.adjusted_by_name||''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '<p style="color:#9ca3af;font-size:13px">尚無調整記錄</p>'}
+    </div>
+
+    <!-- 請假紀錄 -->
+    <div id="tab-requests" style="display:none">
+      ${emp.leave_requests?.length ? `
+      <table class="adj-table">
+        <thead><tr><th>日期</th><th>假別</th><th>狀態</th><th>原因</th><th>審核人</th></tr></thead>
+        <tbody>${emp.leave_requests.map(r => `
+          <tr>
+            <td>${r.leave_date}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date:''}</td>
+            <td>${r.leave_type}</td>
+            <td><span class="tag-${r.status}">${{pending:'待審',approved:'核准',rejected:'拒絕'}[r.status]||r.status}</span></td>
+            <td>${r.reason||'—'}</td>
+            <td>${r.reviewer_name||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '<p style="color:#9ca3af;font-size:13px">尚無請假紀錄</p>'}
+    </div>
+
+    <!-- 出勤紀錄 -->
+    <div id="tab-attendance" style="display:none">
+      ${emp.attendance?.length ? `
+      <table class="adj-table">
+        <thead><tr><th>日期</th><th>上班打卡</th><th>下班打卡</th><th>狀態</th></tr></thead>
+        <tbody>${emp.attendance.map(a => `
+          <tr>
+            <td>${a.work_date}</td>
+            <td>${a.clock_in||'—'}</td>
+            <td>${a.clock_out||'—'}${a.auto_clock_out?'<span style="font-size:10px;color:#9ca3af;margin-left:4px">自動</span>':''}</td>
+            <td>${a.is_late?'<span class="tag-rejected">遲到</span>':'<span class="tag-approved">準時</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '<p style="color:#9ca3af;font-size:13px">打卡系統尚未啟用，暫無出勤紀錄</p>'}
+    </div>
+  `;
+  detail.appendChild(div);
+}
+
+function switchTab(el, tab) {
+  document.querySelectorAll('.hr-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['basic','leave','requests','attendance'].forEach(t => {
+    const p = document.getElementById('tab-'+t);
+    if (p) p.style.display = t === tab ? '' : 'none';
+  });
+}
+
+async function saveHR(e, id) {
+  e.preventDefault();
+  const form = e.target;
+  const body = {};
+  new FormData(form).forEach((v, k) => body[k] = v);
+  const res = await fetch(`/api/hr/employees/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    showToast('基本資料已儲存');
+    await loadEmps();
+    const emp = await fetchEmp(id);
+    if (emp) renderEmpDetail(emp);
+  } else showToast('儲存失敗','error');
+}
+
+async function addAdjustment(userId) {
+  const days = parseFloat(document.getElementById('adj_days').value);
+  const reason = document.getElementById('adj_reason').value;
+  if (isNaN(days) || days === 0) { showToast('請輸入有效天數','error'); return; }
+  const res = await fetch('/api/hr/leave-adjustments', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ user_id: userId, year: new Date().getFullYear(), days, reason })
+  });
+  if (res.ok) {
+    showToast('調整已記錄');
+    document.getElementById('adj_days').value = '';
+    const emp = await fetchEmp(userId);
+    if (emp) renderEmpDetail(emp);
+    document.querySelector('.hr-tab[data-tab="leave"]').click();
+  } else showToast('操作失敗','error');
+}
+
+init();
+</script>
+</body>
+</html>
