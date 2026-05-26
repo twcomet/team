@@ -1331,9 +1331,7 @@ async function advanceInDetail() {
 }
 
 function openDetailInvalidModal() {
-  document.getElementById('detailInvalidReason').value = '';
-  document.querySelectorAll('.detail-invalid-tag').forEach(t => t.classList.remove('active'));
-  document.getElementById('detailInvalidModal').classList.add('open');
+  openInvalidModal();
 }
 async function deleteCaseInDetail() {
   const num = caseData?.case_number || '';
@@ -3136,18 +3134,12 @@ init();
 
 <!-- 無效案件 Modal（案件詳情頁用）-->
 <div class="modal-overlay" id="detailInvalidModal">
-  <div class="modal" style="max-width:460px">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header"><h3>標記無效</h3></div>
     <div class="modal-body">
       <p style="font-size:13px;color:#6b7280;margin:0 0 12px">請選擇或填寫無效原因：</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" id="detailInvalidTagsWrap">
-        <span class="detail-invalid-tag" data-tag="報價太貴">報價太貴</span>
-        <span class="detail-invalid-tag" data-tag="已找到其他廠商">已找到其他廠商</span>
-        <span class="detail-invalid-tag" data-tag="等待太久">等待太久</span>
-        <span class="detail-invalid-tag" data-tag="客戶失聯">客戶失聯</span>
-        <span class="detail-invalid-tag" data-tag="需求改變">需求改變</span>
-        <span class="detail-invalid-tag" data-tag="暫緩施工">暫緩施工</span>
-        <span class="detail-invalid-tag" data-tag="預算不足">預算不足</span>
+        <span style="color:var(--gray-400);font-size:13px">載入中...</span>
       </div>
       <textarea id="detailInvalidReason" rows="3" placeholder="補充說明（選填）"
         style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
@@ -3164,10 +3156,49 @@ init();
   background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none;
 }
 .detail-invalid-tag.active { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 600; }
+.detail-invalid-tag.add-tag { background: #fff; color: var(--primary); border-color: var(--primary); border-style: dashed; }
 </style>
 <script>
+let _invalidTags = [];
+
+async function loadInvalidTags() {
+  if (_invalidTags.length) return;
+  try {
+    _invalidTags = await fetch('/api/invalid-reason-tags').then(r => r.json());
+  } catch {}
+}
+
+async function openInvalidModal() {
+  await loadInvalidTags();
+  renderInvalidTagsWrap();
+  document.getElementById('detailInvalidReason').value = '';
+  document.getElementById('detailInvalidModal').classList.add('open');
+}
+
+function renderInvalidTagsWrap() {
+  const wrap = document.getElementById('detailInvalidTagsWrap');
+  wrap.innerHTML = _invalidTags.map(t =>
+    `<span class="detail-invalid-tag" data-tag="${t.name}">${t.name}</span>`
+  ).join('') +
+  `<span class="detail-invalid-tag add-tag" onclick="addInvalidTag()">＋ 新增原因</span>`;
+}
+
+async function addInvalidTag() {
+  const name = prompt('請輸入新的無效原因標籤：');
+  if (!name?.trim()) return;
+  try {
+    const res = await fetch('/api/invalid-reason-tags', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name: name.trim() })
+    });
+    if (!res.ok) { showToast((await res.json()).error || '新增失敗', 'error'); return; }
+    const tag = await res.json();
+    _invalidTags.push(tag);
+    renderInvalidTagsWrap();
+  } catch { showToast('新增失敗', 'error'); }
+}
+
 document.getElementById('detailInvalidTagsWrap').addEventListener('click', e => {
-  const tag = e.target.closest('.detail-invalid-tag');
+  const tag = e.target.closest('.detail-invalid-tag:not(.add-tag)');
   if (tag) tag.classList.toggle('active');
 });
 document.getElementById('b_external_quote_url')?.addEventListener('input', function() {

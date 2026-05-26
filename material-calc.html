@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>膜料材數計算機</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 560px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #2563eb;
+      color: #fff;
+      padding: 24px 28px;
+    }
+
+    .card-header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .card-header p {
+      font-size: 0.82rem;
+      opacity: 0.75;
+      margin-top: 4px;
+    }
+
+    .card-body {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+
+    /* ── 多筆輸入表格 ── */
+    .rows-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 32px;
+      gap: 8px;
+      padding: 0 4px;
+      margin-bottom: 6px;
+    }
+
+    .rows-header span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    .rows-header span:last-child { visibility: hidden; }
+
+    #rows-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .row-item {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 32px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row-item .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .row-item input {
+      width: 100%;
+      padding: 9px 36px 9px 10px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.15s;
+      text-align: right;
+    }
+
+    .row-item input:focus { border-color: #2563eb; }
+
+    .row-item input[readonly] {
+      background: #f8fafc;
+      color: #2563eb;
+      font-weight: 600;
+      cursor: default;
+    }
+
+    .row-unit {
+      position: absolute;
+      right: 8px;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .del-btn {
+      width: 32px;
+      height: 32px;
+      border: 1.5px solid #fca5a5;
+      border-radius: 8px;
+      background: #fff;
+      color: #ef4444;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .del-btn:hover { background: #fef2f2; }
+    .del-btn:disabled { opacity: 0.25; cursor: default; }
+
+    .add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px;
+      border: 1.5px dashed #93c5fd;
+      border-radius: 8px;
+      background: #f0f9ff;
+      color: #2563eb;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+
+    .add-btn:hover { background: #dbeafe; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    /* ── 摘要區 ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .summary-box {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .summary-box .s-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .summary-box .s-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    .summary-box .s-unit {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-left: 3px;
+    }
+
+    /* ── 報價區 ── */
+    .price-field {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .price-field label {
+      font-size: 0.9rem;
+      color: #374151;
+      font-weight: 500;
+      flex: 0 0 130px;
+    }
+
+    .price-field .input-wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .price-field input {
+      width: 100%;
+      padding: 10px 52px 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .price-field input:focus { border-color: #2563eb; }
+
+    .price-unit {
+      position: absolute;
+      right: 12px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    /* ── 總價 ── */
+    .result-block {
+      background: #1e40af;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .result-block .r-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #bfdbfe;
+    }
+
+    .result-block .r-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── 折扣 ── */
+    .discount-section {
+      background: #fff7ed;
+      border: 1.5px solid #fed7aa;
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .discount-section .section-label {
+      margin-bottom: 0;
+      color: #c2410c;
+    }
+
+    .discount-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .discount-row label {
+      font-size: 0.9rem;
+      color: #7c3aed;
+      font-weight: 600;
+      flex: 0 0 100px;
+    }
+
+    .discount-row .input-wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .discount-row input {
+      width: 100%;
+      padding: 9px 36px 9px 12px;
+      border: 1.5px solid #ddd6fe;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #1e293b;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .discount-row input:focus { border-color: #7c3aed; }
+
+    .discount-price-block {
+      background: #7c3aed;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .discount-price-block .r-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #ddd6fe;
+    }
+
+    .discount-price-block .r-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      color: #64748b;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .reset-btn:hover { background: #f1f5f9; color: #1e293b; }
+
+    .formula-note {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>膜料材數計算機</h1>
+    <p>寬度固定 122 公分 &nbsp;｜&nbsp; 才數 = 122 × 長度(cm) ÷ 900</p>
+  </div>
+
+  <div class="card-body">
+
+    <!-- 多筆輸入 -->
+    <div>
+      <div class="section-label">材料明細</div>
+      <div class="rows-header">
+        <span>長度（公尺）</span>
+        <span>數量（條）</span>
+        <span>小計（公尺）</span>
+        <span></span>
+      </div>
+      <div id="rows-container"></div>
+      <button class="add-btn" onclick="addRow()">＋ 新增一筆</button>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 摘要 -->
+    <div>
+      <div class="section-label">合計</div>
+      <div class="summary-grid">
+        <div class="summary-box">
+          <div class="s-label">總米數</div>
+          <div><span class="s-value" id="totalMeters">—</span><span class="s-unit" id="totalMetersUnit"></span></div>
+        </div>
+        <div class="summary-box">
+          <div class="s-label">總才數</div>
+          <div><span class="s-value" id="totalCai">—</span><span class="s-unit" id="totalCaiUnit"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 報價 -->
+    <div>
+      <div class="section-label">報價</div>
+      <div class="price-field">
+        <label>連工帶料單價</label>
+        <div class="input-wrap">
+          <input type="number" id="unitPrice" placeholder="0" min="0" step="1" oninput="calculate()" />
+          <span class="price-unit">元／才</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 總價 -->
+    <div class="result-block">
+      <span class="r-label">總價</span>
+      <span class="r-value" id="totalPrice">—</span>
+    </div>
+
+    <!-- 折扣 -->
+    <div class="discount-section">
+      <div class="section-label">行銷優惠折扣</div>
+      <div class="discount-row">
+        <label>折數</label>
+        <div class="input-wrap">
+          <input type="number" id="discount" placeholder="例：8" min="0" max="10" step="0.1"
+                 oninput="calculate()" />
+          <span class="price-unit">折</span>
+        </div>
+      </div>
+      <div class="discount-price-block">
+        <span class="r-label">優惠價</span>
+        <span class="r-value" id="discountPrice">—</span>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">清除全部</button>
+
+    <p class="formula-note">
+      每筆小計 = 長度 × 數量 &nbsp;｜&nbsp; 總才數 = 122 × (總米數 × 100) ÷ 900<br />
+      總價 = 總才數 × 單價 &nbsp;｜&nbsp; 優惠價 = 總價 × 折數 ÷ 10
+    </p>
+
+  </div>
+</div>
+
+<script>
+  let rowCount = 0;
+
+  function addRow() {
+    rowCount++;
+    const id = rowCount;
+    const container = document.getElementById('rows-container');
+
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.dataset.id = id;
+    row.innerHTML = `
+      <div class="input-wrap">
+        <input type="number" class="length-input" placeholder="0" min="0" step="any"
+               oninput="onRowInput(${id})" />
+        <span class="row-unit">m</span>
+      </div>
+      <div class="input-wrap">
+        <input type="number" class="qty-input" placeholder="0" min="0" step="1"
+               oninput="onRowInput(${id})" />
+        <span class="row-unit">條</span>
+      </div>
+      <div class="input-wrap">
+        <input type="text" class="sub-input" readonly placeholder="—" />
+        <span class="row-unit">m</span>
+      </div>
+      <button class="del-btn" onclick="deleteRow(${id})" title="刪除此筆">×</button>
+    `;
+
+    container.appendChild(row);
+    updateDeleteButtons();
+    row.querySelector('.length-input').focus();
+  }
+
+  function deleteRow(id) {
+    const row = document.querySelector(`.row-item[data-id="${id}"]`);
+    if (row) row.remove();
+    updateDeleteButtons();
+    calculate();
+  }
+
+  function updateDeleteButtons() {
+    const rows = document.querySelectorAll('.row-item');
+    rows.forEach(r => {
+      r.querySelector('.del-btn').disabled = rows.length === 1;
+    });
+  }
+
+  function onRowInput(id) {
+    const row = document.querySelector(`.row-item[data-id="${id}"]`);
+    const length = parseFloat(row.querySelector('.length-input').value) || 0;
+    const qty    = parseFloat(row.querySelector('.qty-input').value)    || 0;
+    const sub    = length * qty;
+    const subEl  = row.querySelector('.sub-input');
+    subEl.value  = (length || qty) ? fmt(sub, 2) : '';
+    calculate();
+  }
+
+  function calculate() {
+    let totalMeters = 0;
+    let hasAny = false;
+
+    document.querySelectorAll('.row-item').forEach(row => {
+      const length = parseFloat(row.querySelector('.length-input').value) || 0;
+      const qty    = parseFloat(row.querySelector('.qty-input').value)    || 0;
+      if (length || qty) hasAny = true;
+      totalMeters += length * qty;
+    });
+
+    const totalCai   = 122 * (totalMeters * 100) / 900;
+    const unitPrice  = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const totalPrice = totalCai * unitPrice;
+
+    const mEl  = document.getElementById('totalMeters');
+    const muEl = document.getElementById('totalMetersUnit');
+    const cEl  = document.getElementById('totalCai');
+    const cuEl = document.getElementById('totalCaiUnit');
+    const pEl  = document.getElementById('totalPrice');
+
+    if (hasAny) {
+      mEl.textContent  = fmt(totalMeters, 2);
+      muEl.textContent = ' 公尺';
+      cEl.textContent  = fmt(totalCai, 2);
+      cuEl.textContent = ' 才';
+    } else {
+      mEl.textContent  = '—'; muEl.textContent = '';
+      cEl.textContent  = '—'; cuEl.textContent = '';
+    }
+
+    if (totalPrice > 0) {
+      pEl.textContent = 'NT$ ' + fmt(Math.round(totalPrice), 0);
+    } else if (hasAny && unitPrice === 0) {
+      pEl.textContent = '請輸入單價';
+    } else {
+      pEl.textContent = '—';
+    }
+
+    const discountInput = parseFloat(document.getElementById('discount').value);
+    const dpEl = document.getElementById('discountPrice');
+    if (totalPrice > 0 && !isNaN(discountInput) && discountInput > 0) {
+      const discounted = Math.round(totalPrice * discountInput / 10);
+      dpEl.textContent = 'NT$ ' + fmt(discounted, 0);
+    } else {
+      dpEl.textContent = '—';
+    }
+  }
+
+  function fmt(n, decimals) {
+    return n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: decimals });
+  }
+
+  function resetAll() {
+    document.getElementById('rows-container').innerHTML = '';
+    document.getElementById('unitPrice').value = '';
+    document.getElementById('discount').value = '';
+    rowCount = 0;
+    calculate();
+    addRow();
+  }
+
+  // 初始一筆
+  addRow();
+</script>
+</body>
+</html>

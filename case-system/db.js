@@ -1537,6 +1537,27 @@ _addCol('cases', 'invalid_at',          'DATETIME');
 _addCol('cases', 'invalided_by',        'INTEGER REFERENCES users(id)');
 _addCol('cases', 'prev_status',         'TEXT');
 _addCol('cases', 'initial_estimate_at', 'DATETIME');
+_addCol('cases', 'survey_pending_at',  'DATETIME');
+
+// 無效原因標籤庫
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invalid_reason_tags (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id     INTEGER REFERENCES orgs(id),
+    name       TEXT NOT NULL,
+    is_preset  INTEGER DEFAULT 0,
+    created_by INTEGER REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+{
+  const hasPresets = db.prepare(`SELECT COUNT(*) as n FROM invalid_reason_tags WHERE is_preset=1`).get();
+  if (!hasPresets.n) {
+    const ins = db.prepare(`INSERT INTO invalid_reason_tags (org_id, name, is_preset) VALUES (NULL, ?, 1)`);
+    ['預算不符','暫緩或擱置','選擇其他廠商','聯繫不到客戶','施工地點無法進行','材料或工法不符需求','重複詢問','非真實詢問']
+      .forEach(name => ins.run(name));
+  }
+}
 
 // 初步估價紀錄（支援多種快速報價工具）
 db.exec(`

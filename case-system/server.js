@@ -64,7 +64,8 @@ app.use('/api/notifications',     require('./routes/notifications'));
 app.use('/api/settings',          require('./routes/settings'));
 app.use('/api/marketplace',       require('./routes/marketplace'));
 app.use('/api/line-inquiries',    require('./routes/line-inquiries'));
-app.use('/api/marketing',         require('./routes/marketing'));
+app.use('/api/marketing',             require('./routes/marketing'));
+app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {

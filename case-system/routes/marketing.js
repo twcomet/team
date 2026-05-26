@@ -130,4 +130,98 @@ router.get('/cs-funnel', requireAuth, (req, res) => {
   }
 });
 
+// GET /api/marketing/report?period=today|week|month&org_id=
+router.get('/report', requireAuth, (req, res) => {
+  try {
+    const me = req.session.user;
+    const { period = 'today', org_id } = req.query;
+
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    let fromDate, toDate;
+    if (period === 'today') {
+      fromDate = toDate = today;
+    } else if (period === 'week') {
+      const d = new Date(now); d.setDate(d.getDate() - 6);
+      fromDate = d.toISOString().slice(0, 10); toDate = today;
+    } else {
+      fromDate = `${today.slice(0, 7)}-01`; toDate = today;
+    }
+    const toEnd = toDate + ' 23:59:59';
+
+    const threeDaysAgo = new Date(now);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const limit3d = threeDaysAgo.toISOString().slice(0, 19).replace('T', ' ');
+
+    const of = buildOrgFilter(me, 'c.org_id', org_id);
+    const of0 = buildOrgFilter(me, 'org_id', org_id);
+
+    function alertQuery(status, tsCol) {
+      return db.prepare(`
+        SELECT c.id, c.case_number, c.client_name, c.title, c.${tsCol} as ts,
+               u.name as sales_name
+        FROM cases c LEFT JOIN users u ON u.id = c.sales_id
+        WHERE c.status=? AND c.${tsCol} IS NOT NULL AND c.${tsCol} < ?
+          ${of.where}
+        ORDER BY c.${tsCol} ASC
+      `).all(status, limit3d, ...of.params);
+    }
+
+    const afterEstimate  = alertQuery('initial_estimate', 'initial_estimate_at');
+    const surveyPending  = alertQuery('survey_pending',   'survey_pending_at');
+    const afterSurvey    = alertQuery('surveyed',         'surveyed_at');
+    const afterQuote     = alertQuery('quoted',           'quoted_at');
+
+    const funnel = db.prepare(`
+      SELECT
+        COUNT(*) as inquiries,
+        SUM(CASE WHEN status IN ('initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as initial_estimate,
+        SUM(CASE WHEN status IN ('survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as survey_pending,
+        SUM(CASE WHEN status IN ('surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as surveyed,
+        SUM(CASE WHEN status IN ('quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as quoted,
+        SUM(CASE WHEN status IN ('contracted','payment','closed') THEN 1 ELSE 0 END) as contracted
+      FROM cases
+      WHERE created_at BETWEEN ? AND ? AND status != 'invalid' ${of0.where}
+    `).get(fromDate, toEnd, ...of0.params);
+
+    const pendingRows = db.prepare(`
+      SELECT status, COUNT(*) as cnt
+      FROM cases
+      WHERE status NOT IN ('contracted','payment','closed','invalid') ${of0.where}
+      GROUP BY status
+    `).all(...of0.params);
+
+    const invalidRows = db.prepare(`
+      SELECT invalid_reason_tags, COUNT(*) as cnt
+      FROM cases
+      WHERE status='invalid'
+        AND invalid_at BETWEEN ? AND ?
+        AND invalid_reason_tags IS NOT NULL AND invalid_reason_tags != '' AND invalid_reason_tags != '[]'
+        ${of0.where}
+    `).all(fromDate, toEnd, ...of0.params);
+
+    const tagCounts = {};
+    invalidRows.forEach(r => {
+      let tags = [];
+      try { tags = JSON.parse(r.invalid_reason_tags); } catch {}
+      tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + r.cnt; });
+    });
+    const invalidReasons = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([name,cnt])=>({name,cnt}));
+
+    res.json({
+      period, fromDate, toDate,
+      alerts: {
+        afterEstimate, surveyPending, afterSurvey, afterQuote,
+        total: afterEstimate.length + surveyPending.length + afterSurvey.length + afterQuote.length,
+      },
+      funnel,
+      pending: pendingRows,
+      invalidReasons,
+    });
+  } catch (err) {
+    console.error('[marketing/report]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

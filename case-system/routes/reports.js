@@ -353,4 +353,193 @@ router.get('/pl-monthly', requireAuth, (req, res) => {
   });
 });
 
+// ── 業務報表（回簽業績）GET /api/reports/sales?period=today|week|month&org_id= ──
+router.get('/sales', requireAuth, (req, res) => {
+  try {
+    const user = req.session.user;
+    const { period = 'month', org_id } = req.query;
+    const orgRestrict = orgFilter(user);
+
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    let fromDate, toDate, prevFrom, prevTo;
+
+    if (period === 'today') {
+      fromDate = toDate = today;
+      const y = new Date(now); y.setDate(y.getDate() - 1);
+      prevFrom = prevTo = y.toISOString().slice(0, 10);
+    } else if (period === 'week') {
+      const d = new Date(now); d.setDate(d.getDate() - 6);
+      fromDate = d.toISOString().slice(0, 10); toDate = today;
+      const p1 = new Date(d); p1.setDate(p1.getDate() - 7);
+      const p2 = new Date(d); p2.setDate(p2.getDate() - 1);
+      prevFrom = p1.toISOString().slice(0, 10); prevTo = p2.toISOString().slice(0, 10);
+    } else {
+      fromDate = `${today.slice(0, 7)}-01`; toDate = today;
+      const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const pe = new Date(now.getFullYear(), now.getMonth(), 0);
+      prevFrom = pm.toISOString().slice(0, 10); prevTo = pe.toISOString().slice(0, 10);
+    }
+    const toEnd = toDate + ' 23:59:59';
+    const prevEnd = prevTo + ' 23:59:59';
+
+    const params = [], prevParams = [];
+    let where = `WHERE c.status IN ('contracted','payment','closed')
+      AND c.contracted_at BETWEEN ? AND ?`;
+    params.push(fromDate, toEnd);
+    let prevWhere = `WHERE c.status IN ('contracted','payment','closed')
+      AND c.contracted_at BETWEEN ? AND ?`;
+    prevParams.push(prevFrom, prevEnd);
+
+    if (orgRestrict.org_id) {
+      where += ' AND c.org_id=?'; params.push(orgRestrict.org_id);
+      prevWhere += ' AND c.org_id=?'; prevParams.push(orgRestrict.org_id);
+    } else if (org_id) {
+      where += ' AND c.org_id=?'; params.push(Number(org_id));
+      prevWhere += ' AND c.org_id=?'; prevParams.push(Number(org_id));
+    }
+
+    const summary = db.prepare(`
+      SELECT COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)*1.05) as tax_value,
+        SUM(COALESCE(c.payment_received, 0)) as received
+      FROM cases c ${where}
+    `).get(...params);
+
+    const prevSummary = db.prepare(`
+      SELECT COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
+      FROM cases c ${prevWhere}
+    `).get(...prevParams);
+
+    const bySales = db.prepare(`
+      SELECT COALESCE(c.sales_name,'未指定') as name,
+        COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)*1.05) as tax_value,
+        SUM(COALESCE(c.payment_received, 0)) as received
+      FROM cases c ${where}
+      GROUP BY c.sales_name ORDER BY gross_value DESC
+    `).all(...params);
+
+    const byType = db.prepare(`
+      SELECT c.case_type,
+        COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
+      FROM cases c ${where}
+      GROUP BY c.case_type ORDER BY gross_value DESC
+    `).all(...params);
+
+    const bySource = db.prepare(`
+      SELECT COALESCE(cl.source, '未填寫') as source,
+        COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
+      FROM cases c LEFT JOIN clients cl ON cl.id = c.client_id
+      ${where.replace('WHERE', 'WHERE')}
+      GROUP BY COALESCE(cl.source,'未填寫') ORDER BY gross_value DESC
+    `).all(...params);
+
+    const byLevel = db.prepare(`
+      SELECT COALESCE(cl.client_level,'未分級') as level,
+        COUNT(*) as count,
+        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
+      FROM cases c LEFT JOIN clients cl ON cl.id = c.client_id
+      ${where.replace('WHERE', 'WHERE')}
+      GROUP BY COALESCE(cl.client_level,'未分級') ORDER BY gross_value DESC
+    `).all(...params);
+
+    const orgRestrict2 = orgFilter(user);
+    let pipeParams = [];
+    let pipeWhere = `WHERE status NOT IN ('contracted','payment','closed','invalid')`;
+    if (orgRestrict2.org_id) { pipeWhere += ' AND org_id=?'; pipeParams.push(orgRestrict2.org_id); }
+    else if (org_id) { pipeWhere += ' AND org_id=?'; pipeParams.push(Number(org_id)); }
+
+    const pipeline = db.prepare(`
+      SELECT status, COUNT(*) as cnt
+      FROM cases ${pipeWhere}
+      GROUP BY status
+    `).all(...pipeParams);
+
+    const cases = db.prepare(`
+      SELECT c.id, c.case_number, c.title, c.client_name, c.case_type,
+             c.sales_name, c.contracted_at, c.scheduled_date,
+             COALESCE(c.final_price, c.quoted_price, 0) as value,
+             COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
+             COALESCE(c.payment_received, 0) as received,
+             c.payment_status, c.status
+      FROM cases c ${where}
+      ORDER BY c.contracted_at DESC
+    `).all(...params);
+
+    res.json({ period, fromDate, toDate, summary, prevSummary, bySales, byType, bySource, byLevel, pipeline, cases });
+  } catch (err) {
+    console.error('[reports/sales]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── 收款狀況 GET /api/reports/payment-status?org_id= ──
+router.get('/payment-status', requireAuth, (req, res) => {
+  try {
+    const user = req.session.user;
+    const { org_id } = req.query;
+    const orgRestrict = orgFilter(user);
+
+    const params = [];
+    let where = 'WHERE 1=1';
+    if (orgRestrict.org_id) { where += ' AND org_id=?'; params.push(orgRestrict.org_id); }
+    else if (org_id) { where += ' AND org_id=?'; params.push(Number(org_id)); }
+
+    const pendingDeposit = db.prepare(`
+      SELECT id, case_number, client_name, title, contracted_at,
+             COALESCE(final_price, quoted_price, 0) as value,
+             COALESCE(final_price, quoted_price, 0)*1.05 as tax_value,
+             COALESCE(deposit_amount, 0) as deposit,
+             COALESCE(payment_received, 0) as received,
+             sales_name, payment_status
+      FROM cases
+      WHERE status IN ('contracted','payment') AND COALESCE(deposit_amount, 0) = 0 ${where.replace('WHERE 1=1', '')}
+      ORDER BY contracted_at ASC
+    `).all(...params);
+
+    const pendingFinal = db.prepare(`
+      SELECT id, case_number, client_name, title, contracted_at,
+             COALESCE(final_price, quoted_price, 0) as value,
+             COALESCE(final_price, quoted_price, 0)*1.05 as tax_value,
+             COALESCE(payment_received, 0) as received,
+             sales_name, payment_status
+      FROM cases
+      WHERE status = 'payment' ${where.replace('WHERE 1=1', '')}
+      ORDER BY contracted_at ASC
+    `).all(...params);
+
+    const now = new Date();
+    const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const monthlyCollection = db.prepare(`
+      SELECT SUM(COALESCE(payment_received, 0)) as total,
+             COUNT(*) as cnt
+      FROM cases
+      WHERE status IN ('contracted','payment','closed')
+        AND payment_received > 0 ${where.replace('WHERE 1=1', '')}
+    `).get(...params);
+
+    const dailyCollection = db.prepare(`
+      SELECT date(updated_at) as day,
+             SUM(COALESCE(payment_received, 0)) as total,
+             COUNT(*) as cnt
+      FROM cases
+      WHERE status IN ('contracted','payment','closed')
+        AND payment_received > 0
+        AND date(updated_at) >= ? ${where.replace('WHERE 1=1', '')}
+      GROUP BY day ORDER BY day DESC LIMIT 30
+    `).all(thisMonthStart, ...params);
+
+    res.json({ pendingDeposit, pendingFinal, monthlyCollection, dailyCollection });
+  } catch (err) {
+    console.error('[reports/payment-status]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

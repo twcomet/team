@@ -7,25 +7,30 @@
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
-.filter-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
-.period-tab { padding:6px 16px; border-radius:20px; border:1px solid var(--gray-300); background:#fff; cursor:pointer; font-size:13px; font-weight:500; color:var(--gray-600); }
+.period-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+.period-tab { padding:6px 18px; border-radius:20px; border:1px solid var(--gray-300); background:#fff; cursor:pointer; font-size:13px; font-weight:500; color:var(--gray-600); }
 .period-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:12px; margin-bottom:20px; }
 .stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; }
 .stat-card .label { font-size:12px; color:var(--gray-500); margin-bottom:6px; }
 .stat-card .value { font-size:20px; font-weight:700; }
 .stat-card .value.success { color:#057a55; }
 .stat-card .value.danger  { color:#e02424; }
-.analysis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:20px; }
+.stat-card .trend { font-size:11px; margin-top:4px; }
+.stat-card .trend.up   { color:#059669; }
+.stat-card .trend.down { color:#dc2626; }
+.analysis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-bottom:20px; }
 .mini-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px; }
 .mini-card h4 { font-size:13px; font-weight:600; color:var(--gray-700); margin-bottom:12px; border-bottom:1px solid var(--gray-100); padding-bottom:8px; }
 .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px; }
-.bar-label { width:90px; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bar-label { width:80px; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track { flex:1; height:8px; background:var(--gray-100); border-radius:4px; overflow:hidden; }
 .bar-fill  { height:100%; border-radius:4px; transition:width .4s; }
-.bar-val   { width:80px; text-align:right; color:var(--gray-700); font-weight:500; }
-.bar-cnt   { width:36px; text-align:right; color:var(--gray-400); font-size:11px; }
-.empty-analysis { color:var(--gray-400); font-size:13px; padding:12px 0; }
+.bar-val   { width:72px; text-align:right; color:var(--gray-700); font-weight:500; font-size:11px; }
+.bar-cnt   { width:34px; text-align:right; color:var(--gray-400); font-size:11px; }
+.pipeline-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--gray-100); font-size:13px; }
+.pipeline-row:last-child { border:none; }
+.pipeline-cnt { font-size:18px; font-weight:700; color:var(--primary); width:36px; text-align:center; }
 </style>
 </head>
 <body>
@@ -62,70 +67,50 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">業績報表</span>
-      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 列印</button>
-    </div>
-    <div class="page-body">
-
-      <!-- 期間 + 篩選 -->
-      <div class="filter-bar">
-        <button class="period-tab active" onclick="setPeriod('day')">日</button>
-        <button class="period-tab"        onclick="setPeriod('month')">月</button>
-        <button class="period-tab"        onclick="setPeriod('year')">年</button>
-        <input type="date"  id="pickDay"   style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
-        <input type="month" id="pickMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-        <select id="pickYear" style="display:none;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"></select>
-
-        <select id="filterType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部類型</option>
-          <option value="home">居家</option>
-          <option value="commercial">商空</option>
-          <option value="elevator">電梯</option>
-          <option value="glass">玻璃</option>
-          <option value="extra">外快</option>
-          <option value="outsource">外包</option>
-          <option value="output">輸出</option>
-          <option value="other">其他</option>
-        </select>
-
-        <select id="filterSales" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部業務</option>
-        </select>
-
-        <select id="filterFilm" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部膜料</option>
-        </select>
-
+      <div style="display:flex;align-items:center;gap:8px">
         <span id="orgFilterWrap" style="display:none;align-items:center;gap:6px">
           <label style="font-size:13px;color:var(--gray-600)">店別</label>
-          <select id="filterOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <select id="filterOrg" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
             <option value="">全部</option>
           </select>
         </span>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 列印</button>
+      </div>
+    </div>
+    <div class="page-body">
 
-        <button class="btn btn-primary btn-sm" onclick="load()">查詢</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearFilter()">清除</button>
+      <div class="period-bar">
+        <button class="period-tab active" onclick="setPeriod('today')">今日</button>
+        <button class="period-tab"        onclick="setPeriod('week')">本週</button>
+        <button class="period-tab"        onclick="setPeriod('month')">本月</button>
       </div>
 
-      <!-- 統計卡 -->
       <div class="stats-grid" id="perfStats"></div>
 
-      <!-- 三維分析 -->
       <div class="analysis-grid">
         <div class="mini-card">
-          <h4>依案件類型</h4>
-          <div id="byType"></div>
-        </div>
-        <div class="mini-card">
-          <h4>依業務人員</h4>
+          <h4>業務員排名</h4>
           <div id="bySales"></div>
         </div>
         <div class="mini-card">
-          <h4>依膜料品牌</h4>
-          <div id="byFilm"></div>
+          <h4>案件類型分析</h4>
+          <div id="byType"></div>
+        </div>
+        <div class="mini-card">
+          <h4>客戶來源分析</h4>
+          <div id="bySource"></div>
+        </div>
+        <div class="mini-card">
+          <h4>客戶等級分析</h4>
+          <div id="byLevel"></div>
         </div>
       </div>
 
-      <!-- 案件明細 -->
+      <div class="mini-card" style="margin-bottom:20px">
+        <h4>目前案件漏斗（所有進行中案件）</h4>
+        <div id="pipeline"></div>
+      </div>
+
       <div class="card">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
@@ -133,12 +118,11 @@
               <thead>
                 <tr>
                   <th>案號</th><th>客戶</th><th>項目</th><th>類型</th>
-                  <th>業務</th><th>施工日</th>
+                  <th>業務</th><th>回簽日</th>
                   <th style="text-align:right">成交金額</th>
                   <th style="text-align:right">含稅</th>
                   <th style="text-align:right">已收</th>
                   <th style="text-align:right">待收</th>
-                  <th>狀態</th>
                 </tr>
               </thead>
               <tbody id="caseTable"></tbody>
@@ -153,200 +137,156 @@
 
 <script src="/js/common.js"></script>
 <script>
-let periodType = 'month';
-let rawData = null;
+let currentPeriod = 'month';
+let orgId = '';
 
-const PAY_BADGE = {
-  unpaid:  '<span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:20px;font-size:11px">未收款</span>',
-  partial: '<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:20px;font-size:11px">部分收款</span>',
-  paid:    '<span style="background:#dcfce7;color:#14532d;padding:2px 7px;border-radius:20px;font-size:11px">已收款</span>',
-  overdue: '<span style="background:#fde8e8;color:#e02424;padding:2px 7px;border-radius:20px;font-size:11px">逾期</span>',
+const SOURCE_LABELS = {
+  line: 'LINE', referral: '口碑介紹', google: 'Google', fb: 'Facebook/IG',
+  ig: 'Instagram', friend: '朋友介紹', walk_in: '自來客', other: '其他',
 };
 
 async function init() {
   await loadUser();
   highlightNav('performance');
 
-  const now = new Date();
-  document.getElementById('pickDay').value   = now.toISOString().slice(0,10);
-  document.getElementById('pickMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const ySel = document.getElementById('pickYear');
-  for (let y = now.getFullYear(); y >= 2020; y--) {
-    const o = document.createElement('option'); o.value = y; o.textContent = `${y} 年`; ySel.appendChild(o);
-  }
-
-  // 店別
   if (currentUser?.view_all_branches) {
     document.getElementById('orgFilterWrap').style.display = 'flex';
-    const res = await fetch('/api/orgs');
-    const orgs = await res.json();
+    const orgs = await fetch('/api/orgs').then(r => r.json());
     const sel = document.getElementById('filterOrg');
     orgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; sel.appendChild(opt); });
+    sel.addEventListener('change', () => { orgId = sel.value; load(); });
   }
 
   await load();
 }
 
-function setPeriod(type) {
-  periodType = type;
-  document.querySelectorAll('.period-tab').forEach((b,i) => b.classList.toggle('active', ['day','month','year'][i]===type));
-  document.getElementById('pickDay').style.display   = type==='day'   ? '' : 'none';
-  document.getElementById('pickMonth').style.display = type==='month' ? '' : 'none';
-  document.getElementById('pickYear').style.display  = type==='year'  ? '' : 'none';
-}
-
-function getDateRange() {
-  if (periodType === 'day') {
-    const d = document.getElementById('pickDay').value;
-    return { from: d, to: d };
-  }
-  if (periodType === 'month') {
-    const m = document.getElementById('pickMonth').value;
-    const [y, mo] = m.split('-').map(Number);
-    return { from: `${m}-01`, to: `${m}-${String(new Date(y,mo,0).getDate()).padStart(2,'0')}` };
-  }
-  const y = document.getElementById('pickYear').value;
-  return { from: `${y}-01-01`, to: `${y}-12-31` };
+function setPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll('.period-tab').forEach((b, i) =>
+    b.classList.toggle('active', ['today','week','month'][i] === p)
+  );
+  load();
 }
 
 async function load() {
-  const { from, to } = getDateRange();
-  const org = document.getElementById('filterOrg')?.value || '';
-  const qs  = `from=${from}&to=${to}${org ? '&org_id='+org : ''}`;
-  rawData = await fetch(`/api/reports/performance?${qs}`).then(r => r.json());
-
-  // Populate dynamic selects
-  populateSalesFilter(rawData.bySales);
-  populateFilmFilter(rawData.byFilm);
-
-  applyFilter();
+  const qs = `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
+  let d;
+  try {
+    const res = await fetch(`/api/reports/sales?${qs}`);
+    d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+  } catch (e) {
+    document.getElementById('perfStats').innerHTML = `<div style="color:#e02424">載入失敗：${e.message}</div>`;
+    return;
+  }
+  renderStats(d);
+  renderAnalysis(d);
+  renderPipeline(d.pipeline);
+  renderTable(d.cases);
 }
 
-function populateSalesFilter(bySales) {
-  const sel = document.getElementById('filterSales');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">全部業務</option>';
-  (bySales || []).forEach(r => {
-    const o = document.createElement('option'); o.value = r.name; o.textContent = r.name; sel.appendChild(o);
-  });
-  if (cur) sel.value = cur;
+function pctDiff(cur, prev) {
+  if (!prev) return null;
+  return ((cur - prev) / prev * 100).toFixed(0);
 }
 
-function populateFilmFilter(byFilm) {
-  const sel = document.getElementById('filterFilm');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">全部膜料</option>';
-  (byFilm || []).forEach(r => {
-    const o = document.createElement('option'); o.value = r.film_brand; o.textContent = r.film_brand; sel.appendChild(o);
-  });
-  if (cur) sel.value = cur;
-}
+function renderStats(d) {
+  const s = d.summary || {};
+  const p = d.prevSummary || {};
+  const gross = s.gross_value || 0;
+  const tax   = Math.round((s.tax_value || gross * 1.05));
+  const recv  = s.received || 0;
+  const avg   = s.count ? Math.round(gross / s.count) : 0;
+  const diffCnt = pctDiff(s.count || 0, p.count || 0);
+  const diffAmt = pctDiff(gross, p.gross_value || 0);
 
-function clearFilter() {
-  document.getElementById('filterType').value  = '';
-  document.getElementById('filterSales').value = '';
-  document.getElementById('filterFilm').value  = '';
-  applyFilter();
-}
-
-function applyFilter() {
-  if (!rawData) return;
-  const fType  = document.getElementById('filterType').value;
-  const fSales = document.getElementById('filterSales').value;
-  const fFilm  = document.getElementById('filterFilm').value;
-
-  let cases = rawData.cases || [];
-  if (fType)  cases = cases.filter(c => c.case_type === fType);
-  if (fSales) cases = cases.filter(c => (c.sales_name||'未指定') === fSales);
-
-  // Film filter: need to cross-ref if possible — for now filter locally by byFilm case_count hint
-  // Since API doesn't return film per case, film filter is advisory (highlights summary only)
-
-  renderStats(cases);
-  renderAnalysis(cases, fFilm);
-  renderTable(cases);
-}
-
-function renderStats(cases) {
-  const gross    = cases.reduce((s,c) => s + (c.value||0), 0);
-  const tax      = cases.reduce((s,c) => s + (c.tax_value||0), 0);
-  const received = cases.reduce((s,c) => s + (c.received||0), 0);
-  const outstanding = tax - received;
   document.getElementById('perfStats').innerHTML = `
-    <div class="stat-card"><div class="label">成交案件數</div><div class="value">${cases.length} 件</div></div>
-    <div class="stat-card"><div class="label">成交總額（未稅）</div><div class="value">${fmt(gross)}</div></div>
-    <div class="stat-card"><div class="label">含稅總額</div><div class="value">${fmt(tax)}</div></div>
-    <div class="stat-card"><div class="label">已收款</div><div class="value success">${fmt(received)}</div></div>
-    <div class="stat-card"><div class="label">待收款</div><div class="value ${outstanding>0?'danger':'success'}">${fmt(outstanding)}</div></div>
+    <div class="stat-card">
+      <div class="label">回簽件數</div>
+      <div class="value">${s.count || 0} 件</div>
+      ${diffCnt !== null ? `<div class="trend ${Number(diffCnt)>=0?'up':'down'}">${Number(diffCnt)>=0?'▲':'▼'} ${Math.abs(diffCnt)}% vs 前期</div>` : ''}
+    </div>
+    <div class="stat-card">
+      <div class="label">回簽金額（未稅）</div>
+      <div class="value">${fmt(gross)}</div>
+      ${diffAmt !== null ? `<div class="trend ${Number(diffAmt)>=0?'up':'down'}">${Number(diffAmt)>=0?'▲':'▼'} ${Math.abs(diffAmt)}% vs 前期</div>` : ''}
+    </div>
+    <div class="stat-card">
+      <div class="label">含稅總額</div>
+      <div class="value">${fmt(tax)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">平均單價（未稅）</div>
+      <div class="value">${avg ? fmt(avg) : '—'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">已收款</div>
+      <div class="value success">${fmt(recv)}</div>
+    </div>
   `;
 }
 
-function barRows(items, labelKey, valKey, cntKey, color) {
-  if (!items || !items.length) return '<div class="empty-analysis">無資料</div>';
-  const max = Math.max(...items.map(r => r[valKey]||0), 1);
-  return items.map(r => `
-    <div class="bar-row">
-      <span class="bar-label" title="${r[labelKey]}">${r[labelKey]}</span>
+function barRows(items, labelKey, valKey, cntKey, color, labelMap) {
+  if (!items?.length) return '<div style="color:var(--gray-400);font-size:13px">無資料</div>';
+  const max = Math.max(...items.map(r => r[valKey] || 0), 1);
+  return items.map(r => {
+    const label = labelMap ? (labelMap[r[labelKey]] || r[labelKey] || '—') : (r[labelKey] || '—');
+    return `<div class="bar-row">
+      <span class="bar-label" title="${label}">${label}</span>
       <div class="bar-track"><div class="bar-fill" style="width:${((r[valKey]||0)/max*100).toFixed(1)}%;background:${color}"></div></div>
       <span class="bar-val">${fmt(r[valKey]||0)}</span>
-      <span class="bar-cnt">${r[cntKey]}件</span>
-    </div>`).join('');
+      ${cntKey ? `<span class="bar-cnt">${r[cntKey]}件</span>` : ''}
+    </div>`;
+  }).join('');
 }
 
-function renderAnalysis(cases, fFilm) {
-  // byType from filtered cases
-  const typeMap = {};
-  cases.forEach(c => {
-    const k = CASE_TYPE_LABELS[c.case_type] || c.case_type || '其他';
-    if (!typeMap[k]) typeMap[k] = { label:k, gross:0, count:0 };
-    typeMap[k].gross += c.value||0; typeMap[k].count++;
-  });
-  const byType = Object.values(typeMap).sort((a,b)=>b.gross-a.gross);
-  document.getElementById('byType').innerHTML = byType.length
-    ? barRows(byType.map(r=>({label:r.label,gross:r.gross,count:r.count})), 'label', 'gross', 'count', 'var(--primary)')
-    : '<div class="empty-analysis">無資料</div>';
+function renderAnalysis(d) {
+  document.getElementById('bySales').innerHTML = barRows(d.bySales, 'name', 'gross_value', 'count', 'var(--primary)', null);
+  document.getElementById('byType').innerHTML  = barRows(d.byType, 'case_type', 'gross_value', 'count', '#10b981', CASE_TYPE_LABELS);
+  document.getElementById('bySource').innerHTML = barRows(d.bySource, 'source', 'gross_value', 'count', '#8b5cf6', SOURCE_LABELS);
+  document.getElementById('byLevel').innerHTML  = barRows(d.byLevel, 'level', 'gross_value', 'count', '#f59e0b', null);
+}
 
-  // bySales from filtered cases
-  const salesMap = {};
-  cases.forEach(c => {
-    const k = c.sales_name || '未指定';
-    if (!salesMap[k]) salesMap[k] = { name:k, gross:0, count:0 };
-    salesMap[k].gross += c.value||0; salesMap[k].count++;
-  });
-  const bySales = Object.values(salesMap).sort((a,b)=>b.gross-a.gross);
-  document.getElementById('bySales').innerHTML = bySales.length
-    ? barRows(bySales.map(r=>({film_brand:r.name,gross_value:r.gross,case_count:r.count})), 'film_brand', 'gross_value', 'case_count', '#10b981')
-    : '<div class="empty-analysis">無資料</div>';
+const PIPE_LABELS = {
+  inquiry:'詢價', initial_estimate:'初步估價', survey_pending:'待排場勘',
+  survey_scheduled:'已排場勘', surveyed:'已場勘', quote_draft:'報價草稿', quoted:'已報價',
+};
+const PIPE_ORDER = ['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted'];
 
-  // byFilm from API (full dataset, not filtered by case)
-  const filmData = fFilm
-    ? (rawData.byFilm||[]).filter(r => r.film_brand === fFilm)
-    : (rawData.byFilm||[]);
-  document.getElementById('byFilm').innerHTML = filmData.length
-    ? barRows(filmData, 'film_brand', 'gross_value', 'case_count', '#f59e0b')
-    : '<div class="empty-analysis">尚無膜料使用記錄</div>';
+function renderPipeline(pipeline) {
+  const el = document.getElementById('pipeline');
+  if (!pipeline?.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">目前無進行中案件</div>'; return; }
+  const map = {};
+  pipeline.forEach(r => { map[r.status] = r.cnt; });
+  el.innerHTML = PIPE_ORDER.filter(s => map[s]).map(s => `
+    <div class="pipeline-row">
+      <span class="pipeline-cnt">${map[s]}</span>
+      <span style="flex:1;font-size:13px">${PIPE_LABELS[s]}</span>
+      <div style="width:120px;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden">
+        <div style="width:${Math.min(100,(map[s]/Math.max(...Object.values(map))*100)).toFixed(0)}%;height:100%;background:var(--primary);border-radius:3px"></div>
+      </div>
+    </div>`).join('');
 }
 
 function renderTable(cases) {
   const tbody = document.getElementById('caseTable');
-  if (!cases.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📋</div>此期間無符合案件</div></td></tr>';
+  if (!cases?.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div>此期間無回簽案件</div></td></tr>';
     return;
   }
   tbody.innerHTML = cases.map(c => {
-    const outstanding = (c.tax_value||0) - (c.received||0);
+    const outstanding = Math.round((c.tax_value||0)) - (c.received||0);
     return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:11px">${c.case_number}</code></td>
       <td>${c.client_name||'—'}</td>
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-      <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type}</td>
+      <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type||'—'}</td>
       <td>${c.sales_name||'—'}</td>
-      <td>${c.scheduled_date||'—'}</td>
-      <td style="text-align:right">${c.value?fmt(c.value):'—'}</td>
-      <td style="text-align:right;font-weight:600">${c.tax_value?fmt(c.tax_value):'—'}</td>
-      <td style="text-align:right;color:#057a55">${c.received?fmt(c.received):'—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td style="text-align:right">${c.value ? fmt(c.value) : '—'}</td>
+      <td style="text-align:right;font-weight:600">${c.tax_value ? fmt(Math.round(c.tax_value)) : '—'}</td>
+      <td style="text-align:right;color:#057a55">${c.received ? fmt(c.received) : '—'}</td>
       <td style="text-align:right;color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓'}</td>
-      <td>${PAY_BADGE[c.payment_status]||'—'}</td>
     </tr>`;
   }).join('');
 }

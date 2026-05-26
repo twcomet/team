@@ -110,6 +110,7 @@
         <button class="tab-btn"        onclick="switchTab('perf')">業績報表</button>
         <button class="tab-btn"        onclick="switchTab('cf')">現金流量表</button>
         <button class="tab-btn"        onclick="switchTab('income')">收入分析</button>
+        <button class="tab-btn"        onclick="switchTab('payment')">收款狀況</button>
         <button class="tab-btn"        onclick="switchTab('cats')">科目管理</button>
       </div>
 
@@ -199,6 +200,46 @@
           <div class="card-header"><h3>每月收入趨勢</h3></div>
           <div class="card-body" style="padding:0">
             <div class="pl-wrap"><table class="pl-ct" id="incMonthTable"></table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 收款狀況 ===== -->
+      <div id="panelPayment" style="display:none">
+        <div class="stats-grid" id="payStats"></div>
+        <div style="margin-bottom:20px">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><h3>待收訂金案件（已成交但訂金未收）</h3></div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>案號</th><th>客戶</th><th>回簽日</th><th style="text-align:right">含稅總額</th><th>業務</th><th>狀態</th></tr></thead>
+                  <tbody id="depositTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><h3>完工待收尾款案件</h3></div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>案號</th><th>客戶</th><th>回簽日</th><th style="text-align:right">含稅總額</th><th style="text-align:right">已收</th><th style="text-align:right">待收</th><th>業務</th></tr></thead>
+                  <tbody id="finalTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>本月每日實際收款（依最後更新日）</h3></div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>日期</th><th style="text-align:right">案件數</th><th style="text-align:right">收款總額</th></tr></thead>
+                  <tbody id="dailyPayTable"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -317,19 +358,21 @@ async function init() {
   await loadPl();
 }
 
-const TABS = ['pl','perf','cf','income','cats'];
+const TABS = ['pl','perf','cf','income','payment','cats'];
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TABS[i]===tab));
-  document.getElementById('panelPl').style.display     = tab==='pl'     ? '' : 'none';
-  document.getElementById('panelPerf').style.display   = tab==='perf'   ? '' : 'none';
-  document.getElementById('panelCf').style.display     = tab==='cf'     ? '' : 'none';
-  document.getElementById('panelIncome').style.display = tab==='income' ? '' : 'none';
-  document.getElementById('panelCats').style.display   = tab==='cats'   ? '' : 'none';
+  document.getElementById('panelPl').style.display      = tab==='pl'      ? '' : 'none';
+  document.getElementById('panelPerf').style.display    = tab==='perf'    ? '' : 'none';
+  document.getElementById('panelCf').style.display      = tab==='cf'      ? '' : 'none';
+  document.getElementById('panelIncome').style.display  = tab==='income'  ? '' : 'none';
+  document.getElementById('panelPayment').style.display = tab==='payment' ? '' : 'none';
+  document.getElementById('panelCats').style.display    = tab==='cats'    ? '' : 'none';
   document.getElementById('plPeriodBar').style.display    = (tab==='pl'||tab==='income') ? '' : 'none';
   document.getElementById('otherPeriodBar').style.display = (tab==='perf'||tab==='cf')  ? '' : 'none';
   if (tab==='perf' || tab==='cf') loadOther();
   if (tab==='income') loadIncome();
+  if (tab==='payment') loadPaymentStatus();
   if (tab==='cats') loadCats();
 }
 
@@ -824,6 +867,65 @@ async function deleteCat(id) {
   if (!confirm(`確定刪除「${cat?.name}」？`)) return;
   await fetch(`/api/ledger/categories/${id}`, { method:'DELETE' });
   await loadCats();
+}
+
+// ─── 收款狀況 ─────────────────────────────────────────────────
+async function loadPaymentStatus() {
+  const org = document.getElementById('filterOrgPl')?.value || '';
+  const qs  = org ? `org_id=${org}` : '';
+  const d   = await fetch(`/api/reports/payment-status?${qs}`).then(r => r.json());
+  renderPaymentStatus(d);
+}
+
+function renderPaymentStatus(d) {
+  const { pendingDeposit, pendingFinal, monthlyCollection, dailyCollection } = d;
+
+  const totalPendingDeposit = pendingDeposit.reduce((s,c) => s + Math.round(c.tax_value||0), 0);
+  const totalPendingFinal   = pendingFinal.reduce((s,c) => s + Math.round((c.tax_value||0) - (c.received||0)), 0);
+
+  document.getElementById('payStats').innerHTML = `
+    <div class="stat-card"><div class="label">待收訂金案件</div><div class="value danger">${pendingDeposit.length} 件</div></div>
+    <div class="stat-card"><div class="label">待收訂金金額（含稅）</div><div class="value danger">${fmt(totalPendingDeposit)}</div></div>
+    <div class="stat-card"><div class="label">完工待收尾款</div><div class="value warning">${pendingFinal.length} 件</div></div>
+    <div class="stat-card"><div class="label">待收尾款金額</div><div class="value warning">${fmt(totalPendingFinal)}</div></div>
+    <div class="stat-card"><div class="label">本月已收款總額</div><div class="value success">${fmt(monthlyCollection?.total||0)}</div></div>
+  `;
+
+  const depBody = document.getElementById('depositTable');
+  depBody.innerHTML = pendingDeposit.length ? pendingDeposit.map(c => `
+    <tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <td><code style="font-size:11px">${c.case_number}</code></td>
+      <td>${c.client_name||'—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td style="text-align:right;font-weight:600">${fmt(Math.round(c.tax_value||0))}</td>
+      <td>${c.sales_name||'—'}</td>
+      <td>${paymentBadge(c.payment_status)}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="6" style="padding:16px;color:var(--gray-400);text-align:center">目前無待收訂金案件</td></tr>';
+
+  const finalBody = document.getElementById('finalTable');
+  finalBody.innerHTML = pendingFinal.length ? pendingFinal.map(c => {
+    const outstanding = Math.round((c.tax_value||0)) - (c.received||0);
+    return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <td><code style="font-size:11px">${c.case_number}</code></td>
+      <td>${c.client_name||'—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td style="text-align:right">${fmt(Math.round(c.tax_value||0))}</td>
+      <td style="text-align:right;color:#057a55">${c.received ? fmt(c.received) : '—'}</td>
+      <td style="text-align:right;color:#e02424;font-weight:600">${fmt(outstanding)}</td>
+      <td>${c.sales_name||'—'}</td>
+    </tr>`;
+  }).join('')
+    : '<tr><td colspan="7" style="padding:16px;color:var(--gray-400);text-align:center">目前無完工待收案件</td></tr>';
+
+  const dailyBody = document.getElementById('dailyPayTable');
+  dailyBody.innerHTML = dailyCollection?.length ? dailyCollection.map(r => `
+    <tr>
+      <td>${r.day}</td>
+      <td style="text-align:right">${r.cnt} 件</td>
+      <td style="text-align:right;font-weight:600;color:#057a55">${fmt(Math.round(r.total||0))}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="3" style="padding:16px;color:var(--gray-400);text-align:center">本月暫無收款記錄</td></tr>';
 }
 
 init();
