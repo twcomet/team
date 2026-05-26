@@ -5,7 +5,7 @@ const { pushMessage } = require('./webhook');
 const router = express.Router();
 
 // ── 派工通知 ─────────────────────────────────────────────────
-const DISPATCH_LABELS = { survey:'場勘', install:'施工', aftersales:'維修' };
+const DISPATCH_LABELS = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
 
 async function notifyDispatch(case_id, dispatch_type, scheduled_date, user_ids, creatorId) {
   if (!Array.isArray(user_ids) || !user_ids.length) return;

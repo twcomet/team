@@ -46,9 +46,12 @@
 .dispatch-card { border:1px solid var(--gray-200); border-radius:10px; padding:16px; margin-bottom:12px; }
 .dispatch-card .dc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .dispatch-type-tag { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; }
-.tag-survey   { background:#dbeafe; color:#1e40af; }
-.tag-install  { background:#d1fae5; color:#065f46; }
-.tag-aftersales { background:#ede9fe; color:#5b21b6; }
+.tag-survey       { background:#dbeafe; color:#1e40af; }
+.tag-install      { background:#d1fae5; color:#065f46; }
+.tag-aftersales   { background:#ede9fe; color:#5b21b6; }
+.tag-cut          { background:#fef3c7; color:#92400e; }
+.tag-factory      { background:#e0f2fe; color:#0c4a6e; }
+.tag-other        { background:#f3f4f6; color:#374151; }
 
 /* 歷程 */
 .log-item { padding:10px 0; border-bottom:1px solid var(--gray-100); display:flex; gap:12px; align-items:flex-start; }
@@ -966,38 +969,87 @@
 
 <!-- 新增派工 Modal -->
 <div class="modal-overlay" id="dispatchModal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:740px;width:95vw">
     <div class="modal-header"><h3 id="dispatchModalTitle">新增派工</h3><button class="modal-close" onclick="document.getElementById('dispatchModal').classList.remove('open')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="d_dispatch_id">
+
+      <!-- 類型 + 狀態 -->
       <div class="form-row">
         <div class="form-group"><label>派工類型</label>
           <select id="d_type">
-            <option value="survey">場勘</option>
+            <option value="cut_material">裁切材料</option>
+            <option value="factory_survey">廠勘</option>
             <option value="install" selected>施工</option>
             <option value="aftersales">售後服務</option>
+            <option value="other">其他</option>
           </select>
         </div>
         <div class="form-group"><label>狀態</label>
           <select id="d_status">
-            <option value="pending">待確認</option><option value="confirmed">已確認</option>
-            <option value="done">完成</option><option value="cancelled">取消</option>
+            <option value="pending">待確認</option>
+            <option value="confirmed">已確認</option>
+            <option value="done">完成</option>
+            <option value="cancelled">取消</option>
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>日期 *</label><input type="date" id="d_date"></div>
-        <div class="form-group"><label>時間</label><input type="time" id="d_time"></div>
+
+      <!-- 日期模式（新增時顯示，編輯時隱藏） -->
+      <div id="d_date_mode_wrap" class="form-group" style="margin-bottom:10px">
+        <label style="margin-bottom:6px">日期模式</label>
+        <div style="display:flex;gap:20px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;font-weight:normal">
+            <input type="radio" name="d_date_mode" value="single" checked onchange="switchDateMode()"> 單日
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;font-weight:normal">
+            <input type="radio" name="d_date_mode" value="range" onchange="switchDateMode()"> 區間派工
+          </label>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>預估工時（小時）</label><input type="number" id="d_hours" step="0.5" placeholder="4"></div>
-        <div class="form-group"><label>使用材料</label><input type="text" id="d_material" placeholder="PAROI MX-001 等"></div>
+
+      <!-- 單日模式 -->
+      <div id="d_single_wrap">
+        <div class="form-row">
+          <div class="form-group"><label>日期 *</label><input type="date" id="d_date"></div>
+          <div class="form-group">
+            <label>到場時間</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="d_time_h" style="flex:1"></select>
+              <span style="font-size:15px;font-weight:600;color:#374151">:</span>
+              <select id="d_time_m" style="width:68px">
+                <option value="">--</option>
+                <option value="00">00</option>
+                <option value="30">30</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label>預估工時（小時）</label><input type="number" id="d_hours" step="0.5" placeholder="4" min="0"></div>
+        </div>
       </div>
+
+      <!-- 區間模式 -->
+      <div id="d_range_wrap" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><label>起始日期 *</label><input type="date" id="d_start_date" onchange="buildDayRows()"></div>
+          <div class="form-group"><label>結束日期 *</label><input type="date" id="d_end_date" onchange="buildDayRows()"></div>
+        </div>
+        <div id="d_day_rows" style="margin-top:4px"></div>
+      </div>
+
+      <!-- 指派人員 -->
       <div class="form-group">
         <label>指派人員（可多選）</label>
-        <div id="d_users" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
+        <div id="d_users" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
+      </div>
+
+      <!-- 使用材料 + 備註 -->
+      <div class="form-row">
+        <div class="form-group" style="flex:2"><label>使用材料</label><input type="text" id="d_material" placeholder="PAROI MX-001 等"></div>
       </div>
       <div class="form-group"><label>備註</label><textarea id="d_notes" rows="2"></textarea></div>
+
+      <!-- 進場資訊 -->
       <div style="border-top:1px solid var(--gray-200);margin:12px 0 14px;padding-top:14px">
         <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:10px;letter-spacing:.5px">進場資訊</div>
         <div class="form-group">
@@ -1011,7 +1063,15 @@
           </div>
           <div class="form-group">
             <label>可以施工到幾點</label>
-            <input type="time" id="d_work_until">
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="d_work_until_h" style="flex:1"></select>
+              <span style="font-size:15px;font-weight:600;color:#374151">:</span>
+              <select id="d_work_until_m" style="width:68px">
+                <option value="">--</option>
+                <option value="00">00</option>
+                <option value="30">30</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -1095,6 +1155,8 @@ async function init() {
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
   loadQuickEstimates();
+  buildHourSelect('d_time_h');
+  buildHourSelect('d_work_until_h');
 
   // Tab 切換
   document.querySelectorAll('.tab').forEach(t => {
@@ -1854,7 +1916,7 @@ async function deleteItem(itemId) {
 }
 
 // ── 派工 ───────────────────────────────────────────────────
-const DISPATCH_TAGS = { survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales' };
+const DISPATCH_TAGS = { cut_material:'裁切 tag-cut', factory_survey:'廠勘 tag-factory', survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales', other:'其他 tag-other' };
 
 function renderDispatches(dispatches) {
   const el = document.getElementById('dispatchList');
@@ -1942,13 +2004,81 @@ async function deleteDispatch(did) {
 
 function buildUserCheckboxes(selectedIds = []) {
   const container = document.getElementById('d_users');
-  const techUsers = users; // 已由 API ?dispatch=1 過濾
+  const techUsers = users;
   container.innerHTML = techUsers.map(u => `
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--gray-200);${selectedIds.includes(u.id)?'background:#dbeafe;border-color:var(--primary)':''}">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid ${selectedIds.includes(u.id)?'var(--primary)':'var(--gray-200)'};background:${selectedIds.includes(u.id)?'#dbeafe':''}">
       <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">
       ${u.name}
     </label>
   `).join('');
+}
+
+// ── 派工 Modal 時間選擇器 ──────────────────────────────────
+function buildHourSelect(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '<option value="">--</option>' +
+    Array.from({length:24}, (_, i) => `<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}</option>`).join('');
+}
+function getTimeStr(hId, mId) {
+  const h = document.getElementById(hId)?.value;
+  const m = document.getElementById(mId)?.value;
+  if (!h || m === '' || m === undefined) return null;
+  return `${h}:${m}`;
+}
+function setTimeStr(hId, mId, val) {
+  const hEl = document.getElementById(hId);
+  const mEl = document.getElementById(mId);
+  if (!hEl || !mEl) return;
+  if (val && /^\d{1,2}:\d{2}/.test(val)) {
+    const [h, m] = val.split(':');
+    hEl.value = h.padStart(2,'0');
+    mEl.value = m === '30' ? '30' : '00';
+  } else {
+    hEl.value = '';
+    mEl.value = '';
+  }
+}
+
+function switchDateMode() {
+  const mode = document.querySelector('input[name="d_date_mode"]:checked')?.value;
+  document.getElementById('d_single_wrap').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('d_range_wrap').style.display  = mode === 'range'  ? '' : 'none';
+}
+
+function buildDayRows() {
+  const start = document.getElementById('d_start_date').value;
+  const end   = document.getElementById('d_end_date').value;
+  const container = document.getElementById('d_day_rows');
+  if (!start || !end || start > end) { container.innerHTML = ''; return; }
+  const days = [];
+  const cur = new Date(start + 'T00:00:00');
+  const last = new Date(end + 'T00:00:00');
+  while (cur <= last) {
+    days.push(cur.toISOString().slice(0,10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (days.length > 60) { container.innerHTML = '<p style="color:#ef4444;font-size:13px">區間不可超過 60 天</p>'; return; }
+  container.innerHTML = `
+    <div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:110px 1fr 90px;background:#f9fafb;padding:8px 12px;font-size:12px;font-weight:600;color:var(--gray-500);border-bottom:1px solid var(--gray-200)">
+        <span>日期</span><span>到場時間</span><span>工時（小時）</span>
+      </div>
+      ${days.map((d, i) => `
+      <div style="display:grid;grid-template-columns:110px 1fr 90px;align-items:center;padding:8px 12px;gap:8px;${i%2===1?'background:#fafafa':''}">
+        <span style="font-size:13px;font-weight:500">${d}</span>
+        <div style="display:flex;gap:5px;align-items:center">
+          <select id="dr_h_${i}" style="flex:1;font-size:13px"></select>
+          <span style="font-weight:600;color:#374151">:</span>
+          <select id="dr_m_${i}" style="width:62px;font-size:13px">
+            <option value="">--</option><option value="00">00</option><option value="30">30</option>
+          </select>
+        </div>
+        <input type="number" id="dr_hrs_${i}" step="0.5" min="0" placeholder="工時" style="font-size:13px" value="">
+      </div>`).join('')}
+    </div>`;
+  days.forEach((_, i) => buildHourSelect(`dr_h_${i}`));
+  container.dataset.days = JSON.stringify(days);
 }
 
 // ── 場勘 Tab ──────────────────────────────────────────────
@@ -2389,14 +2519,21 @@ document.getElementById('addDispatchBtn').addEventListener('click', () => {
   document.getElementById('d_type').value   = 'install';
   document.getElementById('d_status').value = 'pending';
   document.getElementById('d_date').value   = '';
-  document.getElementById('d_time').value   = '';
+  setTimeStr('d_time_h','d_time_m', null);
   document.getElementById('d_hours').value  = '';
+  document.getElementById('d_start_date').value = '';
+  document.getElementById('d_end_date').value   = '';
+  document.getElementById('d_day_rows').innerHTML = '';
   document.getElementById('d_material').value = '';
   document.getElementById('d_notes').value  = '';
   document.getElementById('d_unloading_location').value = '';
   document.getElementById('d_has_parking').value        = '';
-  document.getElementById('d_work_until').value         = '';
+  setTimeStr('d_work_until_h','d_work_until_m', null);
   document.getElementById('d_access_code').value        = '';
+  // 顯示日期模式切換，預設單日
+  document.getElementById('d_date_mode_wrap').style.display = '';
+  document.querySelector('input[name="d_date_mode"][value="single"]').checked = true;
+  switchDateMode();
   buildUserCheckboxes([]);
   document.getElementById('dispatchModal').classList.add('open');
 });
@@ -2409,42 +2546,81 @@ function editDispatch(did) {
   document.getElementById('d_type').value   = d.dispatch_type;
   document.getElementById('d_status').value = d.status;
   document.getElementById('d_date').value   = d.scheduled_date;
-  document.getElementById('d_time').value   = d.scheduled_time || '';
+  setTimeStr('d_time_h','d_time_m', d.scheduled_time || null);
   document.getElementById('d_hours').value  = d.estimated_hours || '';
   document.getElementById('d_material').value = d.material || '';
   document.getElementById('d_notes').value  = d.notes || '';
   document.getElementById('d_unloading_location').value = d.unloading_location || '';
   document.getElementById('d_has_parking').value        = d.has_parking || '';
-  document.getElementById('d_work_until').value         = d.work_until || '';
+  setTimeStr('d_work_until_h','d_work_until_m', d.work_until || null);
   document.getElementById('d_access_code').value        = d.access_code || '';
+  // 編輯模式隱藏日期模式切換，強制單日
+  document.getElementById('d_date_mode_wrap').style.display = 'none';
+  document.querySelector('input[name="d_date_mode"][value="single"]').checked = true;
+  switchDateMode();
   const ids = d.installer_ids ? d.installer_ids.split(',').map(Number) : [];
   buildUserCheckboxes(ids);
   document.getElementById('dispatchModal').classList.add('open');
 }
 
 document.getElementById('saveDispatchBtn').addEventListener('click', async () => {
-  const did = document.getElementById('d_dispatch_id').value;
+  const did  = document.getElementById('d_dispatch_id').value;
+  const mode = document.querySelector('input[name="d_date_mode"]:checked')?.value || 'single';
   const user_ids = [...document.querySelectorAll('#d_users input:checked')].map(el => Number(el.value));
-  const body = {
-    dispatch_type:  document.getElementById('d_type').value,
-    status:         document.getElementById('d_status').value,
-    scheduled_date: document.getElementById('d_date').value,
-    scheduled_time: document.getElementById('d_time').value || null,
-    estimated_hours:      parseFloat(document.getElementById('d_hours').value) || null,
-    material:             document.getElementById('d_material').value || null,
-    notes:                document.getElementById('d_notes').value || null,
-    unloading_location:   document.getElementById('d_unloading_location').value || null,
-    has_parking:          document.getElementById('d_has_parking').value || null,
-    work_until:           document.getElementById('d_work_until').value || null,
-    access_code:          document.getElementById('d_access_code').value || null,
+  const common = {
+    dispatch_type:      document.getElementById('d_type').value,
+    status:             document.getElementById('d_status').value,
+    material:           document.getElementById('d_material').value || null,
+    notes:              document.getElementById('d_notes').value || null,
+    unloading_location: document.getElementById('d_unloading_location').value || null,
+    has_parking:        document.getElementById('d_has_parking').value || null,
+    work_until:         getTimeStr('d_work_until_h','d_work_until_m'),
+    access_code:        document.getElementById('d_access_code').value || null,
     user_ids,
   };
-  if (!body.scheduled_date) { showToast('請選擇日期', 'error'); return; }
-  const url  = did ? `/api/cases/${caseId}/dispatches/${did}` : `/api/cases/${caseId}/dispatches`;
-  const method = did ? 'PUT' : 'POST';
-  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (res.ok) { document.getElementById('dispatchModal').classList.remove('open'); await loadCase(); showToast('派工已儲存'); }
-  else showToast('儲存失敗', 'error');
+
+  if (did || mode === 'single') {
+    // 單日（新增或編輯）
+    const scheduled_date = document.getElementById('d_date').value;
+    if (!scheduled_date) { showToast('請選擇日期', 'error'); return; }
+    const body = {
+      ...common,
+      scheduled_date,
+      scheduled_time:  getTimeStr('d_time_h','d_time_m'),
+      estimated_hours: parseFloat(document.getElementById('d_hours').value) || null,
+    };
+    const url    = did ? `/api/cases/${caseId}/dispatches/${did}` : `/api/cases/${caseId}/dispatches`;
+    const method = did ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (res.ok) { document.getElementById('dispatchModal').classList.remove('open'); await loadCase(); showToast('派工已儲存'); }
+    else showToast('儲存失敗', 'error');
+
+  } else {
+    // 區間派工：批次建立
+    const container = document.getElementById('d_day_rows');
+    const days = JSON.parse(container.dataset.days || '[]');
+    if (!days.length) { showToast('請選擇起迄日期', 'error'); return; }
+    const btn = document.getElementById('saveDispatchBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+    let failed = 0;
+    for (let i = 0; i < days.length; i++) {
+      const body = {
+        ...common,
+        scheduled_date:  days[i],
+        scheduled_time:  getTimeStr(`dr_h_${i}`, `dr_m_${i}`),
+        estimated_hours: parseFloat(document.getElementById(`dr_hrs_${i}`)?.value) || null,
+      };
+      const res = await fetch(`/api/cases/${caseId}/dispatches`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      if (!res.ok) failed++;
+    }
+    btn.disabled = false; btn.textContent = '儲存';
+    document.getElementById('dispatchModal').classList.remove('open');
+    await loadCase();
+    if (failed) showToast(`${days.length - failed} 筆已儲存，${failed} 筆失敗`, 'warning');
+    else showToast(`已新增 ${days.length} 筆派工`);
+  }
 });
 
 // ── 收款 ───────────────────────────────────────────────────
@@ -2601,7 +2777,7 @@ function openClientForInvoice() {
 // ── 歷程 ───────────────────────────────────────────────────
 function renderMatUsage(dispatchList, logList) {
   const el = document.getElementById('matUsageList');
-  const DISPATCH_TYPE = { survey:'場勘', install:'施工', aftersales:'售後' };
+  const DISPATCH_TYPE = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
   const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留' };
 
   // 統一格式

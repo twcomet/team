@@ -49,6 +49,9 @@
 .pill-survey    { background:#e0e7ff; color:#3730a3; }
 .pill-install   { background:#dcfce7; color:#14532d; }
 .pill-aftersales{ background:#fef9c3; color:#713f12; }
+.pill-cut       { background:#fef3c7; color:#92400e; }
+.pill-factory   { background:#e0f2fe; color:#0c4a6e; }
+.pill-other     { background:#f3f4f6; color:#374151; }
 
 /* 施工規格表 */
 .items-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -153,8 +156,8 @@ let data = null;
 let catalog = [];
 let matChangeType = 'use'; // 'use' | 'return'
 
-const TYPE_LABEL   = { survey:'場勘', install:'施工', aftersales:'維修' };
-const TYPE_CLS     = { survey:'pill-survey', install:'pill-install', aftersales:'pill-aftersales' };
+const TYPE_LABEL   = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
+const TYPE_CLS     = { cut_material:'pill-cut', factory_survey:'pill-factory', survey:'pill-survey', install:'pill-install', aftersales:'pill-aftersales', other:'pill-other' };
 const STATUS_LABEL = {
   inquiry:'詢價需初步估價', initial_estimate:'已初步估價',
   survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘',
