@@ -1595,15 +1595,15 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
   const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
   const sysId   = sysUser?.id || null;
 
+  // 包含：有金額（不論有無日期），日期留空時以 contracted_at 或 updated_at 備用
   const cases = db.prepare(`
     SELECT id, org_id, case_number, title,
            survey_fee, survey_fee_date,
            deposit_amount, deposit_date,
-           balance_paid, balance_paid_date
+           balance_paid, balance_paid_date,
+           contracted_at, updated_at
     FROM cases
-    WHERE (survey_fee      IS NOT NULL AND survey_fee_date      IS NOT NULL)
-       OR (deposit_amount  IS NOT NULL AND deposit_date         IS NOT NULL)
-       OR (balance_paid    IS NOT NULL AND balance_paid_date    IS NOT NULL)
+    WHERE survey_fee IS NOT NULL OR deposit_amount IS NOT NULL OR balance_paid IS NOT NULL
   `).all();
 
   const existing = new Set(
@@ -1616,14 +1616,16 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
   `);
 
   for (const c of cases) {
+    // 備用日期：成交日 or 更新日 or 今天
+    const fallback = (c.contracted_at || c.updated_at || new Date().toISOString()).slice(0, 10);
     const label = `${c.case_number || ''} ${c.title || ''}`.trim();
     const entries = [
-      { ref: `case_${c.id}_survey_fee`, date: c.survey_fee_date,   amount: c.survey_fee,      cat: '場勘費', desc: `場勘費｜${label}` },
-      { ref: `case_${c.id}_deposit`,    date: c.deposit_date,      amount: c.deposit_amount,  cat: '訂金',   desc: `訂金｜${label}` },
-      { ref: `case_${c.id}_balance`,    date: c.balance_paid_date, amount: c.balance_paid,    cat: '尾款',   desc: `尾款｜${label}` },
+      { ref: `case_${c.id}_survey_fee`, date: c.survey_fee_date   || fallback, amount: c.survey_fee,     cat: '場勘費', desc: `場勘費｜${label}` },
+      { ref: `case_${c.id}_deposit`,    date: c.deposit_date      || fallback, amount: c.deposit_amount, cat: '訂金',   desc: `訂金｜${label}` },
+      { ref: `case_${c.id}_balance`,    date: c.balance_paid_date || fallback, amount: c.balance_paid,   cat: '尾款',   desc: `尾款｜${label}` },
     ];
     for (const e of entries) {
-      if (e.date && e.amount && !existing.has(e.ref)) {
+      if (e.amount && !existing.has(e.ref)) {
         ins.run(e.date, e.cat, e.amount, c.id, e.desc, c.org_id || null, sysId, e.ref);
       }
     }
