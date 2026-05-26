@@ -686,16 +686,46 @@
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 16px">
               <!-- 已付廠刊費 -->
-              <div class="form-group"><label>已付廠刊費</label>
-                <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div class="form-row" style="margin-bottom:8px">
+                  <div class="form-group" style="margin:0"><label>已付廠刊費</label>
+                    <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
+                  </div>
+                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                    <input type="date" id="p_survey_fee_date">
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0"><label>備註</label>
+                  <input type="text" id="p_survey_fee_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                </div>
               </div>
               <!-- 已付訂金 -->
-              <div class="form-group"><label>已付訂金</label>
-                <input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div class="form-row" style="margin-bottom:8px">
+                  <div class="form-group" style="margin:0"><label>已付訂金</label>
+                    <input type="number" id="p_deposit_amount" placeholder="（無）" min="0" oninput="updatePayCalc()">
+                  </div>
+                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                    <input type="date" id="p_deposit_date">
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0"><label>備註</label>
+                  <input type="text" id="p_deposit_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                </div>
               </div>
               <!-- 已付尾款 -->
-              <div class="form-group"><label>已付尾款</label>
-                <input type="number" id="p_balance_paid" placeholder="（無）" min="0" oninput="updatePayCalc()">
+              <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div class="form-row" style="margin-bottom:8px">
+                  <div class="form-group" style="margin:0"><label>已付尾款</label>
+                    <input type="number" id="p_balance_paid" placeholder="（無）" min="0" oninput="updatePayCalc()">
+                  </div>
+                  <div class="form-group" style="margin:0"><label>收款日期</label>
+                    <input type="date" id="p_balance_paid_date">
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0"><label>備註</label>
+                  <input type="text" id="p_balance_paid_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                </div>
               </div>
               <!-- 應收保留款 + 請款通知日期 -->
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
@@ -2392,8 +2422,14 @@ function fillPaymentForm() {
   document.getElementById('p_final_price').value        = c.final_price      != null ? c.final_price      : '';
   document.getElementById('p_needs_invoice').checked    = !!c.needs_invoice;
   document.getElementById('p_survey_fee').value         = c.survey_fee       != null ? c.survey_fee       : '';
+  document.getElementById('p_survey_fee_date').value    = c.survey_fee_date  || '';
+  document.getElementById('p_survey_fee_note').value    = c.survey_fee_note  || '';
   document.getElementById('p_deposit_amount').value     = c.deposit_amount   != null ? c.deposit_amount   : '';
+  document.getElementById('p_deposit_date').value       = c.deposit_date     || '';
+  document.getElementById('p_deposit_note').value       = c.deposit_note     || '';
   document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
+  document.getElementById('p_balance_paid_date').value  = c.balance_paid_date || '';
+  document.getElementById('p_balance_paid_note').value  = c.balance_paid_note || '';
   document.getElementById('p_retention_amount').value   = c.retention_amount != null ? c.retention_amount : '';
   document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
   document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
@@ -2420,8 +2456,14 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     final_price:        parseFloat(document.getElementById('p_final_price').value)        || null,
     needs_invoice:      document.getElementById('p_needs_invoice').checked ? 1 : 0,
     survey_fee:         parseFloat(document.getElementById('p_survey_fee').value)         || null,
+    survey_fee_date:    document.getElementById('p_survey_fee_date').value                || null,
+    survey_fee_note:    document.getElementById('p_survey_fee_note').value                || null,
     deposit_amount:     parseFloat(document.getElementById('p_deposit_amount').value)     || null,
+    deposit_date:       document.getElementById('p_deposit_date').value                   || null,
+    deposit_note:       document.getElementById('p_deposit_note').value                   || null,
     balance_paid:       parseFloat(document.getElementById('p_balance_paid').value)       || null,
+    balance_paid_date:  document.getElementById('p_balance_paid_date').value              || null,
+    balance_paid_note:  document.getElementById('p_balance_paid_note').value              || null,
     retention_amount:   parseFloat(document.getElementById('p_retention_amount').value)   || null,
     retention_due_date: document.getElementById('p_retention_due_date').value             || null,
     payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
@@ -3055,7 +3097,7 @@ init();
         <input type="date" id="ml_date">
       </div>
       <div class="form-group">
-        <label>備注</label>
+        <label>備註</label>
         <input type="text" id="ml_notes" placeholder="選填">
       </div>
     </div>
