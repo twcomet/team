@@ -376,7 +376,7 @@ router.put('/:id', requireAuth, (req, res) => {
     };
     const c2 = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(caseId);
     const label = `${c2?.case_number || ''} ${c2?.title || ''}`.trim();
-    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      '廠刊費', `廠刊費｜${label}`);
+    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      '場勘費', `場勘費｜${label}`);
     upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  '訂金',   `訂金｜${label}`);
     upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    '尾款',   `尾款｜${label}`);
   }
