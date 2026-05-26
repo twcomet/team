@@ -1113,6 +1113,18 @@ async function init() {
   if (tabParam) {
     const tabEl = document.querySelector(`.tab[data-tab="${tabParam}"]:not([style*="none"])`);
     if (tabEl) tabEl.click();
+  } else if (caseData?.case_group === 'deal') {
+    // 成交案件依狀態自動跳至最相關頁籤
+    let autoTab;
+    if (['payment', 'closed'].includes(caseData.status)) {
+      autoTab = 'payment';                              // 完工請款 / 結案 → 收款
+    } else if (caseData.dispatches?.length > 0) {
+      autoTab = 'dispatch';                             // 已有派工紀錄 → 派工記錄
+    } else {
+      autoTab = 'quote';                                // 尚未派工 → 正式報價單
+    }
+    const autoTabEl = document.querySelector(`.tab[data-tab="${autoTab}"]:not([style*="none"])`);
+    if (autoTabEl) autoTabEl.click();
   }
 
   // Pool banner buttons
