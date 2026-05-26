@@ -104,10 +104,22 @@
       <div class="card" style="border-top-left-radius:0;border-top-right-radius:0">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
-            <table>
+            <table style="table-layout:fixed">
+              <colgroup>
+                <col style="width:95px">   <!-- 日期 -->
+                <col style="width:55px">   <!-- 類型 -->
+                <col style="width:130px">  <!-- 科目 -->
+                <col>                      <!-- 說明（自動填滿剩餘） -->
+                <col style="width:105px">  <!-- 關聯案件 -->
+                <col style="width:130px">  <!-- 店別 -->
+                <col style="width:90px">   <!-- 收入 -->
+                <col style="width:90px">   <!-- 支出 -->
+                <col style="width:70px">   <!-- 登記人 -->
+                <col style="width:120px">  <!-- 操作 -->
+              </colgroup>
               <thead>
                 <tr>
-                  <th>日期</th><th>類型</th><th>科目</th><th>說明</th>
+                  <th id="ledgerDateTh" style="cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleLedgerDateSort()">日期 <span id="ledgerDateIcon" style="color:var(--primary);font-size:12px">↓</span></th><th>類型</th><th>科目</th><th>說明</th>
                   <th>關聯案件</th><th>店別</th>
                   <th style="text-align:right">收入</th>
                   <th style="text-align:right">支出</th>
@@ -230,6 +242,13 @@
 <script>
 let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
 let activeTab = 'all';
+let sortDateDir = 'desc';
+
+function toggleLedgerDateSort() {
+  sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('ledgerDateIcon').textContent = sortDateDir === 'desc' ? '↓' : '↑';
+  applyFilter();
+}
 
 async function init() {
   await loadUser();
@@ -326,6 +345,10 @@ function renderStats(rows) {
 
 function renderTable(rows) {
   const tbody = document.getElementById('ledgerBody');
+  rows = [...rows].sort((a, b) => {
+    const va = a.date || '', vb = b.date || '';
+    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+  });
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">📒</div>尚無帳務記錄</div></td></tr>';
     document.getElementById('ledgerFoot').innerHTML = '';
@@ -345,8 +368,8 @@ function renderTable(rows) {
             ? `<option value="${r.category}" selected>${r.category}</option>` : ''}
         </select>
       </td>
-      <td style="color:var(--gray-600)">${r.description||'—'}</td>
-      <td>${r.case_number?`<code style="font-size:11px">${r.case_number}</code>`:'—'}</td>
+      <td style="color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.description||'').replace(/"/g,'&quot;')}">${r.description||'—'}</td>
+      <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
       <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>

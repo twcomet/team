@@ -11,7 +11,7 @@ router.get('/', requireAuth, (req, res) => {
   const where  = [];
   const params = [];
   if (!status || status === 'all') {
-    where.push(`i.status NOT IN ('converted','hidden')`);
+    where.push(`i.status IN ('new','in_progress')`);
   } else {
     where.push(`i.status=?`); params.push(status);
   }
@@ -144,13 +144,15 @@ router.post('/:id/convert', requireAuth, (req, res) => {
     INSERT INTO cases (
       case_number, org_id, case_type, client_id,
       title, description, line_source, source_type,
-      status, case_group, priority, created_by, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, CURRENT_TIMESTAMP)
+      status, case_group, priority, created_by,
+      sales_id, cs_id, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, case_type, inq.client_id,
     title || `LINE詢問｜${inq.display_name}`,
     notes || inq.last_message || '',
-    inq.line_user_id, u.id
+    inq.line_user_id, u.id,
+    inq.sales_id || null, inq.cs_id || null
   );
 
   db.prepare(`

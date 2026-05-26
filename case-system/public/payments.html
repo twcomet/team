@@ -91,7 +91,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>案號</th><th>客戶</th><th>項目</th><th>施工日</th>
+                  <th>案號</th><th>客戶</th><th>項目</th><th id="payDateTh" style="cursor:pointer;white-space:nowrap;user-select:none" onclick="togglePayDateSort()">施工日 <span id="payDateIcon" style="color:var(--primary);font-size:12px">↓</span></th>
                   <th>成交金額</th><th>含稅總額</th><th>訂金</th>
                   <th>已收</th><th>待收</th><th>收款狀態</th><th>業務</th><th></th>
                 </tr>
@@ -140,6 +140,13 @@
 <script src="/js/common.js"></script>
 <script>
 let allPayments = [], filtered = [], allOrgs = [];
+let sortDateDir = 'desc';
+
+function togglePayDateSort() {
+  sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
+  document.getElementById('payDateIcon').textContent = sortDateDir === 'desc' ? '↓' : '↑';
+  applyFilter();
+}
 
 async function init() {
   await loadUser();
@@ -219,6 +226,10 @@ function renderStats(cases) {
 
 function renderTable(cases) {
   const tbody = document.getElementById('payBody');
+  cases = [...cases].sort((a, b) => {
+    const va = a.scheduled_date || '', vb = b.scheduled_date || '';
+    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+  });
   if (!cases.length) {
     tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">💰</div>沒有符合的收款記錄</div></td></tr>';
     return;

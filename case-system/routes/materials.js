@@ -116,10 +116,9 @@ router.get('/branches', requireAuth, (req, res) => {
 
 // GET /:matId/rolls — 取得某膜料的所有捲料（可選 ?branch= 篩選）
 router.get('/:matId/rolls', requireAuth, (req, res) => {
-  const { org_id, view_all_branches } = req.session.user;
   const { branch } = req.query;
-  let where = view_all_branches ? 'WHERE r.material_id = ?' : 'WHERE r.material_id = ? AND r.org_id = ?';
-  const params = view_all_branches ? [req.params.matId] : [req.params.matId, org_id];
+  let where = 'WHERE r.material_id = ?';
+  const params = [req.params.matId];
   if (branch) { where += ' AND r.branch = ?'; params.push(branch); }
   const rolls = db.prepare(`
     SELECT r.*, u.name AS created_by_name
@@ -240,7 +239,7 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   const { log_type, case_id, meters, notes } = req.body;
   if (!log_type || !meters) return res.status(400).json({ error: '請填寫用途和米數' });
 
-  const roll = db.prepare(`SELECT * FROM material_rolls WHERE id = ? AND org_id = ?`).get(req.params.rid, org_id);
+  const roll = db.prepare(`SELECT * FROM material_rolls WHERE id = ?`).get(req.params.rid);
   if (!roll) return res.status(404).json({ error: '找不到捲料' });
 
   const isOut = log_type !== 'purchase';
@@ -256,8 +255,8 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
     for (const r of rollReserves) {
       db.prepare(`UPDATE material_rolls SET remaining_meters = remaining_meters - ? WHERE id = ?`)
         .run(r.meters, r.roll_id);
-      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
-        .run(r.meters, r.material_id, org_id);
+      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ?`)
+        .run(r.meters, r.material_id);
       db.prepare(`UPDATE material_logs SET status = 'cancelled' WHERE id = ?`).run(r.id);
     }
     // 2. 取消未綁定捲料（roll_id IS NULL）但同膜料同案件的保留
@@ -267,8 +266,8 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
     `).all(roll.material_id, case_id);
     for (const r of matReserves) {
       // roll_id 為 NULL，只還原 materials.stock_meters
-      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
-        .run(r.meters, r.material_id, org_id);
+      db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ?`)
+        .run(r.meters, r.material_id);
       db.prepare(`UPDATE material_logs SET status = 'cancelled' WHERE id = ?`).run(r.id);
     }
     // 重新取得最新 remaining_meters（保留還原後可能改變）
@@ -282,8 +281,8 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
     .run(newRemaining, newRemaining <= 0 ? 'finished' : 'active', req.params.rid);
 
   // 更新 materials.stock_meters
-  db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters + ?) WHERE id = ? AND org_id = ?`)
-    .run(delta, roll.material_id, org_id);
+  db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters + ?) WHERE id = ?`)
+    .run(delta, roll.material_id);
 
   db.prepare(`
     INSERT INTO material_logs (roll_id, material_id, org_id, log_type, case_id, meters, notes, logged_by)
@@ -320,8 +319,8 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
       db.prepare(`UPDATE material_rolls SET remaining_meters = ?, status = ? WHERE id = ?`)
         .run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', log.roll_id);
     }
-    db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ? AND org_id = ?`)
-      .run(log.meters, log.material_id, org_id);
+    db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id = ?`)
+      .run(log.meters, log.material_id);
   }
 
   db.prepare(`DELETE FROM material_logs WHERE id = ?`).run(req.params.id);

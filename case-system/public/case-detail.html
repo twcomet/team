@@ -685,18 +685,29 @@
                 </div>
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 16px">
-              <!-- 已付廠刊費 -->
+              <!-- 已付場勘費 -->
               <div style="border:1px solid var(--gray-100);border-radius:8px;padding:12px;margin-bottom:12px">
                 <div class="form-row" style="margin-bottom:8px">
-                  <div class="form-group" style="margin:0"><label>已付廠刊費</label>
+                  <div class="form-group" style="margin:0"><label>已付場勘費</label>
                     <input type="number" id="p_survey_fee" placeholder="（無）" min="0" oninput="updatePayCalc()">
                   </div>
                   <div class="form-group" style="margin:0"><label>收款日期</label>
                     <input type="date" id="p_survey_fee_date">
                   </div>
                 </div>
-                <div class="form-group" style="margin:0"><label>備註</label>
-                  <input type="text" id="p_survey_fee_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                <div class="form-row" style="gap:8px">
+                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
+                    <select id="p_survey_fee_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                      <option value="">（未選）</option>
+                      <option value="現金">現金</option>
+                      <option value="支票">支票</option>
+                      <option value="匯款">匯款</option>
+                      <option value="自訂">自訂</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
+                    <input type="text" id="p_survey_fee_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  </div>
                 </div>
               </div>
               <!-- 已付訂金 -->
@@ -709,8 +720,19 @@
                     <input type="date" id="p_deposit_date">
                   </div>
                 </div>
-                <div class="form-group" style="margin:0"><label>備註</label>
-                  <input type="text" id="p_deposit_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                <div class="form-row" style="gap:8px">
+                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
+                    <select id="p_deposit_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                      <option value="">（未選）</option>
+                      <option value="現金">現金</option>
+                      <option value="支票">支票</option>
+                      <option value="匯款">匯款</option>
+                      <option value="自訂">自訂</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
+                    <input type="text" id="p_deposit_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  </div>
                 </div>
               </div>
               <!-- 已付尾款 -->
@@ -723,8 +745,19 @@
                     <input type="date" id="p_balance_paid_date">
                   </div>
                 </div>
-                <div class="form-group" style="margin:0"><label>備註</label>
-                  <input type="text" id="p_balance_paid_note" placeholder="收款方式、備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                <div class="form-row" style="gap:8px">
+                  <div class="form-group" style="margin:0;flex:0 0 130px"><label>收款方式</label>
+                    <select id="p_balance_paid_method" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;background:#fff">
+                      <option value="">（未選）</option>
+                      <option value="現金">現金</option>
+                      <option value="支票">支票</option>
+                      <option value="匯款">匯款</option>
+                      <option value="自訂">自訂</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;flex:1"><label>備註</label>
+                    <input type="text" id="p_balance_paid_note" placeholder="備註…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+                  </div>
                 </div>
               </div>
               <!-- 應收保留款 + 請款通知日期 -->
@@ -1414,6 +1447,7 @@ async function convertCase(targetGroup) {
 
 function buildSaveBody() {
   return {
+    ...caseData,   // 保留所有現有欄位（含收款、發票等），避免覆寫為 null
     case_type:          document.getElementById('b_case_type').value,
     priority:           document.getElementById('b_priority').value,
     title:              document.getElementById('b_title').value,
@@ -2429,7 +2463,10 @@ function fillPaymentForm() {
   document.getElementById('p_deposit_note').value       = c.deposit_note     || '';
   document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
   document.getElementById('p_balance_paid_date').value  = c.balance_paid_date || '';
-  document.getElementById('p_balance_paid_note').value  = c.balance_paid_note || '';
+  document.getElementById('p_balance_paid_note').value     = c.balance_paid_note     || '';
+  document.getElementById('p_survey_fee_method').value     = c.survey_fee_method     || '';
+  document.getElementById('p_deposit_method').value        = c.deposit_method        || '';
+  document.getElementById('p_balance_paid_method').value   = c.balance_paid_method   || '';
   document.getElementById('p_retention_amount').value   = c.retention_amount != null ? c.retention_amount : '';
   document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
   document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
@@ -2440,8 +2477,8 @@ function fillPaymentForm() {
   document.getElementById('p_invoice_address').value    = c.invoice_address   || cl?.address          || '';
   document.getElementById('p_invoice_email').value      = c.invoice_email     || cl?.invoice_email || cl?.email || '';
   document.getElementById('p_invoice_item_desc').value  = c.invoice_item_desc || '';
-  document.getElementById('p_invoice_contact').value    = c.invoice_contact   || '';
-  document.getElementById('p_invoice_phone').value      = c.invoice_phone     || '';
+  document.getElementById('p_invoice_contact').value    = c.invoice_contact   || cl?.contact_person || c.client_name  || '';
+  document.getElementById('p_invoice_phone').value      = c.invoice_phone     || cl?.phone          || c.client_phone || '';
   document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
   document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
   document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';
@@ -2458,12 +2495,15 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     survey_fee:         parseFloat(document.getElementById('p_survey_fee').value)         || null,
     survey_fee_date:    document.getElementById('p_survey_fee_date').value                || null,
     survey_fee_note:    document.getElementById('p_survey_fee_note').value                || null,
+    survey_fee_method:  document.getElementById('p_survey_fee_method').value              || null,
     deposit_amount:     parseFloat(document.getElementById('p_deposit_amount').value)     || null,
     deposit_date:       document.getElementById('p_deposit_date').value                   || null,
     deposit_note:       document.getElementById('p_deposit_note').value                   || null,
+    deposit_method:     document.getElementById('p_deposit_method').value                 || null,
     balance_paid:       parseFloat(document.getElementById('p_balance_paid').value)       || null,
     balance_paid_date:  document.getElementById('p_balance_paid_date').value              || null,
     balance_paid_note:  document.getElementById('p_balance_paid_note').value              || null,
+    balance_paid_method: document.getElementById('p_balance_paid_method').value           || null,
     retention_amount:   parseFloat(document.getElementById('p_retention_amount').value)   || null,
     retention_due_date: document.getElementById('p_retention_due_date').value             || null,
     payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',

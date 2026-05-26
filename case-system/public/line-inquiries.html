@@ -117,7 +117,12 @@
       <!-- ── 左：清單 ── -->
       <div class="inq-list">
         <div class="inq-toolbar">
-          <input class="inq-search" id="searchInput" type="text" placeholder="搜尋姓名、訊息…">
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="inq-search" id="searchInput" type="text" placeholder="搜尋姓名、訊息…" style="flex:1;margin:0">
+            <button onclick="toggleInqSort()" title="切換時間排序" style="flex-shrink:0;padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:var(--primary);line-height:1">
+              <span id="inqSortIcon">↓</span>
+            </button>
+          </div>
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
             <button class="status-tab" data-status="new">新詢問<span class="cnt" id="cnt-new"></span></button>
@@ -187,6 +192,14 @@ let currentId     = null;
 let searchTimer   = null;
 let inquiries     = [];
 let allUsers      = [];
+let sortDateDir   = 'desc';
+
+function toggleInqSort() {
+  sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
+  const icon = document.getElementById('inqSortIcon');
+  if (icon) icon.textContent = sortDateDir === 'desc' ? '↓' : '↑';
+  renderList();
+}
 
 async function init() {
   await loadUser();
@@ -213,7 +226,7 @@ async function init() {
 // ── 統計 ──────────────────────────────────────────────────
 async function loadStats() {
   const s = await fetch('/api/line-inquiries/stats').then(r => r.json()).catch(() => ({}));
-  const total = (s.new || 0) + (s.in_progress || 0) + (s.invalid || 0);
+  const total = (s.new || 0) + (s.in_progress || 0);
   document.getElementById('cnt-all').textContent         = total     ? ` ${total}` : '';
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
@@ -235,11 +248,15 @@ async function loadList() {
 
 function renderList() {
   const el = document.getElementById('inqScroll');
-  if (!inquiries.length) {
+  const sorted = [...inquiries].sort((a, b) => {
+    const va = a.last_message_at || '', vb = b.last_message_at || '';
+    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+  });
+  if (!sorted.length) {
     el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px">沒有符合的詢問</div>`;
     return;
   }
-  el.innerHTML = inquiries.map(i => {
+  el.innerHTML = sorted.map(i => {
     const salesBadge = i.sales_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
     const csBadge    = i.cs_name    ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
     return `

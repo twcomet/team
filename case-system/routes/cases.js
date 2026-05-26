@@ -260,10 +260,10 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const {
     client_id, case_type, title, description, location, sales_id,
-    final_price, survey_fee, survey_fee_date, survey_fee_note,
+    final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method,
     payment_status, payment_received,
-    deposit_amount, deposit_date, deposit_note,
-    balance_paid, balance_paid_date, balance_paid_note,
+    deposit_amount, deposit_date, deposit_note, deposit_method,
+    balance_paid, balance_paid_date, balance_paid_note, balance_paid_method,
     retention_amount, retention_due_date, retention_invoiced, needs_invoice,
     payment_due_date, payment_notes,
     status, priority, is_outsourced, outsource_type, notes,
@@ -282,10 +282,10 @@ router.put('/:id', requireAuth, (req, res) => {
   db.prepare(`
     UPDATE cases SET
       client_id=?, case_type=?, title=?, description=?, location=?,
-      sales_id=?, final_price=?, survey_fee=?, survey_fee_date=?, survey_fee_note=?,
+      sales_id=?, final_price=?, survey_fee=?, survey_fee_date=?, survey_fee_note=?, survey_fee_method=?,
       payment_status=?, payment_received=?,
-      deposit_amount=?, deposit_date=?, deposit_note=?,
-      balance_paid=?, balance_paid_date=?, balance_paid_note=?,
+      deposit_amount=?, deposit_date=?, deposit_note=?, deposit_method=?,
+      balance_paid=?, balance_paid_date=?, balance_paid_note=?, balance_paid_method=?,
       retention_amount=?, retention_due_date=?, retention_invoiced=?, needs_invoice=?,
       payment_due_date=?, payment_notes=?, status=?, priority=?,
       is_outsourced=?, outsource_type=?, notes=?,
@@ -301,10 +301,10 @@ router.put('/:id', requireAuth, (req, res) => {
     WHERE id=?
   `).run(
     client_id ?? null, case_type, title, description ?? null, location ?? null,
-    sales_id ?? null, final_price ?? null, survey_fee ?? null, survey_fee_date ?? null, survey_fee_note ?? null,
+    sales_id ?? null, final_price ?? null, survey_fee ?? null, survey_fee_date ?? null, survey_fee_note ?? null, survey_fee_method ?? null,
     payment_status || 'unpaid', payment_received ?? 0,
-    deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null,
-    balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null,
+    deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null, deposit_method ?? null,
+    balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null, balance_paid_method ?? null,
     retention_amount ?? null, retention_due_date ?? null,
     retention_invoiced ?? null, needs_invoice ? 1 : 0,
     payment_due_date ?? null, payment_notes ?? null,

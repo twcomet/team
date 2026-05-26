@@ -377,6 +377,7 @@ const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca
 
 let allCases = [], clients = [], salesUsers = [];
 let activeStatus = '', activeType = '';
+let sortDateDir = 'desc'; // desc = 新→舊（預設）
 
 async function init() {
   await loadUser();
@@ -405,16 +406,27 @@ async function init() {
   await loadCases();
 }
 
+function sortThHtml(label) {
+  const icon = sortDateDir === 'desc' ? '↓' : '↑';
+  return `<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">${label} <span style="color:var(--primary);font-size:12px">${icon}</span></th>`;
+}
+
+function toggleDateSort() {
+  sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
+  renderTableHead();
+  renderTable(allCases);
+}
+
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th><th>建立日期</th><th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th>操作</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th>${sortThHtml('建立日期')}<th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th>操作</th></tr>`;
   } else if (MODE === 'survey') {
-    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th><th>場勘日</th><th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>${sortThHtml('場勘日')}<th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
   } else {
     h.innerHTML = `<tr>
       <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
-      <th>施工日</th><th>業務</th><th>狀態</th>
+      ${sortThHtml('施工日')}<th>業務</th><th>狀態</th>
       <th id="amountHeader" ${!currentUser?.can_see_amounts ? 'style="display:none"' : ''}>報價／成交</th>
       <th>毛利</th><th>收款</th>
       <th id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
@@ -450,7 +462,11 @@ function renderTable(cases) {
     return !cfg.hiddenByDefault.has(c.status);
   });
   const tbody = document.getElementById('casesBody');
-  if (MODE === 'inquiry') filtered.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const dateField = MODE === 'inquiry' ? 'created_at' : MODE === 'survey' ? 'survey_date' : 'scheduled_date';
+  filtered.sort((a, b) => {
+    const va = a[dateField] || '', vb = b[dateField] || '';
+    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+  });
   if (!filtered.length) {
     const cols = MODE === 'inquiry' ? 9 : MODE === 'survey' ? 10 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
