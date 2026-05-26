@@ -62,9 +62,12 @@
 
       <!-- 操作紀錄（owner only） -->
       <div class="card" id="auditSection" style="margin-bottom:24px;display:none">
-        <div class="card-header">
-          <h3>操作紀錄</h3>
-          <div style="display:flex;gap:8px;align-items:center">
+        <div class="card-header" style="cursor:pointer;user-select:none" onclick="toggleAuditSection(event)">
+          <h3 style="display:flex;align-items:center;gap:8px">
+            操作紀錄
+            <span id="auditCollapseIcon" style="font-size:12px;color:var(--gray-400);transition:transform .2s">▾</span>
+          </h3>
+          <div style="display:flex;gap:8px;align-items:center" onclick="event.stopPropagation()">
             <select id="auditEntity" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
               <option value="">全部類型</option>
               <option value="cases">案件</option>
@@ -78,12 +81,28 @@
             <button class="btn btn-ghost btn-sm" onclick="loadAuditLogs()">篩選</button>
           </div>
         </div>
-        <div class="card-body" style="padding:0">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>對象</th><th>說明</th></tr></thead>
-              <tbody id="auditBody"></tbody>
-            </table>
+        <div id="auditBodyWrap">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>對象</th><th>說明</th></tr></thead>
+                <tbody id="auditBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- 預覽模式：顯示「展開更多」 -->
+          <div id="auditExpandBar" style="display:none;padding:10px 16px;border-top:1px solid var(--gray-100);text-align:center">
+            <button class="btn btn-ghost btn-sm" onclick="auditSetExpanded(true)">
+              展開更多 <span id="auditExpandTotal"></span> ▾
+            </button>
+          </div>
+          <!-- 分頁模式 -->
+          <div id="auditPager" style="display:none;padding:10px 16px;border-top:1px solid var(--gray-100);display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-600)">
+            <button class="btn btn-ghost btn-sm" id="auditPrevBtn" onclick="auditChangePage(-1)">&#8592; 上一頁</button>
+            <span id="auditPageInfo"></span>
+            <button class="btn btn-ghost btn-sm" id="auditNextBtn" onclick="auditChangePage(1)">下一頁 &#8594;</button>
+            <span style="margin-left:auto;color:var(--gray-400)" id="auditTotalInfo"></span>
+            <button class="btn btn-ghost btn-sm" onclick="auditSetExpanded(false)" style="color:var(--gray-400)">收合 ▴</button>
           </div>
         </div>
       </div>
@@ -1163,58 +1182,102 @@ const ACTION_LABELS = {
   create_user:'新增帳號', update_user:'修改帳號', create_org:'新增分店',
 };
 const ENTITY_LABELS = { cases:'案件', clients:'客戶', ledger:'流水帳', users:'帳號', orgs:'分店' };
+const AUDIT_PREVIEW = 10;
+const AUDIT_PAGE_SIZE = 20;
+let auditAllLogs = [];
+let auditPage = 1;
+let auditSectionCollapsed = false;
+let auditExpanded = false;  // false = 預覽 10 筆；true = 分頁 20 筆
+
+function toggleAuditSection(e) {
+  auditSectionCollapsed = !auditSectionCollapsed;
+  document.getElementById('auditBodyWrap').style.display = auditSectionCollapsed ? 'none' : '';
+  document.getElementById('auditCollapseIcon').style.transform = auditSectionCollapsed ? 'rotate(-90deg)' : '';
+}
+
+function auditSetExpanded(expand) {
+  auditExpanded = expand;
+  auditPage = 1;
+  renderAuditTable();
+}
 
 async function loadAuditLogs() {
   const entity = document.getElementById('auditEntity')?.value || '';
   const uid    = document.getElementById('auditUser')?.value || '';
-  const params = new URLSearchParams({ limit: 200 });
+  const params = new URLSearchParams({ limit: 500 });
   if (entity) params.set('entity', entity);
   if (uid)    params.set('uid', uid);
   const res = await fetch('/api/users/audit-logs?' + params);
   if (!res.ok) return;
-  const logs = await res.json();
+  auditAllLogs = await res.json();
+  auditPage = 1;
+  auditExpanded = false;
 
   // Populate user filter (first load only)
   const sel = document.getElementById('auditUser');
   if (sel && sel.options.length === 1) {
     const seen = new Set();
-    logs.forEach(l => { if (l.user_id && !seen.has(l.user_id)) { seen.add(l.user_id); sel.add(new Option(l.user_name || l.username || l.user_id, l.user_id)); } });
+    auditAllLogs.forEach(l => { if (l.user_id && !seen.has(l.user_id)) { seen.add(l.user_id); sel.add(new Option(l.user_name || l.username || l.user_id, l.user_id)); } });
+  }
+  renderAuditTable();
+}
+
+function renderAuditTable() {
+  const tbody   = document.getElementById('auditBody');
+  const pager   = document.getElementById('auditPager');
+  const expBar  = document.getElementById('auditExpandBar');
+
+  if (!auditAllLogs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暫無紀錄</td></tr>';
+    pager.style.display = 'none';
+    expBar.style.display = 'none';
+    return;
   }
 
-  const tbody = document.getElementById('auditBody');
-  if (!logs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暫無紀錄</td></tr>'; return; }
-  const PREVIEW = 5;
-  const rows = logs.map((l, i) => {
+  let rows;
+  if (!auditExpanded) {
+    // 預覽模式：只顯示前 10 筆
+    rows = auditAllLogs.slice(0, AUDIT_PREVIEW);
+    pager.style.display = 'none';
+    if (auditAllLogs.length > AUDIT_PREVIEW) {
+      expBar.style.display = '';
+      document.getElementById('auditExpandTotal').textContent = `（共 ${auditAllLogs.length} 筆）`;
+    } else {
+      expBar.style.display = 'none';
+    }
+  } else {
+    // 分頁模式：每頁 20 筆
+    const totalPages = Math.ceil(auditAllLogs.length / AUDIT_PAGE_SIZE);
+    const start = (auditPage - 1) * AUDIT_PAGE_SIZE;
+    rows = auditAllLogs.slice(start, start + AUDIT_PAGE_SIZE);
+    expBar.style.display = 'none';
+    pager.style.display = 'flex';
+    document.getElementById('auditPageInfo').textContent = `第 ${auditPage} / ${totalPages} 頁`;
+    document.getElementById('auditTotalInfo').textContent = `共 ${auditAllLogs.length} 筆`;
+    document.getElementById('auditPrevBtn').disabled = auditPage <= 1;
+    document.getElementById('auditNextBtn').disabled = auditPage >= totalPages;
+  }
+
+  tbody.innerHTML = rows.map(l => {
     const action = ACTION_LABELS[l.action] || l.action;
     const entity = ENTITY_LABELS[l.entity] || l.entity || '';
     const dt = new Date(l.created_at + (l.created_at.includes('+') ? '' : 'Z')).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    const hidden = i >= PREVIEW ? ' class="audit-extra" style="display:none"' : '';
-    return `<tr${hidden}>
+    return `<tr>
       <td style="font-size:12px;color:#6b7280;white-space:nowrap">${dt}</td>
       <td style="font-weight:500">${l.user_name || '—'}</td>
       <td><span class="badge ${l.action==='delete'?'badge-closed':l.action==='login'||l.action==='logout'?'badge-completed':'badge-active'}" style="font-size:11px">${action}</span></td>
       <td style="font-size:12px;color:#6b7280">${entity}</td>
       <td style="font-size:12px;color:#374151;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.detail || '—'}</td>
     </tr>`;
-  });
-  if (logs.length > PREVIEW) {
-    rows.push(`<tr id="auditToggleRow">
-      <td colspan="5" style="text-align:center;padding:8px 0">
-        <button class="btn btn-ghost btn-sm" id="auditToggleBtn" onclick="toggleAuditExpand(${logs.length})">
-          展開顯示更多（共 ${logs.length} 筆）▾
-        </button>
-      </td>
-    </tr>`);
-  }
-  tbody.innerHTML = rows.join('');
+  }).join('');
 }
-function toggleAuditExpand(total) {
-  const extras = document.querySelectorAll('.audit-extra');
-  const btn = document.getElementById('auditToggleBtn');
-  const expanded = extras[0]?.style.display !== 'none';
-  extras.forEach(r => r.style.display = expanded ? 'none' : '');
-  btn.textContent = expanded ? `展開顯示更多（共 ${total} 筆）▾` : `收合 ▴`;
+
+function auditChangePage(delta) {
+  const totalPages = Math.ceil(auditAllLogs.length / AUDIT_PAGE_SIZE);
+  auditPage = Math.max(1, Math.min(totalPages, auditPage + delta));
+  renderAuditTable();
 }
+
 document.getElementById('auditEntity')?.addEventListener('change', loadAuditLogs);
 document.getElementById('auditUser')?.addEventListener('change', loadAuditLogs);
 
