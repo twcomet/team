@@ -1473,6 +1473,41 @@ _addCol('dispatches', 'has_parking',        'TEXT DEFAULT NULL');
 _addCol('dispatches', 'work_until',         'TEXT DEFAULT NULL');
 _addCol('dispatches', 'access_code',        'TEXT DEFAULT NULL');
 
+// 擴充 dispatch_type 允許值（含裁切材料、廠勘、其他）
+const _dispSql = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='dispatches'`).get();
+if (_dispSql && !_dispSql.sql.includes("'cut_material'")) {
+  db.exec(`PRAGMA foreign_keys=OFF`);
+  db.exec(`CREATE TABLE dispatches_new (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id         INTEGER NOT NULL REFERENCES cases(id),
+    dispatch_type   TEXT NOT NULL DEFAULT 'install',
+    scheduled_date  DATE NOT NULL,
+    scheduled_time  TEXT,
+    estimated_hours REAL,
+    actual_hours    REAL,
+    material        TEXT,
+    material_used   REAL,
+    status          TEXT DEFAULT 'pending'
+                    CHECK(status IN ('pending','confirmed','done','cancelled')),
+    notes           TEXT,
+    labor_cost      REAL,
+    unloading_location TEXT,
+    has_parking     TEXT,
+    work_until      TEXT,
+    access_code     TEXT,
+    created_by      INTEGER REFERENCES users(id),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.exec(`INSERT INTO dispatches_new SELECT id,case_id,dispatch_type,scheduled_date,scheduled_time,
+    estimated_hours,actual_hours,material,material_used,status,notes,
+    COALESCE(labor_cost,NULL),
+    COALESCE(unloading_location,NULL),COALESCE(has_parking,NULL),COALESCE(work_until,NULL),COALESCE(access_code,NULL),
+    created_by,created_at FROM dispatches`);
+  db.exec(`DROP TABLE dispatches`);
+  db.exec(`ALTER TABLE dispatches_new RENAME TO dispatches`);
+  db.exec(`PRAGMA foreign_keys=ON`);
+}
+
 // 場勘備註模板庫
 db.exec(`
   CREATE TABLE IF NOT EXISTS survey_note_templates (
