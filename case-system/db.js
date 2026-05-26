@@ -1297,6 +1297,9 @@ db.exec(`
   );
 `);
 
+_addCol('material_orders', 'case_id', 'INTEGER');
+_addCol('revenue_shares',  'case_id', 'INTEGER');
+
 // ── 月結 ─────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS settlements (
