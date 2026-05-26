@@ -353,6 +353,34 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 
   recalcLaborCost(Number(req.params.id));
+
+  // ── 自動同步收支表 ──────────────────────────────────────────
+  {
+    const caseId  = Number(req.params.id);
+    const c       = db.prepare(`SELECT org_id FROM cases WHERE id=?`).get(caseId);
+    const orgId   = c?.org_id || null;
+    const me      = req.session.user;
+    const upsertLedger = (ref, date, amount, category, desc) => {
+      if (!date || !amount) {
+        db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(ref);
+        return;
+      }
+      const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
+      if (existing) {
+        db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=? WHERE id=?`)
+          .run(date, amount, category, desc, orgId, existing.id);
+      } else {
+        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+          .run(date, category, amount, caseId, desc, orgId, me.id, ref);
+      }
+    };
+    const c2 = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(caseId);
+    const label = `${c2?.case_number || ''} ${c2?.title || ''}`.trim();
+    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      '廠刊費', `廠刊費｜${label}`);
+    upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  '訂金',   `訂金｜${label}`);
+    upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    '尾款',   `尾款｜${label}`);
+  }
+
   res.json({ ok: true });
 });
 

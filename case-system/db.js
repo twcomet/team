@@ -1587,4 +1587,7 @@ db.exec(`
   );
 `);
 
+// 收支表自動帶入用：追蹤案件付款的來源識別碼
+_addCol('ledger_entries', 'source_ref', 'TEXT');
+
 module.exports = db;
