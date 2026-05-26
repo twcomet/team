@@ -1650,4 +1650,46 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
   }
 }
 
+// ── 刪除舊版 survey 狀態案件（2026-05-26）──────────────────────────────────
+// 使用單一 transaction 批次執行，避免啟動超時
+try {
+  const surveyCases = db.prepare(`SELECT id, case_number FROM cases WHERE status='survey'`).all();
+  if (surveyCases.length > 0) {
+    db.exec('BEGIN');
+    for (const c of surveyCases) {
+      const dispIds = db.prepare(`SELECT id FROM dispatches WHERE case_id=?`).all(c.id).map(r => r.id);
+      if (dispIds.length) {
+        const ph = dispIds.map(() => '?').join(',');
+        db.prepare(`DELETE FROM dispatch_users        WHERE dispatch_id IN (${ph})`).run(...dispIds);
+      }
+      db.prepare(`DELETE FROM dispatches              WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM notifications           WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM profit_shares           WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM material_logs           WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM ledger_entries          WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM case_ratings            WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM dispatch_queue          WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM site_surveys            WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM quotations              WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM quality_checks          WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM ratings                 WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM user_task_dismissals    WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM case_items              WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM dispatch_materials      WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM quote_sheets            WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM survey_forms            WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM case_applications       WHERE case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM initial_estimates       WHERE case_id=?`).run(c.id);
+      db.prepare(`UPDATE line_inquiries SET converted_case_id=NULL WHERE converted_case_id=?`).run(c.id);
+      db.prepare(`UPDATE warranty_cases  SET original_case_id=NULL  WHERE original_case_id=?`).run(c.id);
+      db.prepare(`DELETE FROM cases WHERE id=?`).run(c.id);
+    }
+    db.exec('COMMIT');
+    console.log(`✅ 刪除舊版 survey 案件 ${surveyCases.length} 筆（${surveyCases.map(c => c.case_number).join('、')}）`);
+  }
+} catch (e) {
+  try { db.exec('ROLLBACK'); } catch (_) {}
+  console.error('❌ 刪除舊版 survey 案件失敗（已 rollback）：', e.message);
+}
+
 module.exports = db;
