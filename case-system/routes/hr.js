@@ -195,4 +195,33 @@ router.get('/leave-calc', requireAuth, requireHR, (req, res) => {
   res.json({ days: calcAnnualLeave(hire_date, parseInt(year || new Date().getFullYear())) });
 });
 
+// GET /api/hr/attendance-summary?year=YYYY&month=MM — 全員月出勤統計
+router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
+  const now = new Date();
+  const year  = parseInt(req.query.year  || now.getFullYear());
+  const month = parseInt(req.query.month || now.getMonth() + 1);
+  const ym = `${year}-${String(month).padStart(2,'0')}`;
+
+  const employees = db.prepare(`SELECT id, name, role, active FROM users WHERE active=1 ORDER BY sort_order, name`).all();
+
+  const result = employees.map(emp => {
+    const records = db.prepare(`SELECT * FROM attendance WHERE user_id=? AND work_date LIKE ? ORDER BY work_date`)
+      .all(emp.id, `${ym}-%`);
+    const lateCount    = records.filter(r => r.is_late).length;
+    const workedDays   = records.filter(r => r.clock_in).length;
+    const autoOut      = records.filter(r => r.auto_clock_out).length;
+    // 請假天數
+    const leaveHours   = db.prepare(`SELECT COALESCE(SUM(hours),0) AS h FROM leave_requests WHERE user_id=? AND status='approved' AND leave_date LIKE ?`)
+      .get(emp.id, `${ym}-%`)?.h || 0;
+    return {
+      id: emp.id, name: emp.name, role: emp.role,
+      worked_days: workedDays, late_count: lateCount, auto_out: autoOut,
+      leave_hours: leaveHours,
+      records,
+    };
+  });
+
+  res.json({ year, month, employees: result });
+});
+
 module.exports = router;

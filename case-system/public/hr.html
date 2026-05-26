@@ -69,6 +69,15 @@
   .hr-list-body { max-height:240px; }
   .hr-detail { padding:16px; }
 }
+
+/* 全體出勤統計表 */
+.att-table { width:100%; border-collapse:collapse; font-size:13px; }
+.att-table th { background:#f9fafb; padding:8px 10px; text-align:left; font-weight:600; color:var(--gray-600); border-bottom:2px solid var(--gray-200); white-space:nowrap; }
+.att-table td { padding:8px 10px; border-bottom:1px solid var(--gray-100); }
+.att-table tr:hover td { background:#f8fafc; }
+.att-num { font-weight:700; text-align:center; }
+.att-late { color:#ef4444; font-weight:700; }
+.mode-btn-active { background:var(--primary); color:#fff !important; border-color:var(--primary) !important; }
 </style>
 </head>
 <body>
@@ -104,9 +113,16 @@
   </aside>
 
   <div class="main-content">
-    <div class="top-bar"><span class="page-title">人事資料管理</span></div>
+    <div class="top-bar">
+      <span class="page-title">人事資料管理</span>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-sm btn-ghost" id="btnEmpMode" onclick="setMode('emp')" style="font-weight:700">員工資料</button>
+        <button class="btn btn-sm btn-ghost" id="btnAttMode" onclick="setMode('att')">全體出勤統計</button>
+      </div>
+    </div>
 
-    <div class="hr-layout">
+    <!-- 員工資料 panel -->
+    <div class="hr-layout" id="empPanel">
       <!-- 左側員工列表 -->
       <div class="hr-list">
         <div class="hr-list-search">
@@ -124,6 +140,17 @@
         </div>
       </div>
     </div>
+
+    <!-- 全體出勤 panel -->
+    <div id="attPanel" style="display:none;padding:24px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <select id="attYear"  class="form-control" style="width:100px" onchange="loadAttSummary()"></select>
+        <select id="attMonth" class="form-control" style="width:80px" onchange="loadAttSummary()">
+          ${Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1} 月</option>`).join('')}
+        </select>
+      </div>
+      <div id="attSummaryContent"></div>
+    </div>
   </div>
 </div>
 
@@ -136,6 +163,15 @@ const LEAVE_TYPES = ['特休','病假','事假','公假','婚假','喪假','補�
 async function init() {
   await loadUser();
   highlightNav('hr');
+
+  // 初始化年份選單
+  const yearSel = document.getElementById('attYear');
+  const curYear = new Date().getFullYear();
+  for (let y = curYear; y >= curYear - 3; y--) {
+    const o = document.createElement('option'); o.value = y; o.textContent = y + ' 年'; yearSel.appendChild(o);
+  }
+  document.getElementById('attMonth').value = new Date().getMonth() + 1;
+
   await loadPendingBanner();
   await loadEmps();
 }
@@ -398,6 +434,53 @@ async function addAdjustment(userId) {
     if (emp) renderEmpDetail(emp);
     document.querySelector('.hr-tab[data-tab="leave"]').click();
   } else showToast('操作失敗','error');
+}
+
+// ── 模式切換：員工資料 vs 全體出勤 ──────────────────────────
+function setMode(mode) {
+  const isEmp = mode === 'emp';
+  document.getElementById('empPanel').style.display = isEmp ? '' : 'none';
+  document.getElementById('attPanel').style.display = isEmp ? 'none' : '';
+  document.getElementById('btnEmpMode').classList.toggle('mode-btn-active', isEmp);
+  document.getElementById('btnAttMode').classList.toggle('mode-btn-active', !isEmp);
+  if (!isEmp) loadAttSummary();
+}
+
+async function loadAttSummary() {
+  const year  = document.getElementById('attYear').value;
+  const month = document.getElementById('attMonth').value;
+  const el = document.getElementById('attSummaryContent');
+  el.innerHTML = '<div style="color:var(--gray-400);padding:20px">載入中…</div>';
+  const res = await fetch(`/api/hr/attendance-summary?year=${year}&month=${month}`);
+  if (!res.ok) { el.innerHTML = '<div style="color:#ef4444">載入失敗</div>'; return; }
+  const { employees } = await res.json();
+  if (!employees.length) { el.innerHTML = '<div style="color:var(--gray-400)">無資料</div>'; return; }
+
+  el.innerHTML = `
+  <div style="overflow-x:auto">
+  <table class="att-table">
+    <thead>
+      <tr>
+        <th>姓名</th><th>職稱</th>
+        <th style="text-align:center">出勤天數</th>
+        <th style="text-align:center">遲到</th>
+        <th style="text-align:center">自動下班</th>
+        <th style="text-align:center">請假時數</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${employees.map(e => `
+        <tr>
+          <td><strong>${e.name}</strong></td>
+          <td style="color:var(--gray-500)">${ROLE_LABELS[e.role]||e.role}</td>
+          <td class="att-num">${e.worked_days}</td>
+          <td class="att-num ${e.late_count?'att-late':''}">${e.late_count||0}</td>
+          <td class="att-num" style="color:${e.auto_out?'#f59e0b':'var(--gray-400)'}">${e.auto_out||0}</td>
+          <td class="att-num">${e.leave_hours||0}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
 }
 
 init();
