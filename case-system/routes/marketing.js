@@ -279,9 +279,11 @@ router.get('/report', requireAuth, (req, res) => {
 
     function alertQuery(status, tsCol) {
       return db.prepare(`
-        SELECT c.id, c.case_number, c.client_name, c.title, c.${tsCol} as ts,
+        SELECT c.id, c.case_number, cl.name as client_name, c.title, c.${tsCol} as ts,
                u.name as sales_name
-        FROM cases c LEFT JOIN users u ON u.id = c.sales_id
+        FROM cases c
+        LEFT JOIN users u ON u.id = c.sales_id
+        LEFT JOIN clients cl ON cl.id = c.client_id
         WHERE c.status=? AND c.${tsCol} IS NOT NULL AND c.${tsCol} < ?
           ${of.where}
         ORDER BY c.${tsCol} ASC
