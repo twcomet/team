@@ -406,12 +406,13 @@ async function deleteInquiry(id) {
   if (!confirm('確定要刪除這筆詢問記錄？此操作無法還原。')) return;
   const res = await fetch(`/api/line-inquiries/${id}`, { method: 'DELETE' });
   if (res.ok) {
+    showToast('詢問記錄已刪除');
     document.getElementById('detailPanel').innerHTML = `<div class="inq-empty"><span style="font-size:14px">已刪除</span></div>`;
     currentId = null;
     loadStats(); loadList();
   } else {
     const d = await res.json().catch(() => ({}));
-    alert(d.error || '刪除失敗');
+    showToast(d.error || '刪除失敗', 'error');
   }
 }
 

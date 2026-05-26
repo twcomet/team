@@ -769,8 +769,8 @@ function selectSellCase(id) {
 async function saveSell() {
   const rid = document.getElementById('s_roll_id').value;
   const meters = parseFloat(document.getElementById('s_meters').value);
-  if (!rid) { alert('請選擇捲料'); return; }
-  if (!meters || meters <= 0) { alert('請填寫使用米數'); return; }
+  if (!rid) { showToast('請選擇捲料', 'error'); return; }
+  if (!meters || meters <= 0) { showToast('請填寫使用米數', 'error'); return; }
   const body = {
     log_type: document.getElementById('s_type').value,
     case_id:  document.getElementById('s_case_id').value || null,
@@ -781,12 +781,13 @@ async function saveSell() {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
   });
   if (res.ok) {
+    showToast('出售紀錄已儲存');
     closeSellModal();
     await loadMaterials();
     expandedRows.forEach(id => loadRolls(id));
   } else {
     const err = await res.json().catch(() => ({}));
-    alert(err.error || '操作失敗');
+    showToast(err.error || '操作失敗', 'error');
   }
 }
 
@@ -828,23 +829,33 @@ async function saveMat() {
     stock_meters: parseFloat(document.getElementById('m_stock_meters').value) || 0,
     notes:        document.getElementById('m_notes').value.trim() || null,
   };
-  if (!body.brand || !body.model) { alert('品牌和型號必填'); return; }
+  if (!body.brand || !body.model) { showToast('品牌和型號必填', 'error'); return; }
   const url = editMatId ? `/api/materials/${editMatId}` : '/api/materials';
   const res = await fetch(url, { method: editMatId ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (res.ok) {
     const data = await res.json();
+    showToast(editMatId ? '膜料已更新' : '膜料已新增');
     closeMatModal();
     await Promise.all([loadMaterials(), loadActivity()]);
     if (!editMatId && body.stock_meters > 0 && data.id) {
       expandedRows.add(data.id);
       applyFilters();
     }
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '儲存失敗', 'error');
   }
 }
 
 async function deleteMat(id) {
   if (!confirm('確定刪除此膜料型號？相關捲料和紀錄也會一併刪除。')) return;
-  await fetch(`/api/materials/${id}`, { method:'DELETE' });
+  const res = await fetch(`/api/materials/${id}`, { method:'DELETE' });
+  if (res.ok) {
+    showToast('膜料已刪除');
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '刪除失敗', 'error');
+  }
   expandedRows.delete(id);
   await Promise.all([loadMaterials(), loadActivity()]);
 }
@@ -892,7 +903,7 @@ function closeRollModal() { document.getElementById('rollModal').classList.remov
 
 async function saveRoll() {
   const meters = parseFloat(document.getElementById('r_initial_meters').value);
-  if (!meters) { alert('請填寫進貨米數'); return; }
+  if (!meters) { showToast('請填寫進貨米數', 'error'); return; }
   const body = {
     roll_no:       document.getElementById('r_roll_no').value.trim() || null,
     initial_meters: meters,
@@ -906,9 +917,13 @@ async function saveRoll() {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
   });
   if (res.ok) {
+    showToast('捲料已新增');
     closeRollModal();
     expandedRows.add(rollTargetMatId);
     await Promise.all([loadMaterials(), loadActivity()]);
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '儲存失敗', 'error');
   }
 }
 
@@ -963,7 +978,7 @@ function selectCase(id, num, title) {
 
 async function saveLog() {
   const meters = parseFloat(document.getElementById('l_meters').value);
-  if (!meters) { alert('請填寫使用米數'); return; }
+  if (!meters) { showToast('請填寫使用米數', 'error'); return; }
   const body = {
     log_type: document.getElementById('l_type').value,
     case_id:  document.getElementById('l_case_id').value || null,
@@ -974,9 +989,13 @@ async function saveLog() {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
   });
   if (res.ok) {
+    showToast('使用紀錄已儲存');
     closeLogModal();
     await Promise.all([loadMaterials(), loadActivity()]);
     expandedRows.forEach(id => loadRolls(id));
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '儲存失敗', 'error');
   }
 }
 

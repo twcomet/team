@@ -377,12 +377,13 @@ async function createCategory() {
 async function deleteCategory(id) {
   const res = await fetch(`/api/categories/${id}`, { method:'DELETE' });
   if (res.ok) {
+    showToast('分類已刪除');
     allCategories = allCategories.filter(c => c.id !== id);
     renderCategorySelect();
     renderCatMgrList();
     clientCases = {};
     await loadClients();
-  }
+  } else { showToast('刪除失敗', 'error'); }
 }
 
 async function loadTags() {
@@ -440,12 +441,13 @@ async function createTag() {
 async function deleteTag(id) {
   const res = await fetch(`/api/tags/${id}`, { method:'DELETE' });
   if (res.ok) {
+    showToast('標籤已刪除');
     allTags = allTags.filter(t => t.id !== id);
     renderTagFilters();
     renderTagMgrList();
     clientCases = {};
     await loadClients();
-  }
+  } else { showToast('刪除失敗', 'error'); }
 }
 
 function renderTagPicker(selectedTagIds) {

@@ -702,8 +702,8 @@ router.delete('/:id', requireAuth, (req, res) => {
       .run(me.id, 'delete', 'cases', id, `刪除案件 ${c.case_number} ${c.title}`);
     db.exec('COMMIT');
   } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
+    try { db.exec('ROLLBACK'); } catch {}
+    return res.status(500).json({ error: e.message });
   }
 
   res.json({ ok: true });
