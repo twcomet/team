@@ -130,6 +130,127 @@ router.get('/cs-funnel', requireAuth, (req, res) => {
   }
 });
 
+// GET /api/marketing/daily?period=today|week|month&org_id=
+router.get('/daily', requireAuth, (req, res) => {
+  try {
+    const me = req.session.user;
+    const { period = 'week', org_id } = req.query;
+
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    let fromDate;
+    if (period === 'today')      { fromDate = today; }
+    else if (period === 'week')  { const d = new Date(now); d.setDate(d.getDate() - 6); fromDate = d.toISOString().slice(0, 10); }
+    else /* month */             { fromDate = `${today.slice(0, 7)}-01`; }
+
+    const of  = buildOrgFilter(me, 'org_id', org_id);
+    const of2 = buildOrgFilter(me, 'i.org_id', org_id);
+    const of3 = buildOrgFilter(me, 'c.org_id', org_id);
+
+    // LINE 新進詢問：每天新建的 line_inquiries
+    const lineNew = db.prepare(`
+      SELECT date(created_at) as day, COUNT(*) as cnt
+      FROM line_inquiries i
+      WHERE date(created_at) BETWEEN ? AND ?
+        AND status != 'hidden' ${of2.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of2.params);
+
+    // LINE 舊詢問活動：當天有收到新訊息（direction='in'）但詢問本身不是今天建立的
+    const lineOld = db.prepare(`
+      SELECT date(m.created_at) as day, COUNT(DISTINCT m.inquiry_id) as cnt
+      FROM line_inquiry_messages m
+      JOIN line_inquiries i ON i.id = m.inquiry_id
+      WHERE m.direction = 'in'
+        AND date(m.created_at) BETWEEN ? AND ?
+        AND date(m.created_at) != date(i.created_at)
+        ${of2.where.replace('i.org_id', 'i.org_id')}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of2.params);
+
+    // 每日新增詢價案件
+    const caseNew = db.prepare(`
+      SELECT date(created_at) as day, COUNT(*) as cnt
+      FROM cases
+      WHERE date(created_at) BETWEEN ? AND ? ${of.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of.params);
+
+    // 每日初步估價完成
+    const caseEstimate = db.prepare(`
+      SELECT date(initial_estimate_at) as day, COUNT(*) as cnt
+      FROM cases
+      WHERE date(initial_estimate_at) BETWEEN ? AND ?
+        AND initial_estimate_at IS NOT NULL ${of.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of.params);
+
+    // 場勘案件數（進入 survey_pending 的案件，以 survey_pending_at 計）
+    const caseSurvey = db.prepare(`
+      SELECT date(survey_pending_at) as day, COUNT(*) as cnt
+      FROM cases
+      WHERE date(survey_pending_at) BETWEEN ? AND ?
+        AND survey_pending_at IS NOT NULL ${of.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of.params);
+
+    // 每日報價發出
+    const caseQuoted = db.prepare(`
+      SELECT date(quoted_at) as day, COUNT(*) as cnt
+      FROM cases
+      WHERE date(quoted_at) BETWEEN ? AND ?
+        AND quoted_at IS NOT NULL ${of.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of.params);
+
+    // 每日無效案件
+    const caseInvalid = db.prepare(`
+      SELECT date(invalid_at) as day, COUNT(*) as cnt
+      FROM cases
+      WHERE date(invalid_at) BETWEEN ? AND ?
+        AND invalid_at IS NOT NULL ${of.where}
+      GROUP BY day ORDER BY day
+    `).all(fromDate, today, ...of.params);
+
+    // 合併成每日一列
+    const daySet = new Set();
+    [lineNew, lineOld, caseNew, caseEstimate, caseSurvey, caseQuoted, caseInvalid].forEach(arr =>
+      arr.forEach(r => daySet.add(r.day))
+    );
+    // 填補期間內所有日期（即使無資料也顯示0）
+    let d = new Date(fromDate);
+    while (d.toISOString().slice(0,10) <= today) {
+      daySet.add(d.toISOString().slice(0,10));
+      d.setDate(d.getDate() + 1);
+    }
+
+    function toMap(arr) { const m={}; arr.forEach(r => m[r.day]=r.cnt); return m; }
+    const mLineNew   = toMap(lineNew);
+    const mLineOld   = toMap(lineOld);
+    const mCaseNew   = toMap(caseNew);
+    const mEstimate  = toMap(caseEstimate);
+    const mSurvey    = toMap(caseSurvey);
+    const mQuoted    = toMap(caseQuoted);
+    const mInvalid   = toMap(caseInvalid);
+
+    const days = [...daySet].sort().reverse().map(day => ({
+      day,
+      line_new:     mLineNew[day]   || 0,
+      line_old:     mLineOld[day]   || 0,
+      case_new:     mCaseNew[day]   || 0,
+      estimated:    mEstimate[day]  || 0,
+      surveyed:     mSurvey[day]    || 0,
+      quoted:       mQuoted[day]    || 0,
+      invalided:    mInvalid[day]   || 0,
+    }));
+
+    res.json({ period, fromDate, toDate: today, days });
+  } catch (err) {
+    console.error('[marketing/daily]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/marketing/report?period=today|week|month&org_id=
 router.get('/report', requireAuth, (req, res) => {
   try {

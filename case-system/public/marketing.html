@@ -92,6 +92,35 @@
         <button class="period-tab"        onclick="setPeriod('month')">本月</button>
       </div>
 
+      <!-- Daily KPI table -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <h3>每日關鍵指標</h3>
+          <span id="dailyLabel" style="font-size:12px;color:var(--gray-500)"></span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table id="dailyTable">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th style="text-align:center">LINE<br>新進詢問</th>
+                  <th style="text-align:center">LINE<br>舊詢問活動</th>
+                  <th style="text-align:center">新增<br>詢價案件</th>
+                  <th style="text-align:center">初步<br>估價完成</th>
+                  <th style="text-align:center">場勘<br>案件數</th>
+                  <th style="text-align:center">報價<br>發出</th>
+                  <th style="text-align:center">無效<br>案件</th>
+                </tr>
+              </thead>
+              <tbody id="dailyBody">
+                <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--gray-400)">載入中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div id="alertBox" class="alert-box">
         <div class="alert-title">⚠️ 逾時追蹤警示 &nbsp;<span id="alertBadge" style="font-size:13px;font-weight:500">載入中...</span></div>
         <div id="alertContent"></div>
@@ -168,19 +197,66 @@ function setPeriod(p) {
 
 async function load() {
   const qs = `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
-  let d;
+  let d, daily;
   try {
-    const res = await fetch(`/api/marketing/report?${qs}`);
-    d = await res.json();
-    if (!res.ok) throw new Error(d.error || '載入失敗');
+    [d, daily] = await Promise.all([
+      fetch(`/api/marketing/report?${qs}`).then(r => r.json()),
+      fetch(`/api/marketing/daily?${qs}`).then(r => r.json()),
+    ]);
+    if (d.error) throw new Error(d.error);
   } catch (e) {
     document.getElementById('alertContent').innerHTML = `<div style="color:#e02424;font-size:13px">載入失敗：${e.message}</div>`;
     return;
   }
+  renderDaily(daily);
   renderAlerts(d.alerts);
   renderFunnel(d.funnel, d.period, d.fromDate, d.toDate);
   renderPending(d.pending);
   renderInvalid(d.invalidReasons);
+}
+
+function renderDaily(d) {
+  if (!d || d.error) return;
+  const label = d.period === 'today' ? `今日（${d.fromDate}）` :
+                d.period === 'week'  ? `本週（${d.fromDate} ～ ${d.toDate}）` :
+                `本月（${d.fromDate} ～ ${d.toDate}）`;
+  document.getElementById('dailyLabel').textContent = label;
+
+  const tbody = document.getElementById('dailyBody');
+  if (!d.days?.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--gray-400)">此期間無資料</td></tr>';
+    return;
+  }
+
+  function cell(n, color) {
+    if (!n) return `<td style="text-align:center;color:var(--gray-300)">—</td>`;
+    return `<td style="text-align:center;font-weight:600;color:${color}">${n}</td>`;
+  }
+
+  // Totals row
+  const tot = d.days.reduce((acc, r) => {
+    acc.line_new  += r.line_new;  acc.line_old  += r.line_old;
+    acc.case_new  += r.case_new;  acc.estimated += r.estimated;
+    acc.surveyed  += r.surveyed;  acc.quoted    += r.quoted;
+    acc.invalided += r.invalided;
+    return acc;
+  }, { line_new:0, line_old:0, case_new:0, estimated:0, surveyed:0, quoted:0, invalided:0 });
+
+  const totRow = `<tr style="background:#f0f9ff;font-weight:700">
+    <td style="font-size:12px;color:var(--gray-600)">合計</td>
+    ${cell(tot.line_new,'#0891b2')} ${cell(tot.line_old,'#6366f1')}
+    ${cell(tot.case_new,'var(--primary)')} ${cell(tot.estimated,'#059669')}
+    ${cell(tot.surveyed,'#d97706')} ${cell(tot.quoted,'#7c3aed')}
+    ${cell(tot.invalided,'#dc2626')}
+  </tr>`;
+
+  tbody.innerHTML = totRow + d.days.map(r => `<tr>
+    <td style="font-size:12px;white-space:nowrap">${r.day}</td>
+    ${cell(r.line_new,'#0891b2')} ${cell(r.line_old,'#6366f1')}
+    ${cell(r.case_new,'var(--primary)')} ${cell(r.estimated,'#059669')}
+    ${cell(r.surveyed,'#d97706')} ${cell(r.quoted,'#7c3aed')}
+    ${cell(r.invalided,'#dc2626')}
+  </tr>`).join('');
 }
 
 function renderAlerts(alerts) {

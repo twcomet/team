@@ -67,12 +67,13 @@ router.get('/performance', requireAuth, (req, res) => {
 
   // 依業務員
   const bySales = db.prepare(`
-    SELECT COALESCE(c.sales_name,'未指定') as name,
+    SELECT COALESCE(s.name,'未指定') as name,
       COUNT(*) as count,
       SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
       SUM(COALESCE(c.payment_received, 0)) as received
-    FROM cases c ${where}
-    GROUP BY c.sales_name ORDER BY gross_value DESC
+    FROM cases c LEFT JOIN users s ON s.id = c.sales_id
+    ${where}
+    GROUP BY c.sales_id ORDER BY gross_value DESC
   `).all(...params);
 
   // 依月份（以施工日期）
@@ -103,8 +104,9 @@ router.get('/performance', requireAuth, (req, res) => {
 
   // 案件明細
   const cases = db.prepare(`
-    SELECT c.id, c.case_number, c.title, c.client_name, c.case_type,
-           c.sales_name, c.scheduled_date,
+    SELECT c.id, c.case_number, c.title, c.case_type,
+           cl.name as client_name, s.name as sales_name,
+           c.scheduled_date,
            COALESCE(c.final_price, c.quoted_price, 0) as value,
            COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
            COALESCE(c.payment_received, 0) as received,
@@ -112,6 +114,8 @@ router.get('/performance', requireAuth, (req, res) => {
            o.name as org_name
     FROM cases c
     LEFT JOIN orgs o ON o.id = c.org_id
+    LEFT JOIN users s ON s.id = c.sales_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
     ${where}
     ORDER BY c.created_at DESC
   `).all(...params);
@@ -414,13 +418,14 @@ router.get('/sales', requireAuth, (req, res) => {
     `).get(...prevParams);
 
     const bySales = db.prepare(`
-      SELECT COALESCE(c.sales_name,'未指定') as name,
+      SELECT COALESCE(s.name,'未指定') as name,
         COUNT(*) as count,
         SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value,
         SUM(COALESCE(c.final_price, c.quoted_price, 0)*1.05) as tax_value,
         SUM(COALESCE(c.payment_received, 0)) as received
-      FROM cases c ${where}
-      GROUP BY c.sales_name ORDER BY gross_value DESC
+      FROM cases c LEFT JOIN users s ON s.id = c.sales_id
+      ${where}
+      GROUP BY c.sales_id ORDER BY gross_value DESC
     `).all(...params);
 
     const byType = db.prepare(`
@@ -462,13 +467,17 @@ router.get('/sales', requireAuth, (req, res) => {
     `).all(...pipeParams);
 
     const cases = db.prepare(`
-      SELECT c.id, c.case_number, c.title, c.client_name, c.case_type,
-             c.sales_name, c.contracted_at, c.scheduled_date,
+      SELECT c.id, c.case_number, c.title, c.case_type,
+             cl.name as client_name, s.name as sales_name,
+             c.contracted_at, c.scheduled_date,
              COALESCE(c.final_price, c.quoted_price, 0) as value,
              COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
              COALESCE(c.payment_received, 0) as received,
              c.payment_status, c.status
-      FROM cases c ${where}
+      FROM cases c
+      LEFT JOIN users s ON s.id = c.sales_id
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      ${where}
       ORDER BY c.contracted_at DESC
     `).all(...params);
 
@@ -487,31 +496,35 @@ router.get('/payment-status', requireAuth, (req, res) => {
     const orgRestrict = orgFilter(user);
 
     const params = [];
-    let where = 'WHERE 1=1';
-    if (orgRestrict.org_id) { where += ' AND org_id=?'; params.push(orgRestrict.org_id); }
-    else if (org_id) { where += ' AND org_id=?'; params.push(Number(org_id)); }
+    let orgCond = '';
+    if (orgRestrict.org_id) { orgCond = ' AND c.org_id=?'; params.push(orgRestrict.org_id); }
+    else if (org_id) { orgCond = ' AND c.org_id=?'; params.push(Number(org_id)); }
 
     const pendingDeposit = db.prepare(`
-      SELECT id, case_number, client_name, title, contracted_at,
-             COALESCE(final_price, quoted_price, 0) as value,
-             COALESCE(final_price, quoted_price, 0)*1.05 as tax_value,
-             COALESCE(deposit_amount, 0) as deposit,
-             COALESCE(payment_received, 0) as received,
-             sales_name, payment_status
-      FROM cases
-      WHERE status IN ('contracted','payment') AND COALESCE(deposit_amount, 0) = 0 ${where.replace('WHERE 1=1', '')}
-      ORDER BY contracted_at ASC
+      SELECT c.id, c.case_number, cl.name as client_name, c.title, c.contracted_at,
+             COALESCE(c.final_price, c.quoted_price, 0) as value,
+             COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
+             COALESCE(c.deposit_amount, 0) as deposit,
+             COALESCE(c.payment_received, 0) as received,
+             s.name as sales_name, c.payment_status
+      FROM cases c
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      LEFT JOIN users s ON s.id = c.sales_id
+      WHERE c.status IN ('contracted','payment') AND COALESCE(c.deposit_amount, 0) = 0 ${orgCond}
+      ORDER BY c.contracted_at ASC
     `).all(...params);
 
     const pendingFinal = db.prepare(`
-      SELECT id, case_number, client_name, title, contracted_at,
-             COALESCE(final_price, quoted_price, 0) as value,
-             COALESCE(final_price, quoted_price, 0)*1.05 as tax_value,
-             COALESCE(payment_received, 0) as received,
-             sales_name, payment_status
-      FROM cases
-      WHERE status = 'payment' ${where.replace('WHERE 1=1', '')}
-      ORDER BY contracted_at ASC
+      SELECT c.id, c.case_number, cl.name as client_name, c.title, c.contracted_at,
+             COALESCE(c.final_price, c.quoted_price, 0) as value,
+             COALESCE(c.final_price, c.quoted_price, 0)*1.05 as tax_value,
+             COALESCE(c.payment_received, 0) as received,
+             s.name as sales_name, c.payment_status
+      FROM cases c
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      LEFT JOIN users s ON s.id = c.sales_id
+      WHERE c.status = 'payment' ${orgCond}
+      ORDER BY c.contracted_at ASC
     `).all(...params);
 
     const now = new Date();
@@ -521,7 +534,7 @@ router.get('/payment-status', requireAuth, (req, res) => {
              COUNT(*) as cnt
       FROM cases
       WHERE status IN ('contracted','payment','closed')
-        AND payment_received > 0 ${where.replace('WHERE 1=1', '')}
+        AND payment_received > 0 ${orgCond.replace('c.org_id', 'org_id')}
     `).get(...params);
 
     const dailyCollection = db.prepare(`
@@ -531,7 +544,7 @@ router.get('/payment-status', requireAuth, (req, res) => {
       FROM cases
       WHERE status IN ('contracted','payment','closed')
         AND payment_received > 0
-        AND date(updated_at) >= ? ${where.replace('WHERE 1=1', '')}
+        AND date(updated_at) >= ? ${orgCond.replace('c.org_id', 'org_id')}
       GROUP BY day ORDER BY day DESC LIMIT 30
     `).all(thisMonthStart, ...params);
 
