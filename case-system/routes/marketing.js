@@ -327,6 +327,7 @@ router.get('/report', requireAuth, (req, res) => {
     invalidRows.forEach(r => {
       let tags = [];
       try { tags = JSON.parse(r.invalid_reason_tags); } catch {}
+      if (!Array.isArray(tags)) tags = [];
       tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + r.cnt; });
     });
     const invalidReasons = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([name,cnt])=>({name,cnt}));
