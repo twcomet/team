@@ -5,6 +5,7 @@ const ROLE_DEFS = {
   owner:              { label:'最高管理者', viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:true  },
   vp:                 { label:'副總',       viewAllBranches:true,  viewAmounts:true,  manageUsers:true,  manageOrgs:false },
   hq_cs:              { label:'客服',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
+  hq_cs_manager:     { label:'客服主管',   viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
   hq_sales:           { label:'業務',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },
   hq_tech:            { label:'技術',       viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
   hq_accounting:      { label:'會計',       viewAllBranches:true,  viewAmounts:true,  manageUsers:false, manageOrgs:false },

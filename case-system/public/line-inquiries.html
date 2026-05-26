@@ -276,7 +276,7 @@ async function openInquiry(id) {
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
     .map(u => `<option value="${u.id}"${data.sales_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
   const csOpts = allUsers
-    .filter(u => ['hq_cs','owner','vp'].includes(u.role))
+    .filter(u => ['hq_cs','hq_cs_manager','hq_accounting','owner','vp'].includes(u.role))
     .map(u => `<option value="${u.id}"${data.cs_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
 
   panel.innerHTML = `

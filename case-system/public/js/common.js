@@ -1,5 +1,5 @@
 const ROLE_LABELS = {
-  owner:'最高管理者', hq_cs:'客服', hq_sales:'業務（總部）',
+  owner:'最高管理者', hq_cs:'客服', hq_cs_manager:'客服主管', hq_sales:'業務（總部）',
   hq_tech:'技術（總部）', hq_accounting:'會計', hq_hr:'人事',
   branch_manager:'分店負責人', branch_sales:'分店業務',
   branch_tech:'分店技術', contractor_install:'約聘技師',
@@ -51,7 +51,7 @@ async function loadUser() {
     cases:            p.page_cases,
     'cases-inquiry':  p.page_cases,
     'cases-survey':   p.page_cases,
-    'cases-deal':     p.page_cases_deal !== undefined ? p.page_cases_deal : ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(currentUser.role),
+    'cases-deal':     p.page_cases_deal !== undefined ? p.page_cases_deal : ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(currentUser.role),
     'case-detail':    p.page_cases,
     clients:          p.page_clients,
     calendar:         p.page_calendar,

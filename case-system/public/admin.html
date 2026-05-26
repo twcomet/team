@@ -886,7 +886,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
 });
 
 const CONTRACTOR_ROLES = ['contractor_install','contractor_sales','dealer'];
-const BUILTIN_VIEW_ALL = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
+const BUILTIN_VIEW_ALL = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_accounting','hq_hr'];
 
 function renderAllowedOrgs(ownOrgId, allowedIds = []) {
   const roleVal = document.getElementById('userRole').value;
@@ -932,7 +932,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_marketing').checked        = !!p.page_marketing;
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
-    const isHQ = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
+    const isHQ = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
     document.getElementById('userIsManager').checked              = false;
     document.getElementById('userCanSeeAmounts').checked          = false;
     document.getElementById('perm_page_dashboard').checked        = !isContractor;
@@ -1028,7 +1028,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
   document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
-  const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr'];
+  const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'];
   document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
   const allowedIds = u.allowed_org_ids ? JSON.parse(u.allowed_org_ids) : [];

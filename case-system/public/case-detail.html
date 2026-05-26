@@ -1479,7 +1479,7 @@ function fillBasicForm() {
   updatePoolBanner(!!c.is_outsourced, c.is_outsourced ? (c.outsource_type || 'full') : null);
 
   const salesList = allUsers.filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role));
-  const csList    = allUsers.filter(u => u.role === 'hq_cs');
+  const csList    = allUsers.filter(u => ['hq_cs','hq_cs_manager','hq_accounting'].includes(u.role));
   initClientAutocomplete();
   populateSelect(document.getElementById('b_sales'), salesList, 'id', 'name', '（未指定）');
   populateSelect(document.getElementById('b_cs'),    csList,    'id', 'name', '（未指定）');
