@@ -207,21 +207,7 @@ const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯'
 let orgs = [], csGroup = 'day', trendMode = 'day', trendChartInst = null;
 
 async function init() {
-  // loadUser timeout 防護：10 秒內沒回應就顯示錯誤
-  const userLoaded = await Promise.race([
-    loadUser(),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('伺服器回應超時，請重新整理')), 10000))
-  ]);
-  if (!userLoaded) return; // session 過期已被重導
-  highlightNav('marketing');
-
-  // 預設期間：近1年
-  const now = new Date();
-  document.getElementById('toDate').value = now.toISOString().slice(0, 10);
-  const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
-  document.getElementById('fromDate').value = from.toISOString().slice(0, 10);
-
-  // 所有按鈕事件先綁定，確保不因後續 async 流程失敗而失效
+  // 所有按鈕事件最優先綁定，確保任何 async 失敗都不影響按鈕功能
   document.getElementById('queryBtn').addEventListener('click', () => { loadReport(); loadCsFunnel(); });
   document.getElementById('btn1y').addEventListener('click', () => setRange(365));
   document.getElementById('btn6m').addEventListener('click', () => setRange(180));
@@ -245,6 +231,25 @@ async function init() {
       loadCsFunnel();
     });
   });
+
+  // 預設期間：近1年
+  const now = new Date();
+  document.getElementById('toDate').value = now.toISOString().slice(0, 10);
+  const from = new Date(now); from.setFullYear(from.getFullYear() - 1);
+  document.getElementById('fromDate').value = from.toISOString().slice(0, 10);
+
+  // loadUser timeout 防護：10 秒內沒回應就顯示錯誤
+  let userLoaded;
+  try {
+    userLoaded = await Promise.race([
+      loadUser(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('伺服器回應超時，請重新整理')), 10000))
+    ]);
+  } catch (e) {
+    throw e;
+  }
+  if (!userLoaded) return; // session 過期已被重導
+  highlightNav('marketing');
 
   // 分店篩選（view_all_branches 才顯示）
   if (currentUser?.view_all_branches) {
