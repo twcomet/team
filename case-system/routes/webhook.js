@@ -116,7 +116,7 @@ async function handleClientText(event, channel) {
   const orgId   = channel.org_id || null;
   const sysId   = sysUser?.id || null;
 
-  // 確保 clients 記錄存在
+  // 確保 clients 記錄存在，並同步最新 LINE 顯示名稱
   let client = db.prepare(`SELECT * FROM clients WHERE line_user_id=?`).get(userId);
   if (!client) {
     const r = db.prepare(`
@@ -124,6 +124,10 @@ async function handleClientText(event, channel) {
       VALUES (?, ?, 'LINE', ?, ?)
     `).run(orgId, displayName, userId, sysId);
     client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(r.lastInsertRowid);
+  } else if (client.name !== displayName) {
+    // LINE 用戶改名 → 同步更新 clients 顯示名稱
+    db.prepare(`UPDATE clients SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(displayName, client.id);
+    client = { ...client, name: displayName };
   }
 
   // 找同一頻道最近一筆開放中的詢問，若無則建新的
@@ -141,16 +145,17 @@ async function handleClientText(event, channel) {
     db.prepare(`
       UPDATE line_inquiries
       SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
-          message_count=message_count+1, updated_at=CURRENT_TIMESTAMP
+          message_count=message_count+1, display_name=?, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
-    `).run(text.slice(0, 200), inquiryId);
+    `).run(text.slice(0, 200), displayName, inquiryId);
   } else {
-    // 檢查是否已有尚未結案的案件（由此 LINE 帳號轉入）
+    // 檢查是否已有尚未結案的案件（透過 line_source 或 client_id 關聯）
     const activeCase = db.prepare(`
       SELECT id FROM cases
-      WHERE line_source=? AND status NOT IN ('closed','invalid')
+      WHERE status NOT IN ('closed','invalid')
+        AND (line_source=? OR client_id=?)
       LIMIT 1
-    `).get(userId);
+    `).get(userId, client.id);
 
     if (activeCase) {
       // 已有進行中案件，不建立新詢問，訊息附掛到最近一筆已轉案的詢問
