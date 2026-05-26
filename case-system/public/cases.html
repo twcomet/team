@@ -913,7 +913,7 @@ async function deleteCase(id, caseNumber) {
   if (!confirm(`確定要刪除案件「${caseNumber}」？\n\n此操作無法復原，相關派工、場勘單、報價單資料將一併刪除。`)) return;
   const r = await fetch(`/api/cases/${id}`, { method: 'DELETE' });
   const d = await r.json();
-  if (d.ok) { showToast('案件已刪除'); loadCases(); }
+  if (d.ok) { showCenterToast('案件已刪除'); loadCases(); }
   else showToast(d.error || '刪除失敗', 'error');
 }
 

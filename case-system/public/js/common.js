@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshNotifBadge();
 });
 
-// ── toast 提示 ─────────────────────────────────────────────
+// ── Toast 右上角提示 ────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
@@ -202,6 +202,20 @@ function showToast(msg, type = 'success') {
   container.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+// ── 正中央大提示（重要操作如刪除成功）──────────────────────
+function showCenterToast(msg, icon = '✅') {
+  const wrap = document.createElement('div');
+  wrap.className = 'center-toast-wrap';
+  wrap.innerHTML = `<div class="center-toast"><div class="ct-icon">${icon}</div><div class="ct-msg">${msg}</div></div>`;
+  document.body.appendChild(wrap);
+  const box = wrap.querySelector('.center-toast');
+  requestAnimationFrame(() => box.classList.add('show'));
+  setTimeout(() => {
+    box.classList.remove('show');
+    setTimeout(() => wrap.remove(), 250);
+  }, 2000);
 }
 
 async function fetchUsers() {

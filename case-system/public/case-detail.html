@@ -1423,8 +1423,8 @@ async function deleteCaseInDetail() {
   const r = await fetch(`/api/cases/${caseId}`, { method: 'DELETE' });
   const d = await r.json();
   if (d.ok) {
-    showToast('案件已刪除');
-    setTimeout(() => { location.href = '/cases'; }, 800);
+    showCenterToast('案件已刪除');
+    setTimeout(() => { location.href = '/cases'; }, 2000);
   } else showToast(d.error || '刪除失敗', 'error');
 }
 

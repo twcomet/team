@@ -211,3 +211,35 @@ tr:hover td { background: var(--gray-50); }
   #sf_sigCanvas { height: 180px !important; }
 }
 .tag-target-form { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+
+/* ── Toast 右上角提示 ────────────────────────────────────── */
+.toast {
+  padding: 12px 18px; border-radius: 8px; color: #fff;
+  font-size: 14px; font-weight: 500; white-space: nowrap;
+  opacity: 0; transform: translateX(20px);
+  transition: opacity .2s, transform .2s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  max-width: 320px; word-break: break-word; white-space: normal;
+}
+.toast.show { opacity: 1; transform: translateX(0); }
+.toast-success { background: var(--success); }
+.toast-error   { background: var(--danger); }
+.toast-warning { background: var(--warning); }
+.toast-info    { background: #0ea5e9; }
+
+/* ── 正中央大提示（用於刪除成功等重要操作）────────────────── */
+.center-toast-wrap {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.center-toast {
+  background: #fff; border-radius: 20px;
+  padding: 36px 56px; text-align: center;
+  box-shadow: 0 12px 48px rgba(0,0,0,.22);
+  opacity: 0; transform: scale(.85);
+  transition: opacity .2s, transform .2s;
+}
+.center-toast.show { opacity: 1; transform: scale(1); }
+.center-toast .ct-icon { font-size: 52px; line-height: 1; margin-bottom: 14px; }
+.center-toast .ct-msg  { font-size: 20px; font-weight: 700; color: var(--gray-900); }
