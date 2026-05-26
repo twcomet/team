@@ -224,4 +224,36 @@ router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
   res.json({ year, month, employees: result });
 });
 
+// ── 一次性：清除 staff OA 所有 API 設定的圖文選單 ──────────────
+router.post('/clear-staff-richmenu', requireHR, async (req, res) => {
+  const token = process.env.LINE_STAFF_CHANNEL_ACCESS_TOKEN;
+  if (!token) return res.status(500).json({ error: 'STAFF TOKEN not set' });
+
+  try {
+    // 取消預設圖文選單
+    await fetch('https://api.line.me/v2/bot/user/all/richmenu', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // 列出所有 API 設定的圖文選單並全部刪除
+    const listRes = await fetch('https://api.line.me/v2/bot/richmenu/list', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const listData = await listRes.json();
+    const menus = listData.richmenus || [];
+
+    for (const m of menus) {
+      await fetch(`https://api.line.me/v2/bot/richmenu/${m.richMenuId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    }
+
+    res.json({ ok: true, deleted: menus.length, message: `已清除 ${menus.length} 個 API 圖文選單` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
