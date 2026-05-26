@@ -1590,4 +1590,44 @@ db.exec(`
 // 收支表自動帶入用：追蹤案件付款的來源識別碼
 _addCol('ledger_entries', 'source_ref', 'TEXT');
 
+// ── 回填現有案件的收款記錄到收支表（idempotent：依 source_ref 避免重複）
+{
+  const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
+  const sysId   = sysUser?.id || null;
+
+  const cases = db.prepare(`
+    SELECT id, org_id, case_number, title,
+           survey_fee, survey_fee_date,
+           deposit_amount, deposit_date,
+           balance_paid, balance_paid_date
+    FROM cases
+    WHERE (survey_fee      IS NOT NULL AND survey_fee_date      IS NOT NULL)
+       OR (deposit_amount  IS NOT NULL AND deposit_date         IS NOT NULL)
+       OR (balance_paid    IS NOT NULL AND balance_paid_date    IS NOT NULL)
+  `).all();
+
+  const existing = new Set(
+    db.prepare(`SELECT source_ref FROM ledger_entries WHERE source_ref IS NOT NULL`).all().map(r => r.source_ref)
+  );
+
+  const ins = db.prepare(`
+    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref)
+    VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const c of cases) {
+    const label = `${c.case_number || ''} ${c.title || ''}`.trim();
+    const entries = [
+      { ref: `case_${c.id}_survey_fee`, date: c.survey_fee_date,   amount: c.survey_fee,      cat: '場勘費', desc: `場勘費｜${label}` },
+      { ref: `case_${c.id}_deposit`,    date: c.deposit_date,      amount: c.deposit_amount,  cat: '訂金',   desc: `訂金｜${label}` },
+      { ref: `case_${c.id}_balance`,    date: c.balance_paid_date, amount: c.balance_paid,    cat: '尾款',   desc: `尾款｜${label}` },
+    ];
+    for (const e of entries) {
+      if (e.date && e.amount && !existing.has(e.ref)) {
+        ins.run(e.date, e.cat, e.amount, c.id, e.desc, c.org_id || null, sysId, e.ref);
+      }
+    }
+  }
+}
+
 module.exports = db;
