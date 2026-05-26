@@ -1581,4 +1581,28 @@ db.exec(`
   );
 `);
 
+// 去除重複膜料（brand + model + color 完全相同的保留最早那筆）
+{
+  const dupeGroups = db.prepare(`
+    SELECT brand, model, color
+    FROM materials
+    GROUP BY brand, model, color
+    HAVING COUNT(*) > 1
+  `).all();
+
+  for (const g of dupeGroups) {
+    const rows = db.prepare(
+      `SELECT id FROM materials WHERE brand IS ? AND model IS ? AND color IS ? ORDER BY id ASC`
+    ).all(g.brand, g.model, g.color);
+    if (rows.length <= 1) continue;
+    const keepId = rows[0].id;
+    for (const { id: delId } of rows.slice(1)) {
+      db.prepare(`UPDATE material_rolls       SET material_id=? WHERE material_id=?`).run(keepId, delId);
+      db.prepare(`UPDATE material_logs        SET material_id=? WHERE material_id=?`).run(keepId, delId);
+      db.prepare(`UPDATE material_change_logs SET material_id=? WHERE material_id=?`).run(keepId, delId);
+      db.prepare(`DELETE FROM materials WHERE id=?`).run(delId);
+    }
+  }
+}
+
 module.exports = db;
