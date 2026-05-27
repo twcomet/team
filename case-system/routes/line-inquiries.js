@@ -44,12 +44,15 @@ router.get('/', requireAuth, (req, res) => {
            cc.case_number AS converted_case_number,
            cc.status      AS converted_case_status,
            su.name AS sales_name,
-           cu.name AS cs_name
+           cu.name AS cs_name,
+           o.name  AS org_name,
+           o.type  AS org_type
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
     LEFT JOIN users   su ON i.sales_id = su.id
     LEFT JOIN users   cu ON i.cs_id = cu.id
+    LEFT JOIN orgs    o  ON i.org_id = o.id
     ${ws}
     ORDER BY i.last_message_at DESC
     LIMIT ? OFFSET ?
@@ -87,12 +90,15 @@ router.get('/:id', requireAuth, (req, res) => {
     SELECT i.*, c.phone, c.email, c.address,
            cc.case_number AS converted_case_number,
            su.name AS sales_name, su.id AS sales_id_val,
-           cu.name AS cs_name,    cu.id AS cs_id_val
+           cu.name AS cs_name,    cu.id AS cs_id_val,
+           o.name  AS org_name,
+           o.type  AS org_type
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
     LEFT JOIN users   su ON i.sales_id = su.id
     LEFT JOIN users   cu ON i.cs_id = cu.id
+    LEFT JOIN orgs    o  ON i.org_id = o.id
     WHERE i.id=?
   `).get(req.params.id);
   if (!inq) return res.status(404).json({ error: 'not found' });

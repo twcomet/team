@@ -267,11 +267,13 @@ function renderList() {
     const salesBadge  = i.sales_name  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
     const csBadge     = i.cs_name     ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
     const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
+    const branchBadge = i.org_type === 'branch' && i.org_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(i.org_name)}</span>` : '';
     return `
     <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})">
       <div class="ic-name">
         ${escHtml(i.display_name || 'LINE用戶')}
         <span class="s-badge s-${dispStatus}">${sLabel(dispStatus)}</span>
+        ${branchBadge}
         ${i.message_count > 1 ? `<span style="font-size:11px;color:var(--gray-400)">${i.message_count} 則</span>` : ''}
       </div>
       <div class="ic-snippet">${escHtml(i.last_message || '')}</div>
@@ -310,6 +312,7 @@ async function openInquiry(id) {
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:16px;font-weight:700;color:var(--gray-900)">${escHtml(data.display_name || 'LINE用戶')}</span>
+          ${data.org_type === 'branch' && data.org_name ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(data.org_name)}</span>` : ''}
           ${data.add_source ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af">${escHtml(data.add_source)}</span>` : ''}
         </div>
         <div style="font-size:12px;color:var(--gray-500);margin-top:2px">
