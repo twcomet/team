@@ -10,22 +10,39 @@ router.get('/', requireAuth, (req, res) => {
 
   const where  = [];
   const params = [];
+
   if (!status || status === 'all') {
+    // 全部：只顯示活躍中的詢問
     where.push(`i.status IN ('new','in_progress')`);
+  } else if (status === 'converted') {
+    // 已轉案：排除案件已結案或已設為無效保存的
+    where.push(`i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))`);
+  } else if (status === 'invalid') {
+    // 無效：(1) 詢問本身標記無效 + (2) 已轉案但案件被設為無效保存
+    where.push(`(i.status='invalid' OR (i.status='converted' AND cc.status='invalid'))`);
+  } else if (status === 'case_closed') {
+    // 結案：已轉案且對應案件已結案
+    where.push(`(i.status='converted' AND cc.status='closed')`);
   } else {
     where.push(`i.status=?`); params.push(status);
   }
+
   if (q) {
     where.push(`(i.display_name LIKE ? OR i.last_message LIKE ? OR i.staff_note LIKE ?)`);
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   const ws = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  const total = db.prepare(`SELECT COUNT(*) as n FROM line_inquiries i ${ws}`).get(...params)?.n || 0;
+  const total = db.prepare(`
+    SELECT COUNT(*) as n FROM line_inquiries i
+    LEFT JOIN cases cc ON i.converted_case_id = cc.id ${ws}
+  `).get(...params)?.n || 0;
+
   const rows  = db.prepare(`
     SELECT i.*,
            c.phone, c.email, c.address,
            cc.case_number AS converted_case_number,
+           cc.status      AS converted_case_status,
            su.name AS sales_name,
            cu.name AS cs_name
     FROM line_inquiries i
@@ -43,10 +60,25 @@ router.get('/', requireAuth, (req, res) => {
 
 // ── 狀態統計（用於 badge）────────────────────────────────────
 router.get('/stats', requireAuth, (req, res) => {
-  const raw = db.prepare(`SELECT status, COUNT(*) as cnt FROM line_inquiries GROUP BY status`).all();
-  const s   = { new: 0, in_progress: 0, converted: 0, invalid: 0, hidden: 0 };
-  raw.forEach(r => { s[r.status] = r.cnt; });
-  res.json(s);
+  const row = db.prepare(`
+    SELECT
+      SUM(CASE WHEN i.status='new'         THEN 1 ELSE 0 END) as new,
+      SUM(CASE WHEN i.status='in_progress' THEN 1 ELSE 0 END) as in_progress,
+      SUM(CASE WHEN i.status='converted'   AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid')) THEN 1 ELSE 0 END) as converted,
+      SUM(CASE WHEN i.status='invalid'     OR  (i.status='converted' AND cc.status='invalid') THEN 1 ELSE 0 END) as invalid,
+      SUM(CASE WHEN i.status='hidden'      THEN 1 ELSE 0 END) as hidden,
+      SUM(CASE WHEN i.status='converted'   AND cc.status='closed' THEN 1 ELSE 0 END) as case_closed
+    FROM line_inquiries i
+    LEFT JOIN cases cc ON i.converted_case_id = cc.id
+  `).get();
+  res.json({
+    new:         row.new         || 0,
+    in_progress: row.in_progress || 0,
+    converted:   row.converted   || 0,
+    invalid:     row.invalid     || 0,
+    hidden:      row.hidden      || 0,
+    case_closed: row.case_closed || 0,
+  });
 });
 
 // ── 單筆詳情 + 對話記錄 ──────────────────────────────────────

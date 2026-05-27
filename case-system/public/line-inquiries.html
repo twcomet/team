@@ -36,6 +36,8 @@
     .s-converted   { background:var(--gray-100); color:var(--gray-600); }
     .s-invalid     { background:#fee2e2; color:#991b1b; }
     .s-hidden      { background:#fef9c3; color:#713f12; }
+    .s-case_closed { background:#e0e7ff; color:#3730a3; }
+    .s-case_invalid{ background:#fce7f3; color:#9d174d; }
 
     /* ── 右側空狀態 ── */
     .inq-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--gray-400); gap:12px; }
@@ -121,9 +123,6 @@
         <div class="inq-toolbar">
           <div style="display:flex;gap:6px;align-items:center">
             <input class="inq-search" id="searchInput" type="text" placeholder="搜尋姓名、訊息…" style="flex:1;margin:0">
-            <button onclick="toggleInqSort()" title="切換時間排序" style="flex-shrink:0;padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;color:var(--primary);line-height:1">
-              <span id="inqSortIcon">↓</span>
-            </button>
           </div>
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
@@ -131,6 +130,7 @@
             <button class="status-tab" data-status="in_progress">進行中<span class="cnt" id="cnt-in_progress"></span></button>
             <button class="status-tab" data-status="converted">已轉案<span class="cnt" id="cnt-converted"></span></button>
             <button class="status-tab" data-status="invalid">無效<span class="cnt" id="cnt-invalid"></span></button>
+            <button class="status-tab" data-status="case_closed">結案<span class="cnt" id="cnt-case_closed"></span></button>
             <button class="status-tab" data-status="hidden">隱藏<span class="cnt" id="cnt-hidden"></span></button>
           </div>
         </div>
@@ -232,9 +232,10 @@ async function loadStats() {
   document.getElementById('cnt-all').textContent         = total     ? ` ${total}` : '';
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
-  document.getElementById('cnt-converted').textContent   = s.converted  ? ` ${s.converted}` : '';
-  document.getElementById('cnt-invalid').textContent     = s.invalid    ? ` ${s.invalid}` : '';
-  document.getElementById('cnt-hidden').textContent      = s.hidden     ? ` ${s.hidden}` : '';
+  document.getElementById('cnt-converted').textContent   = s.converted   ? ` ${s.converted}` : '';
+  document.getElementById('cnt-invalid').textContent     = s.invalid     ? ` ${s.invalid}` : '';
+  document.getElementById('cnt-case_closed').textContent = s.case_closed ? ` ${s.case_closed}` : '';
+  document.getElementById('cnt-hidden').textContent      = s.hidden      ? ` ${s.hidden}` : '';
 }
 
 // ── 清單 ──────────────────────────────────────────────────
@@ -252,13 +253,17 @@ function renderList() {
   const el = document.getElementById('inqScroll');
   const sorted = [...inquiries].sort((a, b) => {
     const va = a.last_message_at || '', vb = b.last_message_at || '';
-    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+    return vb.localeCompare(va); // 固定最新訊息優先
   });
   if (!sorted.length) {
     el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px">沒有符合的詢問</div>`;
     return;
   }
   el.innerHTML = sorted.map(i => {
+    // 根據案件狀態計算顯示用的 status
+    const dispStatus = i.status === 'converted' && i.converted_case_status === 'closed'   ? 'case_closed' :
+                       i.status === 'converted' && i.converted_case_status === 'invalid'  ? 'case_invalid' :
+                       i.status;
     const salesBadge  = i.sales_name  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
     const csBadge     = i.cs_name     ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
     const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
@@ -266,7 +271,7 @@ function renderList() {
     <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})">
       <div class="ic-name">
         ${escHtml(i.display_name || 'LINE用戶')}
-        <span class="s-badge s-${i.status}">${sLabel(i.status)}</span>
+        <span class="s-badge s-${dispStatus}">${sLabel(dispStatus)}</span>
         ${i.message_count > 1 ? `<span style="font-size:11px;color:var(--gray-400)">${i.message_count} 則</span>` : ''}
       </div>
       <div class="ic-snippet">${escHtml(i.last_message || '')}</div>
@@ -508,7 +513,7 @@ async function doConvert() {
 
 // ── 工具 ──────────────────────────────────────────────────
 function sLabel(s) {
-  return { new:'新詢問', in_progress:'進行中', converted:'已轉案', invalid:'無效', hidden:'已隱藏' }[s] || s;
+  return { new:'新詢問', in_progress:'進行中', converted:'已轉案', invalid:'無效', hidden:'已隱藏', case_closed:'結案', case_invalid:'已轉案(無效)' }[s] || s;
 }
 function escHtml(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
