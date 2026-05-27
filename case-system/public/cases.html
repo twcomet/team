@@ -632,23 +632,43 @@ document.getElementById('saveQuickClientBtn').addEventListener('click', async ()
 });
 
 document.getElementById('createCaseBtn').addEventListener('click', async () => {
-  const title = document.getElementById('nc_title').value.trim();
-  if (!title) { showToast('請填入項目名稱', 'error'); return; }
-  const body = {
-    title,
-    status:    cfg.defaultStatus,
-    case_type: MODE === 'inquiry' ? 'other' : document.getElementById('nc_type').value,
-    priority:  document.getElementById('nc_priority').value,
-    client_id: document.getElementById('nc_client').value || null,
-    sales_id:  document.getElementById('nc_sales').value || null,
-    location:  document.getElementById('nc_location').value || null,
-    description: document.getElementById('nc_desc').value || null,
-  };
-  const res = await fetch('/api/cases', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (res.ok) {
-    const { id } = await res.json();
-    location.href = `/case-detail?id=${id}`;
-  } else { showToast('建立失敗', 'error'); }
+  const titleInput = document.getElementById('nc_title');
+  const title = titleInput.value.trim();
+  if (!title) {
+    titleInput.style.borderColor = '#e02424';
+    titleInput.focus();
+    showToast('請填入項目名稱', 'error');
+    return;
+  }
+  titleInput.style.borderColor = '';
+  const btn = document.getElementById('createCaseBtn');
+  btn.disabled = true;
+  btn.textContent = '建立中…';
+  try {
+    const body = {
+      title,
+      status:    cfg.defaultStatus,
+      case_type: MODE === 'inquiry' ? 'other' : document.getElementById('nc_type').value,
+      priority:  document.getElementById('nc_priority').value,
+      client_id: document.getElementById('nc_client').value || null,
+      sales_id:  document.getElementById('nc_sales').value || null,
+      location:  document.getElementById('nc_location').value || null,
+      description: document.getElementById('nc_desc').value || null,
+    };
+    const res = await fetch('/api/cases', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (res.ok) {
+      const { id } = await res.json();
+      location.href = `/case-detail?id=${id}`;
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast('建立失敗：' + (err.error || `HTTP ${res.status}`), 'error');
+    }
+  } catch (e) {
+    showToast('網路錯誤，請重試', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '建立並進入案件';
+  }
 });
 
 function initClientAC(inputId, hiddenId, dropdownId) {
