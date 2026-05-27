@@ -66,6 +66,7 @@ async function loadUser() {
     reports:          p.page_reports      !== undefined ? p.page_reports      : mu,
     performance:      p.page_performance  !== undefined ? p.page_performance  : mu,
     materials:        p.page_materials    !== undefined ? p.page_materials    : mu,
+    'material-calc':  p.page_material_calc !== undefined ? p.page_material_calc : mu,
     marketing:        p.page_marketing    !== undefined ? p.page_marketing    : mu,
     'dispatch-pool':  p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
     marketplace:      true,   // 市集所有人可見

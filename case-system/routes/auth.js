@@ -22,9 +22,14 @@ router.post('/login', (req, res) => {
   const isContractor = RESTRICTED_ROLES.includes(user.role);
   const perms = user.permissions ? JSON.parse(user.permissions) : {};
 
-  // 從 role_defaults 資料表讀取管理員在後台設定的角色預設
+  // 從 role_defaults 資料表讀取管理員在後台設定的角色預設（內建角色）
+  // 若找不到，則改查 custom_roles 表（自訂角色）
   const rdRow = db.prepare(`SELECT default_perms FROM role_defaults WHERE role_value = ?`).get(user.role);
-  const roleDefaults = rdRow ? JSON.parse(rdRow.default_perms || '{}') : null;
+  let roleDefaults = rdRow ? JSON.parse(rdRow.default_perms || '{}') : null;
+  if (roleDefaults === null) {
+    const crRow = db.prepare(`SELECT default_perms FROM custom_roles WHERE code=? AND active=1 LIMIT 1`).get(user.role);
+    if (crRow) roleDefaults = JSON.parse(crRow.default_perms || '{}');
+  }
 
   // 優先順序：個人覆蓋 > 角色預設(DB) > 硬編碼 fallback > !isContractor
   const perm = (key, fallback) => {

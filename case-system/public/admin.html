@@ -689,8 +689,9 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
    'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
    'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_dispatch_pool',
-   'rolePerm_page_cases_deal']
-    .forEach(id => document.getElementById(id).checked = id.includes('page_cases') || id.includes('page_line_inquiries') || id.includes('page_clients') || id.includes('page_calendar') || id.includes('my_tasks'));
+   'rolePerm_page_cases_deal','rolePerm_page_materials','rolePerm_page_material_calc',
+   'rolePerm_page_performance','rolePerm_page_reports','rolePerm_page_marketing']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
   document.getElementById('roleModal').classList.add('open');
 });
 
