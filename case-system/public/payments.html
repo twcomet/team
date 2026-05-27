@@ -80,8 +80,8 @@
         <label style="font-size:13px;color:var(--gray-600)">案件階段</label>
         <select id="filterStatus" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
           <option value="">全部</option>
-          <option value="contracted">已成交／施工中</option>
-          <option value="payment">收款中</option>
+          <option value="contracted">成交派案</option>
+          <option value="payment">完工請款</option>
           <option value="closed">已結案</option>
         </select>
         <button class="btn btn-ghost btn-sm" id="clearBtn">清除篩選</button>
@@ -212,11 +212,22 @@ function applyFilter() {
   renderTable(filtered);
 }
 
+function caseTotal(c) {
+  const base = c.final_price || c.quoted_price || 0;
+  const vat  = c.needs_invoice ? Math.round(base * 0.05) : 0;
+  return base + vat;
+}
+function caseReceived(c) {
+  return (c.survey_fee || 0) + (c.deposit_amount || 0) + (c.balance_paid || 0);
+}
+function caseOutstanding(c) {
+  return Math.max(0, caseTotal(c) - caseReceived(c) - (c.retention_amount || 0));
+}
+
 function renderStats(cases) {
-  const total    = cases.reduce((s,c) => s+(c.final_price||0), 0);
-  const totalTax = Math.round(total * 1.05);
-  const received = cases.reduce((s,c) => s+(c.payment_received||0), 0);
-  const outstanding = totalTax-received;
+  const totalTax    = cases.reduce((s,c) => s + caseTotal(c), 0);
+  const received    = cases.reduce((s,c) => s + caseReceived(c), 0);
+  const outstanding = cases.reduce((s,c) => s + caseOutstanding(c), 0);
   document.getElementById('paymentStats').innerHTML = `
     <div class="stat-card"><div class="label">含稅總應收</div><div class="value">${fmt(totalTax)}</div></div>
     <div class="stat-card"><div class="label">已收金額</div><div class="value success">${fmt(received)}</div></div>
@@ -237,8 +248,11 @@ function renderTable(cases) {
     return;
   }
   tbody.innerHTML = cases.map(c => {
-    const base=c.final_price||c.quoted_price||0, total=Math.round(base*1.05), dep=c.deposit_amount||0, recv=c.payment_received||0;
-    const outstanding=total-recv;
+    const base = c.final_price || c.quoted_price || 0;
+    const total = caseTotal(c);
+    const dep   = c.deposit_amount || 0;
+    const recv  = caseReceived(c);
+    const outstanding = caseOutstanding(c);
     return `<tr onclick="location.href='/case-detail?id=${c.id}&tab=payment'" style="cursor:pointer">
       <td><code style="font-size:12px">${c.case_number}</code></td>
       <td><div style="font-weight:500">${c.client_name||'—'}</div><div style="font-size:11px;color:var(--gray-500)">${c.client_phone||''}</div></td>
