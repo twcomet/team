@@ -68,6 +68,7 @@ app.use('/api/marketing',             require('./routes/marketing'));
 app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 app.use('/api/hr',                    require('./routes/hr'));
 app.use('/api/attendance',            require('./routes/attendance'));
+app.use('/api/client-deposits',       require('./routes/client-deposits'));
 
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {

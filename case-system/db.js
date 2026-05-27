@@ -1811,4 +1811,26 @@ db.exec(`CREATE TABLE IF NOT EXISTS makeup_requests (
 // attendance 補欄位
 _addCol('attendance', 'location_type', "TEXT DEFAULT NULL"); // 'company' | 'site'
 
+// ── 客戶預收款（膜料本、其他預收）─────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_deposits (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id       INTEGER NOT NULL REFERENCES clients(id),
+    type            TEXT NOT NULL DEFAULT 'catalog',
+    amount          REAL NOT NULL DEFAULT 0,
+    collected_at    TEXT,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','applied','forfeited','refunded')),
+    applied_case_id INTEGER REFERENCES cases(id),
+    applied_at      TEXT,
+    waive_note      TEXT,
+    note            TEXT,
+    created_by      INTEGER REFERENCES users(id),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 場勘費是否已折抵到案件最終收款
+_addCol('cases', 'survey_fee_credited', 'INTEGER DEFAULT 0');
+
 module.exports = db;

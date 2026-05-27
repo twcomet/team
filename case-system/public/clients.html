@@ -34,6 +34,15 @@
 .client-tag { display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500;color:#fff; }
 .tag-check-item { display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer; }
 .tag-check-item:hover { background:var(--gray-100); }
+.cc-deposits { display:none; border-top:1px solid var(--gray-100); padding-top:14px; margin-top:4px; }
+.client-card.open .cc-deposits { display:block; }
+.dep-row { display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:13px; }
+.dep-row:last-child { border-bottom:none; }
+.dep-badge { padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500; }
+.dep-pending   { background:#dcfce7;color:#166534; }
+.dep-applied   { background:var(--gray-100);color:var(--gray-500); }
+.dep-forfeited { background:#fef3c7;color:#92400e; }
+.dep-refunded  { background:#fee2e2;color:#991b1b; }
 </style>
 </head>
 <body>
@@ -160,6 +169,35 @@
         <button class="btn btn-primary btn-sm" onclick="createTag()">新增</button>
       </div>
       <div id="tagMgrList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增預收款 Modal -->
+<div class="modal-overlay" id="depositModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>新增預收款</h3>
+      <button class="modal-close" onclick="document.getElementById('depositModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dep_client_id">
+      <div class="form-group">
+        <label>類型</label>
+        <select id="dep_type">
+          <option value="catalog">膜料本</option>
+          <option value="other">其他預收款</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>金額（NT$）*</label><input type="number" id="dep_amount" placeholder="0" min="1"></div>
+        <div class="form-group"><label>收款日期</label><input type="date" id="dep_collected_at"></div>
+      </div>
+      <div class="form-group"><label>備註</label><input type="text" id="dep_note" placeholder="例：現金收取、附收據…"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('depositModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveDeposit()">儲存</button>
     </div>
   </div>
 </div>
@@ -563,11 +601,13 @@ function render() {
       <div class="cc-cases" id="cases-${c.id}">
         <div style="font-size:12px;color:var(--gray-500);text-align:center;padding:8px">載入中…</div>
       </div>
+      <div class="cc-deposits" id="deposits-${c.id}"></div>
     </div>`;
   }).join('');
 
   // 預先載入每個客戶的案件數（輕量）
   list.forEach(c => loadClientCases(c.id));
+  list.forEach(c => loadClientDeposits(c.id));
 }
 
 async function loadClientCases(cid) {
@@ -600,6 +640,88 @@ function renderClientCases(cid) {
       <span>${paymentBadge(c.payment_status)}</span>
     </div>
   `).join('');
+}
+
+const clientDeposits = {};
+
+async function loadClientDeposits(cid) {
+  const res = await fetch(`/api/client-deposits?client_id=${cid}`);
+  clientDeposits[cid] = res.ok ? await res.json() : [];
+  renderClientDeposits(cid);
+}
+
+const DEP_STATUS_LABEL = { pending:'待折抵', applied:'已折抵', forfeited:'已保留', refunded:'已退費' };
+const DEP_TYPE_LABEL   = { catalog:'膜料本', other:'其他預收款' };
+
+function renderClientDeposits(cid) {
+  const el = document.getElementById(`deposits-${cid}`);
+  if (!el) return;
+  const deps = clientDeposits[cid] || [];
+
+  const rows = deps.map(d => {
+    const badge = `<span class="dep-badge dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
+    const caseRef = d.applied_case_number ? `<span style="color:var(--gray-500);font-size:12px">→ ${d.applied_case_number}</span>` : '';
+    const delBtn = d.status === 'pending'
+      ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444;font-size:11px;padding:2px 6px"
+           onclick="event.stopPropagation();deleteDeposit(${d.id},${cid})">刪除</button>` : '';
+    return `<div class="dep-row">
+      ${badge}
+      <span style="font-weight:500">${DEP_TYPE_LABEL[d.type] || d.type}</span>
+      <span style="font-weight:600;color:var(--primary)">NT$${fmt(d.amount)}</span>
+      <span style="color:var(--gray-500);font-size:12px">${d.collected_at || ''}</span>
+      ${d.note ? `<span style="color:var(--gray-500);font-size:12px">${d.note}</span>` : ''}
+      ${caseRef}
+      <span style="flex:1"></span>
+      ${delBtn}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:var(--gray-700)">💳 預收款記錄（膜料本等）</span>
+      <button class="btn btn-primary btn-sm" style="font-size:12px"
+        onclick="event.stopPropagation();openDepositModal(${cid})">＋ 新增預收款</button>
+    </div>
+    ${rows || `<p style="font-size:13px;color:var(--gray-400);text-align:center;margin:8px 0">尚無預收款記錄</p>`}
+  `;
+}
+
+async function deleteDeposit(id, cid) {
+  if (!confirm('確定刪除此筆預收款？')) return;
+  const r = await fetch(`/api/client-deposits/${id}`, { method:'DELETE' });
+  if (r.ok) { delete clientDeposits[cid]; await loadClientDeposits(cid); }
+  else { const e = await r.json(); alert(e.error || '刪除失敗'); }
+}
+
+function openDepositModal(cid) {
+  document.getElementById('dep_client_id').value = cid;
+  document.getElementById('dep_type').value = 'catalog';
+  document.getElementById('dep_amount').value = '';
+  document.getElementById('dep_collected_at').value = new Date().toISOString().slice(0,10);
+  document.getElementById('dep_note').value = '';
+  document.getElementById('depositModal').classList.add('open');
+}
+
+async function saveDeposit() {
+  const cid = document.getElementById('dep_client_id').value;
+  const payload = {
+    client_id:    cid,
+    type:         document.getElementById('dep_type').value,
+    amount:       document.getElementById('dep_amount').value,
+    collected_at: document.getElementById('dep_collected_at').value || null,
+    note:         document.getElementById('dep_note').value || null,
+  };
+  if (!payload.amount || parseFloat(payload.amount) <= 0) { alert('請輸入金額'); return; }
+  const r = await fetch('/api/client-deposits', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  if (r.ok) {
+    document.getElementById('depositModal').classList.remove('open');
+    delete clientDeposits[cid];
+    await loadClientDeposits(cid);
+  } else {
+    const e = await r.json(); alert(e.error || '儲存失敗');
+  }
 }
 
 function toggleCard(cid) {

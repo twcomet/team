@@ -294,6 +294,7 @@ router.put('/:id', requireAuth, (req, res) => {
     entry_info, photo_upload_url,
     material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
     initial_estimate_data,
+    survey_fee_credited,
   } = req.body;
 
   const prev = db.prepare(`SELECT sales_id, cs_id, location, lat, lng FROM cases WHERE id=?`).get(req.params.id);
@@ -316,6 +317,7 @@ router.put('/:id', requireAuth, (req, res) => {
       entry_info=?, photo_upload_url=?,
       material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
       initial_estimate_data=?,
+      survey_fee_credited=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -339,6 +341,7 @@ router.put('/:id', requireAuth, (req, res) => {
     entry_info ?? null, photo_upload_url ?? null,
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     initial_estimate_data ?? null,
+    survey_fee_credited ? 1 : 0,
     req.params.id,
   );
 

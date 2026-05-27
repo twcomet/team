@@ -714,6 +714,15 @@
                 .pf-note   { flex:1; min-width:120px; }
               </style>
 
+              <!-- 預收款折抵 -->
+              <div id="creditsBlock" style="display:none;border:1px solid #d1fae5;background:#f0fdf4;border-radius:10px;margin-bottom:10px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#d1fae5">
+                  <span style="font-size:13px;font-weight:700;color:#065f46">💳 可折抵預收款</span>
+                  <span id="creditsTotal" style="font-size:12px;font-weight:600;color:#065f46"></span>
+                </div>
+                <div id="creditsList" style="padding:10px 14px 6px"></div>
+              </div>
+
               <!-- 場勘費 -->
               <div class="pay-block" style="border:1px solid #e0e7ff;background:#f5f3ff">
                 <div class="pay-block-head" style="background:#ede9fe;color:#5b21b6">🔍 場勘費</div>
@@ -813,12 +822,17 @@
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
               <!-- 應付餘額 + 收款狀態 -->
-              <div style="background:var(--gray-50);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-                <div>
-                  <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付餘額（不含保留款）</div>
-                  <div id="p_outstanding_display" style="font-size:22px;font-weight:700">—</div>
+              <div style="background:var(--gray-50);border-radius:8px;padding:14px 16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                  <div>
+                    <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付餘額（不含保留款）</div>
+                    <div id="p_outstanding_display" style="font-size:22px;font-weight:700">—</div>
+                  </div>
+                  <div id="p_status_badge" style="font-size:12px;padding:6px 14px;border-radius:20px;font-weight:600;text-align:center"></div>
                 </div>
-                <div id="p_status_badge" style="font-size:12px;padding:6px 14px;border-radius:20px;font-weight:600;text-align:center"></div>
+                <div id="p_credits_summary" style="display:none;font-size:12px;color:#065f46;background:#d1fae5;border-radius:6px;padding:6px 10px;margin-top:4px">
+                  已折抵預收款 <span id="p_credits_amount"></span>，客戶實付 <span id="p_credits_net" style="font-weight:700"></span>
+                </div>
               </div>
             </div>
           </div>
@@ -2663,10 +2677,23 @@ function updatePayCalc() {
   const balance      = parseFloat(document.getElementById('p_balance_paid').value)        || 0;
   const retention    = parseFloat(document.getElementById('p_retention_amount').value)    || 0;
   const retInvoiced  = parseFloat(document.getElementById('p_retention_invoiced').value)  || 0;
+  const creditAmt    = getCreditAmount();
   const totalPaid    = survey + deposit + balance;
-  const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention) : 0;
+  const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention - creditAmt) : 0;
 
   document.getElementById('p_outstanding_display').textContent = (final || totalPaid) ? fmt(outstanding) : '—';
+
+  const creditsSummary = document.getElementById('p_credits_summary');
+  if (creditsSummary) {
+    if (creditAmt > 0 && final) {
+      creditsSummary.style.display = '';
+      document.getElementById('p_credits_amount').textContent = fmt(creditAmt);
+      document.getElementById('p_credits_net').textContent    = fmt(Math.max(0, totalInc - totalPaid - retention - creditAmt));
+    } else {
+      creditsSummary.style.display = 'none';
+    }
+  }
+  updateCreditsSummary();
 
   let key = 'unpaid', label = 'A 全案未收款', bg = '#fee2e2', fg = '#991b1b';
   if (!final && !totalPaid) {
@@ -2727,7 +2754,95 @@ function fillPaymentForm() {
   document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';
   document.getElementById('p_shipping_cost').value      = c.shipping_cost    != null ? c.shipping_cost    : '';
   document.getElementById('p_other_cost').value         = c.other_cost       != null ? c.other_cost       : '';
+  loadCaseCredits(caseId);
   updatePayCalc();
+}
+
+// ── 預收款折抵 ─────────────────────────────────────────────
+let caseCredits = { deposits: [], survey_fee: null, survey_fee_paid: false, survey_fee_credited: false };
+
+async function loadCaseCredits(id) {
+  if (!id) return;
+  try {
+    const r = await fetch(`/api/client-deposits/for-case/${id}`);
+    if (r.ok) {
+      caseCredits = await r.json();
+      renderCreditsBlock();
+      updatePayCalc();
+    }
+  } catch {}
+}
+
+function renderCreditsBlock() {
+  const block = document.getElementById('creditsBlock');
+  const list  = document.getElementById('creditsList');
+  if (!block || !list) return;
+
+  const { deposits = [], survey_fee, survey_fee_paid, survey_fee_actual, survey_fee_credited } = caseCredits;
+  const sfAmt = survey_fee_actual || survey_fee || 0;
+
+  const hasSurveyCredit = sfAmt > 0 && survey_fee_paid;
+  const hasDeposits     = deposits.length > 0;
+
+  if (!hasSurveyCredit && !hasDeposits) {
+    block.style.display = 'none';
+    return;
+  }
+  block.style.display = '';
+
+  let html = '';
+
+  if (hasSurveyCredit) {
+    const checked   = survey_fee_credited ? 'checked' : '';
+    const disabled  = survey_fee_credited ? 'disabled' : '';
+    const labelCls  = survey_fee_credited ? 'color:var(--gray-400)' : '';
+    html += `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${labelCls}">
+      <input type="checkbox" id="cred_survey" ${checked} ${disabled} onchange="updatePayCalc()"
+             style="width:15px;height:15px;accent-color:var(--primary)">
+      <span style="font-weight:500">場勘費</span>
+      <span style="color:var(--primary);font-weight:600">${fmt(sfAmt)}</span>
+      ${survey_fee_credited ? '<span style="font-size:11px;color:var(--gray-400)"（已折抵）</span>' : ''}
+    </label>`;
+  }
+
+  deposits.forEach(d => {
+    const isApplied = d.status === 'applied';
+    const checked   = isApplied ? 'checked' : '';
+    const disabled  = isApplied ? 'disabled' : '';
+    const labelCls  = isApplied ? 'color:var(--gray-400)' : '';
+    const typeLabel = d.type === 'catalog' ? '膜料本' : (d.type === 'other' ? '其他預收款' : d.type);
+    html += `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${labelCls}">
+      <input type="checkbox" id="cred_dep_${d.id}" data-dep-id="${d.id}" ${checked} ${disabled} onchange="updatePayCalc()"
+             style="width:15px;height:15px;accent-color:var(--primary)">
+      <span style="font-weight:500">${typeLabel}</span>
+      <span style="color:var(--primary);font-weight:600">${fmt(d.amount)}</span>
+      ${d.collected_at ? `<span style="font-size:12px;color:var(--gray-400)">${d.collected_at}</span>` : ''}
+      ${d.note ? `<span style="font-size:12px;color:var(--gray-400)">${d.note}</span>` : ''}
+      ${isApplied ? '<span style="font-size:11px;color:var(--gray-400)">（已折抵）</span>' : ''}
+    </label>`;
+  });
+
+  list.innerHTML = html;
+  updateCreditsSummary();
+}
+
+function getCreditAmount() {
+  let total = 0;
+  const sfBox = document.getElementById('cred_survey');
+  if (sfBox?.checked) {
+    const sfAmt = caseCredits.survey_fee_actual || caseCredits.survey_fee || 0;
+    total += sfAmt;
+  }
+  (caseCredits.deposits || []).forEach(d => {
+    const box = document.getElementById(`cred_dep_${d.id}`);
+    if (box?.checked) total += d.amount;
+  });
+  return total;
+}
+
+function updateCreditsSummary() {
+  const total = getCreditAmount();
+  document.getElementById('creditsTotal').textContent = total ? `合計折抵 ${fmt(total)}` : '';
 }
 
 document.getElementById('savePaymentBtn').addEventListener('click', async () => {
@@ -2765,9 +2880,29 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     shipping_cost:      parseFloat(document.getElementById('p_shipping_cost').value)      || null,
     other_cost:         parseFloat(document.getElementById('p_other_cost').value)         || null,
   };
+  // 場勘費是否勾選折抵
+  const sfBox = document.getElementById('cred_survey');
+  if (sfBox?.checked && !caseCredits.survey_fee_credited) {
+    body.survey_fee_credited = 1;
+  }
+
   const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (res.ok) { showToast('收款 ／ 發票資訊已更新'); await loadCase(); }
-  else showToast('儲存失敗', 'error');
+  if (!res.ok) { showToast('儲存失敗', 'error'); return; }
+
+  // 套用勾選的客戶預收款（pending → applied）
+  const pendingDeposits = (caseCredits.deposits || []).filter(d => d.status === 'pending');
+  for (const d of pendingDeposits) {
+    const box = document.getElementById(`cred_dep_${d.id}`);
+    if (box?.checked) {
+      await fetch(`/api/client-deposits/${d.id}/status`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status:'applied', applied_case_id: caseId })
+      });
+    }
+  }
+
+  showToast('收款 ／ 發票資訊已更新');
+  await loadCase();
 });
 
 function openClientForInvoice() {
