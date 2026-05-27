@@ -250,30 +250,35 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const me = req.session.user;
-  const { client_id, case_type, title, description, location, sales_id, is_outsourced, outsource_type, priority, notes, status: initStatus } = req.body;
-  if (!title) return res.status(400).json({ error: '請填入項目名稱' });
+  try {
+    const me = req.session.user;
+    const { client_id, case_type, title, description, location, sales_id, is_outsourced, outsource_type, priority, notes, status: initStatus } = req.body;
+    if (!title) return res.status(400).json({ error: '請填入項目名稱' });
 
-  const startStatus = initStatus || 'initial_estimate';
-  const case_group = STATUS_GROUP_MAP[startStatus] || 'survey';
-  const case_number = genCaseNumber(me.org_id);
-  const result = db.prepare(`
-    INSERT INTO cases (org_id, case_number, client_id, case_type, title, description, location,
-                       sales_id, is_outsourced, outsource_type, priority, notes, created_by, status, case_group)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(me.org_id, case_number,
-         client_id ?? null, case_type || 'other',
-         title, description ?? null, location ?? null,
-         sales_id ?? null,
-         is_outsourced ? 1 : 0, outsource_type ?? null,
-         priority || 'normal', notes ?? null, me.id, startStatus, case_group);
+    const startStatus = initStatus || 'initial_estimate';
+    const case_group = STATUS_GROUP_MAP[startStatus] || 'survey';
+    const case_number = genCaseNumber(me.org_id);
+    const result = db.prepare(`
+      INSERT INTO cases (org_id, case_number, client_id, case_type, title, description, location,
+                         sales_id, is_outsourced, outsource_type, priority, notes, created_by, status, case_group)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(me.org_id, case_number,
+           client_id ?? null, case_type || 'other',
+           title, description ?? null, location ?? null,
+           sales_id ?? null,
+           is_outsourced ? 1 : 0, outsource_type ?? null,
+           priority || 'normal', notes ?? null, me.id, startStatus, case_group);
 
-  db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create', 'cases', ?, ?)`)
-    .run(me.id, result.lastInsertRowid, `建立案件 ${case_number}`);
+    db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create', 'cases', ?, ?)`)
+      .run(me.id, result.lastInsertRowid, `建立案件 ${case_number}`);
 
-  if (location) geocodeCase(result.lastInsertRowid, location);
+    if (location) geocodeCase(result.lastInsertRowid, location);
 
-  res.json({ ok: true, id: result.lastInsertRowid, case_number });
+    res.json({ ok: true, id: result.lastInsertRowid, case_number });
+  } catch (err) {
+    console.error('[POST /api/cases]', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.put('/:id', requireAuth, (req, res) => {
