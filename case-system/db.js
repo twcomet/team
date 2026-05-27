@@ -272,6 +272,7 @@ _addCol('clients',    'line_group_name',   'TEXT');
 _addCol('clients',    'invoice_email',     'TEXT');
 _addCol('clients',    'invoice_needs',     'TEXT');
 _addCol('clients',    'invoice_title',     'TEXT');  // 公司抬頭（發票用，可與客戶名稱不同）
+_addCol('clients',    'updated_at',        'DATETIME DEFAULT CURRENT_TIMESTAMP');
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
@@ -1441,6 +1442,7 @@ _addCol('line_inquiries', 'sales_id',   'INTEGER REFERENCES users(id)');
 _addCol('line_inquiries', 'cs_id',      'INTEGER REFERENCES users(id)');
 // 加好友來源管道（從 LINE OAT 追蹤連結識別）
 _addCol('line_inquiries', 'add_source', 'TEXT');
+_addCol('line_inquiries', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
 // 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
 db.exec(`
