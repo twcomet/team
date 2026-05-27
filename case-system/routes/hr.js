@@ -270,6 +270,74 @@ router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
   res.json({ year, month, employees: result });
 });
 
+// GET /api/hr/monitoring?year=&month= — 人事監控報表
+router.get('/monitoring', requireAuth, requireHR, (req, res) => {
+  try {
+    const now = new Date();
+    const year  = parseInt(req.query.year  || now.getFullYear());
+    const month = parseInt(req.query.month || now.getMonth() + 1);
+    const ym = `${year}-${String(month).padStart(2,'0')}`;
+
+    const employees = db.prepare(`SELECT id, name FROM users WHERE active=1 ORDER BY sort_order, name`).all();
+
+    // 遲到：只列有遲到記錄的員工
+    const lateList = [];
+    for (const emp of employees) {
+      const records = db.prepare(`
+        SELECT id, work_date, clock_in, clock_out, is_late
+        FROM attendance WHERE user_id=? AND work_date LIKE ? ORDER BY work_date
+      `).all(emp.id, `${ym}-%`);
+      const lateRecs = records.filter(r => r.is_late);
+      if (lateRecs.length) lateList.push({ user_id: emp.id, name: emp.name, late_count: lateRecs.length, records: lateRecs });
+    }
+
+    // 補打卡：本月全部申請
+    const makeupList = db.prepare(`
+      SELECT mr.*, u.name AS user_name, rv.name AS reviewer_name
+      FROM makeup_requests mr
+      JOIN users u ON u.id = mr.user_id
+      LEFT JOIN users rv ON rv.id = mr.reviewed_by
+      WHERE mr.makeup_date LIKE ?
+      ORDER BY mr.makeup_date, u.name
+    `).all(`${ym}-%`);
+
+    // 請假：本月全部申請（含所有狀態），依員工分組
+    const leaveRows = db.prepare(`
+      SELECT lr.*, u.name AS user_name, rv.name AS reviewer_name
+      FROM leave_requests lr
+      JOIN users u ON u.id = lr.user_id
+      LEFT JOIN users rv ON rv.id = lr.reviewed_by
+      WHERE lr.leave_date LIKE ?
+      ORDER BY u.name, lr.leave_date
+    `).all(`${ym}-%`);
+
+    const leaveMap = {};
+    for (const r of leaveRows) {
+      if (!leaveMap[r.user_id]) leaveMap[r.user_id] = { user_id: r.user_id, name: r.user_name, requests: [], total_hours: 0 };
+      leaveMap[r.user_id].requests.push(r);
+      if (r.status === 'approved') leaveMap[r.user_id].total_hours += r.hours || 0;
+    }
+
+    res.json({ year, month, lateList, makeupList, leaveList: Object.values(leaveMap) });
+  } catch (err) {
+    console.error('[hr/monitoring]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/hr/attendance/:id — 修改打卡時間 / 遲到標記
+router.put('/attendance/:id', requireAuth, requireHR, (req, res) => {
+  const { is_late, clock_in, clock_out } = req.body;
+  const fields = [], vals = [];
+  if (is_late  !== undefined) { fields.push('is_late=?');   vals.push(is_late  ? 1 : 0); }
+  if (clock_in  !== undefined) { fields.push('clock_in=?');  vals.push(clock_in  || null); }
+  if (clock_out !== undefined) { fields.push('clock_out=?'); vals.push(clock_out || null); }
+  if (!fields.length) return res.status(400).json({ error: 'No fields' });
+  vals.push(req.params.id);
+  db.prepare(`UPDATE attendance SET ${fields.join(',')} WHERE id=?`).run(...vals);
+  res.json({ ok: true });
+});
+
 // ── 一次性：清除 staff OA 所有 API 設定的圖文選單 ──────────────
 router.post('/clear-staff-richmenu', requireHR, async (req, res) => {
   const token = process.env.LINE_STAFF_CHANNEL_ACCESS_TOKEN;

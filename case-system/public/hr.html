@@ -78,6 +78,19 @@
 .att-num { font-weight:700; text-align:center; }
 .att-late { color:#ef4444; font-weight:700; }
 .mode-btn-active { background:var(--primary); color:#fff !important; border-color:var(--primary) !important; }
+
+/* 人事監控報表 */
+.mon-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:16px 20px; margin-bottom:20px; }
+.mon-card-title { font-size:14px; font-weight:700; color:var(--gray-700); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+.mon-badge { border-radius:20px; padding:1px 8px; font-size:11px; font-weight:600; color:#fff; background:#6366f1; }
+.mon-badge.red { background:#ef4444; }
+.mon-badge.green { background:#16a34a; }
+.mon-badge.amber { background:#d97706; }
+.mon-table { width:100%; border-collapse:collapse; font-size:13px; }
+.mon-table th { background:#f9fafb; padding:8px 10px; text-align:left; font-weight:600; color:var(--gray-600); border-bottom:2px solid var(--gray-200); white-space:nowrap; }
+.mon-table td { padding:8px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+.mon-emp-hdr td { background:#f0f9ff; font-weight:700; color:var(--gray-800); }
+.mon-edit-row td { background:#fefce8; }
 </style>
 </head>
 <body>
@@ -119,6 +132,7 @@
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-sm btn-ghost" id="btnEmpMode" onclick="setMode('emp')" style="font-weight:700">員工資料</button>
         <button class="btn btn-sm btn-ghost" id="btnAttMode" onclick="setMode('att')">全體出勤統計</button>
+        <button class="btn btn-sm btn-ghost" id="btnMonMode" onclick="setMode('mon')">監控報表</button>
       </div>
     </div>
 
@@ -140,6 +154,17 @@
           <div style="font-size:13px">點選員工即可查看與編輯人事資料</div>
         </div>
       </div>
+    </div>
+
+    <!-- 人事監控報表 panel -->
+    <div id="monPanel" style="display:none;padding:24px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <select id="monYear"  class="form-control" style="width:100px" onchange="loadMonReport()"></select>
+        <select id="monMonth" class="form-control" style="width:80px"  onchange="loadMonReport()">
+          ${Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1} 月</option>`).join('')}
+        </select>
+      </div>
+      <div id="monContent"><div style="color:var(--gray-400);font-size:13px">載入中…</div></div>
     </div>
 
     <!-- 全體出勤 panel -->
@@ -165,13 +190,16 @@ async function init() {
   await loadUser();
   highlightNav('hr');
 
-  // 初始化年份選單
-  const yearSel = document.getElementById('attYear');
+  // 初始化年份選單（出勤 & 監控）
   const curYear = new Date().getFullYear();
-  for (let y = curYear; y >= curYear - 3; y--) {
-    const o = document.createElement('option'); o.value = y; o.textContent = y + ' 年'; yearSel.appendChild(o);
+  for (const selId of ['attYear','monYear']) {
+    const yearSel = document.getElementById(selId);
+    for (let y = curYear; y >= curYear - 3; y--) {
+      const o = document.createElement('option'); o.value = y; o.textContent = y + ' 年'; yearSel.appendChild(o);
+    }
   }
   document.getElementById('attMonth').value = new Date().getMonth() + 1;
+  document.getElementById('monMonth').value = new Date().getMonth() + 1;
 
   await loadPendingBanner();
   await loadEmps();
@@ -437,14 +465,171 @@ async function addAdjustment(userId) {
   } else showToast('操作失敗','error');
 }
 
-// ── 模式切換：員工資料 vs 全體出勤 ──────────────────────────
+async function monReviewMakeup(id, status) { await reviewMakeup(id, status); loadMonReport(); }
+async function monReviewLeave(id, status)  { await reviewLeave(id, status);  loadMonReport(); }
+
+// ── 模式切換 ──────────────────────────────────────────────────
 function setMode(mode) {
-  const isEmp = mode === 'emp';
-  document.getElementById('empPanel').style.display = isEmp ? '' : 'none';
-  document.getElementById('attPanel').style.display = isEmp ? 'none' : '';
-  document.getElementById('btnEmpMode').classList.toggle('mode-btn-active', isEmp);
-  document.getElementById('btnAttMode').classList.toggle('mode-btn-active', !isEmp);
-  if (!isEmp) loadAttSummary();
+  document.getElementById('empPanel').style.display = mode === 'emp' ? '' : 'none';
+  document.getElementById('attPanel').style.display = mode === 'att' ? '' : 'none';
+  document.getElementById('monPanel').style.display = mode === 'mon' ? '' : 'none';
+  document.getElementById('btnEmpMode').classList.toggle('mode-btn-active', mode === 'emp');
+  document.getElementById('btnAttMode').classList.toggle('mode-btn-active', mode === 'att');
+  document.getElementById('btnMonMode').classList.toggle('mode-btn-active', mode === 'mon');
+  if (mode === 'att') loadAttSummary();
+  if (mode === 'mon') loadMonReport();
+}
+
+// ── 人事監控報表 ────────────────────────────────────────────────
+async function loadMonReport() {
+  const year  = document.getElementById('monYear').value;
+  const month = document.getElementById('monMonth').value;
+  const el = document.getElementById('monContent');
+  el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">載入中…</div>';
+  const res = await fetch(`/api/hr/monitoring?year=${year}&month=${month}`);
+  if (!res.ok) { el.innerHTML = '<div style="color:#ef4444">載入失敗</div>'; return; }
+  const data = await res.json();
+  renderMonReport(data);
+}
+
+function renderMonReport(data) {
+  const el = document.getElementById('monContent');
+  el.innerHTML = renderLateSection(data.lateList) + renderMakeupSection(data.makeupList) + renderLeaveMonSection(data.leaveList);
+}
+
+function renderLateSection(list) {
+  const total = list.reduce((s, e) => s + e.late_count, 0);
+  const rows = list.length ? list.map(emp => `
+    <tr class="mon-emp-hdr">
+      <td colspan="4" style="display:flex;align-items:center;justify-content:space-between">
+        <span>${emp.name}</span>
+        <span class="mon-badge red">${emp.late_count} 次</span>
+      </td>
+    </tr>
+    ${emp.records.map(r => `
+      <tr id="att-row-${r.id}">
+        <td style="padding-left:24px;color:var(--gray-500)">${r.work_date}</td>
+        <td>${r.clock_in || '—'}</td>
+        <td><span class="tag-rejected">遲到</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="toggleAttEdit(${r.id},'${r.clock_in||''}',${r.is_late})">編輯</button>
+        </td>
+      </tr>
+      <tr class="mon-edit-row" id="att-edit-${r.id}" style="display:none">
+        <td colspan="4" style="padding:10px 16px">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div class="form-group" style="margin:0">
+              <label style="font-size:12px">打卡時間</label>
+              <input type="time" id="att-ci-${r.id}" value="${r.clock_in||''}" style="width:110px">
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-bottom:4px">
+              <input type="checkbox" id="att-late-${r.id}" ${r.is_late ? 'checked' : ''}> 標記為遲到
+            </label>
+            <button class="btn btn-primary btn-sm" onclick="saveAttEdit(${r.id})">儲存</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleAttEdit(${r.id})">取消</button>
+          </div>
+        </td>
+      </tr>`).join('')}
+  `).join('') : '<tr><td colspan="4" style="color:var(--gray-400);padding:16px;text-align:center">本月無遲到記錄</td></tr>';
+
+  return `<div class="mon-card">
+    <div class="mon-card-title">
+      <span>遲到記錄</span>
+      ${total ? `<span class="mon-badge red">${total} 筆</span>` : '<span style="font-size:12px;color:#16a34a">本月無遲到</span>'}
+    </div>
+    <div style="overflow-x:auto">
+    <table class="mon-table">
+      <thead><tr><th>日期</th><th>打卡時間</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function toggleAttEdit(id) {
+  const row = document.getElementById(`att-edit-${id}`);
+  if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+async function saveAttEdit(id) {
+  const clockIn = document.getElementById(`att-ci-${id}`).value;
+  const isLate  = document.getElementById(`att-late-${id}`).checked;
+  const res = await fetch(`/api/hr/attendance/${id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ clock_in: clockIn, is_late: isLate })
+  });
+  if (res.ok) { showToast('出勤記錄已更新'); loadMonReport(); }
+  else showToast('更新失敗', 'error');
+}
+
+function renderMakeupSection(list) {
+  const pendingCnt = list.filter(r => r.status === 'pending').length;
+  const rows = list.length ? list.map(r => `
+    <tr>
+      <td>${r.user_name}</td>
+      <td>${r.makeup_date}</td>
+      <td>${r.reason || '—'}</td>
+      <td><span class="tag-${r.status}">${{pending:'待審',approved:'核准',rejected:'拒絕'}[r.status]||r.status}</span></td>
+      <td>
+        ${r.status === 'pending' ? `
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="monReviewMakeup(${r.id},'approved')">核准</button>
+            <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="monReviewMakeup(${r.id},'rejected')">拒絕</button>
+          </div>` : `<span style="color:var(--gray-400);font-size:12px">${r.reviewer_name||'—'}</span>`}
+      </td>
+    </tr>`).join('')
+    : '<tr><td colspan="5" style="color:var(--gray-400);padding:16px;text-align:center">本月無補打卡申請</td></tr>';
+
+  return `<div class="mon-card">
+    <div class="mon-card-title">
+      <span>補打卡記錄</span>
+      ${pendingCnt ? `<span class="mon-badge amber">${pendingCnt} 待審</span>` : '<span style="font-size:12px;color:#16a34a">無待審項目</span>'}
+    </div>
+    <div style="overflow-x:auto">
+    <table class="mon-table">
+      <thead><tr><th>姓名</th><th>補打日期</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderLeaveMonSection(list) {
+  const pendingCnt = list.reduce((s, e) => s + e.requests.filter(r => r.status === 'pending').length, 0);
+  const rows = list.length ? list.map(emp => `
+    <tr class="mon-emp-hdr">
+      <td colspan="6" style="display:flex;align-items:center;justify-content:space-between">
+        <span>${emp.name}</span>
+        <span class="mon-badge">${(emp.total_hours / 8).toFixed(1)} 天（已核准）</span>
+      </td>
+    </tr>
+    ${emp.requests.map(r => `
+      <tr>
+        <td style="padding-left:24px;color:var(--gray-500)">${r.leave_date}${r.leave_end_date && r.leave_end_date !== r.leave_date ? ' ~ ' + r.leave_end_date : ''}</td>
+        <td>${r.leave_type}</td>
+        <td>${r.hours} 時</td>
+        <td>${r.reason || '—'}</td>
+        <td><span class="tag-${r.status}">${{pending:'待審',approved:'核准',rejected:'拒絕'}[r.status]||r.status}</span></td>
+        <td>
+          ${r.status === 'pending' ? `
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="monReviewLeave(${r.id},'approved')">核准</button>
+              <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="monReviewLeave(${r.id},'rejected')">拒絕</button>
+            </div>` : `<span style="color:var(--gray-400);font-size:12px">${r.reviewer_name||'—'}</span>`}
+        </td>
+      </tr>`).join('')}
+  `).join('')
+    : '<tr><td colspan="6" style="color:var(--gray-400);padding:16px;text-align:center">本月無請假記錄</td></tr>';
+
+  return `<div class="mon-card">
+    <div class="mon-card-title">
+      <span>請假記錄</span>
+      ${pendingCnt ? `<span class="mon-badge amber">${pendingCnt} 待審</span>` : '<span style="font-size:12px;color:#16a34a">無待審項目</span>'}
+    </div>
+    <div style="overflow-x:auto">
+    <table class="mon-table">
+      <thead><tr><th>日期</th><th>假別</th><th>時數</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
 }
 
 async function loadAttSummary() {

@@ -226,6 +226,7 @@ async function handleClientFollow(event, channel) {
   // 記錄 OAT 來源管道，等首則訊息時帶入詢問單
   const oatId = event.referralInfo?.oatId?.toString();
   const sourceName = oatId ? OAT_SOURCE_MAP[oatId] : null;
+  console.log(`[FOLLOW] userId=${userId} referralInfo=${JSON.stringify(event.referralInfo||null)} oatId=${oatId||'無'} source=${sourceName||'未對應'}`);
   if (sourceName) {
     db.prepare(`INSERT OR REPLACE INTO line_follow_sources (line_user_id, add_source) VALUES (?, ?)`)
       .run(userId, sourceName);
