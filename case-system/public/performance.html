@@ -87,7 +87,11 @@
         <button class="period-tab"        onclick="setPeriod('month')">本月</button>
       </div>
 
+      <div style="font-size:12px;font-weight:600;color:var(--gray-500);letter-spacing:.5px;margin-bottom:6px">回簽業績</div>
       <div class="stats-grid" id="perfStats"></div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--gray-500);letter-spacing:.5px;margin-bottom:6px;margin-top:4px">施工派案（依施工日計算）</div>
+      <div class="stats-grid" id="dispatchStats"></div>
 
       <div class="analysis-grid">
         <div class="mini-card">
@@ -113,8 +117,9 @@
         <div id="pipeline"></div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:16px">
         <div class="card-body" style="padding:0">
+          <div style="padding:12px 16px 4px;font-size:13px;font-weight:600;color:var(--gray-600);border-bottom:1px solid var(--gray-100)">回簽案件明細</div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -128,6 +133,24 @@
                 </tr>
               </thead>
               <tbody id="caseTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div style="padding:12px 16px 4px;font-size:13px;font-weight:600;color:var(--gray-600);border-bottom:1px solid var(--gray-100)">施工派案明細（依施工日）</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>案號</th><th>客戶</th><th>項目</th><th>類型</th>
+                  <th>業務</th><th>施工日</th><th>派工次數</th>
+                  <th style="text-align:right">成交金額（未稅）</th>
+                </tr>
+              </thead>
+              <tbody id="dispatchTable"></tbody>
             </table>
           </div>
         </div>
@@ -182,9 +205,11 @@ async function load() {
     return;
   }
   renderStats(d);
+  renderDispatchStats(d);
   renderAnalysis(d);
   renderPipeline(d.pipeline);
   renderTable(d.cases);
+  renderDispatchTable(d.dispatchCases);
 }
 
 function pctDiff(cur, prev) {
@@ -270,6 +295,36 @@ function renderPipeline(pipeline) {
     </div>`).join('');
 }
 
+function renderDispatchStats(d) {
+  const ds = d.dispatchSummary || {};
+  const pd = d.prevDispatchSummary || {};
+  const cnt   = ds.count || 0;
+  const gross = ds.gross_value || 0;
+  const diffCnt = pctDiff(cnt, pd.count || 0);
+  const diffAmt = pctDiff(gross, pd.gross_value || 0);
+
+  document.getElementById('dispatchStats').innerHTML = `
+    <div class="stat-card" style="border-left:3px solid #10b981">
+      <div class="label">施工件數</div>
+      <div class="value">${cnt} 件</div>
+      ${diffCnt !== null ? `<div class="trend ${Number(diffCnt)>=0?'up':'down'}">${Number(diffCnt)>=0?'▲':'▼'} ${Math.abs(diffCnt)}% vs 前期</div>` : ''}
+    </div>
+    <div class="stat-card" style="border-left:3px solid #10b981">
+      <div class="label">施工派案金額（未稅）</div>
+      <div class="value">${fmt(gross)}</div>
+      ${diffAmt !== null ? `<div class="trend ${Number(diffAmt)>=0?'up':'down'}">${Number(diffAmt)>=0?'▲':'▼'} ${Math.abs(diffAmt)}% vs 前期</div>` : ''}
+    </div>
+    <div class="stat-card" style="border-left:3px solid #10b981">
+      <div class="label">施工派案（含稅估算）</div>
+      <div class="value">${fmt(Math.round(gross * 1.05))}</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid #10b981">
+      <div class="label">平均每案（未稅）</div>
+      <div class="value">${cnt ? fmt(Math.round(gross / cnt)) : '—'}</div>
+    </div>
+  `;
+}
+
 function renderTable(cases) {
   const tbody = document.getElementById('caseTable');
   if (!cases?.length) {
@@ -291,6 +346,25 @@ function renderTable(cases) {
       <td style="text-align:right;color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓'}</td>
     </tr>`;
   }).join('');
+}
+
+function renderDispatchTable(cases) {
+  const tbody = document.getElementById('dispatchTable');
+  if (!cases?.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="icon">🔧</div>此期間無施工派案</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = cases.map(c => `
+    <tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+      <td><code style="font-size:11px">${c.case_number}</code></td>
+      <td>${c.client_name||'—'}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
+      <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type||'—'}</td>
+      <td>${c.sales_name||'—'}</td>
+      <td>${c.dispatch_date ? c.dispatch_date.slice(0,10) : '—'}</td>
+      <td style="text-align:center">${c.dispatch_count}</td>
+      <td style="text-align:right;font-weight:600">${c.value ? fmt(c.value) : '—'}</td>
+    </tr>`).join('');
 }
 
 init();

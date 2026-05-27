@@ -481,7 +481,53 @@ router.get('/sales', requireAuth, (req, res) => {
       ORDER BY c.contracted_at DESC
     `).all(...params);
 
-    res.json({ period, fromDate, toDate, summary, prevSummary, bySales, byType, bySource, byLevel, pipeline, cases });
+    // ── 施工派案統計（以 dispatch scheduled_date 為準）──────────────
+    let dispatchWhere = `WHERE d.dispatch_type='install' AND date(d.scheduled_date) BETWEEN ? AND ?`;
+    const dispatchParams = [fromDate, toDate];
+    let prevDispatchWhere = `WHERE d.dispatch_type='install' AND date(d.scheduled_date) BETWEEN ? AND ?`;
+    const prevDispatchParams = [prevFrom, prevTo];
+    if (orgRestrict.org_id) {
+      dispatchWhere     += ' AND c.org_id=?'; dispatchParams.push(orgRestrict.org_id);
+      prevDispatchWhere += ' AND c.org_id=?'; prevDispatchParams.push(orgRestrict.org_id);
+    } else if (org_id) {
+      dispatchWhere     += ' AND c.org_id=?'; dispatchParams.push(Number(org_id));
+      prevDispatchWhere += ' AND c.org_id=?'; prevDispatchParams.push(Number(org_id));
+    }
+
+    const dispatchSummary = db.prepare(`
+      SELECT COUNT(*) as count, SUM(gross_value) as gross_value
+      FROM (
+        SELECT c.id, COALESCE(c.final_price, c.quoted_price, 0) as gross_value
+        FROM dispatches d JOIN cases c ON c.id = d.case_id
+        ${dispatchWhere} GROUP BY c.id
+      )
+    `).get(...dispatchParams);
+
+    const prevDispatchSummary = db.prepare(`
+      SELECT COUNT(*) as count, SUM(gross_value) as gross_value
+      FROM (
+        SELECT c.id, COALESCE(c.final_price, c.quoted_price, 0) as gross_value
+        FROM dispatches d JOIN cases c ON c.id = d.case_id
+        ${prevDispatchWhere} GROUP BY c.id
+      )
+    `).get(...prevDispatchParams);
+
+    const dispatchCases = db.prepare(`
+      SELECT c.id, c.case_number, c.title, c.case_type,
+             cl.name as client_name, s.name as sales_name,
+             COALESCE(c.final_price, c.quoted_price, 0) as value,
+             MIN(d.scheduled_date) as dispatch_date,
+             COUNT(d.id) as dispatch_count
+      FROM dispatches d
+      JOIN cases c ON c.id = d.case_id
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      LEFT JOIN users s ON s.id = c.sales_id
+      ${dispatchWhere}
+      GROUP BY c.id
+      ORDER BY dispatch_date DESC
+    `).all(...dispatchParams);
+
+    res.json({ period, fromDate, toDate, summary, prevSummary, bySales, byType, bySource, byLevel, pipeline, cases, dispatchSummary, prevDispatchSummary, dispatchCases });
   } catch (err) {
     console.error('[reports/sales]', err);
     res.status(500).json({ error: err.message });
