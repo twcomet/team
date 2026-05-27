@@ -147,6 +147,18 @@
         </div>
       </div>
 
+      <!-- 客戶來源分析 -->
+      <div class="analysis-grid">
+        <div class="mini-card">
+          <h4>LINE 詢問來源管道（所選期間）</h4>
+          <div id="lineSourceContent"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+        <div class="mini-card">
+          <h4>成交案件客戶來源（所選期間）</h4>
+          <div id="clientSourceContent"><div style="color:var(--gray-400);font-size:13px">載入中...</div></div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -215,6 +227,8 @@ async function load() {
   renderFunnel(d.funnel, d.period, d.fromDate, d.toDate);
   renderPending(d.pending);
   renderInvalid(d.invalidReasons);
+  renderLineSource(d.lineSourceBreakdown);
+  renderClientSource(d.clientSourceBreakdown);
 }
 
 function renderDaily(d) {
@@ -352,6 +366,39 @@ function renderInvalid(reasons) {
       <span class="bar-label" title="${r.name}">${r.name}</span>
       <div class="bar-track"><div class="bar-fill" style="width:${(r.cnt/max*100).toFixed(1)}%;background:#f59e0b"></div></div>
       <span class="bar-val">${r.cnt}</span>
+    </div>`).join('');
+}
+
+const SOURCE_COLORS = ['#6366f1','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#0284c7','#65a30d'];
+
+function renderBarList(el, rows, valKey, labelKey, colorFn) {
+  if (!rows?.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">此期間無資料</div>'; return; }
+  const maxVal = rows[0][valKey] || 1;
+  el.innerHTML = rows.map((r, i) => `
+    <div class="bar-row">
+      <span class="bar-label" title="${r[labelKey]}">${r[labelKey]}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(r[valKey]/maxVal*100).toFixed(1)}%;background:${colorFn(i)}"></div></div>
+      <span class="bar-val">${r[valKey]}</span>
+    </div>`).join('');
+}
+
+function renderLineSource(rows) {
+  renderBarList(
+    document.getElementById('lineSourceContent'),
+    rows, 'cnt', 'source',
+    i => SOURCE_COLORS[i % SOURCE_COLORS.length]
+  );
+}
+
+function renderClientSource(rows) {
+  const el = document.getElementById('clientSourceContent');
+  if (!rows?.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:13px">此期間無成交案件</div>'; return; }
+  const maxCnt = rows[0].cnt || 1;
+  el.innerHTML = rows.map((r, i) => `
+    <div class="bar-row">
+      <span class="bar-label" title="${r.source}">${r.source}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(r.cnt/maxCnt*100).toFixed(1)}%;background:${SOURCE_COLORS[i % SOURCE_COLORS.length]}"></div></div>
+      <span class="bar-val">${r.cnt} 件</span>
     </div>`).join('');
 }
 

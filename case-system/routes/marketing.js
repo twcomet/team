@@ -332,6 +332,31 @@ router.get('/report', requireAuth, (req, res) => {
     });
     const invalidReasons = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([name,cnt])=>({name,cnt}));
 
+    // LINE OAT 來源管道分析（所選期間內新建的詢問單）
+    const of_li = buildOrgFilter(me, 'i.org_id', org_id);
+    const lineSourceBreakdown = db.prepare(`
+      SELECT COALESCE(i.add_source, '未知來源') as source, COUNT(*) as cnt
+      FROM line_inquiries i
+      WHERE date(i.created_at) BETWEEN ? AND ?
+        ${of_li.where}
+      GROUP BY COALESCE(i.add_source, '未知來源')
+      ORDER BY cnt DESC
+    `).all(fromDate, toDate, ...of_li.params);
+
+    // 客戶來源分析（成交案件的客戶 source 欄位，所選期間）
+    const clientSourceBreakdown = db.prepare(`
+      SELECT COALESCE(cl.source, '未填寫') as source,
+             COUNT(*) as cnt,
+             SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
+      FROM cases c
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      WHERE c.status IN ('contracted','payment','closed')
+        AND date(c.contracted_at) BETWEEN ? AND ?
+        ${of.where}
+      GROUP BY COALESCE(cl.source, '未填寫')
+      ORDER BY cnt DESC
+    `).all(fromDate, toDate, ...of.params);
+
     res.json({
       period, fromDate, toDate,
       alerts: {
@@ -341,6 +366,8 @@ router.get('/report', requireAuth, (req, res) => {
       funnel,
       pending: pendingRows,
       invalidReasons,
+      lineSourceBreakdown,
+      clientSourceBreakdown,
     });
   } catch (err) {
     console.error('[marketing/report]', err);
