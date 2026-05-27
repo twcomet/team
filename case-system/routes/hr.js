@@ -121,6 +121,52 @@ router.put('/employees/:id', requireAuth, requireHR, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 個人資料（本人自覽）──────────────────────────────────────────
+router.get('/my-profile', requireAuth, (req, res) => {
+  const id = req.session.user.id;
+  const u = db.prepare(`
+    SELECT id, name, username, role, department, org_id, hire_date,
+           birthday, home_address, emergency_contact, emergency_phone,
+           bank_name, bank_account, line_user_id
+    FROM users WHERE id=?
+  `).get(id);
+  if (!u) return res.status(404).json({ error: 'Not found' });
+
+  const year = new Date().getFullYear();
+  const entitlement = calcAnnualLeave(u.hire_date, year);
+  const usedSpecial = db.prepare(`
+    SELECT COALESCE(SUM(hours)/8.0, 0) AS days FROM leave_requests
+    WHERE user_id=? AND leave_type='特休' AND status='approved'
+    AND strftime('%Y', leave_date)=?
+  `).get(id, String(year))?.days || 0;
+  const adjustTotal = db.prepare(`
+    SELECT COALESCE(SUM(days),0) AS total FROM leave_adjustments WHERE user_id=? AND year=?
+  `).get(id, year)?.total || 0;
+
+  u.leave_entitlement = entitlement;
+  u.leave_used        = Math.round(usedSpecial * 10) / 10;
+  u.leave_remaining   = Math.round((entitlement - usedSpecial + adjustTotal) * 10) / 10;
+  u.line_bound        = !!u.line_user_id;
+  delete u.line_user_id;
+
+  const org = db.prepare(`SELECT name FROM organizations WHERE id=?`).get(u.org_id);
+  u.org_name = org?.name || '';
+
+  res.json(u);
+});
+
+// ── 個人資料（本人自填）──────────────────────────────────────────
+router.put('/my-profile', requireAuth, (req, res) => {
+  const id = req.session.user.id;
+  const { birthday, home_address, emergency_contact, emergency_phone, bank_name, bank_account } = req.body;
+  db.prepare(`
+    UPDATE users SET birthday=?, home_address=?, emergency_contact=?,
+    emergency_phone=?, bank_name=?, bank_account=? WHERE id=?
+  `).run(birthday||null, home_address||null, emergency_contact||null,
+         emergency_phone||null, bank_name||null, bank_account||null, id);
+  res.json({ ok: true });
+});
+
 // GET /api/hr/pending — 待審核列表
 router.get('/pending', requireAuth, requireHR, (req, res) => {
   const leave = db.prepare(`

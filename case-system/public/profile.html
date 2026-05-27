@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的個人資料 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:700px){ .profile-grid{ grid-template-columns:1fr; } }
+
+.profile-card {
+  background:#fff; border:1px solid var(--gray-200); border-radius:14px;
+  padding:22px 24px; margin-bottom:20px;
+}
+.profile-card h3 {
+  font-size:15px; font-weight:700; color:var(--gray-700);
+  margin:0 0 18px; padding-bottom:10px; border-bottom:1px solid var(--gray-100);
+  display:flex; align-items:center; gap:8px;
+}
+.info-row { display:flex; align-items:flex-start; gap:0; margin-bottom:12px; }
+.info-label { font-size:13px; color:var(--gray-500); width:110px; flex-shrink:0; padding-top:2px; }
+.info-value { font-size:14px; font-weight:600; color:var(--gray-800); }
+.info-tag { display:inline-block; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; }
+.tag-bound   { background:#d1fae5; color:#065f46; }
+.tag-unbound { background:#fee2e2; color:#9b1c1c; }
+
+.leave-boxes { display:flex; gap:14px; margin-top:4px; flex-wrap:wrap; }
+.leave-box { text-align:center; background:var(--gray-50); border-radius:10px; padding:10px 18px; }
+.leave-box .lb-num { font-size:22px; font-weight:800; color:var(--primary); }
+.leave-box .lb-label { font-size:11px; color:var(--gray-500); margin-top:2px; }
+
+.form-row { margin-bottom:14px; }
+.form-row label { display:block; font-size:13px; color:var(--gray-600); margin-bottom:5px; font-weight:500; }
+.form-row input {
+  width:100%; padding:8px 12px; border:1px solid var(--gray-300);
+  border-radius:8px; font-size:14px; box-sizing:border-box;
+}
+.form-row input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(26,86,219,.1); }
+
+.save-btn {
+  background:var(--primary); color:#fff; border:none; padding:9px 24px;
+  border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px;
+}
+.save-btn:hover { background:#1741a6; }
+
+.pw-hint { font-size:12px; color:var(--gray-400); margin-top:4px; }
+.msg { font-size:13px; margin-top:8px; padding:6px 12px; border-radius:6px; display:none; }
+.msg.ok  { background:#d1fae5; color:#065f46; display:block; }
+.msg.err { background:#fee2e2; color:#9b1c1c; display:block; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+      <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+      <a class="nav-item" data-page="hr"             href="/hr">             <span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="#" onclick="logout()" class="logout-btn">登出</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">我的個人資料</h1>
+        <p class="page-subtitle" id="pageSubtitle"></p>
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <!-- 左欄：基本資料 + 特休 -->
+      <div>
+        <div class="profile-card">
+          <h3>🪪 基本資料</h3>
+          <div class="info-row"><span class="info-label">姓名</span><span class="info-value" id="iName">—</span></div>
+          <div class="info-row"><span class="info-label">帳號</span><span class="info-value" id="iUsername">—</span></div>
+          <div class="info-row"><span class="info-label">角色</span><span class="info-value" id="iRole">—</span></div>
+          <div class="info-row"><span class="info-label">部門</span><span class="info-value" id="iDept">—</span></div>
+          <div class="info-row"><span class="info-label">所屬組織</span><span class="info-value" id="iOrg">—</span></div>
+          <div class="info-row"><span class="info-label">到職日期</span><span class="info-value" id="iHire">—</span></div>
+          <div class="info-row"><span class="info-label">LINE 綁定</span><span class="info-value" id="iLine">—</span></div>
+        </div>
+
+        <div class="profile-card">
+          <h3>🌴 今年特休</h3>
+          <div class="leave-boxes">
+            <div class="leave-box"><div class="lb-num" id="leaveTotal">—</div><div class="lb-label">可用天數</div></div>
+            <div class="leave-box"><div class="lb-num" id="leaveUsed">—</div><div class="lb-label">已請天數</div></div>
+            <div class="leave-box"><div class="lb-num" id="leaveLeft" style="color:#16a34a">—</div><div class="lb-label">剩餘天數</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右欄：可編輯資料 + 改密碼 -->
+      <div>
+        <div class="profile-card">
+          <h3>✏️ 個人資訊（可自填）</h3>
+          <div class="form-row"><label>生日</label><input type="date" id="fBirthday"></div>
+          <div class="form-row"><label>戶籍地址</label><input type="text" id="fAddress" placeholder="請填寫"></div>
+          <div class="form-row"><label>緊急聯絡人</label><input type="text" id="fEContact" placeholder="姓名 / 關係"></div>
+          <div class="form-row"><label>緊急聯絡電話</label><input type="tel" id="fEPhone" placeholder="0912-345-678"></div>
+          <div class="form-row"><label>銀行名稱</label><input type="text" id="fBankName" placeholder="例：台灣銀行"></div>
+          <div class="form-row"><label>銀行帳號</label><input type="text" id="fBankAccount" placeholder="請填寫帳號"></div>
+          <button class="save-btn" onclick="saveProfile()">儲存個人資訊</button>
+          <div class="msg" id="profileMsg"></div>
+        </div>
+
+        <div class="profile-card">
+          <h3>🔑 修改密碼</h3>
+          <div class="form-row"><label>新密碼</label><input type="password" id="fNewPw" placeholder="至少 6 個字元"></div>
+          <div class="form-row"><label>確認新密碼</label><input type="password" id="fConfirmPw" placeholder="再輸入一次"></div>
+          <p class="pw-hint">修改後下次登入需使用新密碼</p>
+          <button class="save-btn" onclick="changePassword()">修改密碼</button>
+          <div class="msg" id="pwMsg"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let myId = null;
+
+async function init() {
+  await requireLogin();
+  highlightNav('profile');
+  const me = getCurrentUser();
+  myId = me.id;
+
+  const data = await fetch('/api/hr/my-profile').then(r => r.json());
+
+  document.getElementById('pageSubtitle').textContent = `${data.name} · ${data.org_name}`;
+  document.getElementById('iName').textContent     = data.name || '—';
+  document.getElementById('iUsername').textContent = data.username || '—';
+  document.getElementById('iRole').textContent     = data.role || '—';
+  document.getElementById('iDept').textContent     = data.department || '—';
+  document.getElementById('iOrg').textContent      = data.org_name || '—';
+  document.getElementById('iHire').textContent     = data.hire_date || '未設定';
+  document.getElementById('iLine').innerHTML       = data.line_bound
+    ? '<span class="info-tag tag-bound">已綁定</span>'
+    : '<span class="info-tag tag-unbound">尚未綁定</span>';
+
+  document.getElementById('leaveTotal').textContent = data.leave_entitlement ?? '—';
+  document.getElementById('leaveUsed').textContent  = data.leave_used ?? '—';
+  document.getElementById('leaveLeft').textContent  = data.leave_remaining ?? '—';
+
+  document.getElementById('fBirthday').value    = data.birthday || '';
+  document.getElementById('fAddress').value     = data.home_address || '';
+  document.getElementById('fEContact').value    = data.emergency_contact || '';
+  document.getElementById('fEPhone').value      = data.emergency_phone || '';
+  document.getElementById('fBankName').value    = data.bank_name || '';
+  document.getElementById('fBankAccount').value = data.bank_account || '';
+}
+
+async function saveProfile() {
+  const body = {
+    birthday:          document.getElementById('fBirthday').value || null,
+    home_address:      document.getElementById('fAddress').value || null,
+    emergency_contact: document.getElementById('fEContact').value || null,
+    emergency_phone:   document.getElementById('fEPhone').value || null,
+    bank_name:         document.getElementById('fBankName').value || null,
+    bank_account:      document.getElementById('fBankAccount').value || null,
+  };
+  const r = await fetch('/api/hr/my-profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const msg = document.getElementById('profileMsg');
+  if (r.ok) { msg.className='msg ok'; msg.textContent='✅ 儲存成功'; }
+  else       { msg.className='msg err'; msg.textContent='❌ 儲存失敗'; }
+  setTimeout(() => msg.className='msg', 3000);
+}
+
+async function changePassword() {
+  const np = document.getElementById('fNewPw').value;
+  const cp = document.getElementById('fConfirmPw').value;
+  const msg = document.getElementById('pwMsg');
+  if (!np || np.length < 6) { msg.className='msg err'; msg.textContent='❌ 密碼至少 6 個字元'; return; }
+  if (np !== cp)             { msg.className='msg err'; msg.textContent='❌ 兩次密碼不一致'; return; }
+  const r = await fetch(`/api/users/${myId}/password`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password: np }) });
+  if (r.ok) {
+    msg.className='msg ok'; msg.textContent='✅ 密碼修改成功';
+    document.getElementById('fNewPw').value = '';
+    document.getElementById('fConfirmPw').value = '';
+  } else {
+    msg.className='msg err'; msg.textContent='❌ 修改失敗';
+  }
+  setTimeout(() => msg.className='msg', 3000);
+}
+
+init();
+</script>
+</body>
+</html>
