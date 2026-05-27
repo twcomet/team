@@ -95,6 +95,13 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
     }
   }
 
+  // fallback：繪新臺中環境變數
+  if (!matchedChannel && process.env.LINE_TAICHUNG_CHANNEL_SECRET &&
+      verifySignature(rawBody, sig, process.env.LINE_TAICHUNG_CHANNEL_SECRET)) {
+    const tcOrg = db.prepare(`SELECT id FROM orgs WHERE name LIKE '%台中%' LIMIT 1`).get();
+    matchedChannel = { id: null, org_id: tcOrg?.id || null, channel_token: process.env.LINE_TAICHUNG_CHANNEL_TOKEN || '', welcome_msg: null, channel_name: '繪新臺中-env' };
+  }
+
   // fallback：環境變數（原有頻道，視為總部）
   if (!matchedChannel && verifySignature(rawBody, sig, CLIENT_SECRET())) {
     const hqOrg = db.prepare(`SELECT id FROM orgs WHERE type='hq' LIMIT 1`).get();
