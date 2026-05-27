@@ -80,7 +80,7 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   res.status(200).end();
 
   const sig = req.headers['x-line-signature'];
-  if (!sig) return;
+  if (!sig) { console.warn('[LINE-WEBHOOK] 缺少 x-line-signature header'); return; }
 
   const rawBody = req.body;
 
@@ -101,10 +101,15 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
     matchedChannel = { id: null, org_id: hqOrg?.id || null, channel_token: CLIENT_TOKEN(), welcome_msg: null };
   }
 
-  if (!matchedChannel) return;
+  if (!matchedChannel) {
+    console.error(`[LINE-WEBHOOK] 簽名驗證失敗 — DB頻道數:${dbChannels.length} CLIENT_SECRET長度:${CLIENT_SECRET().length}`);
+    return;
+  }
 
   let payload;
-  try { payload = JSON.parse(rawBody.toString()); } catch { return; }
+  try { payload = JSON.parse(rawBody.toString()); } catch (e) { console.error('[LINE-WEBHOOK] JSON parse error:', e.message); return; }
+
+  console.log(`[LINE-WEBHOOK] 收到 ${payload.events?.length || 0} 個事件，頻道: ${matchedChannel.channel_name || 'env-fallback'}`);
 
   for (const event of (payload.events || [])) {
     if (event.type === 'message' && event.message?.type === 'text') {
