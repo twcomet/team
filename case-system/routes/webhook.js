@@ -38,7 +38,7 @@ function verifySignature(rawBody, signature, secret) {
 
 async function lineGet(path, token) {
   const res = await fetch(`https://api.line.me${path}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${(token||'').replace(/\s/g,'')}` }
   });
   return res.ok ? res.json() : null;
 }
@@ -46,7 +46,7 @@ async function lineGet(path, token) {
 async function reply(replyToken, text, token) {
   await fetch('https://api.line.me/v2/bot/message/reply', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(token||'').replace(/\s/g,'')}` },
     body: JSON.stringify({ replyToken, messages: [{ type: 'text', text }] })
   }).catch(err => console.error('LINE reply error:', err));
 }

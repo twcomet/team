@@ -260,7 +260,9 @@ router.get('/line-channels', requireAuth, (req, res) => {
 
 router.post('/line-channels', requireAuth, (req, res) => {
   if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
-  const { org_id, channel_name, channel_secret, channel_token, welcome_msg } = req.body;
+  const { org_id, channel_name, welcome_msg } = req.body;
+  const channel_secret = (req.body.channel_secret||'').replace(/\s/g,'');
+  const channel_token  = (req.body.channel_token ||'').replace(/\s/g,'');
   if (!channel_name || !channel_secret || !channel_token) return res.status(400).json({ error: '請填寫頻道名稱、Secret 和 Token' });
   const r = db.prepare(`INSERT INTO line_channels (org_id, channel_name, channel_secret, channel_token, welcome_msg)
     VALUES (?,?,?,?,?)`).run(org_id || null, channel_name, channel_secret, channel_token, welcome_msg || null);
@@ -269,7 +271,9 @@ router.post('/line-channels', requireAuth, (req, res) => {
 
 router.put('/line-channels/:id', requireAuth, (req, res) => {
   if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
-  const { org_id, channel_name, channel_secret, channel_token, welcome_msg, active } = req.body;
+  const { org_id, channel_name, welcome_msg, active } = req.body;
+  const channel_secret = (req.body.channel_secret||'').replace(/\s/g,'');
+  const channel_token  = (req.body.channel_token ||'').replace(/\s/g,'');
   if (!channel_name) return res.status(400).json({ error: '請填寫頻道名稱' });
   db.prepare(`UPDATE line_channels SET org_id=?, channel_name=?, channel_secret=?, channel_token=?,
     welcome_msg=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
