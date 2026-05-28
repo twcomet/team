@@ -112,6 +112,41 @@
         <button onclick="clearFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
       </div>
 
+      <!-- 場勘篩選列（僅 survey 模式） -->
+      <div id="surveyFilters" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:12px;color:var(--gray-500);font-weight:500">篩選：</span>
+        <select id="sv_status" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:120px">
+          <option value="">全部狀態</option>
+          <option value="survey_pending">待排場勘</option>
+          <option value="survey_scheduled">已排場勘</option>
+          <option value="surveyed">已場勘</option>
+          <option value="quote_draft">已建報價資料</option>
+          <option value="quoted">已發報價單</option>
+          <option value="invalid">無效</option>
+        </select>
+        <select id="sv_priority" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:90px">
+          <option value="">全部優先</option>
+          <option value="urgent">緊急</option>
+          <option value="high">優先</option>
+          <option value="normal">一般</option>
+          <option value="low">低優先</option>
+        </select>
+        <select id="sv_intent" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:110px">
+          <option value="">全部成交意願</option>
+          <option value="hot">積極成交</option>
+          <option value="warm">有意願</option>
+          <option value="cool">觀望中</option>
+          <option value="cold">意願低</option>
+        </select>
+        <select id="sv_sales" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部業務</option>
+        </select>
+        <select id="sv_cs" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部客服</option>
+        </select>
+        <button onclick="clearSurveyFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
+      </div>
+
       <div class="card">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
@@ -454,6 +489,13 @@ async function init() {
     inquirySalesUsers.forEach(u => fsSales.add(new Option(u.name, u.id)));
     inquiryCsUsers.forEach(u => fsCs.add(new Option(u.name, u.id)));
   }
+  if (MODE === 'survey') {
+    document.getElementById('surveyFilters').style.display = 'flex';
+    const svSales = document.getElementById('sv_sales');
+    const svCs    = document.getElementById('sv_cs');
+    inquirySalesUsers.forEach(u => svSales.add(new Option(u.name, u.id)));
+    inquiryCsUsers.forEach(u => svCs.add(new Option(u.name, u.id)));
+  }
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
@@ -595,7 +637,7 @@ function renderTable(cases) {
     if (activeType && c.case_type !== activeType) return false;
     if (activeStatus && c.status !== activeStatus) return false;
     if (!activeStatus && cfg.hiddenByDefault.has(c.status)) return false;
-    if (MODE === 'inquiry') {
+    if (MODE === 'inquiry' || MODE === 'survey') {
       if (filterPriority && c.priority !== filterPriority) return false;
       if (filterIntent   && (c.deal_intent || '') !== filterIntent) return false;
       if (filterSales    && String(c.sales_id || '') !== filterSales) return false;
@@ -716,7 +758,7 @@ function filterByStatus(s) {
   document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
     el.classList.toggle('active', cfg.stages[i] === activeStatus);
   });
-  const fsSel = document.getElementById('fs_status');
+  const fsSel = document.getElementById(MODE === 'survey' ? 'sv_status' : 'fs_status');
   if (fsSel) fsSel.value = activeStatus;
   renderTable(allCases);
 }
@@ -752,6 +794,29 @@ function clearFilters() {
   document.getElementById('fs_intent').value   = '';
   document.getElementById('fs_sales').value    = '';
   document.getElementById('fs_cs').value       = '';
+  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderTable(allCases);
+}
+
+function applySurveyFilters() {
+  const sv = document.getElementById('sv_status').value;
+  activeStatus = sv;
+  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
+    el.classList.toggle('active', cfg.stages[i] === activeStatus);
+  });
+  filterPriority = document.getElementById('sv_priority').value;
+  filterIntent   = document.getElementById('sv_intent').value;
+  filterSales    = document.getElementById('sv_sales').value;
+  filterCs       = document.getElementById('sv_cs').value;
+  renderTable(allCases);
+}
+
+function clearSurveyFilters() {
+  activeStatus = ''; filterPriority = ''; filterIntent = ''; filterSales = ''; filterCs = '';
+  ['sv_status','sv_priority','sv_intent','sv_sales','sv_cs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
   renderTable(allCases);
 }
