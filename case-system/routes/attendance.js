@@ -48,7 +48,7 @@ function nowTimeTW() {
 // 允許打卡的時段設定
 const CLOCKIN_WINDOWS = [
   { label: '早班',     start: '06:30', end: '12:00', shiftStart: '09:00', lateAfter: '09:01' },
-  { label: '下午時段', start: '13:00', end: '14:00', shiftStart: '13:00', lateAfter: '13:01' },
+  { label: '下午時段', start: '13:00', end: '14:30', shiftStart: '14:00', lateAfter: '14:01' },
 ];
 
 function getClockInWindow(now) {
