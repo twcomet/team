@@ -148,9 +148,9 @@
 let myId = null;
 
 async function init() {
-  await requireLogin();
+  await loadUser();
   highlightNav('profile');
-  const me = getCurrentUser();
+  const me = currentUser;
   myId = me.id;
 
   const data = await fetch('/api/hr/my-profile').then(r => r.json());
