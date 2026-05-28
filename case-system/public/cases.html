@@ -452,6 +452,7 @@ const pendingChanges = new Map();
 let activeStatus = '', activeType = '';
 let sortDateDir = 'desc';
 let inquirySortField = 'created_at', inquirySortDir = 'desc';
+let surveySortField  = 'survey_date', surveySortDir  = 'desc';
 let filterPriority = '', filterIntent = '', filterSales = '', filterCs = '';
 
 const INTENT_LABELS  = { hot:'積極成交', warm:'有意願', cool:'觀望中', cold:'意願低' };
@@ -490,6 +491,7 @@ async function init() {
     inquiryCsUsers.forEach(u => fsCs.add(new Option(u.name, u.id)));
   }
   if (MODE === 'survey') {
+    document.getElementById('saveAssignBtn').style.display = '';
     document.getElementById('surveyFilters').style.display = 'flex';
     const svSales = document.getElementById('sv_sales');
     const svCs    = document.getElementById('sv_cs');
@@ -599,7 +601,26 @@ function renderTableHead() {
       <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
-    h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>${sortThHtml('場勘日')}<th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
+    const sSortTh = (label, field, w) => {
+      const active = surveySortField === field;
+      const icon = active ? (surveySortDir === 'asc' ? '↑' : '↓') : '↕';
+      const color = active ? 'color:var(--primary)' : 'color:var(--gray-300)';
+      return `<th style="width:${w};cursor:pointer;white-space:nowrap;user-select:none" onclick="setSurveySort('${field}')">${label} <span style="font-size:10px;${color}">${icon}</span></th>`;
+    };
+    h.innerHTML = `<tr>
+      <th style="width:100px">案號</th>
+      ${sSortTh('天數', 'created_at', '42px')}
+      ${sSortTh('狀態', 'status', '120px')}
+      <th style="width:70px">類型</th>
+      <th style="width:120px">客戶</th>
+      <th style="width:220px">項目</th>
+      ${sSortTh('場勘日', 'survey_date', '85px')}
+      ${sSortTh('成交意願', 'deal_intent', '90px')}
+      <th style="width:88px">負責業務</th>
+      <th style="width:88px">承辦人</th>
+      ${sSortTh('優先', 'priority', '76px')}
+      <th style="width:65px">操作</th>
+    </tr>`;
   } else {
     h.innerHTML = `<tr>
       <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
@@ -661,15 +682,33 @@ function renderTable(cases) {
         return inquirySortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
       }
     });
+  } else if (MODE === 'survey') {
+    filtered.sort((a, b) => {
+      const dir = surveySortDir === 'asc' ? 1 : -1;
+      if (surveySortField === 'priority') {
+        return ((PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)) * dir;
+      } else if (surveySortField === 'deal_intent') {
+        return ((INTENT_ORDER[a.deal_intent] ?? 99) - (INTENT_ORDER[b.deal_intent] ?? 99)) * dir;
+      } else if (surveySortField === 'status') {
+        const STATUS_ORD = { survey_pending: 0, survey_scheduled: 1, surveyed: 2, quote_draft: 3, quoted: 4, invalid: 5 };
+        return ((STATUS_ORD[a.status] ?? 9) - (STATUS_ORD[b.status] ?? 9)) * dir;
+      } else if (surveySortField === 'survey_date') {
+        const va = a.survey_date || '', vb = b.survey_date || '';
+        return surveySortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+      } else {
+        const va = a.created_at || '', vb = b.created_at || '';
+        return surveySortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+      }
+    });
   } else {
-    const dateField = MODE === 'survey' ? 'survey_date' : 'scheduled_date';
+    const dateField = 'scheduled_date';
     filtered.sort((a, b) => {
       const va = a[dateField] || '', vb = b[dateField] || '';
       return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
     });
   }
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 10 : 12;
+    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 12 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -708,20 +747,30 @@ function getCaseRow(c) {
   }
 
   if (MODE === 'survey') {
-    const handler = c.status === 'quoted' ? (c.quoted_name || c.cs_name || '—')
-                  : c.status === 'quote_draft' ? (c.quote_drafted_name || c.cs_name || '—')
-                  : (c.cs_name || '—');
+    const days = daysSince(c.created_at);
+    const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     return `<tr ${link}>
-      <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-      <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
-      <td>${c.client_name || '—'}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-      <td>${fmtDate(c.survey_date)}</td>
-      <td>${c.sales_name || '—'}</td>
-      <td style="font-size:13px;color:#6b7280">${handler}</td>
-      <td>${statusBadge(c.status)}</td>
-      <td>${c.quoted_price ? fmt(c.quoted_price) : '—'}</td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap">${surveyActionBtns(c)}</td>
+      <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
+      <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
+      <td style="width:70px;white-space:nowrap"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
+      <td style="width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${c.client_name || '—'}</td>
+      <td style="width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:85px;white-space:nowrap;font-size:12px;color:#6b7280">${fmtDate(c.survey_date)}</td>
+      <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
+      <td style="width:88px" onclick="event.stopPropagation()">
+        ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
+      </td>
+      <td style="width:88px" onclick="event.stopPropagation()">
+        ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
+      </td>
+      <td style="width:76px" onclick="event.stopPropagation()">
+        ${prioritySelect(c)}
+      </td>
+      <td style="width:65px" onclick="event.stopPropagation()">
+        <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
+          style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+      </td>
     </tr>`;
   }
 
@@ -769,6 +818,17 @@ function setInquirySort(field) {
   } else {
     inquirySortField = field;
     inquirySortDir = 'desc';
+  }
+  renderTableHead();
+  renderTable(allCases);
+}
+
+function setSurveySort(field) {
+  if (surveySortField === field) {
+    surveySortDir = surveySortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    surveySortField = field;
+    surveySortDir = 'desc';
   }
   renderTableHead();
   renderTable(allCases);
