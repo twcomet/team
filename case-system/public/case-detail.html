@@ -1218,6 +1218,10 @@ async function init() {
     // 詢價案件預設跳至初步估價紀錄
     const estimateTab = document.querySelector(`.tab[data-tab="estimate"]:not([style*="none"])`);
     if (estimateTab) estimateTab.click();
+  } else if (caseData?.case_group === 'survey') {
+    // 場勘案件預設跳至場勘頁籤
+    const surveyTab = document.querySelector(`.tab[data-tab="survey"]:not([style*="none"])`);
+    if (surveyTab) surveyTab.click();
   } else if (caseData?.case_group === 'deal') {
     // 成交案件依狀態自動跳至最相關頁籤
     let autoTab;
