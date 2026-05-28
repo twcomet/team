@@ -59,8 +59,9 @@ function genCaseNumber(org_id) {
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const prefix = `HX${yy}${mm}`;
-  const count = db.prepare(`SELECT COUNT(*) as n FROM cases WHERE case_number LIKE ?`).get(`${prefix}%`).n;
-  return `${prefix}-${String(count + 1).padStart(3, '0')}`;
+  const last = db.prepare(`SELECT case_number FROM cases WHERE case_number LIKE ? ORDER BY case_number DESC LIMIT 1`).get(`${prefix}%`);
+  const seq  = last ? (parseInt(last.case_number.split('-')[1]) || 0) + 1 : 1;
+  return `${prefix}-${String(seq).padStart(3, '0')}`;
 }
 
 // 依 install_fee / 總人次 重算每筆施工派工的 labor_cost
