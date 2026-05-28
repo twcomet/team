@@ -1548,9 +1548,12 @@ function applyConvertButtons(group) {
     const adv = ADVANCE_CFG[status];
     const advBtn = adv
       ? `<button class="btn btn-sm" style="background:${adv.color};color:#fff;font-weight:600" onclick="advanceInDetail()">${adv.label}</button>` : '';
+    const DIRECT_DEAL_STAGES = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft']);
+    const dealBtn = DIRECT_DEAL_STAGES.has(status)
+      ? `<button class="btn btn-sm" style="background:#16a34a;color:#fff;font-weight:600" onclick="convertCase('deal')">✓ 直接成交</button>` : '';
     document.getElementById('convertBannerTitle').textContent = '場勘管理 ─ 下一步';
     document.getElementById('convertBannerDesc').textContent  = '完成後狀態將自動推進';
-    bannerBtns.innerHTML = advBtn + (advBtn ? '&nbsp;&nbsp;' : '') + invalidBtn;
+    bannerBtns.innerHTML = advBtn + (advBtn ? '&nbsp;&nbsp;' : '') + dealBtn + (dealBtn ? '&nbsp;&nbsp;' : '') + invalidBtn;
   } else if (group === 'deal') {
     const adv = ADVANCE_CFG[status];
     const isPaid = caseData.payment_status === 'paid';
