@@ -948,6 +948,11 @@ async function doStepBack(id) {
 }
 
 init();
+
+// 按瀏覽器上一頁返回時，強制重新抓取最新資料（避免快取舊列表）
+window.addEventListener('pageshow', e => {
+  if (e.persisted) loadCases();
+});
 </script>
 </body>
 </html>
