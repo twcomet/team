@@ -183,14 +183,15 @@ router.post('/:id/convert', requireAuth, (req, res) => {
       case_number, org_id, case_type, client_id,
       title, description, line_source, source_type,
       status, case_group, priority, created_by,
-      sales_id, cs_id, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, ?, ?, CURRENT_TIMESTAMP)
+      sales_id, cs_id, line_display_name, line_official_name, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, case_type, inq.client_id,
     title || inq.display_name || '（未命名）',
     notes || inq.last_message || '',
     inq.line_user_id, u.id,
-    inq.sales_id || null, inq.cs_id || null
+    inq.sales_id || null, inq.cs_id || null,
+    inq.display_name || null, inq.display_name || null
   );
 
   db.prepare(`
