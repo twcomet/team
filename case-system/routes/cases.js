@@ -692,7 +692,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
 });
 
 // ── 標記無效 PATCH /:id/invalidate ──────────────────────────
-const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched']);
 router.patch('/:id/invalidate', requireAuth, (req, res) => {
   const me = req.session.user;
   const { reason, tags } = req.body;

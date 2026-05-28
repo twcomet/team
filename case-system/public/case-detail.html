@@ -1526,7 +1526,7 @@ function applyConvertButtons(group) {
   toDeal.style.display    = 'none';
   toInvalid.style.display = 'none';
 
-  const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+  const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched']);
   const invalidBtn = INVALIDATABLE.has(status)
     ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="openDetailInvalidModal()">✕ 標記無效</button>` : '';
 
