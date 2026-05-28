@@ -61,6 +61,7 @@
 /* 場勘 tab */
 .sf-tab-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:20px; margin-bottom:16px; }
 .sf-tab-title { font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--gray-100); }
+.sf-required { color:#dc2626 !important; }
 .sf-finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 36px; gap:8px; align-items:center; margin-bottom:8px; }
 .sf-finding-row input, .sf-finding-row select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; width:100%; }
 .sf-status-draft  { background:#f9fafb; border:1px solid var(--gray-200); }
@@ -476,7 +477,45 @@
           <span id="sf_signedInfo" style="display:none;margin-left:auto;font-size:12px"></span>
         </div>
 
-        <!-- 客服提醒備註（置頂、顯眼） -->
+        <!-- 1. 場勘基本資訊（客服填寫）-->
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">場勘基本資訊</h4>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px">
+            <div style="display:grid;grid-template-columns:1fr;gap:6px">
+              <div><span style="color:var(--gray-500)">客戶名稱：</span><span id="sf_hdr_client" style="font-weight:600"></span></div>
+              <div><span style="color:var(--gray-500)">案場地址：</span><span id="sf_hdr_address" style="font-weight:600"></span></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="sf-required">場勘日期 *</label><input type="date" id="sf_date"></div>
+            <div class="form-group"><label>場勘時間</label><input type="time" id="sf_time"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="sf-required">場勘人員 *</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
+            <div class="form-group" style="flex:2">
+              <label>調度留言 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（會出現在 LINE 通知裡）</span></label>
+              <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="sf-required">施工地址 *</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="sf_address" style="flex:1" placeholder="請輸入施工地址" oninput="sf_updateMapLink()">
+              <a id="sf_mapLink" href="#" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #bae6fd;border-radius:8px;font-size:12px;color:#0369a1;background:#f0f9ff;white-space:nowrap;text-decoration:none;flex-shrink:0;opacity:0.4;pointer-events:none">
+                🗺️ Maps
+              </a>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>客服廠刊資訊備註</label>
+            <textarea id="sf_cs_service_note" rows="5"
+              placeholder="客服填入廠刊相關說明，例如：廠區位置、停車資訊、聯絡人、注意事項…"
+              style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+          </div>
+        </div>
+
+        <!-- 2. 客服提醒備註 -->
         <div class="sf-tab-section" style="background:#fffbeb;border:1.5px solid #fcd34d">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <h4 class="sf-tab-title" style="margin:0;color:#92400e">📌 客服提醒備註</h4>
@@ -484,7 +523,6 @@
           </div>
           <textarea id="sf_cs_notes" rows="3" placeholder="客服填寫後技術人員到場前請務必閱讀…"
             style="width:100%;padding:10px;border:1px solid #fcd34d;border-radius:8px;font-size:13px;background:#fefce8;resize:vertical"></textarea>
-          <!-- 模板搜尋下拉（預設隱藏） -->
           <div id="sf_noteTemplatePicker" style="display:none;margin-top:8px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.1)">
             <div style="padding:8px">
               <input type="text" id="sf_noteTemplateSearch" placeholder="輸入關鍵字搜尋模板…"
@@ -494,32 +532,44 @@
           </div>
         </div>
 
-        <!-- 基本資訊 -->
-        <div class="sf-tab-section">
-          <h4 class="sf-tab-title">場勘基本資訊</h4>
-          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div><span style="color:var(--gray-500)">客戶名稱：</span><span id="sf_hdr_client" style="font-weight:600"></span></div>
-              <div><span style="color:var(--gray-500)">聯絡電話：</span><span id="sf_hdr_phone" style="font-weight:600"></span></div>
-              <div style="grid-column:1/-1"><span style="color:var(--gray-500)">案場地址：</span><span id="sf_hdr_address" style="font-weight:600"></span></div>
+        <!-- 3. 廠刊費是否要收取（客服填寫） -->
+        <div class="sf-tab-section" style="border:2px solid #fbbf24">
+          <h4 class="sf-tab-title" style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+            💴 廠刊費是否要收取
+            <span class="sf-required" style="font-size:12px;font-weight:400;border:none;background:transparent;padding:0;border-bottom:none">（必填）</span>
+          </h4>
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px">
+            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:14px;font-weight:600;color:var(--gray-700);white-space:nowrap">場勘費金額</label>
+                <span style="font-size:16px;color:var(--gray-500)">$</span>
+                <input type="number" id="sf_fee" placeholder="0" min="0"
+                  style="width:110px;padding:7px 10px;border:1px solid #fcd34d;border-radius:8px;font-size:18px;font-weight:700;background:#fff">
+                <span style="font-size:14px;color:var(--gray-500)">元</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label id="sf_req_yes_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
+                  <input type="radio" name="sf_fee_required" id="sf_req_yes" value="1" onchange="sf_onFeeRequiredChange()"> 需收場勘費
+                </label>
+                <label id="sf_req_no_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
+                  <input type="radio" name="sf_fee_required" id="sf_req_no" value="0" onchange="sf_onFeeRequiredChange()"> 不需收場勘費
+                </label>
+              </div>
+            </div>
+            <div id="sf_waiveNoteWrap" style="display:none">
+              <div class="form-group" style="margin:0">
+                <label>不需收原因（選填）</label>
+                <input type="text" id="sf_fee_waive_note" placeholder="例：已包含在報價中、客戶舊友優惠…">
+              </div>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label>場勘日期 *</label><input type="date" id="sf_date"></div>
-            <div class="form-group"><label>場勘時間</label><input type="time" id="sf_time"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>場勘人員</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
-            <div class="form-group" style="flex:2">
-              <label>調度留言 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（會出現在 LINE 通知裡）</span></label>
-              <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>現場聯絡人</label><input type="text" id="sf_contact" placeholder="王先生"></div>
-            <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
-          </div>
-          <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
+        </div>
+
+        <!-- ── 以下為師傅填寫區 ── -->
+        <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;color:var(--gray-400)">
+          <div style="flex:1;height:1px;background:var(--gray-200)"></div>
+          <span style="font-size:12px;font-weight:500;white-space:nowrap;background:#fff;padding:0 8px">以下為師傅填寫區</span>
+          <div style="flex:1;height:1px;background:var(--gray-200)"></div>
         </div>
 
         <!-- 場勘項目 -->
@@ -556,41 +606,12 @@
           <div class="form-group"><label>拍照紀錄說明</label><textarea id="sf_photos" rows="2" placeholder="照片拍攝位置、特殊狀況紀錄…"></textarea></div>
           <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
         </div>
-        <!-- 💴 場勘費 -->
+
+        <!-- 師傅回報區 + 簽收欄 -->
         <div class="sf-tab-section" style="border:2px solid #fbbf24">
-          <h4 class="sf-tab-title" style="font-size:18px;font-weight:800;color:#92400e;margin-bottom:18px;display:flex;align-items:center;gap:8px">
-            💴 場勘費
+          <h4 class="sf-tab-title" style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:16px">
+            💴 場勘費收取回報
           </h4>
-
-          <!-- 客服填寫區 -->
-          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin-bottom:14px">
-            <div style="font-size:11px;font-weight:700;color:#92400e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">客服填寫區</div>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <label style="font-size:14px;font-weight:600;color:var(--gray-700);white-space:nowrap">預設金額</label>
-                <span style="font-size:16px;color:var(--gray-500)">$</span>
-                <input type="number" id="sf_fee" placeholder="0" min="0"
-                  style="width:110px;padding:7px 10px;border:1px solid #fcd34d;border-radius:8px;font-size:18px;font-weight:700;background:#fff">
-                <span style="font-size:14px;color:var(--gray-500)">元</span>
-              </div>
-              <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <label id="sf_req_yes_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
-                  <input type="radio" name="sf_fee_required" id="sf_req_yes" value="1" onchange="sf_onFeeRequiredChange()"> 需收場勘費
-                </label>
-                <label id="sf_req_no_label" style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;padding:8px 16px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff">
-                  <input type="radio" name="sf_fee_required" id="sf_req_no" value="0" onchange="sf_onFeeRequiredChange()"> 不需收場勘費
-                </label>
-              </div>
-            </div>
-            <div id="sf_waiveNoteWrap" style="display:none">
-              <div class="form-group" style="margin:0">
-                <label>不需收原因（選填）</label>
-                <input type="text" id="sf_fee_waive_note" placeholder="例：已包含在報價中、客戶舊友優惠…">
-              </div>
-            </div>
-          </div>
-
-          <!-- 師傅回報區 -->
           <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:16px;margin-bottom:14px">
             <div style="font-size:11px;font-weight:700;color:var(--gray-500);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">師傅回報區</div>
             <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">
@@ -606,8 +627,6 @@
               </div>
             </div>
           </div>
-
-          <!-- 客戶簽收欄（列印用） -->
           <div style="border:2px dashed #d1d5db;border-radius:8px;padding:16px">
             <div style="font-size:13px;font-weight:700;color:var(--gray-600);margin-bottom:14px">場勘費簽收欄</div>
             <div style="display:flex;gap:24px;flex-wrap:wrap">
@@ -2168,8 +2187,7 @@ async function loadSurveyTab() {
 
   // 預設帶入地址 & 場勘費
   document.getElementById('sf_address').value  = caseData.location || '';
-  document.getElementById('sf_contact').value  = caseData.client_name || '';
-  document.getElementById('sf_phone').value    = caseData.client_phone || '';
+  sf_updateMapLink();
   document.getElementById('sf_date').value     = new Date().toISOString().split('T')[0];
   document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
   document.getElementById('sf_fee_paid').checked  = !!caseData.survey_fee_paid;
@@ -2185,7 +2203,6 @@ async function loadSurveyTab() {
 
   // 客戶資訊快覽列
   document.getElementById('sf_hdr_client').textContent  = caseData.client_name || '（未填）';
-  document.getElementById('sf_hdr_phone').textContent   = caseData.client_phone || '（未填）';
   document.getElementById('sf_hdr_address').textContent = caseData.location || '（未填）';
 
   // 載入備註模板 & 檢查清單模板（平行）
@@ -2328,19 +2345,58 @@ function sf_removeChecklistCat(cat) {
 }
 
 function sf_fillForm(f) {
-  document.getElementById('sf_date').value          = f.survey_date || '';
-  document.getElementById('sf_time').value          = f.survey_time || '';
-  document.getElementById('sf_surveyor').value      = f.surveyor_id || '';
-  document.getElementById('sf_dispatch_note').value = f.dispatch_note || '';
-  document.getElementById('sf_contact').value       = f.site_contact || '';
-  document.getElementById('sf_phone').value         = f.site_phone || '';
-  document.getElementById('sf_address').value       = f.site_address || '';
-  document.getElementById('sf_photos').value        = f.photos_note || '';
-  document.getElementById('sf_notes').value         = f.extra_notes || '';
-  document.getElementById('sf_cs_notes').value      = f.cs_notes || '';
+  document.getElementById('sf_date').value              = f.survey_date || '';
+  document.getElementById('sf_time').value              = f.survey_time || '';
+  document.getElementById('sf_surveyor').value          = f.surveyor_id || '';
+  document.getElementById('sf_dispatch_note').value     = f.dispatch_note || '';
+  document.getElementById('sf_address').value           = f.site_address || '';
+  sf_updateMapLink();
+  document.getElementById('sf_cs_service_note').value  = f.cs_service_note || '';
+  document.getElementById('sf_photos').value            = f.photos_note || '';
+  document.getElementById('sf_notes').value             = f.extra_notes || '';
+  document.getElementById('sf_cs_notes').value          = f.cs_notes || '';
   sf_renderFindings(f.findings || []);
   sfChecklistState = Array.isArray(f.checklist_data) ? f.checklist_data : [];
   sf_renderChecklist();
+}
+
+function sf_updateMapLink() {
+  const addr = document.getElementById('sf_address').value.trim();
+  const link = document.getElementById('sf_mapLink');
+  if (!link) return;
+  if (addr) {
+    link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+    link.style.opacity = '1';
+    link.style.pointerEvents = '';
+  } else {
+    link.href = '#';
+    link.style.opacity = '0.4';
+    link.style.pointerEvents = 'none';
+  }
+}
+
+function sf_validateRequired() {
+  const errors = [];
+  const checks = [
+    { id:'sf_date',     label:'場勘日期',  val: () => document.getElementById('sf_date').value },
+    { id:'sf_address',  label:'施工地址',  val: () => document.getElementById('sf_address').value.trim() },
+    { id:'sf_surveyor', label:'場勘人員',  val: () => document.getElementById('sf_surveyor').value },
+  ];
+  checks.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!c.val()) { errors.push(c.label); el.style.borderColor = '#dc2626'; el.style.outline = '2px solid #fca5a5'; }
+    else { el.style.borderColor = ''; el.style.outline = ''; }
+  });
+  const feeDecided = document.getElementById('sf_req_yes').checked || document.getElementById('sf_req_no').checked;
+  if (!feeDecided) {
+    errors.push('廠刊費是否要收取');
+    document.getElementById('sf_req_yes_label').style.borderColor = '#dc2626';
+    document.getElementById('sf_req_no_label').style.borderColor = '#dc2626';
+  } else {
+    document.getElementById('sf_req_yes_label').style.borderColor = '';
+    document.getElementById('sf_req_no_label').style.borderColor = '';
+  }
+  return errors;
 }
 
 function sf_updateCompleteBtn() {
@@ -2425,22 +2481,25 @@ document.getElementById('sf_addFindingBtn').addEventListener('click', () => {
 });
 
 document.getElementById('sf_saveBtn').addEventListener('click', async () => {
+  const errors = sf_validateRequired();
+  if (errors.length) { showToast(`請填寫必填欄位：${errors.join('、')}`, 'error'); return; }
+
   const surveyorId  = document.getElementById('sf_surveyor').value || null;
   const prevSurveyor = sfData?.surveyor_id;
+  const newAddress  = document.getElementById('sf_address').value.trim() || null;
   const body = {
-    surveyor_id:    surveyorId,
-    survey_date:    document.getElementById('sf_date').value || null,
-    survey_time:    document.getElementById('sf_time').value || null,
-    dispatch_note:  document.getElementById('sf_dispatch_note').value.trim() || null,
-    site_contact:   document.getElementById('sf_contact').value || null,
-    site_phone:     document.getElementById('sf_phone').value || null,
-    site_address:   document.getElementById('sf_address').value || null,
-    findings:       sf_getFindings(),
-    photos_note:    document.getElementById('sf_photos').value || null,
-    extra_notes:    document.getElementById('sf_notes').value || null,
-    cs_notes:       document.getElementById('sf_cs_notes').value || null,
-    checklist_data: sfChecklistState,
-    status:         sfData?.status || 'draft',
+    surveyor_id:      surveyorId,
+    survey_date:      document.getElementById('sf_date').value || null,
+    survey_time:      document.getElementById('sf_time').value || null,
+    dispatch_note:    document.getElementById('sf_dispatch_note').value.trim() || null,
+    site_address:     newAddress,
+    cs_service_note:  document.getElementById('sf_cs_service_note').value || null,
+    findings:         sf_getFindings(),
+    photos_note:      document.getElementById('sf_photos').value || null,
+    extra_notes:      document.getElementById('sf_notes').value || null,
+    cs_notes:         document.getElementById('sf_cs_notes').value || null,
+    checklist_data:   sfChecklistState,
+    status:           sfData?.status || 'draft',
   };
   // 同步存場勘費
   await fetch(`/api/survey/cases/${caseId}/fee`, {
@@ -2480,6 +2539,15 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
       badge.textContent = `✅ 已通知 ${surveyorName}`;
       badge.style.display = '';
       setTimeout(() => { badge.style.display = 'none'; }, 6000);
+    }
+    // 施工地址雙向同步回案件
+    if (newAddress && newAddress !== (caseData.location || '').trim()) {
+      await fetch(`/api/cases/${caseId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...caseData, location: newAddress })
+      });
+      caseData.location = newAddress;
+      document.getElementById('sf_hdr_address').textContent = newAddress;
     }
     // 重新載入案件資料（狀態可能已升為 survey_scheduled）
     await loadCase();

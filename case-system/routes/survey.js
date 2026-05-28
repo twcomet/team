@@ -48,7 +48,8 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
-          findings, photos_note, extra_notes, dispatch_note, cs_notes, checklist_data } = req.body;
+          findings, photos_note, extra_notes, dispatch_note, cs_notes, checklist_data,
+          cs_service_note } = req.body;
 
   const existing = db.prepare(`SELECT id FROM survey_forms WHERE case_id = ?`).get(case_id);
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
@@ -57,14 +58,15 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const result = db.prepare(`
     INSERT INTO survey_forms (case_id, share_token, surveyor_id, survey_date, survey_time,
       site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note,
-      cs_notes, checklist_data, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      cs_notes, checklist_data, cs_service_note, created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(case_id, token,
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
-    cs_notes ?? null, JSON.stringify(checklist_data ?? []), me.id);
+    cs_notes ?? null, JSON.stringify(checklist_data ?? []),
+    cs_service_note ?? null, me.id);
 
   // 通知場勘人員
   if (surveyor_id) {
@@ -86,7 +88,7 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
           findings, photos_note, extra_notes, dispatch_note, status,
-          cs_notes, checklist_data } = req.body;
+          cs_notes, checklist_data, cs_service_note } = req.body;
 
   // 判斷場勘人員是否有變更 → 需重新通知
   const old = db.prepare(`SELECT surveyor_id FROM survey_forms WHERE case_id=?`).get(req.params.id);
@@ -95,14 +97,14 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   db.prepare(`UPDATE survey_forms SET
     surveyor_id=?, survey_date=?, survey_time=?, site_contact=?, site_phone=?, site_address=?,
     findings=?, photos_note=?, extra_notes=?, dispatch_note=?,
-    cs_notes=?, checklist_data=?, status=?, updated_at=CURRENT_TIMESTAMP
+    cs_notes=?, checklist_data=?, cs_service_note=?, status=?, updated_at=CURRENT_TIMESTAMP
     WHERE case_id=?`).run(
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
-    status || 'draft', req.params.id);
+    cs_service_note ?? null, status || 'draft', req.params.id);
 
   // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
   if (surveyorChanged && surveyor_id) {

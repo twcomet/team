@@ -1465,9 +1465,10 @@ db.exec(`
 // 初步估價紀錄
 _addCol('cases', 'initial_estimate_data', 'TEXT DEFAULT NULL');
 
-// 場勘單：客服備註 + 施作檢查清單
-_addCol('survey_forms', 'cs_notes',      'TEXT DEFAULT NULL');
-_addCol('survey_forms', 'checklist_data','TEXT DEFAULT NULL');
+// 場勘單：客服備註 + 施作檢查清單 + 客服廠刊資訊備註
+_addCol('survey_forms', 'cs_notes',         'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'checklist_data',   'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'cs_service_note',  'TEXT DEFAULT NULL');
 
 // 派工：進場資訊欄位
 _addCol('dispatches', 'unloading_location', 'TEXT DEFAULT NULL');
