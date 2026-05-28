@@ -70,6 +70,11 @@ app.use('/api/hr',                    require('./routes/hr'));
 app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 
+// ── 前端公開設定 ──────────────────────────────────────────────
+app.get('/api/config/maps-key', requireAuth, (req, res) => {
+  res.json({ key: process.env.GOOGLE_MAPS_API_KEY || '' });
+});
+
 // ── 頁面路由 ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');

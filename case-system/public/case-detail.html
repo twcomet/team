@@ -199,8 +199,17 @@
               </select>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:12px"><label>項目名稱</label><input type="text" id="b_title"></div>
-          <div class="form-group" style="margin-bottom:12px"><label>案場地址</label><input type="text" id="b_location"></div>
+          <div class="form-group" style="margin-bottom:12px"><label>案件名稱</label><input type="text" id="b_title"></div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label style="display:flex;align-items:center;justify-content:space-between">
+              案場地址
+              <a id="b_location_maplink" href="#" target="_blank"
+                 style="display:none;font-size:12px;color:var(--primary);text-decoration:none;font-weight:400">
+                🗺 Google Maps 查看
+              </a>
+            </label>
+            <input type="text" id="b_location" placeholder="請輸入完整地址以開啟地圖連動" autocomplete="off">
+          </div>
           <div class="form-row" style="margin-bottom:0">
             <div class="form-group" style="margin-bottom:0"><label>希望進場時間</label><input type="date" id="b_desired_entry_date"></div>
             <div class="form-group" style="margin-bottom:0"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
@@ -235,6 +244,11 @@
               <label>LINE ID 名稱 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（LINE詢問顯示名，唯讀）</span></label>
               <input type="text" id="b_line_display_name" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default">
             </div>
+          </div>
+          <!-- 官方 Line 顯示名稱 -->
+          <div class="form-group" style="margin-top:10px;margin-bottom:10px">
+            <label>官方 Line 顯示名稱 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（可手動填寫）</span></label>
+            <input type="text" id="b_line_official_name" placeholder="客戶在 LINE 上的官方顯示名稱">
           </div>
           <!-- 客戶聯絡資訊卡片（選客戶後顯示） -->
           <div id="b_client_info_card" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-top:8px;font-size:13px;color:#374151;line-height:1.8">
@@ -1169,6 +1183,7 @@ async function init() {
   users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   await loadCase();
+  initAddressAutocomplete();
   loadQuickEstimates();
   buildHourSelect('d_time_h');
   buildHourSelect('d_work_until_h');
@@ -1584,7 +1599,8 @@ function buildSaveBody() {
     case_type:          document.getElementById('b_case_type').value,
     priority:           document.getElementById('b_priority').value,
     title:              document.getElementById('b_title').value,
-    line_display_name:  document.getElementById('b_line_display_name').value || null,
+    line_display_name:   document.getElementById('b_line_display_name').value || null,
+    line_official_name:  document.getElementById('b_line_official_name').value || null,
     client_category:    document.getElementById('b_client_category').value.trim() || null,
     location:           document.getElementById('b_location').value,
     desired_entry_date: document.getElementById('b_desired_entry_date').value || null,
@@ -1637,8 +1653,21 @@ function fillBasicForm() {
   document.getElementById('b_case_type').value = c.case_type || 'other';
   document.getElementById('b_priority').value  = c.priority  || 'normal';
   document.getElementById('b_title').value             = c.title || '';
-  document.getElementById('b_line_display_name').value = c.line_display_name || '';
+  document.getElementById('b_line_display_name').value  = c.line_display_name  || '';
+  document.getElementById('b_line_official_name').value = c.line_official_name || '';
   document.getElementById('b_location').value          = c.location || '';
+  const mapLink = document.getElementById('b_location_maplink');
+  if (mapLink) {
+    if (c.lat && c.lng) {
+      mapLink.href = `https://www.google.com/maps?q=${c.lat},${c.lng}`;
+      mapLink.style.display = 'inline';
+    } else if (c.location) {
+      mapLink.href = `https://www.google.com/maps/search/${encodeURIComponent(c.location)}`;
+      mapLink.style.display = 'inline';
+    } else {
+      mapLink.style.display = 'none';
+    }
+  }
   document.getElementById('b_desired_entry_date').value = c.desired_entry_date || '';
   document.getElementById('b_scheduled_date').value    = c.scheduled_date || '';
   document.getElementById('b_contracted_at').value     = c.contracted_at ? c.contracted_at.slice(0,10) : '';
@@ -3183,6 +3212,41 @@ function ncRenderTagPicker(selectedIds) {
   }).join('') || `<span style="font-size:12px;color:var(--gray-400)">尚無標籤，請先至「客戶管理」新增標籤</span>`;
 }
 
+
+async function initAddressAutocomplete() {
+  try {
+    const res = await fetch('/api/config/maps-key');
+    if (!res.ok) return;
+    const { key } = await res.json();
+    if (!key) return;
+    await new Promise((resolve, reject) => {
+      if (window.google?.maps?.places) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&language=zh-TW`;
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    const input = document.getElementById('b_location');
+    const ac = new google.maps.places.Autocomplete(input, {
+      types: ['geocode', 'establishment'],
+      componentRestrictions: { country: 'tw' },
+      fields: ['formatted_address', 'geometry', 'name']
+    });
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (place.formatted_address) input.value = place.formatted_address;
+      const mapLink = document.getElementById('b_location_maplink');
+      if (mapLink && place.geometry?.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        mapLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+        mapLink.style.display = 'inline';
+      }
+    });
+  } catch(e) {
+    console.warn('[Maps] 地址自動完成未啟用:', e.message);
+  }
+}
 
 function initClientAutocomplete() {
   const input    = document.getElementById('b_client_input');

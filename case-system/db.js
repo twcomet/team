@@ -1833,4 +1833,7 @@ db.exec(`
 // 場勘費是否已折抵到案件最終收款
 _addCol('cases', 'survey_fee_credited', 'INTEGER DEFAULT 0');
 
+// 客戶官方 Line 顯示名稱（可手動填寫）
+_addCol('cases', 'line_official_name', 'TEXT');
+
 module.exports = db;
