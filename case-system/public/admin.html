@@ -348,6 +348,9 @@
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
         </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+          <input type="checkbox" id="userIsSales"> 業務派案
+        </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px">
           每日成本 $<input type="number" id="userDailyCost" placeholder="0" min="0" style="width:90px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
         </label>
@@ -903,6 +906,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userCanSeeAmounts').checked = false;
   document.getElementById('userCanDelete').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
+  document.getElementById('userIsSales').checked = false;
   document.getElementById('userDailyCost').value = '';
   document.getElementById('lineBindStatus').innerHTML = '<span style="color:var(--gray-400)">新增帳號後員工自行綁定</span>';
   document.getElementById('userUsername').disabled = false;
@@ -1030,6 +1034,7 @@ function openEditUser(id) {
   document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
   document.getElementById('userCanDelete').checked = !!u.can_delete;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
+  document.getElementById('userIsSales').checked = !!u.is_sales;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
   if (u.line_user_id) {
@@ -1094,6 +1099,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
     can_delete: document.getElementById('userCanDelete').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
+    is_sales: document.getElementById('userIsSales').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: 1,
     permissions: {

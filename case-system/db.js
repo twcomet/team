@@ -1335,6 +1335,9 @@ _addCol('users', 'suspension_reason', 'TEXT');
 _addCol('users', 'can_delete',        'INTEGER DEFAULT 0');
 // 授予客服主管(C01)、會計(C02)、客服(C03) 刪除權限
 db.prepare(`UPDATE users SET can_delete=1 WHERE username IN ('C01','C02','C03') AND can_delete=0`).run();
+_addCol('users', 'is_sales',          'INTEGER DEFAULT 0');
+// 預設將現有業務相關角色標記為可派業務
+db.prepare(`UPDATE users SET is_sales=1 WHERE role IN ('owner','hq_sales','hq_cs','branch_manager','branch_sales','contractor_sales') AND is_sales=0`).run();
 // clients
 _addCol('clients', 'region_id',      'INTEGER REFERENCES regions(id)');
 _addCol('clients', 'owner_type',     "TEXT DEFAULT 'hq'");

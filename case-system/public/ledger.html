@@ -321,6 +321,7 @@ async function loadLedger() {
   if (orgId) params.push(`org_id=${orgId}`);
   if (params.length) url += '?' + params.join('&');
   const res = await fetch(url);
+  if (!res.ok) { showToast((await res.json().catch(()=>({}))).error || '載入失敗', 'error'); return; }
   allLedger = await res.json();
   applyFilter();
 }
@@ -476,11 +477,13 @@ async function saveLedgerEntry() {
     case_id:     document.getElementById('ledgerCaseId').value || null,
     org_id:      document.getElementById('ledgerOrg').value || null,
   };
-  if (!body.date || !body.amount || isNaN(body.amount)) return showToast('請填寫日期與金額','error');
+  if (!body.date) return showToast('請填寫日期', 'error');
+  if (!body.category) return showToast('請選擇科目', 'error');
+  if (!body.amount || isNaN(body.amount)) return showToast('請填寫金額', 'error');
   const url = id ? `/api/ledger/${id}` : '/api/ledger';
   const res = await fetch(url, { method:id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
   if (res.ok) { document.getElementById('ledgerModal').classList.remove('open'); showToast(id?'已更新':'已新增'); await loadLedger(); }
-  else showToast('儲存失敗', 'error');
+  else { const e = await res.json().catch(() => ({})); showToast(e.error || '儲存失敗', 'error'); }
 }
 
 // ─── 拍照掃描 ─────────────────────────────────────────────────

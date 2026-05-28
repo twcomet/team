@@ -480,9 +480,8 @@ async function init() {
   }
 
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
-  const assignRoles = ['owner','hq_sales','hq_cs','branch_manager','branch_sales'];
-  inquirySalesUsers = salesUsers.filter(u => assignRoles.includes(u.role));
-  inquiryCsUsers    = salesUsers.filter(u => assignRoles.includes(u.role));
+  inquirySalesUsers = salesUsers.filter(u => u.is_sales);
+  inquiryCsUsers    = salesUsers.filter(u => u.is_sales);
   if (MODE === 'inquiry') {
     document.getElementById('saveAssignBtn').style.display = '';
     document.getElementById('inquiryFilters').style.display = 'flex';
@@ -500,7 +499,7 @@ async function init() {
     inquiryCsUsers.forEach(u => svCs.add(new Option(u.name, u.id)));
   }
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
-  const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
+  const sales = salesUsers.filter(u => u.is_sales);
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
   renderTableHead();
   await loadCases();

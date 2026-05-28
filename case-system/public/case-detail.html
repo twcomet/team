@@ -520,7 +520,10 @@
         <div class="sf-tab-section" style="background:#fffbeb;border:1.5px solid #fcd34d">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <h4 class="sf-tab-title" style="margin:0;color:#92400e">📌 客服提醒備註</h4>
-            <button class="btn btn-ghost btn-sm" id="sf_noteTemplateBtn" style="font-size:12px">從模板帶入</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" id="sf_noteTemplateBtn" style="font-size:12px">從模板帶入</button>
+              <button class="btn btn-ghost btn-sm" onclick="openTmplMgmt()" style="font-size:12px">⚙️ 模板管理</button>
+            </div>
           </div>
           <textarea id="sf_cs_notes" rows="3" placeholder="客服填寫後技術人員到場前請務必閱讀…"
             style="width:100%;padding:10px;border:1px solid #fcd34d;border-radius:8px;font-size:13px;background:#fefce8;resize:vertical"></textarea>
@@ -1760,7 +1763,7 @@ function fillBasicForm() {
   // 外包橫幅
   updatePoolBanner(!!c.is_outsourced, c.is_outsourced ? (c.outsource_type || 'full') : null);
 
-  const salesList = allUsers.filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role));
+  const salesList = allUsers.filter(u => u.is_sales);
   const csList    = allUsers.filter(u => ['hq_cs','hq_cs_manager','hq_accounting'].includes(u.role));
   initClientAutocomplete();
   populateSelect(document.getElementById('b_sales'), salesList, 'id', 'name', '（未指定）');
@@ -3877,6 +3880,214 @@ document.getElementById('b_external_quote_url')?.addEventListener('input', funct
   const v = this.value.trim();
   if (link) { link.style.display = v ? '' : 'none'; link.href = v || '#'; }
 });
+
+// ── 模板管理（場勘頁面內） ──────────────────────────────────────
+let cdNoteTemplates = [], cdCkTemplates = [];
+
+function openTmplMgmt() {
+  document.getElementById('cdTmplMgmtModal').classList.add('open');
+  cdLoadNoteTemplates();
+  cdLoadCkTemplates();
+}
+
+function switchCdTmplTab(tab) {
+  document.querySelectorAll('.cdTmplTab').forEach(t => {
+    const active = t.dataset.stab === tab;
+    t.style.borderBottomColor = active ? 'var(--primary)' : 'transparent';
+    t.style.color = active ? 'var(--primary)' : 'var(--gray-500)';
+  });
+  document.getElementById('cdTmpl_notes').style.display     = tab === 'notes'     ? '' : 'none';
+  document.getElementById('cdTmpl_checklist').style.display = tab === 'checklist' ? '' : 'none';
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function cdLoadNoteTemplates() {
+  const res = await fetch('/api/survey/note-templates');
+  if (!res.ok) return;
+  cdNoteTemplates = await res.json();
+  sfNoteTemplates = cdNoteTemplates;
+  const tbody = document.getElementById('cdNoteBody');
+  if (!cdNoteTemplates.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">尚無模板</td></tr>'; return;
+  }
+  tbody.innerHTML = cdNoteTemplates.map(t => `
+    <tr>
+      <td style="font-size:13px;color:var(--gray-600)">${esc(t.category||'—')}</td>
+      <td><span style="background:#eff6ff;color:#1d4ed8;font-size:12px;padding:2px 8px;border-radius:12px">${esc(t.keyword||'—')}</span></td>
+      <td style="font-size:13px;max-width:260px;white-space:pre-wrap;word-break:break-all">${esc(t.content)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openCdNtModal(${t.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteCdNt(${t.id},'${esc(t.keyword||t.category||'').replace(/'/g,"&#39;")}')">刪除</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function cdLoadCkTemplates() {
+  const res = await fetch('/api/survey/checklist-templates');
+  if (!res.ok) return;
+  const data = await res.json();
+  cdCkTemplates = data.rows || [];
+  sfChecklistTemplates = data.grouped || {};
+  const area = document.getElementById('cdCkArea');
+  if (!cdCkTemplates.length) {
+    area.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">尚無項目</div>'; return;
+  }
+  area.innerHTML = Object.entries(data.grouped||{}).map(([cat,items]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px">${esc(cat)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 2px">
+        ${items.map(it=>`
+          <div style="display:flex;align-items:center;gap:4px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:4px 10px;font-size:13px">
+            <span>${esc(it.item)}</span>
+            <button onclick="openCdCkModal(${it.id})" style="background:none;border:none;cursor:pointer;color:var(--gray-400);padding:0 2px;font-size:12px" title="編輯">✎</button>
+            <button onclick="deleteCdCk(${it.id},'${esc(it.item).replace(/'/g,"&#39;")}')" style="background:none;border:none;cursor:pointer;color:#e02424;padding:0 2px;font-size:12px" title="刪除">×</button>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function openCdNtModal(id) {
+  const t = id ? cdNoteTemplates.find(x => x.id===id) : null;
+  document.getElementById('cdNtId').value       = t ? t.id : '';
+  document.getElementById('cdNtCat').value      = t ? (t.category||'') : '';
+  document.getElementById('cdNtKw').value       = t ? (t.keyword||'')  : '';
+  document.getElementById('cdNtContent').value  = t ? (t.content||'')  : '';
+  document.getElementById('cdNtTitle').textContent = t ? '編輯備註模板' : '新增備註模板';
+  document.getElementById('cdNtModal').classList.add('open');
+}
+
+async function saveCdNt() {
+  const id   = document.getElementById('cdNtId').value;
+  const body = { category: document.getElementById('cdNtCat').value.trim(), keyword: document.getElementById('cdNtKw').value.trim(), content: document.getElementById('cdNtContent').value.trim() };
+  if (!body.content) { showToast('請填入備註內容','error'); return; }
+  const res = await fetch(id ? `/api/survey/note-templates/${id}` : '/api/survey/note-templates', { method: id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('cdNtModal'); await cdLoadNoteTemplates(); showToast('備註模板已儲存'); }
+  else { const e=await res.json(); showToast(e.error||'儲存失敗','error'); }
+}
+
+async function deleteCdNt(id, label) {
+  if (!confirm(`確定刪除備註模板「${label}」？`)) return;
+  const res = await fetch(`/api/survey/note-templates/${id}`, { method:'DELETE' });
+  if (res.ok) { await cdLoadNoteTemplates(); showToast('已刪除'); }
+  else { const e=await res.json(); showToast(e.error||'刪除失敗','error'); }
+}
+
+function openCdCkModal(id) {
+  const t = id ? cdCkTemplates.find(x=>x.id===id) : null;
+  document.getElementById('cdCkId').value       = t ? t.id : '';
+  document.getElementById('cdCkCat').value      = t ? (t.category||'') : '';
+  document.getElementById('cdCkItem').value     = t ? (t.item||'')     : '';
+  document.getElementById('cdCkTitle').textContent = t ? '編輯清單項目' : '新增清單項目';
+  document.getElementById('cdCkModal').classList.add('open');
+}
+
+async function saveCdCk() {
+  const id   = document.getElementById('cdCkId').value;
+  const body = { category: document.getElementById('cdCkCat').value.trim(), item: document.getElementById('cdCkItem').value.trim() };
+  if (!body.category||!body.item) { showToast('類別和項目名稱皆必填','error'); return; }
+  const res = await fetch(id ? `/api/survey/checklist-templates/${id}` : '/api/survey/checklist-templates', { method: id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('cdCkModal'); await cdLoadCkTemplates(); showToast('清單項目已儲存'); }
+  else { const e=await res.json(); showToast(e.error||'儲存失敗','error'); }
+}
+
+async function deleteCdCk(id, label) {
+  if (!confirm(`確定刪除清單項目「${label}」？`)) return;
+  const res = await fetch(`/api/survey/checklist-templates/${id}`, { method:'DELETE' });
+  if (res.ok) { await cdLoadCkTemplates(); showToast('已刪除'); }
+  else { const e=await res.json(); showToast(e.error||'刪除失敗','error'); }
+}
 </script>
+
+<!-- 模板管理 Modal -->
+<div class="modal-overlay" id="cdTmplMgmtModal">
+  <div class="modal" style="max-width:700px;max-height:82vh;overflow:hidden;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h3>場勘模板管理</h3>
+      <button class="modal-close" onclick="closeModal('cdTmplMgmtModal')">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:16px">
+        <div class="cdTmplTab" data-stab="notes" onclick="switchCdTmplTab('notes')" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">備註模板庫</div>
+        <div class="cdTmplTab" data-stab="checklist" onclick="switchCdTmplTab('checklist')" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">施作檢查清單模板</div>
+      </div>
+      <div id="cdTmpl_notes">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" onclick="openCdNtModal()">＋ 新增模板</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>類別</th><th>關鍵字</th><th>備註內容</th><th></th></tr></thead>
+            <tbody id="cdNoteBody"><tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">載入中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="cdTmpl_checklist" style="display:none">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" onclick="openCdCkModal()">＋ 新增項目</button>
+        </div>
+        <div id="cdCkArea"><div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">載入中...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 備註模板 CRUD Modal -->
+<div class="modal-overlay" id="cdNtModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="cdNtTitle">新增備註模板</h3>
+      <button class="modal-close" onclick="closeModal('cdNtModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cdNtId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>類別 <span style="font-size:11px;color:var(--gray-400)">（如：除膜、貼膜、電梯）</span></label>
+          <input type="text" id="cdNtCat" placeholder="例：除膜">
+        </div>
+        <div class="form-group">
+          <label>關鍵字 <span style="font-size:11px;color:var(--gray-400)">（搜尋用）</span></label>
+          <input type="text" id="cdNtKw" placeholder="例：舊膜殘膠">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>備註內容 *</label>
+        <textarea id="cdNtContent" rows="5" placeholder="輸入場勘備註模板內容..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cdNtModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCdNt()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 施作清單項目 CRUD Modal -->
+<div class="modal-overlay" id="cdCkModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3 id="cdCkTitle">新增清單項目</h3>
+      <button class="modal-close" onclick="closeModal('cdCkModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cdCkId">
+      <div class="form-group">
+        <label>類別 * <span style="font-size:11px;color:var(--gray-400)">（如：玻璃膜、門框、牆面）</span></label>
+        <input type="text" id="cdCkCat" placeholder="例：玻璃膜">
+      </div>
+      <div class="form-group">
+        <label>項目名稱 *</label>
+        <input type="text" id="cdCkItem" placeholder="例：確認玻璃尺寸與規格">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cdCkModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCdCk()">儲存</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
