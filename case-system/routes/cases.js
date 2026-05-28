@@ -115,7 +115,7 @@ const STATUS_GROUP_MAP = {
   inquiry: 'inquiry', initial_estimate: 'inquiry',
   survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
   quote_draft: 'survey', quoted: 'survey',
-  contracted: 'deal', payment: 'deal', closed: 'deal',
+  contracted: 'deal', dispatched: 'deal', payment: 'deal', closed: 'deal',
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
@@ -652,7 +652,8 @@ const ADVANCE_MAP = {
   surveyed:         { next: 'quote_draft',      tsCol: 'quote_draft_at',      byCol: 'quote_drafted_by' },
   quote_draft:      { next: 'quoted',           tsCol: 'quoted_at',           byCol: 'quoted_by'        },
   quoted:           { next: 'contracted',       tsCol: 'contracted_at',       byCol: null               },
-  contracted:       { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
+  contracted:       { next: 'dispatched',       tsCol: null,                  byCol: null               },
+  dispatched:       { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
   payment:          { next: 'closed',           tsCol: 'closed_at',           byCol: null               },
 };
 router.patch('/:id/advance', requireAuth, (req, res) => {
@@ -668,7 +669,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
     return res.status(400).json({ error: '尚未完成收款，無法結案' });
 
   // 完工請款前警示：有未完成派工
-  if (c.status === 'contracted' && !req.body.force) {
+  if (c.status === 'dispatched' && !req.body.force) {
     const inc = db.prepare(
       `SELECT COUNT(*) cnt FROM dispatches WHERE case_id=? AND status NOT IN ('done','cancelled')`
     ).get(req.params.id);

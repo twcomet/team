@@ -433,8 +433,8 @@ const CFG = {
     title: '成交案件管理',
     nav: 'cases-deal',
     group: 'deal',
-    stages: ['contracted', 'payment', 'closed', 'invalid'],
-    stageNames: { contracted: '成交派案', payment: '完工請款', closed: '結案保存', invalid: '無效' },
+    stages: ['contracted', 'dispatched', 'payment', 'closed', 'invalid'],
+    stageNames: { contracted: '成交待派案', dispatched: '已派案待施工', payment: '完工請款', closed: '結案保存', invalid: '無效' },
     hiddenByDefault: new Set(['closed', 'invalid']),
     showAmounts: true,
     showTypeTabs: true,
@@ -1213,6 +1213,9 @@ function dealActionBtns(c) {
   const parts = [];
   if (c.status === 'contracted') {
     parts.push(`<button onclick="advanceCase(${c.id},'contracted')"
+      style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dc2626;color:#fff;border:none;cursor:pointer;white-space:nowrap">確認派案</button>`);
+  } else if (c.status === 'dispatched') {
+    parts.push(`<button onclick="advanceCase(${c.id},'dispatched')"
       style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dc2626;color:#fff;border:none;cursor:pointer;white-space:nowrap">完工請款</button>`);
   } else if (c.status === 'payment') {
     const isPaid = c.payment_status === 'paid';
