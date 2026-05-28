@@ -123,11 +123,16 @@ router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, case_type, date_from, date_to, search, group } = req.query;
 
-  // 自動將施工日期=今天的「已派工待施工」升為「施工中」
+  // 自動將「今天有施工派工」的「已派工待施工」升為「施工中」
   db.prepare(`
     UPDATE cases SET status='constructing', prev_status='dispatched', updated_at=CURRENT_TIMESTAMP
     WHERE status='dispatched' AND case_group='deal'
-      AND scheduled_date = date('now','localtime')
+      AND id IN (
+        SELECT DISTINCT case_id FROM dispatches
+        WHERE scheduled_date = date('now','localtime')
+          AND dispatch_type = 'install'
+          AND status NOT IN ('cancelled')
+      )
   `).run();
 
   // 成交案件管理需要額外權限
