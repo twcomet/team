@@ -83,25 +83,31 @@
       <!-- 詢價篩選列（僅 inquiry 模式） -->
       <div id="inquiryFilters" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
         <span style="font-size:12px;color:var(--gray-500);font-weight:500">篩選：</span>
-        <select id="fs_status" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+        <select id="fs_status" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:110px">
           <option value="">全部狀態</option>
           <option value="inquiry">詢價需初步估價</option>
           <option value="initial_estimate">已初步估價</option>
           <option value="invalid">已估價無效保存</option>
         </select>
-        <select id="fs_priority" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+        <select id="fs_priority" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:90px">
           <option value="">全部優先</option>
           <option value="urgent">緊急</option>
           <option value="high">優先</option>
           <option value="normal">一般</option>
           <option value="low">低優先</option>
         </select>
-        <select id="fs_intent" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+        <select id="fs_intent" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:110px">
           <option value="">全部成交意願</option>
           <option value="hot">積極成交</option>
           <option value="warm">有意願</option>
           <option value="cool">觀望中</option>
           <option value="cold">意願低</option>
+        </select>
+        <select id="fs_sales" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部業務</option>
+        </select>
+        <select id="fs_cs" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部客服</option>
         </select>
         <button onclick="clearFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
       </div>
@@ -411,7 +417,7 @@ const pendingChanges = new Map();
 let activeStatus = '', activeType = '';
 let sortDateDir = 'desc';
 let inquirySortField = 'created_at', inquirySortDir = 'desc';
-let filterPriority = '', filterIntent = '';
+let filterPriority = '', filterIntent = '', filterSales = '', filterCs = '';
 
 const INTENT_LABELS  = { hot:'積極成交', warm:'有意願', cool:'觀望中', cold:'意願低' };
 const PRIORITY_ORDER = { urgent: 0, high: 1, normal: 2, low: 3 };
@@ -443,6 +449,10 @@ async function init() {
   if (MODE === 'inquiry') {
     document.getElementById('saveAssignBtn').style.display = '';
     document.getElementById('inquiryFilters').style.display = 'flex';
+    const fsSales = document.getElementById('fs_sales');
+    const fsCs    = document.getElementById('fs_cs');
+    inquirySalesUsers.forEach(u => fsSales.add(new Option(u.name, u.id)));
+    inquiryCsUsers.forEach(u => fsCs.add(new Option(u.name, u.id)));
   }
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
@@ -539,10 +549,10 @@ function renderTableHead() {
       ${iSortTh('狀態', 'status', '120px')}
       <th style="width:140px">客戶</th>
       <th style="width:110px">官方 Line</th>
-      <th style="width:160px">項目</th>
+      <th style="width:240px">項目</th>
       ${iSortTh('成交意願', 'deal_intent', '90px')}
-      <th style="width:120px">負責業務</th>
-      <th style="width:120px">負責客服</th>
+      <th style="width:110px">負責業務</th>
+      <th style="width:110px">負責客服</th>
       ${iSortTh('優先', 'priority', '80px')}
       <th style="width:65px">操作</th>
     </tr>`;
@@ -587,7 +597,9 @@ function renderTable(cases) {
     if (!activeStatus && cfg.hiddenByDefault.has(c.status)) return false;
     if (MODE === 'inquiry') {
       if (filterPriority && c.priority !== filterPriority) return false;
-      if (filterIntent  && (c.deal_intent || '') !== filterIntent) return false;
+      if (filterIntent   && (c.deal_intent || '') !== filterIntent) return false;
+      if (filterSales    && String(c.sales_id || '') !== filterSales) return false;
+      if (filterCs       && String(c.cs_id    || '') !== filterCs   ) return false;
     }
     return true;
   });
@@ -635,7 +647,7 @@ function getCaseRow(c) {
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
       <td style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${c.client_name || '—'}</td>
       <td style="width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
-      <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:240px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
       <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
       <td style="width:120px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
@@ -728,14 +740,18 @@ function applyFilters() {
   });
   filterPriority = document.getElementById('fs_priority').value;
   filterIntent   = document.getElementById('fs_intent').value;
+  filterSales    = document.getElementById('fs_sales').value;
+  filterCs       = document.getElementById('fs_cs').value;
   renderTable(allCases);
 }
 
 function clearFilters() {
-  activeStatus = ''; filterPriority = ''; filterIntent = '';
+  activeStatus = ''; filterPriority = ''; filterIntent = ''; filterSales = ''; filterCs = '';
   document.getElementById('fs_status').value   = '';
   document.getElementById('fs_priority').value = '';
   document.getElementById('fs_intent').value   = '';
+  document.getElementById('fs_sales').value    = '';
+  document.getElementById('fs_cs').value       = '';
   document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
   renderTable(allCases);
 }
