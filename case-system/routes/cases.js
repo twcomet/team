@@ -297,7 +297,7 @@ router.put('/:id', requireAuth, (req, res) => {
     invoice_company, invoice_tax_id, invoice_address, invoice_email, invoice_item_desc,
     invoice_contact, invoice_phone,
     survey_date, surveyor_id, cs_id,
-    entry_info, photo_upload_url,
+    entry_info, photo_upload_url, external_quote_url,
     material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
     initial_estimate_data,
     survey_fee_credited,
@@ -320,7 +320,7 @@ router.put('/:id', requireAuth, (req, res) => {
       invoice_company=?, invoice_tax_id=?, invoice_address=?,
       invoice_email=?, invoice_item_desc=?, invoice_contact=?, invoice_phone=?,
       survey_date=?, surveyor_id=?, cs_id=?,
-      entry_info=?, photo_upload_url=?,
+      entry_info=?, photo_upload_url=?, external_quote_url=?,
       material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
       initial_estimate_data=?,
       survey_fee_credited=?,
@@ -344,7 +344,7 @@ router.put('/:id', requireAuth, (req, res) => {
     invoice_email ?? null, invoice_item_desc ?? null,
     invoice_contact ?? null, invoice_phone ?? null,
     survey_date ?? null, surveyor_id ?? null, cs_id ?? null,
-    entry_info ?? null, photo_upload_url ?? null,
+    entry_info ?? null, photo_upload_url ?? null, external_quote_url ?? null,
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     initial_estimate_data ?? null,
     survey_fee_credited ? 1 : 0,
@@ -414,6 +414,15 @@ router.put('/:id', requireAuth, (req, res) => {
     upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    '尾款',   `尾款｜${label}`);
   }
 
+  res.json({ ok: true });
+});
+
+// ── 優先程度快速更新 ──────────────────────────────────────────
+router.patch('/:id/priority', requireAuth, (req, res) => {
+  const { priority } = req.body;
+  if (!['urgent','high','normal','low'].includes(priority))
+    return res.status(400).json({ error: '無效的優先程度' });
+  db.prepare(`UPDATE cases SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(priority, req.params.id);
   res.json({ ok: true });
 });
 

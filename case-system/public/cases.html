@@ -409,6 +409,33 @@ async function init() {
   await loadCases();
 }
 
+function daysSince(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr.slice(0, 10));
+  d.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.floor((today - d) / 86400000);
+}
+
+const PRIORITY_LABELS = { urgent:'緊急', high:'優先', normal:'一般', low:'低優先' };
+function prioritySelect(c) {
+  const pc = PRIORITY_COLORS[c.priority] || '#374151';
+  const opts = ['urgent','high','normal','low'].map(v =>
+    `<option value="${v}" ${c.priority === v || (!c.priority && v === 'normal') ? 'selected' : ''}>${PRIORITY_LABELS[v]}</option>`
+  ).join('');
+  return `<select onchange="updatePriority(${c.id},this.value)"
+    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 6px;font-size:12px;color:${pc};background:#fff;cursor:pointer">
+    ${opts}</select>`;
+}
+
+async function updatePriority(id, priority) {
+  const res = await fetch(`/api/cases/${id}/priority`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ priority })
+  });
+  if (!res.ok) showToast('優先程度更新失敗', 'error');
+}
+
 function sortThHtml(label) {
   const icon = sortDateDir === 'desc' ? '↓' : '↑';
   return `<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">${label} <span style="color:var(--primary);font-size:12px">${icon}</span></th>`;
@@ -423,7 +450,7 @@ function toggleDateSort() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th>${sortThHtml('建立日期')}<th>客戶</th><th>地點</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>狀態</th><th>操作</th></tr>`;
+    h.innerHTML = `<tr><th>案號</th>${sortThHtml('天數')}<th>狀態</th><th>客戶</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>優先</th><th>操作</th></tr>`;
   } else if (MODE === 'survey') {
     h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>${sortThHtml('場勘日')}<th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
   } else {
@@ -471,7 +498,7 @@ function renderTable(cases) {
     return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
   });
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 9 : MODE === 'survey' ? 10 : 12;
+    const cols = MODE === 'inquiry' ? 10 : MODE === 'survey' ? 10 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -483,15 +510,19 @@ function getCaseRow(c) {
   const link = `onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer"`;
 
   if (MODE === 'inquiry') {
+    const days = daysSince(c.created_at);
+    const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     return `<tr ${link}>
       <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-      <td style="white-space:nowrap">${fmtDate(c.created_at)}</td>
-      <td>${c.client_name || '—'}</td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-500);font-size:13px">${c.location || '—'}</td>
+      <td style="text-align:center;white-space:nowrap;${daysColor}">${days}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td style="max-width:130px;word-break:break-word;white-space:normal">${c.client_name || '—'}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
       <td>${c.sales_name || '—'}</td>
       <td>${c.cs_name || '—'}</td>
-      <td>${statusBadge(c.status)}</td>
+      <td onclick="event.stopPropagation()">
+        ${prioritySelect(c)}
+      </td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>

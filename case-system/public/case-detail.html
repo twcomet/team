@@ -206,7 +206,7 @@
             <div class="form-group" style="margin-bottom:0"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
           </div>
           <div class="form-row" style="margin-bottom:0;margin-top:8px">
-            <div class="form-group" style="margin-bottom:0"><label>成交日期</label><input type="date" id="b_contracted_at"></div>
+            <div class="form-group" style="margin-bottom:0"><label>案件紀錄日期</label><input type="date" id="b_contracted_at"></div>
             <div class="form-group" style="margin-bottom:0">
               <label>實際進場日期 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（空白時從施工派工自動帶入）</span></label>
               <input type="date" id="b_actual_entry_date">
@@ -1190,6 +1190,10 @@ async function init() {
   if (tabParam) {
     const tabEl = document.querySelector(`.tab[data-tab="${tabParam}"]:not([style*="none"])`);
     if (tabEl) tabEl.click();
+  } else if (caseData?.case_group === 'inquiry') {
+    // 詢價案件預設跳至初步估價紀錄
+    const estimateTab = document.querySelector(`.tab[data-tab="estimate"]:not([style*="none"])`);
+    if (estimateTab) estimateTab.click();
   } else if (caseData?.case_group === 'deal') {
     // 成交案件依狀態自動跳至最相關頁籤
     let autoTab;
@@ -1637,7 +1641,7 @@ function fillBasicForm() {
   document.getElementById('b_location').value          = c.location || '';
   document.getElementById('b_desired_entry_date').value = c.desired_entry_date || '';
   document.getElementById('b_scheduled_date').value    = c.scheduled_date || '';
-  document.getElementById('b_contracted_at').value     = c.contracted_at ? c.contracted_at.slice(0,10) : (c.created_at ? c.created_at.slice(0,10) : '');
+  document.getElementById('b_contracted_at').value     = c.contracted_at ? c.contracted_at.slice(0,10) : '';
   // 實際進場日期：有儲存值直接用，否則從施工派工的最早日期帶入
   if (c.actual_entry_date) {
     document.getElementById('b_actual_entry_date').value = c.actual_entry_date;
@@ -1700,14 +1704,12 @@ function fillBasicForm() {
   document.getElementById('b_sales').value = c.sales_id || '';
   document.getElementById('b_cs').value    = c.cs_id    || '';
 
-  // 客戶名稱：LINE 客戶自動帶入 LINE ID 名稱、清空客戶名稱輸入
+  // 客戶名稱：始終在輸入框顯示客戶名稱，LINE 客戶同步帶入 LINE ID 名稱
   const _cl = clients.find(x => x.id === c.client_id);
-  document.getElementById('b_client').value = c.client_id || '';
+  document.getElementById('b_client').value      = c.client_id || '';
+  document.getElementById('b_client_input').value = _cl ? _cl.name : '';
   if (_cl && (_cl.source === 'line' || _cl.line_user_id)) {
     if (!c.line_display_name) document.getElementById('b_line_display_name').value = _cl.name || '';
-    document.getElementById('b_client_input').value = '';
-  } else {
-    document.getElementById('b_client_input').value = _cl ? _cl.name : '';
   }
   if (_cl) fillClientInfoCard(_cl);
 }
@@ -1758,9 +1760,14 @@ function updatePoolBanner(isOn, type) {
 }
 
 async function doSaveBasic() {
-  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildSaveBody()) });
-  if (res.ok) { showToast('已儲存'); await loadCase(); }
-  else showToast('儲存失敗', 'error');
+  try {
+    const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildSaveBody()) });
+    if (res.ok) { showToast('已儲存'); await loadCase(); }
+    else { const e = await res.json().catch(() => ({})); showToast('儲存失敗：' + (e.error || res.status), 'error'); }
+  } catch(err) {
+    showToast('儲存失敗：' + err.message, 'error');
+    console.error('[doSaveBasic]', err);
+  }
 }
 document.getElementById('saveBasicBtn').addEventListener('click', doSaveBasic);
 document.getElementById('saveBasicBtnBanner')?.addEventListener('click', doSaveBasic);

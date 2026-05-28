@@ -187,7 +187,7 @@ router.post('/:id/convert', requireAuth, (req, res) => {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, case_type, inq.client_id,
-    title || `LINE詢問｜${inq.display_name}`,
+    title || inq.display_name || '（未命名）',
     notes || inq.last_message || '',
     inq.line_user_id, u.id,
     inq.sales_id || null, inq.cs_id || null

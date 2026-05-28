@@ -89,7 +89,9 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { background: var(--gray-50); padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: var(--gray-500); border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
 td { padding: 12px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--gray-50); }
+tbody tr:nth-child(odd)  { background: #fff; }
+tbody tr:nth-child(even) { background: #f8fafc; }
+tr:hover td { background: #eef2ff !important; }
 
 /* ── Badges ─────────────────────────────────────────────── */
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap; }
