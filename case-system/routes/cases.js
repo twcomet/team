@@ -729,6 +729,22 @@ router.patch('/:id/step-back', requireAuth, (req, res) => {
   res.json({ ok: true, new_status: c.prev_status });
 });
 
+// ── 場勘直接轉成交 PATCH /:id/to-deal ────────────────────────────
+router.patch('/:id/to-deal', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const c = db.prepare(`SELECT status, case_group FROM cases WHERE id=?`).get(req.params.id);
+  if (!c) return res.status(404).json({ error: '案件不存在' });
+  const valid = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
+  if (!valid.has(c.status))
+    return res.status(400).json({ error: '僅場勘階段案件可直接轉成交' });
+  db.prepare(`UPDATE cases SET status='contracted', case_group='deal', prev_status=?,
+               contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP
+             WHERE id=?`).run(c.status, req.params.id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'convert', 'cases', req.params.id, `${c.status} → contracted (直接成交)`);
+  res.json({ ok: true });
+});
+
 // ── 刪除案件 DELETE /:id（管理者或有刪除權限的人員）─────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;

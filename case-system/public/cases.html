@@ -439,7 +439,7 @@ const CFG = {
     showAmounts: true,
     showTypeTabs: true,
     defaultStatus: 'contracted',
-    showNewBtn: false,
+    showNewBtn: true,
   },
 };
 
@@ -936,7 +936,8 @@ async function savePoolSetting(open) {
 
 // ── 新增案件 ─────────────────────────────────────────────────
 document.getElementById('newCaseBtn').addEventListener('click', () => {
-  document.getElementById('newCaseModalTitle').textContent = MODE === 'inquiry' ? '新增詢價案件' : '新增場勘案件';
+  const titleMap = { inquiry: '新增詢價案件', survey: '新增場勘案件', deal: '新增成交案件' };
+  document.getElementById('newCaseModalTitle').textContent = titleMap[MODE] || '新增案件';
   document.getElementById('caseTypeRow').style.display = MODE === 'inquiry' ? 'none' : '';
   document.getElementById('newCaseModal').classList.add('open');
 });
@@ -1182,11 +1183,16 @@ async function deleteChecklistTemplate(id, label) {
 // ── 狀態操作按鈕 ──────────────────────────────────────────────
 function surveyActionBtns(c) {
   const ADV = { surveyed: '已建報價單', quote_draft: '已發報價單', quoted: '確認成交' };
+  const DEAL_STAGES = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft']);
   const INVALIDATABLE = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft','quoted']);
   const parts = [];
   if (ADV[c.status]) {
     parts.push(`<button onclick="advanceCase(${c.id},'${c.status}')"
       style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dc2626;color:#fff;border:none;cursor:pointer;white-space:nowrap">${ADV[c.status]}</button>`);
+  }
+  if (DEAL_STAGES.has(c.status)) {
+    parts.push(`<button onclick="convertToDeal(${c.id},'${escHtml(c.case_number)}')"
+      style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#16a34a;color:#fff;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">✓ 直接成交</button>`);
   }
   if (INVALIDATABLE.has(c.status)) {
     parts.push(`<button onclick="openInvalidModal(${c.id})"
@@ -1223,6 +1229,14 @@ function dealActionBtns(c) {
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
   }
   return parts.join('') || '—';
+}
+
+async function convertToDeal(id, caseNum) {
+  if (!confirm(`確定將「${caseNum}」直接轉為成交案件？`)) return;
+  const r = await fetch(`/api/cases/${id}/to-deal`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: '{}' });
+  const d = await r.json();
+  if (d.ok) { showToast('已轉為成交案件'); loadCases(); }
+  else showToast(d.error || '操作失敗', 'error');
 }
 
 async function advanceCase(id, status) {
