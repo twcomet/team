@@ -33,43 +33,42 @@
 <body>
 <div class="app-layout">
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <img src="/logo.png" alt="logo" style="height:36px">
-      <div class="sidebar-brand">繪新管理系統</div>
-    </div>
-    <div class="sidebar-user">
-      <div id="sidebarUserName" class="sidebar-user-name">—</div>
-      <div id="sidebarUserRole" class="sidebar-user-role">—</div>
-      <div id="sidebarOrgName"  class="sidebar-org-name">—</div>
-    </div>
+    <div class="sidebar-logo"><img src="/images/logo.png" alt="Logo" onerror="this.style.display='none'"><span class="logo-text">繪新管理系統</span></div>
     <nav class="sidebar-nav">
-        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
-        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
-        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
-        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
-        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
-        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
-        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
-        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
-        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
-        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
-        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
-        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
-        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
-        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
-        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
-        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
-        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
-        <a class="nav-item" data-page="hr"             href="/hr">             <span class="icon">👤</span>人事資料管理</a>
-        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
-        <a class="nav-item" data-page="guide"          href="/guide">          <span class="icon">📖</span>系統使用說明</a>
-      <a class="nav-item" data-page="admin" href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+      <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+      <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+      <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
     </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
   </aside>
+
   <main class="main-content">
-    <div class="page-header">
-      <h1 class="page-title">系統使用說明</h1>
-      <p class="page-subtitle" style="color:var(--gray-500);font-size:13px;margin:4px 0 0">瞭解各頁面功能與案件流程</p>
+    <div class="topbar">
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <div class="topbar-title">系統使用說明</div>
     </div>
 
     <div class="guide-wrap">
@@ -177,7 +176,7 @@
           <tr><td>場勘日期</td><td>安排場勘的日期，填寫後會顯示在行事曆</td></tr>
           <tr><td>場勘人員</td><td>指派負責場勘的人員</td></tr>
           <tr><td>負責業務 / 客服</td><td>各角色指派</td></tr>
-          <tr><td>施工地點</td><td>地址，可在地圖上顯示</td></tr>
+          <tr><td>施工地址</td><td>施工地點地址，可在地圖上顯示</td></tr>
           <tr><td>工項明細</td><td>報價品項、面積、單價，建立後可產生報價單</td></tr>
           <tr><td>備註</td><td>內部備注，不顯示給客戶</td></tr>
         </table>
@@ -235,7 +234,6 @@
           <tr><td>備註</td><td>內部備注，可使用備注模板快速填寫</td></tr>
           <tr><td>工項明細</td><td>報價品項、面積、單價計算</td></tr>
           <tr><td>派工記錄</td><td>場勘或施工的排班，會同步顯示在行事曆</td></tr>
-          <tr><td>完工清單</td><td>施工前需確認的事項檢查清單</td></tr>
           <tr><td>退回詢價</td><td>案件需要重新估價時，可退回詢價階段</td></tr>
           <tr><td>刪除案件</td><td>僅管理者可操作，刪除後無法復原</td></tr>
         </table>
@@ -247,7 +245,7 @@
 <script src="/js/common.js"></script>
 <script>
 async function init() {
-  await loadUser();
+  initCommon();
   highlightNav('guide');
 }
 init();
