@@ -198,6 +198,15 @@
                 <option value="urgent">緊急</option><option value="low">低優先</option>
               </select>
             </div>
+            <div class="form-group" style="margin-bottom:0"><label>成交意願</label>
+              <select id="b_deal_intent">
+                <option value="">未評估</option>
+                <option value="hot">積極成交</option>
+                <option value="warm">有意願</option>
+                <option value="cool">觀望中</option>
+                <option value="cold">意願低</option>
+              </select>
+            </div>
           </div>
           <div class="form-group" style="margin-bottom:12px"><label>案件名稱</label><input type="text" id="b_title"></div>
           <div class="form-group" style="margin-bottom:12px">
@@ -1598,6 +1607,7 @@ function buildSaveBody() {
     ...caseData,   // 保留所有現有欄位（含收款、發票等），避免覆寫為 null
     case_type:          document.getElementById('b_case_type').value,
     priority:           document.getElementById('b_priority').value,
+    deal_intent:        document.getElementById('b_deal_intent').value || null,
     title:              document.getElementById('b_title').value,
     line_display_name:   document.getElementById('b_line_display_name').value || null,
     line_official_name:  document.getElementById('b_line_official_name').value || null,
@@ -1651,7 +1661,8 @@ const CLIENT_CATEGORY_LABELS = { direct:'直客', designer:'設計師', contract
 function fillBasicForm() {
   const c = caseData;
   document.getElementById('b_case_type').value = c.case_type || 'other';
-  document.getElementById('b_priority').value  = c.priority  || 'normal';
+  document.getElementById('b_priority').value    = c.priority    || 'normal';
+  document.getElementById('b_deal_intent').value = c.deal_intent || '';
   document.getElementById('b_title').value             = c.title || '';
   document.getElementById('b_line_display_name').value  = c.line_display_name  || '';
   document.getElementById('b_line_official_name').value = c.line_official_name || '';

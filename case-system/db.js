@@ -1835,5 +1835,6 @@ _addCol('cases', 'survey_fee_credited', 'INTEGER DEFAULT 0');
 
 // 客戶官方 Line 顯示名稱（可手動填寫）
 _addCol('cases', 'line_official_name', 'TEXT');
+_addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
 
 module.exports = db;

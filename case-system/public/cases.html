@@ -80,6 +80,32 @@
         <span class="type-tab" data-type="output">輸出</span>
         <span class="type-tab" data-type="other">其他</span>
       </div>
+      <!-- 詢價篩選列（僅 inquiry 模式） -->
+      <div id="inquiryFilters" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:12px;color:var(--gray-500);font-weight:500">篩選：</span>
+        <select id="fs_status" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+          <option value="">全部狀態</option>
+          <option value="inquiry">詢價需初步估價</option>
+          <option value="initial_estimate">已初步估價</option>
+          <option value="invalid">已估價無效保存</option>
+        </select>
+        <select id="fs_priority" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+          <option value="">全部優先</option>
+          <option value="urgent">緊急</option>
+          <option value="high">優先</option>
+          <option value="normal">一般</option>
+          <option value="low">低優先</option>
+        </select>
+        <select id="fs_intent" onchange="applyFilters()" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff">
+          <option value="">全部成交意願</option>
+          <option value="hot">積極成交</option>
+          <option value="warm">有意願</option>
+          <option value="cool">觀望中</option>
+          <option value="cold">意願低</option>
+        </select>
+        <button onclick="clearFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
+      </div>
+
       <div class="card">
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
@@ -383,7 +409,13 @@ let allCases = [], clients = [], salesUsers = [];
 let inquirySalesUsers = [], inquiryCsUsers = [];
 const pendingChanges = new Map();
 let activeStatus = '', activeType = '';
-let sortDateDir = 'desc'; // desc = 新→舊（預設）
+let sortDateDir = 'desc';
+let inquirySortField = 'created_at', inquirySortDir = 'desc';
+let filterPriority = '', filterIntent = '';
+
+const INTENT_LABELS  = { hot:'積極成交', warm:'有意願', cool:'觀望中', cold:'意願低' };
+const PRIORITY_ORDER = { urgent: 0, high: 1, normal: 2, low: 3 };
+const INTENT_ORDER   = { hot: 0, warm: 1, cool: 2, cold: 3 };
 
 async function init() {
   await loadUser();
@@ -408,7 +440,10 @@ async function init() {
   const assignRoles = ['owner','hq_sales','hq_cs','branch_manager','branch_sales'];
   inquirySalesUsers = salesUsers.filter(u => assignRoles.includes(u.role));
   inquiryCsUsers    = salesUsers.filter(u => assignRoles.includes(u.role));
-  if (MODE === 'inquiry') document.getElementById('saveAssignBtn').style.display = '';
+  if (MODE === 'inquiry') {
+    document.getElementById('saveAssignBtn').style.display = '';
+    document.getElementById('inquiryFilters').style.display = 'flex';
+  }
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
@@ -492,17 +527,23 @@ function toggleDateSort() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    const sortIcon = sortDateDir === 'desc' ? '↓' : '↑';
+    const iSortTh = (label, field, w) => {
+      const active = inquirySortField === field;
+      const icon = active ? (inquirySortDir === 'asc' ? '↑' : '↓') : '↕';
+      const color = active ? 'color:var(--primary)' : 'color:var(--gray-300)';
+      return `<th style="width:${w};cursor:pointer;white-space:nowrap;user-select:none" onclick="setInquirySort('${field}')">${label} <span style="font-size:10px;${color}">${icon}</span></th>`;
+    };
     h.innerHTML = `<tr>
       <th style="width:125px">案號</th>
-      <th style="width:55px;cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">天數 <span style="color:var(--primary);font-size:12px">${sortIcon}</span></th>
-      <th style="width:120px">狀態</th>
+      ${iSortTh('天數', 'created_at', '55px')}
+      ${iSortTh('狀態', 'status', '120px')}
       <th style="width:140px">客戶</th>
       <th style="width:110px">官方 Line</th>
-      <th style="width:180px">項目</th>
+      <th style="width:160px">項目</th>
+      ${iSortTh('成交意願', 'deal_intent', '90px')}
       <th style="width:120px">負責業務</th>
       <th style="width:120px">負責客服</th>
-      <th style="width:90px">優先</th>
+      ${iSortTh('優先', 'priority', '80px')}
       <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
@@ -542,17 +583,39 @@ function renderPipeline(cases) {
 function renderTable(cases) {
   const filtered = cases.filter(c => {
     if (activeType && c.case_type !== activeType) return false;
-    if (activeStatus) return c.status === activeStatus;
-    return !cfg.hiddenByDefault.has(c.status);
+    if (activeStatus && c.status !== activeStatus) return false;
+    if (!activeStatus && cfg.hiddenByDefault.has(c.status)) return false;
+    if (MODE === 'inquiry') {
+      if (filterPriority && c.priority !== filterPriority) return false;
+      if (filterIntent  && (c.deal_intent || '') !== filterIntent) return false;
+    }
+    return true;
   });
   const tbody = document.getElementById('casesBody');
-  const dateField = MODE === 'inquiry' ? 'created_at' : MODE === 'survey' ? 'survey_date' : 'scheduled_date';
-  filtered.sort((a, b) => {
-    const va = a[dateField] || '', vb = b[dateField] || '';
-    return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
-  });
+  if (MODE === 'inquiry') {
+    filtered.sort((a, b) => {
+      const dir = inquirySortDir === 'asc' ? 1 : -1;
+      if (inquirySortField === 'priority') {
+        return ((PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)) * dir;
+      } else if (inquirySortField === 'deal_intent') {
+        return ((INTENT_ORDER[a.deal_intent] ?? 99) - (INTENT_ORDER[b.deal_intent] ?? 99)) * dir;
+      } else if (inquirySortField === 'status') {
+        const STATUS_ORD = { inquiry: 0, initial_estimate: 1, invalid: 2 };
+        return ((STATUS_ORD[a.status] ?? 9) - (STATUS_ORD[b.status] ?? 9)) * dir;
+      } else {
+        const va = a.created_at || '', vb = b.created_at || '';
+        return inquirySortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+      }
+    });
+  } else {
+    const dateField = MODE === 'survey' ? 'survey_date' : 'scheduled_date';
+    filtered.sort((a, b) => {
+      const va = a[dateField] || '', vb = b[dateField] || '';
+      return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+    });
+  }
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 10 : MODE === 'survey' ? 10 : 12;
+    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 10 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -572,11 +635,12 @@ function getCaseRow(c) {
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
       <td style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${c.client_name || '—'}</td>
       <td style="width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
-      <td style="width:180px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
-      <td style="width:130px" onclick="event.stopPropagation()">
+      <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
+      <td style="width:120px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
       </td>
-      <td style="width:130px" onclick="event.stopPropagation()">
+      <td style="width:120px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
       </td>
       <td style="width:90px" onclick="event.stopPropagation()">
@@ -640,7 +704,45 @@ function filterByStatus(s) {
   document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
     el.classList.toggle('active', cfg.stages[i] === activeStatus);
   });
+  const fsSel = document.getElementById('fs_status');
+  if (fsSel) fsSel.value = activeStatus;
   renderTable(allCases);
+}
+
+function setInquirySort(field) {
+  if (inquirySortField === field) {
+    inquirySortDir = inquirySortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    inquirySortField = field;
+    inquirySortDir = 'desc';
+  }
+  renderTableHead();
+  renderTable(allCases);
+}
+
+function applyFilters() {
+  const statusVal = document.getElementById('fs_status').value;
+  activeStatus = statusVal;
+  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
+    el.classList.toggle('active', cfg.stages[i] === activeStatus);
+  });
+  filterPriority = document.getElementById('fs_priority').value;
+  filterIntent   = document.getElementById('fs_intent').value;
+  renderTable(allCases);
+}
+
+function clearFilters() {
+  activeStatus = ''; filterPriority = ''; filterIntent = '';
+  document.getElementById('fs_status').value   = '';
+  document.getElementById('fs_priority').value = '';
+  document.getElementById('fs_intent').value   = '';
+  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderTable(allCases);
+}
+
+function intentBadge(v) {
+  if (!v) return '<span style="color:var(--gray-400);font-size:12px">—</span>';
+  return `<span class="badge badge-intent-${v}">${INTENT_LABELS[v] || v}</span>`;
 }
 
 document.querySelectorAll('.type-tab').forEach(tab => {
