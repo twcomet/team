@@ -494,14 +494,14 @@ function renderTableHead() {
   if (MODE === 'inquiry') {
     const sortIcon = sortDateDir === 'desc' ? '↓' : '↑';
     h.innerHTML = `<tr>
-      <th style="width:100px">案號</th>
+      <th style="width:125px">案號</th>
       <th style="width:55px;cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">天數 <span style="color:var(--primary);font-size:12px">${sortIcon}</span></th>
-      <th style="width:110px">狀態</th>
-      <th style="width:110px">客戶</th>
-      <th style="width:110px">LINE ID 顯示名稱</th>
-      <th>項目</th>
-      <th style="width:130px">負責業務</th>
-      <th style="width:130px">負責客服</th>
+      <th style="width:120px">狀態</th>
+      <th style="width:140px">客戶</th>
+      <th style="width:110px">官方 Line</th>
+      <th style="width:180px">項目</th>
+      <th style="width:120px">負責業務</th>
+      <th style="width:120px">負責客服</th>
       <th style="width:90px">優先</th>
       <th style="width:65px">操作</th>
     </tr>`;
@@ -567,12 +567,12 @@ function getCaseRow(c) {
     const days = daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     return `<tr ${link}>
-      <td style="width:100px"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td style="width:125px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td style="width:55px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
-      <td style="width:110px">${statusBadge(c.status)}</td>
-      <td style="width:110px;word-break:break-word;white-space:normal">${c.client_name || '—'}</td>
-      <td style="width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_display_name || '—')}</td>
-      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
+      <td style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${c.client_name || '—'}</td>
+      <td style="width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
+      <td style="width:180px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
       <td style="width:130px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
       </td>

@@ -95,13 +95,18 @@ tr:hover td { background: #eef2ff !important; }
 
 /* ── Badges ─────────────────────────────────────────────── */
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.badge-inquiry          { background: #fef3c7; color: #92400e; }
 .badge-initial_estimate { background: #e0f2fe; color: #0369a1; }
-.badge-survey           { background: #e0e7ff; color: #3730a3; }
+.badge-survey_pending   { background: #fff7ed; color: #c2410c; }
+.badge-survey_scheduled { background: #ede9fe; color: #6d28d9; }
+.badge-surveyed         { background: #ccfbf1; color: #0f766e; }
+.badge-quote_draft      { background: #fdf4ff; color: #a21caf; }
 .badge-quoted           { background: #fef9c3; color: #713f12; }
 .badge-contracted       { background: #dbeafe; color: #1e40af; }
 .badge-payment          { background: #fed7aa; color: #92400e; }
 .badge-closed           { background: #d1fae5; color: #065f46; }
 .badge-invalid          { background: var(--gray-100); color: var(--gray-500); }
+.badge-tech_accepted    { background: #ffe4e6; color: #9f1239; }
 .badge-paid { background: #d1fae5; color: #065f46; }
 .badge-partial { background: #fef9c3; color: #713f12; }
 .badge-unpaid { background: #fee2e2; color: #991b1b; }
