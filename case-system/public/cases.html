@@ -64,6 +64,7 @@
                style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:220px">
         <button class="btn btn-primary btn-sm" id="newCaseBtn" style="display:none">＋ 新增案件</button>
         <button class="btn btn-ghost btn-sm" id="templateMgmtBtn" style="display:none" onclick="toggleTemplateMgmt()">⚙️ 模板管理</button>
+        <button class="btn btn-primary btn-sm" id="saveAssignBtn" style="display:none" onclick="saveAllAssignments()">💾 儲存指派</button>
       </div>
     </div>
     <div class="page-body">
@@ -379,6 +380,8 @@ const TYPE_NAMES = { home:'居家', commercial:'商空', elevator:'電梯', glas
 const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca3af' };
 
 let allCases = [], clients = [], salesUsers = [];
+let inquirySalesUsers = [], inquiryCsUsers = [];
+const pendingChanges = new Map();
 let activeStatus = '', activeType = '';
 let sortDateDir = 'desc'; // desc = 新→舊（預設）
 
@@ -402,6 +405,10 @@ async function init() {
   }
 
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
+  const assignRoles = ['owner','hq_sales','hq_cs','branch_manager','branch_sales'];
+  inquirySalesUsers = salesUsers.filter(u => assignRoles.includes(u.role));
+  inquiryCsUsers    = salesUsers.filter(u => assignRoles.includes(u.role));
+  if (MODE === 'inquiry') document.getElementById('saveAssignBtn').style.display = '';
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => ['owner','hq_sales','hq_cs','branch_manager','branch_sales'].includes(u.role));
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
@@ -436,6 +443,41 @@ async function updatePriority(id, priority) {
   if (!res.ok) showToast('優先程度更新失敗', 'error');
 }
 
+function assignSelect(caseId, field, currentId, usersList) {
+  const opts = ['<option value="">—</option>',
+    ...usersList.map(u => `<option value="${u.id}" ${u.id == currentId ? 'selected' : ''}>${escHtml(u.name)}</option>`)
+  ].join('');
+  return `<select onchange="onAssignChange(${caseId},'${field}',this.value)"
+    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:12px;background:#fff;width:100%;max-width:120px">
+    ${opts}</select>`;
+}
+
+function onAssignChange(caseId, field, value) {
+  if (!pendingChanges.has(caseId)) pendingChanges.set(caseId, {});
+  pendingChanges.get(caseId)[field] = value || null;
+  const btn = document.getElementById('saveAssignBtn');
+  if (btn) btn.style.outline = pendingChanges.size > 0 ? '2px solid #fca5a5' : '';
+}
+
+async function saveAllAssignments() {
+  if (!pendingChanges.size) { showToast('沒有待儲存的變更'); return; }
+  const btn = document.getElementById('saveAssignBtn');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  let ok = 0, fail = 0;
+  for (const [caseId, changes] of pendingChanges) {
+    const res = await fetch(`/api/cases/${caseId}/assign`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(changes)
+    });
+    if (res.ok) ok++; else fail++;
+  }
+  pendingChanges.clear();
+  btn.disabled = false; btn.textContent = '💾 儲存指派';
+  btn.style.outline = '';
+  if (fail) showToast(`部分儲存失敗 (${ok} 成功, ${fail} 失敗)`, 'error');
+  else { showToast(`已儲存 ${ok} 筆指派`); await loadCases(); }
+}
+
 function sortThHtml(label) {
   const icon = sortDateDir === 'desc' ? '↓' : '↑';
   return `<th style="cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">${label} <span style="color:var(--primary);font-size:12px">${icon}</span></th>`;
@@ -450,7 +492,19 @@ function toggleDateSort() {
 function renderTableHead() {
   const h = document.getElementById('tableHead');
   if (MODE === 'inquiry') {
-    h.innerHTML = `<tr><th>案號</th>${sortThHtml('天數')}<th>狀態</th><th>客戶</th><th>項目</th><th>負責業務</th><th>負責客服</th><th>優先</th><th>操作</th></tr>`;
+    const sortIcon = sortDateDir === 'desc' ? '↓' : '↑';
+    h.innerHTML = `<tr>
+      <th style="width:100px">案號</th>
+      <th style="width:55px;cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleDateSort()">天數 <span style="color:var(--primary);font-size:12px">${sortIcon}</span></th>
+      <th style="width:110px">狀態</th>
+      <th style="width:110px">客戶</th>
+      <th style="width:110px">LINE ID 顯示名稱</th>
+      <th>項目</th>
+      <th style="width:130px">負責業務</th>
+      <th style="width:130px">負責客服</th>
+      <th style="width:90px">優先</th>
+      <th style="width:65px">操作</th>
+    </tr>`;
   } else if (MODE === 'survey') {
     h.innerHTML = `<tr><th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>${sortThHtml('場勘日')}<th>負責業務</th><th>承辦人</th><th>狀態</th><th>估價</th><th>操作</th></tr>`;
   } else {
@@ -513,17 +567,22 @@ function getCaseRow(c) {
     const days = daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     return `<tr ${link}>
-      <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-      <td style="text-align:center;white-space:nowrap;${daysColor}">${days}</td>
-      <td>${statusBadge(c.status)}</td>
-      <td style="max-width:130px;word-break:break-word;white-space:normal">${c.client_name || '—'}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-      <td>${c.sales_name || '—'}</td>
-      <td>${c.cs_name || '—'}</td>
-      <td onclick="event.stopPropagation()">
+      <td style="width:100px"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td style="width:55px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
+      <td style="width:110px">${statusBadge(c.status)}</td>
+      <td style="width:110px;word-break:break-word;white-space:normal">${c.client_name || '—'}</td>
+      <td style="width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_display_name || '—')}</td>
+      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:130px" onclick="event.stopPropagation()">
+        ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
+      </td>
+      <td style="width:130px" onclick="event.stopPropagation()">
+        ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
+      </td>
+      <td style="width:90px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
       </td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+      <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>

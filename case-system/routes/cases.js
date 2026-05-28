@@ -417,6 +417,33 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 負責人快速指派（列表 inline 批次儲存用）────────────────────
+router.patch('/:id/assign', requireAuth, (req, res) => {
+  const { sales_id, cs_id } = req.body;
+  const me = req.session.user;
+  const prev = db.prepare(`SELECT sales_id, cs_id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
+  if (!prev) return res.status(404).json({ error: 'not found' });
+  db.prepare(`UPDATE cases SET sales_id=?, cs_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(sales_id ?? null, cs_id ?? null, req.params.id);
+  const url = `/case-detail?id=${req.params.id}`;
+  const pushMode = db.prepare(`SELECT value FROM settings WHERE key='push_mode'`).get()?.value || 'manual';
+  const notifyUser = (uid, role) => {
+    if (!uid || uid == me.id) return;
+    const label = role === 'sales' ? '負責業務' : '負責客服';
+    const title = `您被指派為「${label}」`;
+    const body  = `案件 ${prev.case_number || ''} ${prev.title || ''}`;
+    db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'assign','cases',?,?)`)
+      .run(uid, title, body, req.params.id, url);
+    if (pushMode === 'auto') {
+      const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+      if (u?.line_user_id) pushMessage(u.line_user_id, `【繪新指派通知】\n${title}\n${body}`);
+    }
+  };
+  if (String(sales_id || '') !== String(prev.sales_id || '')) notifyUser(sales_id, 'sales');
+  if (String(cs_id    || '') !== String(prev.cs_id    || '')) notifyUser(cs_id,    'cs');
+  res.json({ ok: true });
+});
+
 // ── 優先程度快速更新 ──────────────────────────────────────────
 router.patch('/:id/priority', requireAuth, (req, res) => {
   const { priority } = req.body;
