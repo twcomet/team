@@ -96,7 +96,7 @@
               <thead>
                 <tr>
                   <th>案號</th><th style="min-width:80px;max-width:100px">客戶</th><th>案件名稱</th><th id="payDateTh" style="cursor:pointer;white-space:nowrap;user-select:none" onclick="togglePayDateSort()">施工日 <span id="payDateIcon" style="color:var(--primary);font-size:12px">↓</span></th>
-                  <th style="white-space:nowrap">施工天數</th>
+                  <th style="white-space:nowrap">逾期天數</th>
                   <th>成交金額</th><th>含稅總額</th><th>訂金</th>
                   <th>已收</th><th>待收</th><th>收款狀態</th><th>業務</th><th style="min-width:60px"></th>
                 </tr>
@@ -217,14 +217,14 @@ function applyFilter() {
 
 function elapsedDays(c) {
   if (!c.scheduled_date) return '<span style="color:var(--gray-400)">—</span>';
-  const start = new Date(c.scheduled_date);
-  const endStr = c.closed_at ? c.closed_at.slice(0,10) : new Date().toISOString().slice(0,10);
-  const end = new Date(endStr);
-  const days = Math.floor((end - start) / 86400000);
-  if (days < 0) return '<span style="color:var(--gray-400)">—</span>';
-  const color = days > 30 ? '#e02424' : days > 14 ? '#d97706' : '#374151';
-  const suffix = c.closed_at ? '天✓' : '天';
-  return `<span style="font-size:12px;font-weight:600;color:${color}">${days}${suffix}</span>`;
+  if (c.payment_status === 'paid' || c.status === 'closed') return '<span style="color:var(--gray-400)">—</span>';
+  const deadline = new Date(c.scheduled_date);
+  deadline.setDate(deadline.getDate() + 7); // 完工日 + 7 天緩衝
+  const today = new Date(new Date().toISOString().slice(0,10));
+  const overdue = Math.floor((today - deadline) / 86400000);
+  if (overdue <= 0) return '<span style="color:var(--gray-400)">—</span>';
+  const color = overdue > 14 ? '#e02424' : '#d97706';
+  return `<span style="font-size:12px;font-weight:700;color:${color}">+${overdue}天</span>`;
 }
 
 function caseTotal(c) {
