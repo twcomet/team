@@ -488,7 +488,7 @@
           </div>
           <div class="form-row">
             <div class="form-group"><label class="sf-required">場勘日期 *</label><input type="date" id="sf_date"></div>
-            <div class="form-group"><label>場勘時間</label><input type="time" id="sf_time"></div>
+            <div class="form-group"><label>場勘時間</label><input type="text" id="sf_time" placeholder="HH:MM（例：14:30）" maxlength="5" oninput="sf_formatTime(this)" style="letter-spacing:.05em"></div>
           </div>
           <div class="form-row">
             <div class="form-group"><label class="sf-required">場勘人員 *</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
@@ -2358,6 +2358,11 @@ function sf_fillForm(f) {
   sf_renderFindings(f.findings || []);
   sfChecklistState = Array.isArray(f.checklist_data) ? f.checklist_data : [];
   sf_renderChecklist();
+}
+
+function sf_formatTime(el) {
+  const raw = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+  el.value = raw.length >= 3 ? raw.slice(0,2) + ':' + raw.slice(2) : raw;
 }
 
 function sf_updateMapLink() {
