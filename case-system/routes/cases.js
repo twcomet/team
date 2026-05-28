@@ -626,13 +626,27 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
 });
 
 router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
-  const d = db.prepare(`SELECT dispatch_type, scheduled_date FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, req.params.id);
+  const caseId = Number(req.params.id);
+  const d = db.prepare(`SELECT dispatch_type, scheduled_date FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, caseId);
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
-  db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, req.params.id);
-  recalcLaborCost(Number(req.params.id));
+  db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, caseId);
+  recalcLaborCost(caseId);
+
+  // 若刪除施工派工後已無任何施工派工，案件退回「成交待派工」並清除施工日期
+  if (d?.dispatch_type === 'install') {
+    const remaining = db.prepare(`SELECT COUNT(*) cnt FROM dispatches WHERE case_id=? AND dispatch_type='install'`).get(caseId);
+    if (remaining.cnt === 0) {
+      const cs = db.prepare(`SELECT status FROM cases WHERE id=?`).get(caseId);
+      if (['dispatched','constructing'].includes(cs?.status)) {
+        db.prepare(`UPDATE cases SET status='contracted', prev_status=?, scheduled_date=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+          .run(cs.status, caseId);
+      }
+    }
+  }
+
   if (d) {
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)
-      .run(req.session.user.id, 'delete', 'dispatches', req.params.did, `刪除派工：${d.dispatch_type} ${d.scheduled_date}（案件 #${req.params.id}）`);
+      .run(req.session.user.id, 'delete', 'dispatches', req.params.did, `刪除派工：${d.dispatch_type} ${d.scheduled_date}（案件 #${caseId}）`);
   }
   res.json({ ok: true });
 });
