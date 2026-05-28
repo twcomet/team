@@ -115,13 +115,20 @@ const STATUS_GROUP_MAP = {
   inquiry: 'inquiry', initial_estimate: 'inquiry',
   survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
   quote_draft: 'survey', quoted: 'survey',
-  contracted: 'deal', dispatched: 'deal', payment: 'deal', closed: 'deal',
+  contracted: 'deal', dispatched: 'deal', constructing: 'deal', payment: 'deal', closed: 'deal',
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, case_type, date_from, date_to, search, group } = req.query;
+
+  // 自動將施工日期=今天的「已派工待施工」升為「施工中」
+  db.prepare(`
+    UPDATE cases SET status='constructing', prev_status='dispatched', updated_at=CURRENT_TIMESTAMP
+    WHERE status='dispatched' AND case_group='deal'
+      AND scheduled_date = date('now','localtime')
+  `).run();
 
   // 成交案件管理需要額外權限
   if (group === 'deal') {
@@ -568,8 +575,9 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
     if (!c?.scheduled_date && dispatch_type === 'install') {
       updates.push(`scheduled_date=?`); params.push(scheduled_date);
     }
-    if (c?.status === 'confirmed') {
-      updates.push(`status='scheduled'`);
+    // 建立施工派工時，成交待派工 → 已派工待施工
+    if (c?.status === 'contracted' && dispatch_type === 'install') {
+      updates.push(`status='dispatched'`, `prev_status='contracted'`);
     }
     if (updates.length) {
       params.push(case_id);
@@ -653,7 +661,8 @@ const ADVANCE_MAP = {
   quote_draft:      { next: 'quoted',           tsCol: 'quoted_at',           byCol: 'quoted_by'        },
   quoted:           { next: 'contracted',       tsCol: 'contracted_at',       byCol: null               },
   contracted:       { next: 'dispatched',       tsCol: null,                  byCol: null               },
-  dispatched:       { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
+  dispatched:       { next: 'constructing',     tsCol: null,                  byCol: null               },
+  constructing:     { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
   payment:          { next: 'closed',           tsCol: 'closed_at',           byCol: null               },
 };
 router.patch('/:id/advance', requireAuth, (req, res) => {
@@ -669,7 +678,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
     return res.status(400).json({ error: '尚未完成收款，無法結案' });
 
   // 完工請款前警示：有未完成派工
-  if (c.status === 'dispatched' && !req.body.force) {
+  if (c.status === 'constructing' && !req.body.force) {
     const inc = db.prepare(
       `SELECT COUNT(*) cnt FROM dispatches WHERE case_id=? AND status NOT IN ('done','cancelled')`
     ).get(req.params.id);
@@ -692,7 +701,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
 });
 
 // ── 標記無效 PATCH /:id/invalidate ──────────────────────────
-const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched']);
+const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
 router.patch('/:id/invalidate', requireAuth, (req, res) => {
   const me = req.session.user;
   const { reason, tags } = req.body;

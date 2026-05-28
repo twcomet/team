@@ -1167,11 +1167,12 @@ const STAGES_BY_GROUP = {
     {key:'invalid',          label:'無效'},
   ],
   deal: [
-    {key:'contracted',  label:'成交待派案'},
-    {key:'dispatched',  label:'已派案待施工'},
-    {key:'payment',     label:'完工請款'},
-    {key:'closed',      label:'結案保存'},
-    {key:'invalid',     label:'無效'},
+    {key:'contracted',   label:'成交待派工'},
+    {key:'dispatched',   label:'已派工待施工'},
+    {key:'constructing', label:'施工中'},
+    {key:'payment',      label:'完工請款'},
+    {key:'closed',       label:'結案保存'},
+    {key:'invalid',      label:'無效'},
   ],
 };
 const STATUS_OPTIONS_BY_GROUP = {
@@ -1184,8 +1185,8 @@ const STATUS_OPTIONS_BY_GROUP = {
     ['quoted','已發報價單'],['invalid','無效保存'],
   ],
   deal: [
-    ['contracted','成交待派案'],['dispatched','已派案待施工'],['payment','完工請款'],
-    ['closed','結案保存'],['invalid','無效保存'],
+    ['contracted','成交待派工'],['dispatched','已派工待施工'],['constructing','施工中'],
+    ['payment','完工請款'],['closed','結案保存'],['invalid','無效保存'],
   ],
 };
 const ITEM_TYPES = [
@@ -1526,7 +1527,7 @@ function applyConvertButtons(group) {
   toDeal.style.display    = 'none';
   toInvalid.style.display = 'none';
 
-  const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched']);
+  const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
   const invalidBtn = INVALIDATABLE.has(status)
     ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="openDetailInvalidModal()">✕ 標記無效</button>` : '';
 
@@ -1535,7 +1536,8 @@ function applyConvertButtons(group) {
     quote_draft: { label: '已發報價單', color: '#dc2626' },
     quoted:      { label: '✓ 確認成交', color: '#16a34a' },
     contracted:  { label: '確認派案',   color: '#dc2626' },
-    dispatched:  { label: '完工請款',   color: '#dc2626' },
+    dispatched:  { label: '施工中',     color: '#ca8a04' },
+    constructing:{ label: '完工請款',   color: '#dc2626' },
     payment:     { label: '確認結案',   color: caseData.payment_status === 'paid' ? '#dc2626' : '#9ca3af' },
   };
 
@@ -1738,7 +1740,7 @@ function fillBasicForm() {
   const extQuoteWrap = document.getElementById('b_external_quote_wrap');
   const extQuoteUrl  = document.getElementById('b_external_quote_url');
   const extQuoteLink = document.getElementById('b_external_quote_link');
-  const showExtQuote = ['quote_draft','quoted','contracted','dispatched','payment','closed'].includes(c.status);
+  const showExtQuote = ['quote_draft','quoted','contracted','dispatched','constructing','payment','closed'].includes(c.status);
   if (extQuoteWrap) extQuoteWrap.style.display = showExtQuote ? '' : 'none';
   if (extQuoteUrl)  extQuoteUrl.value = c.external_quote_url || '';
   if (extQuoteLink) {
@@ -1763,7 +1765,7 @@ function fillBasicForm() {
 
   // 進場資訊：場勘以後才顯示
   const entryWrap = document.getElementById('b_entry_info_wrap');
-  const surveyStatuses = ['survey','quoted','contracted','dispatched','payment','closed'];
+  const surveyStatuses = ['survey','quoted','contracted','dispatched','constructing','payment','closed'];
   if (entryWrap) entryWrap.style.display = surveyStatuses.includes(c.status) ? '' : 'none';
 
   // 外包橫幅

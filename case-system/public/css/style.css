@@ -104,6 +104,7 @@ tr:hover td { background: #eef2ff !important; }
 .badge-quoted           { background: #fef9c3; color: #713f12; }
 .badge-contracted       { background: #dbeafe; color: #1e40af; }
 .badge-dispatched       { background: #e0e7ff; color: #3730a3; }
+.badge-constructing     { background: #fef08a; color: #713f12; }
 .badge-payment          { background: #fed7aa; color: #92400e; }
 .badge-closed           { background: #d1fae5; color: #065f46; }
 .badge-invalid          { background: var(--gray-100); color: var(--gray-500); }

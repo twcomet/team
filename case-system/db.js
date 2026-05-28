@@ -1338,6 +1338,9 @@ db.prepare(`UPDATE users SET can_delete=1 WHERE username IN ('C01','C02','C03') 
 _addCol('users', 'is_sales',          'INTEGER DEFAULT 0');
 // 預設將現有業務相關角色標記為可派業務
 db.prepare(`UPDATE users SET is_sales=1 WHERE role IN ('owner','hq_sales','hq_cs','branch_manager','branch_sales','contractor_sales') AND is_sales=0`).run();
+// 已有施工日期的成交待派工 → 升為已派工待施工
+db.prepare(`UPDATE cases SET status='dispatched', prev_status='contracted', updated_at=CURRENT_TIMESTAMP
+            WHERE status='contracted' AND case_group='deal' AND scheduled_date IS NOT NULL AND scheduled_date != ''`).run();
 // clients
 _addCol('clients', 'region_id',      'INTEGER REFERENCES regions(id)');
 _addCol('clients', 'owner_type',     "TEXT DEFAULT 'hq'");
