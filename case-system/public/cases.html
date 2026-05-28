@@ -493,7 +493,7 @@ function assignSelect(caseId, field, currentId, usersList) {
     ...usersList.map(u => `<option value="${u.id}" ${u.id == currentId ? 'selected' : ''}>${escHtml(u.name)}</option>`)
   ].join('');
   return `<select onchange="onAssignChange(${caseId},'${field}',this.value)"
-    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:12px;background:#fff;width:100%;max-width:120px">
+    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:12px;background:#fff;width:100%;max-width:88px">
     ${opts}</select>`;
 }
 
@@ -544,16 +544,16 @@ function renderTableHead() {
       return `<th style="width:${w};cursor:pointer;white-space:nowrap;user-select:none" onclick="setInquirySort('${field}')">${label} <span style="font-size:10px;${color}">${icon}</span></th>`;
     };
     h.innerHTML = `<tr>
-      <th style="width:125px">案號</th>
-      ${iSortTh('天數', 'created_at', '55px')}
+      <th style="width:100px">案號</th>
+      ${iSortTh('天數', 'created_at', '42px')}
       ${iSortTh('狀態', 'status', '120px')}
-      <th style="width:140px">客戶</th>
-      <th style="width:110px">官方 Line</th>
+      <th style="width:130px">客戶</th>
+      <th style="width:150px">官方 Line</th>
       <th style="width:240px">項目</th>
       ${iSortTh('成交意願', 'deal_intent', '90px')}
-      <th style="width:110px">負責業務</th>
-      <th style="width:110px">負責客服</th>
-      ${iSortTh('優先', 'priority', '80px')}
+      <th style="width:88px">負責業務</th>
+      <th style="width:88px">負責客服</th>
+      ${iSortTh('優先', 'priority', '76px')}
       <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
@@ -642,17 +642,17 @@ function getCaseRow(c) {
     const days = daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     return `<tr ${link}>
-      <td style="width:125px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-      <td style="width:55px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
+      <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+      <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
-      <td style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${c.client_name || '—'}</td>
-      <td style="width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
+      <td style="width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${c.client_name || '—'}</td>
+      <td style="width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
       <td style="width:240px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
       <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
-      <td style="width:120px" onclick="event.stopPropagation()">
+      <td style="width:88px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
       </td>
-      <td style="width:120px" onclick="event.stopPropagation()">
+      <td style="width:88px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
       </td>
       <td style="width:90px" onclick="event.stopPropagation()">
