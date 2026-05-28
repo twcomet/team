@@ -7,287 +7,312 @@
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background:#f3f4f6; color:#1f2937; }
-.page-wrap { max-width:800px; margin:0 auto; padding:24px 16px 60px; }
-.brand { display:flex; align-items:center; gap:12px; margin-bottom:28px; }
-.brand img { height:36px; }
-.brand h1 { font-size:20px; font-weight:700; color:#1f2937; }
-.contract-card { background:#fff; border-radius:16px; box-shadow:0 1px 8px rgba(0,0,0,.08); padding:40px; margin-bottom:24px; }
-.contract-title { font-size:20px; font-weight:700; text-align:center; margin-bottom:6px; }
-.contract-sub   { font-size:13px; color:#6b7280; text-align:center; margin-bottom:32px; }
-.contract-body { font-size:14px; line-height:2; color:#374151; }
-.contract-body h3 { font-size:14px; font-weight:700; margin-top:24px; margin-bottom:8px; }
-.contract-body p  { margin-bottom:8px; padding-left:1em; }
-.contract-body .clause-num { font-weight:600; }
-.sign-meta { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:28px 0 20px; padding:16px 20px; background:#f9fafb; border-radius:10px; font-size:14px; }
-.sign-meta .meta-label { font-size:12px; color:#6b7280; margin-bottom:4px; }
-.sign-meta .meta-value { font-weight:600; }
-.sig-section { margin-top:24px; }
-.sig-section label { font-size:14px; font-weight:600; color:#374151; display:block; margin-bottom:10px; }
-#sigCanvas { width:100%; height:160px; border:2px dashed #d1d5db; border-radius:10px; background:#fafafa; cursor:crosshair; touch-action:none; display:block; }
-#sigCanvas.has-sig { border-color:#2563eb; border-style:solid; }
-.sig-actions { display:flex; justify-content:flex-end; margin-top:8px; }
-.agree-row { display:flex; align-items:flex-start; gap:12px; margin:24px 0 20px; padding:16px; background:#fef9c3; border:1px solid #fde047; border-radius:10px; }
-.agree-row input[type="checkbox"] { width:20px; height:20px; flex-shrink:0; margin-top:1px; cursor:pointer; }
-.agree-row label { font-size:13px; color:#713f12; line-height:1.7; cursor:pointer; }
-.submit-btn { width:100%; padding:15px; font-size:16px; font-weight:700; color:#fff; background:#2563eb; border:none; border-radius:10px; cursor:pointer; transition:background .15s; }
-.submit-btn:hover { background:#1d4ed8; }
-.submit-btn:disabled { background:#9ca3af; cursor:not-allowed; }
-.success-card { display:none; background:#fff; border-radius:16px; box-shadow:0 1px 8px rgba(0,0,0,.08); padding:48px 40px; text-align:center; }
-.success-icon { font-size:56px; margin-bottom:20px; }
-.success-title { font-size:22px; font-weight:700; margin-bottom:8px; }
-.success-sub { font-size:14px; color:#6b7280; margin-bottom:32px; }
-.btn-group { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-.btn { display:inline-flex; align-items:center; gap:8px; padding:12px 24px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; text-decoration:none; }
-.btn-primary { background:#2563eb; color:#fff; }
-.btn-ghost   { background:#f3f4f6; color:#374151; }
+body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f3f4f6; color: #1f2937; min-height: 100vh; }
 
-@media print {
-  body { background:#fff; }
-  .page-wrap { max-width:none; padding:0; }
-  .brand, .sig-section, .agree-row, .submit-btn, .btn-group, .success-card { display:none !important; }
-  .contract-card { box-shadow:none; border-radius:0; padding:20px; margin:0; }
-  .sign-meta { break-inside:avoid; }
-  .print-sig { display:block !important; }
+.page-wrap { max-width: 800px; margin: 0 auto; padding: 24px 16px 60px; }
+
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.brand img { height: 36px; }
+.brand h1 { font-size: 20px; font-weight: 700; color: #1f2937; }
+
+/* 進度列 */
+.progress-bar-wrap { background: #fff; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 6px rgba(0,0,0,.07); display: flex; align-items: center; gap: 14px; }
+.progress-text { font-size: 14px; font-weight: 700; color: #374151; white-space: nowrap; }
+.progress-track { flex: 1; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: #2563eb; border-radius: 4px; transition: width .4s; }
+
+/* 合約內容卡 */
+.contract-card { background: #fff; border-radius: 16px; box-shadow: 0 1px 8px rgba(0,0,0,.08); padding: 40px; margin-bottom: 20px; }
+.contract-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+.contract-sub { font-size: 13px; color: #6b7280; text-align: center; margin-bottom: 28px; }
+.contract-body { font-size: 14px; line-height: 2; color: #374151; }
+.contract-body h1, .contract-body h2, .contract-body h3 { margin: 16px 0 8px; }
+.contract-body p { margin-bottom: 8px; }
+.contract-body ul, .contract-body ol { padding-left: 1.5em; margin-bottom: 8px; }
+.contract-body li { margin-bottom: 4px; }
+.scroll-sentinel { height: 1px; }
+
+/* 簽署區 */
+.sign-card { background: #fff; border-radius: 16px; box-shadow: 0 1px 8px rgba(0,0,0,.08); padding: 32px; margin-bottom: 20px; transition: opacity .3s; }
+.sign-card.locked { opacity: .4; pointer-events: none; }
+.scroll-hint { text-align: center; padding: 12px; background: #fef9c3; border: 1px solid #fde047; border-radius: 10px; font-size: 13px; color: #92400e; margin-bottom: 20px; }
+.scroll-hint.hidden { display: none; }
+
+.sign-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; padding: 14px 18px; background: #f9fafb; border-radius: 10px; font-size: 14px; }
+.meta-label { font-size: 12px; color: #6b7280; margin-bottom: 3px; }
+.meta-value { font-weight: 600; color: #111827; }
+
+.agree-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; padding: 16px; background: #fef9c3; border: 1px solid #fde047; border-radius: 10px; }
+.agree-row input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; cursor: pointer; accent-color: #2563eb; }
+.agree-row label { font-size: 13px; color: #713f12; line-height: 1.8; cursor: pointer; }
+
+.sig-section label { font-size: 14px; font-weight: 600; color: #374151; display: block; margin-bottom: 10px; }
+#sigCanvas { width: 100%; height: 160px; border: 2px dashed #d1d5db; border-radius: 10px; background: #fafafa; cursor: crosshair; touch-action: none; display: block; }
+#sigCanvas.has-sig { border-color: #2563eb; border-style: solid; }
+.sig-actions { display: flex; justify-content: flex-end; margin-top: 8px; margin-bottom: 20px; }
+
+.submit-btn { width: 100%; padding: 15px; font-size: 16px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 10px; cursor: pointer; transition: background .15s; }
+.submit-btn:hover:not(:disabled) { background: #1d4ed8; }
+.submit-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+
+/* 完成卡片 */
+.done-card { display: none; background: #fff; border-radius: 16px; box-shadow: 0 1px 8px rgba(0,0,0,.08); padding: 48px 32px; text-align: center; }
+.done-icon { font-size: 60px; margin-bottom: 20px; }
+.done-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.done-sub { font-size: 14px; color: #6b7280; margin-bottom: 32px; }
+.done-btn { display: inline-block; padding: 13px 32px; border-radius: 10px; background: #2563eb; color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer; border: none; }
+.done-btn:hover { background: #1d4ed8; }
+
+@media (max-width: 600px) {
+  .contract-card { padding: 24px 18px; }
+  .sign-card { padding: 20px 16px; }
 }
-.print-sig { display:none; text-align:center; margin-top:24px; }
-.print-sig img { max-width:200px; border:1px solid #ddd; border-radius:6px; }
 </style>
 </head>
 <body>
 <div class="page-wrap">
   <div class="brand">
-    <img src="/logo.png" alt="繪新">
+    <img src="/logo.png" alt="繪新" onerror="this.style.display='none'">
     <h1>繪新管理系統</h1>
   </div>
 
-  <!-- 合約內容卡 -->
-  <div class="contract-card" id="contractCard">
-    <div class="contract-title" id="contractTitle">載入中…</div>
-    <div class="contract-sub">請詳細閱讀以下合約內容後完成簽署</div>
+  <div class="progress-bar-wrap" id="progressWrap" style="display:none">
+    <span class="progress-text" id="progressText">0 / 0</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0"></div></div>
+  </div>
 
-    <div class="contract-body" id="contractBody"></div>
-
-    <!-- 簽署人資訊 -->
-    <div class="sign-meta">
-      <div>
-        <div class="meta-label">簽署人</div>
-        <div class="meta-value" id="signerName">—</div>
-      </div>
-      <div>
-        <div class="meta-label">簽署日期</div>
-        <div class="meta-value" id="signerDate">—</div>
-      </div>
+  <!-- 合約內容 -->
+  <div id="signingArea">
+    <div class="contract-card" id="contractCard">
+      <div class="contract-title" id="contractTitle">載入中…</div>
+      <div class="contract-sub">請詳細閱讀以下合約內容，閱讀完畢後向下捲動完成簽署</div>
+      <div class="contract-body" id="contractBody"></div>
+      <div class="scroll-sentinel" id="scrollSentinel"></div>
     </div>
 
-    <!-- 電子簽名 -->
-    <div class="sig-section">
-      <label>手寫電子簽名 <span style="font-size:12px;color:#6b7280;font-weight:400">（請在下方框內以手指或滑鼠簽名）</span></label>
-      <canvas id="sigCanvas"></canvas>
-      <div class="sig-actions">
-        <button class="btn btn-ghost" id="clearBtn" style="padding:6px 14px;font-size:13px">清除重寫</button>
+    <!-- 簽署卡片 -->
+    <div class="sign-card locked" id="signCard">
+      <div class="scroll-hint" id="scrollHint">請先向上閱讀完整合約內容，捲動到底後即可簽署</div>
+
+      <div class="sign-meta">
+        <div><div class="meta-label">簽署人</div><div class="meta-value" id="signerName">—</div></div>
+        <div><div class="meta-label">簽署日期</div><div class="meta-value" id="signerDate">—</div></div>
       </div>
-    </div>
 
-    <!-- 同意勾選 -->
-    <div class="agree-row">
-      <input type="checkbox" id="agreeCheck">
-      <label for="agreeCheck">
-        本人已詳細閱讀並完全理解上述合約之全部條款，同意遵守本協議之所有規定，並確認本電子簽名與親筆簽名具有同等法律效力。
-      </label>
-    </div>
+      <div class="agree-row">
+        <input type="checkbox" id="agreeCheck" onchange="updateSubmitBtn()">
+        <label for="agreeCheck">
+          本人確認已詳細閱讀並完全理解上述合約之全部條款，同意遵守本協議之所有規定，並確認此電子簽署與親筆簽名具有同等法律效力。
+        </label>
+      </div>
 
-    <button class="submit-btn" id="submitBtn" disabled onclick="submitContract()">確認簽署並送出</button>
+      <div class="sig-section">
+        <label>手寫電子簽名 <span style="font-size:12px;color:#6b7280;font-weight:400">（請在下方框內以手指或滑鼠簽名）</span></label>
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-actions">
+          <button class="btn btn-ghost" id="clearBtn" style="padding:6px 14px;font-size:13px" onclick="clearSig()">清除重寫</button>
+        </div>
+      </div>
 
-    <!-- 列印時顯示已簽名圖 -->
-    <div class="print-sig" id="printSig">
-      <p style="font-size:12px;color:#6b7280;margin-bottom:8px">電子簽名</p>
-      <img id="printSigImg" src="">
+      <button class="submit-btn" id="submitBtn" disabled onclick="doSign()">確認簽署</button>
     </div>
   </div>
 
-  <!-- 成功畫面 -->
-  <div class="success-card" id="successCard">
-    <div class="success-icon">✅</div>
-    <div class="success-title">合約簽署完成</div>
-    <div class="success-sub">感謝您完成合約簽署，記錄已安全儲存於系統中。</div>
-    <div class="btn-group">
-      <button class="btn btn-ghost" onclick="downloadPDF()">📄 下載 PDF 存檔</button>
-      <button class="btn btn-primary" id="enterBtn">進入系統</button>
-    </div>
+  <!-- 全部完成 -->
+  <div class="done-card" id="doneCard">
+    <div class="done-icon">✅</div>
+    <div class="done-title">所有合約簽署完成！</div>
+    <div class="done-sub">感謝您完成電子簽署，相關紀錄已儲存至系統。</div>
+    <button class="done-btn" onclick="location.href='/dashboard'">進入系統</button>
   </div>
 </div>
 
 <script>
-const EMPLOYEE_CONTRACT = `
-<h3>第一條　善良管理人義務</h3>
-<p>員工應盡善良管理人之注意義務，本於誠實信用原則，忠實履行職務，積極維護公司形象與利益。員工不得有損害公司聲譽、違反商業倫理或對公司不忠之行為，並應於職務執行中以公司最大利益為依歸。</p>
+let pendingContracts = [];
+let currentIndex = 0;
+let userName = '';
+let scrollUnlocked = false;
+let scrollObserver = null;
+let hasSig = false;
 
-<h3>第二條　保密義務</h3>
-<p><span class="clause-num">一、</span>員工在職期間及離職後，均不得以任何方式洩漏、利用或擅自揭露繪新國際有限公司之營業秘密、客戶資料、報價資訊、技術資料、財務資訊及一切機密資訊予任何第三人。</p>
-<p><span class="clause-num">二、</span>本條保密義務自員工任職起算，離職後永久有效，不因合作關係終止而消滅。</p>
-<p><span class="clause-num">三、</span>員工不得將公司機密資訊用於個人利益、競業利益或任何第三人利益。</p>
-<p><span class="clause-num">四、</span>員工離職時，應立即歸還並刪除一切公司機密資料，不得以任何形式留存。</p>
+// ── Canvas 簽名 ──────────────────────────────────────────────
+let canvas, ctx, drawing = false, lastX = 0, lastY = 0;
 
-<h3>第三條　智慧財產權歸屬</h3>
-<p><span class="clause-num">一、</span>員工於任職期間因執行職務所產生之一切成果，包含但不限於：作品、資料、程式碼、報告、客戶名單、設計稿、施工紀錄及任何形式之著作物，其著作權、專利權、商標權及一切智慧財產權，均專屬歸屬於繪新國際有限公司所有。</p>
-<p><span class="clause-num">二、</span>員工不得主張前項成果之任何著作人格權或財產性權利，並應協助公司辦理相關權利登記手續。</p>
-<p><span class="clause-num">三、</span>系統內之一切資料、客戶資訊、業務資訊，皆屬公司資產，員工無權帶離或複製。</p>
+function initCanvas() {
+  canvas = document.getElementById('sigCanvas');
+  ctx = canvas.getContext('2d');
 
-<h3>第四條　競業禁止</h3>
-<p>員工在職期間，不得從事與公司業務相競爭之活動，亦不得私下接觸公司客戶進行業務往來。</p>
-
-<h3>第五條　違約責任</h3>
-<p>員工如違反本協議各條款，應負損害賠償責任，賠償繪新國際有限公司因此所受之一切損失（含直接損失、間接損失、商譽損害及訴訟費用），且不以實際損害為限。</p>
-
-<h3>第六條　準據法與管轄</h3>
-<p>本協議依中華民國法律解釋及適用。如發生爭議，雙方同意以臺灣臺北地方法院為第一審管轄法院。</p>
-`;
-
-const CONTRACTOR_CONTRACT = `
-<h3>第一條　誠信合作義務（善良管理人）</h3>
-<p>合作方應以善良管理人之注意義務，誠實、負責地完成所承接之每一案件，維護繪新國際有限公司及其客戶之利益。合作方承諾遵守繪新之操作規範、品質標準及施工流程，不得有損害繪新聲譽、客戶利益或造成工程瑕疵之行為。</p>
-
-<h3>第二條　保密義務</h3>
-<p><span class="clause-num">一、</span>合作方於合作期間及合作終止後，均不得以任何方式洩漏、利用或擅自揭露繪新之營業秘密、客戶資料、報價資訊、案件內容、施工技術及一切機密資訊。</p>
-<p><span class="clause-num">二、</span>合作方不得直接或間接向繪新之客戶招攬業務，亦不得繞過繪新與其客戶建立獨立商業關係，否則繪新得主張損害賠償。</p>
-<p><span class="clause-num">三、</span>本條保密義務自本協議生效起算，合作終止後永久有效，不因合作關係終止而消滅。</p>
-<p><span class="clause-num">四、</span>合作方不得將繪新系統內之任何資訊截圖、複製或轉傳予第三人。</p>
-
-<h3>第三條　智慧財產權歸屬</h3>
-<p><span class="clause-num">一、</span>合作方承接繪新案件期間，因執行案件所產生之一切成果，包含但不限於：施工照片、現場記錄、技術文件、設計方案及任何形式之著作物，其著作權及一切智慧財產權，均專屬歸屬於繪新國際有限公司所有。</p>
-<p><span class="clause-num">二、</span>繪新管理系統內之客戶名單、案件資訊、學習素材、課程內容、品牌素材及平台資料，皆屬繪新之智慧財產，合作方不得複製、散布、轉讓或用於其他任何用途。</p>
-<p><span class="clause-num">三、</span>合作方不得主張前項成果之任何著作人格權或財產性權利。</p>
-
-<h3>第四條　合作規範</h3>
-<p>合作方應依時完成繪新指派之案件，如無法履行應提前告知。合作方不得私自替換、外包或轉讓案件予其他人員。合作方之施工品質及客戶服務應符合繪新標準。</p>
-
-<h3>第五條　違約責任</h3>
-<p>合作方如違反本協議各條款，繪新有權立即終止合作關係且不予補償，並得請求損害賠償，賠償範圍包含一切直接及間接損失。</p>
-
-<h3>第六條　準據法與管轄</h3>
-<p>本協議依中華民國法律解釋及適用。如發生爭議，雙方同意以臺灣臺北地方法院為第一審管轄法院。</p>
-`;
-
-const INTERNAL_ROLES = ['owner','vp','hq_cs','hq_sales','hq_tech','hq_accounting','hq_hr','branch_manager','branch_sales','branch_tech'];
-
-let currentUser = null;
-let contractType = 'employee';
-let sigHasContent = false;
-let sigDataUrl = null;
-
-async function init() {
-  const res = await fetch('/api/auth/me');
-  if (!res.ok) { location.href = '/'; return; }
-  currentUser = await res.json();
-
-  if (currentUser.contract_signed_at) { location.href = '/dashboard'; return; }
-
-  contractType = INTERNAL_ROLES.includes(currentUser.role) ? 'employee' : 'contractor';
-
-  const today = new Date().toLocaleDateString('zh-TW', { year:'numeric', month:'long', day:'numeric' });
-  document.getElementById('signerName').textContent = currentUser.name;
-  document.getElementById('signerDate').textContent = today;
-
-  if (contractType === 'employee') {
-    document.getElementById('contractTitle').textContent = '繪新國際有限公司　員工保密暨誠信協議書';
-  } else {
-    document.getElementById('contractTitle').textContent = '繪新國際有限公司　接案合作暨保密協議書';
-  }
-  document.getElementById('contractBody').innerHTML = contractType === 'employee' ? EMPLOYEE_CONTRACT : CONTRACTOR_CONTRACT;
-
-  setupCanvas();
-
-  document.getElementById('agreeCheck').addEventListener('change', updateSubmitBtn);
-  document.getElementById('clearBtn').addEventListener('click', clearSig);
-}
-
-// ── 簽名 Canvas ───────────────────────────────────────────────
-function setupCanvas() {
-  const canvas = document.getElementById('sigCanvas');
+  // 實際像素對應 CSS 尺寸（高 DPI 螢幕）
   const dpr = window.devicePixelRatio || 1;
-  const rect = { width: canvas.offsetWidth, height: 160 };
+  const rect = canvas.getBoundingClientRect();
   canvas.width  = rect.width  * dpr;
   canvas.height = rect.height * dpr;
-  const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1e3a8a';
 
-  let drawing = false;
-  const pos = e => {
-    const r = canvas.getBoundingClientRect(), src = e.touches ? e.touches[0] : e;
-    return { x: (src.clientX - r.left), y: (src.clientY - r.top) };
-  };
-  canvas.addEventListener('pointerdown', e => {
-    drawing = true; sigHasContent = true;
-    canvas.classList.add('has-sig');
-    const { x, y } = pos(e); ctx.beginPath(); ctx.moveTo(x, y);
-    updateSubmitBtn();
-  });
-  canvas.addEventListener('pointermove', e => {
-    if (!drawing) return; e.preventDefault();
-    const { x, y } = pos(e); ctx.lineTo(x, y); ctx.stroke();
-  });
-  canvas.addEventListener('pointerup',    () => { drawing = false; });
-  canvas.addEventListener('pointerleave', () => { drawing = false; });
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x; lastY = p.y;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+  }
+  function move(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastX = p.x; lastY = p.y;
+    if (!hasSig) {
+      hasSig = true;
+      canvas.classList.add('has-sig');
+      updateSubmitBtn();
+    }
+  }
+  function end() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup',   end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove',  move,  { passive: false });
+  canvas.addEventListener('touchend',   end);
 }
 
 function clearSig() {
-  const canvas = document.getElementById('sigCanvas');
-  const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSig = false;
   canvas.classList.remove('has-sig');
-  sigHasContent = false;
-  sigDataUrl = null;
   updateSubmitBtn();
+}
+
+function getSigDataURL() {
+  return canvas.toDataURL('image/png');
+}
+
+// ── 主流程 ───────────────────────────────────────────────────
+async function init() {
+  try {
+    const r = await fetch('/api/auth/me');
+    if (r.ok) { const u = await r.json(); userName = u.name || ''; }
+  } catch(_) {}
+
+  document.getElementById('signerName').textContent = userName || '—';
+  document.getElementById('signerDate').textContent = new Date().toLocaleDateString('zh-TW');
+
+  const r = await fetch('/api/contracts/my/pending');
+  if (!r.ok) { location.href = '/dashboard'; return; }
+  pendingContracts = await r.json();
+
+  if (!pendingContracts.length) { location.href = '/dashboard'; return; }
+
+  document.getElementById('progressWrap').style.display = 'flex';
+  await loadContract(0);
+  initCanvas();
+}
+
+async function loadContract(index) {
+  scrollUnlocked = false;
+  hasSig = false;
+  currentIndex = index;
+  const c = pendingContracts[index];
+  const total = pendingContracts.length;
+
+  document.getElementById('progressText').textContent = `合約 ${index + 1} / ${total}`;
+  document.getElementById('progressFill').style.width = `${Math.round(index / total * 100)}%`;
+
+  document.getElementById('contractTitle').textContent = c.title;
+
+  // 取得合約 HTML 內容
+  let bodyHtml = '';
+  try {
+    const cr = await fetch(`/api/contracts/${c.id}/content`);
+    if (cr.ok) {
+      const cd = await cr.json();
+      bodyHtml = cd.content || '';
+    }
+  } catch(_) {}
+
+  document.getElementById('contractBody').innerHTML = bodyHtml || '<p style="color:#9ca3af;text-align:center;padding:32px 0">（此合約尚未填寫內容）</p>';
+
+  // 重置簽署區
+  document.getElementById('agreeCheck').checked = false;
+  document.getElementById('signCard').classList.add('locked');
+  document.getElementById('scrollHint').classList.remove('hidden');
+  document.getElementById('submitBtn').disabled = true;
+  if (canvas) clearSig();
+
+  // 重新綁定 scroll observer
+  if (scrollObserver) scrollObserver.disconnect();
+  setupScrollObserver();
+}
+
+function setupScrollObserver() {
+  const sentinel = document.getElementById('scrollSentinel');
+  scrollObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !scrollUnlocked) {
+      scrollUnlocked = true;
+      document.getElementById('signCard').classList.remove('locked');
+      document.getElementById('scrollHint').classList.add('hidden');
+      updateSubmitBtn();
+      scrollObserver.disconnect();
+    }
+  }, { threshold: 0.5 });
+  scrollObserver.observe(sentinel);
 }
 
 function updateSubmitBtn() {
   const agreed = document.getElementById('agreeCheck').checked;
-  document.getElementById('submitBtn').disabled = !(agreed && sigHasContent);
+  document.getElementById('submitBtn').disabled = !(scrollUnlocked && agreed && hasSig);
 }
 
-// ── 提交 ──────────────────────────────────────────────────────
-async function submitContract() {
-  const canvas = document.getElementById('sigCanvas');
-  sigDataUrl = canvas.toDataURL('image/png');
+async function doSign() {
+  const agreed = document.getElementById('agreeCheck').checked;
+  if (!agreed || !hasSig) return;
 
   const btn = document.getElementById('submitBtn');
-  btn.disabled = true; btn.textContent = '簽署中…';
+  btn.disabled = true;
+  btn.textContent = '簽署中…';
 
-  const res = await fetch('/api/auth/sign-contract', {
+  const c = pendingContracts[currentIndex];
+  const signature = getSigDataURL();
+
+  const r = await fetch(`/api/contracts/${c.id}/sign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ signature: sigDataUrl })
+    body: JSON.stringify({ signature, agreed: true }),
   });
 
-  if (res.ok) {
-    document.getElementById('contractCard').style.display = 'none';
-    document.getElementById('successCard').style.display = 'block';
-    const isStudent = !INTERNAL_ROLES.includes(currentUser.role);
-    document.getElementById('enterBtn').onclick = () => { location.href = isStudent ? '/marketplace' : '/dashboard'; };
-  } else {
-    btn.disabled = false; btn.textContent = '確認簽署並送出';
-    alert('簽署失敗，請重試');
+  if (!r.ok) {
+    const d = await r.json();
+    alert(d.error || '簽署失敗，請重試');
+    btn.disabled = false;
+    btn.textContent = '確認簽署';
+    return;
   }
-}
 
-// ── PDF 下載 ──────────────────────────────────────────────────
-function downloadPDF() {
-  // 填入簽名圖到列印區域
-  if (sigDataUrl) {
-    document.getElementById('printSigImg').src = sigDataUrl;
-    document.getElementById('printSig').style.display = 'block';
+  const next = currentIndex + 1;
+  if (next < pendingContracts.length) {
+    document.getElementById('progressFill').style.width = `${Math.round(next / pendingContracts.length * 100)}%`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    await loadContract(next);
+  } else {
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('signingArea').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('doneCard').style.display = 'block';
   }
-  document.getElementById('contractCard').style.display = '';
-  document.getElementById('successCard').style.display = 'none';
-  window.print();
-  // 列印後恢復
-  setTimeout(() => {
-    document.getElementById('contractCard').style.display = 'none';
-    document.getElementById('successCard').style.display = 'block';
-    document.getElementById('printSig').style.display = 'none';
-  }, 1000);
 }
 
 init();

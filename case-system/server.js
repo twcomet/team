@@ -69,6 +69,7 @@ app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 app.use('/api/hr',                    require('./routes/hr'));
 app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
+app.use('/api/contracts',             require('./routes/contracts'));
 
 // ── 前端公開設定 ──────────────────────────────────────────────
 app.get('/api/config/maps-key', requireAuth, (req, res) => {
@@ -105,6 +106,7 @@ const PAGE_PERMS = {
   'dispatch-pool':  'page_dispatch_pool',
   marketing:        'page_marketing',
   hr:               'page_hr',
+  contracts:        'manage_users',
 };
 
 function requirePagePerm(page) {
@@ -148,19 +150,25 @@ function requirePagePerm(page) {
   };
 }
 
-// 合約簽署頁（已登入但未簽約才可進入）
+// 合約簽署頁（已登入員工）
 app.get('/contract', requireAuth, (req, res) => {
-  if (req.session.user.contract_signed_at) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'public', 'contract.html'));
 });
 
 function requireContract(req, res, next) {
   const u = req.session?.user;
-  if (u && !u.contract_signed_at) return res.redirect('/contract');
+  if (!u) return next();
+  const pending = db.prepare(`
+    SELECT COUNT(*) as cnt FROM contract_assignments ca
+    LEFT JOIN contract_signatures cs ON cs.contract_id=ca.contract_id AND cs.user_id=ca.user_id
+    JOIN contracts c ON c.id=ca.contract_id AND c.active=1
+    WHERE ca.user_id=? AND cs.id IS NULL
+  `).get(u.id);
+  if (pending?.cnt > 0) return res.redirect('/contract');
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;

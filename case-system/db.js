@@ -1838,4 +1838,44 @@ _addCol('cases', 'survey_fee_credited', 'INTEGER DEFAULT 0');
 _addCol('cases', 'line_official_name', 'TEXT');
 _addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
 
+// ── 合約管理系統 ──────────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS contracts (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    title         TEXT NOT NULL,
+    description   TEXT,
+    content       TEXT,
+    filename      TEXT,
+    original_name TEXT,
+    active        INTEGER DEFAULT 1,
+    created_by    INTEGER REFERENCES users(id),
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+_addCol('contracts', 'content', 'TEXT');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS contract_assignments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    assigned_by INTEGER REFERENCES users(id),
+    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    notified_at DATETIME,
+    UNIQUE(contract_id, user_id)
+  );
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS contract_signatures (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    signed_name TEXT NOT NULL,
+    signature   TEXT,
+    signed_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ip_address  TEXT,
+    UNIQUE(contract_id, user_id)
+  );
+`);
+_addCol('contract_signatures', 'signature', 'TEXT');
+
 module.exports = db;

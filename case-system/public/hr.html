@@ -334,6 +334,7 @@ function renderEmpDetail(emp) {
       <div class="hr-tab" data-tab="leave" onclick="switchTab(this,'leave')">特休管理</div>
       <div class="hr-tab" data-tab="requests" onclick="switchTab(this,'requests')">請假紀錄</div>
       <div class="hr-tab" data-tab="attendance" onclick="switchTab(this,'attendance')">出勤紀錄</div>
+      <div class="hr-tab" data-tab="contracts" onclick="switchTab(this,'contracts');loadEmpContracts(${emp.id})">合約簽署</div>
     </div>
 
     <!-- 基本資料 -->
@@ -420,14 +421,44 @@ function renderEmpDetail(emp) {
         </tbody>
       </table>` : '<p style="color:#9ca3af;font-size:13px">打卡系統尚未啟用，暫無出勤紀錄</p>'}
     </div>
+
+    <!-- 合約簽署紀錄 -->
+    <div id="tab-contracts" style="display:none">
+      <div id="empContractList" style="color:#9ca3af;font-size:13px;padding:8px 0">載入中…</div>
+    </div>
   `;
   detail.appendChild(div);
+}
+
+async function loadEmpContracts(userId) {
+  const el = document.getElementById('empContractList');
+  if (!el) return;
+  el.textContent = '載入中…';
+  const r = await fetch(`/api/contracts/user/${userId}/signed`);
+  if (!r.ok) { el.textContent = '無法載入'; return; }
+  const rows = await r.json();
+  if (!rows.length) {
+    el.innerHTML = '<p style="color:#9ca3af;font-size:13px">尚未簽署任何合約</p>';
+    return;
+  }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:#f8fafc">
+      <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">合約名稱</th>
+      <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">簽署姓名</th>
+      <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">簽署時間</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td style="padding:9px 12px;border-bottom:1px solid #f3f4f6">${r.title}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #f3f4f6">${r.signed_name}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #f3f4f6">${(r.signed_at||'').slice(0,16).replace('T',' ')}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
 }
 
 function switchTab(el, tab) {
   document.querySelectorAll('.hr-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['basic','leave','requests','attendance'].forEach(t => {
+  ['basic','leave','requests','attendance','contracts'].forEach(t => {
     const p = document.getElementById('tab-'+t);
     if (p) p.style.display = t === tab ? '' : 'none';
   });

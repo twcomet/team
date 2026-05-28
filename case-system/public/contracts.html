@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合約管理</title>
+<link rel="stylesheet" href="/css/style.css">
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+.cm-layout { display:flex; gap:0; height:calc(100vh - 56px); overflow:hidden; }
+.cm-list { width:280px; min-width:240px; border-right:1px solid var(--gray-200); display:flex; flex-direction:column; background:#fff; flex-shrink:0; }
+.cm-list-header { padding:14px 16px; border-bottom:1px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; }
+.cm-list-title { font-size:15px; font-weight:700; color:var(--gray-900); }
+.cm-list-body { flex:1; overflow-y:auto; }
+.cm-item { padding:14px 16px; cursor:pointer; border-bottom:1px solid var(--gray-100); }
+.cm-item:hover { background:#f8fafc; }
+.cm-item.active { background:#dbeafe; border-left:3px solid var(--primary); }
+.cm-item-title { font-size:14px; font-weight:600; color:var(--gray-900); margin-bottom:4px; line-height:1.4; }
+.cm-item-meta { font-size:12px; color:var(--gray-500); display:flex; gap:8px; flex-wrap:wrap; }
+.cm-item-badge { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:10px; font-size:11px; font-weight:600; }
+.badge-green  { background:#dcfce7; color:#16a34a; }
+.badge-yellow { background:#fef9c3; color:#92400e; }
+.badge-red    { background:#fee2e2; color:#b91c1c; }
+.cm-detail { flex:1; overflow-y:auto; padding:24px; }
+.cm-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--gray-400); gap:12px; }
+.cm-empty-icon { font-size:48px; }
+
+.cm-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px 24px; margin-bottom:20px; }
+.cm-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
+.cm-card-title { font-size:18px; font-weight:700; color:var(--gray-900); }
+.cm-card-meta { font-size:12px; color:var(--gray-500); margin-top:6px; display:flex; gap:16px; flex-wrap:wrap; }
+
+.cm-tabs { display:flex; gap:4px; border-bottom:2px solid var(--gray-200); margin-bottom:20px; }
+.cm-tab { padding:8px 18px; font-size:13px; font-weight:600; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+.cm-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+
+/* 編輯區 */
+.edit-section { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.edit-title { font-size:14px; font-weight:700; margin-bottom:14px; color:var(--gray-800); }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--gray-700); }
+.form-group input, .form-group textarea { width:100%; padding:9px 12px; border:1.5px solid var(--gray-300); border-radius:8px; font-size:14px; outline:none; transition:border-color .15s; }
+.form-group input:focus, .form-group textarea:focus { border-color:var(--primary); }
+.quill-wrap { border:1.5px solid var(--gray-300); border-radius:8px; overflow:hidden; }
+.quill-wrap .ql-toolbar { border:none; border-bottom:1.5px solid var(--gray-200); }
+.quill-wrap .ql-container { border:none; font-size:14px; min-height:320px; }
+.pdf-upload-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pdf-upload-badge { font-size:12px; color:var(--gray-600); background:#f3f4f6; padding:3px 10px; border-radius:8px; }
+.pdf-upload-note { font-size:11px; color:var(--gray-400); }
+
+/* 指派區 */
+.assign-section { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px 24px; margin-bottom:16px; }
+.assign-title { font-size:14px; font-weight:700; margin-bottom:14px; color:var(--gray-800); }
+.role-select-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.role-chip { padding:5px 12px; border-radius:20px; border:1.5px solid var(--gray-300); font-size:12px; font-weight:600; cursor:pointer; color:var(--gray-600); transition:all .15s; user-select:none; }
+.role-chip.selected { border-color:var(--primary); background:#dbeafe; color:var(--primary); }
+.people-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; margin-bottom:16px; max-height:200px; overflow-y:auto; padding:2px; }
+.people-chip { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; border:1.5px solid var(--gray-200); font-size:13px; cursor:pointer; transition:all .15s; }
+.people-chip:hover { border-color:var(--primary); }
+.people-chip.checked { border-color:var(--primary); background:#dbeafe; }
+.people-chip input { margin:0; cursor:pointer; }
+.people-chip-name { font-weight:600; color:var(--gray-800); }
+.people-chip-role { font-size:11px; color:var(--gray-500); }
+.people-chip.already-signed .people-chip-name { color:var(--gray-400); text-decoration:line-through; }
+.assign-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+/* 簽署狀態表 */
+.status-table { width:100%; border-collapse:collapse; font-size:13px; }
+.status-table th { background:#f8fafc; padding:8px 12px; text-align:left; font-weight:600; color:var(--gray-600); border-bottom:2px solid var(--gray-200); white-space:nowrap; }
+.status-table td { padding:9px 12px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+.status-table tr:last-child td { border-bottom:none; }
+.sign-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+
+/* modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#fff; border-radius:16px; padding:28px; width:100%; max-width:500px; box-shadow:0 8px 32px rgba(0,0,0,.18); max-height:90vh; overflow-y:auto; }
+.modal-title { font-size:17px; font-weight:700; margin-bottom:20px; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.file-drop { border:2px dashed var(--gray-300); border-radius:10px; padding:16px; text-align:center; cursor:pointer; transition:border-color .15s; }
+.file-drop:hover, .file-drop.drag { border-color:var(--primary); background:#f0f7ff; }
+.file-drop-icon { font-size:24px; }
+.file-drop-text { font-size:13px; color:var(--gray-600); margin-top:4px; }
+.file-drop-name { font-size:13px; font-weight:600; color:var(--primary); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="/images/logo.png" alt="Logo" onerror="this.style.display='none'"><span class="logo-text">繪新管理系統</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+      <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+      <a class="nav-item" data-page="hr"             href="/hr">             <span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts">      <span class="icon">📋</span>合約管理</a>
+      <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"          href="/guide">          <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <main class="main-content" style="padding:0;overflow:hidden;">
+    <div class="topbar">
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <div class="topbar-title">合約管理</div>
+    </div>
+
+    <div class="cm-layout">
+      <div class="cm-list">
+        <div class="cm-list-header">
+          <span class="cm-list-title">合約清單</span>
+          <button class="btn btn-primary btn-sm" onclick="openCreateModal()">＋ 新增</button>
+        </div>
+        <div class="cm-list-body" id="contractList">
+          <div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px;">載入中…</div>
+        </div>
+      </div>
+
+      <div class="cm-detail" id="cmDetail">
+        <div class="cm-empty">
+          <div class="cm-empty-icon">📋</div>
+          <div>請選擇合約查看詳情</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 新增合約 modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal-box">
+    <div class="modal-title" id="createModalTitle">新增合約</div>
+    <div class="form-group">
+      <label>合約名稱 <span style="color:#ef4444">*</span></label>
+      <input type="text" id="cTitle" placeholder="例：正職員工聘僱合約">
+    </div>
+    <div class="form-group">
+      <label>說明（選填）</label>
+      <input type="text" id="cDesc" placeholder="補充說明此合約用途">
+    </div>
+    <div class="form-group">
+      <label>合約內文 <span style="font-size:11px;color:var(--gray-400)">（可貼上文字後在此編輯）</span></label>
+      <div class="quill-wrap"><div id="quillCreate" style="min-height:200px"></div></div>
+    </div>
+    <div class="form-group">
+      <label>PDF 附件（選填，僅管理員可查看）</label>
+      <div class="file-drop" id="cFileDrop" onclick="document.getElementById('cFileInput').click()">
+        <div class="file-drop-icon">📎</div>
+        <div class="file-drop-text">點擊或拖曳 PDF（選填）</div>
+        <div class="file-drop-name" id="cFileDropName" style="display:none"></div>
+      </div>
+      <input type="file" id="cFileInput" accept=".pdf,application/pdf" style="display:none" onchange="handleFile(this,'cFileDropName')">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('createModal')">取消</button>
+      <button class="btn btn-primary" id="createBtn" onclick="doCreate()">建立合約</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="/js/common.js"></script>
+<script>
+const ROLE_LABELS = {
+  owner:'最高管理員', hq_cs:'客服', hq_sales:'業務', hq_tech:'技術',
+  hq_accounting:'會計', hq_hr:'人事', branch_manager:'分店主管',
+  branch_sales:'分店業務', branch_tech:'分店技術',
+  contractor_install:'約聘施工', contractor_sales:'約聘業務', dealer:'經銷商',
+};
+const ROLE_GROUPS = [
+  { label:'管理層',   roles:['owner','hq_hr','hq_accounting'] },
+  { label:'客服',     roles:['hq_cs'] },
+  { label:'業務',     roles:['hq_sales','branch_sales','contractor_sales'] },
+  { label:'技術',     roles:['hq_tech','branch_tech','contractor_install'] },
+  { label:'分店主管', roles:['branch_manager'] },
+  { label:'經銷商',   roles:['dealer'] },
+];
+
+let allContracts = [];
+let allUsers = [];
+let currentId = null;
+let currentTab = 'edit';
+let selectedRoles = new Set();
+let checkedUsers = new Set();
+let selectedFile = null;
+let quillCreate = null;
+let quillEdit = null;
+
+async function init() {
+  initCommon();
+  highlightNav('contracts');
+
+  quillCreate = new Quill('#quillCreate', {
+    theme: 'snow',
+    placeholder: '在此輸入或貼上合約內容…',
+    modules: { toolbar: [
+      [{ header: [1,2,3,false] }],
+      ['bold','italic','underline'],
+      [{ list:'ordered'},{list:'bullet'}],
+      ['clean'],
+    ]},
+  });
+
+  await Promise.all([loadContracts(), loadUsers()]);
+}
+
+async function loadContracts() {
+  const r = await fetch('/api/contracts');
+  if (!r.ok) return;
+  allContracts = await r.json();
+  renderList();
+}
+
+async function loadUsers() {
+  const r = await fetch('/api/users?active=1');
+  if (!r.ok) return;
+  allUsers = (await r.json()).filter(u => u.active);
+}
+
+function renderList() {
+  const el = document.getElementById('contractList');
+  const active = allContracts.filter(c => c.active);
+  if (!active.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">尚無合約，請點擊右上角新增</div>';
+    return;
+  }
+  el.innerHTML = active.map(c => {
+    const signed = c.sign_count || 0;
+    const total  = c.assign_count || 0;
+    const badgeClass = total === 0 ? 'badge-yellow' : (signed === total ? 'badge-green' : 'badge-red');
+    const badgeText  = total === 0 ? '未指派' : `${signed}/${total} 已簽`;
+    return `<div class="cm-item${c.id === currentId ? ' active':''}" onclick="selectContract(${c.id})">
+      <div class="cm-item-title">${esc(c.title)}</div>
+      <div class="cm-item-meta">
+        <span class="cm-item-badge ${badgeClass}">${badgeText}</span>
+        <span>${fmtDate(c.created_at)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectContract(id) {
+  currentId = id;
+  currentTab = 'edit';
+  selectedRoles = new Set();
+  checkedUsers = new Set();
+  renderList();
+  await loadDetail();
+}
+
+async function loadDetail() {
+  const contract = allContracts.find(c => c.id === currentId);
+  if (!contract) return;
+  const r = await fetch(`/api/contracts/${currentId}/status`);
+  const data = r.ok ? await r.json() : { contract, assignments:[] };
+  renderDetail(data);
+}
+
+function renderDetail(data) {
+  const c = data.contract;
+  const assignments = data.assignments || [];
+  const unsigned = assignments.filter(a => !a.signed_at);
+
+  document.getElementById('cmDetail').innerHTML = `
+    <div class="cm-card">
+      <div class="cm-card-header">
+        <div>
+          <div class="cm-card-title">${esc(c.title)}</div>
+          <div class="cm-card-meta">
+            <span>建立：${fmtDate(c.created_at)}</span>
+            <span>指派 ${c.assign_count||0} 人，已簽 ${c.sign_count||0} 人</span>
+            ${c.filename ? `<a href="/api/contracts/${c.id}/file" target="_blank" style="color:var(--primary);font-size:12px">查看 PDF 附件</a>` : ''}
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="color:#ef4444;flex-shrink:0" onclick="deleteContract(${c.id})">停用</button>
+      </div>
+    </div>
+
+    <div class="cm-tabs">
+      <div class="cm-tab${currentTab==='edit'?' active':''}" onclick="switchTab('edit')">合約內容</div>
+      <div class="cm-tab${currentTab==='assign'?' active':''}" onclick="switchTab('assign')">指派與發送</div>
+      <div class="cm-tab${currentTab==='status'?' active':''}" onclick="switchTab('status')">
+        簽署狀態
+        ${unsigned.length ? `<span style="background:#ef4444;color:#fff;border-radius:20px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px">${unsigned.length}</span>` : ''}
+      </div>
+    </div>
+
+    <div id="tabEdit"   style="display:${currentTab==='edit'?'':'none'}">
+      ${renderEditTab(c)}
+    </div>
+    <div id="tabAssign" style="display:${currentTab==='assign'?'':'none'}">
+      ${renderAssignTab(c, assignments)}
+    </div>
+    <div id="tabStatus" style="display:${currentTab==='status'?'':'none'}">
+      ${renderStatusTab(assignments)}
+    </div>
+  `;
+
+  // 初始化編輯 Quill（在 tabEdit 內）
+  if (document.getElementById('quillEdit')) {
+    quillEdit = new Quill('#quillEdit', {
+      theme: 'snow',
+      modules: { toolbar: [
+        [{ header:[1,2,3,false] }],
+        ['bold','italic','underline'],
+        [{ list:'ordered' },{list:'bullet'}],
+        ['clean'],
+      ]},
+    });
+    if (c.content) quillEdit.root.innerHTML = c.content;
+  }
+
+  // 指派 checkbox 事件
+  document.querySelectorAll('.people-chip input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const uid = Number(e.target.value);
+      if (e.target.checked) checkedUsers.add(uid);
+      else checkedUsers.delete(uid);
+      updateAssignBtn();
+    });
+  });
+  updateAssignBtn();
+}
+
+function renderEditTab(c) {
+  return `
+    <div class="edit-section">
+      <div class="form-group">
+        <label>合約名稱</label>
+        <input type="text" id="editTitle" value="${esc(c.title)}">
+      </div>
+      <div class="form-group">
+        <label>說明</label>
+        <input type="text" id="editDesc" value="${esc(c.description||'')}">
+      </div>
+      <div class="form-group">
+        <label>合約內文</label>
+        <div class="quill-wrap"><div id="quillEdit" style="min-height:320px"></div></div>
+      </div>
+      <div class="form-group">
+        <label>PDF 附件（選填，僅管理員可查看）</label>
+        <div class="pdf-upload-row">
+          ${c.filename
+            ? `<span class="pdf-upload-badge">📎 ${esc(c.original_name||c.filename)}</span><a href="/api/contracts/${c.id}/file" target="_blank" class="btn btn-ghost btn-sm">預覽</a>`
+            : '<span style="font-size:13px;color:var(--gray-400)">尚未上傳 PDF</span>'
+          }
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">
+            ${c.filename?'替換 PDF':'上傳 PDF'}
+            <input type="file" id="editFileInput" accept=".pdf,application/pdf" style="display:none" onchange="handleFile(this,'editFileName')">
+          </label>
+          <span id="editFileName" style="font-size:12px;color:var(--primary)"></span>
+        </div>
+        <div class="pdf-upload-note" style="margin-top:6px">PDF 僅管理員可看，員工只看到上方的文字內容</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:4px">
+        <button class="btn btn-primary" onclick="doSaveContent()">儲存合約內容</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAssignTab(c, assignments) {
+  const assignedIds = new Set(assignments.map(a => a.user_id));
+  const signedIds   = new Set(assignments.filter(a => a.signed_at).map(a => a.user_id));
+
+  const filteredUsers = selectedRoles.size === 0
+    ? allUsers
+    : allUsers.filter(u => selectedRoles.has(u.role));
+
+  // 預設勾選：已指派未簽署者
+  if (checkedUsers.size === 0) {
+    assignments.filter(a => !a.signed_at).forEach(a => checkedUsers.add(a.user_id));
+  }
+
+  const peopleHtml = filteredUsers.map(u => {
+    const alreadySigned = signedIds.has(u.id);
+    const isChecked = checkedUsers.has(u.id);
+    return `<label class="people-chip${alreadySigned?' already-signed':''}${isChecked&&!alreadySigned?' checked':''}">
+      <input type="checkbox" value="${u.id}" ${isChecked||alreadySigned?'checked':''} ${alreadySigned?'disabled':''}>
+      <div>
+        <div class="people-chip-name">${esc(u.name)}</div>
+        <div class="people-chip-role">${ROLE_LABELS[u.role]||u.role}</div>
+      </div>
+    </label>`;
+  }).join('');
+
+  const roleChips = ROLE_GROUPS.map(g => {
+    const active = g.roles.some(r => selectedRoles.has(r));
+    return `<span class="role-chip${active?' selected':''}" onclick="toggleRoleGroup(${JSON.stringify(g.roles)})">${g.label}</span>`;
+  }).join('');
+
+  return `
+    <div class="assign-section">
+      <div class="assign-title">依職位篩選</div>
+      <div class="role-select-row">${roleChips}</div>
+      <div class="assign-title">選擇人員（劃線者已完成簽署）</div>
+      <div class="people-list">${peopleHtml || '<div style="color:var(--gray-400);font-size:13px;padding:8px">此職位無成員</div>'}</div>
+      <div class="assign-actions">
+        <button class="btn btn-primary btn-sm" id="assignSendBtn" onclick="doAssignAndNotify()">指派並發送通知</button>
+        <button class="btn btn-ghost btn-sm" onclick="doNotifyOnly()">只補發通知（未簽者）</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderStatusTab(assignments) {
+  if (!assignments.length) return '<div style="color:var(--gray-400);font-size:14px;padding:16px 0">尚無指派紀錄</div>';
+  const rows = assignments.map(a => `<tr>
+    <td><strong>${esc(a.name)}</strong></td>
+    <td>${ROLE_LABELS[a.role]||a.role}</td>
+    <td>${fmtDate(a.assigned_at)}</td>
+    <td>${a.signed_at ? '<span class="sign-badge badge-green">✓ 已簽署</span>' : '<span class="sign-badge badge-red">未簽</span>'}</td>
+    <td>${fmtDateTime(a.signed_at)}</td>
+    <td>${a.signed_name||'—'}</td>
+    <td>${!a.signed_at ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="removeAssign(${a.user_id})">移除</button>` : ''}</td>
+  </tr>`).join('');
+  return `<table class="status-table">
+    <thead><tr><th>姓名</th><th>職位</th><th>指派時間</th><th>狀態</th><th>簽署時間</th><th>簽署姓名</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  ['edit','assign','status'].forEach(t => {
+    const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.cm-tab').forEach((el, i) => {
+    el.classList.toggle('active', ['edit','assign','status'][i] === tab);
+  });
+}
+
+function toggleRoleGroup(roles) {
+  const allIn = roles.every(r => selectedRoles.has(r));
+  if (allIn) roles.forEach(r => selectedRoles.delete(r));
+  else roles.forEach(r => selectedRoles.add(r));
+  checkedUsers.clear();
+  loadDetail();
+}
+
+function updateAssignBtn() {
+  const btn = document.getElementById('assignSendBtn');
+  if (!btn) return;
+  const count = checkedUsers.size;
+  btn.textContent = count ? `指派並發送通知（${count} 人）` : '指派並發送通知';
+}
+
+// ── 儲存合約內容 ──────────────────────────────────────────────
+async function doSaveContent() {
+  const title   = document.getElementById('editTitle')?.value?.trim();
+  const desc    = document.getElementById('editDesc')?.value?.trim();
+  const content = quillEdit ? quillEdit.root.innerHTML : '';
+  const fileInput = document.getElementById('editFileInput');
+
+  if (!title) { showToast('請填寫合約名稱', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', desc || '');
+  fd.append('content', content);
+  if (fileInput?.files?.[0]) fd.append('file', fileInput.files[0]);
+
+  const r = await fetch(`/api/contracts/${currentId}`, { method:'PUT', body: fd });
+  if (!r.ok) { showToast('儲存失敗', 'error'); return; }
+  showToast('合約內容已儲存', 'success');
+  await loadContracts();
+  await loadDetail();
+}
+
+// ── 指派與通知 ────────────────────────────────────────────────
+async function doAssignAndNotify() {
+  const ids = [...checkedUsers];
+  if (!ids.length) { showToast('請選擇人員', 'error'); return; }
+
+  const r1 = await fetch(`/api/contracts/${currentId}/assign`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ user_ids: ids }),
+  });
+  if (!r1.ok) { showToast('指派失敗', 'error'); return; }
+  const d1 = await r1.json();
+
+  const r2 = await fetch(`/api/contracts/${currentId}/notify`, { method:'POST' });
+  const d2 = r2.ok ? await r2.json() : {};
+
+  showToast(`新增指派 ${d1.added} 人，發送通知 ${d2.notified||0} 人`, 'success');
+  checkedUsers.clear();
+  await loadContracts();
+  await loadDetail();
+}
+
+async function doNotifyOnly() {
+  const r = await fetch(`/api/contracts/${currentId}/notify`, { method:'POST' });
+  if (!r.ok) { showToast('發送失敗', 'error'); return; }
+  const d = await r.json();
+  showToast(`已發送通知給 ${d.notified} 位未簽者`, 'success');
+}
+
+async function removeAssign(userId) {
+  if (!confirm('確定要移除此人的指派？')) return;
+  const r = await fetch(`/api/contracts/${currentId}/assign/${userId}`, { method:'DELETE' });
+  if (!r.ok) { showToast('移除失敗', 'error'); return; }
+  showToast('已移除', 'success');
+  await loadContracts();
+  await loadDetail();
+}
+
+async function deleteContract(id) {
+  if (!confirm('確定要停用這份合約？（已有的簽署紀錄不會消失）')) return;
+  const r = await fetch(`/api/contracts/${id}`, { method:'DELETE' });
+  if (!r.ok) { showToast('操作失敗', 'error'); return; }
+  currentId = null;
+  document.getElementById('cmDetail').innerHTML = '<div class="cm-empty"><div class="cm-empty-icon">📋</div><div>請選擇合約查看詳情</div></div>';
+  showToast('合約已停用', 'success');
+  await loadContracts();
+}
+
+// ── 新增合約 modal ────────────────────────────────────────────
+function openCreateModal() {
+  selectedFile = null;
+  document.getElementById('cTitle').value = '';
+  document.getElementById('cDesc').value = '';
+  document.getElementById('cFileDropName').style.display = 'none';
+  quillCreate.root.innerHTML = '';
+  document.getElementById('createModal').classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function handleFile(input, nameId) {
+  const f = input.files[0];
+  if (!f) return;
+  if (input.id === 'cFileInput') selectedFile = f;
+  const el = document.getElementById(nameId);
+  if (el) { el.textContent = f.name; el.style.display = 'block'; }
+}
+
+const cDrop = document.getElementById('cFileDrop');
+cDrop.addEventListener('dragover', e => { e.preventDefault(); cDrop.classList.add('drag'); });
+cDrop.addEventListener('dragleave', () => cDrop.classList.remove('drag'));
+cDrop.addEventListener('drop', e => {
+  e.preventDefault(); cDrop.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f?.type === 'application/pdf') {
+    selectedFile = f;
+    const el = document.getElementById('cFileDropName');
+    el.textContent = f.name; el.style.display = 'block';
+  } else showToast('請選擇 PDF 檔案', 'error');
+});
+
+async function doCreate() {
+  const title   = document.getElementById('cTitle').value.trim();
+  const desc    = document.getElementById('cDesc').value.trim();
+  const content = quillCreate.root.innerHTML;
+  const isEmpty = quillCreate.getText().trim().length === 0;
+
+  if (!title) { showToast('請填寫合約名稱', 'error'); return; }
+  if (isEmpty && !selectedFile) { showToast('請輸入合約內容或上傳 PDF', 'error'); return; }
+
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true; btn.textContent = '建立中…';
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', desc);
+  fd.append('content', isEmpty ? '' : content);
+  if (selectedFile) fd.append('file', selectedFile);
+
+  const r = await fetch('/api/contracts', { method:'POST', body: fd });
+  btn.disabled = false; btn.textContent = '建立合約';
+
+  if (!r.ok) { const d = await r.json(); showToast(d.error||'建立失敗', 'error'); return; }
+  const d = await r.json();
+  closeModal('createModal');
+  showToast('合約已建立', 'success');
+  await loadContracts();
+  selectContract(d.id);
+}
+
+document.getElementById('createModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('createModal')) closeModal('createModal');
+});
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(s) { return s ? s.slice(0,10) : '—'; }
+function fmtDateTime(s) { return s ? s.slice(0,16).replace('T',' ') : '—'; }
+
+init();
+</script>
+</body>
+</html>
