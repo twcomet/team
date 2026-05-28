@@ -45,6 +45,16 @@ function nowTimeTW() {
   return new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }).slice(0, 5);
 }
 
+// 允許打卡的時段設定
+const CLOCKIN_WINDOWS = [
+  { label: '早班',     start: '06:30', end: '12:00', shiftStart: '09:00', lateAfter: '09:01' },
+  { label: '下午時段', start: '13:00', end: '14:00', shiftStart: '13:00', lateAfter: '13:01' },
+];
+
+function getClockInWindow(now) {
+  return CLOCKIN_WINDOWS.find(w => now >= w.start && now <= w.end) || null;
+}
+
 // ── 打卡（上班）────────────────────────────────────────────────
 router.post('/clockin', async (req, res) => {
   const emp = await getEmployee(req);
@@ -56,6 +66,16 @@ router.post('/clockin', async (req, res) => {
 
   const today = todayTW();
   const now   = nowTimeTW();
+
+  // 打卡時段檢查
+  const window = getClockInWindow(now);
+  if (!window) {
+    const windowList = CLOCKIN_WINDOWS.map(w => `${w.label} ${w.start}–${w.end}`).join('、');
+    return res.status(400).json({
+      error: 'Outside allowed hours',
+      message: `目前不在打卡時段內。\n允許時段：${windowList}`,
+    });
+  }
 
   // 今天已打卡
   const existing = db.prepare(`SELECT * FROM attendance WHERE user_id=? AND work_date=?`).get(emp.id, today);
@@ -94,8 +114,8 @@ router.post('/clockin', async (req, res) => {
     });
   }
 
-  const isLate  = now >= '09:01';
-  const workStart = isLate ? now : '09:00';
+  const isLate    = now >= window.lateAfter;
+  const workStart = isLate ? now : window.shiftStart;
 
   if (existing) {
     db.prepare(`UPDATE attendance SET clock_in=?, work_start=?, is_late=?, clock_in_lat=?, clock_in_lng=?, location_type=? WHERE id=?`)
