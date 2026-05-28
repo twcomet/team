@@ -170,6 +170,18 @@
         <div class="tab" data-tab="outsource" data-groups="deal" data-need="manage_users">派案設定</div>
       </div>
 
+      <!-- 轉換階段橫幅（所有 tab 可見） -->
+      <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:14px 18px;border-radius:10px;margin-top:8px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="saveBasicBtnBanner">儲存</button>
+          <div>
+            <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
+            <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="convertBannerBtns"></div>
+      </div>
+
       <!-- 基本資訊 -->
       <div class="tab-pane active" id="tab-basic">
 
@@ -321,17 +333,6 @@
           </div>
         </div>
 
-        <!-- 儲存 ＋ 轉換階段橫幅（詢價/場勘時顯示） -->
-        <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:14px 18px;border-radius:10px;margin-top:8px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:12px">
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <button class="btn btn-primary" id="saveBasicBtnBanner">儲存</button>
-            <div>
-              <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
-              <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap" id="convertBannerBtns"></div>
-        </div>
       </div>
 
       <!-- 初步估價紀錄 -->
