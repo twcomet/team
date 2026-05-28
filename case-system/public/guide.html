@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統使用說明 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.guide-wrap { max-width: 860px; }
+.guide-section { background:#fff; border:1px solid var(--gray-200); border-radius:14px; padding:28px 32px; margin-bottom:24px; }
+.guide-section h2 { font-size:18px; font-weight:700; color:var(--gray-900); margin:0 0 6px; display:flex; align-items:center; gap:8px; }
+.guide-section .subtitle { font-size:13px; color:var(--gray-500); margin:0 0 20px; }
+.guide-section h3 { font-size:14px; font-weight:700; color:var(--gray-700); margin:20px 0 8px; }
+.flow-bar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:12px 0 20px; }
+.flow-pill { background:var(--primary-light,#fff0f6); color:var(--primary); border:1px solid var(--primary); border-radius:999px; padding:4px 14px; font-size:13px; font-weight:600; white-space:nowrap; }
+.flow-arrow { color:var(--gray-400); font-size:16px; }
+.guide-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+.guide-table th { background:var(--gray-50); color:var(--gray-600); font-weight:600; padding:8px 12px; text-align:left; border-bottom:2px solid var(--gray-200); }
+.guide-table td { padding:9px 12px; border-bottom:1px solid var(--gray-100); color:var(--gray-800); vertical-align:top; }
+.guide-table tr:last-child td { border-bottom:none; }
+.guide-table td:first-child { font-weight:600; white-space:nowrap; color:var(--primary); }
+.btn-demo { display:inline-block; padding:3px 12px; border-radius:6px; font-size:12px; font-weight:600; margin:2px 3px 2px 0; }
+.btn-demo.orange { background:#f97316; color:#fff; }
+.btn-demo.red    { background:#ef4444; color:#fff; }
+.btn-demo.gray   { background:#6b7280; color:#fff; }
+.btn-demo.blue   { background:#3b82f6; color:#fff; }
+.btn-demo.green  { background:#10b981; color:#fff; }
+.tip-box { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 16px; font-size:13px; color:#78350f; margin:12px 0; }
+.tip-box strong { color:#92400e; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <img src="/logo.png" alt="logo" style="height:36px">
+      <div class="sidebar-brand">繪新管理系統</div>
+    </div>
+    <div class="sidebar-user">
+      <div id="sidebarUserName" class="sidebar-user-name">—</div>
+      <div id="sidebarUserRole" class="sidebar-user-role">—</div>
+      <div id="sidebarOrgName"  class="sidebar-org-name">—</div>
+    </div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr"             href="/hr">             <span class="icon">👤</span>人事資料管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+        <a class="nav-item" data-page="guide"          href="/guide">          <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin" href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+  </aside>
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">系統使用說明</h1>
+      <p class="page-subtitle" style="color:var(--gray-500);font-size:13px;margin:4px 0 0">瞭解各頁面功能與案件流程</p>
+    </div>
+
+    <div class="guide-wrap">
+
+      <!-- 整體流程 -->
+      <div class="guide-section">
+        <h2>📌 整體流程概覽</h2>
+        <p class="subtitle">每個案件依照以下順序流轉，並有唯一的案件編號（格式：HX年月-序號，例如 HX2605-001）</p>
+        <div class="flow-bar">
+          <span class="flow-pill">💬 LINE 詢問</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">📝 詢價階段</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">🔍 場勘階段</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">✅ 成交階段</span>
+        </div>
+        <div class="tip-box">
+          <strong>重要：</strong>每個階段的案件分別在不同頁面管理。狀態會決定案件出現在哪個頁面，推進後就會移到下一個頁面。
+        </div>
+      </div>
+
+      <!-- LINE OA 詢問 -->
+      <div class="guide-section">
+        <h2>💬 LINE OA 詢問管理</h2>
+        <p class="subtitle">接收客戶透過 LINE 官方帳號傳來的諮詢訊息，是案件的起點。</p>
+
+        <h3>詢問狀態</h3>
+        <table class="guide-table">
+          <tr><th>狀態</th><th>說明</th></tr>
+          <tr><td>新詢問</td><td>客戶剛傳訊息，還未有人處理</td></tr>
+          <tr><td>進行中</td><td>已有人員回應或跟進中</td></tr>
+          <tr><td>已轉案</td><td>已建立正式案件，進入詢價流程</td></tr>
+          <tr><td>無效</td><td>客戶無意願，不繼續跟進</td></tr>
+          <tr><td>隱藏</td><td>暫時隱藏，不顯示在列表</td></tr>
+        </table>
+
+        <h3>主要操作</h3>
+        <table class="guide-table">
+          <tr><th>按鈕 / 功能</th><th>說明</th></tr>
+          <tr><td><span class="btn-demo green">轉為詢價案件</span></td><td>將 LINE 詢問建立成正式案件，進入「詢價管理」頁面</td></tr>
+          <tr><td><span class="btn-demo red">標為無效</span></td><td>結束此筆詢問，不再跟進</td></tr>
+          <tr><td>負責業務 / 負責客服</td><td>下拉選單指派負責人員</td></tr>
+          <tr><td>搜尋欄</td><td>可依姓名或訊息內容搜尋</td></tr>
+          <tr><td>篩選 tab</td><td>依狀態篩選：全部 / 新詢問 / 進行中 / 已轉案 / 無效</td></tr>
+        </table>
+      </div>
+
+      <!-- 詢價管理 -->
+      <div class="guide-section">
+        <h2>📝 詢價管理</h2>
+        <p class="subtitle">管理初步報價階段的案件，尚未安排正式場勘。</p>
+
+        <h3>狀態流程</h3>
+        <div class="flow-bar">
+          <span class="flow-pill">詢價需初步估價</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">已初步估價</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">轉場勘 或 標無效</span>
+        </div>
+
+        <h3>主要操作</h3>
+        <table class="guide-table">
+          <tr><th>按鈕 / 功能</th><th>說明</th></tr>
+          <tr><td><span class="btn-demo blue">＋ 新增案件</span></td><td>手動建立一筆新的詢價案件</td></tr>
+          <tr><td><span class="btn-demo orange">推進</span></td><td>狀態往下推一步（詢價需初步估價 → 已初步估價）</td></tr>
+          <tr><td><span class="btn-demo green">轉為場勘案件</span></td><td>案件確定進入場勘流程，移至「場勘管理」</td></tr>
+          <tr><td><span class="btn-demo red">標記無效</span></td><td>此案無法繼續，標為無效保存</td></tr>
+          <tr><td>Pipeline 狀態列</td><td>點選各階段可篩選該狀態的案件</td></tr>
+        </table>
+      </div>
+
+      <!-- 場勘管理 -->
+      <div class="guide-section">
+        <h2>🔍 場勘管理</h2>
+        <p class="subtitle">管理從安排場勘到報價完成的案件。</p>
+
+        <h3>狀態流程</h3>
+        <div class="flow-bar">
+          <span class="flow-pill">待排場勘</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">已排場勘</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">已場勘</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">已建報價資料</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">已發報價單</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">轉成交 或 標無效</span>
+        </div>
+
+        <h3>主要操作</h3>
+        <table class="guide-table">
+          <tr><th>按鈕 / 功能</th><th>說明</th></tr>
+          <tr><td><span class="btn-demo orange">推進</span></td><td>狀態往下推一步</td></tr>
+          <tr><td><span class="btn-demo green">轉為成交案件</span></td><td>客戶已同意，移至「成交案件管理」</td></tr>
+          <tr><td><span class="btn-demo red">標記無效</span></td><td>此案無法繼續</td></tr>
+        </table>
+
+        <h3>案件詳情重要欄位</h3>
+        <table class="guide-table">
+          <tr><th>欄位</th><th>說明</th></tr>
+          <tr><td>場勘日期</td><td>安排場勘的日期，填寫後會顯示在行事曆</td></tr>
+          <tr><td>場勘人員</td><td>指派負責場勘的人員</td></tr>
+          <tr><td>負責業務 / 客服</td><td>各角色指派</td></tr>
+          <tr><td>施工地點</td><td>地址，可在地圖上顯示</td></tr>
+          <tr><td>工項明細</td><td>報價品項、面積、單價，建立後可產生報價單</td></tr>
+          <tr><td>備註</td><td>內部備注，不顯示給客戶</td></tr>
+        </table>
+      </div>
+
+      <!-- 成交案件管理 -->
+      <div class="guide-section">
+        <h2>✅ 成交案件管理</h2>
+        <p class="subtitle">管理已成交、施工中、收款的案件。</p>
+
+        <h3>狀態流程</h3>
+        <div class="flow-bar">
+          <span class="flow-pill">成交派案</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">完工請款</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-pill">結案保存</span>
+        </div>
+
+        <div class="tip-box">
+          <strong>注意：</strong>收款未完成時，「結案」按鈕會是灰色無法點擊，需先確認收款狀態為「已收款」才能結案。
+        </div>
+
+        <h3>主要操作</h3>
+        <table class="guide-table">
+          <tr><th>按鈕 / 功能</th><th>說明</th></tr>
+          <tr><td><span class="btn-demo orange">推進</span></td><td>狀態往下推一步</td></tr>
+          <tr><td><span class="btn-demo green">結案</span></td><td>收款完成後才能操作，案件進入結案保存</td></tr>
+          <tr><td><span class="btn-demo red">標記無效</span></td><td>異常取消的成交案件</td></tr>
+        </table>
+
+        <h3>案件詳情重要欄位</h3>
+        <table class="guide-table">
+          <tr><th>欄位</th><th>說明</th></tr>
+          <tr><td>成交金額</td><td>最終成交價格</td></tr>
+          <tr><td>訂金 / 尾款</td><td>分次收款記錄，填寫後自動更新收款狀態</td></tr>
+          <tr><td>收款狀態</td><td>未收款 / 部分收款 / 已收款 / 逾期</td></tr>
+          <tr><td>施工日期</td><td>填寫後會顯示在「派單行事曆」</td></tr>
+          <tr><td>派工記錄</td><td>安排施工人員與時間</td></tr>
+          <tr><td>進場資訊</td><td>施工當天的現場細節（聯絡人、停車、注意事項等）</td></tr>
+          <tr><td>完工照片連結</td><td>Google 雲端資料夾連結</td></tr>
+          <tr><td>發票資料</td><td>統編、抬頭、地址、品項等</td></tr>
+        </table>
+      </div>
+
+      <!-- 案件詳情通用 -->
+      <div class="guide-section">
+        <h2>🗂️ 案件詳情頁通用功能</h2>
+        <p class="subtitle">每個案件點進去後，都有以下共用功能。</p>
+        <table class="guide-table">
+          <tr><th>功能</th><th>說明</th></tr>
+          <tr><td>狀態進度條</td><td>顯示目前在哪個階段，可點選各節點快速了解進度</td></tr>
+          <tr><td>手動改狀態</td><td>下拉選單可直接切換狀態，不需按照順序</td></tr>
+          <tr><td>客戶資料</td><td>連結到客戶管理的完整資料</td></tr>
+          <tr><td>備註</td><td>內部備注，可使用備注模板快速填寫</td></tr>
+          <tr><td>工項明細</td><td>報價品項、面積、單價計算</td></tr>
+          <tr><td>派工記錄</td><td>場勘或施工的排班，會同步顯示在行事曆</td></tr>
+          <tr><td>完工清單</td><td>施工前需確認的事項檢查清單</td></tr>
+          <tr><td>退回詢價</td><td>案件需要重新估價時，可退回詢價階段</td></tr>
+          <tr><td>刪除案件</td><td>僅管理者可操作，刪除後無法復原</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+<script src="/js/common.js"></script>
+<script>
+async function init() {
+  await loadUser();
+  highlightNav('guide');
+}
+init();
+</script>
+</body>
+</html>

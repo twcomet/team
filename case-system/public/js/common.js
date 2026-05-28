@@ -70,6 +70,7 @@ async function loadUser() {
     marketing:        p.page_marketing    !== undefined ? p.page_marketing    : mu,
     'dispatch-pool':  p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
     marketplace:      true,   // 市集所有人可見
+    guide:            true,   // 系統使用說明所有人可見
   };
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     const page = el.dataset.page;
