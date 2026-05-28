@@ -195,7 +195,10 @@ async function loadPayments() {
   if (orgId) url += `?org_id=${orgId}`;
   const res = await fetch(url);
   const all = await res.json();
-  allPayments = all.filter(c => ['contracted','dispatched','constructing','payment','closed'].includes(c.status));
+  allPayments = all.filter(c =>
+    ['contracted','dispatched','constructing','payment','closed'].includes(c.status) &&
+    c.payment_status !== 'paid'
+  );
   applyFilter();
 }
 
