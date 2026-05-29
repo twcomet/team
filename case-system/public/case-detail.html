@@ -662,6 +662,9 @@
           <button class="btn btn-secondary" id="sf_completeSurveyBtn" style="display:none;background:#059669;color:#fff;border-color:#059669">
             ✓ 標記場勘完成
           </button>
+          <button class="btn btn-ghost" id="sf_reNotifyBtn" style="display:none;border-color:#f59e0b;color:#92400e;background:#fef3c7" onclick="sf_reNotify()">
+            📲 重新派案
+          </button>
           <span id="sf_notifyBadge" style="display:none;font-size:12px;color:#059669;padding:4px 10px;background:#d1fae5;border-radius:20px"></span>
         </div>
         <!-- 分享 / 發信 -->
@@ -2453,8 +2456,28 @@ function sf_validateRequired() {
 }
 
 function sf_updateCompleteBtn() {
-  const btn = document.getElementById('sf_completeSurveyBtn');
-  btn.style.display = (caseData?.status === 'survey_scheduled') ? '' : 'none';
+  document.getElementById('sf_completeSurveyBtn').style.display =
+    (caseData?.status === 'survey_scheduled') ? '' : 'none';
+  document.getElementById('sf_reNotifyBtn').style.display =
+    (sfData?.surveyor_id) ? '' : 'none';
+}
+
+async function sf_reNotify() {
+  const btn = document.getElementById('sf_reNotifyBtn');
+  btn.disabled = true;
+  const res = await fetch(`/api/survey/cases/${caseId}/re-notify`, { method: 'POST' });
+  btn.disabled = false;
+  if (res.ok) {
+    const surveyorName = document.getElementById('sf_surveyor').selectedOptions[0]?.text || '場勘人員';
+    const badge = document.getElementById('sf_notifyBadge');
+    badge.textContent = `✅ 已重新通知 ${surveyorName}`;
+    badge.style.display = '';
+    setTimeout(() => { badge.style.display = 'none'; }, 6000);
+    showToast(`已重新通知 ${surveyorName}`);
+  } else {
+    const e = await res.json().catch(() => ({}));
+    showToast(e.error || '通知失敗', 'error');
+  }
 }
 
 function sf_updateStatus(status, signedAt, token) {

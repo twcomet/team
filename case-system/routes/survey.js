@@ -116,6 +116,21 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   res.json({ ok: true, token: form?.share_token });
 });
 
+// 重新通知場勘人員（手動觸發）
+router.post('/cases/:id/re-notify', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const form = db.prepare(`
+    SELECT sf.*, c.id AS case_id, c.case_number, c.title, c.location
+    FROM survey_forms sf JOIN cases c ON c.id = sf.case_id
+    WHERE sf.case_id = ?
+  `).get(req.params.id);
+  if (!form) return res.status(404).json({ error: '找不到場勘單' });
+  if (!form.surveyor_id) return res.status(400).json({ error: '尚未指派場勘人員' });
+  const caseData = { id: form.case_id, case_number: form.case_number, title: form.title, location: form.location };
+  notifySurveyor(form.surveyor_id, caseData, form.survey_date, form.survey_time, form.dispatch_note, me.name);
+  res.json({ ok: true });
+});
+
 // ── 公開頁面（客戶簽名用，不需登入）────────────────────────────
 // GET /api/survey/sign/:token  → 取場勘單資料（不含金額）
 router.get('/sign/:token', (req, res) => {
