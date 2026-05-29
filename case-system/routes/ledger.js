@@ -97,9 +97,10 @@ router.get('/', requireAuth, (req, res) => {
     sql += ' AND l.org_id = ?'; params.push(req.query.org_id);
   }
 
-  if (from) { sql += ' AND l.date >= ?'; params.push(from); }
-  if (to)   { sql += ' AND l.date <= ?'; params.push(to);   }
-  if (type) { sql += ' AND l.type = ?';  params.push(type); }
+  if (from)                  { sql += ' AND l.date >= ?';       params.push(from); }
+  if (to)                    { sql += ' AND l.date <= ?';       params.push(to);   }
+  if (type)                  { sql += ' AND l.type = ?';        params.push(type); }
+  if (req.query.pay_status)  { sql += ' AND l.pay_status = ?'; params.push(req.query.pay_status); }
 
   sql += ' ORDER BY l.date DESC, l.id DESC';
   res.json(db.prepare(sql).all(...params));
@@ -108,12 +109,13 @@ router.get('/', requireAuth, (req, res) => {
 // POST /api/ledger
 router.post('/', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date } = req.body;
   if (!date || !type || !category || !amount) return res.status(400).json({ error: '必填欄位不完整' });
   const r = db.prepare(`
-    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid, hidden ? 1 : 0);
+    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden, pay_status, pay_due_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid,
+         hidden ? 1 : 0, pay_status || null, pay_due_date || null);
   log(uid, 'create', 'ledger', r.lastInsertRowid, `${date} ${category} $${amount}`);
   res.json({ id: r.lastInsertRowid });
 });
@@ -121,12 +123,22 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /api/ledger/:id
 router.put('/:id', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date } = req.body;
   db.prepare(`
-    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?
+    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?
     WHERE id=?
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, hidden ? 1 : 0, req.params.id);
+  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null,
+         hidden ? 1 : 0, pay_status || null, pay_due_date || null, req.params.id);
   log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
+  res.json({ ok: true });
+});
+
+// PATCH /api/ledger/:id/pay  — 標記已付款（owner only）
+router.patch('/:id/pay', requireOwner, (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const { paid_note } = req.body;
+  db.prepare(`UPDATE ledger_entries SET pay_status='paid', paid_at=?, paid_note=? WHERE id=?`)
+    .run(today, paid_note || null, req.params.id);
   res.json({ ok: true });
 });
 

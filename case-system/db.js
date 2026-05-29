@@ -605,6 +605,10 @@ _addCol('ledger_categories', 'section',      "TEXT DEFAULT NULL");
 _addCol('ledger_categories', 'sensitive',   "INTEGER DEFAULT 0");
 _addCol('ledger_categories', 'product_line',"TEXT DEFAULT NULL");
 _addCol('ledger_entries',    'hidden',       "INTEGER DEFAULT 0");
+_addCol('ledger_entries',    'pay_status',   "TEXT DEFAULT NULL");
+_addCol('ledger_entries',    'paid_at',      "DATE DEFAULT NULL");
+_addCol('ledger_entries',    'paid_note',    "TEXT DEFAULT NULL");
+_addCol('ledger_entries',    'pay_due_date', "DATE DEFAULT NULL");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`

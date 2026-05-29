@@ -37,6 +37,15 @@
 .ledger-tab:hover:not(.active) { color:var(--gray-700); }
 .tr-income td:first-child { border-left:3px solid #057a55; }
 .tr-expense td:first-child { border-left:3px solid #e02424; }
+.tr-pending td:first-child { border-left:3px solid #d97706 !important; }
+.pending-panel { background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:14px 18px; margin-bottom:16px; }
+.pending-panel .pp-title { font-weight:600; color:#92400e; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.pending-item { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #fde68a; font-size:13px; }
+.pending-item:last-child { border-bottom:none; }
+.pending-item .pi-cat { color:var(--gray-600); flex:1; }
+.pending-item .pi-desc { color:var(--gray-400); font-size:12px; flex:2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pending-item .pi-amt { font-weight:600; color:#e02424; white-space:nowrap; }
+.pending-item .pi-date { color:var(--gray-400); font-size:12px; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -96,6 +105,17 @@
           </select>
         </span>
         <button class="btn btn-ghost btn-sm" id="clearLedgerBtn">清除篩選</button>
+      </div>
+
+      <!-- 應付帳款待付清單（老闆專用） -->
+      <div class="pending-panel" id="pendingPanel" style="display:none">
+        <div class="pp-title">
+          ⏳ 待匯款清單
+          <span id="pendingCount" style="background:#d97706;color:#fff;border-radius:20px;padding:1px 10px;font-size:12px"></span>
+          <span id="pendingTotal" style="margin-left:auto;color:#e02424;font-size:14px"></span>
+          <button class="btn btn-ghost btn-sm" id="pendingToggleBtn" onclick="togglePendingList()" style="margin-left:8px">展開</button>
+        </div>
+        <div id="pendingList" style="display:none"></div>
       </div>
 
       <div class="stats-grid" id="ledgerStats"></div>
@@ -197,6 +217,21 @@
         <label>說明</label>
         <input type="text" id="ledgerDescription" placeholder="例如：HX2605-001 尾款入帳">
       </div>
+      <div class="form-group" id="payStatusRow" style="display:none">
+        <label>付款狀態</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="payStatus" id="payStatusPaid"    value=""        checked onchange="onPayStatusChange()"> 已付款
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="payStatus" id="payStatusPending" value="pending" onchange="onPayStatusChange()"> ⏳ 待匯款
+          </label>
+        </div>
+      </div>
+      <div class="form-group" id="payDueDateRow" style="display:none">
+        <label>應付到期日 <span style="font-size:11px;color:var(--gray-400)">（待匯款時填寫，提醒老闆急迫度）</span></label>
+        <input type="date" id="ledgerPayDueDate">
+      </div>
       <div class="form-group" id="hiddenRow" style="display:none">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
           <input type="checkbox" id="ledgerHidden" style="width:16px;height:16px">
@@ -268,6 +303,34 @@
   </div>
 </div>
 
+<!-- 付款確認 Modal -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>確認付款</h3>
+      <button class="modal-close" onclick="document.getElementById('payModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="payModalInfo" style="background:var(--gray-50);padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;line-height:1.7"></div>
+      <div class="form-group">
+        <label>付款帳戶 / 方式</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <button class="btn btn-ghost btn-sm" onclick="selectPayAccount('富邦帳戶')">富邦</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPayAccount('聯邦帳戶')">聯邦</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPayAccount('台企銀帳戶')">台企銀</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPayAccount('華銀帳戶')">華銀</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPayAccount('現金')">現金</button>
+        </div>
+        <input type="text" id="payNote" placeholder="或手動輸入（例：富邦末四碼 1234）" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('payModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" style="background:#d97706;border-color:#d97706" onclick="confirmPay()">確認已付款</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
@@ -292,6 +355,7 @@ async function init() {
   updateCategoryOptions();
   populateOrgSelects();
   await loadLedger();
+  loadPendingPayments();
 
   document.getElementById('filterMonth').addEventListener('change', loadLedger);
   document.getElementById('filterOrg').addEventListener('change', loadLedger);
@@ -386,9 +450,18 @@ function renderTable(rows) {
     document.getElementById('ledgerFoot').innerHTML = '';
     return;
   }
-  tbody.innerHTML = rows.map(r => `
-    <tr class="tr-${r.type}">
-      <td style="white-space:nowrap">${fmtDate(r.date)}${r.hidden ? ' 🔒' : ''}</td>
+  const today = new Date().toISOString().slice(0, 10);
+  tbody.innerHTML = rows.map(r => {
+    const isPending = r.pay_status === 'pending';
+    const isPaid    = r.pay_status === 'paid';
+    const isOverdue = isPending && r.pay_due_date && r.pay_due_date < today;
+    return `
+    <tr class="tr-${r.type}${isPending ? ' tr-pending' : ''}">
+      <td style="white-space:nowrap">
+        ${fmtDate(r.date)}${r.hidden ? ' 🔒' : ''}
+        ${isPending ? `<br><span style="font-size:10px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 6px;border-radius:10px">${isOverdue?'逾期':'待匯款'}${r.pay_due_date?'·'+r.pay_due_date.slice(5):''}</span>` : ''}
+        ${isPaid && r.paid_note ? `<br><span style="font-size:10px;color:var(--gray-400)">✓ ${r.paid_note}</span>` : ''}
+      </td>
       <td style="white-space:nowrap"><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
       <td>
         <select onchange="quickUpdateCategory(${r.id}, this)"
@@ -406,12 +479,13 @@ function renderTable(rows) {
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
       <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.created_by_name||'—'}</td>
-      <td>
+      <td style="white-space:nowrap">
+        ${isPending && currentUser?.role === 'owner' ? `<button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer" onclick="markAsPaid(${r.id})">付款</button> ` : ''}
         <button class="btn btn-ghost btn-sm" onclick="editEntry(${r.id})">編輯</button>
         <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteEntry(${r.id})">刪除</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 
   const inc = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
   const exp = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
@@ -432,6 +506,15 @@ function updateCategoryOptions() {
   const cats = allCategories.filter(c => c.type===type && c.active);
   const sel  = document.getElementById('ledgerCategory');
   sel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  const isExp = type === 'expense';
+  document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
+  const isPending = isExp && document.getElementById('payStatusPending').checked;
+  document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
+}
+
+function onPayStatusChange() {
+  const isPending = document.getElementById('payStatusPending').checked;
+  document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
 }
 
 function openLedgerModal(arg=null) {
@@ -443,6 +526,14 @@ function openLedgerModal(arg=null) {
   document.getElementById('ledgerType').value       = entry ? entry.type : presetType;
   updateCategoryOptions();
   if (entry) document.getElementById('ledgerCategory').value = entry.category;
+  // pay status (expense only)
+  if ((entry ? entry.type : presetType) === 'expense') {
+    const ps = entry?.pay_status || '';
+    document.getElementById('payStatusPaid').checked    = ps !== 'pending';
+    document.getElementById('payStatusPending').checked = ps === 'pending';
+    document.getElementById('payDueDateRow').style.display = ps === 'pending' ? '' : 'none';
+    document.getElementById('ledgerPayDueDate').value = entry?.pay_due_date || '';
+  }
   document.getElementById('ledgerAmount').value      = entry ? entry.amount : '';
   document.getElementById('ledgerDescription').value = entry ? (entry.description||'') : '';
   document.getElementById('ledgerCaseSearch').value  = entry ? (entry.case_number||'') : '';
@@ -505,7 +596,9 @@ async function saveLedgerEntry() {
     description: document.getElementById('ledgerDescription').value,
     case_id:     document.getElementById('ledgerCaseId').value || null,
     org_id:      document.getElementById('ledgerOrg').value || null,
-    hidden:      (currentUser?.role === 'owner' && document.getElementById('ledgerHidden').checked) ? 1 : 0,
+    hidden:        (currentUser?.role === 'owner' && document.getElementById('ledgerHidden').checked) ? 1 : 0,
+    pay_status:    document.getElementById('payStatusPending').checked ? 'pending' : null,
+    pay_due_date:  document.getElementById('ledgerPayDueDate').value || null,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');
@@ -514,6 +607,89 @@ async function saveLedgerEntry() {
   const res = await fetch(url, { method:id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
   if (res.ok) { document.getElementById('ledgerModal').classList.remove('open'); showToast(id?'已更新':'已新增'); await loadLedger(); }
   else { const e = await res.json().catch(() => ({})); showToast(e.error || '儲存失敗', 'error'); }
+}
+
+// ─── 應付帳款待付清單 ─────────────────────────────────────────
+let allPending = [];
+let pendingExpanded = false;
+
+async function loadPendingPayments() {
+  if (currentUser?.role !== 'owner') return;
+  const res = await fetch('/api/ledger?pay_status=pending');
+  if (!res.ok) return;
+  allPending = await res.json();
+  renderPendingPanel();
+}
+
+function renderPendingPanel() {
+  const panel = document.getElementById('pendingPanel');
+  if (!allPending.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  document.getElementById('pendingCount').textContent = `${allPending.length} 筆`;
+  const total = allPending.reduce((s, r) => s + r.amount, 0);
+  document.getElementById('pendingTotal').textContent = `合計 ${fmt(total)}`;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const sorted = [...allPending].sort((a, b) => {
+    const da = a.pay_due_date || '9999', db2 = b.pay_due_date || '9999';
+    return da.localeCompare(db2);
+  });
+
+  const list = document.getElementById('pendingList');
+  list.innerHTML = sorted.map(r => {
+    const isOverdue = r.pay_due_date && r.pay_due_date < today;
+    const dueBadge  = r.pay_due_date
+      ? `<span style="font-size:11px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 7px;border-radius:10px;flex-shrink:0">${isOverdue?'逾期 ':'到期 '}${r.pay_due_date.slice(5)}</span>`
+      : '';
+    return `
+    <div class="pending-item">
+      <span class="pi-date">${fmtDate(r.date)}</span>
+      <span class="pi-cat">${r.category}</span>
+      <span class="pi-desc">${r.description || '—'}</span>
+      ${dueBadge}
+      <span class="pi-amt">${fmt(r.amount)}</span>
+      <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;flex-shrink:0"
+              onclick="markAsPaid(${r.id})">付款</button>
+    </div>`;
+  }).join('');
+}
+
+function togglePendingList() {
+  pendingExpanded = !pendingExpanded;
+  document.getElementById('pendingList').style.display = pendingExpanded ? '' : 'none';
+  document.getElementById('pendingToggleBtn').textContent = pendingExpanded ? '收合' : '展開';
+}
+
+// ─── 付款確認 ─────────────────────────────────────────────────
+let payTargetId = null;
+
+function markAsPaid(id) {
+  payTargetId = id;
+  const entry = allPending.find(r => r.id === id) || allLedger.find(r => r.id === id);
+  document.getElementById('payModalInfo').innerHTML = entry
+    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}`
+    : `ID: ${id}`;
+  document.getElementById('payNote').value = '';
+  document.getElementById('payModal').classList.add('open');
+}
+
+function selectPayAccount(name) {
+  document.getElementById('payNote').value = name;
+}
+
+async function confirmPay() {
+  if (!payTargetId) return;
+  const paid_note = document.getElementById('payNote').value.trim();
+  const res = await fetch(`/api/ledger/${payTargetId}/pay`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paid_note }),
+  });
+  if (res.ok) {
+    document.getElementById('payModal').classList.remove('open');
+    showToast('✅ 已標記付款完成');
+    await loadLedger();
+    await loadPendingPayments();
+  } else showToast('操作失敗', 'error');
 }
 
 // ─── 拍照掃描 ─────────────────────────────────────────────────
