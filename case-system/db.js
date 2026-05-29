@@ -2220,4 +2220,21 @@ if (_needCatV7) {
   console.log('✅ 施工科目更新完成（v7：依案件類型 8 個）');
 }
 
+// ── 品牌科目強制清除 migration（v8：用 LIKE 一次清掉所有殘留品牌科目）──
+// 條件：任何含品牌名稱的科目還是 active=1 就執行
+const _needCatV8 = !!db.prepare(`
+  SELECT id FROM ledger_categories WHERE active=1 AND (
+    name LIKE '裝潢貼膜施工-%' OR name LIKE '實體銷售-%' OR name LIKE '電商銷售-%'
+  ) LIMIT 1
+`).get();
+
+if (_needCatV8) {
+  db.exec(`
+    UPDATE ledger_categories SET active=0 WHERE active=1 AND (
+      name LIKE '裝潢貼膜施工-%' OR name LIKE '實體銷售-%' OR name LIKE '電商銷售-%'
+    )
+  `);
+  console.log('✅ 品牌科目強制清除完成（v8）');
+}
+
 module.exports = db;
