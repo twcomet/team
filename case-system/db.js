@@ -2075,4 +2075,52 @@ if (_needCatV2) {
   console.log('✅ 科目擴充完成（v2：14 個收入 + 8 個成本，含貼膜學院）');
 }
 
+// ── 科目細化 migration（v3：依品牌分施工/銷售/電商 + 電梯細分）──
+// 條件：「裝潢貼膜施工-Para」尚未建立才執行
+const _needCatV3 =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='裝潢貼膜施工-Para' LIMIT 1`).get();
+
+if (_needCatV3) {
+  // 停用 v2 中即將被細化的科目（保留歷史記帳資料）
+  db.exec(`UPDATE ledger_categories SET active=0 WHERE name IN (
+    '裝漠貼膜施工收入','施工服務收入',
+    '膜料實體銷售','電商銷售',
+    '電梯貼膜施工收入'
+  )`);
+
+  const _ins3 = db.prepare(
+    `INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income',?,?,1,0)`
+  );
+  const _updOrd = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=? AND section='income'`);
+
+  // ── 施工收入（依品牌）
+  const _brands = ['Para','Boda','LG','iCar','3M','Wunder磨料'];
+  _brands.forEach((b, i) => _ins3.run(`裝潢貼膜施工-${b}`, i + 1));
+
+  // 玻璃貼膜、車體、廣告、其他 → 更新排序
+  _updOrd.run(7,  '玻璃貼膜施工收入');
+  // 電梯細分
+  _ins3.run('電梯貼膜-改色貼膜', 8);
+  _ins3.run('電梯貼膜-保護貼膜', 9);
+  _updOrd.run(10, '車體貼膜施工收入');
+  _updOrd.run(11, '廣告輸出收入');
+  _updOrd.run(12, '其他施工服務收入');
+
+  // ── 實體銷售（依品牌）
+  _brands.forEach((b, i) => _ins3.run(`實體銷售-${b}`, 20 + i));
+
+  // ── 電商銷售（依品牌）
+  _brands.forEach((b, i) => _ins3.run(`電商銷售-${b}`, 30 + i));
+
+  // 學院、場勘費、設計費、其他 → 更新排序
+  _updOrd.run(40, '貼膜學院-課程費');
+  _updOrd.run(41, '貼膜學院-材料銷售');
+  _updOrd.run(42, '貼膜學院-認證考試');
+  _updOrd.run(50, '場勘費');
+  _updOrd.run(51, '設計費');
+  _updOrd.run(60, '其他收入');
+
+  console.log('✅ 科目細化完成（v3：品牌分類施工/銷售/電商 + 電梯改色/保護細分）');
+}
+
 module.exports = db;
