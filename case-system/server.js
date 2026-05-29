@@ -382,7 +382,7 @@ init();
 
 // LIFF 費用申請頁（不需登入，由 LIFF access_token 驗證身份）
 app.get('/liff/expense', (req, res) => {
-  const liffId = process.env.LIFF_ID || '';
+  const liffId = process.env.LIFF_EXPENSE_ID || process.env.LIFF_ID || '';
   res.send(`<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
