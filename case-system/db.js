@@ -2123,4 +2123,30 @@ if (_needCatV3) {
   console.log('✅ 科目細化完成（v3：品牌分類施工/銷售/電商 + 電梯改色/保護細分）');
 }
 
+// ── 科目調整 migration（v4：施工收入改為「連工帶料收入」，移除品牌細分）──
+const _needCatV4 =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='連工帶料收入' LIMIT 1`).get();
+
+if (_needCatV4) {
+  // 停用 v3 的 6 個品牌施工科目
+  const _brands4 = ['Para','Boda','LG','iCar','3M','Wunder磨料'];
+  _brands4.forEach(b => {
+    db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(`裝潢貼膜施工-${b}`);
+  });
+
+  // 插入新的單一施工收入科目
+  db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income','連工帶料收入',1,1,0)`).run();
+
+  // 確保其他施工科目排序正確
+  const _updOrd4 = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=? AND section='income'`);
+  _updOrd4.run(2, '玻璃貼膜施工收入');
+  _updOrd4.run(3, '電梯貼膜-改色貼膜');
+  _updOrd4.run(4, '電梯貼膜-保護貼膜');
+  _updOrd4.run(5, '車體貼膜施工收入');
+  _updOrd4.run(6, '廣告輸出收入');
+  _updOrd4.run(7, '其他施工服務收入');
+
+  console.log('✅ 科目調整完成（v4：連工帶料收入，移除品牌細分）');
+}
+
 module.exports = db;
