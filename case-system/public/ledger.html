@@ -187,20 +187,18 @@
       </div>
 
       <input type="hidden" id="ledgerEntryId">
+      <!-- ledgerType 保留供 JS 邏輯使用，UI 隱藏 -->
+      <select id="ledgerType" style="display:none" onchange="updateCategoryOptions()">
+        <option value="income">收入</option>
+        <option value="expense">支出</option>
+      </select>
       <div class="form-row">
         <div class="form-group">
           <label>日期 *</label>
           <input type="date" id="ledgerDate">
         </div>
-        <div class="form-group">
-          <label>類型 *</label>
-          <select id="ledgerType" onchange="updateCategoryOptions()">
-            <option value="income">收入</option>
-            <option value="expense">支出</option>
-          </select>
-        </div>
         <div class="form-group" id="ledgerSectionRow" style="display:none">
-          <label>分區 *</label>
+          <label>分區</label>
           <select id="ledgerSection" onchange="updateCategoryOptions()">
             <option value="cost">成本</option>
             <option value="expense">費用</option>
@@ -537,7 +535,8 @@ function openLedgerModal(arg=null) {
   const presetType    = sectionArg === 'income' ? 'income' : (sectionArg ? 'expense' : 'expense');
   const presetSection = sectionArg === 'cost' ? 'cost' : (sectionArg === 'asset_liability' ? 'asset_liability' : 'expense');
 
-  document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : '新增帳務記錄';
+  const titleMap = { income:'新增收入', cost:'新增成本', expense:'新增費用', asset_liability:'新增資產/負債' };
+  document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : (titleMap[sectionArg] || '新增帳務記錄');
   document.getElementById('ledgerEntryId').value    = entry ? entry.id : '';
   document.getElementById('ledgerDate').value       = entry ? entry.date : new Date().toISOString().slice(0,10);
   document.getElementById('ledgerType').value       = entry ? entry.type : presetType;
