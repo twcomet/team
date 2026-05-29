@@ -300,8 +300,19 @@ async function openInquiry(id) {
   const panel = document.getElementById('detailPanel');
   panel.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gray-400)">載入中…</div>`;
 
-  const data = await fetch(`/api/line-inquiries/${id}`).then(r => r.json()).catch(() => null);
-  if (!data) { panel.innerHTML = `<div style="padding:24px;color:#dc2626">載入失敗</div>`; return; }
+  let data = null, httpStatus = null;
+  try {
+    const r = await fetch(`/api/line-inquiries/${id}`);
+    httpStatus = r.status;
+    if (r.ok) data = await r.json().catch(() => null);
+  } catch (e) { /* network error */ }
+  if (!data) {
+    panel.innerHTML = `<div style="padding:24px;color:#dc2626">
+      載入失敗${httpStatus ? `（HTTP ${httpStatus}）` : '（網路錯誤）'}
+      <button class="btn btn-ghost btn-sm" style="margin-left:10px" onclick="openInquiry(${id})">重試</button>
+    </div>`;
+    return;
+  }
 
   const salesOpts = allUsers
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
