@@ -358,6 +358,12 @@
           <textarea id="ie_requirements" rows="4" placeholder="記錄客戶描述的施作需求、位置、材質偏好、特殊狀況…"
             style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
         </div>
+        <div class="sf-tab-section" style="padding-bottom:4px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;font-weight:500">
+            <input type="checkbox" id="ie_line_replied" style="width:16px;height:16px;accent-color:var(--primary)">
+            已官方賴回覆
+          </label>
+        </div>
         <div class="sf-tab-section">
           <h4 class="sf-tab-title">初估金額</h4>
           <div class="form-row" style="max-width:480px">
@@ -1514,10 +1520,11 @@ function renderHeader() {
   if (caseData.initial_estimate_data) {
     try {
       const ie = JSON.parse(caseData.initial_estimate_data);
-      document.getElementById('ie_requirements').value = ie.requirements || '';
-      document.getElementById('ie_price_min').value    = ie.price_min ?? '';
-      document.getElementById('ie_price_max').value    = ie.price_max ?? '';
-      document.getElementById('ie_client_msg').value   = ie.client_msg || '';
+      document.getElementById('ie_requirements').value  = ie.requirements || '';
+      document.getElementById('ie_price_min').value     = ie.price_min ?? '';
+      document.getElementById('ie_price_max').value     = ie.price_max ?? '';
+      document.getElementById('ie_client_msg').value    = ie.client_msg || '';
+      document.getElementById('ie_line_replied').checked = !!ie.line_official_replied;
     } catch {}
   }
 }
@@ -1877,10 +1884,11 @@ document.getElementById('saveBasicBtnBanner')?.addEventListener('click', doSaveB
 
 document.getElementById('saveEstimateBtn').addEventListener('click', async () => {
   const ie = {
-    requirements: document.getElementById('ie_requirements').value || null,
-    price_min:    parseFloat(document.getElementById('ie_price_min').value) || null,
-    price_max:    parseFloat(document.getElementById('ie_price_max').value) || null,
-    client_msg:   document.getElementById('ie_client_msg').value || null,
+    requirements:         document.getElementById('ie_requirements').value || null,
+    price_min:            parseFloat(document.getElementById('ie_price_min').value) || null,
+    price_max:            parseFloat(document.getElementById('ie_price_max').value) || null,
+    client_msg:           document.getElementById('ie_client_msg').value || null,
+    line_official_replied: document.getElementById('ie_line_replied').checked || false,
   };
   const res = await fetch(`/api/cases/${caseId}`, {
     method:'PUT', headers:{'Content-Type':'application/json'},
