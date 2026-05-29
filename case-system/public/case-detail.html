@@ -524,6 +524,18 @@
           </div>
         </div>
 
+        <!-- 完工資料夾連結 -->
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">完工資料夾連結</h4>
+          <div class="form-group" style="margin:0">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="url" id="sf_folder_url" placeholder="貼上 Google 雲端硬碟資料夾連結" style="flex:1" oninput="sf_syncFolder()">
+              <a id="sf_folder_link" href="#" target="_blank"
+                 style="display:none;padding:9px 14px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-700);text-decoration:none;white-space:nowrap">開啟 ↗</a>
+            </div>
+          </div>
+        </div>
+
         <!-- 2. 客服提醒備註 -->
         <div class="sf-tab-section" style="background:#fffbeb;border:1.5px solid #fcd34d">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1233,6 +1245,24 @@ function syncFolderLink() {
   const link = document.getElementById('b_photo_upload_link');
   if (v) { link.href = v; link.style.display = ''; }
   else   { link.style.display = 'none'; }
+  // 同步場勘 tab 的欄位
+  const sfInput = document.getElementById('sf_folder_url');
+  if (sfInput && sfInput.value !== v) sfInput.value = v;
+  sf_updateFolderLink();
+}
+
+function sf_updateFolderLink() {
+  const v = (document.getElementById('sf_folder_url')?.value || '').trim();
+  const link = document.getElementById('sf_folder_link');
+  if (!link) return;
+  if (v) { link.href = v; link.style.display = ''; }
+  else   { link.style.display = 'none'; }
+}
+
+function sf_syncFolder() {
+  const v = (document.getElementById('sf_folder_url').value || '').trim();
+  document.getElementById('b_photo_upload_url').value = v;
+  syncFolderLink();
 }
 
 // ── 初始化 ─────────────────────────────────────────────────
@@ -1772,6 +1802,8 @@ function fillBasicForm() {
   document.getElementById('b_notes').value             = c.notes || '';
   document.getElementById('b_entry_info').value        = c.entry_info || '';
   document.getElementById('b_photo_upload_url').value  = c.photo_upload_url || '';
+  const sfFolderEl = document.getElementById('sf_folder_url');
+  if (sfFolderEl) sfFolderEl.value = c.photo_upload_url || '';
   syncFolderLink();
 
   // 外部報價單連結（quote_draft / quoted 時顯示）
@@ -2577,6 +2609,13 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     checklist_data:   sfChecklistState,
     status:           sfData?.status || 'draft',
   };
+  // 同步存完工資料夾連結
+  const folderUrl = document.getElementById('sf_folder_url')?.value || null;
+  await fetch(`/api/cases/${caseId}/folder-url`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ photo_upload_url: folderUrl || null })
+  });
+
   // 同步存場勘費
   await fetch(`/api/survey/cases/${caseId}/fee`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},

@@ -457,6 +457,12 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
 });
 
 // ── 優先程度快速更新 ──────────────────────────────────────────
+router.patch('/:id/folder-url', requireAuth, (req, res) => {
+  const { photo_upload_url } = req.body;
+  db.prepare(`UPDATE cases SET photo_upload_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(photo_upload_url || null, req.params.id);
+  res.json({ ok: true });
+});
+
 router.patch('/:id/priority', requireAuth, (req, res) => {
   const { priority } = req.body;
   if (!['urgent','high','normal','low'].includes(priority))
