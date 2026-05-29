@@ -68,6 +68,9 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
     cs_service_note ?? null, me.id);
 
+  // 同步 cases.surveyor_id（供任務牆查詢）
+  db.prepare(`UPDATE cases SET surveyor_id=? WHERE id=?`).run(surveyor_id ?? null, case_id);
+
   // 通知場勘人員
   if (surveyor_id) {
     const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(case_id);
@@ -105,6 +108,9 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
     cs_service_note ?? null, status || 'draft', req.params.id);
+
+  // 同步 cases.surveyor_id（供任務牆查詢）
+  db.prepare(`UPDATE cases SET surveyor_id=? WHERE id=?`).run(surveyor_id ?? null, req.params.id);
 
   // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
   if (surveyorChanged && surveyor_id) {
