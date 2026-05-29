@@ -197,6 +197,12 @@
         <label>說明</label>
         <input type="text" id="ledgerDescription" placeholder="例如：HX2605-001 尾款入帳">
       </div>
+      <div class="form-group" id="hiddenRow" style="display:none">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="ledgerHidden" style="width:16px;height:16px">
+          <span>🔒 僅老闆可見（隱藏此筆記錄）</span>
+        </label>
+      </div>
       <div class="form-group" style="position:relative">
         <label>關聯案件（選填）</label>
         <div style="display:flex;gap:6px;align-items:center">
@@ -218,31 +224,45 @@
 
 <!-- 管理科目 Modal -->
 <div class="modal-overlay" id="catModal">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-header">
+  <div class="modal" style="max-width:700px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
       <h3>管理會計科目</h3>
       <button class="modal-close" onclick="document.getElementById('catModal').classList.remove('open')">×</button>
     </div>
-    <div class="modal-body">
-      <div class="filter-bar" style="margin-bottom:12px">
-        <select id="newCatType" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="income">收入科目</option>
-          <option value="expense">支出科目</option>
-        </select>
-        <input type="text" id="newCatName" placeholder="新科目名稱" style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;flex:1">
-        <button class="btn btn-primary btn-sm" onclick="addCategory()">新增</button>
+    <div class="modal-body" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:0">
+      <!-- 分區 Tabs -->
+      <div class="ledger-tabs" style="padding:0 20px;flex-shrink:0">
+        <button class="ledger-tab tab-income active" data-section="income"          onclick="setCatSection('income')">收入</button>
+        <button class="ledger-tab tab-expense"       data-section="cost"            onclick="setCatSection('cost')">成本</button>
+        <button class="ledger-tab tab-expense"       data-section="expense"         onclick="setCatSection('expense')">費用</button>
+        <button class="ledger-tab tab-all"           data-section="asset_liability" onclick="setCatSection('asset_liability')">資產負債</button>
       </div>
-      <div class="filter-bar" style="margin-bottom:12px">
-        <label style="font-size:13px;color:var(--gray-600)">顯示</label>
-        <select id="catFilterType" onchange="renderCatList()" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
-          <option value="">全部</option>
-          <option value="income">收入</option>
-          <option value="expense">支出</option>
-        </select>
+      <!-- 新增科目 -->
+      <div style="display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--gray-100);flex-shrink:0">
+        <input type="text" id="newCatName" placeholder="輸入新科目名稱，按 Enter 或點＋新增"
+               style="flex:1;padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"
+               onkeydown="if(event.key==='Enter')addCategory()">
+        <button class="btn btn-primary btn-sm" onclick="addCategory()">＋ 新增</button>
       </div>
-      <div class="cat-list" id="catList"></div>
+      <!-- 科目表格 -->
+      <div style="flex:1;overflow-y:auto;padding:0 20px 16px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead style="position:sticky;top:0;background:#fff;z-index:1">
+            <tr style="border-bottom:2px solid var(--gray-200)">
+              <th style="padding:8px 6px;text-align:center;width:48px;color:var(--gray-500);font-weight:500">序</th>
+              <th style="padding:8px 6px;text-align:left;color:var(--gray-500);font-weight:500">科目名稱</th>
+              <th style="padding:8px 6px;text-align:center;width:60px;color:var(--gray-500);font-weight:500" title="私密科目僅老闆可見">私密</th>
+              <th style="padding:8px 6px;text-align:center;width:60px;color:var(--gray-500);font-weight:500">狀態</th>
+              <th style="padding:8px 6px;text-align:center;width:76px;color:var(--gray-500);font-weight:500">排序</th>
+              <th style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="catTableBody"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="flex-shrink:0">
+      <span style="font-size:12px;color:var(--gray-400)">🔒 私密科目只有老闆看得到</span>
       <button class="btn btn-ghost" onclick="document.getElementById('catModal').classList.remove('open')">關閉</button>
     </div>
   </div>
@@ -253,6 +273,7 @@
 let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
 let activeTab = 'all';
 let sortDateDir = 'desc';
+let currentCatSection = 'income';
 
 function toggleLedgerDateSort() {
   sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
@@ -367,7 +388,7 @@ function renderTable(rows) {
   }
   tbody.innerHTML = rows.map(r => `
     <tr class="tr-${r.type}">
-      <td style="white-space:nowrap">${fmtDate(r.date)}</td>
+      <td style="white-space:nowrap">${fmtDate(r.date)}${r.hidden ? ' 🔒' : ''}</td>
       <td style="white-space:nowrap"><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
       <td>
         <select onchange="quickUpdateCategory(${r.id}, this)"
@@ -432,6 +453,13 @@ function openLedgerModal(arg=null) {
   const orgSel = document.getElementById('ledgerOrg');
   if (entry?.org_id) orgSel.value = entry.org_id;
   else if (currentUser?.org_id) orgSel.value = currentUser.org_id;
+  // hidden checkbox (owner only)
+  if (currentUser?.role === 'owner') {
+    document.getElementById('hiddenRow').style.display = '';
+    document.getElementById('ledgerHidden').checked = !!(entry?.hidden);
+  } else {
+    document.getElementById('hiddenRow').style.display = 'none';
+  }
   // reset scan
   document.getElementById('scanStatus').textContent = '拍照或選取收據，自動辨識填入';
   document.getElementById('scanPreview').style.display = 'none';
@@ -477,6 +505,7 @@ async function saveLedgerEntry() {
     description: document.getElementById('ledgerDescription').value,
     case_id:     document.getElementById('ledgerCaseId').value || null,
     org_id:      document.getElementById('ledgerOrg').value || null,
+    hidden:      (currentUser?.role === 'owner' && document.getElementById('ledgerHidden').checked) ? 1 : 0,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');
@@ -556,43 +585,143 @@ async function handleScanImage(event) {
 
 // ─── 科目管理 ─────────────────────────────────────────────────
 async function openCatModal() {
-  await loadCategories(); renderCatList();
+  await loadCategories();
+  setCatSection('income');
   document.getElementById('catModal').classList.add('open');
 }
 
-function renderCatList() {
-  const typeFilter = document.getElementById('catFilterType').value;
-  const cats = typeFilter ? allCategories.filter(c=>c.type===typeFilter) : allCategories;
-  document.getElementById('catList').innerHTML = cats.map(c=>`
-    <div class="cat-item ${c.active?'':'cat-inactive'}">
-      <span class="cat-type ${c.type}">${c.type==='income'?'收入':'支出'}</span>
-      <span class="cat-name">${c.name}</span>
-      <button class="btn btn-ghost btn-sm" onclick="toggleCat(${c.id},${c.active})">${c.active?'停用':'啟用'}</button>
-      <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteCat(${c.id})">刪除</button>
-    </div>
-  `).join('') || '<div style="color:var(--gray-400);text-align:center;padding:16px">尚無科目</div>';
+function setCatSection(section) {
+  currentCatSection = section;
+  document.querySelectorAll('#catModal .ledger-tab[data-section]').forEach(t => {
+    t.classList.remove('active');
+    if (t.dataset.section === section) t.classList.add('active');
+  });
+  renderCatTable();
+}
+
+function renderCatTable() {
+  const cats = allCategories.filter(c => c.section === currentCatSection);
+  cats.sort((a, b) => (a.sort_order - b.sort_order) || (a.id - b.id));
+  const tbody = document.getElementById('catTableBody');
+  if (!cats.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--gray-400)">尚無科目</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = cats.map((c, idx) => `
+    <tr style="border-bottom:1px solid var(--gray-100)${c.active ? '' : ';opacity:0.45'}">
+      <td style="padding:6px;text-align:center;color:var(--gray-400);font-size:12px">${c.sort_order}</td>
+      <td style="padding:6px 8px">
+        <span id="catName_${c.id}">${c.name}</span>
+        <input id="catNameIn_${c.id}" type="text" value="${c.name.replace(/"/g,'&quot;')}"
+               style="display:none;width:60%;padding:3px 6px;border:1px solid var(--primary);border-radius:6px;font-size:13px"
+               onblur="saveCatName(${c.id})"
+               onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape')cancelCatName(${c.id})">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 5px;font-size:11px;margin-left:4px"
+                onclick="editCatName(${c.id})">✏️</button>
+      </td>
+      <td style="padding:6px;text-align:center">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:15px"
+                title="${c.sensitive ? '私密（僅老闆）—點擊取消' : '點擊設為私密'}"
+                onclick="toggleSensitive(${c.id},${c.sensitive})">${c.sensitive ? '🔒' : '👁️'}</button>
+      </td>
+      <td style="padding:6px;text-align:center">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:12px"
+                onclick="toggleCat(${c.id},${c.active ? 1 : 0})">${c.active ? '啟用' : '停用'}</button>
+      </td>
+      <td style="padding:6px;text-align:center;white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px"
+                onclick="reorderCat(${c.id},'up')" ${idx === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px"
+                onclick="reorderCat(${c.id},'down')" ${idx === cats.length - 1 ? 'disabled' : ''}>↓</button>
+      </td>
+      <td style="padding:6px;text-align:center">
+        <button class="btn btn-ghost btn-sm" style="color:#e02424;padding:2px 6px"
+                onclick="deleteCat(${c.id})">刪</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editCatName(id) {
+  document.getElementById(`catName_${id}`).style.display = 'none';
+  const inp = document.getElementById(`catNameIn_${id}`);
+  inp.style.display = 'inline-block';
+  inp.focus(); inp.select();
+}
+
+function cancelCatName(id) {
+  document.getElementById(`catName_${id}`).style.display = '';
+  document.getElementById(`catNameIn_${id}`).style.display = 'none';
+}
+
+async function saveCatName(id) {
+  const span = document.getElementById(`catName_${id}`);
+  const inp  = document.getElementById(`catNameIn_${id}`);
+  const newName = inp.value.trim();
+  inp.style.display = 'none';
+  span.style.display = '';
+  if (!newName || newName === span.textContent) return;
+  const cat = allCategories.find(c => c.id === id);
+  if (!cat) return;
+  const res = await fetch(`/api/ledger/categories/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...cat, name: newName }),
+  });
+  if (res.ok) { cat.name = newName; span.textContent = newName; updateCategoryOptions(); }
+  else { showToast('更新失敗', 'error'); inp.value = span.textContent; }
+}
+
+async function toggleSensitive(id, sensitive) {
+  const cat = allCategories.find(c => c.id === id);
+  if (!cat) return;
+  const res = await fetch(`/api/ledger/categories/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...cat, sensitive: sensitive ? 0 : 1 }),
+  });
+  if (res.ok) { cat.sensitive = sensitive ? 0 : 1; renderCatTable(); }
+  else showToast('更新失敗', 'error');
+}
+
+async function reorderCat(id, direction) {
+  const res = await fetch(`/api/ledger/categories/${id}/reorder`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ direction }),
+  });
+  if (res.ok) { await loadCategories(); renderCatTable(); }
+  else showToast('排序失敗', 'error');
 }
 
 async function addCategory() {
-  const type = document.getElementById('newCatType').value;
   const name = document.getElementById('newCatName').value.trim();
-  if (!name) return showToast('請輸入科目名稱','error');
-  const res = await fetch('/api/ledger/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,name})});
-  if (res.ok) { document.getElementById('newCatName').value=''; showToast('科目已新增'); await loadCategories(); renderCatList(); updateCategoryOptions(); }
-  else showToast('新增失敗','error');
+  if (!name) return showToast('請輸入科目名稱', 'error');
+  const section = currentCatSection;
+  const type = section === 'income' ? 'income' : 'expense';
+  const res = await fetch('/api/ledger/categories', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, section, name }),
+  });
+  if (res.ok) {
+    document.getElementById('newCatName').value = '';
+    showToast('科目已新增');
+    await loadCategories(); renderCatTable(); updateCategoryOptions();
+  } else showToast('新增失敗', 'error');
 }
 
 async function toggleCat(id, active) {
-  const cat = allCategories.find(c=>c.id===id); if(!cat) return;
-  await fetch(`/api/ledger/categories/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...cat,active:active?0:1})});
-  await loadCategories(); renderCatList(); updateCategoryOptions();
+  const cat = allCategories.find(c => c.id === id);
+  if (!cat) return;
+  await fetch(`/api/ledger/categories/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...cat, active: active ? 0 : 1 }),
+  });
+  await loadCategories(); renderCatTable(); updateCategoryOptions();
 }
 
 async function deleteCat(id) {
   if (!confirm('確定刪除此科目？')) return;
-  const res = await fetch(`/api/ledger/categories/${id}`,{method:'DELETE'});
-  if (res.ok) { showToast('已刪除'); await loadCategories(); renderCatList(); updateCategoryOptions(); }
-  else showToast('刪除失敗','error');
+  const res = await fetch(`/api/ledger/categories/${id}`, { method: 'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadCategories(); renderCatTable(); updateCategoryOptions(); }
+  else showToast('刪除失敗', 'error');
 }
 
 // ─── 案件搜尋 ─────────────────────────────────────────────────

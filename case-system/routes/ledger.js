@@ -10,7 +10,10 @@ const log = (uid, action, entity, eid, detail) =>
 
 // GET /api/ledger/categories
 router.get('/categories', requireAuth, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM ledger_categories ORDER BY type, sort_order, id`).all();
+  const isOwner = req.session.user.role === 'owner';
+  const rows = isOwner
+    ? db.prepare(`SELECT * FROM ledger_categories ORDER BY section, sort_order, id`).all()
+    : db.prepare(`SELECT * FROM ledger_categories WHERE sensitive=0 ORDER BY section, sort_order, id`).all();
   res.json(rows);
 });
 
@@ -26,9 +29,28 @@ router.post('/categories', requireOwner, (req, res) => {
 
 // PUT /api/ledger/categories/:id  (owner only)
 router.put('/categories/:id', requireOwner, (req, res) => {
-  const { name, section, sort_order, active } = req.body;
-  db.prepare(`UPDATE ledger_categories SET name=?, section=?, sort_order=?, active=? WHERE id=?`)
-    .run(name, section, sort_order ?? 0, active ?? 1, req.params.id);
+  const { name, section, sort_order, active, sensitive, product_line } = req.body;
+  db.prepare(`UPDATE ledger_categories SET name=?, section=?, sort_order=?, active=?, sensitive=?, product_line=? WHERE id=?`)
+    .run(name, section, sort_order ?? 0, active ?? 1, sensitive ?? 0, product_line ?? null, req.params.id);
+  res.json({ ok: true });
+});
+
+// PATCH /api/ledger/categories/:id/reorder  (owner only)
+router.patch('/categories/:id/reorder', requireOwner, (req, res) => {
+  const { direction } = req.body;
+  const cat = db.prepare(`SELECT * FROM ledger_categories WHERE id=?`).get(req.params.id);
+  if (!cat) return res.status(404).json({ error: 'Not found' });
+  const all = db.prepare(`SELECT id FROM ledger_categories WHERE section=? ORDER BY sort_order, id`).all(cat.section);
+  const upd = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE id=?`);
+  all.forEach((c, i) => upd.run(i * 10, c.id)); // normalize
+  const idx = all.findIndex(c => c.id === cat.id);
+  if (direction === 'up' && idx > 0) {
+    upd.run((idx - 1) * 10, cat.id);
+    upd.run(idx * 10, all[idx - 1].id);
+  } else if (direction === 'down' && idx < all.length - 1) {
+    upd.run((idx + 1) * 10, cat.id);
+    upd.run(idx * 10, all[idx + 1].id);
+  }
   res.json({ ok: true });
 });
 
@@ -49,6 +71,7 @@ router.get('/', requireAuth, (req, res) => {
   if (!canLedger) return res.status(403).json({ error: '無收支流水帳權限' });
   const { from, to, type } = req.query;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(user, 'l.org_id');
+  const isOwner = user.role === 'owner';
 
   let sql = `
     SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title,
@@ -60,6 +83,12 @@ router.get('/', requireAuth, (req, res) => {
     WHERE 1=1
   `;
   const params = [];
+
+  if (!isOwner) {
+    // 非老闆：過濾私密科目和隱藏筆記
+    sql += ` AND l.category NOT IN (SELECT name FROM ledger_categories WHERE sensitive=1)`;
+    sql += ` AND (l.hidden IS NULL OR l.hidden = 0)`;
+  }
 
   // 非跨分店角色只能看自己的 org
   if (orgSql) {
@@ -79,12 +108,12 @@ router.get('/', requireAuth, (req, res) => {
 // POST /api/ledger
 router.post('/', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden } = req.body;
   if (!date || !type || !category || !amount) return res.status(400).json({ error: '必填欄位不完整' });
   const r = db.prepare(`
-    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid);
+    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid, hidden ? 1 : 0);
   log(uid, 'create', 'ledger', r.lastInsertRowid, `${date} ${category} $${amount}`);
   res.json({ id: r.lastInsertRowid });
 });
@@ -92,11 +121,11 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /api/ledger/:id
 router.put('/:id', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden } = req.body;
   db.prepare(`
-    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?
+    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?
     WHERE id=?
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, req.params.id);
+  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, hidden ? 1 : 0, req.params.id);
   log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
   res.json({ ok: true });
 });

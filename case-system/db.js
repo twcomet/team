@@ -601,7 +601,10 @@ db.exec(`
     section    TEXT DEFAULT NULL
   );
 `);
-_addCol('ledger_categories', 'section', "TEXT DEFAULT NULL");
+_addCol('ledger_categories', 'section',      "TEXT DEFAULT NULL");
+_addCol('ledger_categories', 'sensitive',   "INTEGER DEFAULT 0");
+_addCol('ledger_categories', 'product_line',"TEXT DEFAULT NULL");
+_addCol('ledger_entries',    'hidden',       "INTEGER DEFAULT 0");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
@@ -764,6 +767,14 @@ db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND
   const _syncOrder = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=?`);
   for (const [,, name, order] of plCats) _syncOrder.run(order, name);
 }
+
+// 薪資相關科目標記為私密（僅老闆可見）
+db.exec(`UPDATE ledger_categories SET sensitive=1 WHERE sensitive=0 AND name IN (
+  '成本-員工薪水','成本-員工獎金',
+  '費用-零用金-Flora','費用-零用金-Dan','費用-零用金-恰吉'
+)`);
+// 停用員工費用申請系列科目（已由費用申請系統取代）
+db.exec(`UPDATE ledger_categories SET active=0 WHERE name LIKE '員工費用申請%'`);
 
 // ── 收入科目整理 migration（偵測舊版才執行）────────────────────
 // 條件：舊版有 '裝漠貼膜-翰可' 或 'PAROI'（獨立科目，非 裝漠貼膜-PAROI）
