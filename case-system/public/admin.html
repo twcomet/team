@@ -26,6 +26,7 @@
         <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
         <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
         <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
         <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
         <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
         <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
@@ -280,6 +281,9 @@
             <input type="checkbox" id="rolePerm_page_ledger"> 📒 收支流水帳
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_expenses"> 🧾 費用申請管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_dispatch_pool"> 🏊 派案池管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -388,6 +392,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_ledger"> 📒 收支流水帳
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_expenses"> 🧾 費用申請管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_dispatch_pool"> 🏊 派案池管理
@@ -633,7 +640,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_material_calc:'快速報價', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_expenses:'費用申請', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_material_calc:'快速報價', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -693,7 +700,7 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   ['rolePerm_is_manager','rolePerm_can_see_amounts','rolePerm_view_all_branches',
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
    'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
-   'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_dispatch_pool',
+   'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_expenses','rolePerm_page_dispatch_pool',
    'rolePerm_page_cases_deal','rolePerm_page_materials','rolePerm_page_material_calc',
    'rolePerm_page_performance','rolePerm_page_reports','rolePerm_page_marketing']
     .forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
@@ -722,6 +729,7 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_page_calendar').checked         = p.page_calendar !== undefined ? !!p.page_calendar : true;
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
   document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
+  document.getElementById('rolePerm_page_expenses').checked         = !!p.page_expenses;
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('rolePerm_page_cases_deal').checked       = !!p.page_cases_deal;
   document.getElementById('rolePerm_page_materials').checked        = !!p.page_materials;
@@ -754,6 +762,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_calendar').checked         = !!(p.page_calendar ?? true);
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
   document.getElementById('rolePerm_page_ledger').checked           = !!p.page_ledger;
+  document.getElementById('rolePerm_page_expenses').checked         = !!p.page_expenses;
   document.getElementById('rolePerm_page_dispatch_pool').checked    = !!p.page_dispatch_pool;
   document.getElementById('rolePerm_page_cases_deal').checked        = !!p.page_cases_deal;
   document.getElementById('rolePerm_page_materials').checked         = !!p.page_materials;
@@ -777,6 +786,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_calendar:       document.getElementById('rolePerm_page_calendar').checked,
     page_payments:       document.getElementById('rolePerm_page_payments').checked,
     page_ledger:         document.getElementById('rolePerm_page_ledger').checked,
+    page_expenses:       document.getElementById('rolePerm_page_expenses').checked,
     page_dispatch_pool:  document.getElementById('rolePerm_page_dispatch_pool').checked,
     page_cases_deal:     document.getElementById('rolePerm_page_cases_deal').checked,
     page_materials:      document.getElementById('rolePerm_page_materials').checked,
@@ -956,6 +966,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_calendar').checked        = !!p.page_calendar;
     document.getElementById('perm_page_payments').checked        = !!p.page_payments;
     document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
+    document.getElementById('perm_page_expenses').checked        = !!p.page_expenses;
     document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
     document.getElementById('perm_page_cases_deal').checked       = !!p.page_cases_deal;
     document.getElementById('perm_page_materials').checked        = !!p.page_materials;
@@ -976,6 +987,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_calendar').checked         = !isContractor;
     document.getElementById('perm_page_payments').checked         = false;
     document.getElementById('perm_page_ledger').checked           = false;
+    document.getElementById('perm_page_expenses').checked         = false;
     document.getElementById('perm_page_dispatch_pool').checked    = false;
     document.getElementById('perm_page_cases_deal').checked       = isHQ;
     document.getElementById('perm_page_materials').checked        = false;
@@ -1110,6 +1122,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_calendar:       document.getElementById('perm_page_calendar').checked,
       page_payments:       document.getElementById('perm_page_payments').checked,
       page_ledger:         document.getElementById('perm_page_ledger').checked,
+      page_expenses:       document.getElementById('perm_page_expenses').checked,
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
       page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
       page_materials:      document.getElementById('perm_page_materials').checked,
@@ -1312,6 +1325,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_calendar:       !!(p.page_calendar ?? true),
       page_payments:       !!(p.page_payments),
       page_ledger:         !!(p.page_ledger),
+      page_expenses:       !!(p.page_expenses),
       page_dispatch_pool:  !!(p.page_dispatch_pool),
       page_cases_deal:     !!(p.page_cases_deal),
       page_materials:      !!(p.page_materials),

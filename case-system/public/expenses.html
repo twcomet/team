@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>費用申請管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--gray-200); }
+.tabs-bar .tab { padding:8px 18px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.sb-draft        { background:#f3f4f6; color:#6b7280; }
+.sb-submitted    { background:#fef3c7; color:#92400e; }
+.sb-mgr_approved { background:#dbeafe; color:#1e40af; }
+.sb-owner_approved { background:#d1fae5; color:#065f46; }
+.sb-settled      { background:#d1fae5; color:#065f46; }
+.sb-rejected     { background:#fee2e2; color:#991b1b; }
+.settle-card { background:#f9fafb; border:1px solid var(--gray-200); border-radius:10px; padding:16px; margin-bottom:12px; }
+.settle-user { font-weight:600; font-size:14px; margin-bottom:8px; }
+.settle-row  { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid var(--gray-100); }
+.settle-total { font-weight:700; color:#dc2626; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">費用申請管理</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary btn-sm" id="newExpenseBtn">＋ 新增申請</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="tabs-bar">
+        <div class="tab active" data-tab="my">我的申請</div>
+        <div class="tab" data-tab="review" id="reviewTab" style="display:none">待審核</div>
+        <div class="tab" data-tab="settle" id="settleTab" style="display:none">月結付款</div>
+        <div class="tab" data-tab="all" id="allTab" style="display:none">全部記錄</div>
+      </div>
+
+      <!-- 我的申請 -->
+      <div id="pane-my">
+        <div class="filter-bar">
+          <select id="myStatusFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部狀態</option>
+            <option value="draft">草稿</option>
+            <option value="submitted">待店長審核</option>
+            <option value="mgr_approved">待老闆審核</option>
+            <option value="owner_approved">待付款</option>
+            <option value="settled">已付款</option>
+            <option value="rejected">已退回</option>
+          </select>
+          <input type="month" id="myMonthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        </div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>日期</th><th>科目</th><th>金額</th><th>說明</th><th>關聯案件</th><th>狀態</th><th></th></tr></thead>
+            <tbody id="myBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 待審核 -->
+      <div id="pane-review" style="display:none">
+        <div class="filter-bar">
+          <span id="reviewHint" style="font-size:13px;color:var(--gray-500)"></span>
+        </div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>日期</th><th>申請人</th><th>科目</th><th>金額</th><th>說明</th><th>關聯案件</th><th>狀態</th><th></th></tr></thead>
+            <tbody id="reviewBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 月結付款 -->
+      <div id="pane-settle" style="display:none">
+        <div class="filter-bar" style="align-items:flex-start;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;font-weight:500">選擇月份</label>
+            <input type="month" id="settleMonth" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <button class="btn btn-secondary btn-sm" onclick="loadPendingSettlement()">查詢</button>
+          </div>
+        </div>
+        <div id="settleContent"></div>
+      </div>
+
+      <!-- 全部記錄 -->
+      <div id="pane-all" style="display:none">
+        <div class="filter-bar">
+          <select id="allStatusFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部狀態</option>
+            <option value="submitted">待店長審核</option>
+            <option value="mgr_approved">待老闆審核</option>
+            <option value="owner_approved">待付款</option>
+            <option value="settled">已付款</option>
+            <option value="rejected">已退回</option>
+          </select>
+          <input type="month" id="allMonthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <button class="btn btn-secondary btn-sm" onclick="loadAll()">查詢</button>
+        </div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>日期</th><th>申請人</th><th>科目</th><th>金額</th><th>說明</th><th>關聯案件</th><th>狀態</th><th></th></tr></thead>
+            <tbody id="allBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯申請 Modal -->
+<div class="modal-overlay" id="expenseModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="expenseModalTitle">新增費用申請</h3>
+      <button class="modal-close" id="expenseModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editExpenseId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>費用日期 <span style="color:#e02424">*</span></label>
+          <input type="date" id="ef_date">
+        </div>
+        <div class="form-group">
+          <label>科目 <span style="color:#e02424">*</span></label>
+          <select id="ef_category"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>金額 <span style="color:#e02424">*</span></label>
+        <input type="number" id="ef_amount" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>說明</label>
+        <input type="text" id="ef_description" placeholder="費用說明（可選）">
+      </div>
+      <div class="form-group">
+        <label>關聯案件（可選）</label>
+        <select id="ef_case"><option value="">— 不關聯案件 —</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="expenseSaveDraft">儲存草稿</button>
+      <button class="btn btn-primary" id="expenseSaveSubmit">儲存並送出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 審核 Modal -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="reviewModalTitle">審核費用申請</h3>
+      <button class="modal-close" id="reviewModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="reviewingId">
+      <div id="reviewInfo" style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+      <div class="form-group">
+        <label id="reviewNoteLabel">備註（可選）</label>
+        <input type="text" id="reviewNote" placeholder="備註說明">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="color:#e02424" id="reviewRejectBtn">✕ 退回</button>
+      <button class="btn btn-primary" id="reviewApproveBtn">✓ 核准</button>
+    </div>
+  </div>
+</div>
+
+<!-- 月結確認 Modal -->
+<div class="modal-overlay" id="settleModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>確認月結付款</h3>
+      <button class="modal-close" id="settleModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="settleModalInfo" style="font-size:13px;margin-bottom:16px"></div>
+      <div class="form-group">
+        <label>付款方式</label>
+        <select id="settlePayMethod">
+          <option value="銀行轉帳">銀行轉帳</option>
+          <option value="現金">現金</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>備註（可選）</label>
+        <input type="text" id="settleNotes" placeholder="例如：5月薪資日一併匯款">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="settleModalClose2">取消</button>
+      <button class="btn btn-primary" id="settleConfirmBtn">確認付款並帶入流水帳</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const STATUS_NAMES = {
+  draft: '草稿', submitted: '待店長審核', mgr_approved: '待老闆審核',
+  owner_approved: '待付款', settled: '已付款', rejected: '已退回'
+};
+let currentUser = null, categories = [], dealCases = [];
+let currentTab = 'my';
+let pendingSettleIds = [];
+
+async function init() {
+  currentUser = await loadUser();
+  if (!currentUser) return;
+  highlightNav('expenses');
+
+  // 顯示對應 tab
+  const isMgr = ['branch_manager','hq_cs_manager'].includes(currentUser.role);
+  const isOwner = currentUser.role === 'owner';
+  const isAccounting = currentUser.role === 'hq_accounting';
+  if (isMgr || isOwner) document.getElementById('reviewTab').style.display = '';
+  if (isOwner || isAccounting) {
+    document.getElementById('settleTab').style.display = '';
+    document.getElementById('allTab').style.display = '';
+  }
+
+  await Promise.all([loadCategories(), loadDealCases()]);
+  loadMy();
+
+  document.querySelectorAll('.tabs-bar .tab').forEach(t => {
+    t.addEventListener('click', () => switchTab(t.dataset.tab));
+  });
+
+  document.getElementById('newExpenseBtn').addEventListener('click', () => openExpenseModal());
+  document.getElementById('expenseModalClose').addEventListener('click', () => closeModal('expenseModal'));
+  document.getElementById('reviewModalClose').addEventListener('click', () => closeModal('reviewModal'));
+  document.getElementById('settleModalClose').addEventListener('click', () => closeModal('settleModal'));
+  document.getElementById('settleModalClose2').addEventListener('click', () => closeModal('settleModal'));
+  document.getElementById('expenseSaveDraft').addEventListener('click', () => saveExpense('draft'));
+  document.getElementById('expenseSaveSubmit').addEventListener('click', () => saveExpense('submit'));
+  document.getElementById('reviewApproveBtn').addEventListener('click', doApprove);
+  document.getElementById('reviewRejectBtn').addEventListener('click', doReject);
+  document.getElementById('settleConfirmBtn').addEventListener('click', doSettle);
+  document.getElementById('myStatusFilter').addEventListener('change', loadMy);
+  document.getElementById('myMonthFilter').addEventListener('change', loadMy);
+
+  // 設定月份預設為當月
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('settleMonth').value = ym;
+  document.getElementById('myMonthFilter').value = ym;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['my','review','settle','all'].forEach(p => {
+    document.getElementById(`pane-${p}`).style.display = p === tab ? '' : 'none';
+  });
+  if (tab === 'my')     loadMy();
+  if (tab === 'review') loadReview();
+  if (tab === 'settle') loadPendingSettlement();
+  if (tab === 'all')    loadAll();
+}
+
+async function loadCategories() {
+  const res = await fetch('/api/expenses/categories');
+  categories = await res.json();
+  const sel = document.getElementById('ef_category');
+  sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function loadDealCases() {
+  const res = await fetch('/api/cases?group=deal');
+  const all = await res.json();
+  dealCases = Array.isArray(all) ? all : [];
+  const sel = document.getElementById('ef_case');
+  sel.innerHTML = `<option value="">— 不關聯案件 —</option>` +
+    dealCases.map(c => `<option value="${c.id}">${c.case_number} ${c.title||''}</option>`).join('');
+}
+
+async function loadMy() {
+  const status = document.getElementById('myStatusFilter').value;
+  const month  = document.getElementById('myMonthFilter').value;
+  let url = '/api/expenses?';
+  if (status) url += `status=${status}&`;
+  if (month)  url += `month=${month}&`;
+  const res = await fetch(url);
+  const rows = await res.json();
+  document.getElementById('myBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.expense_date}</td>
+      <td>${r.category_name||'—'}</td>
+      <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
+      <td>${r.case_number ? `<code style="font-size:11px">${r.case_number}</code>` : '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${STATUS_NAMES[r.status]||r.status}</span>
+          ${r.reject_reason ? `<div style="font-size:11px;color:#e02424;margin-top:2px">退回原因：${r.reject_reason}</div>` : ''}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        ${['draft','rejected'].includes(r.status) ? `<button class="btn btn-ghost btn-sm" onclick="openExpenseModal(${r.id})">編輯</button>` : ''}
+        ${['draft','rejected'].includes(r.status) ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626" onclick="deleteExpense(${r.id})">刪除</button>` : ''}
+        ${r.status === 'draft' ? `<button class="btn btn-primary btn-sm" onclick="submitExpense(${r.id})">送出</button>` : ''}
+        ${r.status === 'rejected' ? `<button class="btn btn-primary btn-sm" onclick="submitExpense(${r.id})">重新送出</button>` : ''}
+      </td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:32px">尚無申請記錄</td></tr>`;
+}
+
+async function loadReview() {
+  const isMgr = ['branch_manager','hq_cs_manager'].includes(currentUser.role);
+  const isOwner = currentUser.role === 'owner';
+  const status = isMgr ? 'submitted' : isOwner ? 'mgr_approved' : '';
+  document.getElementById('reviewHint').textContent = isMgr ? '顯示待您審核的申請' : '顯示待老闆審核的申請';
+  const res = await fetch(`/api/expenses?status=${status}`);
+  const rows = await res.json();
+  const approveAction = isMgr ? 'mgr-approve' : 'owner-approve';
+  const rejectAction  = isMgr ? 'mgr-reject'  : 'owner-reject';
+  document.getElementById('reviewBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.expense_date}</td>
+      <td>${r.user_name||'—'}</td>
+      <td>${r.category_name||'—'}</td>
+      <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
+      <td>${r.case_number ? `<code style="font-size:11px">${r.case_number}</code>` : '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${STATUS_NAMES[r.status]||r.status}</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="openReviewModal(${r.id},'${approveAction}','${rejectAction}')">審核</button></td>
+    </tr>
+  `).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:32px">目前無待審核申請</td></tr>`;
+}
+
+async function loadPendingSettlement() {
+  const month = document.getElementById('settleMonth').value;
+  if (!month) return;
+  const res = await fetch(`/api/expenses/pending-settlement?month=${month}`);
+  const rows = await res.json();
+  if (!rows.length) {
+    document.getElementById('settleContent').innerHTML = `<p style="color:var(--gray-400);font-size:13px;padding:24px 0">本月無待付款項目</p>`;
+    return;
+  }
+
+  // 按人分組
+  const byUser = {};
+  rows.forEach(r => {
+    if (!byUser[r.user_id]) byUser[r.user_id] = { name: r.user_name, items: [], total: 0 };
+    byUser[r.user_id].items.push(r);
+    byUser[r.user_id].total += r.amount;
+  });
+  const grandTotal = rows.reduce((s, r) => s + r.amount, 0);
+  pendingSettleIds = rows.map(r => r.id);
+
+  document.getElementById('settleContent').innerHTML = `
+    ${Object.values(byUser).map(u => `
+      <div class="settle-card">
+        <div class="settle-user">👤 ${u.name}</div>
+        ${u.items.map(r => `
+          <div class="settle-row">
+            <span>${r.expense_date} ${r.category_name} ${r.description ? '— ' + r.description : ''}</span>
+            <span>$${Number(r.amount).toLocaleString()}</span>
+          </div>
+        `).join('')}
+        <div class="settle-row" style="margin-top:4px">
+          <span style="font-weight:600">小計</span>
+          <span class="settle-total">$${u.total.toLocaleString()}</span>
+        </div>
+      </div>
+    `).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;background:#fff;border:1.5px solid #dc2626;border-radius:10px;margin-top:8px">
+      <span style="font-weight:700;font-size:15px">本月合計（${rows.length}筆）</span>
+      <span style="font-weight:700;font-size:18px;color:#dc2626">$${grandTotal.toLocaleString()}</span>
+    </div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="btn btn-primary" onclick="openSettleModal('${month}',${grandTotal},${rows.length})">確認付款並帶入流水帳</button>
+    </div>
+  `;
+}
+
+async function loadAll() {
+  const status = document.getElementById('allStatusFilter').value;
+  const month  = document.getElementById('allMonthFilter').value;
+  let url = '/api/expenses?';
+  if (status) url += `status=${status}&`;
+  if (month)  url += `month=${month}&`;
+  const res = await fetch(url);
+  const rows = await res.json();
+  document.getElementById('allBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.expense_date}</td>
+      <td>${r.user_name||'—'}</td>
+      <td>${r.category_name||'—'}</td>
+      <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
+      <td>${r.case_number ? `<code style="font-size:11px">${r.case_number}</code>` : '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${STATUS_NAMES[r.status]||r.status}</span></td>
+      <td></td>
+    </tr>
+  `).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:32px">尚無記錄</td></tr>`;
+}
+
+function openExpenseModal(id = null) {
+  document.getElementById('editExpenseId').value = id || '';
+  document.getElementById('expenseModalTitle').textContent = id ? '編輯費用申請' : '新增費用申請';
+  document.getElementById('ef_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ef_amount').value = '';
+  document.getElementById('ef_description').value = '';
+  document.getElementById('ef_case').value = '';
+  if (id) {
+    fetch(`/api/expenses/${id}`).then(r => r.json()).then(r => {
+      document.getElementById('ef_date').value = r.expense_date;
+      document.getElementById('ef_category').value = r.category_id;
+      document.getElementById('ef_amount').value = r.amount;
+      document.getElementById('ef_description').value = r.description || '';
+      document.getElementById('ef_case').value = r.case_id || '';
+    });
+  }
+  document.getElementById('expenseModal').classList.add('open');
+}
+
+async function saveExpense(action) {
+  const id = document.getElementById('editExpenseId').value;
+  const body = {
+    expense_date: document.getElementById('ef_date').value,
+    category_id:  document.getElementById('ef_category').value,
+    amount:       document.getElementById('ef_amount').value,
+    description:  document.getElementById('ef_description').value,
+    case_id:      document.getElementById('ef_case').value || null,
+  };
+  if (!body.expense_date || !body.category_id || !body.amount) return showToast('請填寫日期、科目與金額','error');
+
+  let res, d;
+  if (id) {
+    res = await fetch(`/api/expenses/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  } else {
+    res = await fetch('/api/expenses', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  }
+  d = await res.json();
+  if (!res.ok) return showToast(d.error || '儲存失敗', 'error');
+
+  const targetId = id || d.id;
+  closeModal('expenseModal');
+
+  if (action === 'submit') {
+    const r2 = await fetch(`/api/expenses/${targetId}/submit`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const d2 = await r2.json();
+    if (d2.ok) showToast('已送出申請');
+    else showToast(d2.error || '送出失敗', 'error');
+  } else {
+    showToast('已儲存草稿');
+  }
+  loadMy();
+}
+
+async function submitExpense(id) {
+  if (!confirm('確定送出此費用申請？')) return;
+  const res = await fetch(`/api/expenses/${id}/submit`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  const d = await res.json();
+  if (d.ok) { showToast('已送出申請'); loadMy(); }
+  else showToast(d.error || '送出失敗', 'error');
+}
+
+async function deleteExpense(id) {
+  if (!confirm('確定刪除此申請？')) return;
+  const res = await fetch(`/api/expenses/${id}`, { method:'DELETE' });
+  const d = await res.json();
+  if (d.ok) { showToast('已刪除'); loadMy(); }
+  else showToast(d.error || '刪除失敗', 'error');
+}
+
+let _approveAction, _rejectAction;
+async function openReviewModal(id, approveAction, rejectAction) {
+  _approveAction = approveAction; _rejectAction = rejectAction;
+  const r = await (await fetch(`/api/expenses/${id}`)).json();
+  document.getElementById('reviewingId').value = id;
+  document.getElementById('reviewModalTitle').textContent = `審核 — ${r.user_name}`;
+  document.getElementById('reviewInfo').innerHTML = `
+    <div><strong>${r.category_name}</strong>　$${Number(r.amount).toLocaleString()}</div>
+    <div style="color:var(--gray-500);margin-top:4px">日期：${r.expense_date}　說明：${r.description||'—'}</div>
+    ${r.case_number ? `<div style="margin-top:4px">案件：${r.case_number} ${r.case_title||''}</div>` : ''}
+  `;
+  document.getElementById('reviewNote').value = '';
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+async function doApprove() {
+  const id = document.getElementById('reviewingId').value;
+  const note = document.getElementById('reviewNote').value;
+  const res = await fetch(`/api/expenses/${id}/${_approveAction}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ note }) });
+  const d = await res.json();
+  if (d.ok) { showToast('已核准'); closeModal('reviewModal'); loadReview(); }
+  else showToast(d.error || '操作失敗', 'error');
+}
+
+async function doReject() {
+  const id = document.getElementById('reviewingId').value;
+  const reason = document.getElementById('reviewNote').value;
+  if (!reason.trim()) return showToast('請填寫退回原因', 'error');
+  const res = await fetch(`/api/expenses/${id}/${_rejectAction}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason }) });
+  const d = await res.json();
+  if (d.ok) { showToast('已退回'); closeModal('reviewModal'); loadReview(); }
+  else showToast(d.error || '操作失敗', 'error');
+}
+
+function openSettleModal(month, total, count) {
+  document.getElementById('settleModalInfo').innerHTML = `
+    <strong>${month} 月費用月結</strong><br>
+    共 ${count} 筆，合計 <strong style="color:#dc2626">$${total.toLocaleString()}</strong><br>
+    <span style="color:var(--gray-500)">確認後將自動帶入流水帳並通知員工</span>
+  `;
+  document.getElementById('settleModal').classList.add('open');
+}
+
+async function doSettle() {
+  const month = document.getElementById('settleMonth').value;
+  const payment_method = document.getElementById('settlePayMethod').value;
+  const notes = document.getElementById('settleNotes').value;
+  const res = await fetch('/api/expenses/settle', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ month, ids: pendingSettleIds, payment_method, notes })
+  });
+  const d = await res.json();
+  if (d.ok) {
+    showToast(`月結完成！共 ${d.count} 筆 $${d.total.toLocaleString()}`);
+    closeModal('settleModal');
+    loadPendingSettlement();
+  } else showToast(d.error || '月結失敗', 'error');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

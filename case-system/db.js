@@ -1884,4 +1884,63 @@ db.exec(`
 `);
 _addCol('contract_signatures', 'signature', 'TEXT');
 
+// ── 費用申請系統 ──────────────────────────────────────────────
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS expense_categories (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    active     INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS expense_requests (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    org_id          INTEGER REFERENCES orgs(id),
+    expense_date    DATE NOT NULL,
+    category_id     INTEGER REFERENCES expense_categories(id),
+    amount          REAL NOT NULL,
+    description     TEXT,
+    case_id         INTEGER REFERENCES cases(id),
+    status          TEXT DEFAULT 'draft',
+    mgr_id          INTEGER REFERENCES users(id),
+    mgr_action_at   DATETIME,
+    mgr_note        TEXT,
+    owner_action_at DATETIME,
+    owner_note      TEXT,
+    reject_reason   TEXT,
+    rejected_by     INTEGER REFERENCES users(id),
+    rejected_at     DATETIME,
+    settlement_id   INTEGER,
+    settled_at      DATETIME,
+    settled_by      INTEGER REFERENCES users(id),
+    ledger_entry_id INTEGER REFERENCES ledger_entries(id),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS expense_settlements (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    month         TEXT NOT NULL,
+    total_amount  REAL NOT NULL,
+    request_count INTEGER NOT NULL,
+    settled_by    INTEGER REFERENCES users(id),
+    settled_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ledger_entry_id INTEGER REFERENCES ledger_entries(id),
+    notes         TEXT
+  )
+`).run();
+
+// 預設費用科目
+{
+  const cats = ['交通費','加油費','停車費','餐費','住宿費','工具費','材料費','代墊費'];
+  const ins = db.prepare(`INSERT OR IGNORE INTO expense_categories (name, sort_order) VALUES (?,?)`);
+  cats.forEach((n, i) => ins.run(n, i + 1));
+}
+
 module.exports = db;

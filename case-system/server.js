@@ -70,6 +70,7 @@ app.use('/api/hr',                    require('./routes/hr'));
 app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
+app.use('/api/expenses',              require('./routes/expenses'));
 
 // ── 前端公開設定 ──────────────────────────────────────────────
 app.get('/api/config/maps-key', requireAuth, (req, res) => {
@@ -107,6 +108,8 @@ const PAGE_PERMS = {
   marketing:        'page_marketing',
   hr:               'page_hr',
   contracts:        'manage_users',
+  expenses:         'page_expenses',
+  'expense-liff':   null,
 };
 
 function requirePagePerm(page) {
@@ -168,7 +171,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
@@ -366,6 +369,232 @@ async function init() {
     await loadStatus();
     document.getElementById('btnIn').addEventListener('click', doClockIn);
     document.getElementById('btnOut').addEventListener('click', doClockOut);
+  } catch(e) {
+    document.getElementById('loadingMsg').textContent = '載入失敗：' + e.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>`);
+});
+
+// LIFF 費用申請頁（不需登入，由 LIFF access_token 驗證身份）
+app.get('/liff/expense', (req, res) => {
+  const liffId = process.env.LIFF_ID || '';
+  res.send(`<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>繪新 費用申請</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px}
+.card{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:400px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:14px}
+h1{font-size:18px;font-weight:700;color:#1a202c;margin-bottom:4px}
+.sub{font-size:13px;color:#718096;margin-bottom:16px}
+label{display:block;font-size:13px;font-weight:600;color:#4a5568;margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e0;border-radius:8px;font-size:14px;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#3182ce}
+.field{margin-bottom:14px}
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s;margin-top:4px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:#3182ce;color:#fff}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px;width:auto;display:inline-block}
+.btn-outline{background:#fff;color:#3182ce;border:1px solid #3182ce}
+.msg{text-align:center;font-size:14px;padding:12px;border-radius:8px;margin-bottom:12px}
+.msg-success{background:#c6f6d5;color:#22543d}
+.msg-error{background:#fed7d7;color:#742a2a}
+.msg-info{background:#bee3f8;color:#2a4365}
+#loadingMsg{text-align:center;color:#718096;padding:40px;font-size:15px}
+.expense-item{padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:13px}
+.expense-item:last-child{border-bottom:none}
+.exp-top{display:flex;justify-content:space-between;align-items:center}
+.exp-title{font-weight:600;color:#2d3748}
+.exp-amount{font-weight:700;color:#2d3748}
+.exp-sub{color:#718096;margin-top:3px;font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-draft{background:#e2e8f0;color:#4a5568}
+.badge-submitted{background:#bee3f8;color:#2c5282}
+.badge-mgr_approved{background:#c6f6d5;color:#276749}
+.badge-owner_approved{background:#c6f6d5;color:#22543d}
+.badge-settled{background:#e9d8fd;color:#553c9a}
+.badge-rejected{background:#fed7d7;color:#742a2a}
+.amt-prefix{font-size:18px;font-weight:700;color:#718096;padding:9px 10px 9px 0;line-height:1}
+.amt-row{display:flex;align-items:center}
+.amt-row input{flex:1}
+</style>
+</head>
+<body>
+<div id="loadingMsg">載入中...</div>
+<div id="app" style="display:none;width:100%;max-width:400px">
+
+  <div class="card">
+    <h1>費用申請</h1>
+    <p class="sub" id="empName">—</p>
+    <div id="formMsg"></div>
+    <div class="field">
+      <label>費用日期</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="field">
+      <label>費用科目</label>
+      <select id="fCategory"><option value="">-- 請選擇 --</option></select>
+    </div>
+    <div class="field">
+      <label>金額（元）</label>
+      <div class="amt-row"><span class="amt-prefix">$</span><input type="number" id="fAmount" min="1" placeholder="0" inputmode="numeric"></div>
+    </div>
+    <div class="field">
+      <label>說明（選填）</label>
+      <textarea id="fDesc" rows="2" placeholder="補充說明…"></textarea>
+    </div>
+    <button class="btn btn-primary" id="btnSubmit" disabled>送出申請</button>
+  </div>
+
+  <div class="card" id="historyCard" style="display:none">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px">我的申請記錄</div>
+    <div id="historyList"></div>
+  </div>
+
+</div>
+<script>
+const LIFF_ID = '${liffId}';
+const STATUS_LABELS = {draft:'草稿',submitted:'待店長審核',mgr_approved:'待老闆審核',owner_approved:'待匯款',settled:'已匯款',rejected:'已退回'};
+let accessToken = null;
+
+function showFormMsg(text, type='info') {
+  const el = document.getElementById('formMsg');
+  el.className = 'msg msg-' + type;
+  el.textContent = text;
+}
+
+function clearFormMsg() {
+  const el = document.getElementById('formMsg');
+  el.className = '';
+  el.textContent = '';
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+}
+
+async function apiFetch(path, method, body) {
+  const r = await fetch(path, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json', 'X-LIFF-Token': accessToken },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return r;
+}
+
+async function loadCategories() {
+  const r = await apiFetch('/api/expenses/liff/categories', 'POST', { access_token: accessToken });
+  if (!r.ok) return;
+  const cats = await r.json();
+  const sel = document.getElementById('fCategory');
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+}
+
+async function loadHistory() {
+  const r = await apiFetch('/api/expenses/liff/list', 'POST', { access_token: accessToken });
+  if (!r.ok) return;
+  const list = await r.json();
+  if (!list.length) return;
+  document.getElementById('historyCard').style.display = '';
+  document.getElementById('historyList').innerHTML = list.map(e => {
+    const status = STATUS_LABELS[e.status] || e.status;
+    return '<div class="expense-item">' +
+      '<div class="exp-top">' +
+      '<span class="exp-title">' + (e.category_name || '') + '</span>' +
+      '<span class="exp-amount">$' + Number(e.amount).toLocaleString() + '</span>' +
+      '</div>' +
+      '<div class="exp-sub">' + (e.expense_date || '') + '　' +
+      '<span class="badge badge-' + e.status + '">' + status + '</span>' +
+      (e.description ? '　' + e.description : '') +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+
+async function doSubmit() {
+  const date = document.getElementById('fDate').value;
+  const catId = document.getElementById('fCategory').value;
+  const amount = document.getElementById('fAmount').value;
+  const desc = document.getElementById('fDesc').value.trim();
+  if (!date || !catId || !amount) { showFormMsg('請填寫日期、科目與金額', 'error'); return; }
+  if (Number(amount) <= 0) { showFormMsg('金額必須大於 0', 'error'); return; }
+
+  document.getElementById('btnSubmit').disabled = true;
+  showFormMsg('送出中…', 'info');
+
+  const r = await apiFetch('/api/expenses/liff/submit', 'POST', {
+    access_token: accessToken,
+    expense_date: date,
+    category_id: Number(catId),
+    amount: Number(amount),
+    description: desc || null
+  });
+  const data = await r.json();
+  if (r.ok) {
+    showFormMsg('✅ 申請已送出！', 'success');
+    document.getElementById('fDate').value = todayStr();
+    document.getElementById('fCategory').value = '';
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fDesc').value = '';
+    await loadHistory();
+  } else {
+    showFormMsg(data.error || '送出失敗，請重試', 'error');
+  }
+  document.getElementById('btnSubmit').disabled = false;
+}
+
+async function init() {
+  if (!LIFF_ID) {
+    document.getElementById('loadingMsg').textContent = '⚠️ LIFF 尚未設定，請聯絡管理員';
+    return;
+  }
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    accessToken = liff.getAccessToken();
+
+    const r = await apiFetch('/api/expenses/liff/categories', 'POST', { access_token: accessToken });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      document.getElementById('loadingMsg').textContent = d.error || '驗證失敗，請確認您已綁定系統帳號';
+      return;
+    }
+    const cats = await r.json();
+    const sel = document.getElementById('fCategory');
+    cats.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name;
+      sel.appendChild(o);
+    });
+
+    // 取使用者名稱
+    const authR = await apiFetch('/api/expenses/liff/me', 'POST', { access_token: accessToken });
+    if (authR.ok) {
+      const me = await authR.json();
+      document.getElementById('empName').textContent = me.name || '—';
+    }
+
+    document.getElementById('fDate').value = todayStr();
+    document.getElementById('btnSubmit').disabled = false;
+    document.getElementById('btnSubmit').addEventListener('click', doSubmit);
+
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('app').style.display = '';
+
+    await loadHistory();
   } catch(e) {
     document.getElementById('loadingMsg').textContent = '載入失敗：' + e.message;
   }
