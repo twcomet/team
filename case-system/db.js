@@ -2178,4 +2178,25 @@ if (_needCatV5) {
   console.log('✅ 品牌名稱修正完成（v5）');
 }
 
+// ── 銷售科目簡化 migration（v6：移除品牌細分，只留實體銷售/電商銷售）──
+const _needCatV6 =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='實體銷售' AND section='income' LIMIT 1`).get();
+
+if (_needCatV6) {
+  const _brands6 = ['Paroi','Bodaq','LX','AICA','3M','穩得','Para','Boda','LG','iCar','Wunder磨料'];
+  _brands6.forEach(b => {
+    db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(`實體銷售-${b}`);
+    db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(`電商銷售-${b}`);
+  });
+  // 同時停用 v2 留下的單一「電商銷售」（section=income，若存在）
+  db.prepare(`UPDATE ledger_categories SET active=0 WHERE name='電商銷售' AND section='income'`).run();
+
+  const _ins6 = db.prepare(
+    `INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income',?,?,1,0)`
+  );
+  _ins6.run('實體銷售', 20);
+  _ins6.run('電商銷售',  21);
+  console.log('✅ 銷售科目簡化完成（v6：實體銷售 + 電商銷售）');
+}
+
 module.exports = db;
