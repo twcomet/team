@@ -2237,4 +2237,12 @@ if (_needCatV8) {
   console.log('✅ 品牌科目強制清除完成（v8）');
 }
 
+// ── 停用科目永久刪除 migration（v9）──
+// 條件：還有任何 active=0 的科目就執行
+const _needCatV9 = !!db.prepare(`SELECT id FROM ledger_categories WHERE active=0 LIMIT 1`).get();
+if (_needCatV9) {
+  const { changes } = db.prepare(`DELETE FROM ledger_categories WHERE active=0`).run();
+  console.log(`✅ 停用科目已刪除（v9，共 ${changes} 筆）`);
+}
+
 module.exports = db;
