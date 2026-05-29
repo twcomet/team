@@ -197,26 +197,6 @@ function render(f) {
       </div>` : ''}
     </div>
 
-    <!-- 場勘費 -->
-    ${f.survey_fee_required != null ? `
-    <div class="card">
-      <div class="card-title">場勘費</div>
-      ${f.survey_fee_required == 1 ? `
-        <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px">
-          <span style="font-size:22px">💴</span>
-          <div>
-            <div style="font-size:12px;color:#92400e;margin-bottom:4px;font-weight:500">本次場勘需收取場勘費</div>
-            <div style="font-size:22px;font-weight:800;color:#92400e">
-              NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}
-            </div>
-          </div>
-        </div>` : `
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px">
-          <span style="font-size:18px">✅</span>
-          <span style="font-size:14px;font-weight:600;color:#065f46">本次場勘免收場勘費</span>
-        </div>`}
-    </div>` : ''}
-
     <!-- 施作項目 -->
     ${findings.length ? `
     <div class="card">
@@ -248,11 +228,44 @@ function render(f) {
       <div class="note-box">${esc(f.extra_notes)}</div>
     </div>` : ''}
 
-    <!-- 簽名 or 已簽名顯示 -->
+    <!-- 確認 + 簽名整合區 -->
     ${!signed ? `
     <div class="sig-card">
-      <div class="sig-card-title">客戶確認簽名</div>
-      <p class="sig-desc">請確認以上場勘資料無誤後，在下方空白處以手指或滑鼠進行簽名，完成後點擊「確認並送出」。</p>
+      <div class="sig-card-title">📋 確認事項與客戶簽名</div>
+      <p class="sig-desc">請確認以下事項無誤後，在簽名欄完成簽名即可，無需重複簽署。</p>
+
+      <!-- 確認清單 -->
+      <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.06em;margin-bottom:10px">本次簽名代表確認以下事項</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
+            <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
+            <span>場勘日期：<strong>${esc(f.survey_date || '—')}${f.survey_time ? ' ' + esc(f.survey_time) : ''}</strong></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
+            <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
+            <span>施工地址：<strong>${esc(f.site_address || f.location || '—')}</strong></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
+            <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
+            <span>場勘人員：<strong>${esc(f.surveyor_name || '—')}</strong></span>
+          </div>
+          ${findings.length ? `
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
+            <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
+            <span>施作項目：<strong>共 ${findings.length} 項（詳見上方列表）</strong></span>
+          </div>` : ''}
+          ${f.survey_fee_required != null ? `
+          <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;margin-top:4px;padding-top:10px;border-top:1px dashed #e5e7eb">
+            <span style="${f.survey_fee_required == 1 ? 'color:#92400e' : 'color:#065f46'};font-weight:700;flex-shrink:0">✓</span>
+            ${f.survey_fee_required == 1
+              ? `<span>場勘費：<strong style="color:#92400e;font-size:15px">NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}</strong>（現場收取，簽名即表示同意支付）</span>`
+              : `<span>場勘費：<strong style="color:#065f46">免收</strong></span>`
+            }
+          </div>` : ''}
+        </div>
+      </div>
+
       <canvas id="sigCanvas" width="640" height="180"></canvas>
       <div class="sig-controls">
         <span style="font-size:12px;color:#9ca3af">請在上方框內簽名</span>
@@ -261,16 +274,22 @@ function render(f) {
       <button class="btn btn-primary" onclick="submitSig()">確認並送出簽名</button>
     </div>
 
-    <div class="print-only card" style="text-align:center;padding:30px">
-      <p style="font-size:13px;color:#6b7280;margin-bottom:16px">客戶簽名確認</p>
-      <div style="border-bottom:1.5px solid #000;height:70px;margin:0 40px"></div>
-      <p style="font-size:12px;color:#6b7280;margin-top:12px">日期：_______ 年 _____ 月 _____ 日</p>
+    <div class="print-only card" style="padding:24px">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px">客戶確認簽名</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.7">
+        本人確認以上場勘資料無誤${f.survey_fee_required == 1 ? `，並同意支付場勘費 NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}` : ''}。
+      </div>
+      <div style="border-bottom:1.5px solid #000;height:60px;margin:0 20px"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#6b7280">
+        <span>客戶簽名</span>
+        <span>日期：_______ 年 _____ 月 _____ 日</span>
+      </div>
     </div>` : `
     ${f.client_signature ? `
-    <div class="card print-only" style="text-align:center">
-      <div class="card-title">客戶簽名</div>
-      <img src="${f.client_signature}" style="max-width:320px;border:1px solid #e5e7eb;border-radius:10px">
-      <p style="font-size:12px;color:#9ca3af;margin-top:10px">
+    <div class="card" style="text-align:center">
+      <div class="card-title">已確認簽名</div>
+      <img src="${f.client_signature}" style="max-width:320px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px">
+      <p style="font-size:12px;color:#9ca3af">
         簽名時間：${(f.client_signed_at||'').slice(0,16).replace('T',' ')}
       </p>
     </div>` : ''}
