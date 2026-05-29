@@ -130,6 +130,28 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   res.json({ ok: true, token: form?.share_token });
 });
 
+// PATCH /api/survey/cases/:id/surveyor  → 從列表直接更換場勘人員並通知
+router.patch('/cases/:id/surveyor', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const caseId = req.params.id;
+  const { surveyor_id } = req.body;
+
+  const form = db.prepare(`SELECT id, surveyor_id, survey_date, survey_time, dispatch_note, worker_token FROM survey_forms WHERE case_id=?`).get(caseId);
+  const surveyorChanged = String(form?.surveyor_id || '') !== String(surveyor_id || '');
+
+  if (form) {
+    db.prepare(`UPDATE survey_forms SET surveyor_id=?, updated_at=CURRENT_TIMESTAMP WHERE case_id=?`).run(surveyor_id || null, caseId);
+  }
+  db.prepare(`UPDATE cases SET surveyor_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(surveyor_id || null, caseId);
+
+  if (surveyorChanged && surveyor_id) {
+    const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(caseId);
+    notifySurveyor(surveyor_id, caseData, form?.survey_date, form?.survey_time, form?.dispatch_note, me.name, form?.worker_token);
+  }
+
+  res.json({ ok: true });
+});
+
 // 重新通知場勘人員（手動觸發）
 router.post('/cases/:id/re-notify', requireAuth, (req, res) => {
   const me = req.session.user;

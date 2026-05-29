@@ -451,6 +451,7 @@ const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca
 let allCases = [], clients = [], salesUsers = [];
 let inquirySalesUsers = [], inquiryCsUsers = [];
 const pendingChanges = new Map();
+const pendingSurveyorChanges = new Map();
 let activeStatus = '', activeType = '';
 let sortDateDir = 'desc';
 let inquirySortField = 'created_at', inquirySortDir = 'desc';
@@ -546,11 +547,26 @@ function onAssignChange(caseId, field, value) {
   if (!pendingChanges.has(caseId)) pendingChanges.set(caseId, {});
   pendingChanges.get(caseId)[field] = value || null;
   const btn = document.getElementById('saveAssignBtn');
-  if (btn) btn.style.outline = pendingChanges.size > 0 ? '2px solid #fca5a5' : '';
+  if (btn) btn.style.outline = (pendingChanges.size + pendingSurveyorChanges.size) > 0 ? '2px solid #fca5a5' : '';
+}
+
+function surveyorSelect(caseId, surveyorId, usersList) {
+  const opts = ['<option value="">—</option>',
+    ...usersList.map(u => `<option value="${u.id}" ${u.id == surveyorId ? 'selected' : ''}>${escHtml(u.name)}</option>`)
+  ].join('');
+  return `<select onchange="onSurveyorChange(${caseId},this.value)"
+    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:12px;background:#fff;width:100%;max-width:88px">
+    ${opts}</select>`;
+}
+
+function onSurveyorChange(caseId, value) {
+  pendingSurveyorChanges.set(Number(caseId), value || null);
+  const btn = document.getElementById('saveAssignBtn');
+  if (btn) btn.style.outline = (pendingChanges.size + pendingSurveyorChanges.size) > 0 ? '2px solid #fca5a5' : '';
 }
 
 async function saveAllAssignments() {
-  if (!pendingChanges.size) { showToast('沒有待儲存的變更'); return; }
+  if (!pendingChanges.size && !pendingSurveyorChanges.size) { showToast('沒有待儲存的變更'); return; }
   const btn = document.getElementById('saveAssignBtn');
   btn.disabled = true; btn.textContent = '儲存中…';
   let ok = 0, fail = 0;
@@ -561,7 +577,15 @@ async function saveAllAssignments() {
     });
     if (res.ok) ok++; else fail++;
   }
+  for (const [caseId, surveyorId] of pendingSurveyorChanges) {
+    const res = await fetch(`/api/survey/cases/${caseId}/surveyor`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ surveyor_id: surveyorId })
+    });
+    if (res.ok) ok++; else fail++;
+  }
   pendingChanges.clear();
+  pendingSurveyorChanges.clear();
   btn.disabled = false; btn.textContent = '💾 儲存指派';
   btn.style.outline = '';
   if (fail) showToast(`部分儲存失敗 (${ok} 成功, ${fail} 失敗)`, 'error');
@@ -766,8 +790,8 @@ function getCaseRow(c) {
       <td style="width:88px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
       </td>
-      <td style="width:88px;white-space:nowrap;font-size:12px;color:#374151">
-        ${c.surveyor_name ? `<span style="display:inline-flex;align-items:center;gap:4px"><span style="font-size:10px">🔍</span>${escHtml(c.surveyor_name)}</span>` : '<span style="color:#d1d5db">—</span>'}
+      <td style="width:88px" onclick="event.stopPropagation()">
+        ${surveyorSelect(c.id, c.surveyor_id, salesUsers)}
       </td>
       <td style="width:76px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
