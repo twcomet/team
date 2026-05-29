@@ -458,7 +458,7 @@
                 <div class="form-group" style="margin:0"><label class="q-field-label">折扣規則</label>
                   <select id="q_discount_rule_id" class="q-input"><option value="">無折扣（原價）</option></select></div>
                 <div class="form-group" style="margin:0"><label class="q-field-label">行銷優惠（0.9 = 九折）</label><input type="number" id="q_marketing_rate" value="1" min="0.1" max="1" step="0.05" class="q-input"></div>
-                <div class="form-group" style="margin:0"><label class="q-field-label">車馬費（元）</label><input type="number" id="q_travel_fee" value="0" min="0" class="q-input"></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">車馬費（元）<button type="button" onclick="autoMatchTravelFee()" style="margin-left:6px;font-size:10px;padding:1px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:4px;cursor:pointer">依地址自動帶入</button></label><input type="number" id="q_travel_fee" value="0" min="0" class="q-input"></div>
                 <div class="form-group" style="margin:0"><label class="q-field-label">運費（元）</label><input type="number" id="q_freight_fee" value="0" min="0" class="q-input"></div>
               </div>
               <div class="form-group" style="margin-bottom:8px"><label class="q-field-label">付款條件</label><input type="text" id="q_payment_terms" placeholder="例：訂金30%，完工後付清尾款" class="q-input" style="width:100%"></div>
@@ -466,6 +466,13 @@
               <button class="btn btn-primary btn-sm" id="qSaveSettingsBtn">儲存設定</button>
             </div>
           </details>
+
+          <!-- 資料未填提示 -->
+          <div id="qDataHint" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#9a3412">
+            ⚠️ 膜料價格或公規品目錄尚未設定，請先至
+            <a href="/quote-settings" target="_blank" style="color:#1a56db;font-weight:600">報價設定</a>
+            頁面輸入資料，再回此頁操作。
+          </div>
 
           <!-- 新增品項 -->
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
@@ -3432,6 +3439,10 @@ function renderQuotePanel() {
     ss.textContent = parts.length ? parts.join(' ・ ') : '（點擊展開）';
   }
 
+  // 提示：膜料或公規品資料尚未填入
+  const hint = document.getElementById('qDataHint');
+  if (hint) hint.style.display = (!filmMatrix.length && !catalogAll.length) ? '' : 'none';
+
   renderQuoteItemsV2(currentQuote.items || []);
   renderQuoteTotals();
 }
@@ -3549,7 +3560,7 @@ function buildItemCard(it) {
 </div>`;
 }
 
-function esc(v) { return (v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// esc() is defined later in the file (survey-form section)
 
 function qCalcSqChi(itemId) {
   const len   = parseFloat(document.getElementById(`qLen_${itemId}`)?.value) || 0;
@@ -3729,14 +3740,39 @@ function renderQuoteTotals() {
   }
 }
 
+async function autoMatchTravelFee() {
+  const addr = caseData?.location || caseData?.address || '';
+  if (!addr) { showToast('案件未填施工地址，無法自動匹配', 'error'); return; }
+  const r = await fetch(`/api/quote-settings/travel-fees/match?address=${encodeURIComponent(addr)}`);
+  if (!r.ok) return;
+  const fee = await r.json();
+  if (!fee) { showToast('找不到符合的車馬費地區，請手動填寫'); return; }
+  const el = document.getElementById('q_travel_fee');
+  if (el) {
+    el.value = fee.install_fee || fee.survey_fee || 0;
+    showToast(`已帶入「${fee.region_name}」車馬費 NT$${(fee.install_fee||fee.survey_fee||0).toLocaleString()}`);
+  }
+}
+
 async function createQuoteVersion(copyFromCurrent) {
   const body = {};
   if (copyFromCurrent && currentQuote) body.copy_from_version = currentQuote.version;
+  // 若是首次建立，嘗試自動帶入車馬費
+  if (!copyFromCurrent && !currentQuote) {
+    const addr = caseData?.location || caseData?.address || '';
+    if (addr) {
+      const r = await fetch(`/api/quote-settings/travel-fees/match?address=${encodeURIComponent(addr)}`);
+      if (r.ok) {
+        const fee = await r.json();
+        if (fee) body.travel_fee = fee.install_fee || fee.survey_fee || 0;
+      }
+    }
+  }
   const res = await fetch(`/api/quotes/cases/${caseId}`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
   });
   if (!res.ok) { showToast('建立失敗', 'error'); return; }
-  showToast('新版本已建立');
+  showToast(copyFromCurrent ? '新版本已建立' : '報價單已建立');
   const vr = await fetch(`/api/quotes/cases/${caseId}/versions`);
   quoteVersions = vr.ok ? await vr.json() : [];
   const qr = await fetch(`/api/quotes/cases/${caseId}`);
