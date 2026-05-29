@@ -6,50 +6,97 @@
 <title>場勘確認單 — 繪新國際</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif; background:#f8fafc; color:#1f2937; }
-.container { max-width:680px; margin:0 auto; padding:16px; }
-.brand { text-align:center; padding:20px 0 16px; border-bottom:3px solid #1a56db; margin-bottom:20px; }
-.brand h1 { font-size:22px; font-weight:700; color:#1a56db; }
-.brand p  { font-size:13px; color:#6b7280; margin-top:4px; }
-.card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; padding:18px; margin-bottom:14px; }
-.card h3 { font-size:14px; font-weight:600; color:#374151; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f3f4f6; }
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.info-item .label { font-size:11px; color:#9ca3af; margin-bottom:3px; }
-.info-item .value { font-size:14px; font-weight:500; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif; background:#f0f4f8; color:#1f2937; }
+.page { max-width:720px; margin:0 auto; padding:20px 16px 40px; }
+
+/* 頁首 */
+.brand { text-align:center; padding:24px 0 20px; }
+.brand-logo { font-size:28px; margin-bottom:6px; }
+.brand h1 { font-size:20px; font-weight:800; color:#1a56db; letter-spacing:.02em; }
+.brand-sub { font-size:13px; color:#6b7280; margin-top:4px; }
+.brand-divider { height:3px; background:linear-gradient(90deg,#1a56db,#60a5fa); border-radius:2px; margin-top:16px; }
+
+/* 卡片 */
+.card { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:20px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+.card-title { font-size:13px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.card-title::before { content:''; display:block; width:4px; height:16px; background:#1a56db; border-radius:2px; }
+
+/* 資訊格 */
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.info-item .lbl { font-size:11px; color:#9ca3af; font-weight:500; margin-bottom:4px; }
+.info-item .val { font-size:14px; font-weight:600; color:#111827; line-height:1.5; }
+.info-item .val.mono { font-family:monospace; font-size:15px; color:#1a56db; }
+.full-col { grid-column:1 / -1; }
+
+/* 場勘時間 badge */
+.datetime-badge { display:inline-flex; align-items:center; gap:8px; background:#dbeafe; border:1px solid #bfdbfe; border-radius:10px; padding:10px 16px; }
+.datetime-badge .date-part { font-size:16px; font-weight:700; color:#1e40af; }
+.datetime-badge .time-part { font-size:14px; color:#1e40af; font-weight:600; padding:3px 10px; background:#1e40af; color:#fff; border-radius:6px; }
+
+/* 分隔線 */
+.divider { height:1px; background:#f3f4f6; margin:14px 0; }
+
+/* 聯絡資訊區 */
+.contact-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#f9fafb; border-radius:10px; border:1px solid #f3f4f6; }
+.contact-row + .contact-row { margin-top:8px; }
+.contact-icon { font-size:16px; flex-shrink:0; }
+.contact-label { font-size:11px; color:#9ca3af; margin-bottom:2px; }
+.contact-val { font-size:14px; font-weight:600; }
+.contact-val a { color:#1a56db; text-decoration:none; }
+
+/* 施作項目 */
 table { width:100%; border-collapse:collapse; font-size:13px; }
-th { background:#f9fafb; padding:8px 10px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; }
-td { padding:10px; border-bottom:1px solid #f3f4f6; }
-tr:last-child td { border-bottom:none; }
-.sig-section { background:#fff; border-radius:12px; border:2px solid #1a56db; padding:20px; margin-bottom:14px; }
-.sig-section h3 { font-size:15px; font-weight:600; color:#1a56db; margin-bottom:8px; }
-.sig-desc { font-size:13px; color:#4b5563; margin-bottom:14px; line-height:1.6; }
-#sigCanvas { width:100%; height:200px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; cursor:crosshair; touch-action:none; display:block; }
+thead th { background:#f8faff; padding:9px 12px; text-align:left; font-size:11px; color:#6b7280; font-weight:600; border-bottom:2px solid #e5e7eb; }
+tbody td { padding:10px 12px; border-bottom:1px solid #f3f4f6; color:#374151; }
+tbody tr:last-child td { border-bottom:none; }
+tbody tr:hover { background:#fafafa; }
+.empty-row { text-align:center; color:#9ca3af; font-size:13px; padding:20px; }
+
+/* 備注 */
+.note-box { background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:14px 16px; font-size:13px; color:#78350f; line-height:1.8; white-space:pre-wrap; }
+
+/* 簽名區 */
+.sig-card { background:#fff; border-radius:14px; border:2px solid #1a56db; padding:22px; margin-bottom:14px; box-shadow:0 2px 8px rgba(26,86,219,.1); }
+.sig-card-title { font-size:15px; font-weight:700; color:#1a56db; margin-bottom:6px; }
+.sig-desc { font-size:13px; color:#4b5563; margin-bottom:16px; line-height:1.7; }
+#sigCanvas { width:100%; height:200px; border:2px dashed #d1d5db; border-radius:10px; background:#fafafa; cursor:crosshair; touch-action:none; display:block; }
 @media (min-width:500px) { #sigCanvas { height:240px; } }
 #sigCanvas.has-sig { border-color:#1a56db; border-style:solid; background:#fff; }
-.sig-controls { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
-.btn { padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; }
-.btn-primary { background:#1a56db; color:#fff; width:100%; padding:14px; font-size:15px; margin-top:16px; border-radius:10px; }
-.btn-ghost   { background:#f3f4f6; color:#374151; font-size:13px; padding:8px 14px; }
-.signed-box  { background:#d1fae5; border:2px solid #6ee7b7; border-radius:12px; padding:24px; text-align:center; margin-bottom:14px; }
-.signed-box h2 { color:#065f46; font-size:20px; margin-bottom:8px; }
-.signed-box p  { color:#047857; font-size:14px; }
+.sig-controls { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.btn { padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all .15s; }
+.btn-primary { background:#1a56db; color:#fff; width:100%; padding:15px; font-size:15px; margin-top:16px; border-radius:12px; box-shadow:0 2px 8px rgba(26,86,219,.3); }
+.btn-primary:active { transform:scale(.98); }
+.btn-ghost { background:#f3f4f6; color:#374151; font-size:13px; padding:8px 16px; border-radius:8px; }
+
+/* 已簽名 */
+.signed-box { background:#d1fae5; border:2px solid #6ee7b7; border-radius:14px; padding:28px 20px; text-align:center; margin-bottom:14px; }
+.signed-box h2 { color:#065f46; font-size:22px; margin-bottom:8px; }
+.signed-box p  { color:#047857; font-size:14px; margin-top:6px; }
+
+/* 頁尾 */
+.footer { text-align:center; padding:20px 0 10px; font-size:12px; color:#9ca3af; }
+
+/* 列印 */
 .print-only { display:none; }
 @media print {
-  .sig-section, .btn-primary, .sig-controls { display:none !important; }
-  .print-only { display:block !important; }
   body { background:#fff; }
+  .sig-card, .btn-primary, .sig-controls, .btn-ghost { display:none !important; }
+  .print-only { display:block !important; }
   .card, .brand { border:none; box-shadow:none; }
+  .page { padding:0; }
 }
 </style>
 </head>
 <body>
-<div class="container" id="app">
+<div class="page" id="app">
   <div class="brand">
-    <h1>🎨 繪新國際有限公司</h1>
-    <p>場勘確認單</p>
+    <div class="brand-logo">🎨</div>
+    <h1>繪新國際有限公司</h1>
+    <div class="brand-sub">場勘確認單</div>
+    <div class="brand-divider"></div>
   </div>
   <div id="content">
-    <p style="text-align:center;color:#6b7280;padding:40px">載入中…</p>
+    <p style="text-align:center;color:#6b7280;padding:60px 0">載入中…</p>
   </div>
 </div>
 
@@ -60,7 +107,8 @@ const printMode = new URLSearchParams(location.search).get('print') === '1';
 async function load() {
   const res = await fetch(`/api/survey/sign/${token}`);
   if (!res.ok) {
-    document.getElementById('content').innerHTML = '<p style="text-align:center;color:#e02424;padding:40px">找不到此場勘單，連結可能已失效。</p>';
+    document.getElementById('content').innerHTML =
+      '<p style="text-align:center;color:#e02424;padding:60px 0">找不到此場勘單，連結可能已失效。</p>';
     return;
   }
   const f = await res.json();
@@ -68,55 +116,122 @@ async function load() {
   if (printMode) setTimeout(() => window.print(), 800);
 }
 
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function render(f) {
-  const signed = f.status === 'signed';
+  const signed   = f.status === 'signed';
   const findings = f.findings || [];
+  const dateStr  = f.survey_date || '—';
+  const timeStr  = f.survey_time || '';
 
   document.getElementById('content').innerHTML = `
     ${signed ? `
     <div class="signed-box">
       <h2>✅ 場勘單已確認簽名</h2>
-      <p>簽名時間：${f.client_signed_at ? f.client_signed_at.slice(0,16).replace('T',' ') : ''}</p>
+      <p>感謝您的確認，我們將依約安排場勘作業。</p>
+      ${f.client_signed_at ? `<p style="margin-top:10px;font-size:13px;color:#6b7280">簽名時間：${f.client_signed_at.slice(0,16).replace('T',' ')}</p>` : ''}
     </div>` : ''}
 
+    <!-- 場勘時間 -->
     <div class="card">
-      <h3>案件資訊</h3>
-      <div class="info-grid">
-        <div class="info-item"><div class="label">案號</div><div class="value" style="font-family:monospace">${f.case_number}</div></div>
-        <div class="info-item"><div class="label">場勘日期</div><div class="value">${f.survey_date || '—'}</div></div>
-        <div class="info-item"><div class="label">客戶</div><div class="value">${f.client_name || '—'}</div></div>
-        <div class="info-item"><div class="label">場勘人員</div><div class="value">${f.surveyor_name || '—'}</div></div>
-        <div class="info-item" style="grid-column:1/-1"><div class="label">施工地址</div><div class="value">${f.site_address || f.location || '—'}</div></div>
-        ${f.site_contact ? `<div class="info-item"><div class="label">現場聯絡人</div><div class="value">${f.site_contact}</div></div>` : ''}
-        ${f.site_phone   ? `<div class="info-item"><div class="label">聯絡電話</div><div class="value">${f.site_phone}</div></div>` : ''}
+      <div class="card-title">場勘時間</div>
+      <div class="datetime-badge">
+        <span style="font-size:18px">📅</span>
+        <span class="date-part">${esc(dateStr)}</span>
+        ${timeStr ? `<span class="time-part">${esc(timeStr)}</span>` : ''}
       </div>
     </div>
 
+    <!-- 案件資訊 -->
+    <div class="card">
+      <div class="card-title">案件資訊</div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="lbl">案號</div>
+          <div class="val mono">${esc(f.case_number)}</div>
+        </div>
+        <div class="info-item">
+          <div class="lbl">客戶姓名</div>
+          <div class="val">${esc(f.client_name || '—')}</div>
+        </div>
+        <div class="info-item full-col">
+          <div class="lbl">案件名稱</div>
+          <div class="val">${esc(f.title || '—')}</div>
+        </div>
+        <div class="info-item">
+          <div class="lbl">場勘人員</div>
+          <div class="val">${esc(f.surveyor_name || '—')}</div>
+        </div>
+        <div class="info-item">
+          <div class="lbl">公司</div>
+          <div class="val">${esc(f.org_name || '繪新國際有限公司')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 施工地址 -->
+    <div class="card">
+      <div class="card-title">施工現場</div>
+      <div class="info-item" style="margin-bottom:${(f.site_contact || f.site_phone) ? '14px' : '0'}">
+        <div class="lbl">施工地址</div>
+        <div class="val" style="font-size:15px">${esc(f.site_address || f.location || '—')}</div>
+      </div>
+      ${(f.site_contact || f.site_phone) ? '<div class="divider"></div>' : ''}
+      ${f.site_contact ? `
+      <div class="contact-row">
+        <span class="contact-icon">👤</span>
+        <div>
+          <div class="contact-label">現場聯絡人</div>
+          <div class="contact-val">${esc(f.site_contact)}</div>
+        </div>
+      </div>` : ''}
+      ${f.site_phone ? `
+      <div class="contact-row">
+        <span class="contact-icon">📞</span>
+        <div>
+          <div class="contact-label">聯絡電話</div>
+          <div class="contact-val"><a href="tel:${esc(f.site_phone)}">${esc(f.site_phone)}</a></div>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <!-- 施作項目 -->
     ${findings.length ? `
     <div class="card">
-      <h3>場勘項目</h3>
+      <div class="card-title">施作項目（共 ${findings.length} 項）</div>
       <table>
-        <thead><tr><th>施作位置</th><th>材料 / 說明</th><th>寬(cm)</th><th>高(cm)</th></tr></thead>
+        <thead>
+          <tr>
+            <th>施作位置</th>
+            <th>材料 / 說明</th>
+            <th style="text-align:center">寬(cm)</th>
+            <th style="text-align:center">高(cm)</th>
+          </tr>
+        </thead>
         <tbody>
           ${findings.map(it => `<tr>
-            <td>${it.location || ''}</td>
-            <td>${it.material || ''}</td>
-            <td>${it.width || '—'}</td>
-            <td>${it.height || '—'}</td>
+            <td>${esc(it.location || '—')}</td>
+            <td>${esc(it.material || '—')}</td>
+            <td style="text-align:center">${esc(it.width || '—')}</td>
+            <td style="text-align:center">${esc(it.height || '—')}</td>
           </tr>`).join('')}
         </tbody>
       </table>
     </div>` : ''}
 
+    <!-- 備注 -->
     ${f.extra_notes ? `
     <div class="card">
-      <h3>備註 / 注意事項</h3>
-      <p style="font-size:14px;color:#374151;line-height:1.7">${f.extra_notes.replace(/\n/g,'<br>')}</p>
+      <div class="card-title">備注 / 注意事項</div>
+      <div class="note-box">${esc(f.extra_notes)}</div>
     </div>` : ''}
 
+    <!-- 簽名 or 已簽名顯示 -->
     ${!signed ? `
-    <div class="sig-section">
-      <h3>客戶確認簽名</h3>
+    <div class="sig-card">
+      <div class="sig-card-title">客戶確認簽名</div>
       <p class="sig-desc">請確認以上場勘資料無誤後，在下方空白處以手指或滑鼠進行簽名，完成後點擊「確認並送出」。</p>
       <canvas id="sigCanvas" width="640" height="180"></canvas>
       <div class="sig-controls">
@@ -127,20 +242,22 @@ function render(f) {
     </div>
 
     <div class="print-only card" style="text-align:center;padding:30px">
-      <p style="font-size:13px;color:#6b7280">客戶簽名欄</p>
-      <div style="border-bottom:1px solid #000;height:60px;margin:20px 40px"></div>
-      <p style="font-size:12px;color:#6b7280">日期：_______ 年 _____ 月 _____ 日</p>
+      <p style="font-size:13px;color:#6b7280;margin-bottom:16px">客戶簽名確認</p>
+      <div style="border-bottom:1.5px solid #000;height:70px;margin:0 40px"></div>
+      <p style="font-size:12px;color:#6b7280;margin-top:12px">日期：_______ 年 _____ 月 _____ 日</p>
     </div>` : `
     ${f.client_signature ? `
     <div class="card print-only" style="text-align:center">
-      <h3>客戶簽名</h3>
-      <img src="${f.client_signature}" style="max-width:300px;border:1px solid #e5e7eb;border-radius:8px">
-      <p style="font-size:12px;color:#6b7280;margin-top:8px">簽名時間：${f.client_signed_at?.slice(0,16).replace('T',' ')}</p>
+      <div class="card-title">客戶簽名</div>
+      <img src="${f.client_signature}" style="max-width:320px;border:1px solid #e5e7eb;border-radius:10px">
+      <p style="font-size:12px;color:#9ca3af;margin-top:10px">
+        簽名時間：${(f.client_signed_at||'').slice(0,16).replace('T',' ')}
+      </p>
     </div>` : ''}
     `}
 
-    <div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af">
-      此場勘單由 繪新國際有限公司 提供<br>
+    <div class="footer">
+      此場勘確認單由 繪新國際有限公司 提供<br>
       如有問題請聯繫業務人員
     </div>
   `;
@@ -148,12 +265,11 @@ function render(f) {
   if (!signed) setupCanvas();
 }
 
-// ── Canvas 簽名 ─────────────────────────────────────────
+// ── Canvas 簽名 ────────────────────────────────────────────
 function setupCanvas() {
   const canvas = document.getElementById('sigCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  // 修正 canvas 實際大小
   const rect = canvas.getBoundingClientRect();
   canvas.width  = rect.width  * window.devicePixelRatio;
   canvas.height = rect.height * window.devicePixelRatio;
@@ -163,16 +279,14 @@ function setupCanvas() {
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
-  let drawing = false, hasSig = false;
-
+  let drawing = false;
   const getPos = e => {
     const r = canvas.getBoundingClientRect();
     const src = e.touches ? e.touches[0] : e;
     return { x: src.clientX - r.left, y: src.clientY - r.top };
   };
-
   canvas.addEventListener('pointerdown', e => {
-    drawing = true; hasSig = true;
+    drawing = true;
     canvas.classList.add('has-sig');
     const {x,y} = getPos(e);
     ctx.beginPath(); ctx.moveTo(x, y);
@@ -183,7 +297,7 @@ function setupCanvas() {
     const {x,y} = getPos(e);
     ctx.lineTo(x, y); ctx.stroke();
   });
-  canvas.addEventListener('pointerup', () => { drawing = false; });
+  canvas.addEventListener('pointerup',    () => { drawing = false; });
   canvas.addEventListener('pointerleave', () => { drawing = false; });
 }
 
@@ -205,9 +319,9 @@ async function submitSig() {
     body: JSON.stringify({ signature: sig })
   });
   if (res.ok) {
-    load(); // 重新渲染顯示簽名完成畫面
+    load();
   } else {
-    const err = await res.json();
+    const err = await res.json().catch(() => ({}));
     alert(err.error || '送出失敗，請重試');
   }
 }
