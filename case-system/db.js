@@ -2094,7 +2094,7 @@ if (_needCatV3) {
   const _updOrd = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=? AND section='income'`);
 
   // ── 施工收入（依品牌）
-  const _brands = ['Para','Boda','LG','iCar','3M','Wunder磨料'];
+  const _brands = ['Paroi','Bodaq','LX','AICA','3M','穩得'];
   _brands.forEach((b, i) => _ins3.run(`裝潢貼膜施工-${b}`, i + 1));
 
   // 玻璃貼膜、車體、廣告、其他 → 更新排序
@@ -2112,6 +2112,8 @@ if (_needCatV3) {
   // ── 電商銷售（依品牌）
   _brands.forEach((b, i) => _ins3.run(`電商銷售-${b}`, 30 + i));
 
+  // ── 穩得施工收入（原 Wunder磨料 對應施工）已由 v4 連工帶料收入涵蓋，不另設科目
+
   // 學院、場勘費、設計費、其他 → 更新排序
   _updOrd.run(40, '貼膜學院-課程費');
   _updOrd.run(41, '貼膜學院-材料銷售');
@@ -2128,9 +2130,8 @@ const _needCatV4 =
   !db.prepare(`SELECT id FROM ledger_categories WHERE name='連工帶料收入' LIMIT 1`).get();
 
 if (_needCatV4) {
-  // 停用 v3 的 6 個品牌施工科目
-  const _brands4 = ['Para','Boda','LG','iCar','3M','Wunder磨料'];
-  _brands4.forEach(b => {
+  // 停用 v3 的品牌施工科目（新舊名稱都停用，避免遺漏）
+  ['Paroi','Bodaq','LX','AICA','3M','穩得','Para','Boda','LG','iCar','Wunder磨料'].forEach(b => {
     db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(`裝潢貼膜施工-${b}`);
   });
 
@@ -2147,6 +2148,34 @@ if (_needCatV4) {
   _updOrd4.run(7, '其他施工服務收入');
 
   console.log('✅ 科目調整完成（v4：連工帶料收入，移除品牌細分）');
+}
+
+// ── 品牌名稱修正 migration（v5：Para→Paroi, Boda→Bodaq, LG→LX, iCar→AICA, Wunder磨料→穩得）──
+const _needCatV5 =
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='實體銷售-Para' LIMIT 1`).get() ||
+  db.prepare(`SELECT id FROM ledger_categories WHERE name='實體銷售-LG'  LIMIT 1`).get();
+
+if (_needCatV5) {
+  const _ren = db.prepare(`UPDATE ledger_categories SET name=? WHERE name=?`);
+  const _renames = [
+    ['實體銷售-Para',     '實體銷售-Paroi'],
+    ['實體銷售-Boda',     '實體銷售-Bodaq'],
+    ['實體銷售-LG',       '實體銷售-LX'],
+    ['實體銷售-iCar',     '實體銷售-AICA'],
+    ['實體銷售-Wunder磨料','實體銷售-穩得'],
+    ['電商銷售-Para',     '電商銷售-Paroi'],
+    ['電商銷售-Boda',     '電商銷售-Bodaq'],
+    ['電商銷售-LG',       '電商銷售-LX'],
+    ['電商銷售-iCar',     '電商銷售-AICA'],
+    ['電商銷售-Wunder磨料','電商銷售-穩得'],
+    ['裝潢貼膜施工-Para',  '裝潢貼膜施工-Paroi'],
+    ['裝潢貼膜施工-Boda',  '裝潢貼膜施工-Bodaq'],
+    ['裝潢貼膜施工-LG',    '裝潢貼膜施工-LX'],
+    ['裝潢貼膜施工-iCar',  '裝潢貼膜施工-AICA'],
+    ['裝潢貼膜施工-Wunder磨料','裝潢貼膜施工-穩得'],
+  ];
+  _renames.forEach(([from, to]) => _ren.run(to, from));
+  console.log('✅ 品牌名稱修正完成（v5）');
 }
 
 module.exports = db;
