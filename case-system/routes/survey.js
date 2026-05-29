@@ -146,10 +146,11 @@ router.post('/cases/:id/re-notify', requireAuth, (req, res) => {
 });
 
 // ── 公開頁面（客戶簽名用，不需登入）────────────────────────────
-// GET /api/survey/sign/:token  → 取場勘單資料（不含金額）
+// GET /api/survey/sign/:token  → 取場勘單資料（含場勘費）
 router.get('/sign/:token', (req, res) => {
   const form = db.prepare(`
     SELECT sf.*, c.title, c.case_number, c.location,
+           c.survey_fee, c.survey_fee_required,
            cl.name as client_name, cl.phone as client_phone,
            u.name as surveyor_name, o.name as org_name
     FROM survey_forms sf

@@ -197,6 +197,26 @@ function render(f) {
       </div>` : ''}
     </div>
 
+    <!-- 場勘費 -->
+    ${f.survey_fee_required != null ? `
+    <div class="card">
+      <div class="card-title">場勘費</div>
+      ${f.survey_fee_required == 1 ? `
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px">
+          <span style="font-size:22px">💴</span>
+          <div>
+            <div style="font-size:12px;color:#92400e;margin-bottom:4px;font-weight:500">本次場勘需收取場勘費</div>
+            <div style="font-size:22px;font-weight:800;color:#92400e">
+              NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}
+            </div>
+          </div>
+        </div>` : `
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px">
+          <span style="font-size:18px">✅</span>
+          <span style="font-size:14px;font-weight:600;color:#065f46">本次場勘免收場勘費</span>
+        </div>`}
+    </div>` : ''}
+
     <!-- 施作項目 -->
     ${findings.length ? `
     <div class="card">
