@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>場勘任務 — 繪新國際</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif; background:#f8fafc; color:#1f2937; }
+.container { max-width:680px; margin:0 auto; padding:16px; }
+.brand { text-align:center; padding:20px 0 16px; border-bottom:3px solid #1a56db; margin-bottom:20px; }
+.brand h1 { font-size:22px; font-weight:700; color:#1a56db; }
+.brand p  { font-size:13px; color:#6b7280; margin-top:4px; }
+.card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; padding:18px; margin-bottom:14px; }
+.card h3 { font-size:14px; font-weight:600; color:#374151; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f3f4f6; }
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.info-item .label { font-size:11px; color:#9ca3af; margin-bottom:3px; }
+.info-item .value { font-size:14px; font-weight:500; line-height:1.5; }
+.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.badge-draft   { background:#f3f4f6; color:#374151; }
+.badge-sent    { background:#dbeafe; color:#1d4ed8; }
+.badge-signed  { background:#d1fae5; color:#065f46; }
+.dispatch-note { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:14px; }
+.dispatch-note .note-label { font-size:11px; color:#92400e; font-weight:600; margin-bottom:6px; }
+.dispatch-note .note-body  { font-size:14px; color:#78350f; line-height:1.7; white-space:pre-wrap; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { background:#f9fafb; padding:8px 10px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; }
+td { padding:10px; border-bottom:1px solid #f3f4f6; vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+.map-btn { display:inline-flex; align-items:center; gap:6px; background:#1a56db; color:#fff; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; text-decoration:none; margin-top:8px; }
+.footer { text-align:center; padding:20px 0; font-size:12px; color:#9ca3af; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="brand">
+    <h1>🎨 繪新國際有限公司</h1>
+    <p>場勘任務</p>
+  </div>
+  <div id="content">
+    <p style="text-align:center;color:#6b7280;padding:40px">載入中…</p>
+  </div>
+</div>
+
+<script>
+const token = new URLSearchParams(location.search).get('token');
+
+async function load() {
+  if (!token) {
+    document.getElementById('content').innerHTML = '<p style="text-align:center;color:#e02424;padding:40px">無效的連結，請確認連結是否完整。</p>';
+    return;
+  }
+  const res = await fetch(`/api/survey/worker/${token}`);
+  if (!res.ok) {
+    document.getElementById('content').innerHTML = '<p style="text-align:center;color:#e02424;padding:40px">找不到此場勘任務，連結可能已失效。</p>';
+    return;
+  }
+  const f = await res.json();
+  render(f);
+}
+
+function statusLabel(s) {
+  if (s === 'signed')   return { text:'客戶已簽名', cls:'badge-signed' };
+  if (s === 'sent')     return { text:'已發送給客戶', cls:'badge-sent' };
+  if (s === 'cancelled') return { text:'已取消', cls:'badge-draft' };
+  return { text:'草稿', cls:'badge-draft' };
+}
+
+function render(f) {
+  const findings = f.findings || [];
+  const { text: stText, cls: stCls } = statusLabel(f.status);
+  const address = f.site_address || f.location || '';
+  const mapsUrl = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null;
+  const dateStr = [f.survey_date, f.survey_time].filter(Boolean).join(' ');
+
+  document.getElementById('content').innerHTML = `
+    <div class="card">
+      <h3>案件資訊</h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="label">案號</div>
+          <div class="value" style="font-family:monospace">${f.case_number || '—'}</div>
+        </div>
+        <div class="info-item">
+          <div class="label">狀態</div>
+          <div class="value"><span class="badge ${stCls}">${stText}</span></div>
+        </div>
+        <div class="info-item" style="grid-column:1/-1">
+          <div class="label">案件名稱</div>
+          <div class="value">${f.title || '—'}</div>
+        </div>
+        <div class="info-item">
+          <div class="label">場勘日期</div>
+          <div class="value">${dateStr || '—'}</div>
+        </div>
+        <div class="info-item">
+          <div class="label">場勘人員</div>
+          <div class="value">${f.surveyor_name || '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>施工現場</h3>
+      <div class="info-grid">
+        <div class="info-item" style="grid-column:1/-1">
+          <div class="label">地址</div>
+          <div class="value">${address || '—'}</div>
+        </div>
+        ${f.site_contact ? `<div class="info-item"><div class="label">現場聯絡人</div><div class="value">${f.site_contact}</div></div>` : ''}
+        ${f.site_phone   ? `<div class="info-item"><div class="label">聯絡電話</div><div class="value"><a href="tel:${f.site_phone}" style="color:#1a56db">${f.site_phone}</a></div></div>` : ''}
+      </div>
+      ${mapsUrl ? `<a class="map-btn" href="${mapsUrl}" target="_blank">📍 在地圖中查看地址</a>` : ''}
+    </div>
+
+    ${f.dispatch_note ? `
+    <div class="dispatch-note" style="margin-bottom:14px">
+      <div class="note-label">📌 調度備注</div>
+      <div class="note-body">${f.dispatch_note}</div>
+    </div>` : ''}
+
+    ${findings.length ? `
+    <div class="card">
+      <h3>場勘項目</h3>
+      <table>
+        <thead><tr><th>施作位置</th><th>材料 / 說明</th><th>寬(cm)</th><th>高(cm)</th></tr></thead>
+        <tbody>
+          ${findings.map(it => `<tr>
+            <td>${it.location || ''}</td>
+            <td>${it.material || ''}</td>
+            <td>${it.width || '—'}</td>
+            <td>${it.height || '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+
+    ${f.extra_notes ? `
+    <div class="card">
+      <h3>備註 / 注意事項</h3>
+      <p style="font-size:14px;color:#374151;line-height:1.7;white-space:pre-wrap">${f.extra_notes}</p>
+    </div>` : ''}
+
+    <div class="footer">
+      繪新國際有限公司<br>
+      如有問題請聯繫負責業務
+    </div>
+  `;
+}
+
+load();
+</script>
+</body>
+</html>

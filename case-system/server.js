@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -187,6 +187,11 @@ app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cas
 // 公開場勘簽名頁（客戶用，不需登入）
 app.get('/sign/:token', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'survey-sign.html'));
+});
+
+// 公開場勘任務頁（師傅用，不需登入）
+app.get('/survey-worker', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'survey-worker.html'));
 });
 
 // 公開報價單頁（客戶用，不需登入）

@@ -17,6 +17,7 @@ router.get('/', requireAuth, (req, res) => {
            c.quoted_price, c.final_price, c.payment_status, c.location,
            c.sales_id, c.cs_id,
            cl.name AS client_name, cl.phone AS client_phone,
+           sf.worker_token AS survey_worker_token,
            CASE WHEN c.surveyor_id = ? THEN 1 ELSE 0 END AS is_surveyor,
            (SELECT d.dispatch_type || '|' || d.scheduled_date
             FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
@@ -32,6 +33,7 @@ router.get('/', requireAuth, (req, res) => {
            ) THEN 1 ELSE 0 END AS was_assigned
     FROM cases c
     LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN survey_forms sf ON sf.case_id = c.id
     WHERE c.status NOT IN ('closed','invalid')
       AND (
         c.surveyor_id = ?

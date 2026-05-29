@@ -1493,6 +1493,7 @@ _addCol('cases', 'initial_estimate_data', 'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'cs_notes',         'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'checklist_data',   'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'cs_service_note',  'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'worker_token',     'TEXT UNIQUE DEFAULT NULL');
 
 // 派工：進場資訊欄位
 _addCol('dispatches', 'unloading_location', 'TEXT DEFAULT NULL');

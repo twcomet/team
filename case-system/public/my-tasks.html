@@ -187,10 +187,10 @@
 <script>
 // ── 主題定義 ─────────────────────────────────────────────────
 const THEMES = {
-  survey:     { icon:'🔍', label:'場勘任務',    cls:'theme-survey',     url: t => `/survey-form?case_id=${t.id}` },
+  survey:     { icon:'🔍', label:'場勘任務',    cls:'theme-survey',     url: t => t.survey_worker_token ? `/survey-worker?token=${t.survey_worker_token}` : `/survey-form?case_id=${t.id}` },
   install:    { icon:'🔨', label:'施工任務',    cls:'theme-install',    url: t => `/dispatch-detail?id=${t.id}` },
   aftersales: { icon:'🔧', label:'維修任務',    cls:'theme-aftersales', url: t => `/dispatch-detail?id=${t.id}` },
-  surveyor:   { icon:'📋', label:'場勘員',      cls:'theme-surveyor',   url: t => `/survey-form?case_id=${t.id}` },
+  surveyor:   { icon:'📋', label:'場勘員',      cls:'theme-surveyor',   url: t => t.survey_worker_token ? `/survey-worker?token=${t.survey_worker_token}` : `/survey-form?case_id=${t.id}` },
   sales:      { icon:'💼', label:'案件負責業務', cls:'theme-sales',      url: t => `/case-detail?id=${t.id}` },
   cs:         { icon:'🎧', label:'案件負責客服', cls:'theme-cs',         url: t => `/case-detail?id=${t.id}` },
 };

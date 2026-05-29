@@ -5,14 +5,18 @@ const { requireAuth } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router     = express.Router();
 
-function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNote, assignerName) {
+function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNote, assignerName, workerToken) {
   if (!surveyorId) return;
   const tech = db.prepare(`SELECT id, name, line_user_id FROM users WHERE id=?`).get(surveyorId);
   if (!tech) return;
   const dateStr = [surveyDate, surveyTime].filter(Boolean).join(' ');
-  const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}`;
+  const taskUrl = workerToken
+    ? `${process.env.APP_URL || ''}/survey-worker?token=${workerToken}`
+    : `/survey-form?case_id=${caseData.id}`;
+  const notifUrl = workerToken ? taskUrl : `/survey-form?case_id=${caseData.id}`;
+  const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}${workerToken && process.env.APP_URL ? '\n查看場勘單：' + taskUrl : ''}`;
   db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'dispatch','cases',?,?)`)
-    .run(tech.id, '您有場勘任務', `${caseData.case_number} ${caseData.title}${dateStr ? ' @ ' + dateStr : ''}`, caseData.id, `/survey-form?case_id=${caseData.id}`);
+    .run(tech.id, '您有場勘任務', `${caseData.case_number} ${caseData.title}${dateStr ? ' @ ' + dateStr : ''}`, caseData.id, notifUrl);
   if (tech.line_user_id) pushMessage(tech.line_user_id, msg);
 }
 
@@ -55,12 +59,13 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
 
   const token = genToken();
+  const workerToken = genToken();
   const result = db.prepare(`
-    INSERT INTO survey_forms (case_id, share_token, surveyor_id, survey_date, survey_time,
+    INSERT INTO survey_forms (case_id, share_token, worker_token, surveyor_id, survey_date, survey_time,
       site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note,
       cs_notes, checklist_data, cs_service_note, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-  `).run(case_id, token,
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `).run(case_id, token, workerToken,
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
@@ -74,7 +79,7 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   // 通知場勘人員
   if (surveyor_id) {
     const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(case_id);
-    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name);
+    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name, workerToken);
   }
 
   // 案件狀態升為 survey_scheduled
@@ -94,20 +99,22 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
           cs_notes, checklist_data, cs_service_note } = req.body;
 
   // 判斷場勘人員是否有變更 → 需重新通知
-  const old = db.prepare(`SELECT surveyor_id FROM survey_forms WHERE case_id=?`).get(req.params.id);
+  const old = db.prepare(`SELECT surveyor_id, worker_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
   const surveyorChanged = old && String(old.surveyor_id) !== String(surveyor_id ?? '');
+  const existingWorkerToken = old?.worker_token || genToken();
 
   db.prepare(`UPDATE survey_forms SET
     surveyor_id=?, survey_date=?, survey_time=?, site_contact=?, site_phone=?, site_address=?,
     findings=?, photos_note=?, extra_notes=?, dispatch_note=?,
-    cs_notes=?, checklist_data=?, cs_service_note=?, status=?, updated_at=CURRENT_TIMESTAMP
+    cs_notes=?, checklist_data=?, cs_service_note=?, status=?,
+    worker_token=COALESCE(worker_token, ?), updated_at=CURRENT_TIMESTAMP
     WHERE case_id=?`).run(
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
-    cs_service_note ?? null, status || 'draft', req.params.id);
+    cs_service_note ?? null, status || 'draft', existingWorkerToken, req.params.id);
 
   // 同步 cases.surveyor_id（供任務牆查詢）
   db.prepare(`UPDATE cases SET surveyor_id=? WHERE id=?`).run(surveyor_id ?? null, req.params.id);
@@ -115,7 +122,8 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
   if (surveyorChanged && surveyor_id) {
     const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(req.params.id);
-    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name);
+    const wt = db.prepare(`SELECT worker_token FROM survey_forms WHERE case_id=?`).get(req.params.id)?.worker_token;
+    notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name, wt);
   }
 
   const form = db.prepare(`SELECT share_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
@@ -133,7 +141,7 @@ router.post('/cases/:id/re-notify', requireAuth, (req, res) => {
   if (!form) return res.status(404).json({ error: '找不到場勘單' });
   if (!form.surveyor_id) return res.status(400).json({ error: '尚未指派場勘人員' });
   const caseData = { id: form.case_id, case_number: form.case_number, title: form.title, location: form.location };
-  notifySurveyor(form.surveyor_id, caseData, form.survey_date, form.survey_time, form.dispatch_note, me.name);
+  notifySurveyor(form.surveyor_id, caseData, form.survey_date, form.survey_time, form.dispatch_note, me.name, form.worker_token);
   res.json({ ok: true });
 });
 
@@ -154,6 +162,23 @@ router.get('/sign/:token', (req, res) => {
   if (!form) return res.status(404).json({ error: '找不到場勘單' });
   try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
   try { form.checklist_data = JSON.parse(form.checklist_data || '[]'); } catch { form.checklist_data = []; }
+  res.json(form);
+});
+
+// GET /api/survey/worker/:token  → 師傅查看場勘任務（公開，不需登入）
+router.get('/worker/:token', (req, res) => {
+  const form = db.prepare(`
+    SELECT sf.surveyor_id, sf.survey_date, sf.survey_time, sf.site_contact, sf.site_phone,
+           sf.site_address, sf.dispatch_note, sf.findings, sf.extra_notes, sf.status,
+           c.case_number, c.title, c.location,
+           u.name as surveyor_name
+    FROM survey_forms sf
+    JOIN cases c ON c.id = sf.case_id
+    LEFT JOIN users u ON u.id = sf.surveyor_id
+    WHERE sf.worker_token = ?
+  `).get(req.params.token);
+  if (!form) return res.status(404).json({ error: '找不到場勘任務' });
+  try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
   res.json(form);
 });
 
