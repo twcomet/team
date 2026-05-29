@@ -1995,47 +1995,84 @@ const _needCatReset =
   !db.prepare(`SELECT id FROM ledger_categories WHERE name='施工服務收入' LIMIT 1`).get();
 
 if (_needCatReset) {
-  // 停用所有現有活躍科目（保留歷史資料，只讓舊科目不出現在下拉選單）
   db.exec(`UPDATE ledger_categories SET active=0 WHERE active=1`);
-
-  const _catIns = db.prepare(
-    `INSERT OR IGNORE INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES (?,?,?,?,1,?)`
+  const _catIns0 = db.prepare(
+    `INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES (?,?,?,?,1,?)`
   );
-  const _newCats = [
-    // 收入
+  [
     ['income',  'income',         '施工服務收入',    1,   0],
     ['income',  'income',         '膜料實體銷售',    2,   0],
     ['income',  'income',         '電商銷售',        3,   0],
     ['income',  'income',         '場勘費',          4,   0],
-    // 成本（直接與案件/訂單掛鉤）
     ['expense', 'cost',           '材料採購成本',  101,   0],
     ['expense', 'cost',           '外包施工費',    102,   0],
     ['expense', 'cost',           '電商進貨成本',  103,   0],
     ['expense', 'cost',           '電商平台/物流費',104,  0],
-    // 費用（日常營運）
     ['expense', 'expense',        '薪資費用',      201,   0],
-    ['expense', 'expense',        '員工獎金',      202,   1],  // 私密
-    ['expense', 'expense',        '零用金-Flora',  203,   1],  // 私密
-    ['expense', 'expense',        '零用金-Dan',    204,   1],  // 私密
+    ['expense', 'expense',        '員工獎金',      202,   1],
+    ['expense', 'expense',        '零用金-Flora',  203,   1],
+    ['expense', 'expense',        '零用金-Dan',    204,   1],
     ['expense', 'expense',        '租金費用',      205,   0],
     ['expense', 'expense',        '水電費',        206,   0],
     ['expense', 'expense',        '電話/網路費',   207,   0],
     ['expense', 'expense',        '行銷費用',      208,   0],
     ['expense', 'expense',        '型錄/樣品寄送費',209,  0],
     ['expense', 'expense',        '交通費',        210,   0],
-    ['expense', 'expense',        '保險費',        211,   0],  // 勞保/勞退/健保
-    ['expense', 'expense',        '稅費',          212,   0],  // 營業稅等
+    ['expense', 'expense',        '保險費',        211,   0],
+    ['expense', 'expense',        '稅費',          212,   0],
     ['expense', 'expense',        '設備/維修費',   213,   0],
     ['expense', 'expense',        '利息費用',      214,   0],
     ['expense', 'expense',        '辦公雜費',      215,   0],
-    // 資產/負債（不影響損益）
     ['income',  'asset_liability','銀行貸款借入',  301,   0],
     ['expense', 'asset_liability','銀行貸款還款',  302,   0],
     ['expense', 'asset_liability','押金/保證金',   303,   0],
     ['expense', 'asset_liability','股東往來款',    304,   0],
-  ];
-  for (const row of _newCats) _catIns.run(...row);
+  ].forEach(r => _catIns0.run(...r));
   console.log('✅ 科目重整完成（27 個精簡科目）');
+}
+
+// ── 科目擴充 migration（2026-05 v2：依業務線細分 + 貼膜學院）──────
+// 條件：「裝漠貼膜施工收入」尚未建立才執行
+const _needCatV2 =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='裝漠貼膜施工收入' LIMIT 1`).get();
+
+if (_needCatV2) {
+  // 停用 v1 的 4 個粗分收入科目與 4 個粗分成本科目
+  db.exec(`UPDATE ledger_categories SET active=0 WHERE name IN (
+    '施工服務收入','膜料實體銷售','電商銷售','場勘費',
+    '材料採購成本','外包施工費','電商進貨成本','電商平台/物流費'
+  )`);
+
+  const _catIns2 = db.prepare(
+    `INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES (?,?,?,?,1,?)`
+  );
+  [
+    // 收入（14 個，依施工類型細分）
+    ['income',  'income',  '裝漠貼膜施工收入',       1,  0],
+    ['income',  'income',  '玻璃貼膜施工收入',        2,  0],  // 隔熱紙/玻璃膜/防爆膜
+    ['income',  'income',  '電梯貼膜施工收入',        3,  0],
+    ['income',  'income',  '車體貼膜施工收入',        4,  0],
+    ['income',  'income',  '廣告輸出收入',            5,  0],
+    ['income',  'income',  '其他施工服務收入',        6,  0],
+    ['income',  'income',  '膜料實體銷售',            7,  0],
+    ['income',  'income',  '電商銷售',                8,  0],
+    ['income',  'income',  '貼膜學院-課程費',         9,  0],
+    ['income',  'income',  '貼膜學院-材料銷售',      10,  0],
+    ['income',  'income',  '貼膜學院-認證考試',      11,  0],
+    ['income',  'income',  '場勘費',                 12,  0],
+    ['income',  'income',  '設計費',                 13,  0],
+    ['income',  'income',  '其他收入',               14,  0],
+    // 成本（8 個）
+    ['expense', 'cost',    '膜料採購成本',          101,  0],
+    ['expense', 'cost',    '廣告輸出材料成本',      102,  0],
+    ['expense', 'cost',    '技術施工成本',          103,  0],  // 自有技術人員施工人力成本
+    ['expense', 'cost',    '外包施工費',            104,  0],
+    ['expense', 'cost',    '電商進貨成本',          105,  0],
+    ['expense', 'cost',    '電商平台/物流費',       106,  0],
+    ['expense', 'cost',    '貼膜學院材料成本',      107,  0],
+    ['expense', 'cost',    '其他直接成本',          108,  0],
+  ].forEach(r => _catIns2.run(...r));
+  console.log('✅ 科目擴充完成（v2：14 個收入 + 8 個成本，含貼膜學院）');
 }
 
 module.exports = db;
