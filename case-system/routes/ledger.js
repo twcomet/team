@@ -106,18 +106,42 @@ router.get('/', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
+// GET /api/ledger/vendor-analysis
+router.get('/vendor-analysis', requireAuth, (req, res) => {
+  const user = req.session.user;
+  const { from, to } = req.query;
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(user, 'l.org_id');
+
+  let where = [`l.type = 'expense'`, `l.vendor IS NOT NULL`, `l.vendor != ''`];
+  const params = [...orgPs];
+  if (orgSql) where.push(orgSql);
+  if (from) { where.push('l.date >= ?'); params.push(from); }
+  if (to)   { where.push('l.date <= ?'); params.push(to);   }
+
+  const rows = db.prepare(`
+    SELECT l.vendor, COUNT(*) AS count, SUM(l.amount) AS total,
+           MAX(l.date) AS last_date,
+           GROUP_CONCAT(DISTINCT l.category) AS categories
+    FROM ledger_entries l
+    WHERE ${where.join(' AND ')}
+    GROUP BY l.vendor
+    ORDER BY total DESC
+  `).all(...params);
+  res.json(rows);
+});
+
 // POST /api/ledger
 router.post('/', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
   if (!date || !type || !category || !amount) return res.status(400).json({ error: '必填欄位不完整' });
   const isPaid   = pay_status !== 'pending' && !!paid_note;
   const paid_at  = isPaid ? date : null;
   const r = db.prepare(`
-    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden, pay_status, pay_due_date, paid_note, paid_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden, pay_status, pay_due_date, paid_note, paid_at, vendor)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid,
-         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at);
+         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null);
   log(uid, 'create', 'ledger', r.lastInsertRowid, `${date} ${category} $${amount}`);
   res.json({ id: r.lastInsertRowid });
 });
@@ -125,14 +149,14 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /api/ledger/:id
 router.put('/:id', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
   const existing = db.prepare(`SELECT paid_at FROM ledger_entries WHERE id=?`).get(req.params.id);
   const paid_at  = (pay_status !== 'pending' && paid_note && !existing?.paid_at) ? date : (existing?.paid_at || null);
   db.prepare(`
-    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?
+    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?, vendor=?
     WHERE id=?
   `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null,
-         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, req.params.id);
+         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, req.params.id);
   log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
   res.json({ ok: true });
 });

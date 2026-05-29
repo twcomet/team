@@ -611,6 +611,7 @@ _addCol('ledger_entries',    'pay_status',   "TEXT DEFAULT NULL");
 _addCol('ledger_entries',    'paid_at',      "DATE DEFAULT NULL");
 _addCol('ledger_entries',    'paid_note',    "TEXT DEFAULT NULL");
 _addCol('ledger_entries',    'pay_due_date', "DATE DEFAULT NULL");
+_addCol('ledger_entries',    'vendor',       "TEXT DEFAULT NULL");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
@@ -1962,6 +1963,79 @@ db.prepare(`
   const cats = ['交通費','加油費','停車費','餐費','住宿費','工具費','材料費','代墊費'];
   const ins = db.prepare(`INSERT OR IGNORE INTO expense_categories (name, sort_order) VALUES (?,?)`);
   cats.forEach((n, i) => ins.run(n, i + 1));
+}
+
+// ── 廠商資料表 ────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS vendors (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    name           TEXT NOT NULL UNIQUE,
+    category       TEXT,
+    contact        TEXT,
+    phone          TEXT,
+    email          TEXT,
+    bank_name      TEXT,
+    bank_account   TEXT,
+    bank_branch    TEXT,
+    payment_terms  TEXT,
+    notes          TEXT,
+    active         INTEGER DEFAULT 1,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+_addCol('vendors', 'bank_name',     'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_account',  'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_branch',   'TEXT DEFAULT NULL');
+_addCol('vendors', 'payment_terms', 'TEXT DEFAULT NULL');
+_addCol('vendors', 'email',         'TEXT DEFAULT NULL');
+
+// ── 科目重整 migration（2026-05 簡化版，27 個科目）─────────────
+// 條件：新版「施工服務收入」尚未建立才執行
+const _needCatReset =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='施工服務收入' LIMIT 1`).get();
+
+if (_needCatReset) {
+  // 停用所有現有活躍科目（保留歷史資料，只讓舊科目不出現在下拉選單）
+  db.exec(`UPDATE ledger_categories SET active=0 WHERE active=1`);
+
+  const _catIns = db.prepare(
+    `INSERT OR IGNORE INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES (?,?,?,?,1,?)`
+  );
+  const _newCats = [
+    // 收入
+    ['income',  'income',         '施工服務收入',    1,   0],
+    ['income',  'income',         '膜料實體銷售',    2,   0],
+    ['income',  'income',         '電商銷售',        3,   0],
+    ['income',  'income',         '場勘費',          4,   0],
+    // 成本（直接與案件/訂單掛鉤）
+    ['expense', 'cost',           '材料採購成本',  101,   0],
+    ['expense', 'cost',           '外包施工費',    102,   0],
+    ['expense', 'cost',           '電商進貨成本',  103,   0],
+    ['expense', 'cost',           '電商平台/物流費',104,  0],
+    // 費用（日常營運）
+    ['expense', 'expense',        '薪資費用',      201,   0],
+    ['expense', 'expense',        '員工獎金',      202,   1],  // 私密
+    ['expense', 'expense',        '零用金-Flora',  203,   1],  // 私密
+    ['expense', 'expense',        '零用金-Dan',    204,   1],  // 私密
+    ['expense', 'expense',        '租金費用',      205,   0],
+    ['expense', 'expense',        '水電費',        206,   0],
+    ['expense', 'expense',        '電話/網路費',   207,   0],
+    ['expense', 'expense',        '行銷費用',      208,   0],
+    ['expense', 'expense',        '型錄/樣品寄送費',209,  0],
+    ['expense', 'expense',        '交通費',        210,   0],
+    ['expense', 'expense',        '保險費',        211,   0],  // 勞保/勞退/健保
+    ['expense', 'expense',        '稅費',          212,   0],  // 營業稅等
+    ['expense', 'expense',        '設備/維修費',   213,   0],
+    ['expense', 'expense',        '利息費用',      214,   0],
+    ['expense', 'expense',        '辦公雜費',      215,   0],
+    // 資產/負債（不影響損益）
+    ['income',  'asset_liability','銀行貸款借入',  301,   0],
+    ['expense', 'asset_liability','銀行貸款還款',  302,   0],
+    ['expense', 'asset_liability','押金/保證金',   303,   0],
+    ['expense', 'asset_liability','股東往來款',    304,   0],
+  ];
+  for (const row of _newCats) _catIns.run(...row);
+  console.log('✅ 科目重整完成（27 個精簡科目）');
 }
 
 module.exports = db;

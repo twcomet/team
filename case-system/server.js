@@ -53,6 +53,7 @@ app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
+app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
