@@ -42,6 +42,17 @@
 .margin-yellow { background:#fef9c3; color:#713f12; }
 .margin-green  { background:#d1fae5; color:#065f46; }
 
+/* 報價 v2 品項卡片 */
+.q-input { padding:6px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:12px; width:100%; box-sizing:border-box; }
+.q-input:focus { border-color:var(--primary); outline:none; }
+.q-item-card { border:1px solid var(--gray-200); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+.q-item-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.q-type-badge { padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; flex-shrink:0; }
+.q-film-badge { background:#dbeafe; color:#1e40af; }
+.q-catalog-badge { background:#d1fae5; color:#065f46; }
+.q-service-badge { background:#fef9c3; color:#713f12; }
+.q-field-label { font-size:11px; color:#6b7280; display:block; margin-bottom:2px; }
+
 /* 派工卡片 */
 .dispatch-card { border:1px solid var(--gray-200); border-radius:10px; padding:16px; margin-bottom:12px; }
 .dispatch-card .dc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
@@ -123,6 +134,7 @@
         <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
       <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
         <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
     </nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
@@ -401,96 +413,96 @@
         <button class="btn btn-primary" id="saveEstimateBtn">儲存初步估價紀錄</button>
       </div>
 
-      <!-- 正式報價單（原報價明細） -->
+      <!-- 正式報價單 v2 -->
       <div class="tab-pane" id="tab-quote">
 
-        <!-- 報價單管理面板 -->
-        <div class="sf-section" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <div>
-              <span style="font-size:13px;font-weight:600;color:#1e40af">📤 客戶報價單</span>
-              <span id="quoteStatusBadge" style="margin-left:8px;font-size:12px;padding:3px 10px;border-radius:20px;background:#e5e7eb;color:#374151"></span>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost btn-sm" id="previewQuoteBtn" style="display:none">👁 預覽</button>
-              <button class="btn btn-primary btn-sm" id="genQuoteBtn">產生報價連結</button>
-            </div>
+        <!-- 尚無報價單 -->
+        <div id="qNoQuote" style="text-align:center;padding:40px 20px;background:#f9fafb;border:2px dashed var(--gray-200);border-radius:12px">
+          <div style="font-size:40px;margin-bottom:12px">📋</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:8px">尚未建立報價單</div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:20px">點擊下方按鈕建立第一版報價單</div>
+          <button class="btn btn-primary" id="qCreateBtn">建立報價單</button>
+        </div>
+
+        <!-- 報價主區域 -->
+        <div id="qMain" style="display:none">
+
+          <!-- 版本列 + 狀態 + 操作 -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px">
+            <span style="font-size:12px;color:#6b7280;font-weight:500;white-space:nowrap">版本：</span>
+            <select id="qVersionSel" style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px" onchange="switchQuoteVersion()"></select>
+            <button class="btn btn-ghost btn-sm" id="qNewVersionBtn">＋ 新版本</button>
+            <div style="flex:1"></div>
+            <span id="qStatusBadge" style="font-size:12px;padding:2px 10px;border-radius:20px;background:#e5e7eb;color:#374151"></span>
+            <button class="btn btn-ghost btn-sm" id="qPreviewBtn" style="display:none">👁 預覽</button>
+            <button class="btn btn-primary btn-sm" id="qSendBtn">📤 傳送報價單</button>
           </div>
 
-          <!-- 分享連結（產生後顯示） -->
-          <div id="quoteShareBox" style="display:none;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;display:none;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            <span style="font-size:12px;color:#1e40af;flex:1;word-break:break-all" id="quoteShareUrl"></span>
-            <button class="btn btn-ghost btn-sm" id="copyQuoteBtn">複製</button>
-            <a id="openQuoteBtn" href="#" target="_blank" class="btn btn-ghost btn-sm">開啟</a>
+          <!-- 分享連結 -->
+          <div id="qShareBox" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#1e40af;flex:1;word-break:break-all" id="qShareUrl"></span>
+            <button class="btn btn-ghost btn-sm" id="qCopyBtn">複製連結</button>
+            <a id="qOpenBtn" href="#" target="_blank" class="btn btn-ghost btn-sm">開啟</a>
           </div>
 
-          <!-- 報價設定 -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group" style="margin:0">
-              <label style="font-size:12px">有效天數</label>
-              <input type="number" id="q_valid_days" value="30" min="1" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%">
+          <!-- 報價設定（可折疊） -->
+          <details id="qSettingsDet" style="margin-bottom:14px">
+            <summary style="cursor:pointer;padding:10px 14px;background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;list-style:none;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center">
+              ⚙️ 報價設定<span id="qSettingsSummary" style="font-size:11px;font-weight:400;color:#6b7280;margin-left:8px"></span>
+            </summary>
+            <div style="background:#f9fafb;border:1px solid var(--gray-200);border-top:0;border-radius:0 0 8px 8px;padding:14px">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+                <div class="form-group" style="margin:0"><label class="q-field-label">有效天數</label><input type="number" id="q_valid_days" value="30" min="1" class="q-input"></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">稅率</label>
+                  <select id="q_tax_rate" class="q-input"><option value="0">不含稅</option><option value="0.05">含稅 5%</option></select></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">折扣規則</label>
+                  <select id="q_discount_rule_id" class="q-input"><option value="">無折扣（原價）</option></select></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">行銷優惠（0.9 = 九折）</label><input type="number" id="q_marketing_rate" value="1" min="0.1" max="1" step="0.05" class="q-input"></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">車馬費（元）</label><input type="number" id="q_travel_fee" value="0" min="0" class="q-input"></div>
+                <div class="form-group" style="margin:0"><label class="q-field-label">運費（元）</label><input type="number" id="q_freight_fee" value="0" min="0" class="q-input"></div>
+              </div>
+              <div class="form-group" style="margin-bottom:8px"><label class="q-field-label">付款條件</label><input type="text" id="q_payment_terms" placeholder="例：訂金30%，完工後付清尾款" class="q-input" style="width:100%"></div>
+              <div class="form-group" style="margin-bottom:10px"><label class="q-field-label">備註（給客戶）</label><textarea id="q_notes_terms" rows="2" class="q-input" style="width:100%;resize:vertical"></textarea></div>
+              <button class="btn btn-primary btn-sm" id="qSaveSettingsBtn">儲存設定</button>
             </div>
-            <div class="form-group" style="margin:0">
-              <label style="font-size:12px">客戶身份</label>
-              <select id="q_client_type" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%" onchange="updateDiscountOptions()">
-                <option value="owner">一般業主</option>
-                <option value="designer">設計師</option>
-                <option value="dealer">經銷商</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin:0">
-              <label style="font-size:12px">行銷優惠折扣</label>
-              <select id="q_discount_select" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%" onchange="document.getElementById('q_discount_value').value=this.value">
-                <option value="0">無折扣（原價）</option>
-              </select>
-              <input type="hidden" id="q_discount_value" value="0">
-            </div>
-            <div class="form-group" style="margin:0;align-self:end">
-              <div style="font-size:12px;color:#6b7280;padding:6px 0">
-                有折扣即自動標示「行銷優惠」，僅客戶可見
+          </details>
+
+          <!-- 新增品項 -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary btn-sm" id="qAddFilmBtn">＋ 貼膜品項</button>
+            <button class="btn btn-ghost btn-sm" id="qAddCatalogBtn">＋ 公規品</button>
+            <button class="btn btn-ghost btn-sm" id="qAddServiceBtn">＋ 服務/其他</button>
+            <div style="flex:1"></div>
+            <span style="font-size:12px;color:#6b7280">共 <span id="qItemCount">0</span> 項</span>
+          </div>
+
+          <!-- 品項列表 -->
+          <div id="qItemsList" style="margin-bottom:16px"></div>
+
+          <!-- 合計面板 -->
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px">
+            <div class="quote-total" style="background:transparent;border:none;padding:0;gap:20px;margin-bottom:0">
+              <div class="qt-item"><div class="qt-label">品項小計</div><div class="qt-value" id="qt_subtotal" style="font-size:18px">—</div></div>
+              <div class="qt-item" id="qt_discount_wrap" style="display:none"><div class="qt-label">折扣後</div><div class="qt-value" style="color:#d97706;font-size:18px" id="qt_discounted">—</div></div>
+              <div class="qt-item" id="qt_marketing_wrap" style="display:none"><div class="qt-label">行銷優惠後</div><div class="qt-value" style="color:#7c3aed;font-size:18px" id="qt_marketing">—</div></div>
+              <div class="qt-item"><div class="qt-label">稅額</div><div class="qt-value" id="qt_tax" style="font-size:15px">—</div></div>
+              <div class="qt-item" style="margin-left:auto;background:#1e40af;border-radius:8px;padding:8px 18px;text-align:center">
+                <div class="qt-label" style="color:#93c5fd">合計</div>
+                <div class="qt-value" style="color:#fff;font-size:22px" id="qt_final">—</div>
               </div>
             </div>
+            <details id="qCostDet" style="border-top:1px solid #bfdbfe;margin-top:12px;padding-top:8px">
+              <summary style="cursor:pointer;font-size:12px;color:#6b7280;list-style:none">內部成本分析（僅管理員可見）▸</summary>
+              <div class="quote-total" style="background:transparent;border:none;padding:10px 0 0;gap:20px">
+                <div class="qt-item"><div class="qt-label">材料成本</div><div class="qt-value" style="color:#dc2626;font-size:16px" id="qt_material_cost">—</div></div>
+                <div class="qt-item"><div class="qt-label">毛利</div><div class="qt-value" style="color:#16a34a;font-size:16px" id="qt_gross_profit">—</div></div>
+                <div class="qt-item"><div class="qt-label">毛利率</div><div class="qt-value"><span id="qt_margin" class="margin-pill">—</span></div></div>
+              </div>
+            </details>
           </div>
-          <div class="form-group" style="margin-top:10px;margin-bottom:10px">
-            <label style="font-size:12px">付款條件</label>
-            <input type="text" id="q_payment_terms" placeholder="例：訂金30%，完工後付清尾款" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%">
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <label style="font-size:12px">備註 / 給客戶的說明</label>
-            <textarea id="q_client_notes" rows="2" placeholder="施工注意事項、特殊說明…" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;width:100%"></textarea>
-          </div>
-        </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <p style="font-size:13px;color:var(--gray-500)">依施作物件逐項填入，★ 對客單價 = 傳給客戶看的價格</p>
-          <button class="btn btn-primary btn-sm" id="addItemBtn">＋ 新增物件</button>
-        </div>
-        <div class="table-wrap">
-          <table class="quote-table">
-            <thead>
-              <tr>
-                <th>施作位置</th><th>物件 / 說明</th>
-                <th>寬(cm)</th><th>高(cm)</th><th>數量</th><th>單位</th>
-                <th>才數</th>
-                <th>品牌</th><th>型號</th>
-                <th title="內部：材料成本/才">材料成本</th>
-                <th title="內部：施工費/才">施工費</th>
-                <th title="給客戶看的單價/才" style="background:#dbeafe;color:#1e40af">★ 對客單價</th>
-                <th title="對客小計" style="background:#dbeafe;color:#1e40af">對客小計</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="itemsBody"></tbody>
-          </table>
-        </div>
-        <div class="quote-total" id="quoteTotal">
-          <div class="qt-item"><div class="qt-label">對客報價（未稅）</div><div class="qt-value" id="qt_client">—</div></div>
-          <div class="qt-item"><div class="qt-label">材料成本</div><div class="qt-value" id="qt_material">—</div></div>
-          <div class="qt-item"><div class="qt-label">施工費</div><div class="qt-value" id="qt_install">—</div></div>
-          <div class="qt-item"><div class="qt-label">毛利</div><div class="qt-value" id="qt_profit">—</div></div>
-          <div class="qt-item"><div class="qt-label">毛利率</div><div class="qt-value"><span class="margin-pill" id="qt_margin">—</span></div></div>
-        </div>
-      </div>
+        </div><!-- end qMain -->
+      </div><!-- end tab-quote -->
 
       <!-- 場勘 -->
       <div class="tab-pane" id="tab-survey">
@@ -1950,6 +1962,17 @@ async function doSaveBasic() {
 document.getElementById('saveBasicBtn').addEventListener('click', doSaveBasic);
 document.getElementById('saveBasicBtnBanner')?.addEventListener('click', doSaveBasic);
 
+// ── 報價 v2 按鈕 ──────────────────────────────────────────
+document.getElementById('qCreateBtn')?.addEventListener('click', () => createQuoteVersion(false));
+document.getElementById('qNewVersionBtn')?.addEventListener('click', () => createQuoteVersion(true));
+document.getElementById('qSendBtn')?.addEventListener('click', sendQuote);
+document.getElementById('qPreviewBtn')?.addEventListener('click', previewQuote);
+document.getElementById('qCopyBtn')?.addEventListener('click', copyQuoteLink);
+document.getElementById('qSaveSettingsBtn')?.addEventListener('click', saveQuoteSettings);
+document.getElementById('qAddFilmBtn')?.addEventListener('click', () => addQuoteItem('film'));
+document.getElementById('qAddCatalogBtn')?.addEventListener('click', () => addQuoteItem('catalog'));
+document.getElementById('qAddServiceBtn')?.addEventListener('click', () => addQuoteItem('service'));
+
 document.getElementById('saveEstimateBtn').addEventListener('click', async () => {
   const ie = {
     requirements:         document.getElementById('ie_requirements').value || null,
@@ -2017,6 +2040,7 @@ document.getElementById('toInvalidBtn').addEventListener('click',() => convertCa
 // ── 報價明細 ───────────────────────────────────────────────
 function renderItems(items) {
   const tbody = document.getElementById('itemsBody');
+  if (!tbody) return;
   if (!items.length) {
     tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:20px;color:#6b7280">點擊「新增物件」開始建立報價明細</td></tr>`;
     updateQuoteTotals([]);
@@ -2069,13 +2093,7 @@ function updateQuoteTotals(items) {
   }
 }
 
-document.getElementById('addItemBtn').addEventListener('click', async () => {
-  const res = await fetch(`/api/cases/${caseId}/items`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ item_type:'牆面', quantity:1, unit:'才', material_unit_cost:0, install_unit_price:0 })
-  });
-  if (res.ok) await loadCase();
-});
+// addItemBtn removed – use new quote v2 system
 
 async function saveItem(itemId) {
   const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
@@ -3319,94 +3337,473 @@ function renderLogs(logs) {
   `).join('');
 }
 
-// ── 報價單管理 ─────────────────────────────────────────────
+// ── 報價單 v2 ─────────────────────────────────────────────────
+let quoteVersions  = [];
+let currentQuote   = null;
+let filmMatrix     = [];
+let catalogAll     = [];
+let discountRulesAll = [];
+
+const QFmt = n => (n == null || isNaN(n)) ? '—' : 'NT$ ' + Math.round(n).toLocaleString();
+
 async function loadQuote() {
-  const res = await fetch(`/api/quotes/cases/${caseId}`);
-  quoteData = res.ok ? await res.json() : null;
+  if (!filmMatrix.length) {
+    const r = await fetch('/api/quote-settings/film-prices');
+    filmMatrix = r.ok ? await r.json() : [];
+  }
+  if (!catalogAll.length) {
+    const r = await fetch('/api/quote-settings/catalog');
+    catalogAll = r.ok ? await r.json() : [];
+  }
+  if (!discountRulesAll.length) {
+    const r = await fetch('/api/quote-settings/discount-rules');
+    discountRulesAll = r.ok ? await r.json() : [];
+  }
+  const vr = await fetch(`/api/quotes/cases/${caseId}/versions`);
+  quoteVersions = vr.ok ? await vr.json() : [];
+  const qr = await fetch(`/api/quotes/cases/${caseId}`);
+  currentQuote = qr.ok ? await qr.json() : null;
   renderQuotePanel();
 }
 
 function renderQuotePanel() {
-  const q = quoteData;
-  const statusBadge = document.getElementById('quoteStatusBadge');
-  const shareBox    = document.getElementById('quoteShareBox');
-  const genBtn      = document.getElementById('genQuoteBtn');
-  const previewBtn  = document.getElementById('previewQuoteBtn');
+  const noQ  = document.getElementById('qNoQuote');
+  const main = document.getElementById('qMain');
+  if (!currentQuote) {
+    if (noQ) noQ.style.display = '';
+    if (main) main.style.display = 'none';
+    return;
+  }
+  if (noQ) noQ.style.display = 'none';
+  if (main) main.style.display = '';
 
-  if (q) {
-    const statusMap = { draft:'草稿', sent:'已傳送', accepted:'✅ 已接受', rejected:'已拒絕' };
-    const statusColor = { draft:'#e5e7eb', sent:'#dbeafe', accepted:'#d1fae5', rejected:'#fee2e2' };
-    const statusText = { draft:'#374151', sent:'#1e40af', accepted:'#065f46', rejected:'#991b1b' };
-    const s = q.status || 'draft';
-    statusBadge.textContent = statusMap[s] || s;
-    statusBadge.style.background = statusColor[s] || '#e5e7eb';
-    statusBadge.style.color = statusText[s] || '#374151';
+  // Version selector
+  const vSel = document.getElementById('qVersionSel');
+  if (vSel) {
+    const sLbl = { draft:'草稿', sent:'已傳送', accepted:'已確認', rejected:'已拒絕' };
+    vSel.innerHTML = quoteVersions.map(v =>
+      `<option value="${v.id}" ${v.id===currentQuote.id?'selected':''}>v${v.version}（${sLbl[v.status]||v.status}）${(v.created_at||'').slice(0,10)}</option>`
+    ).join('');
+  }
 
-    shareBox.style.display = 'flex';
-    const url = `${location.origin}/quote/${q.share_token}`;
-    document.getElementById('quoteShareUrl').textContent = url;
-    document.getElementById('openQuoteBtn').href = url;
-    previewBtn.style.display = '';
-    genBtn.textContent = '更新報價連結';
+  // Status badge
+  const sMap = { draft:'草稿', sent:'已傳送', accepted:'✅ 已接受', rejected:'已拒絕' };
+  const sBg  = { draft:'#e5e7eb', sent:'#dbeafe', accepted:'#d1fae5', rejected:'#fee2e2' };
+  const sTxt = { draft:'#374151', sent:'#1e40af', accepted:'#065f46', rejected:'#991b1b' };
+  const s    = currentQuote.status || 'draft';
+  const badge = document.getElementById('qStatusBadge');
+  if (badge) { badge.textContent = sMap[s]||s; badge.style.background = sBg[s]||'#e5e7eb'; badge.style.color = sTxt[s]||'#374151'; }
 
-    // 填入現有設定
-    document.getElementById('q_valid_days').value    = q.valid_days || 30;
-    document.getElementById('q_client_type').value   = q.client_type || 'owner';
-    document.getElementById('q_discount_value').value= q.discount_value || 0;
-    document.getElementById('q_payment_terms').value = q.payment_terms || '';
-    document.getElementById('q_client_notes').value  = q.client_notes || '';
-    updateDiscountOptions();
+  // Share link
+  const shareBox  = document.getElementById('qShareBox');
+  const prevBtn   = document.getElementById('qPreviewBtn');
+  if (currentQuote.share_token && s !== 'draft') {
+    const url = `${location.origin}/quote/${currentQuote.share_token}`;
+    if (shareBox) { shareBox.style.display = 'flex'; document.getElementById('qShareUrl').textContent = url; document.getElementById('qOpenBtn').href = url; }
+    if (prevBtn) prevBtn.style.display = '';
   } else {
-    statusBadge.textContent = '';
-    shareBox.style.display = 'none';
-    previewBtn.style.display = 'none';
-    genBtn.textContent = '產生報價連結';
+    if (shareBox) shareBox.style.display = 'none';
+    if (prevBtn) prevBtn.style.display = 'none';
+  }
+
+  // Settings
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+  set('q_valid_days',      currentQuote.valid_days    ?? 30);
+  set('q_tax_rate',        currentQuote.tax_rate      ?? 0.05);
+  set('q_marketing_rate',  currentQuote.marketing_rate ?? 1);
+  set('q_travel_fee',      currentQuote.travel_fee    ?? 0);
+  set('q_freight_fee',     currentQuote.freight_fee   ?? 0);
+  set('q_payment_terms',   currentQuote.payment_terms  ?? '');
+  set('q_notes_terms',     currentQuote.notes_terms    ?? '');
+
+  const drSel = document.getElementById('q_discount_rule_id');
+  if (drSel) {
+    const cur = currentQuote.discount_rule_id || '';
+    drSel.innerHTML = `<option value="">無折扣（原價）</option>` +
+      discountRulesAll.map(r => `<option value="${r.id}" ${r.id==cur?'selected':''}>${r.label||('折扣'+Math.round(r.discount_rate*100)+'%')}</option>`).join('');
+  }
+
+  const ss = document.getElementById('qSettingsSummary');
+  if (ss) {
+    const parts = [];
+    if ((currentQuote.tax_rate||0) > 0) parts.push(`含稅${Math.round((currentQuote.tax_rate||0)*100)}%`);
+    if ((currentQuote.travel_fee||0) > 0) parts.push(`車馬費 ${QFmt(currentQuote.travel_fee)}`);
+    if ((currentQuote.discount_rate||1) < 1) parts.push(`折扣${Math.round((currentQuote.discount_rate||1)*100)}%`);
+    ss.textContent = parts.length ? parts.join(' ・ ') : '（點擊展開）';
+  }
+
+  renderQuoteItemsV2(currentQuote.items || []);
+  renderQuoteTotals();
+}
+
+function renderQuoteItemsV2(items) {
+  const el  = document.getElementById('qItemsList');
+  const cnt = document.getElementById('qItemCount');
+  if (!el) return;
+  if (cnt) cnt.textContent = items.length;
+  if (!items.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;border:1px dashed var(--gray-200);border-radius:8px;color:#6b7280;font-size:13px">點擊上方按鈕新增品項</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it => buildItemCard(it)).join('');
+}
+
+function buildItemCard(it) {
+  const typeLabel = { film:'貼膜', catalog:'公規品', service:'服務', travel:'車馬費', freight:'運費' };
+  const typeBadge = { film:'q-film-badge', catalog:'q-catalog-badge', service:'q-service-badge', travel:'q-service-badge', freight:'q-service-badge' };
+  const sub = it.subtotal != null ? QFmt(it.subtotal) : '—';
+
+  if (it.item_type === 'film') {
+    const brands = [...new Set(filmMatrix.map(m => m.brand))];
+    const brandOpts = brands.map(b => `<option value="${b}" ${b===it.film_brand?'selected':''}>${b}</option>`).join('');
+    const matchSeries = filmMatrix.filter(m => m.brand === (it.film_brand||''));
+    const seriesOpts = matchSeries.map(m => {
+      const key = m.series_code || String(m.id);
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+    }).join('');
+    const sqChi = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) : '0.00';
+    return `<div class="q-item-card" id="qItem_${it.id}">
+  <div class="q-item-header">
+    <span class="q-type-badge q-film-badge">貼膜</span>
+    <input id="qLoc_${it.id}" class="q-input" style="width:110px" placeholder="施作位置" value="${esc(it.location)}" onblur="saveQItem(${it.id})">
+    <span style="flex:1"></span>
+    <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
+    <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+    <div><label class="q-field-label">品牌</label>
+      <select id="qBrand_${it.id}" class="q-input" onchange="qFilmBrandChange(${it.id},this.value)">
+        <option value="">-- 品牌 --</option>${brandOpts}</select></div>
+    <div><label class="q-field-label">系列</label>
+      <select id="qSeries_${it.id}" class="q-input" onchange="qFilmSeriesChange(${it.id})">
+        <option value="">-- 系列 --</option>${seriesOpts}</select></div>
+    <div><label class="q-field-label">面材</label>
+      <select id="qSurface_${it.id}" class="q-input" onchange="qFilmSeriesChange(${it.id})">
+        <option value="flat" ${it.surface_type==='flat'?'selected':''}>平面</option>
+        <option value="cabinet" ${it.surface_type==='cabinet'?'selected':''}>系統櫃</option>
+        <option value="custom" ${it.surface_type==='custom'?'selected':''}>造型/異形</option>
+      </select></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
+    <div><label class="q-field-label">長(cm)</label>
+      <input type="number" id="qLen_${it.id}" class="q-input" value="${it.length_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">寬(cm)</label>
+      <input type="number" id="qWid_${it.id}" class="q-input" value="${it.width_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label" style="font-weight:600">才數</label>
+      <div id="qArea_${it.id}" class="q-input" style="background:#f0f7ff;font-weight:700;color:#1e40af">${sqChi}</div></div>
+    <div><label class="q-field-label">單價/才</label>
+      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">小計</label>
+      <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+  </div>
+  <div style="margin-top:8px"><label class="q-field-label">備註</label>
+    <input id="qNotes_${it.id}" class="q-input" style="width:100%" value="${esc(it.notes)}" placeholder="選填" onblur="saveQItem(${it.id})"></div>
+</div>`;
+  }
+
+  if (it.item_type === 'catalog') {
+    const catalogOpts = catalogAll.map(c => `<option value="${c.id}" data-price="${c.base_price||0}" ${c.id===it.catalog_item_id?'selected':''}>${c.category?c.category+' - ':''}${c.name}</option>`).join('');
+    return `<div class="q-item-card" id="qItem_${it.id}">
+  <div class="q-item-header">
+    <span class="q-type-badge q-catalog-badge">公規品</span>
+    <input id="qLoc_${it.id}" class="q-input" style="width:110px" placeholder="施作位置" value="${esc(it.location)}" onblur="saveQItem(${it.id})">
+    <span style="flex:1"></span>
+    <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
+    <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px">
+    <div><label class="q-field-label">品項</label>
+      <select id="qCatSel_${it.id}" class="q-input" onchange="qCatalogChange(${it.id},this)">
+        <option value="">-- 選擇公規品 --</option>${catalogOpts}</select></div>
+    <div><label class="q-field-label">數量</label>
+      <input type="number" id="qQty_${it.id}" class="q-input" value="${it.quantity||1}" min="1" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">單價</label>
+      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||0}" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">小計</label>
+      <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+  </div>
+</div>`;
+  }
+
+  // service / travel / freight
+  return `<div class="q-item-card" id="qItem_${it.id}">
+  <div class="q-item-header">
+    <span class="q-type-badge q-service-badge">${typeLabel[it.item_type]||it.item_type}</span>
+    <input id="qLoc_${it.id}" class="q-input" style="width:110px" placeholder="施作位置" value="${esc(it.location)}" onblur="saveQItem(${it.id})">
+    <span style="flex:1"></span>
+    <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
+    <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px">
+    <div><label class="q-field-label">說明</label>
+      <input id="qDesc_${it.id}" class="q-input" value="${esc(it.description)}" placeholder="品項描述" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">數量</label>
+      <input type="number" id="qQty_${it.id}" class="q-input" value="${it.quantity||1}" min="1" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">單位</label>
+      <input id="qUnit_${it.id}" class="q-input" value="${esc(it.unit)||'式'}"></div>
+    <div><label class="q-field-label">單價</label>
+      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||0}" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">小計</label>
+      <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+  </div>
+</div>`;
+}
+
+function esc(v) { return (v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function qCalcSqChi(itemId) {
+  const len   = parseFloat(document.getElementById(`qLen_${itemId}`)?.value) || 0;
+  const wid   = parseFloat(document.getElementById(`qWid_${itemId}`)?.value) || 0;
+  const price = parseFloat(document.getElementById(`qUprice_${itemId}`)?.value) || 0;
+  const sqChi = len > 0 && wid > 0 ? Math.round(len * wid / 900 * 100) / 100 : 0;
+  const sub   = Math.round(sqChi * price);
+  const aEl = document.getElementById(`qArea_${itemId}`);
+  const sEl = document.getElementById(`qSub_${itemId}`);
+  const hEl = document.getElementById(`qHeadSub_${itemId}`);
+  if (aEl) aEl.textContent = sqChi.toFixed(2);
+  const sv = sub > 0 ? QFmt(sub) : '—';
+  if (sEl) sEl.textContent = sv;
+  if (hEl) hEl.textContent = sv;
+}
+
+function qCalcLineSub(itemId) {
+  const qty   = parseFloat(document.getElementById(`qQty_${itemId}`)?.value) || 0;
+  const price = parseFloat(document.getElementById(`qUprice_${itemId}`)?.value) || 0;
+  const sub   = Math.round(qty * price);
+  const sEl = document.getElementById(`qSub_${itemId}`);
+  const hEl = document.getElementById(`qHeadSub_${itemId}`);
+  const sv  = sub > 0 ? QFmt(sub) : '—';
+  if (sEl) sEl.textContent = sv;
+  if (hEl) hEl.textContent = sv;
+}
+
+function qFilmBrandChange(itemId, brand) {
+  const seriesSel = document.getElementById(`qSeries_${itemId}`);
+  if (!seriesSel) return;
+  const matchSeries = filmMatrix.filter(m => m.brand === brand);
+  seriesSel.innerHTML = `<option value="">-- 系列 --</option>` +
+    matchSeries.map(m => {
+      const key = m.series_code || String(m.id);
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+    }).join('');
+  setTimeout(() => saveQItem(itemId), 50);
+}
+
+function qFilmSeriesChange(itemId) {
+  const serSel = document.getElementById(`qSeries_${itemId}`);
+  const surSel = document.getElementById(`qSurface_${itemId}`);
+  const priFld = document.getElementById(`qUprice_${itemId}`);
+  if (!serSel || !surSel || !priFld) return;
+  const opt = serSel.selectedOptions[0];
+  if (!opt?.value) return;
+  const pMap = { flat:'data-pf', cabinet:'data-pc', custom:'data-px' };
+  const price = parseFloat(opt.getAttribute(pMap[surSel.value]||'data-pf') || '0');
+  priFld.value = price;
+  qCalcSqChi(itemId);
+  setTimeout(() => saveQItem(itemId), 50);
+}
+
+function qCatalogChange(itemId, selEl) {
+  const opt = selEl.selectedOptions[0];
+  if (!opt?.value) return;
+  const price = parseFloat(opt.getAttribute('data-price') || '0');
+  const pFld = document.getElementById(`qUprice_${itemId}`);
+  if (pFld) pFld.value = price;
+  qCalcLineSub(itemId);
+  setTimeout(() => saveQItem(itemId), 50);
+}
+
+async function saveQItem(itemId) {
+  if (!currentQuote) return;
+  const item = (currentQuote.items || []).find(i => i.id === itemId);
+  if (!item) return;
+  const type = item.item_type;
+  const g = id => document.getElementById(id)?.value ?? null;
+
+  let body = { item_type: type, location: g(`qLoc_${itemId}`) };
+
+  if (type === 'film') {
+    body = { ...body,
+      film_brand:   g(`qBrand_${itemId}`),
+      film_model:   g(`qSeries_${itemId}`),
+      surface_type: g(`qSurface_${itemId}`) || 'flat',
+      length_cm:    parseFloat(g(`qLen_${itemId}`)) || null,
+      width_cm:     parseFloat(g(`qWid_${itemId}`)) || null,
+      unit_price:   parseFloat(g(`qUprice_${itemId}`)) || 0,
+      notes:        g(`qNotes_${itemId}`),
+      unit: '才',
+    };
+  } else if (type === 'catalog') {
+    body = { ...body,
+      catalog_item_id: parseInt(g(`qCatSel_${itemId}`)) || null,
+      quantity:  parseFloat(g(`qQty_${itemId}`)) || 1,
+      unit_price: parseFloat(g(`qUprice_${itemId}`)) || 0,
+      unit: '件',
+    };
+  } else {
+    body = { ...body,
+      description: g(`qDesc_${itemId}`),
+      quantity:    parseFloat(g(`qQty_${itemId}`)) || 1,
+      unit:        g(`qUnit_${itemId}`) || '式',
+      unit_price:  parseFloat(g(`qUprice_${itemId}`)) || 0,
+    };
+  }
+
+  const res = await fetch(`/api/quotes/${currentQuote.id}/items/${itemId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (!res.ok) return;
+  // Refresh quote totals
+  const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+  if (qr.ok) {
+    const fresh = await qr.json();
+    fresh.items = currentQuote.items; // keep rendered items
+    currentQuote = fresh;
+    renderQuoteTotals();
+    // Update individual item subtotals from server response
+    const data = await res.json();
+    if (data.subtotal != null) {
+      const sEl = document.getElementById(`qSub_${itemId}`);
+      const hEl = document.getElementById(`qHeadSub_${itemId}`);
+      const sv  = QFmt(data.subtotal);
+      if (sEl) sEl.textContent = sv;
+      if (hEl) hEl.textContent = sv;
+    }
+    if (type === 'film' && data.area_sqchi != null) {
+      const aEl = document.getElementById(`qArea_${itemId}`);
+      if (aEl) aEl.textContent = Number(data.area_sqchi).toFixed(2);
+    }
   }
 }
 
-const DISCOUNT_OPTIONS = {
-  owner:    [{ label:'無折扣（原價）', val:0 }, { label:'95折（-5%）', val:5 }, { label:'9折（-10%）', val:10 }, { label:'8折 大量（-20%）', val:20 }],
-  designer: [{ label:'9折（-10%）', val:10 }, { label:'8折（-20%）', val:20 }],
-  dealer:   [{ label:'8折（-20%）', val:20 }, { label:'7折（-30%）', val:30 }],
-};
-
-function updateDiscountOptions() {
-  const type = document.getElementById('q_client_type').value;
-  const sel  = document.getElementById('q_discount_select');
-  const cur  = parseFloat(document.getElementById('q_discount_value').value) || 0;
-  const opts = DISCOUNT_OPTIONS[type] || DISCOUNT_OPTIONS.owner;
-  sel.innerHTML = opts.map(o => `<option value="${o.val}" ${o.val===cur?'selected':''}>${o.label}</option>`).join('');
-  document.getElementById('q_discount_value').value = sel.value;
-}
-
-document.getElementById('genQuoteBtn').addEventListener('click', async () => {
+async function addQuoteItem(type) {
+  if (!currentQuote) return;
   const body = {
-    valid_days:     parseInt(document.getElementById('q_valid_days').value) || 30,
-    client_type:    document.getElementById('q_client_type').value,
-    discount_value: parseFloat(document.getElementById('q_discount_value').value) || 0,
-    payment_terms:  document.getElementById('q_payment_terms').value || null,
-    client_notes:   document.getElementById('q_client_notes').value || null,
+    item_type: type,
+    quantity: 1,
+    unit: type === 'film' ? '才' : type === 'catalog' ? '件' : '式',
+    unit_price: 0,
+    surface_type: 'flat',
   };
-  const method = quoteData ? 'PUT' : 'POST';
-  const res = await fetch(`/api/quotes/cases/${caseId}`, {
-    method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  const res = await fetch(`/api/quotes/${currentQuote.id}/items`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
   });
   if (res.ok) {
-    showToast('報價連結已產生');
-    await loadQuote();
-  } else showToast('產生失敗', 'error');
-});
-
-document.getElementById('copyQuoteBtn').addEventListener('click', () => {
-  const url = document.getElementById('quoteShareUrl').textContent;
-  navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
-});
-
-document.getElementById('previewQuoteBtn').addEventListener('click', () => {
-  if (quoteData?.share_token) {
-    window.open(`/quote/${quoteData.share_token}?print=1`, '_blank');
+    const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+    if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
   }
-});
+}
+
+async function deleteQItem(itemId) {
+  if (!confirm('確定刪除此品項？')) return;
+  if (!currentQuote) return;
+  await fetch(`/api/quotes/${currentQuote.id}/items/${itemId}`, { method:'DELETE' });
+  const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+  if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
+}
+
+function renderQuoteTotals() {
+  const q = currentQuote;
+  if (!q) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('qt_subtotal', QFmt(q.subtotal));
+  set('qt_tax',      QFmt(q.tax_amount));
+  set('qt_final',    QFmt(q.final_total));
+
+  const dw = document.getElementById('qt_discount_wrap');
+  if (dw) { const show = (q.discount_rate||1) < 1; dw.style.display = show ? '' : 'none'; if (show) set('qt_discounted', QFmt(q.discount_value)); }
+
+  const mw = document.getElementById('qt_marketing_wrap');
+  if (mw) { const show = (q.marketing_rate||1) < 1; mw.style.display = show ? '' : 'none'; if (show) set('qt_marketing', QFmt(q.marketing_total)); }
+
+  // Cost analysis
+  const matCost = (q.items||[]).reduce((s,i) => s + (i.material_cost||0), 0);
+  const profit  = (q.final_total||0) - matCost;
+  const margin  = (q.final_total||0) > 0 ? (profit / (q.final_total||1) * 100).toFixed(1) : null;
+  set('qt_material_cost', QFmt(matCost));
+  set('qt_gross_profit',  QFmt(profit));
+  const mp = document.getElementById('qt_margin');
+  if (mp) {
+    mp.textContent = margin !== null ? margin + '%' : '—';
+    mp.className = 'margin-pill' + (margin === null ? '' : margin < 30 ? ' margin-red' : margin < 50 ? ' margin-yellow' : ' margin-green');
+  }
+}
+
+async function createQuoteVersion(copyFromCurrent) {
+  const body = {};
+  if (copyFromCurrent && currentQuote) body.copy_from_version = currentQuote.version;
+  const res = await fetch(`/api/quotes/cases/${caseId}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (!res.ok) { showToast('建立失敗', 'error'); return; }
+  showToast('新版本已建立');
+  const vr = await fetch(`/api/quotes/cases/${caseId}/versions`);
+  quoteVersions = vr.ok ? await vr.json() : [];
+  const qr = await fetch(`/api/quotes/cases/${caseId}`);
+  currentQuote = qr.ok ? await qr.json() : null;
+  renderQuotePanel();
+  await loadCase();
+}
+
+async function switchQuoteVersion() {
+  const sel = document.getElementById('qVersionSel');
+  if (!sel) return;
+  const vId = parseInt(sel.value);
+  const qr = await fetch(`/api/quotes/${vId}`);
+  if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
+}
+
+async function saveQuoteSettings() {
+  if (!currentQuote) return;
+  const g = id => document.getElementById(id)?.value ?? null;
+  const ruleId = g('q_discount_rule_id') || null;
+  const rule   = ruleId ? discountRulesAll.find(r => r.id == ruleId) : null;
+  const body = {
+    valid_days:      parseInt(g('q_valid_days')) || 30,
+    tax_rate:        parseFloat(g('q_tax_rate')) ?? 0.05,
+    discount_rule_id: ruleId ? parseInt(ruleId) : null,
+    discount_rate:   rule ? rule.discount_rate : 1.0,
+    marketing_rate:  parseFloat(g('q_marketing_rate')) || 1,
+    travel_fee:      parseFloat(g('q_travel_fee')) || 0,
+    freight_fee:     parseFloat(g('q_freight_fee')) || 0,
+    payment_terms:   g('q_payment_terms') || null,
+    notes_terms:     g('q_notes_terms') || null,
+    status:          currentQuote.status || 'draft',
+  };
+  const res = await fetch(`/api/quotes/${currentQuote.id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (!res.ok) { showToast('儲存失敗', 'error'); return; }
+  showToast('設定已儲存');
+  const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+  if (qr.ok) {
+    const fresh = await qr.json();
+    fresh.items = currentQuote.items;
+    currentQuote = fresh;
+    renderQuotePanel();
+  }
+  document.getElementById('qSettingsDet')?.removeAttribute('open');
+}
+
+async function sendQuote() {
+  if (!currentQuote) return;
+  if (!confirm('確認傳送報價單給客戶？傳送後將同步更新案件成交金額。')) return;
+  const res = await fetch(`/api/quotes/${currentQuote.id}/send`, { method:'POST' });
+  if (!res.ok) { showToast('傳送失敗', 'error'); return; }
+  showToast('報價單已傳送');
+  const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+  if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
+  await loadCase();
+}
+
+function previewQuote() {
+  if (currentQuote?.share_token) window.open(`/quote/${currentQuote.share_token}`, '_blank');
+}
+
+function copyQuoteLink() {
+  const url = document.getElementById('qShareUrl')?.textContent;
+  if (url) navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
+}
 
 function fillClientInfoCard(cl) {
   const card = document.getElementById('b_client_info_card');

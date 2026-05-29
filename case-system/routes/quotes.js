@@ -116,6 +116,14 @@ router.post('/cases/:id', requireAuth, (req, res) => {
   res.json({ ok: true, id: quoteId, token, version: newVersion });
 });
 
+// 取得單一報價單（含品項），用於版本切換
+router.get('/:quoteId', requireAuth, (req, res) => {
+  const q = db.prepare(`SELECT qs.*, u.name as creator_name FROM quote_sheets qs LEFT JOIN users u ON u.id=qs.created_by WHERE qs.id=?`).get(req.params.quoteId);
+  if (!q) return res.status(404).json({ error: '找不到報價單' });
+  q.items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
+  res.json(q);
+});
+
 // 更新報價單設定（不含品項）
 router.put('/:quoteId', requireAuth, (req, res) => {
   const { valid_days, payment_terms, client_notes, client_type, status,

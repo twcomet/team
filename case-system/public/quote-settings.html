@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報價設定</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.qs-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; border-bottom:2px solid #e5e7eb; padding-bottom:0; }
+.qs-tab { padding:8px 16px; border:none; background:none; cursor:pointer; font-size:14px; color:#6b7280; border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+.qs-tab.active { color:#2563eb; border-bottom-color:#2563eb; font-weight:600; }
+.qs-panel { display:none; } .qs-panel.active { display:block; }
+.qs-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:20px; margin-bottom:16px; }
+.qs-card h3 { font-size:15px; font-weight:600; color:#111; margin:0 0 16px; }
+.qs-table { width:100%; border-collapse:collapse; font-size:13px; }
+.qs-table th { background:#f8fafc; color:#374151; font-weight:600; padding:8px 10px; text-align:left; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
+.qs-table td { padding:8px 10px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+.qs-table tr:hover td { background:#f9fafb; }
+.qs-table input, .qs-table select { border:1px solid #d1d5db; border-radius:6px; padding:4px 8px; font-size:13px; width:100%; box-sizing:border-box; }
+.qs-table input:focus, .qs-table select:focus { outline:none; border-color:#2563eb; }
+.qs-btn { padding:6px 14px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; }
+.qs-btn-primary { background:#2563eb; color:#fff; }
+.qs-btn-primary:hover { background:#1d4ed8; }
+.qs-btn-danger { background:#fee2e2; color:#dc2626; }
+.qs-btn-danger:hover { background:#fecaca; }
+.qs-btn-sm { padding:4px 10px; font-size:12px; }
+.qs-add-row { background:#f0fdf4; border:1px dashed #86efac; border-radius:8px; padding:14px 16px; margin-top:10px; }
+.qs-add-row h4 { font-size:13px; font-weight:600; color:#16a34a; margin:0 0 10px; }
+.qs-grid { display:grid; gap:10px; }
+.qs-grid-2 { grid-template-columns:1fr 1fr; }
+.qs-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+.qs-grid-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.form-group label { display:block; font-size:12px; color:#6b7280; margin-bottom:4px; }
+.form-group input, .form-group select, .form-group textarea { width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:13px; box-sizing:border-box; }
+.form-group textarea { height:80px; resize:vertical; font-family:inherit; }
+.brand-badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+.brand-BODAQ { background:#fef3c7; color:#92400e; }
+.brand-PAROI { background:#ede9fe; color:#6d28d9; }
+.brand-LX { background:#dbeafe; color:#1e40af; }
+.brand-other { background:#f3f4f6; color:#374151; }
+.flame-yes { color:#dc2626; font-size:11px; font-weight:600; }
+.flame-no { color:#6b7280; font-size:11px; }
+.price-cell { font-weight:600; color:#0f766e; }
+.notice-content-preview { max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#6b7280; font-size:12px; }
+.section-hint { font-size:12px; color:#9ca3af; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">報價設定</h1>
+    </div>
+
+    <div class="qs-tabs">
+      <button class="qs-tab active" onclick="switchTab('film')">膜料價格</button>
+      <button class="qs-tab" onclick="switchTab('catalog')">公規品目錄</button>
+      <button class="qs-tab" onclick="switchTab('addons')">加價項目</button>
+      <button class="qs-tab" onclick="switchTab('notices')">貼膜須知模板</button>
+      <button class="qs-tab" onclick="switchTab('discount')">折扣規則</button>
+      <button class="qs-tab" onclick="switchTab('travel')">車馬費地區</button>
+      <button class="qs-tab" onclick="switchTab('skill')">難度等級費率</button>
+    </div>
+
+    <!-- ── 膜料價格 ── -->
+    <div id="panel-film" class="qs-panel active">
+      <div class="qs-card">
+        <h3>膜料價格矩陣（連工帶料，每才）</h3>
+        <p class="section-hint">輸入各品牌各系列的連工帶料單價，建立報價時可直接選取自動帶入。</p>
+        <table class="qs-table" id="film-table">
+          <thead><tr>
+            <th>品牌</th><th>系列代號</th><th>系列名稱</th><th>防焰</th>
+            <th>膜寬(cm)</th><th>材料成本/米</th>
+            <th>全平面牆/才</th><th>系統櫃門片/才</th><th>造型/才</th>
+            <th width="60">操作</th>
+          </tr></thead>
+          <tbody id="film-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增膜料</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:8px">
+            <div class="form-group"><label>品牌 *</label>
+              <select id="nf-brand">
+                <option value="BODAQ">BODAQ（韓國）</option>
+                <option value="LX">LX BENIF（韓國）</option>
+                <option value="PAROI">PAROI（日本）</option>
+                <option value="3M">3M DI-NOC</option>
+                <option value="穩得">穩得（台灣）</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div class="form-group"><label>系列代號</label><input id="nf-code" placeholder="例：AB007"></div>
+            <div class="form-group"><label>系列名稱</label><input id="nf-name" placeholder="例：石紋/不防焰"></div>
+            <div class="form-group"><label>防焰</label>
+              <select id="nf-flame"><option value="0">否</option><option value="1">是</option></select>
+            </div>
+          </div>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>膜寬(cm)</label><input id="nf-width" type="number" value="122"></div>
+            <div class="form-group"><label>材料成本/米（隱藏）</label><input id="nf-cost" type="number" placeholder="0"></div>
+            <div class="form-group"><label>全平面牆/才</label><input id="nf-flat" type="number" placeholder="0"></div>
+            <div class="form-group"><label>系統櫃門片/才</label><input id="nf-cabinet" type="number" placeholder="0"></div>
+          </div>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>造型/才</label><input id="nf-custom" type="number" placeholder="0"></div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addFilmPrice()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 公規品目錄 ── -->
+    <div id="panel-catalog" class="qs-panel">
+      <div class="qs-card">
+        <h3>公規品目錄（固定座計）</h3>
+        <p class="section-hint">房間門、大門、防火門、電梯門等規格化品項，建立報價時可直接選取計算。</p>
+        <table class="qs-table" id="catalog-table">
+          <thead><tr>
+            <th>類別</th><th>品項名稱</th><th>材料</th><th>面</th><th>含框</th>
+            <th>尺寸說明</th><th>基礎定價</th><th>預設難度</th><th width="80">操作</th>
+          </tr></thead>
+          <tbody id="catalog-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增公規品</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:8px">
+            <div class="form-group"><label>類別 *</label>
+              <select id="nc-cat">
+                <option value="door_room">房間門</option>
+                <option value="door_main">大門</option>
+                <option value="door_fire">防火門</option>
+                <option value="door_elevator">電梯門</option>
+                <option value="door_copper">硫化銅門</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group"><label>品項名稱 *</label><input id="nc-name" placeholder="例：單開防火門-小座"></div>
+            <div class="form-group"><label>材料</label>
+              <select id="nc-mat">
+                <option value="">不指定</option>
+                <option value="korean">韓國膜 (BODAQ/LG)</option>
+                <option value="japanese">日本膜 (PAROI)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>單/雙面</label>
+              <select id="nc-sides">
+                <option value="">不指定</option>
+                <option value="single">單面</option>
+                <option value="double">雙面</option>
+              </select>
+            </div>
+          </div>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>含框</label>
+              <select id="nc-frame"><option value="0">不含框</option><option value="1">含框</option></select>
+            </div>
+            <div class="form-group"><label>尺寸說明</label><input id="nc-spec" placeholder="例：總寬100cm內,高230cm內"></div>
+            <div class="form-group"><label>基礎定價 *</label><input id="nc-price" type="number" placeholder="0"></div>
+            <div class="form-group"><label>預設難度等級</label>
+              <select id="nc-diff">
+                <option value="3">3 級</option><option value="4">4 級</option><option value="5">5 級</option>
+                <option value="6">6 級</option><option value="7">7 級</option><option value="8">8 級</option>
+              </select>
+            </div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addCatalogItem()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 加價項目 ── -->
+    <div id="panel-addons" class="qs-panel">
+      <div class="qs-card">
+        <h3>加價項目庫</h3>
+        <p class="section-hint">建立報價時可勾選加入，自動加總。</p>
+        <table class="qs-table" id="addons-table">
+          <thead><tr>
+            <th>名稱</th><th>計價方式</th><th>基礎價格</th><th>最高價格</th><th>需照片評估</th><th width="80">操作</th>
+          </tr></thead>
+          <tbody id="addons-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增加價項目</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:8px">
+            <div class="form-group"><label>名稱 *</label><input id="na-name" placeholder="例：補土打磨"></div>
+            <div class="form-group"><label>計價方式</label>
+              <select id="na-type">
+                <option value="fixed">固定金額</option>
+                <option value="range">範圍（需評估）</option>
+                <option value="per_chi">每才加計</option>
+              </select>
+            </div>
+            <div class="form-group"><label>基礎價格</label><input id="na-price" type="number" placeholder="0"></div>
+            <div class="form-group"><label>最高價格（範圍用）</label><input id="na-max" type="number" placeholder="留空則固定價"></div>
+          </div>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>說明</label><input id="na-desc" placeholder="選填說明文字"></div>
+            <div class="form-group"><label>需要照片評估</label>
+              <select id="na-photo"><option value="0">否</option><option value="1">是</option></select>
+            </div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addAddon()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 貼膜須知模板 ── -->
+    <div id="panel-notices" class="qs-panel">
+      <div class="qs-card">
+        <h3>貼膜須知模板庫</h3>
+        <p class="section-hint">依施作物件類型建立須知模板，建立品項時選取後自動帶入，可再手動修改。</p>
+        <table class="qs-table" id="notices-table">
+          <thead><tr><th>模板名稱</th><th>類別</th><th>內容預覽</th><th width="80">操作</th></tr></thead>
+          <tbody id="notices-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增模板</h4>
+          <div class="qs-grid qs-grid-3" style="margin-bottom:8px">
+            <div class="form-group"><label>模板名稱 *</label><input id="nn-name" placeholder="例：門片類須知"></div>
+            <div class="form-group"><label>類別</label>
+              <select id="nn-cat">
+                <option value="門片類">門片類</option>
+                <option value="系統櫃類">系統櫃類</option>
+                <option value="牆面類">牆面類</option>
+                <option value="窗台檯面類">窗台/檯面類</option>
+                <option value="電梯類">電梯類</option>
+                <option value="舊膜撕除類">舊膜撕除類</option>
+                <option value="一般">一般</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>須知內容 *</label>
+            <textarea id="nn-content" style="height:120px" placeholder="輸入貼膜須知內容..."></textarea>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addNotice()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 折扣規則 ── -->
+    <div id="panel-discount" class="qs-panel">
+      <div class="qs-card">
+        <h3>折扣規則設定</h3>
+        <p class="section-hint">依客戶分類與案量門檻自動套用折扣。同一分類可設多條規則（系統自動選最優）。</p>
+        <table class="qs-table" id="discount-table">
+          <thead><tr>
+            <th>客戶分類</th><th>最低案量門檻</th><th>折扣率</th><th>說明</th><th width="80">操作</th>
+          </tr></thead>
+          <tbody id="discount-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增折扣規則</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>客戶分類</label>
+              <select id="nd-cat"><option value="">（所有分類）</option></select>
+            </div>
+            <div class="form-group"><label>最低案量（未稅）</label><input id="nd-min" type="number" value="0" placeholder="0 = 無門檻"></div>
+            <div class="form-group"><label>折扣率 *（例：0.9 = 九折）</label><input id="nd-rate" type="number" step="0.01" min="0" max="1" placeholder="0.9"></div>
+            <div class="form-group"><label>說明標籤</label><input id="nd-label" placeholder="例：設計師基本優惠"></div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addDiscountRule()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 車馬費 ── -->
+    <div id="panel-travel" class="qs-panel">
+      <div class="qs-card">
+        <h3>車馬費地區表</h3>
+        <p class="section-hint">建立報價時依施工地址自動帶入建議車馬費。關鍵字用逗號分隔（例：台中,彰化,苗栗）。</p>
+        <table class="qs-table" id="travel-table">
+          <thead><tr>
+            <th>地區名稱</th><th>地址關鍵字</th>
+            <th>場勘費</th><th>施工費</th><th>過夜費/晚</th><th>夜間加價</th>
+            <th width="80">操作</th>
+          </tr></thead>
+          <tbody id="travel-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增地區</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:8px">
+            <div class="form-group"><label>地區名稱 *</label><input id="nt-region" placeholder="例：台北/新北/桃園"></div>
+            <div class="form-group"><label>地址關鍵字</label><input id="nt-kw" placeholder="台北,新北,桃園"></div>
+            <div class="form-group"><label>場勘費</label><input id="nt-survey" type="number" value="0"></div>
+            <div class="form-group"><label>施工費</label><input id="nt-install" type="number" value="0"></div>
+          </div>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>過夜費/晚/組</label><input id="nt-overnight" type="number" value="0"></div>
+            <div class="form-group"><label>夜間施工加價</label><input id="nt-night" type="number" value="0"></div>
+            <div class="form-group"><label>備注</label><input id="nt-notes" placeholder="選填"></div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addTravelFee()">新增</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 難度等級 ── -->
+    <div id="panel-skill" class="qs-panel">
+      <div class="qs-card">
+        <h3>難度等級費率</h3>
+        <p class="section-hint">定義師傅等級對應的日薪費率，用於隱藏成本計算。等級越高代表施工費越貴。</p>
+        <table class="qs-table" id="skill-table">
+          <thead><tr>
+            <th>等級</th><th>名稱</th><th>內部員工日薪</th><th>外快/點工日薪</th><th>備注</th><th width="80">操作</th>
+          </tr></thead>
+          <tbody id="skill-tbody"></tbody>
+        </table>
+        <div class="qs-add-row">
+          <h4>+ 新增等級</h4>
+          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
+            <div class="form-group"><label>等級（1-10）*</label><input id="nsk-level" type="number" min="1" max="10" placeholder="1"></div>
+            <div class="form-group"><label>名稱</label><input id="nsk-label" placeholder="例：初級師傅"></div>
+            <div class="form-group"><label>內部員工日薪</label><input id="nsk-int" type="number" placeholder="0"></div>
+            <div class="form-group"><label>外快/點工日薪</label><input id="nsk-ext" type="number" placeholder="0"></div>
+          </div>
+          <button class="qs-btn qs-btn-primary" onclick="addSkillLevel()">新增</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+</div>
+
+<!-- 編輯 Modal（貼膜須知用） -->
+<div id="edit-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:600px;max-width:95vw;max-height:80vh;overflow-y:auto">
+    <h3 style="margin:0 0 16px;font-size:16px">編輯貼膜須知模板</h3>
+    <input type="hidden" id="edit-notice-id">
+    <div class="form-group" style="margin-bottom:10px"><label>模板名稱</label><input id="edit-notice-name"></div>
+    <div class="form-group" style="margin-bottom:10px"><label>類別</label>
+      <select id="edit-notice-cat">
+        <option value="門片類">門片類</option><option value="系統櫃類">系統櫃類</option>
+        <option value="牆面類">牆面類</option><option value="窗台檯面類">窗台/檯面類</option>
+        <option value="電梯類">電梯類</option><option value="舊膜撕除類">舊膜撕除類</option>
+        <option value="一般">一般</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px"><label>內容</label>
+      <textarea id="edit-notice-content" style="height:200px"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="qs-btn" style="background:#f3f4f6" onclick="closeNoticeModal()">取消</button>
+      <button class="qs-btn qs-btn-primary" onclick="saveNoticeEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/common.js"></script>
+<script>
+const API = '/api/quote-settings';
+let clientCategories = [];
+
+async function init() {
+  await loadSidebar();
+  highlightNav('settings');
+  const cats = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
+  clientCategories = Array.isArray(cats) ? cats : [];
+  const sel = document.getElementById('nd-cat');
+  clientCategories.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+  loadAll();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.qs-tab').forEach((t,i) => {
+    const panels = ['film','catalog','addons','notices','discount','travel','skill'];
+    t.classList.toggle('active', panels[i] === name);
+  });
+  document.querySelectorAll('.qs-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+}
+
+function loadAll() {
+  loadFilmPrices(); loadCatalog(); loadAddons();
+  loadNotices(); loadDiscountRules(); loadTravelFees(); loadSkillLevels();
+}
+
+function fmt(n) { return n ? Number(n).toLocaleString() : '—'; }
+function brandClass(b) {
+  if (b==='BODAQ'||b==='LX') return 'brand-BODAQ';
+  if (b==='PAROI') return 'brand-PAROI';
+  if (b==='LX') return 'brand-LX';
+  return 'brand-other';
+}
+
+// ── 膜料價格 ──────────────────────────────────────────────────
+async function loadFilmPrices() {
+  const data = await fetch(`${API}/film-prices`).then(r=>r.json());
+  const tbody = document.getElementById('film-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><span class="brand-badge ${brandClass(r.brand)}">${r.brand}</span></td>
+      <td>${r.series_code||'—'}</td>
+      <td>${r.series_name||'—'}</td>
+      <td><span class="${r.flame_resistant?'flame-yes':'flame-no'}">${r.flame_resistant?'防焰':'不防焰'}</span></td>
+      <td>${r.film_width_cm||122}</td>
+      <td style="color:#9ca3af">${fmt(r.cost_per_meter)}</td>
+      <td class="price-cell">${fmt(r.price_flat)}</td>
+      <td class="price-cell">${fmt(r.price_cabinet)}</td>
+      <td class="price-cell">${fmt(r.price_custom)}</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delFilmPrice(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料價格</td></tr>';
+}
+
+async function addFilmPrice() {
+  const body = {
+    brand: document.getElementById('nf-brand').value,
+    series_code: document.getElementById('nf-code').value,
+    series_name: document.getElementById('nf-name').value,
+    flame_resistant: document.getElementById('nf-flame').value,
+    film_width_cm: document.getElementById('nf-width').value,
+    cost_per_meter: document.getElementById('nf-cost').value,
+    price_flat: document.getElementById('nf-flat').value,
+    price_cabinet: document.getElementById('nf-cabinet').value,
+    price_custom: document.getElementById('nf-custom').value,
+  };
+  await fetch(`${API}/film-prices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+  loadFilmPrices();
+}
+
+async function delFilmPrice(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/film-prices/${id}`, { method:'DELETE' });
+  loadFilmPrices();
+}
+
+// ── 公規品 ────────────────────────────────────────────────────
+const CAT_LABELS = { door_room:'房間門', door_main:'大門', door_fire:'防火門', door_elevator:'電梯門', door_copper:'硫化銅門', other:'其他' };
+const MAT_LABELS = { korean:'韓國膜', japanese:'日本膜', '':'—' };
+const SIDES_LABELS = { single:'單面', double:'雙面', '':'—' };
+
+async function loadCatalog() {
+  const data = await fetch(`${API}/catalog`).then(r=>r.json());
+  const tbody = document.getElementById('catalog-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td>${CAT_LABELS[r.category]||r.category}</td>
+      <td><strong>${r.name}</strong></td>
+      <td>${MAT_LABELS[r.material]||r.material||'—'}</td>
+      <td>${SIDES_LABELS[r.sides]||r.sides||'—'}</td>
+      <td>${r.includes_frame?'含框':'不含框'}</td>
+      <td style="color:#6b7280;font-size:12px">${r.size_spec||'—'}</td>
+      <td class="price-cell">$${fmt(r.base_price)}</td>
+      <td style="text-align:center">${r.default_difficulty}級</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delCatalog(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:20px">尚未新增公規品</td></tr>';
+}
+
+async function addCatalogItem() {
+  const body = {
+    category: document.getElementById('nc-cat').value,
+    name: document.getElementById('nc-name').value,
+    material: document.getElementById('nc-mat').value,
+    sides: document.getElementById('nc-sides').value,
+    includes_frame: document.getElementById('nc-frame').value,
+    size_spec: document.getElementById('nc-spec').value,
+    base_price: document.getElementById('nc-price').value,
+    default_difficulty: document.getElementById('nc-diff').value,
+  };
+  if (!body.name || !body.base_price) return alert('請填寫品項名稱和基礎定價');
+  await fetch(`${API}/catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  ['nc-name','nc-spec','nc-price'].forEach(id => document.getElementById(id).value='');
+  loadCatalog();
+}
+
+async function delCatalog(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/catalog/${id}`, { method:'DELETE' });
+  loadCatalog();
+}
+
+// ── 加價項目 ──────────────────────────────────────────────────
+const PRICE_TYPE_LABELS = { fixed:'固定金額', range:'範圍評估', per_chi:'每才加計' };
+
+async function loadAddons() {
+  const data = await fetch(`${API}/addons`).then(r=>r.json());
+  const tbody = document.getElementById('addons-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r.name}</strong>${r.description?`<br><small style="color:#9ca3af">${r.description}</small>`:''}</td>
+      <td>${PRICE_TYPE_LABELS[r.price_type]||r.price_type}</td>
+      <td class="price-cell">$${fmt(r.base_price)}</td>
+      <td>${r.max_price?'$'+fmt(r.max_price):'—'}</td>
+      <td>${r.requires_photo?'<span style="color:#f59e0b">需要</span>':'否'}</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delAddon(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">尚未新增加價項目</td></tr>';
+}
+
+async function addAddon() {
+  const body = {
+    name: document.getElementById('na-name').value,
+    description: document.getElementById('na-desc').value,
+    price_type: document.getElementById('na-type').value,
+    base_price: document.getElementById('na-price').value,
+    max_price: document.getElementById('na-max').value || null,
+    requires_photo: document.getElementById('na-photo').value,
+  };
+  if (!body.name) return alert('請填寫加價項目名稱');
+  await fetch(`${API}/addons`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  ['na-name','na-desc','na-price','na-max'].forEach(id => document.getElementById(id).value='');
+  loadAddons();
+}
+
+async function delAddon(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/addons/${id}`, { method:'DELETE' });
+  loadAddons();
+}
+
+// ── 貼膜須知模板 ──────────────────────────────────────────────
+async function loadNotices() {
+  const data = await fetch(`${API}/notices`).then(r=>r.json());
+  const tbody = document.getElementById('notices-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r.name}</strong></td>
+      <td><span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px">${r.category||'一般'}</span></td>
+      <td class="notice-content-preview">${(r.content||'').substring(0,80)}...</td>
+      <td style="white-space:nowrap">
+        <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editNotice(${r.id})">編輯</button>
+        <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delNotice(${r.id})">刪除</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:20px">尚未新增模板</td></tr>';
+}
+
+async function addNotice() {
+  const body = {
+    name: document.getElementById('nn-name').value,
+    category: document.getElementById('nn-cat').value,
+    content: document.getElementById('nn-content').value,
+  };
+  if (!body.name || !body.content) return alert('請填寫模板名稱和內容');
+  await fetch(`${API}/notices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  document.getElementById('nn-name').value='';
+  document.getElementById('nn-content').value='';
+  loadNotices();
+}
+
+async function editNotice(id) {
+  const data = await fetch(`${API}/notices`).then(r=>r.json());
+  const n = data.find(r=>r.id===id); if (!n) return;
+  document.getElementById('edit-notice-id').value = id;
+  document.getElementById('edit-notice-name').value = n.name;
+  document.getElementById('edit-notice-cat').value = n.category||'一般';
+  document.getElementById('edit-notice-content').value = n.content||'';
+  document.getElementById('edit-notice-modal').style.display='flex';
+}
+
+async function saveNoticeEdit() {
+  const id = document.getElementById('edit-notice-id').value;
+  const body = {
+    name: document.getElementById('edit-notice-name').value,
+    category: document.getElementById('edit-notice-cat').value,
+    content: document.getElementById('edit-notice-content').value,
+  };
+  await fetch(`${API}/notices/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  closeNoticeModal(); loadNotices();
+}
+
+function closeNoticeModal() { document.getElementById('edit-notice-modal').style.display='none'; }
+
+async function delNotice(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/notices/${id}`, { method:'DELETE' });
+  loadNotices();
+}
+
+// ── 折扣規則 ──────────────────────────────────────────────────
+async function loadDiscountRules() {
+  const data = await fetch(`${API}/discount-rules`).then(r=>r.json());
+  const tbody = document.getElementById('discount-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td>${r.category_name||'（所有分類）'}</td>
+      <td>${r.min_amount>0?'$'+fmt(r.min_amount)+' 以上':'無門檻'}</td>
+      <td><strong style="color:#0f766e">${Math.round(r.discount_rate*10)}折（${(r.discount_rate*100).toFixed(0)}%）</strong></td>
+      <td style="color:#6b7280">${r.label||'—'}</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delDiscountRule(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">尚未設定折扣規則</td></tr>';
+}
+
+async function addDiscountRule() {
+  const rate = parseFloat(document.getElementById('nd-rate').value);
+  if (!rate || rate>1 || rate<=0) return alert('折扣率請填 0~1 之間，例如 0.9 代表九折');
+  const body = {
+    client_category_id: document.getElementById('nd-cat').value || null,
+    min_amount: document.getElementById('nd-min').value||0,
+    discount_rate: rate,
+    label: document.getElementById('nd-label').value,
+  };
+  await fetch(`${API}/discount-rules`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  ['nd-min','nd-rate','nd-label'].forEach(id => document.getElementById(id).value='');
+  loadDiscountRules();
+}
+
+async function delDiscountRule(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/discount-rules/${id}`, { method:'DELETE' });
+  loadDiscountRules();
+}
+
+// ── 車馬費 ────────────────────────────────────────────────────
+async function loadTravelFees() {
+  const data = await fetch(`${API}/travel-fees`).then(r=>r.json());
+  const tbody = document.getElementById('travel-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r.region_name}</strong></td>
+      <td style="color:#6b7280;font-size:12px">${r.keywords||'—'}</td>
+      <td class="price-cell">$${fmt(r.survey_fee)}</td>
+      <td class="price-cell">$${fmt(r.install_fee)}</td>
+      <td>${r.overnight_fee?'$'+fmt(r.overnight_fee):'—'}</td>
+      <td>${r.night_surcharge?'$'+fmt(r.night_surcharge):'—'}</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delTravelFee(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:20px">尚未設定車馬費</td></tr>';
+}
+
+async function addTravelFee() {
+  const body = {
+    region_name: document.getElementById('nt-region').value,
+    keywords: document.getElementById('nt-kw').value,
+    survey_fee: document.getElementById('nt-survey').value||0,
+    install_fee: document.getElementById('nt-install').value||0,
+    overnight_fee: document.getElementById('nt-overnight').value||0,
+    night_surcharge: document.getElementById('nt-night').value||0,
+    notes: document.getElementById('nt-notes').value,
+    sort_order: document.querySelectorAll('#travel-tbody tr').length,
+  };
+  if (!body.region_name) return alert('請填寫地區名稱');
+  await fetch(`${API}/travel-fees`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  ['nt-region','nt-kw','nt-notes'].forEach(id => document.getElementById(id).value='');
+  loadTravelFees();
+}
+
+async function delTravelFee(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/travel-fees/${id}`, { method:'DELETE' });
+  loadTravelFees();
+}
+
+// ── 難度等級 ──────────────────────────────────────────────────
+async function loadSkillLevels() {
+  const data = await fetch(`${API}/skill-levels`).then(r=>r.json());
+  const tbody = document.getElementById('skill-tbody');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong style="font-size:16px">${r.level}</strong></td>
+      <td>${r.label||'—'}</td>
+      <td class="price-cell">$${fmt(r.internal_daily_rate)}/天</td>
+      <td class="price-cell">$${fmt(r.external_daily_rate)}/天</td>
+      <td style="color:#6b7280">${r.notes||'—'}</td>
+      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delSkillLevel(${r.id})">刪除</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">尚未設定等級</td></tr>';
+}
+
+async function addSkillLevel() {
+  const body = {
+    level: document.getElementById('nsk-level').value,
+    label: document.getElementById('nsk-label').value,
+    internal_daily_rate: document.getElementById('nsk-int').value||0,
+    external_daily_rate: document.getElementById('nsk-ext').value||0,
+  };
+  if (!body.level) return alert('請填寫等級數字');
+  const r = await fetch(`${API}/skill-levels`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const result = await r.json();
+  if (result.error) return alert(result.error);
+  ['nsk-level','nsk-label','nsk-int','nsk-ext'].forEach(id => document.getElementById(id).value='');
+  loadSkillLevels();
+}
+
+async function delSkillLevel(id) {
+  if (!confirm('確定刪除？')) return;
+  await fetch(`${API}/skill-levels/${id}`, { method:'DELETE' });
+  loadSkillLevels();
+}
+
+async function loadClientCategories() {
+  const data = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
+  return Array.isArray(data) ? data : [];
+}
+
+init();
+</script>
+</body>
+</html>

@@ -3,227 +3,305 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>報價確認單 — 繪新國際</title>
+<title>繪新國際 — 報價確認單</title>
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif; background:#f8fafc; color:#1f2937; }
-.container { max-width:720px; margin:0 auto; padding:16px; }
-.brand { text-align:center; padding:20px 0 16px; border-bottom:3px solid #1a56db; margin-bottom:20px; }
-.brand h1 { font-size:22px; font-weight:700; color:#1a56db; }
-.brand p  { font-size:13px; color:#6b7280; margin-top:4px; }
-.card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; padding:18px; margin-bottom:14px; }
-.card h3 { font-size:14px; font-weight:600; color:#374151; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f3f4f6; }
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.info-item .label { font-size:11px; color:#9ca3af; margin-bottom:3px; }
-.info-item .value { font-size:14px; font-weight:500; }
-table { width:100%; border-collapse:collapse; font-size:13px; }
-th { background:#f9fafb; padding:8px 10px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
-td { padding:10px; border-bottom:1px solid #f3f4f6; vertical-align:top; }
-tr:last-child td { border-bottom:none; }
-td.num { text-align:right; font-variant-numeric:tabular-nums; }
-.totals-table { width:100%; border-collapse:collapse; }
-.totals-table td { padding:6px 12px; font-size:14px; }
-.totals-table td:last-child { text-align:right; font-weight:600; }
-.totals-table .grand { background:#1a56db; color:#fff; border-radius:8px; }
-.totals-table .grand td { padding:10px 12px; font-size:16px; }
-.discount-row td { color:#059669; }
-.sig-section { background:#fff; border-radius:12px; border:2px solid #1a56db; padding:20px; margin-bottom:14px; }
-.sig-section h3 { font-size:15px; font-weight:600; color:#1a56db; margin-bottom:8px; }
-.sig-desc { font-size:13px; color:#4b5563; margin-bottom:14px; line-height:1.6; }
-#sigCanvas { width:100%; height:180px; border:2px dashed #d1d5db; border-radius:8px; background:#fafafa; cursor:crosshair; touch-action:none; display:block; }
-#sigCanvas.has-sig { border-color:#1a56db; border-style:solid; background:#fff; }
-.sig-controls { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
-.btn { padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; }
-.btn-primary { background:#1a56db; color:#fff; width:100%; padding:14px; font-size:15px; margin-top:16px; border-radius:10px; }
-.btn-ghost   { background:#f3f4f6; color:#374151; font-size:13px; padding:8px 14px; }
-.accepted-box { background:#d1fae5; border:2px solid #6ee7b7; border-radius:12px; padding:24px; text-align:center; margin-bottom:14px; }
-.accepted-box h2 { color:#065f46; font-size:20px; margin-bottom:8px; }
-.accepted-box p  { color:#047857; font-size:14px; }
-.validity-bar { background:#fef9c3; border:1px solid #fcd34d; border-radius:8px; padding:10px 14px; font-size:13px; color:#713f12; margin-bottom:14px; text-align:center; }
-.marketing-badge { display:inline-block; background:#ede9fe; color:#5b21b6; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; }
-@media print {
-  .sig-section, .btn-primary, .sig-controls, .validity-bar { display:none !important; }
-  body { background:#fff; }
-  .card, .brand { border:none; box-shadow:none; }
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1a56db;--blue-dark:#1e40af;--blue-light:#eff6ff;
+  --green:#059669;--green-bg:#d1fae5;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;
+  --purple:#7c3aed;--amber:#d97706;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans-serif;background:#eef2ff;color:var(--gray-800);min-height:100vh}
+.page{max-width:680px;margin:0 auto;padding:0 0 40px}
+
+/* ── 頂部品牌橫幅 ── */
+.header{background:linear-gradient(135deg,#1e40af 0%,#2563eb 60%,#3b82f6 100%);padding:28px 24px 22px;text-align:center;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
+.header-logo{font-size:13px;color:rgba(255,255,255,.7);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.header-company{font-size:22px;font-weight:800;color:#fff;letter-spacing:.02em;margin-bottom:4px}
+.header-doc{font-size:13px;color:rgba(255,255,255,.8);letter-spacing:.04em}
+.header-num{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 14px;font-size:12px;color:#fff;font-family:monospace;margin-top:8px;letter-spacing:.06em}
+
+/* ── 主體卡片 ── */
+.body{background:#fff;margin:0 12px;border-radius:0 0 16px 16px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+
+/* ── 狀態橫條 ── */
+.status-bar{padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gray-100)}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.status-text{font-size:13px;font-weight:600}
+.validity-text{font-size:12px;color:var(--gray-400);margin-left:auto}
+
+/* ── Section ── */
+.section{padding:18px 20px;border-bottom:1px solid var(--gray-100)}
+.section:last-child{border-bottom:none}
+.section-title{font-size:11px;font-weight:700;color:var(--gray-400);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+
+/* ── 客戶資訊網格 ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.info-cell .lbl{font-size:11px;color:var(--gray-400);margin-bottom:3px}
+.info-cell .val{font-size:14px;font-weight:500;color:var(--gray-800)}
+
+/* ── 品項 ── */
+.item-card{border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.item-card:last-child{margin-bottom:0}
+.item-header{background:var(--gray-50);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.item-type{font-size:10px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:20px}
+.item-film{background:#dbeafe;color:#1e40af}
+.item-catalog{background:#d1fae5;color:#065f46}
+.item-service{background:#fef9c3;color:#713f12}
+.item-location{font-size:13px;font-weight:600;color:var(--gray-800);flex:1}
+.item-subtotal{font-size:15px;font-weight:700;color:var(--blue)}
+.item-body{padding:12px 14px}
+.item-spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:8px}
+.item-spec-cell .lbl{font-size:10px;color:var(--gray-400);margin-bottom:1px}
+.item-spec-cell .val{font-size:13px;color:var(--gray-800)}
+.item-notice{background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 12px;font-size:12px;color:#713f12;line-height:1.7;margin-top:8px}
+.item-notice .notice-title{font-size:11px;font-weight:700;color:#92400e;margin-bottom:4px;letter-spacing:.04em}
+
+/* ── 金額小計 ── */
+.price-rows{display:flex;flex-direction:column;gap:6px}
+.price-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.price-row .pr-label{color:var(--gray-600)}
+.price-row .pr-value{font-weight:600;font-family:monospace;font-size:14px}
+.price-row.discount .pr-label{color:var(--amber)}
+.price-row.discount .pr-value{color:var(--amber)}
+.price-row.marketing .pr-label{color:var(--purple)}
+.price-row.marketing .pr-value{color:var(--purple)}
+.price-divider{border:none;border-top:1px dashed var(--gray-200);margin:8px 0}
+.price-total{display:flex;justify-content:space-between;align-items:center;background:var(--blue);border-radius:10px;padding:14px 18px;margin-top:10px}
+.price-total .pt-label{font-size:13px;color:rgba(255,255,255,.85);font-weight:600}
+.price-total .pt-value{font-size:22px;font-weight:800;color:#fff;font-family:monospace}
+
+/* ── 行銷優惠 ── */
+.marketing-toggle{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:14px;margin-top:12px}
+.marketing-toggle label{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.marketing-toggle input[type=checkbox]{width:18px;height:18px;accent-color:var(--purple);flex-shrink:0;margin-top:2px}
+.marketing-toggle .mt-text{font-size:13px;color:#5b21b6;line-height:1.5}
+.marketing-toggle .mt-price{font-size:18px;font-weight:700;color:var(--purple);display:block;margin-top:4px}
+
+/* ── 確認接受 ── */
+.accepted-banner{background:var(--green-bg);border-top:3px solid #10b981;padding:20px;text-align:center}
+.accepted-banner .ab-icon{font-size:36px;margin-bottom:8px}
+.accepted-banner .ab-title{font-size:17px;font-weight:700;color:#065f46;margin-bottom:4px}
+.accepted-banner .ab-time{font-size:12px;color:#047857}
+
+/* ── 簽名區 ── */
+.sig-section{padding:20px}
+.sig-title{font-size:15px;font-weight:700;color:var(--blue-dark);margin-bottom:8px}
+.sig-desc{font-size:13px;color:var(--gray-600);margin-bottom:16px;line-height:1.6}
+#sigCanvas{width:100%;height:180px;border:2px dashed var(--gray-200);border-radius:10px;background:#fafafa;cursor:crosshair;touch-action:none;display:block;transition:border .2s}
+#sigCanvas.has-sig{border:2px solid var(--blue);background:#fff}
+.sig-controls{display:flex;justify-content:space-between;align-items:center;margin-top:8px;margin-bottom:16px}
+.sig-hint{font-size:12px;color:var(--gray-400)}
+.btn-clear{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500}
+.btn-clear:hover{background:var(--gray-200)}
+.btn-submit{display:block;width:100%;padding:16px;background:var(--blue);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s,transform .1s;letter-spacing:.04em}
+.btn-submit:hover{background:var(--blue-dark)}
+.btn-submit:active{transform:scale(.98)}
+.btn-submit:disabled{background:var(--gray-400);cursor:not-allowed}
+
+/* ── 簽名圖 ── */
+.sig-image-card{text-align:center;padding:16px}
+.sig-image-card img{max-width:280px;width:100%;border:1px solid var(--gray-200);border-radius:8px}
+.sig-image-card .sig-time{font-size:12px;color:var(--gray-400);margin-top:8px}
+
+/* ── 過期 / 錯誤 ── */
+.expired-box{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px 20px;text-align:center;margin:16px}
+.expired-box .exp-icon{font-size:28px;margin-bottom:8px}
+.expired-box p{font-size:13px;color:#9a3412;line-height:1.6}
+
+/* ── Footer ── */
+.footer{text-align:center;padding:20px 16px 0;font-size:11px;color:var(--gray-400);line-height:1.8}
+
+@media print{
+  body{background:#fff}
+  .page{max-width:100%}
+  .header{background:#1e40af!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sig-section,.marketing-toggle,.btn-submit,.sig-controls{display:none!important}
+  .body{box-shadow:none;margin:0;border-radius:0}
 }
 </style>
 </head>
 <body>
-<div class="container" id="app">
-  <div class="brand">
-    <h1>🎨 繪新國際有限公司</h1>
-    <p>報價確認單</p>
-  </div>
-  <div id="content">
-    <p style="text-align:center;color:#6b7280;padding:40px">載入中…</p>
-  </div>
+<div class="page">
+  <div id="app"><div style="text-align:center;padding:80px 20px;color:var(--gray-400);font-size:14px">載入中…</div></div>
 </div>
 
 <script>
-const token = location.pathname.split('/quote/')[1]?.split('?')[0];
-const printMode = new URLSearchParams(location.search).get('print') === '1';
+const token   = location.pathname.split('/quote/')[1]?.split('?')[0];
+const isPrint = new URLSearchParams(location.search).get('print') === '1';
+let quoteData = null;
+
+const fmt = n => 'NT$ ' + Math.round(n||0).toLocaleString('zh-TW');
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+
+const TYPE_LABEL = { film:'貼膜', catalog:'公規品', service:'服務', travel:'車馬費', freight:'運費' };
+const TYPE_CLASS = { film:'item-film', catalog:'item-catalog', service:'item-service', travel:'item-service', freight:'item-service' };
+const SURFACE_LABEL = { flat:'平面', cabinet:'系統櫃', custom:'造型/異形' };
 
 async function load() {
   const res = await fetch(`/api/quotes/sign/${token}`);
   if (!res.ok) {
-    document.getElementById('content').innerHTML = '<p style="text-align:center;color:#e02424;padding:40px">找不到此報價單，連結可能已失效。</p>';
+    document.getElementById('app').innerHTML = `
+      <div style="text-align:center;padding:60px 24px">
+        <div style="font-size:40px;margin-bottom:16px">🔍</div>
+        <div style="font-size:16px;font-weight:600;color:#991b1b;margin-bottom:8px">找不到此報價單</div>
+        <div style="font-size:13px;color:var(--gray-400)">連結可能已失效，請洽業務人員重新傳送。</div>
+      </div>`;
     return;
   }
-  const q = await res.json();
-  render(q);
-  if (printMode) setTimeout(() => window.print(), 800);
-}
-
-function fmt(n) {
-  return 'NT$' + Number(n || 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  quoteData = await res.json();
+  render(quoteData);
+  if (isPrint) setTimeout(() => window.print(), 800);
 }
 
 function render(q) {
-  const accepted = q.status === 'accepted';
-  const items = q.items || [];
+  const accepted  = q.status === 'accepted';
+  const items     = q.items || [];
+  const quoteNum  = `${q.case_number||'QT'}-v${q.version||1}`;
 
-  // 計算金額
-  const subtotal = items.reduce((s, i) => s + (i.display_subtotal || 0), 0);
+  // 有效期
+  const created  = new Date(q.created_at);
+  const expiry   = new Date(created); expiry.setDate(expiry.getDate() + (q.valid_days||30));
+  const isExpired = !accepted && new Date() > expiry;
+  const expiryStr = expiry.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
 
-  const CLIENT_TYPE_LABEL = { owner:'一般業主', designer:'設計師', dealer:'經銷商' };
-  const FOLD_LABEL = { 5:'95折', 10:'9折', 20:'8折', 30:'7折' };
+  // 金額
+  const showDiscount  = (q.discount_rate||1) < 1 && (q.discount_value||0) > 0;
+  const showMarketing = (q.marketing_rate||1) < 1 && (q.marketing_total||0) > 0;
 
-  let discountAmt = 0;
-  let discountLabel = '';
-  const discVal = q.discount_value || 0;
-  if (q.discount_type === 'marketing' && discVal > 0) {
-    discountAmt = subtotal * (discVal / 100);
-    const foldStr = FOLD_LABEL[discVal] || `${100-discVal}折`;
-    discountLabel = `行銷優惠 ${foldStr}（-${discVal}%）`;
-  }
+  // 狀態顏色
+  const stateMap = {
+    draft:    { dot:'#d1d5db', text:'草稿', textColor:'#6b7280' },
+    sent:     { dot:'#3b82f6', text:'待確認', textColor:'#1e40af' },
+    accepted: { dot:'#10b981', text:'已確認接受', textColor:'#065f46' },
+    rejected: { dot:'#ef4444', text:'已拒絕', textColor:'#991b1b' },
+  };
+  const st = stateMap[q.status] || stateMap.sent;
 
-  const afterDiscount = subtotal - discountAmt;
-  const vat = afterDiscount * 0.05;
-  const total = afterDiscount + vat;
-
-  // 有效期限
-  const createdDate = new Date(q.created_at);
-  const expiryDate = new Date(createdDate);
-  expiryDate.setDate(expiryDate.getDate() + (q.valid_days || 30));
-  const today = new Date();
-  const isExpired = today > expiryDate;
-  const expiryStr = expiryDate.toLocaleDateString('zh-TW');
-
-  // 報價單編號（案件號 + 版本）
-  const quoteNum = `${q.case_number}-Q${q.version || 1}`;
-
-  document.getElementById('content').innerHTML = `
-    ${accepted ? `
-    <div class="accepted-box">
-      <h2>✅ 報價已確認接受</h2>
-      <p>確認時間：${q.client_accepted_at ? q.client_accepted_at.slice(0,16).replace('T',' ') : ''}</p>
-    </div>` : isExpired ? `
-    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;font-size:13px;color:#991b1b;margin-bottom:14px;text-align:center">
-      ⚠️ 此報價單已超過有效期限（${expiryStr}），如需重新報價請聯繫業務人員。
-    </div>` : `
-    <div class="validity-bar">📅 本報價單有效期限至 <strong>${expiryStr}</strong>（共 ${q.valid_days || 30} 天）</div>`}
-
-    <div class="card">
-      <h3>報價資訊</h3>
-      <div class="info-grid">
-        <div class="info-item"><div class="label">報價單號</div><div class="value" style="font-family:monospace">${quoteNum}</div></div>
-        <div class="info-item"><div class="label">報價日期</div><div class="value">${q.created_at?.slice(0,10) || '—'}</div></div>
-        <div class="info-item"><div class="label">客戶</div><div class="value">${q.client_name || '—'}</div></div>
-        <div class="info-item"><div class="label">業務 / 聯絡人</div><div class="value">${q.creator_name || '—'}</div></div>
-        ${q.client_type ? `<div class="info-item"><div class="label">客戶身份</div><div class="value">${CLIENT_TYPE_LABEL[q.client_type] || q.client_type}</div></div>` : ''}
-        ${q.location ? `<div class="info-item" style="grid-column:1/-1"><div class="label">施工地點</div><div class="value">${q.location}</div></div>` : ''}
-      </div>
+  document.getElementById('app').innerHTML = `
+    <!-- 頂部品牌 -->
+    <div class="header">
+      <div class="header-logo">${esc(q.org_name||'繪新國際有限公司')}</div>
+      <div class="header-company">報價確認單</div>
+      <div class="header-doc">Film & Surface Application Quotation</div>
+      <div class="header-num">${quoteNum}</div>
     </div>
 
-    ${items.length ? `
-    <div class="card">
-      <h3>報價明細</h3>
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>施作位置 / 物件</th>
-              <th>材料</th>
-              <th>尺寸</th>
-              <th style="text-align:right">數量</th>
-              <th style="text-align:right">單價</th>
-              <th style="text-align:right">小計</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(it => {
-              const loc = it.location || it.description || it.item_type || '';
-              const mat = [it.material_brand, it.material_model].filter(Boolean).join(' ');
-              let dimStr = '';
-              if (it.width_cm && it.height_cm) dimStr = `${it.width_cm}×${it.height_cm} cm`;
-              const unitLabel = it.unit === '才' ? `${(it.area||0).toFixed(1)}才` :
-                                it.unit === '平方公尺' ? `${(it.area||0).toFixed(2)}m²` :
-                                `${it.quantity||1}${it.unit}`;
-              const upStr = it.display_unit_price != null ? fmt(it.display_unit_price) + `/${it.unit}` : '—';
-              return `<tr>
-                <td><strong>${loc}</strong></td>
-                <td style="color:#6b7280">${mat || '—'}</td>
-                <td style="color:#6b7280;white-space:nowrap">${dimStr}</td>
-                <td class="num">${unitLabel}</td>
-                <td class="num">${upStr}</td>
-                <td class="num" style="font-weight:600">${fmt(it.display_subtotal)}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
+    <div class="body">
+
+      <!-- 狀態列 -->
+      <div class="status-bar">
+        <div class="status-dot" style="background:${st.dot}"></div>
+        <div class="status-text" style="color:${st.textColor}">${st.text}</div>
+        ${!accepted && !isExpired ? `<div class="validity-text">有效至 ${expiryStr}</div>` : ''}
+        ${isExpired ? `<div class="validity-text" style="color:#dc2626">已於 ${expiryStr} 失效</div>` : ''}
       </div>
 
-      <div style="margin-top:16px;border-top:2px solid #e5e7eb;padding-top:16px">
-        <table class="totals-table">
-          <tr><td style="color:#6b7280">小計</td><td>${fmt(subtotal)}</td></tr>
-          ${discountAmt > 0 ? `
-          <tr class="discount-row">
-            <td>🎁 ${discountLabel} <span class="marketing-badge">行銷優惠</span></td>
-            <td>- ${fmt(discountAmt)}</td>
-          </tr>` : ''}
-          ${discountAmt > 0 ? `<tr><td style="color:#6b7280">折後小計</td><td>${fmt(afterDiscount)}</td></tr>` : ''}
-          <tr><td style="color:#6b7280">稅金 (5%)</td><td>${fmt(vat)}</td></tr>
-          <tr class="grand">
-            <td style="border-radius:8px 0 0 8px">總金額（含稅）</td>
-            <td style="border-radius:0 8px 8px 0;font-size:18px">${fmt(total)}</td>
-          </tr>
-        </table>
+      ${accepted ? `
+      <div class="accepted-banner">
+        <div class="ab-icon">✅</div>
+        <div class="ab-title">報價已確認接受</div>
+        <div class="ab-time">確認時間：${(q.client_accepted_at||'').slice(0,16).replace('T',' ')}</div>
+      </div>` : ''}
+
+      ${isExpired && !accepted ? `
+      <div class="expired-box">
+        <div class="exp-icon">⏰</div>
+        <p>此報價單已超過有效期限（${expiryStr}）。<br>如需重新報價，請聯繫業務人員。</p>
+      </div>` : ''}
+
+      <!-- 客戶資訊 -->
+      <div class="section">
+        <div class="section-title">客戶資訊</div>
+        <div class="info-grid">
+          <div class="info-cell"><div class="lbl">客戶</div><div class="val">${esc(q.client_name||'—')}</div></div>
+          <div class="info-cell"><div class="lbl">業務負責人</div><div class="val">${esc(q.creator_name||'—')}</div></div>
+          ${q.client_phone ? `<div class="info-cell"><div class="lbl">聯絡電話</div><div class="val">${esc(q.client_phone)}</div></div>` : ''}
+          <div class="info-cell"><div class="lbl">報價日期</div><div class="val">${(q.created_at||'').slice(0,10)}</div></div>
+          ${q.location ? `<div class="info-cell" style="grid-column:1/-1"><div class="lbl">施工地點</div><div class="val">${esc(q.location)}</div></div>` : ''}
+          ${q.title ? `<div class="info-cell" style="grid-column:1/-1"><div class="lbl">專案名稱</div><div class="val">${esc(q.title)}</div></div>` : ''}
+        </div>
       </div>
-    </div>` : ''}
 
-    ${q.payment_terms ? `
-    <div class="card">
-      <h3>付款條件</h3>
-      <p style="font-size:14px;color:#374151;line-height:1.7">${q.payment_terms.replace(/\n/g,'<br>')}</p>
-    </div>` : ''}
+      <!-- 報價明細 -->
+      ${items.length ? `
+      <div class="section">
+        <div class="section-title">報價明細（共 ${items.length} 項）</div>
+        ${items.map(it => buildItemCard(it)).join('')}
+      </div>` : ''}
 
-    ${q.client_notes ? `
-    <div class="card">
-      <h3>備註 / 說明</h3>
-      <p style="font-size:14px;color:#374151;line-height:1.7">${q.client_notes.replace(/\n/g,'<br>')}</p>
-    </div>` : ''}
+      <!-- 金額合計 -->
+      <div class="section">
+        <div class="section-title">金額合計</div>
+        <div class="price-rows">
+          <div class="price-row"><span class="pr-label">品項小計</span><span class="pr-value">${fmt(q.subtotal)}</span></div>
+          ${(q.travel_fee||0)>0 ? `<div class="price-row"><span class="pr-label">車馬費</span><span class="pr-value">${fmt(q.travel_fee)}</span></div>` : ''}
+          ${(q.freight_fee||0)>0 ? `<div class="price-row"><span class="pr-label">運費</span><span class="pr-value">${fmt(q.freight_fee)}</span></div>` : ''}
+          ${showDiscount ? `
+          <hr class="price-divider">
+          <div class="price-row discount"><span class="pr-label">折扣優惠（${Math.round((1-(q.discount_rate||1))*100)}% off）</span><span class="pr-value">- ${fmt((q.subtotal||0)-(q.discount_value||0))}</span></div>
+          <div class="price-row"><span class="pr-label">折後小計</span><span class="pr-value">${fmt(q.discount_value)}</span></div>` : ''}
+          ${(q.tax_rate||0)>0 ? `<div class="price-row"><span class="pr-label">稅金（${Math.round((q.tax_rate||0)*100)}%）</span><span class="pr-value">${fmt(q.tax_amount)}</span></div>` : ''}
+        </div>
+        <div class="price-total">
+          <div class="pt-label">總金額${(q.tax_rate||0)>0?'（含稅）':''}</div>
+          <div class="pt-value">${fmt(q.final_total)}</div>
+        </div>
 
-    ${!accepted && !isExpired ? `
-    <div class="sig-section">
-      <h3>確認接受報價</h3>
-      <p class="sig-desc">請確認以上報價內容無誤後，在下方空白處簽名，完成後點擊「確認並接受報價」。本報價經客戶簽名確認後即視為正式委託。</p>
-      <canvas id="sigCanvas" width="640" height="180"></canvas>
-      <div class="sig-controls">
-        <span style="font-size:12px;color:#9ca3af">請在上方框內簽名</span>
-        <button class="btn btn-ghost" onclick="clearSig()">清除重寫</button>
+        ${showMarketing && !accepted ? `
+        <div class="marketing-toggle" id="marketingToggle">
+          <label>
+            <input type="checkbox" id="marketingCheck" onchange="onMarketingToggle()">
+            <div class="mt-text">
+              我同意接收繪新國際的行銷資訊，享受<strong>限時優惠折扣</strong>。
+              <span class="mt-price" id="marketingPrice" style="display:none">${fmt(q.marketing_total + Math.round((q.marketing_total||0)*(q.tax_rate||0.05)))}</span>
+            </div>
+          </label>
+        </div>` : ''}
       </div>
-      <button class="btn btn-primary" onclick="submitSig()">確認並接受報價</button>
-    </div>` : ''}
 
-    ${accepted && q.client_signature ? `
-    <div class="card" style="text-align:center">
-      <h3>客戶確認簽名</h3>
-      <img src="${q.client_signature}" style="max-width:300px;border:1px solid #e5e7eb;border-radius:8px">
-      <p style="font-size:12px;color:#6b7280;margin-top:8px">確認時間：${q.client_accepted_at?.slice(0,16).replace('T',' ')}</p>
-    </div>` : ''}
+      <!-- 付款條件 -->
+      ${q.payment_terms ? `
+      <div class="section">
+        <div class="section-title">付款條件</div>
+        <p style="font-size:14px;color:var(--gray-800);line-height:1.8">${esc(q.payment_terms)}</p>
+      </div>` : ''}
 
-    <div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af">
-      此報價單由 繪新國際有限公司 提供<br>
+      <!-- 備註說明 -->
+      ${q.notes_terms ? `
+      <div class="section">
+        <div class="section-title">備註說明</div>
+        <p style="font-size:13px;color:var(--gray-600);line-height:1.8">${esc(q.notes_terms)}</p>
+      </div>` : ''}
+
+      <!-- 確認簽名 -->
+      ${!accepted && !isExpired ? `
+      <div class="sig-section">
+        <div class="sig-title">確認並接受報價</div>
+        <p class="sig-desc">請確認以上報價內容無誤後，在下方空白區域以手指或滑鼠簽名，完成後點擊「確認接受報價」。本報價單經客戶簽名確認後，即視為正式委託授權。</p>
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-controls">
+          <span class="sig-hint">↑ 請在上方框內簽名</span>
+          <button class="btn-clear" onclick="clearSig()">清除重寫</button>
+        </div>
+        <button class="btn-submit" id="submitBtn" onclick="submitSig()">確認接受報價</button>
+      </div>` : ''}
+
+      <!-- 已簽名顯示 -->
+      ${accepted && q.client_signature ? `
+      <div class="sig-image-card section">
+        <div class="section-title">客戶確認簽名</div>
+        <img src="${q.client_signature}" alt="客戶簽名">
+        <div class="sig-time">確認時間：${(q.client_accepted_at||'').slice(0,16).replace('T',' ')}</div>
+      </div>` : ''}
+
+    </div><!-- end body -->
+
+    <div class="footer">
+      ${esc(q.org_name||'繪新國際有限公司')} · 報價單 ${quoteNum}<br>
       如有疑問請聯繫業務人員
     </div>
   `;
@@ -231,36 +309,96 @@ function render(q) {
   if (!accepted && !isExpired) setupCanvas();
 }
 
+function buildItemCard(it) {
+  const label   = TYPE_LABEL[it.item_type] || it.item_type;
+  const cls     = TYPE_CLASS[it.item_type] || 'item-service';
+  const location = it.location || it.description || '';
+  const sub     = fmt(it.subtotal);
+
+  let specHtml = '';
+  if (it.item_type === 'film') {
+    const brandLine = [it.film_brand, it.film_spec || it.film_model].filter(Boolean).join(' · ');
+    const dimLine   = (it.length_cm && it.width_cm) ? `${it.length_cm} × ${it.width_cm} cm` : '—';
+    const surfLabel = SURFACE_LABEL[it.surface_type] || it.surface_type || '—';
+    const sqChi    = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) + ' 才' : '—';
+    const unitPriceStr = it.unit_price ? fmt(it.unit_price) + ' / 才' : '—';
+    specHtml = `
+      <div class="item-spec">
+        ${brandLine ? `<div class="item-spec-cell"><div class="lbl">膜料</div><div class="val">${esc(brandLine)}</div></div>` : ''}
+        <div class="item-spec-cell"><div class="lbl">面材類型</div><div class="val">${esc(surfLabel)}</div></div>
+        <div class="item-spec-cell"><div class="lbl">尺寸</div><div class="val">${dimLine}</div></div>
+        <div class="item-spec-cell"><div class="lbl">才數</div><div class="val" style="font-weight:700;color:var(--blue)">${sqChi}</div></div>
+        <div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${unitPriceStr}</div></div>
+      </div>`;
+  } else if (it.item_type === 'catalog' || it.item_type === 'service') {
+    const qtyLine = it.quantity ? `${it.quantity} ${it.unit||'件'}` : '—';
+    const priceStr = it.unit_price ? `${fmt(it.unit_price)} / ${it.unit||'件'}` : '—';
+    specHtml = `
+      <div class="item-spec">
+        ${it.description ? `<div class="item-spec-cell" style="grid-column:1/-1"><div class="lbl">說明</div><div class="val">${esc(it.description)}</div></div>` : ''}
+        <div class="item-spec-cell"><div class="lbl">數量</div><div class="val">${qtyLine}</div></div>
+        <div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${priceStr}</div></div>
+      </div>`;
+  }
+
+  const noticeHtml = it.notice_text ? `
+    <div class="item-notice">
+      <div class="notice-title">📋 貼膜須知</div>
+      ${esc(it.notice_text)}
+    </div>` : '';
+
+  return `
+<div class="item-card">
+  <div class="item-header">
+    <span class="item-type ${cls}">${label}</span>
+    <span class="item-location">${esc(location) || '&nbsp;'}</span>
+    <span class="item-subtotal">${sub}</span>
+  </div>
+  ${specHtml || noticeHtml ? `<div class="item-body">${specHtml}${noticeHtml}</div>` : ''}
+</div>`;
+}
+
+function onMarketingToggle() {
+  const checked  = document.getElementById('marketingCheck')?.checked;
+  const priceEl  = document.getElementById('marketingPrice');
+  const submitBtn = document.getElementById('submitBtn');
+  if (priceEl) priceEl.style.display = checked ? 'block' : 'none';
+  if (submitBtn) submitBtn.textContent = checked ? '確認接受報價（享行銷優惠）' : '確認接受報價';
+}
+
 function setupCanvas() {
   const canvas = document.getElementById('sigCanvas');
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const rect = canvas.getBoundingClientRect();
-  canvas.width  = rect.width  * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-  ctx.strokeStyle = '#1f2937';
-  ctx.lineWidth   = 2.5;
-  ctx.lineCap     = 'round';
-  ctx.lineJoin    = 'round';
+  const resizeCanvas = () => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr  = window.devicePixelRatio || 1;
+    const w = rect.width; const h = 180;
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth   = 2.5;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  };
+  resizeCanvas();
 
+  const canvas2ctx = () => canvas.getContext('2d');
   let drawing = false;
-  const getPos = e => {
+  const pos = e => {
     const r = canvas.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return { x: src.clientX - r.left, y: src.clientY - r.top };
+    const s = e.touches ? e.touches[0] : e;
+    return { x: s.clientX - r.left, y: s.clientY - r.top };
   };
   canvas.addEventListener('pointerdown', e => {
-    drawing = true;
-    canvas.classList.add('has-sig');
-    const {x,y} = getPos(e);
-    ctx.beginPath(); ctx.moveTo(x, y);
+    drawing = true; canvas.classList.add('has-sig');
+    const {x,y} = pos(e); canvas2ctx().beginPath(); canvas2ctx().moveTo(x,y);
   });
   canvas.addEventListener('pointermove', e => {
-    if (!drawing) return;
-    e.preventDefault();
-    const {x,y} = getPos(e);
-    ctx.lineTo(x, y); ctx.stroke();
+    if (!drawing) return; e.preventDefault();
+    const {x,y} = pos(e); canvas2ctx().lineTo(x,y); canvas2ctx().stroke();
   });
   canvas.addEventListener('pointerup',    () => { drawing = false; });
   canvas.addEventListener('pointerleave', () => { drawing = false; });
@@ -269,25 +407,34 @@ function setupCanvas() {
 function clearSig() {
   const canvas = document.getElementById('sigCanvas');
   if (!canvas) return;
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvas.classList.remove('has-sig');
 }
 
 async function submitSig() {
   const canvas = document.getElementById('sigCanvas');
-  if (!canvas || !canvas.classList.contains('has-sig')) {
-    alert('請先在上方框內簽名'); return;
-  }
-  const sig = canvas.toDataURL('image/png');
-  const res = await fetch(`/api/quotes/sign/${token}`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ signature: sig })
-  });
-  if (res.ok) {
-    load();
-  } else {
-    const err = await res.json().catch(() => ({}));
-    alert(err.error || '送出失敗，請重試');
+  if (!canvas?.classList.contains('has-sig')) { alert('請先在上方框內完成簽名'); return; }
+  const btn = document.getElementById('submitBtn');
+  const marketingConsent = document.getElementById('marketingCheck')?.checked || false;
+  if (btn) { btn.disabled = true; btn.textContent = '處理中…'; }
+  try {
+    const res = await fetch(`/api/quotes/sign/${token}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ signature: canvas.toDataURL('image/png'), marketing_consent: marketingConsent })
+    });
+    if (res.ok) {
+      const qr = await fetch(`/api/quotes/sign/${token}`);
+      if (qr.ok) { quoteData = await qr.json(); render(quoteData); }
+    } else {
+      const e = await res.json().catch(()=>({}));
+      alert(e.error || '送出失敗，請稍後再試');
+      if (btn) { btn.disabled = false; btn.textContent = '確認接受報價'; }
+    }
+  } catch(err) {
+    alert('網路錯誤，請稍後再試');
+    if (btn) { btn.disabled = false; btn.textContent = '確認接受報價'; }
   }
 }
 
