@@ -299,8 +299,8 @@ router.put('/:id', requireAuth, (req, res) => {
     client_id, case_type, title, description, location, sales_id,
     final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method,
     payment_status, payment_received,
-    deposit_amount, deposit_date, deposit_note, deposit_method,
-    balance_paid, balance_paid_date, balance_paid_note, balance_paid_method,
+    deposit_amount, deposit_date, deposit_note, deposit_method, deposit_category,
+    balance_paid, balance_paid_date, balance_paid_note, balance_paid_method, balance_category,
     retention_amount, retention_due_date, retention_invoiced, needs_invoice,
     payment_due_date, payment_notes,
     status, priority, deal_intent, is_outsourced, outsource_type, notes,
@@ -322,8 +322,8 @@ router.put('/:id', requireAuth, (req, res) => {
       client_id=?, case_type=?, title=?, description=?, location=?,
       sales_id=?, final_price=?, survey_fee=?, survey_fee_date=?, survey_fee_note=?, survey_fee_method=?,
       payment_status=?, payment_received=?,
-      deposit_amount=?, deposit_date=?, deposit_note=?, deposit_method=?,
-      balance_paid=?, balance_paid_date=?, balance_paid_note=?, balance_paid_method=?,
+      deposit_amount=?, deposit_date=?, deposit_note=?, deposit_method=?, deposit_category=?,
+      balance_paid=?, balance_paid_date=?, balance_paid_note=?, balance_paid_method=?, balance_category=?,
       retention_amount=?, retention_due_date=?, retention_invoiced=?, needs_invoice=?,
       payment_due_date=?, payment_notes=?, status=?, priority=?, deal_intent=?,
       is_outsourced=?, outsource_type=?, notes=?,
@@ -342,8 +342,8 @@ router.put('/:id', requireAuth, (req, res) => {
     client_id ?? null, case_type, title, description ?? null, location ?? null,
     sales_id ?? null, final_price ?? null, survey_fee ?? null, survey_fee_date ?? null, survey_fee_note ?? null, survey_fee_method ?? null,
     payment_status || 'unpaid', payment_received ?? 0,
-    deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null, deposit_method ?? null,
-    balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null, balance_paid_method ?? null,
+    deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null, deposit_method ?? null, deposit_category ?? null,
+    balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null, balance_paid_method ?? null, balance_category ?? null,
     retention_amount ?? null, retention_due_date ?? null,
     retention_invoiced ?? null, needs_invoice ? 1 : 0,
     payment_due_date ?? null, payment_notes ?? null,
@@ -422,8 +422,8 @@ router.put('/:id', requireAuth, (req, res) => {
     const c2 = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(caseId);
     const label = `${c2?.case_number || ''} ${c2?.title || ''}`.trim();
     upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      '場勘費', `場勘費｜${label}`);
-    upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  '訂金',   `訂金｜${label}`);
-    upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    '尾款',   `尾款｜${label}`);
+    upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  deposit_category  || '其他收入', `訂金｜${label}`);
+    upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    balance_category  || '其他收入', `尾款｜${label}`);
   }
 
   res.json({ ok: true });

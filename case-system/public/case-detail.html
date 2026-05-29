@@ -808,6 +808,12 @@
                   <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_deposit_date">
                   </div>
+                  <div class="pf" style="flex:2;min-width:160px">
+                    <label style="color:#0369a1;font-weight:600">📊 收入科目 *</label>
+                    <select id="p_deposit_category" style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:7px 10px;font-size:13px;width:100%">
+                      <option value="">— 請選擇收入科目 —</option>
+                    </select>
+                  </div>
                   <div class="pf pf-method"><label>收款方式</label>
                     <select id="p_deposit_method">
                       <option value="">（未選）</option>
@@ -834,6 +840,12 @@
                   </div>
                   <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_balance_paid_date">
+                  </div>
+                  <div class="pf" style="flex:2;min-width:160px">
+                    <label style="color:#0369a1;font-weight:600">📊 收入科目 *</label>
+                    <select id="p_balance_category" style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:7px 10px;font-size:13px;width:100%">
+                      <option value="">— 請選擇收入科目 —</option>
+                    </select>
                   </div>
                   <div class="pf pf-method"><label>收款方式</label>
                     <select id="p_balance_paid_method">
@@ -1215,9 +1227,17 @@ async function init() {
   if (!caseId) { location.href = '/cases'; return; }
   const calcBtn = document.getElementById('openCalcBtn');
   if (calcBtn) calcBtn.href = `/material-calc?case_id=${caseId}`;
-  const [usersRes, allUsersRes, clientsRes, settingsRes] = await Promise.all([fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings')]);
+  const [usersRes, allUsersRes, clientsRes, settingsRes, ledgerCatRes] = await Promise.all([
+    fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings'), fetch('/api/ledger/categories'),
+  ]);
   users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
+  if (ledgerCatRes.ok) {
+    const incCats = (await ledgerCatRes.json()).filter(c => c.section === 'income' && c.active);
+    const opts = incCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    document.getElementById('p_deposit_category').innerHTML  = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_balance_category').innerHTML  = '<option value="">— 請選擇收入科目 —</option>' + opts;
+  }
   await loadCase();
   initAddressAutocomplete();
   loadQuickEstimates();
@@ -2868,9 +2888,11 @@ function fillPaymentForm() {
   document.getElementById('p_deposit_amount').value     = c.deposit_amount   != null ? c.deposit_amount   : '';
   document.getElementById('p_deposit_date').value       = c.deposit_date     || '';
   document.getElementById('p_deposit_note').value       = c.deposit_note     || '';
+  document.getElementById('p_deposit_category').value   = c.deposit_category  || '';
   document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
   document.getElementById('p_balance_paid_date').value  = c.balance_paid_date || '';
   document.getElementById('p_balance_paid_note').value     = c.balance_paid_note     || '';
+  document.getElementById('p_balance_category').value      = c.balance_category      || '';
   document.getElementById('p_survey_fee_method').value     = c.survey_fee_method     || '';
   document.getElementById('p_deposit_method').value        = c.deposit_method        || '';
   document.getElementById('p_balance_paid_method').value   = c.balance_paid_method   || '';
@@ -2995,10 +3017,12 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     deposit_date:       document.getElementById('p_deposit_date').value                   || null,
     deposit_note:       document.getElementById('p_deposit_note').value                   || null,
     deposit_method:     document.getElementById('p_deposit_method').value                 || null,
+    deposit_category:   document.getElementById('p_deposit_category').value               || null,
     balance_paid:       parseFloat(document.getElementById('p_balance_paid').value)       || null,
     balance_paid_date:  document.getElementById('p_balance_paid_date').value              || null,
     balance_paid_note:  document.getElementById('p_balance_paid_note').value              || null,
     balance_paid_method: document.getElementById('p_balance_paid_method').value           || null,
+    balance_category:   document.getElementById('p_balance_category').value               || null,
     retention_amount:   parseFloat(document.getElementById('p_retention_amount').value)   || null,
     retention_due_date: document.getElementById('p_retention_due_date').value             || null,
     payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
