@@ -545,9 +545,9 @@
             </div>
           </div>
           <div class="form-group">
-            <label>客服廠刊資訊備註</label>
+            <label>客服場勘資訊備註</label>
             <textarea id="sf_cs_service_note" rows="5"
-              placeholder="客服填入廠刊相關說明，例如：廠區位置、停車資訊、聯絡人、注意事項…"
+              placeholder="客服填入場勘相關說明，例如：廠區位置、停車資訊、聯絡人、注意事項…"
               style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
           </div>
         </div>
@@ -584,10 +584,10 @@
           </div>
         </div>
 
-        <!-- 3. 廠刊費是否要收取（客服填寫） -->
+        <!-- 3. 場勘費是否要收取（客服填寫） -->
         <div class="sf-tab-section" style="border:2px solid #fbbf24">
           <h4 class="sf-tab-title" style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-            💴 廠刊費是否要收取
+            💴 場勘費是否要收取
             <span class="sf-required" style="font-size:12px;font-weight:400;border:none;background:transparent;padding:0;border-bottom:none">（必填）</span>
           </h4>
           <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px">
@@ -2510,7 +2510,7 @@ function sf_validateRequired() {
   });
   const feeDecided = document.getElementById('sf_req_yes').checked || document.getElementById('sf_req_no').checked;
   if (!feeDecided) {
-    errors.push('廠刊費是否要收取');
+    errors.push('場勘費是否要收取');
     document.getElementById('sf_req_yes_label').style.borderColor = '#dc2626';
     document.getElementById('sf_req_no_label').style.borderColor = '#dc2626';
   } else {
