@@ -2199,4 +2199,25 @@ if (_needCatV6) {
   console.log('✅ 銷售科目簡化完成（v6：實體銷售 + 電商銷售）');
 }
 
+// ── 施工收入依案件類型 migration（v7）──────────────────────────
+const _needCatV7 =
+  !db.prepare(`SELECT id FROM ledger_categories WHERE name='居家施工' LIMIT 1`).get();
+
+if (_needCatV7) {
+  // 停用舊的施工科目
+  [
+    '連工帶料收入','玻璃貼膜施工收入',
+    '電梯貼膜-改色貼膜','電梯貼膜-保護貼膜',
+    '車體貼膜施工收入','廣告輸出收入','其他施工服務收入',
+  ].forEach(n => db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(n));
+
+  const _ins7 = db.prepare(
+    `INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income',?,?,1,0)`
+  );
+  ['居家施工','商空施工','電梯施工','玻璃施工','外快施工','外包施工','輸出施工','其他施工']
+    .forEach((n, i) => _ins7.run(n, i + 1));
+
+  console.log('✅ 施工科目更新完成（v7：依案件類型 8 個）');
+}
+
 module.exports = db;
