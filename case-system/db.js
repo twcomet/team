@@ -2246,4 +2246,184 @@ if (_needCatV9) {
   console.log(`✅ 停用科目已刪除（v9，共 ${changes} 筆）`);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 報價系統 v2：公規品目錄、貼膜須知模板、折扣規則、車馬費、品項明細
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 難度等級費率（1～10 級）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS skill_levels (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    level               INTEGER UNIQUE NOT NULL,
+    label               TEXT,
+    internal_daily_rate REAL DEFAULT 0,
+    external_daily_rate REAL DEFAULT 0,
+    notes               TEXT,
+    active              INTEGER DEFAULT 1,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 公規品目錄（房間門/大門/防火門/電梯門等）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS catalog_items (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id             INTEGER REFERENCES orgs(id),
+    category           TEXT NOT NULL,
+    name               TEXT NOT NULL,
+    material           TEXT,
+    sides              TEXT,
+    includes_frame     INTEGER DEFAULT 0,
+    size_spec          TEXT,
+    base_price         REAL NOT NULL DEFAULT 0,
+    default_difficulty INTEGER DEFAULT 3,
+    film_width_cm      REAL DEFAULT 122,
+    notice_template_id INTEGER,
+    sort_order         INTEGER DEFAULT 0,
+    active             INTEGER DEFAULT 1,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 加價項目庫（補土/除矽利康/造型加價等）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS catalog_addons (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id         INTEGER REFERENCES orgs(id),
+    name           TEXT NOT NULL,
+    description    TEXT,
+    price_type     TEXT DEFAULT 'fixed' CHECK(price_type IN ('fixed','range','per_chi')),
+    base_price     REAL DEFAULT 0,
+    max_price      REAL,
+    requires_photo INTEGER DEFAULT 0,
+    applies_to     TEXT DEFAULT 'all',
+    sort_order     INTEGER DEFAULT 0,
+    active         INTEGER DEFAULT 1,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 貼膜須知模板庫
+db.exec(`
+  CREATE TABLE IF NOT EXISTS film_notice_templates (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id     INTEGER REFERENCES orgs(id),
+    name       TEXT NOT NULL,
+    category   TEXT,
+    content    TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    active     INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 折扣規則（客戶分類 × 案量門檻）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS discount_rules (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id             INTEGER REFERENCES orgs(id),
+    client_category_id INTEGER REFERENCES client_categories(id),
+    min_amount         REAL DEFAULT 0,
+    discount_rate      REAL NOT NULL DEFAULT 1.0,
+    label              TEXT,
+    notes              TEXT,
+    active             INTEGER DEFAULT 1,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 車馬費地區表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS travel_fees (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id          INTEGER REFERENCES orgs(id),
+    region_name     TEXT NOT NULL,
+    keywords        TEXT,
+    survey_fee      REAL DEFAULT 0,
+    install_fee     REAL DEFAULT 0,
+    overnight_fee   REAL DEFAULT 0,
+    night_surcharge REAL DEFAULT 0,
+    notes           TEXT,
+    sort_order      INTEGER DEFAULT 0,
+    active          INTEGER DEFAULT 1,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 膜料價格矩陣（按才計算的裝漢貼膜，BODAQ/PAROI/LX等）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS film_price_matrix (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id          INTEGER REFERENCES orgs(id),
+    brand           TEXT NOT NULL,
+    series_code     TEXT,
+    series_name     TEXT,
+    flame_resistant INTEGER DEFAULT 0,
+    film_width_cm   REAL DEFAULT 122,
+    cost_per_meter  REAL DEFAULT 0,
+    price_flat      REAL DEFAULT 0,
+    price_cabinet   REAL DEFAULT 0,
+    price_custom    REAL DEFAULT 0,
+    sort_order      INTEGER DEFAULT 0,
+    active          INTEGER DEFAULT 1,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 報價品項明細（綁 quote_sheets.id，支援多版本）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS quote_sheet_items (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    quote_id           INTEGER NOT NULL REFERENCES quote_sheets(id) ON DELETE CASCADE,
+    sort_order         INTEGER DEFAULT 0,
+    item_type          TEXT DEFAULT 'film'
+                       CHECK(item_type IN ('film','catalog','service','travel','freight')),
+    location           TEXT,
+    description        TEXT,
+    film_brand         TEXT,
+    film_model         TEXT,
+    film_spec          TEXT,
+    film_width_cm      REAL DEFAULT 122,
+    surface_type       TEXT DEFAULT 'flat'
+                       CHECK(surface_type IN ('flat','cabinet','custom')),
+    length_cm          REAL,
+    width_cm           REAL,
+    area_sqchi         REAL,
+    catalog_item_id    INTEGER REFERENCES catalog_items(id),
+    catalog_config     TEXT DEFAULT '{}',
+    difficulty_level   INTEGER DEFAULT 3,
+    addon_ids          TEXT DEFAULT '[]',
+    addon_total        REAL DEFAULT 0,
+    unit               TEXT DEFAULT '才',
+    quantity           REAL DEFAULT 1,
+    unit_price         REAL DEFAULT 0,
+    subtotal           REAL DEFAULT 0,
+    notice_template_id INTEGER REFERENCES film_notice_templates(id),
+    notice_text        TEXT,
+    material_photo_url TEXT,
+    area_photo_url     TEXT,
+    notes              TEXT,
+    cost_per_meter     REAL,
+    estimated_meters   REAL,
+    material_cost      REAL,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// 擴充 quote_sheets
+_addCol('quote_sheets', 'subtotal',                'REAL DEFAULT 0');
+_addCol('quote_sheets', 'discount_rule_id',        'INTEGER');
+_addCol('quote_sheets', 'discount_rate',           'REAL DEFAULT 1.0');
+_addCol('quote_sheets', 'marketing_rate',          'REAL DEFAULT 1.0');
+_addCol('quote_sheets', 'marketing_total',         'REAL DEFAULT 0');
+_addCol('quote_sheets', 'tax_rate',                'REAL DEFAULT 0.05');
+_addCol('quote_sheets', 'tax_amount',              'REAL DEFAULT 0');
+_addCol('quote_sheets', 'final_total',             'REAL DEFAULT 0');
+_addCol('quote_sheets', 'travel_fee',              'REAL DEFAULT 0');
+_addCol('quote_sheets', 'freight_fee',             'REAL DEFAULT 0');
+_addCol('quote_sheets', 'client_marketing_consent','INTEGER DEFAULT 0');
+_addCol('quote_sheets', 'notes_terms',             'TEXT');
+_addCol('quote_sheets', 'notes_acceptance',        'TEXT');
+
 module.exports = db;

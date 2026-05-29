@@ -51,6 +51,7 @@ app.use('/api/cases',  require('./routes/cases'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
+app.use('/api/quote-settings', require('./routes/quote-settings'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/vendors', require('./routes/vendors'));
