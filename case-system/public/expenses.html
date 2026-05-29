@@ -264,13 +264,10 @@ async function init() {
     document.getElementById('allTab').style.display = '';
   }
 
-  await Promise.all([loadCategories(), loadDealCases()]);
-  loadMy();
-
+  // 先掛好所有事件，不讓 API 失敗阻斷互動
   document.querySelectorAll('.tabs-bar .tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
-
   document.getElementById('newExpenseBtn').addEventListener('click', () => openExpenseModal());
   document.getElementById('expenseModalClose').addEventListener('click', () => closeModal('expenseModal'));
   document.getElementById('reviewModalClose').addEventListener('click', () => closeModal('reviewModal'));
@@ -289,6 +286,9 @@ async function init() {
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('settleMonth').value = ym;
   document.getElementById('myMonthFilter').value = ym;
+
+  await Promise.all([loadCategories(), loadDealCases().catch(() => {})]);
+  loadMy();
 }
 
 function switchTab(tab) {
