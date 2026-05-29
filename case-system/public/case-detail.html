@@ -2520,6 +2520,28 @@ function sf_validateRequired() {
   return errors;
 }
 
+function sf_lockSurveyor(status) {
+  const sel = document.getElementById('sf_surveyor');
+  const locked = ['sent','signed'].includes(status);
+  sel.disabled = locked;
+  let note = document.getElementById('sf_surveyor_lock_note');
+  if (locked) {
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'sf_surveyor_lock_note';
+      note.style.cssText = 'font-size:11px;color:#92400e;margin-top:4px;display:flex;align-items:center;gap:4px';
+      note.innerHTML = '🔒 場勘單已送出，場勘人員已鎖定，如需更換請先聯絡客服主管';
+      sel.parentNode.appendChild(note);
+    }
+    sel.style.opacity = '0.6';
+    sel.style.cursor = 'not-allowed';
+  } else {
+    if (note) note.remove();
+    sel.style.opacity = '';
+    sel.style.cursor = '';
+  }
+}
+
 function sf_updateCompleteBtn() {
   document.getElementById('sf_completeSurveyBtn').style.display =
     (caseData?.status === 'survey_scheduled') ? '' : 'none';
@@ -2563,6 +2585,7 @@ function sf_updateStatus(status, signedAt, token) {
   const textEl = document.getElementById('sf_statusText');
   textEl.textContent = labels[status] || status;
   textEl.style.color = colors[status] || colors.draft;
+  sf_lockSurveyor(status);
   if (signedAt) {
     document.getElementById('sf_signedInfo').style.display = '';
     document.getElementById('sf_signedInfo').textContent = '簽名時間：' + signedAt.slice(0, 16).replace('T', ' ');
