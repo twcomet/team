@@ -37,6 +37,18 @@
 .ledger-tab:hover:not(.active) { color:var(--gray-700); }
 .tr-income td:first-child { border-left:3px solid #057a55; }
 .tr-expense td:first-child { border-left:3px solid #e02424; }
+/* modal required fields */
+.field-req input, .field-req select {
+  background:#f0f9ff; border-color:#93c5fd;
+}
+.field-req input:focus, .field-req select:focus { background:#fff; border-color:var(--primary); }
+.field-req > label { font-weight:600; color:var(--gray-800); }
+/* pay status toggle */
+.pay-toggle-label { flex:1;text-align:center;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;color:var(--gray-500); }
+.pay-toggle-label.active { background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);color:var(--gray-800); }
+/* section switcher buttons */
+.sect-tab { padding:4px 12px;font-size:12px;border-radius:6px;border:none;cursor:pointer;background:none;color:var(--gray-500);font-weight:500;transition:all .15s; }
+.sect-tab.active { background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);color:var(--gray-800); }
 .tr-pending td:first-child { border-left:3px solid #d97706 !important; }
 .pending-panel { background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:14px 18px; margin-bottom:16px; }
 .pending-panel .pp-title { font-weight:600; color:#92400e; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
@@ -174,9 +186,7 @@
       <!-- 掃描單據 -->
       <div class="scan-box">
         <div style="display:flex;align-items:center;gap:10px">
-          <label class="scan-label" for="scanInput">
-            📷 拍照掃描單據
-          </label>
+          <label class="scan-label" for="scanInput">📷 拍照掃描單據</label>
           <input type="file" id="scanInput" accept="image/*" style="display:none" onchange="handleScanImage(event)">
           <span id="scanStatus" style="font-size:12px;color:var(--gray-500)">拍照或選取收據，自動辨識填入</span>
         </div>
@@ -187,64 +197,87 @@
       </div>
 
       <input type="hidden" id="ledgerEntryId">
-      <!-- ledgerType 保留供 JS 邏輯使用，UI 隱藏 -->
       <select id="ledgerType" style="display:none" onchange="updateCategoryOptions()">
         <option value="income">收入</option>
         <option value="expense">支出</option>
       </select>
-      <div class="form-row">
-        <div class="form-group">
-          <label>日期 *</label>
-          <input type="date" id="ledgerDate">
-        </div>
-        <div class="form-group" id="ledgerSectionRow" style="display:none">
-          <label>分區</label>
-          <select id="ledgerSection" onchange="updateCategoryOptions()">
-            <option value="cost">成本</option>
-            <option value="expense">費用</option>
-            <option value="asset_liability">資產/負債</option>
-          </select>
+      <select id="ledgerSection" style="display:none" onchange="updateCategoryOptions()">
+        <option value="income">income</option>
+        <option value="cost">成本</option>
+        <option value="expense">費用</option>
+        <option value="asset_liability">資產/負債</option>
+      </select>
+
+      <!-- 類型/分區 指示列 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <span id="modalTypeBadge" style="padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;background:#dcfce7;color:#166534"></span>
+        <span id="modalSectionBadge" style="display:none;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600"></span>
+        <span style="font-size:11px;color:var(--gray-400)">按鈕自動帶入</span>
+        <div id="sectionSwitcher" style="display:none;margin-left:auto;background:var(--gray-100);padding:3px;border-radius:8px;display:flex;gap:2px">
+          <button class="sect-tab" data-sec="cost"            onclick="switchSection('cost')">成本</button>
+          <button class="sect-tab" data-sec="expense"         onclick="switchSection('expense')">費用</button>
+          <button class="sect-tab" data-sec="asset_liability" onclick="switchSection('asset_liability')">資產/負債</button>
         </div>
       </div>
+
+      <!-- 必填：日期 -->
+      <div class="form-group field-req">
+        <label>日期 *</label>
+        <input type="date" id="ledgerDate">
+      </div>
+
+      <!-- 必填：科目 + 金額 -->
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group field-req" style="flex:2">
           <label>科目 *</label>
           <select id="ledgerCategory"></select>
         </div>
-        <div class="form-group">
+        <div class="form-group field-req">
           <label>金額 *</label>
           <input type="number" id="ledgerAmount" placeholder="0" min="0">
         </div>
       </div>
+
+      <!-- 選填 -->
       <div class="form-group">
         <label>店別</label>
         <select id="ledgerOrg"><option value="">— 請選擇 —</option></select>
       </div>
       <div class="form-group">
         <label>說明</label>
-        <input type="text" id="ledgerDescription" placeholder="例如：HX2605-001 尾款入帳">
+        <input type="text" id="ledgerDescription" placeholder="例如：廠商A 進貨款、5月薪資">
       </div>
+
+      <!-- 付款狀態（支出才顯示） -->
       <div class="form-group" id="payStatusRow" style="display:none">
         <label>付款狀態</label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-            <input type="radio" name="payStatus" id="payStatusPaid"    value=""        checked onchange="onPayStatusChange()"> 已付款
+        <div style="display:flex;background:var(--gray-100);border-radius:8px;padding:3px;gap:3px">
+          <label class="pay-toggle-label active" id="payPaidTab" for="payStatusPaid">
+            <input type="radio" name="payStatus" id="payStatusPaid" value="" checked style="display:none" onchange="onPayStatusChange()">
+            ✅ 已付款
           </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-            <input type="radio" name="payStatus" id="payStatusPending" value="pending" onchange="onPayStatusChange()"> ⏳ 待匯款
+          <label class="pay-toggle-label" id="payPendingTab" for="payStatusPending">
+            <input type="radio" name="payStatus" id="payStatusPending" value="pending" style="display:none" onchange="onPayStatusChange()">
+            ⏳ 待匯款（廠商請款）
           </label>
         </div>
       </div>
+
+      <!-- 應付到期日（待匯款才顯示） -->
       <div class="form-group" id="payDueDateRow" style="display:none">
-        <label>應付到期日 <span style="font-size:11px;color:var(--gray-400)">（待匯款時填寫，提醒老闆急迫度）</span></label>
+        <label>應付到期日 <span style="font-size:11px;color:var(--gray-400)">最急的排最前，可留空</span></label>
         <input type="date" id="ledgerPayDueDate">
       </div>
+
+      <!-- 僅老闆可見 -->
       <div class="form-group" id="hiddenRow" style="display:none">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
           <input type="checkbox" id="ledgerHidden" style="width:16px;height:16px">
           <span>🔒 僅老闆可見（隱藏此筆記錄）</span>
         </label>
       </div>
+
+      <!-- 關聯案件 -->
       <div class="form-group" style="position:relative">
         <label>關聯案件（選填）</label>
         <div style="display:flex;gap:6px;align-items:center">
@@ -508,24 +541,63 @@ function renderTable(rows) {
 }
 
 // ─── Modal ────────────────────────────────────────────────────
-function updateCategoryOptions() {
-  const type = document.getElementById('ledgerType').value;
-  const isExp = type === 'expense';
-  document.getElementById('ledgerSectionRow').style.display = isExp ? '' : 'none';
+const SECTION_BADGE = {
+  income:         { bg:'#dcfce7', color:'#166534', label:'收入' },
+  cost:           { bg:'#f3e8ff', color:'#6d28d9', label:'成本' },
+  expense:        { bg:'#fee2e2', color:'#991b1b', label:'費用' },
+  asset_liability:{ bg:'#f3f4f6', color:'#374151', label:'資產/負債' },
+};
 
-  const section = isExp ? document.getElementById('ledgerSection').value : type;
-  const cats = allCategories.filter(c => c.section === section && c.active);
+function updateModalBadges() {
+  const type    = document.getElementById('ledgerType').value;
+  const section = document.getElementById('ledgerSection').value;
+  const isExp   = type === 'expense';
+
+  const typeCfg = isExp ? { bg:'#fef3c7', color:'#92400e', label:'支出' } : { bg:'#dcfce7', color:'#166534', label:'收入' };
+  const tb = document.getElementById('modalTypeBadge');
+  tb.textContent = typeCfg.label;
+  tb.style.background = typeCfg.bg; tb.style.color = typeCfg.color;
+
+  const sb = document.getElementById('modalSectionBadge');
+  const sw = document.getElementById('sectionSwitcher');
+  if (isExp) {
+    const cfg = SECTION_BADGE[section] || SECTION_BADGE.cost;
+    sb.textContent = cfg.label; sb.style.background = cfg.bg; sb.style.color = cfg.color;
+    sb.style.display = '';
+    sw.style.display = 'flex';
+    document.querySelectorAll('.sect-tab').forEach(b => b.classList.toggle('active', b.dataset.sec === section));
+  } else {
+    sb.style.display = 'none';
+    sw.style.display = 'none';
+  }
+}
+
+function updateCategoryOptions() {
+  const type    = document.getElementById('ledgerType').value;
+  const section = document.getElementById('ledgerSection').value;
+  const isExp   = type === 'expense';
+
+  const filterSec = isExp ? section : 'income';
+  const cats = allCategories.filter(c => c.section === filterSec && c.active);
   const sel  = document.getElementById('ledgerCategory');
   sel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
 
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
   document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
+  updateModalBadges();
+}
+
+function switchSection(sec) {
+  document.getElementById('ledgerSection').value = sec;
+  updateCategoryOptions();
 }
 
 function onPayStatusChange() {
   const isPending = document.getElementById('payStatusPending').checked;
   document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
+  document.getElementById('payPaidTab').classList.toggle('active', !isPending);
+  document.getElementById('payPendingTab').classList.toggle('active', isPending);
 }
 
 function openLedgerModal(arg=null) {
@@ -541,11 +613,13 @@ function openLedgerModal(arg=null) {
   document.getElementById('ledgerDate').value       = entry ? entry.date : new Date().toISOString().slice(0,10);
   document.getElementById('ledgerType').value       = entry ? entry.type : presetType;
 
-  // 設定分區（支出才有）
-  if ((entry ? entry.type : presetType) === 'expense') {
-    const sec = entry
-      ? (allCategories.find(c => c.name === entry.category)?.section || 'cost')
-      : presetSection;
+  // 設定分區
+  {
+    let sec = presetSection; // default from button
+    if (entry) {
+      if (entry.type === 'income') sec = 'income';
+      else sec = allCategories.find(c => c.name === entry.category)?.section || 'cost';
+    }
     document.getElementById('ledgerSection').value = sec;
   }
 
@@ -556,6 +630,8 @@ function openLedgerModal(arg=null) {
     const ps = entry?.pay_status || '';
     document.getElementById('payStatusPaid').checked    = ps !== 'pending';
     document.getElementById('payStatusPending').checked = ps === 'pending';
+    document.getElementById('payPaidTab').classList.toggle('active', ps !== 'pending');
+    document.getElementById('payPendingTab').classList.toggle('active', ps === 'pending');
     document.getElementById('payDueDateRow').style.display = ps === 'pending' ? '' : 'none';
     document.getElementById('ledgerPayDueDate').value = entry?.pay_due_date || '';
   }
