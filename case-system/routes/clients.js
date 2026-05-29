@@ -126,9 +126,46 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+router.get('/:id', requireAuth, (req, res) => {
+  const c = db.prepare(`
+    SELECT cl.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
+      (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
+        FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=cl.id) AS tags_csv
+    FROM clients cl
+    LEFT JOIN orgs o ON cl.org_id = o.id
+    LEFT JOIN client_categories cc ON cc.id = cl.category_id
+    WHERE cl.id = ?
+  `).get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'not found' });
+  c.tags = c.tags_csv
+    ? c.tags_csv.split(',').map(s => { const [id,name,color]=s.split('|'); return {id:+id,name,color}; })
+    : [];
+  delete c.tags_csv;
+
+  // 統計資料
+  const stats = db.prepare(`
+    SELECT
+      COUNT(*) AS total_cases,
+      COUNT(CASE WHEN status NOT IN ('invalid','closed') THEN 1 END) AS active_cases,
+      COUNT(CASE WHEN status = 'inquiry' OR status LIKE 'inquiry%' THEN 1 END) AS inquiry_count,
+      COUNT(CASE WHEN status IN ('contracted','payment','closed') THEN 1 END) AS deal_count,
+      COALESCE(SUM(CASE WHEN status IN ('contracted','payment','closed') THEN final_price END), 0) AS deal_total,
+      COUNT(CASE WHEN status IN ('contracted','payment','closed')
+                  AND contracted_at >= date('now','-1 year') THEN 1 END) AS deal_last_year,
+      COALESCE(SUM(CASE WHEN status IN ('contracted','payment','closed')
+                        AND contracted_at >= date('now','-1 year') THEN final_price END), 0) AS revenue_last_year,
+      MAX(contracted_at) AS last_deal_at,
+      MIN(created_at) AS first_case_at
+    FROM cases WHERE client_id = ?
+  `).get(req.params.id);
+
+  res.json({ ...c, stats });
+});
+
 router.get('/:id/cases', requireAuth, (req, res) => {
   const cases = db.prepare(`
-    SELECT c.id, c.case_number, c.title, c.status, c.final_price, c.payment_status, c.scheduled_date
+    SELECT c.id, c.case_number, c.title, c.status, c.final_price, c.payment_status,
+           c.scheduled_date, c.created_at, c.contracted_at, c.address
     FROM cases c WHERE c.client_id = ? ORDER BY c.created_at DESC
   `).all(req.params.id);
   res.json(cases);

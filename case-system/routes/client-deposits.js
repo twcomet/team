@@ -3,7 +3,7 @@ const router  = express.Router();
 const db      = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
-const TYPE_LABELS = { catalog: '膜料本', other: '其他預收款' };
+const TYPE_LABELS = { catalog: '膜料本', sample: '樣本費', other: '其他預收款' };
 
 // ── 列出某客戶的預收款 ────────────────────────────────────────
 router.get('/', requireAuth, (req, res) => {
@@ -30,14 +30,16 @@ router.get('/', requireAuth, (req, res) => {
 
 // ── 新增預收款 ────────────────────────────────────────────────
 router.post('/', requireAuth, (req, res) => {
-  const { client_id, type = 'catalog', amount, collected_at, note } = req.body;
+  const { client_id, type = 'catalog', amount, collected_at, note, product_name } = req.body;
   if (!client_id) return res.status(400).json({ error: '缺少 client_id' });
-  if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: '金額必須大於 0' });
+  if (type !== 'sample' && (!amount || parseFloat(amount) <= 0))
+    return res.status(400).json({ error: '金額必須大於 0' });
 
   const r = db.prepare(`
-    INSERT INTO client_deposits (client_id, type, amount, collected_at, note, created_by)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(client_id, type, parseFloat(amount), collected_at || null, note || null, req.session.user.id);
+    INSERT INTO client_deposits (client_id, type, amount, collected_at, note, product_name, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(client_id, type, parseFloat(amount) || 0, collected_at || null, note || null,
+         product_name || null, req.session.user.id);
 
   res.json({ ok: true, id: r.lastInsertRowid });
 });

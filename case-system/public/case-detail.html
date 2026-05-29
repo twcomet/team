@@ -781,6 +781,12 @@
                   <div class="pf pf-date"><label>收款日期</label>
                     <input type="date" id="p_survey_fee_date">
                   </div>
+                  <div class="pf" style="flex:2;min-width:160px">
+                    <label style="color:#0369a1;font-weight:600">📊 收入科目</label>
+                    <select id="p_survey_fee_category" style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:7px 10px;font-size:13px;width:100%">
+                      <option value="">— 請選擇（選填）—</option>
+                    </select>
+                  </div>
                   <div class="pf pf-method"><label>收款方式</label>
                     <select id="p_survey_fee_method">
                       <option value="">（未選）</option>
@@ -1235,8 +1241,9 @@ async function init() {
   if (ledgerCatRes.ok) {
     const incCats = (await ledgerCatRes.json()).filter(c => c.section === 'income' && c.active);
     const opts = incCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-    document.getElementById('p_deposit_category').innerHTML  = '<option value="">— 請選擇收入科目 —</option>' + opts;
-    document.getElementById('p_balance_category').innerHTML  = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_deposit_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_balance_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_survey_fee_category').innerHTML   = '<option value="">— 請選擇（選填）—</option>' + opts;
   }
   await loadCase();
   initAddressAutocomplete();
@@ -2888,8 +2895,9 @@ function fillPaymentForm() {
   document.getElementById('p_deposit_amount').value     = c.deposit_amount   != null ? c.deposit_amount   : '';
   document.getElementById('p_deposit_date').value       = c.deposit_date     || '';
   document.getElementById('p_deposit_note').value       = c.deposit_note     || '';
-  document.getElementById('p_deposit_category').value   = c.deposit_category  || '';
-  document.getElementById('p_balance_paid').value       = c.balance_paid     != null ? c.balance_paid     : '';
+  document.getElementById('p_deposit_category').value      = c.deposit_category      || '';
+  document.getElementById('p_survey_fee_category').value   = c.survey_fee_category   || '';
+  document.getElementById('p_balance_paid').value          = c.balance_paid     != null ? c.balance_paid     : '';
   document.getElementById('p_balance_paid_date').value  = c.balance_paid_date || '';
   document.getElementById('p_balance_paid_note').value     = c.balance_paid_note     || '';
   document.getElementById('p_balance_category').value      = c.balance_category      || '';
@@ -2969,7 +2977,10 @@ function renderCreditsBlock() {
     const checked   = isApplied ? 'checked' : '';
     const disabled  = isApplied ? 'disabled' : '';
     const labelCls  = isApplied ? 'color:var(--gray-400)' : '';
-    const typeLabel = d.type === 'catalog' ? '膜料本' : (d.type === 'other' ? '其他預收款' : d.type);
+    const typeLabel = d.type === 'catalog' ? '膜料本'
+                    : d.type === 'sample'  ? `樣本${d.product_name ? '｜' + d.product_name : ''}`
+                    : d.type === 'other'   ? '其他預收款'
+                    : d.type;
     html += `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${labelCls}">
       <input type="checkbox" id="cred_dep_${d.id}" data-dep-id="${d.id}" ${checked} ${disabled} onchange="updatePayCalc()"
              style="width:15px;height:15px;accent-color:var(--primary)">
@@ -3017,8 +3028,9 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     deposit_date:       document.getElementById('p_deposit_date').value                   || null,
     deposit_note:       document.getElementById('p_deposit_note').value                   || null,
     deposit_method:     document.getElementById('p_deposit_method').value                 || null,
-    deposit_category:   document.getElementById('p_deposit_category').value               || null,
-    balance_paid:       parseFloat(document.getElementById('p_balance_paid').value)       || null,
+    deposit_category:     document.getElementById('p_deposit_category').value             || null,
+    survey_fee_category:  document.getElementById('p_survey_fee_category').value          || null,
+    balance_paid:         parseFloat(document.getElementById('p_balance_paid').value)     || null,
     balance_paid_date:  document.getElementById('p_balance_paid_date').value              || null,
     balance_paid_note:  document.getElementById('p_balance_paid_note').value              || null,
     balance_paid_method: document.getElementById('p_balance_paid_method').value           || null,

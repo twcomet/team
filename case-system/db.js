@@ -1855,7 +1855,11 @@ db.exec(`
 `);
 
 // 場勘費是否已折抵到案件最終收款
-_addCol('cases', 'survey_fee_credited', 'INTEGER DEFAULT 0');
+_addCol('cases', 'survey_fee_credited',  'INTEGER DEFAULT 0');
+_addCol('cases', 'survey_fee_category', 'TEXT DEFAULT NULL');
+
+// 客戶預收款：樣本品名（type='sample' 時填寫）
+_addCol('client_deposits', 'product_name', 'TEXT DEFAULT NULL');
 
 // 客戶官方 Line 顯示名稱（可手動填寫）
 _addCol('cases', 'line_official_name', 'TEXT');

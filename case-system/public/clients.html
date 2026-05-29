@@ -187,14 +187,24 @@
       <input type="hidden" id="dep_client_id">
       <div class="form-group">
         <label>類型</label>
-        <select id="dep_type">
-          <option value="catalog">膜料本</option>
+        <select id="dep_type" onchange="onDepTypeChange()">
+          <option value="catalog">膜料本（預收款）</option>
+          <option value="sample">樣本索取記錄</option>
           <option value="other">其他預收款</option>
         </select>
       </div>
+      <!-- 樣本品名（type=sample 才顯示） -->
+      <div class="form-group" id="depProductRow" style="display:none">
+        <label>品名 / 膜料型號 *</label>
+        <input type="text" id="dep_product_name" placeholder="例：3M 1080 系列、XPEL 漆面保護膜…">
+      </div>
       <div class="form-row">
-        <div class="form-group"><label>金額（NT$）*</label><input type="number" id="dep_amount" placeholder="0" min="1"></div>
-        <div class="form-group"><label>收款日期</label><input type="date" id="dep_collected_at"></div>
+        <div class="form-group" id="depAmountWrap">
+          <label>金額（NT$）<span id="depAmountRequired" style="color:#dc2626"> *</span></label>
+          <input type="number" id="dep_amount" placeholder="0" min="0">
+          <div id="depAmountHint" style="font-size:11px;color:var(--gray-500);margin-top:3px;display:none">樣本免費時填 0</div>
+        </div>
+        <div class="form-group"><label>日期</label><input type="date" id="dep_collected_at"></div>
       </div>
       <div class="form-group"><label>備註</label><input type="text" id="dep_note" placeholder="例：現金收取、附收據…"></div>
     </div>
@@ -579,7 +589,11 @@ function render() {
     <div class="client-card" id="cc-${c.id}" onclick="toggleCard(${c.id})">
       <div class="cc-header">
         <div>
-          <div class="cc-name">${c.name}
+          <div class="cc-name">
+            <a href="/client-detail?id=${c.id}" onclick="event.stopPropagation()"
+               style="color:inherit;text-decoration:none;border-bottom:1.5px solid var(--gray-300);padding-bottom:1px"
+               onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+               onmouseout="this.style.borderColor='var(--gray-300)';this.style.color='inherit'">${c.name}</a>
             ${srcLabel ? `<span class="source-tag ${srcCls}" style="margin-left:8px">${srcLabel}</span>` : ''}
           </div>
           <div class="cc-meta">
@@ -654,7 +668,7 @@ async function loadClientDeposits(cid) {
 }
 
 const DEP_STATUS_LABEL = { pending:'待折抵', applied:'已折抵', forfeited:'已保留', refunded:'已退費' };
-const DEP_TYPE_LABEL   = { catalog:'膜料本', other:'其他預收款' };
+const DEP_TYPE_LABEL   = { catalog:'膜料本', sample:'樣本', other:'其他預收款' };
 
 function renderClientDeposits(cid) {
   const el = document.getElementById(`deposits-${cid}`);
@@ -667,10 +681,14 @@ function renderClientDeposits(cid) {
     const delBtn = d.status === 'pending'
       ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444;font-size:11px;padding:2px 6px"
            onclick="event.stopPropagation();deleteDeposit(${d.id},${cid})">刪除</button>` : '';
+    const typeLabel = d.type === 'sample'
+      ? `樣本${d.product_name ? '｜' + d.product_name : ''}`
+      : (DEP_TYPE_LABEL[d.type] || d.type);
+    const amtLabel = d.amount > 0 ? `NT$${fmt(d.amount)}` : '免費';
     return `<div class="dep-row">
       ${badge}
-      <span style="font-weight:500">${DEP_TYPE_LABEL[d.type] || d.type}</span>
-      <span style="font-weight:600;color:var(--primary)">NT$${fmt(d.amount)}</span>
+      <span style="font-weight:500">${typeLabel}</span>
+      <span style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtLabel}</span>
       <span style="color:var(--gray-500);font-size:12px">${d.collected_at || ''}</span>
       ${d.note ? `<span style="color:var(--gray-500);font-size:12px">${d.note}</span>` : ''}
       ${caseRef}
@@ -697,24 +715,38 @@ async function deleteDeposit(id, cid) {
 }
 
 function openDepositModal(cid) {
-  document.getElementById('dep_client_id').value = cid;
-  document.getElementById('dep_type').value = 'catalog';
-  document.getElementById('dep_amount').value = '';
+  document.getElementById('dep_client_id').value    = cid;
+  document.getElementById('dep_type').value         = 'catalog';
+  document.getElementById('dep_amount').value       = '';
   document.getElementById('dep_collected_at').value = new Date().toISOString().slice(0,10);
-  document.getElementById('dep_note').value = '';
+  document.getElementById('dep_note').value         = '';
+  document.getElementById('dep_product_name').value = '';
+  onDepTypeChange();
   document.getElementById('depositModal').classList.add('open');
 }
 
+function onDepTypeChange() {
+  const type = document.getElementById('dep_type').value;
+  const isSample = type === 'sample';
+  document.getElementById('depProductRow').style.display  = isSample ? '' : 'none';
+  document.getElementById('depAmountHint').style.display  = isSample ? '' : 'none';
+  document.getElementById('depAmountRequired').style.display = isSample ? 'none' : '';
+}
+
 async function saveDeposit() {
-  const cid = document.getElementById('dep_client_id').value;
+  const cid  = document.getElementById('dep_client_id').value;
+  const type = document.getElementById('dep_type').value;
+  const isSample = type === 'sample';
+  if (isSample && !document.getElementById('dep_product_name').value.trim()) { alert('請填寫品名'); return; }
   const payload = {
     client_id:    cid,
-    type:         document.getElementById('dep_type').value,
-    amount:       document.getElementById('dep_amount').value,
+    type,
+    amount:       document.getElementById('dep_amount').value || 0,
     collected_at: document.getElementById('dep_collected_at').value || null,
     note:         document.getElementById('dep_note').value || null,
+    product_name: document.getElementById('dep_product_name').value.trim() || null,
   };
-  if (!payload.amount || parseFloat(payload.amount) <= 0) { alert('請輸入金額'); return; }
+  if (!isSample && (!payload.amount || parseFloat(payload.amount) <= 0)) { alert('請輸入金額'); return; }
   const r = await fetch('/api/client-deposits', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
   });

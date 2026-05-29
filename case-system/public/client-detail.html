@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客戶詳情 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:14px 18px; flex:1; min-width:110px; }
+.stat-card .sc-label { font-size:11px; color:var(--gray-500); margin-bottom:4px; }
+.stat-card .sc-val   { font-size:22px; font-weight:700; }
+.stat-card .sc-sub   { font-size:11px; color:var(--gray-400); margin-top:2px; }
+.tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:20px; gap:0; }
+.tab  { padding:10px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab:hover { color:var(--gray-700); }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-pane { display:none; }
+.tab-pane.active { display:block; }
+.case-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-bottom:1px solid var(--gray-100); font-size:13px; cursor:pointer; border-radius:8px; }
+.case-row:hover { background:var(--gray-50); }
+.case-row:last-child { border-bottom:none; }
+.dep-badge { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; }
+.dep-pending   { background:#dcfce7; color:#166534; }
+.dep-applied   { background:var(--gray-100); color:var(--gray-500); }
+.dep-forfeited { background:#fef3c7; color:#92400e; }
+.dep-refunded  { background:#fee2e2; color:#991b1b; }
+.dep-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--gray-100); font-size:13px; }
+.dep-row:last-child { border-bottom:none; }
+.month-group { margin-bottom:20px; }
+.month-label { font-size:12px; font-weight:700; color:var(--gray-500); padding:6px 10px; background:var(--gray-50); border-radius:8px; margin-bottom:6px; display:flex; justify-content:space-between; }
+.source-tag { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:500; }
+.source-line     { background:#d1fae5; color:#065f46; }
+.source-ig       { background:#ede9fe; color:#5b21b6; }
+.source-fb       { background:#dbeafe; color:#1e40af; }
+.source-referral { background:#fef3c7; color:#92400e; }
+.source-bni      { background:#fee2e2; color:#991b1b; }
+.source-google   { background:#f0fdf4; color:#166534; }
+.source-boss_friend { background:#fce7f3; color:#9d174d; }
+.source-other    { background:var(--gray-100); color:var(--gray-600); }
+.client-tag { display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:500;color:#fff; }
+.info-label { font-size:12px; color:var(--gray-500); margin-bottom:3px; }
+.info-val   { font-size:14px; color:var(--gray-800); }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+      <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+      <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+      <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+      <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+      <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+      <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+      <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+      <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+      <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+      <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"          href="/guide">          <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="/clients" class="btn btn-ghost btn-sm">← 客戶列表</a>
+        <span class="page-title" id="pageTitle">客戶詳情</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="editClientBtn">✏️ 編輯資料</button>
+        <a id="newCaseBtn" href="#" class="btn btn-primary btn-sm">＋ 新增案件</a>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <!-- 客戶基本資訊 header -->
+      <div class="card" style="padding:16px 20px;margin-bottom:16px" id="clientHeader">
+        <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+              <span style="font-size:22px;font-weight:700" id="hdrName">—</span>
+              <span id="hdrLevel" style="display:none;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#fef3c7;color:#92400e"></span>
+              <span id="hdrSource" class="source-tag" style="display:none"></span>
+            </div>
+            <div style="font-size:13px;color:var(--gray-600);display:flex;flex-wrap:wrap;gap:12px" id="hdrMeta"></div>
+            <div style="margin-top:8px" id="hdrTags"></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;color:var(--gray-400)" id="hdrCreated"></div>
+            <div style="font-size:11px;color:var(--gray-400)" id="hdrAge"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 統計卡片 -->
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="stat-card">
+          <div class="sc-label">成為客戶</div>
+          <div class="sc-val" id="statAge">—</div>
+          <div class="sc-sub" id="statAgeDate">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">詢問次數</div>
+          <div class="sc-val" id="statTotal">—</div>
+          <div class="sc-sub">所有案件</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">成交次數</div>
+          <div class="sc-val" style="color:var(--primary)" id="statDeals">—</div>
+          <div class="sc-sub" id="statLastDeal">—</div>
+        </div>
+        <div class="stat-card" id="statAmountCard" style="display:none">
+          <div class="sc-label">成交總金額</div>
+          <div class="sc-val" style="color:#065f46" id="statAmount">—</div>
+          <div class="sc-sub" id="statYearAmount">—</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('cases')">案件記錄</div>
+        <div class="tab" onclick="switchTab('deposits')">預收款 &amp; 樣本</div>
+        <div class="tab" onclick="switchTab('profile')">基本資料</div>
+      </div>
+
+      <!-- Tab: 案件記錄 -->
+      <div class="tab-pane active" id="tab-cases">
+        <!-- 篩選列 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+          <select id="caseStatusFilter" onchange="renderCases()" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
+            <option value="">全部狀態</option>
+            <option value="deal">已成交</option>
+            <option value="active">進行中</option>
+            <option value="inquiry">詢問中</option>
+            <option value="invalid">無效</option>
+          </select>
+          <select id="caseYearFilter" onchange="renderCases()" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px">
+            <option value="">全部年份</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="groupByMonth" onchange="renderCases()" style="width:15px;height:15px">
+            按月份分組
+          </label>
+        </div>
+        <div id="caseList"><div style="text-align:center;padding:32px;color:var(--gray-400)">載入中…</div></div>
+      </div>
+
+      <!-- Tab: 預收款/樣本 -->
+      <div class="tab-pane" id="tab-deposits">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" id="addDepositBtn">＋ 新增預收款 / 樣本</button>
+        </div>
+        <div id="depositList"><div style="text-align:center;padding:32px;color:var(--gray-400)">載入中…</div></div>
+      </div>
+
+      <!-- Tab: 基本資料 -->
+      <div class="tab-pane" id="tab-profile">
+        <div class="card" style="padding:20px;max-width:700px" id="profilePanel">
+          <div style="text-align:center;padding:24px;color:var(--gray-400)">載入中…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增預收款/樣本 Modal（同 clients.html） -->
+<div class="modal-overlay" id="depositModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>新增預收款 / 樣本記錄</h3>
+      <button class="modal-close" onclick="document.getElementById('depositModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>類型</label>
+        <select id="dep_type" onchange="onDepTypeChange()">
+          <option value="catalog">膜料本（預收款）</option>
+          <option value="sample">樣本索取記錄</option>
+          <option value="other">其他預收款</option>
+        </select>
+      </div>
+      <div class="form-group" id="depProductRow" style="display:none">
+        <label>品名 / 膜料型號 *</label>
+        <input type="text" id="dep_product_name" placeholder="例：3M 1080 系列、XPEL 漆面保護膜…">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>金額（NT$）<span id="depAmountRequired" style="color:#dc2626"> *</span></label>
+          <input type="number" id="dep_amount" placeholder="0" min="0">
+          <div id="depAmountHint" style="font-size:11px;color:var(--gray-500);margin-top:3px;display:none">樣本免費時填 0</div>
+        </div>
+        <div class="form-group"><label>日期</label><input type="date" id="dep_collected_at"></div>
+      </div>
+      <div class="form-group"><label>備註</label><input type="text" id="dep_note" placeholder="例：現金收取、附收據…"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('depositModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveDeposit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編輯客戶 Modal（簡化版） -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>編輯客戶資料</h3>
+      <button class="modal-close" onclick="document.getElementById('editModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>客戶/公司名稱 *</label><input type="text" id="em_name"></div>
+        <div class="form-group"><label>聯絡人</label><input type="text" id="em_contact_person"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>電話</label><input type="tel" id="em_phone"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="em_email"></div>
+      </div>
+      <div class="form-group"><label>地址</label><input type="text" id="em_address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>來源</label>
+          <select id="em_source">
+            <option value="">不指定</option>
+            <option value="line">Line@</option>
+            <option value="ig">Instagram</option>
+            <option value="fb">Facebook</option>
+            <option value="referral">客戶介紹</option>
+            <option value="bni">BNI</option>
+            <option value="google">Google 搜尋</option>
+            <option value="boss_friend">老闆的親友</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group"><label>客戶等級</label>
+          <select id="em_client_level">
+            <option value="">不指定</option>
+            <option value="A">A 級（優質常客）</option>
+            <option value="B">B 級（一般）</option>
+            <option value="C">C 級（潛在）</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>統一編號</label><input type="text" id="em_tax_id"></div>
+        <div class="form-group"><label>公司抬頭</label><input type="text" id="em_invoice_title"></div>
+      </div>
+      <div class="form-group"><label>備註</label><textarea id="em_notes" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('editModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const params   = new URLSearchParams(location.search);
+const clientId = params.get('id');
+
+const SOURCE_LABELS = { line:'Line@', ig:'Instagram', fb:'Facebook', referral:'客戶介紹', bni:'BNI', google:'Google', boss_friend:'老闆的親友', other:'其他' };
+const SOURCE_CLS    = { line:'source-line', ig:'source-ig', fb:'source-fb', referral:'source-referral', bni:'source-bni', google:'source-google', boss_friend:'source-boss_friend', other:'source-other' };
+const DEP_STATUS_LABEL = { pending:'待折抵', applied:'已折抵', forfeited:'已保留', refunded:'已退費' };
+const DEP_TYPE_LABEL   = { catalog:'膜料本', sample:'樣本', other:'其他預收款' };
+const DEAL_STATUSES = ['contracted','dispatched','constructing','payment','closed'];
+const ACTIVE_STATUSES = ['survey_pending','survey_scheduled','surveyed','quote_draft','quoted', ...DEAL_STATUSES];
+const INQUIRY_STATUSES = ['inquiry','initial_estimate'];
+
+let clientData = null;
+let allCases   = [];
+let allDeposits = [];
+let activeTab  = 'cases';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    const tabs = ['cases','deposits','profile'];
+    el.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+async function init() {
+  if (!clientId) { location.href = '/clients'; return; }
+  await loadUser();
+  highlightNav('clients');
+  await Promise.all([loadClient(), loadCases(), loadDeposits()]);
+  document.getElementById('editClientBtn').addEventListener('click', openEditModal);
+  document.getElementById('addDepositBtn').addEventListener('click', openDepositModal);
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', {method:'POST'});
+    location.href = '/';
+  });
+}
+
+async function loadClient() {
+  const res = await fetch(`/api/clients/${clientId}`);
+  if (!res.ok) { alert('找不到客戶'); location.href = '/clients'; return; }
+  clientData = await res.json();
+  renderHeader();
+  renderStats();
+  renderProfileTab();
+}
+
+function renderHeader() {
+  const c = clientData;
+  document.title = `${c.name} — 繪新管理系統`;
+  document.getElementById('pageTitle').textContent = c.name;
+  document.getElementById('newCaseBtn').href = `/cases-inquiry`;
+  document.getElementById('hdrName').textContent = c.name;
+
+  if (c.client_level) {
+    const el = document.getElementById('hdrLevel');
+    el.textContent = `${c.client_level} 級`;
+    el.style.display = '';
+  }
+  if (c.source) {
+    const el = document.getElementById('hdrSource');
+    el.textContent = SOURCE_LABELS[c.source] || c.source;
+    el.className = `source-tag ${SOURCE_CLS[c.source] || 'source-other'}`;
+    el.style.display = '';
+  }
+
+  const metas = [];
+  if (c.contact_person) metas.push(`👤 ${c.contact_person}`);
+  if (c.phone)          metas.push(`📞 ${c.phone}`);
+  if (c.email)          metas.push(`✉️ ${c.email}`);
+  if (c.address)        metas.push(`📍 ${c.address}`);
+  document.getElementById('hdrMeta').innerHTML = metas.map(m => `<span>${m}</span>`).join('');
+
+  if (c.tags && c.tags.length) {
+    document.getElementById('hdrTags').innerHTML = c.tags.map(t =>
+      `<span class="client-tag" style="background:${t.color}">${t.name}</span>`
+    ).join(' ');
+  }
+
+  const created = c.created_at ? c.created_at.slice(0, 10) : null;
+  if (created) {
+    document.getElementById('hdrCreated').textContent = `建檔日期：${created}`;
+    const days = Math.floor((Date.now() - new Date(created).getTime()) / 86400000);
+    const ageTxt = days >= 365 ? `${Math.floor(days/365)} 年 ${Math.floor((days%365)/30)} 個月`
+                 : days >= 30  ? `${Math.floor(days/30)} 個月`
+                 : `${days} 天`;
+    document.getElementById('hdrAge').textContent = `成為客戶：${ageTxt}`;
+  }
+}
+
+function renderStats() {
+  const c = clientData;
+  const s = c.stats || {};
+
+  // 建檔時長
+  const created = c.created_at ? c.created_at.slice(0, 10) : null;
+  if (created) {
+    const days = Math.floor((Date.now() - new Date(created).getTime()) / 86400000);
+    const ageTxt = days >= 365 ? `${Math.floor(days/365)} 年${Math.floor((days%365)/30) > 0 ? Math.floor((days%365)/30)+'月' : ''}`
+                 : days >= 30  ? `${Math.floor(days/30)} 個月`
+                 : `${days} 天`;
+    document.getElementById('statAge').textContent    = ageTxt;
+    document.getElementById('statAgeDate').textContent = `建檔 ${created}`;
+  }
+
+  document.getElementById('statTotal').textContent = s.total_cases ?? 0;
+  document.getElementById('statDeals').textContent = s.deal_count  ?? 0;
+  if (s.last_deal_at) {
+    document.getElementById('statLastDeal').textContent = `最近成交 ${(s.last_deal_at||'').slice(0,10)}`;
+  } else {
+    document.getElementById('statLastDeal').textContent = '尚未成交';
+  }
+
+  if (currentUser?.can_see_amounts) {
+    document.getElementById('statAmountCard').style.display = '';
+    document.getElementById('statAmount').textContent = fmt(s.deal_total);
+    if (s.revenue_last_year > 0) {
+      document.getElementById('statYearAmount').textContent = `近12月 ${fmt(s.revenue_last_year)}`;
+    }
+  }
+}
+
+async function loadCases() {
+  const res = await fetch(`/api/clients/${clientId}/cases`);
+  allCases = res.ok ? await res.json() : [];
+  buildYearFilter();
+  renderCases();
+}
+
+function buildYearFilter() {
+  const years = [...new Set(allCases.map(c => (c.created_at||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById('caseYearFilter');
+  sel.innerHTML = '<option value="">全部年份</option>' + years.map(y => `<option value="${y}">${y} 年</option>`).join('');
+}
+
+function renderCases() {
+  const statusFilter = document.getElementById('caseStatusFilter').value;
+  const yearFilter   = document.getElementById('caseYearFilter').value;
+  const byMonth      = document.getElementById('groupByMonth').checked;
+
+  let list = allCases.filter(c => {
+    if (yearFilter && !(c.created_at||'').startsWith(yearFilter)) return false;
+    if (statusFilter === 'deal')    return DEAL_STATUSES.includes(c.status);
+    if (statusFilter === 'active')  return ACTIVE_STATUSES.includes(c.status) && !DEAL_STATUSES.includes(c.status);
+    if (statusFilter === 'inquiry') return INQUIRY_STATUSES.includes(c.status);
+    if (statusFilter === 'invalid') return c.status === 'invalid';
+    return true;
+  });
+
+  const el = document.getElementById('caseList');
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400)">暫無案件記錄</div>`;
+    return;
+  }
+
+  const caseHtml = c => `
+    <div class="case-row" onclick="location.href='/case-detail?id=${c.id}'">
+      <code style="font-size:12px;color:var(--gray-400);min-width:90px;flex-shrink:0">${c.case_number||''}</code>
+      <span style="flex:1;font-weight:500">${c.title||'（無標題）'}</span>
+      ${statusBadge(c.status)}
+      ${currentUser?.can_see_amounts && c.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(c.final_price)}</span>` : ''}
+      ${paymentBadge(c.payment_status)}
+      <span style="font-size:12px;color:var(--gray-400);flex-shrink:0">${(c.created_at||'').slice(0,10)}</span>
+    </div>`;
+
+  if (!byMonth) {
+    el.innerHTML = list.map(caseHtml).join('');
+    return;
+  }
+
+  // 按月份分組
+  const groups = {};
+  list.forEach(c => {
+    const mo = (c.created_at||'').slice(0,7) || '未知';
+    if (!groups[mo]) groups[mo] = [];
+    groups[mo].push(c);
+  });
+
+  el.innerHTML = Object.keys(groups).sort().reverse().map(mo => {
+    const g = groups[mo];
+    const dealCount = g.filter(c => DEAL_STATUSES.includes(c.status)).length;
+    const totalAmt  = currentUser?.can_see_amounts
+      ? g.filter(c => DEAL_STATUSES.includes(c.status)).reduce((s,c) => s + (c.final_price||0), 0)
+      : 0;
+    const label = mo.replace('-', ' 年 ') + ' 月';
+    const summary = `${g.length} 筆詢問${dealCount ? `　成交 ${dealCount} 筆${totalAmt ? ' ' + fmt(totalAmt) : ''}` : ''}`;
+    return `<div class="month-group">
+      <div class="month-label"><span>${label}</span><span style="font-weight:400">${summary}</span></div>
+      ${g.map(caseHtml).join('')}
+    </div>`;
+  }).join('');
+}
+
+async function loadDeposits() {
+  const res = await fetch(`/api/client-deposits?client_id=${clientId}`);
+  allDeposits = res.ok ? await res.json() : [];
+  renderDeposits();
+}
+
+function renderDeposits() {
+  const el = document.getElementById('depositList');
+  if (!allDeposits.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--gray-400)">尚無預收款或樣本記錄</div>`;
+    return;
+  }
+
+  const pendingTotal = allDeposits.filter(d => d.status === 'pending' && d.amount > 0).reduce((s,d) => s + d.amount, 0);
+  const summary = pendingTotal > 0
+    ? `<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+        💳 待折抵餘額：<strong style="color:#065f46">${fmt(pendingTotal)}</strong>（可在案件收款時折抵）
+       </div>` : '';
+
+  el.innerHTML = summary + `<div style="border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">` +
+    allDeposits.map(d => {
+      const typeLabel = d.type === 'sample'
+        ? `樣本${d.product_name ? '｜' + d.product_name : ''}`
+        : (DEP_TYPE_LABEL[d.type] || d.type);
+      const badge = `<span class="dep-badge dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
+      const caseRef = d.applied_case_number ? `<a href="/case-detail?id=${d.applied_case_id}" style="font-size:12px;color:var(--primary)">→ ${d.applied_case_number}</a>` : '';
+      const canDel = d.status === 'pending';
+      return `<div class="dep-row">
+        ${badge}
+        <span style="font-weight:500">${typeLabel}</span>
+        <span style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${d.amount > 0 ? fmt(d.amount) : '免費'}</span>
+        <span style="font-size:12px;color:var(--gray-400)">${d.collected_at || ''}</span>
+        ${d.note ? `<span style="font-size:12px;color:var(--gray-500)">${d.note}</span>` : ''}
+        ${caseRef}
+        <span style="flex:1"></span>
+        ${canDel ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444;font-size:11px;padding:2px 6px" onclick="deleteDeposit(${d.id})">刪除</button>` : ''}
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+function renderProfileTab() {
+  const c = clientData;
+  const g = (v) => v || '—';
+  document.getElementById('profilePanel').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px">
+      <div><div class="info-label">客戶/公司名稱</div><div class="info-val">${g(c.name)}</div></div>
+      <div><div class="info-label">聯絡人</div><div class="info-val">${g(c.contact_person)}</div></div>
+      <div><div class="info-label">電話</div><div class="info-val">${g(c.phone)}</div></div>
+      <div><div class="info-label">Email</div><div class="info-val">${g(c.email)}</div></div>
+      <div style="grid-column:span 2"><div class="info-label">地址</div><div class="info-val">${g(c.address)}</div></div>
+      <div><div class="info-label">來源</div><div class="info-val">${SOURCE_LABELS[c.source] || g(c.source)}</div></div>
+      <div><div class="info-label">客戶等級</div><div class="info-val">${c.client_level ? c.client_level + ' 級' : '—'}</div></div>
+      <div><div class="info-label">統一編號</div><div class="info-val">${g(c.tax_id)}</div></div>
+      <div><div class="info-label">公司抬頭</div><div class="info-val">${g(c.invoice_title)}</div></div>
+      <div><div class="info-label">付款條件</div><div class="info-val">${g(c.payment_terms)}</div></div>
+      <div><div class="info-label">優惠條件</div><div class="info-val">${g(c.discount_terms)}</div></div>
+      ${c.notes ? `<div style="grid-column:span 2"><div class="info-label">備註</div><div class="info-val" style="white-space:pre-wrap">${c.notes}</div></div>` : ''}
+    </div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('editClientBtn').click()">✏️ 編輯</button>
+    </div>
+  `;
+}
+
+function openEditModal() {
+  const c = clientData;
+  document.getElementById('em_name').value           = c.name || '';
+  document.getElementById('em_contact_person').value = c.contact_person || '';
+  document.getElementById('em_phone').value          = c.phone || '';
+  document.getElementById('em_email').value          = c.email || '';
+  document.getElementById('em_address').value        = c.address || '';
+  document.getElementById('em_source').value         = c.source || '';
+  document.getElementById('em_client_level').value   = c.client_level || '';
+  document.getElementById('em_tax_id').value         = c.tax_id || '';
+  document.getElementById('em_invoice_title').value  = c.invoice_title || '';
+  document.getElementById('em_notes').value          = c.notes || '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+async function saveEdit() {
+  const name = document.getElementById('em_name').value.trim();
+  if (!name) { showToast('請填入名稱', 'error'); return; }
+  const g = id => document.getElementById(id).value || null;
+  const body = {
+    name, contact_person: g('em_contact_person'), phone: g('em_phone'),
+    email: g('em_email'), address: g('em_address'), source: g('em_source'),
+    client_level: g('em_client_level'), tax_id: g('em_tax_id'),
+    invoice_title: g('em_invoice_title'), notes: g('em_notes'),
+    // preserve existing fields
+    discount: clientData.discount ?? 1,
+    payment_terms: clientData.payment_terms || null,
+    discount_terms: clientData.discount_terms || null,
+    capital: clientData.capital || null,
+    referrer: clientData.referrer || null,
+    line_group_name: clientData.line_group_name || null,
+    category_id: clientData.category_id || null,
+    einvoice_code: clientData.einvoice_code || null,
+    invoice_email: clientData.invoice_email || null,
+    invoice_needs: clientData.invoice_needs || null,
+  };
+  const res = await fetch(`/api/clients/${clientId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    document.getElementById('editModal').classList.remove('open');
+    showToast('客戶資料已更新');
+    await loadClient();
+  } else { showToast('儲存失敗', 'error'); }
+}
+
+// ── 預收款/樣本 ──────────────────────────────────────────────
+function openDepositModal() {
+  document.getElementById('dep_type').value         = 'catalog';
+  document.getElementById('dep_amount').value       = '';
+  document.getElementById('dep_collected_at').value = new Date().toISOString().slice(0,10);
+  document.getElementById('dep_note').value         = '';
+  document.getElementById('dep_product_name').value = '';
+  onDepTypeChange();
+  document.getElementById('depositModal').classList.add('open');
+}
+
+function onDepTypeChange() {
+  const type = document.getElementById('dep_type').value;
+  const isSample = type === 'sample';
+  document.getElementById('depProductRow').style.display     = isSample ? '' : 'none';
+  document.getElementById('depAmountHint').style.display     = isSample ? '' : 'none';
+  document.getElementById('depAmountRequired').style.display = isSample ? 'none' : '';
+}
+
+async function saveDeposit() {
+  const type = document.getElementById('dep_type').value;
+  const isSample = type === 'sample';
+  if (isSample && !document.getElementById('dep_product_name').value.trim()) { showToast('請填寫品名', 'error'); return; }
+  const amount = parseFloat(document.getElementById('dep_amount').value) || 0;
+  if (!isSample && amount <= 0) { showToast('請輸入金額', 'error'); return; }
+  const payload = {
+    client_id:    clientId,
+    type,
+    amount,
+    collected_at: document.getElementById('dep_collected_at').value || null,
+    note:         document.getElementById('dep_note').value || null,
+    product_name: document.getElementById('dep_product_name').value.trim() || null,
+  };
+  const res = await fetch('/api/client-deposits', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    document.getElementById('depositModal').classList.remove('open');
+    showToast('已儲存');
+    await loadDeposits();
+  } else { const e = await res.json(); showToast(e.error || '儲存失敗', 'error'); }
+}
+
+async function deleteDeposit(id) {
+  if (!confirm('確定刪除此筆記錄？')) return;
+  const res = await fetch(`/api/client-deposits/${id}`, { method:'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadDeposits(); }
+  else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+
+init();
+</script>
+</body>
+</html>

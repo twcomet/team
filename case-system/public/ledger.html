@@ -263,6 +263,19 @@
         </div>
       </div>
 
+      <!-- 已付款帳號（已付款才顯示） -->
+      <div class="form-group" id="paidAccountRow" style="display:none">
+        <label>付款帳號</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="selectEntryPayAccount('富邦帳戶')">富邦</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="selectEntryPayAccount('聯邦帳戶')">聯邦</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="selectEntryPayAccount('台企銀帳戶')">台企銀</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="selectEntryPayAccount('華銀帳戶')">華銀</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="selectEntryPayAccount('現金')">現金</button>
+        </div>
+        <input type="text" id="ledgerPaidNote" placeholder="或手動填寫帳號備注…">
+      </div>
+
       <!-- 應付到期日（待匯款才顯示） -->
       <div class="form-group" id="payDueDateRow" style="display:none">
         <label>應付到期日 <span style="font-size:11px;color:var(--gray-400)">最急的排最前，可留空</span></label>
@@ -584,7 +597,8 @@ function updateCategoryOptions() {
 
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
-  document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
+  document.getElementById('payDueDateRow').style.display  = isPending ? '' : 'none';
+  document.getElementById('paidAccountRow').style.display = (isExp && !isPending) ? '' : 'none';
   updateModalBadges();
 }
 
@@ -595,9 +609,14 @@ function switchSection(sec) {
 
 function onPayStatusChange() {
   const isPending = document.getElementById('payStatusPending').checked;
-  document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
+  document.getElementById('payDueDateRow').style.display    = isPending ? '' : 'none';
+  document.getElementById('paidAccountRow').style.display   = isPending ? 'none' : '';
   document.getElementById('payPaidTab').classList.toggle('active', !isPending);
   document.getElementById('payPendingTab').classList.toggle('active', isPending);
+}
+
+function selectEntryPayAccount(name) {
+  document.getElementById('ledgerPaidNote').value = name;
 }
 
 function openLedgerModal(arg=null) {
@@ -632,8 +651,10 @@ function openLedgerModal(arg=null) {
     document.getElementById('payStatusPending').checked = ps === 'pending';
     document.getElementById('payPaidTab').classList.toggle('active', ps !== 'pending');
     document.getElementById('payPendingTab').classList.toggle('active', ps === 'pending');
-    document.getElementById('payDueDateRow').style.display = ps === 'pending' ? '' : 'none';
+    document.getElementById('payDueDateRow').style.display    = ps === 'pending' ? '' : 'none';
+    document.getElementById('paidAccountRow').style.display   = ps !== 'pending' ? '' : 'none';
     document.getElementById('ledgerPayDueDate').value = entry?.pay_due_date || '';
+    document.getElementById('ledgerPaidNote').value   = entry?.paid_note || '';
   }
   document.getElementById('ledgerAmount').value      = entry ? entry.amount : '';
   document.getElementById('ledgerDescription').value = entry ? (entry.description||'') : '';
@@ -700,6 +721,8 @@ async function saveLedgerEntry() {
     hidden:        (currentUser?.role === 'owner' && document.getElementById('ledgerHidden').checked) ? 1 : 0,
     pay_status:    document.getElementById('payStatusPending').checked ? 'pending' : null,
     pay_due_date:  document.getElementById('ledgerPayDueDate').value || null,
+    paid_note:     (!document.getElementById('payStatusPending').checked && document.getElementById('ledgerPaidNote')?.value)
+                     ? document.getElementById('ledgerPaidNote').value : null,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');

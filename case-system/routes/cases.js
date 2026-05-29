@@ -297,7 +297,7 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const {
     client_id, case_type, title, description, location, sales_id,
-    final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method,
+    final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method, survey_fee_category,
     payment_status, payment_received,
     deposit_amount, deposit_date, deposit_note, deposit_method, deposit_category,
     balance_paid, balance_paid_date, balance_paid_note, balance_paid_method, balance_category,
@@ -320,7 +320,7 @@ router.put('/:id', requireAuth, (req, res) => {
   db.prepare(`
     UPDATE cases SET
       client_id=?, case_type=?, title=?, description=?, location=?,
-      sales_id=?, final_price=?, survey_fee=?, survey_fee_date=?, survey_fee_note=?, survey_fee_method=?,
+      sales_id=?, final_price=?, survey_fee=?, survey_fee_date=?, survey_fee_note=?, survey_fee_method=?, survey_fee_category=?,
       payment_status=?, payment_received=?,
       deposit_amount=?, deposit_date=?, deposit_note=?, deposit_method=?, deposit_category=?,
       balance_paid=?, balance_paid_date=?, balance_paid_note=?, balance_paid_method=?, balance_category=?,
@@ -340,7 +340,7 @@ router.put('/:id', requireAuth, (req, res) => {
     WHERE id=?
   `).run(
     client_id ?? null, case_type, title, description ?? null, location ?? null,
-    sales_id ?? null, final_price ?? null, survey_fee ?? null, survey_fee_date ?? null, survey_fee_note ?? null, survey_fee_method ?? null,
+    sales_id ?? null, final_price ?? null, survey_fee ?? null, survey_fee_date ?? null, survey_fee_note ?? null, survey_fee_method ?? null, survey_fee_category ?? null,
     payment_status || 'unpaid', payment_received ?? 0,
     deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null, deposit_method ?? null, deposit_category ?? null,
     balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null, balance_paid_method ?? null, balance_category ?? null,
@@ -421,7 +421,7 @@ router.put('/:id', requireAuth, (req, res) => {
     };
     const c2 = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(caseId);
     const label = `${c2?.case_number || ''} ${c2?.title || ''}`.trim();
-    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      '場勘費', `場勘費｜${label}`);
+    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      survey_fee_category || '場勘費', `場勘費｜${label}`);
     upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  deposit_category  || '其他收入', `訂金｜${label}`);
     upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    balance_category  || '其他收入', `尾款｜${label}`);
   }
