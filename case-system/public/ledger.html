@@ -87,10 +87,11 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">收支流水帳</span>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="manageCatBtn" style="display:none" onclick="openCatModal()">管理科目</button>
         <button class="btn btn-sm" style="background:#057a55;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('income')">＋ 收入</button>
-        <button class="btn btn-sm" style="background:#e02424;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('expense')">＋ 支出</button>
+        <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('cost')">－ 成本</button>
+        <button class="btn btn-sm" style="background:#e02424;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer" onclick="openLedgerModal('expense')">－ 費用</button>
       </div>
     </div>
     <div class="page-body">
@@ -196,6 +197,14 @@
           <select id="ledgerType" onchange="updateCategoryOptions()">
             <option value="income">收入</option>
             <option value="expense">支出</option>
+          </select>
+        </div>
+        <div class="form-group" id="ledgerSectionRow" style="display:none">
+          <label>分區 *</label>
+          <select id="ledgerSection" onchange="updateCategoryOptions()">
+            <option value="cost">成本</option>
+            <option value="expense">費用</option>
+            <option value="asset_liability">資產/負債</option>
           </select>
         </div>
       </div>
@@ -503,10 +512,14 @@ function renderTable(rows) {
 // ─── Modal ────────────────────────────────────────────────────
 function updateCategoryOptions() {
   const type = document.getElementById('ledgerType').value;
-  const cats = allCategories.filter(c => c.type===type && c.active);
+  const isExp = type === 'expense';
+  document.getElementById('ledgerSectionRow').style.display = isExp ? '' : 'none';
+
+  const section = isExp ? document.getElementById('ledgerSection').value : type;
+  const cats = allCategories.filter(c => c.section === section && c.active);
   const sel  = document.getElementById('ledgerCategory');
   sel.innerHTML = cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
-  const isExp = type === 'expense';
+
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
   document.getElementById('payDueDateRow').style.display = isPending ? '' : 'none';
@@ -519,11 +532,24 @@ function onPayStatusChange() {
 
 function openLedgerModal(arg=null) {
   const entry = (arg && typeof arg === 'object') ? arg : null;
-  const presetType = (typeof arg === 'string') ? arg : 'expense';
+  // arg can be: 'income', 'cost', 'expense' (section shortcuts), or an entry object
+  const sectionArg = (!entry && typeof arg === 'string') ? arg : null;
+  const presetType    = sectionArg === 'income' ? 'income' : (sectionArg ? 'expense' : 'expense');
+  const presetSection = sectionArg === 'cost' ? 'cost' : (sectionArg === 'asset_liability' ? 'asset_liability' : 'expense');
+
   document.getElementById('ledgerModalTitle').textContent = entry ? '編輯帳務記錄' : '新增帳務記錄';
   document.getElementById('ledgerEntryId').value    = entry ? entry.id : '';
   document.getElementById('ledgerDate').value       = entry ? entry.date : new Date().toISOString().slice(0,10);
   document.getElementById('ledgerType').value       = entry ? entry.type : presetType;
+
+  // 設定分區（支出才有）
+  if ((entry ? entry.type : presetType) === 'expense') {
+    const sec = entry
+      ? (allCategories.find(c => c.name === entry.category)?.section || 'cost')
+      : presetSection;
+    document.getElementById('ledgerSection').value = sec;
+  }
+
   updateCategoryOptions();
   if (entry) document.getElementById('ledgerCategory').value = entry.category;
   // pay status (expense only)
