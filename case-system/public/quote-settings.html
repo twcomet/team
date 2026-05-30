@@ -105,7 +105,11 @@
           <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
             <div class="form-group"><label>造型/才</label><input id="nf-custom" type="number" placeholder="0"></div>
           </div>
-          <button class="qs-btn qs-btn-primary" onclick="addFilmPrice()">新增</button>
+          <input type="hidden" id="nf-edit-id" value="">
+          <div style="display:flex;gap:8px">
+            <button class="qs-btn qs-btn-primary" id="nf-submit-btn" onclick="saveFilmPrice()">新增</button>
+            <button class="qs-btn" id="nf-cancel-btn" style="display:none" onclick="cancelFilmEdit()">取消</button>
+          </div>
         </div>
       </div>
     </div>
@@ -167,7 +171,11 @@
           <div class="form-group" style="margin-bottom:10px"><label>預設貼膜須知</label>
             <select id="nc-notice"><option value="">（不附須知）</option></select>
           </div>
-          <button class="qs-btn qs-btn-primary" onclick="addCatalogItem()">新增</button>
+          <input type="hidden" id="nc-edit-id" value="">
+          <div style="display:flex;gap:8px">
+            <button class="qs-btn qs-btn-primary" id="nc-submit-btn" onclick="addCatalogItem()">新增</button>
+            <button class="qs-btn" id="nc-cancel-btn" style="display:none" onclick="cancelCatalogEdit()">取消</button>
+          </div>
         </div>
       </div>
     </div>
@@ -402,6 +410,7 @@ function brandClass(b) {
 // ── 膜料價格 ──────────────────────────────────────────────────
 async function loadFilmPrices() {
   const data = await fetch(`${API}/film-prices`).then(r=>r.json());
+  _filmPricesCache = data;
   const tbody = document.getElementById('film-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
@@ -414,11 +423,17 @@ async function loadFilmPrices() {
       <td class="price-cell">${fmt(r.price_flat)}</td>
       <td class="price-cell">${fmt(r.price_cabinet)}</td>
       <td class="price-cell">${fmt(r.price_custom)}</td>
-      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delFilmPrice(${r.id})">刪除</button></td>
+      <td style="white-space:nowrap">
+        <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editFilmPrice(${r.id})">編輯</button>
+        <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delFilmPrice(${r.id})">刪除</button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料價格</td></tr>';
 }
 
-async function addFilmPrice() {
+let _filmPricesCache = [];
+
+async function saveFilmPrice() {
+  const editId = document.getElementById('nf-edit-id').value;
   const body = {
     brand: document.getElementById('nf-brand').value,
     series_code: document.getElementById('nf-code').value,
@@ -430,9 +445,41 @@ async function addFilmPrice() {
     price_cabinet: document.getElementById('nf-cabinet').value,
     price_custom: document.getElementById('nf-custom').value,
   };
-  await fetch(`${API}/film-prices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+  if (editId) {
+    await fetch(`${API}/film-prices/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    cancelFilmEdit();
+  } else {
+    await fetch(`${API}/film-prices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('nf-width').value = 122;
+  }
   loadFilmPrices();
+}
+
+function editFilmPrice(id) {
+  const r = _filmPricesCache.find(f => f.id === id);
+  if (!r) return;
+  document.getElementById('nf-brand').value   = r.brand;
+  document.getElementById('nf-code').value    = r.series_code||'';
+  document.getElementById('nf-name').value    = r.series_name||'';
+  document.getElementById('nf-flame').value   = r.flame_resistant ? '1' : '0';
+  document.getElementById('nf-width').value   = r.film_width_cm||122;
+  document.getElementById('nf-cost').value    = r.cost_per_meter||'';
+  document.getElementById('nf-flat').value    = r.price_flat||'';
+  document.getElementById('nf-cabinet').value = r.price_cabinet||'';
+  document.getElementById('nf-custom').value  = r.price_custom||'';
+  document.getElementById('nf-edit-id').value = id;
+  document.getElementById('nf-submit-btn').textContent = '儲存修改';
+  document.getElementById('nf-cancel-btn').style.display = '';
+  document.querySelector('#panel-film .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function cancelFilmEdit() {
+  ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('nf-width').value = 122;
+  document.getElementById('nf-edit-id').value = '';
+  document.getElementById('nf-submit-btn').textContent = '新增';
+  document.getElementById('nf-cancel-btn').style.display = 'none';
 }
 
 async function delFilmPrice(id) {
@@ -446,8 +493,11 @@ const CAT_LABELS = { door_room:'房間門', door_main:'大門', door_fire:'防�
 const MAT_LABELS = { korean:'韓國膜', japanese:'日本膜', '':'—' };
 const SIDES_LABELS = { single:'單面', double:'雙面', '':'—' };
 
+let _catalogCache = [];
+
 async function loadCatalog() {
   const data = await fetch(`${API}/catalog`).then(r=>r.json());
+  _catalogCache = data;
   const tbody = document.getElementById('catalog-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
@@ -460,11 +510,40 @@ async function loadCatalog() {
       <td class="price-cell">$${fmt(r.base_price)}</td>
       <td style="text-align:center">${r.default_difficulty}級</td>
       <td style="font-size:11px;color:#6b7280">${r.notice_name||'—'}</td>
-      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delCatalog(${r.id})">刪除</button></td>
+      <td style="white-space:nowrap">
+        <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editCatalogItem(${r.id})">編輯</button>
+        <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delCatalog(${r.id})">刪除</button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增公規品</td></tr>';
 }
 
+function editCatalogItem(id) {
+  const r = _catalogCache.find(c => c.id === id);
+  if (!r) return;
+  document.getElementById('nc-cat').value   = r.category;
+  document.getElementById('nc-name').value  = r.name;
+  document.getElementById('nc-mat').value   = r.material||'';
+  document.getElementById('nc-sides').value = r.sides||'';
+  document.getElementById('nc-frame').value = r.includes_frame ? '1' : '0';
+  document.getElementById('nc-spec').value  = r.size_spec||'';
+  document.getElementById('nc-price').value = r.base_price||'';
+  document.getElementById('nc-diff').value  = r.default_difficulty||3;
+  document.getElementById('nc-notice').value = r.notice_template_id||'';
+  document.getElementById('nc-edit-id').value = id;
+  document.getElementById('nc-submit-btn').textContent = '儲存修改';
+  document.getElementById('nc-cancel-btn').style.display = '';
+  document.querySelector('#panel-catalog .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function cancelCatalogEdit() {
+  ['nc-name','nc-spec','nc-price'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('nc-edit-id').value = '';
+  document.getElementById('nc-submit-btn').textContent = '新增';
+  document.getElementById('nc-cancel-btn').style.display = 'none';
+}
+
 async function addCatalogItem() {
+  const editId = document.getElementById('nc-edit-id').value;
   const body = {
     category: document.getElementById('nc-cat').value,
     name: document.getElementById('nc-name').value,
@@ -477,8 +556,13 @@ async function addCatalogItem() {
     notice_template_id: document.getElementById('nc-notice').value || null,
   };
   if (!body.name || !body.base_price) return alert('請填寫品項名稱和基礎定價');
-  await fetch(`${API}/catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  ['nc-name','nc-spec','nc-price'].forEach(id => document.getElementById(id).value='');
+  if (editId) {
+    await fetch(`${API}/catalog/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    cancelCatalogEdit();
+  } else {
+    await fetch(`${API}/catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    ['nc-name','nc-spec','nc-price'].forEach(id => document.getElementById(id).value='');
+  }
   loadCatalog();
 }
 
