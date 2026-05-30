@@ -302,7 +302,11 @@
             <div class="form-group"><label>夜間施工加價</label><input id="nt-night" type="number" value="0"></div>
             <div class="form-group"><label>備注</label><input id="nt-notes" placeholder="選填"></div>
           </div>
-          <button class="qs-btn qs-btn-primary" onclick="addTravelFee()">新增</button>
+          <input type="hidden" id="nt-edit-id" value="">
+          <div style="display:flex;gap:8px">
+            <button class="qs-btn qs-btn-primary" id="nt-submit-btn" onclick="addTravelFee()">新增</button>
+            <button class="qs-btn" id="nt-cancel-btn" style="display:none" onclick="cancelTravelEdit()">取消</button>
+          </div>
         </div>
       </div>
     </div>
@@ -326,7 +330,11 @@
             <div class="form-group"><label>內部員工日薪</label><input id="nsk-int" type="number" placeholder="0"></div>
             <div class="form-group"><label>外快/點工日薪</label><input id="nsk-ext" type="number" placeholder="0"></div>
           </div>
-          <button class="qs-btn qs-btn-primary" onclick="addSkillLevel()">新增</button>
+          <input type="hidden" id="nsk-edit-id" value="">
+          <div style="display:flex;gap:8px">
+            <button class="qs-btn qs-btn-primary" id="nsk-submit-btn" onclick="addSkillLevel()">新增</button>
+            <button class="qs-btn" id="nsk-cancel-btn" style="display:none" onclick="cancelSkillEdit()">取消</button>
+          </div>
         </div>
       </div>
     </div>
@@ -707,8 +715,11 @@ async function delDiscountRule(id) {
 }
 
 // ── 車馬費 ────────────────────────────────────────────────────
+let _travelFeesCache = [];
+
 async function loadTravelFees() {
   const data = await fetch(`${API}/travel-fees`).then(r=>r.json());
+  _travelFeesCache = data;
   const tbody = document.getElementById('travel-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
@@ -718,11 +729,39 @@ async function loadTravelFees() {
       <td class="price-cell">$${fmt(r.install_fee)}</td>
       <td>${r.overnight_fee?'$'+fmt(r.overnight_fee):'—'}</td>
       <td>${r.night_surcharge?'$'+fmt(r.night_surcharge):'—'}</td>
-      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delTravelFee(${r.id})">刪除</button></td>
+      <td style="white-space:nowrap">
+        <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editTravelFee(${r.id})">編輯</button>
+        <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delTravelFee(${r.id})">刪除</button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:20px">尚未設定車馬費</td></tr>';
 }
 
+function editTravelFee(id) {
+  const r = _travelFeesCache.find(f => f.id === id);
+  if (!r) return;
+  document.getElementById('nt-region').value   = r.region_name;
+  document.getElementById('nt-kw').value       = r.keywords||'';
+  document.getElementById('nt-survey').value   = r.survey_fee||0;
+  document.getElementById('nt-install').value  = r.install_fee||0;
+  document.getElementById('nt-overnight').value= r.overnight_fee||0;
+  document.getElementById('nt-night').value    = r.night_surcharge||0;
+  document.getElementById('nt-notes').value    = r.notes||'';
+  document.getElementById('nt-edit-id').value  = id;
+  document.getElementById('nt-submit-btn').textContent = '儲存修改';
+  document.getElementById('nt-cancel-btn').style.display = '';
+  document.querySelector('#panel-travel .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function cancelTravelEdit() {
+  ['nt-region','nt-kw','nt-notes'].forEach(id => document.getElementById(id).value='');
+  ['nt-survey','nt-install','nt-overnight','nt-night'].forEach(id => document.getElementById(id).value=0);
+  document.getElementById('nt-edit-id').value = '';
+  document.getElementById('nt-submit-btn').textContent = '新增';
+  document.getElementById('nt-cancel-btn').style.display = 'none';
+}
+
 async function addTravelFee() {
+  const editId = document.getElementById('nt-edit-id').value;
   const body = {
     region_name: document.getElementById('nt-region').value,
     keywords: document.getElementById('nt-kw').value,
@@ -734,8 +773,13 @@ async function addTravelFee() {
     sort_order: document.querySelectorAll('#travel-tbody tr').length,
   };
   if (!body.region_name) return alert('請填寫地區名稱');
-  await fetch(`${API}/travel-fees`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  ['nt-region','nt-kw','nt-notes'].forEach(id => document.getElementById(id).value='');
+  if (editId) {
+    await fetch(`${API}/travel-fees/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    cancelTravelEdit();
+  } else {
+    await fetch(`${API}/travel-fees`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    ['nt-region','nt-kw','nt-notes'].forEach(id => document.getElementById(id).value='');
+  }
   loadTravelFees();
 }
 
@@ -746,8 +790,11 @@ async function delTravelFee(id) {
 }
 
 // ── 難度等級 ──────────────────────────────────────────────────
+let _skillLevelsCache = [];
+
 async function loadSkillLevels() {
   const data = await fetch(`${API}/skill-levels`).then(r=>r.json());
+  _skillLevelsCache = data;
   const tbody = document.getElementById('skill-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
@@ -756,11 +803,35 @@ async function loadSkillLevels() {
       <td class="price-cell">$${fmt(r.internal_daily_rate)}/天</td>
       <td class="price-cell">$${fmt(r.external_daily_rate)}/天</td>
       <td style="color:#6b7280">${r.notes||'—'}</td>
-      <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delSkillLevel(${r.id})">刪除</button></td>
+      <td style="white-space:nowrap">
+        <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editSkillLevel(${r.id})">編輯</button>
+        <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delSkillLevel(${r.id})">刪除</button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">尚未設定等級</td></tr>';
 }
 
+function editSkillLevel(id) {
+  const r = _skillLevelsCache.find(s => s.id === id);
+  if (!r) return;
+  document.getElementById('nsk-level').value = r.level;
+  document.getElementById('nsk-label').value = r.label||'';
+  document.getElementById('nsk-int').value   = r.internal_daily_rate||'';
+  document.getElementById('nsk-ext').value   = r.external_daily_rate||'';
+  document.getElementById('nsk-edit-id').value = id;
+  document.getElementById('nsk-submit-btn').textContent = '儲存修改';
+  document.getElementById('nsk-cancel-btn').style.display = '';
+  document.querySelector('#panel-skill .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function cancelSkillEdit() {
+  ['nsk-level','nsk-label','nsk-int','nsk-ext'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('nsk-edit-id').value = '';
+  document.getElementById('nsk-submit-btn').textContent = '新增';
+  document.getElementById('nsk-cancel-btn').style.display = 'none';
+}
+
 async function addSkillLevel() {
+  const editId = document.getElementById('nsk-edit-id').value;
   const body = {
     level: document.getElementById('nsk-level').value,
     label: document.getElementById('nsk-label').value,
@@ -768,10 +839,15 @@ async function addSkillLevel() {
     external_daily_rate: document.getElementById('nsk-ext').value||0,
   };
   if (!body.level) return alert('請填寫等級數字');
-  const r = await fetch(`${API}/skill-levels`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  const result = await r.json();
-  if (result.error) return alert(result.error);
-  ['nsk-level','nsk-label','nsk-int','nsk-ext'].forEach(id => document.getElementById(id).value='');
+  if (editId) {
+    await fetch(`${API}/skill-levels/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    cancelSkillEdit();
+  } else {
+    const r = await fetch(`${API}/skill-levels`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const result = await r.json();
+    if (result.error) return alert(result.error);
+    ['nsk-level','nsk-label','nsk-int','nsk-ext'].forEach(id => document.getElementById(id).value='');
+  }
   loadSkillLevels();
 }
 
