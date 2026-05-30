@@ -203,7 +203,7 @@
                 <tr>
                   <th style="width:28px"></th>
                   <th>姓名</th><th>帳號</th><th>角色</th><th>所屬</th>
-                  <th>可看金額</th><th>可刪除</th><th>狀態</th><th></th>
+                  <th>可看金額</th><th>材料成本</th><th>人事成本</th><th>可刪除</th><th>狀態</th><th></th>
                 </tr>
               </thead>
               <tbody id="userBody"></tbody>
@@ -349,6 +349,12 @@
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userCanDelete"> 可刪除資料
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="材料成本、採購金額、請款金額（老闆 + 會計）">
+          <input type="checkbox" id="userCanSeeCost"> 可查看材料成本
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="薪資、師傅費率（僅老闆）">
+          <input type="checkbox" id="userCanSeeLaborCost"> 可查看人事成本
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
@@ -894,6 +900,8 @@ async function loadUsers() {
       <td>${roleLabelsMap[u.role] || ROLE_LABELS[u.role] || u.role}</td>
       <td style="font-size:13px;color:#6b7280">${u.org_name || '—'}</td>
       <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
+      <td style="text-align:center">${u.can_see_cost ? '💰' : '—'}</td>
+      <td style="text-align:center">${u.can_see_labor_cost ? '👔' : '—'}</td>
       <td style="text-align:center">${u.can_delete ? '🗑️' : '—'}</td>
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
       <td style="display:flex;gap:6px;align-items:center">
@@ -916,6 +924,8 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userIsManager').checked = false;
   document.getElementById('userCanSeeAmounts').checked = false;
   document.getElementById('userCanDelete').checked = false;
+  document.getElementById('userCanSeeCost').checked = false;
+  document.getElementById('userCanSeeLaborCost').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userIsSales').checked = false;
   document.getElementById('userDailyCost').value = '';
@@ -1044,8 +1054,10 @@ function openEditUser(id) {
   document.getElementById('userOrgId').value = u.org_id;
   document.getElementById('userDept').value = u.department || '';
   document.getElementById('userIsManager').checked = !!u.is_manager;
-  document.getElementById('userCanSeeAmounts').checked = !!u.can_see_amounts;
-  document.getElementById('userCanDelete').checked = !!u.can_delete;
+  document.getElementById('userCanSeeAmounts').checked    = !!u.can_see_amounts;
+  document.getElementById('userCanDelete').checked         = !!u.can_delete;
+  document.getElementById('userCanSeeCost').checked        = !!u.can_see_cost;
+  document.getElementById('userCanSeeLaborCost').checked   = !!u.can_see_labor_cost;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
   document.getElementById('userIsSales').checked = !!u.is_sales;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
@@ -1109,8 +1121,10 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     org_id: document.getElementById('userOrgId').value,
     department: document.getElementById('userDept').value,
     is_manager: document.getElementById('userIsManager').checked,
-    can_see_amounts: document.getElementById('userCanSeeAmounts').checked,
-    can_delete: document.getElementById('userCanDelete').checked,
+    can_see_amounts:     document.getElementById('userCanSeeAmounts').checked,
+    can_delete:          document.getElementById('userCanDelete').checked,
+    can_see_cost:        document.getElementById('userCanSeeCost').checked,
+    can_see_labor_cost:  document.getElementById('userCanSeeLaborCost').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
     is_sales: document.getElementById('userIsSales').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,

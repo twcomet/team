@@ -6,24 +6,30 @@ const router = express.Router();
 // ── 膜料目錄 ─────────────────────────────────────────────────
 
 router.get('/', requireAuth, (req, res) => {
-  const { org_id, view_all_branches } = req.session.user;
-  const rows = view_all_branches
+  const me = req.session.user;
+  const rows = me.view_all_branches
     ? db.prepare(`SELECT * FROM materials ORDER BY brand, model`).all()
-    : db.prepare(`SELECT * FROM materials WHERE org_id = ? ORDER BY brand, model`).all(org_id);
+    : db.prepare(`SELECT * FROM materials WHERE org_id = ? ORDER BY brand, model`).all(me.org_id);
+  // 非成本可見者隱藏 unit_cost
+  if (!me.can_see_cost) rows.forEach(r => { r.unit_cost = null; });
   res.json(rows);
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const org_id = req.session.user.org_id;
-  const uid    = req.session.user.id;
-  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes } = req.body;
+  const me     = req.session.user;
+  const org_id = me.org_id;
+  const uid    = me.id;
+  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
+  // 只有 can_see_cost 才能寫入成本
+  const safeCost = me.can_see_cost ? (unit_cost || 0) : 0;
 
   const r = db.prepare(`
-    INSERT INTO materials (org_id, brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO materials (org_id, brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(org_id, brand, model, color || null, spec || null, location || null,
-         unit_cost || 0, unit_price || 0, stock_meters || 0, notes || null);
+         safeCost, unit_price || 0, stock_meters || 0, notes || null,
+         category || 'film', ec_key || null);
 
   const matId = r.lastInsertRowid;
 
@@ -52,15 +58,20 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 router.put('/:id', requireAuth, (req, res) => {
-  const { org_id, id: uid } = req.session.user;
-  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes } = req.body;
+  const me = req.session.user;
+  const { org_id, id: uid } = me;
+  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
+  // 只有 can_see_cost 才能更新成本，否則保留舊值
+  const existing = db.prepare(`SELECT unit_cost FROM materials WHERE id=?`).get(req.params.id);
+  const safeCost = me.can_see_cost ? (unit_cost || 0) : (existing?.unit_cost ?? 0);
 
   db.prepare(`
-    UPDATE materials SET brand=?, model=?, color=?, spec=?, location=?, unit_cost=?, unit_price=?, stock_meters=?, notes=?
+    UPDATE materials SET brand=?, model=?, color=?, spec=?, location=?, unit_cost=?, unit_price=?, stock_meters=?, notes=?, category=?, ec_key=?
     WHERE id=? AND org_id=?
   `).run(brand, model, color || null, spec || null, location || null,
-         unit_cost || 0, unit_price || 0, stock_meters || 0, notes || null,
+         safeCost, unit_price || 0, stock_meters || 0, notes || null,
+         category || 'film', ec_key || null,
          req.params.id, org_id);
 
   // 若編輯後有庫存但完全沒有捲料紀錄 → 自動補建初始捲料，避免銷貨找不到可用捲料

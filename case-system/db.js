@@ -2430,4 +2430,25 @@ _addCol('quote_sheets', 'client_marketing_consent','INTEGER DEFAULT 0');
 _addCol('quote_sheets', 'notes_terms',             'TEXT');
 _addCol('quote_sheets', 'notes_acceptance',        'TEXT');
 
+// ── P1 成本權限系統 ────────────────────────────────────────────────────────
+// 材料成本可見性：老闆 + 會計
+_addCol('users', 'can_see_cost',       'INTEGER DEFAULT 0');
+// 人事成本可見性：僅老闆
+_addCol('users', 'can_see_labor_cost', 'INTEGER DEFAULT 0');
+
+// 自動設定：owner 角色 → 兩個成本權限都開
+db.prepare(`UPDATE users SET can_see_cost=1, can_see_labor_cost=1 WHERE role='owner' AND can_see_cost=0`).run();
+// 自動設定：hq_accounting 角色 → 只開材料成本
+db.prepare(`UPDATE users SET can_see_cost=1 WHERE role='hq_accounting' AND can_see_cost=0`).run();
+
+// ── P1 材料表擴充 ──────────────────────────────────────────────────────────
+// 材料分類：film/tool/consumable/other
+_addCol('materials', 'category',      "TEXT DEFAULT 'film'");
+// EC 系統代碼（手動回填）
+_addCol('materials', 'ec_key',        'TEXT');
+_addCol('materials', 'ec_synced_at',  'DATETIME');
+
+// ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
+_addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');
+
 module.exports = db;
