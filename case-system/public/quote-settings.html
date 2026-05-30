@@ -118,7 +118,7 @@
         <table class="qs-table" id="catalog-table">
           <thead><tr>
             <th>類別</th><th>品項名稱</th><th>材料</th><th>面</th><th>含框</th>
-            <th>尺寸說明</th><th>基礎定價</th><th>預設難度</th><th width="80">操作</th>
+            <th>尺寸說明</th><th>基礎定價</th><th>預設難度</th><th>預設須知</th><th width="80">操作</th>
           </tr></thead>
           <tbody id="catalog-tbody"></tbody>
         </table>
@@ -163,6 +163,9 @@
                 <option value="6">6 級</option><option value="7">7 級</option><option value="8">8 級</option>
               </select>
             </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px"><label>預設貼膜須知</label>
+            <select id="nc-notice"><option value="">（不附須知）</option></select>
           </div>
           <button class="qs-btn qs-btn-primary" onclick="addCatalogItem()">新增</button>
         </div>
@@ -376,9 +379,16 @@ function switchTab(name) {
   });
 }
 
+let noticesData = [];
+
 function loadAll() {
   loadFilmPrices(); loadCatalog(); loadAddons();
   loadNotices(); loadDiscountRules(); loadTravelFees(); loadSkillLevels();
+}
+
+function buildNoticeSelectOpts(selectedId) {
+  return `<option value="">（不附須知）</option>` +
+    noticesData.map(n => `<option value="${n.id}" ${n.id==selectedId?'selected':''}>${n.name}</option>`).join('');
 }
 
 function fmt(n) { return n ? Number(n).toLocaleString() : '—'; }
@@ -449,8 +459,9 @@ async function loadCatalog() {
       <td style="color:#6b7280;font-size:12px">${r.size_spec||'—'}</td>
       <td class="price-cell">$${fmt(r.base_price)}</td>
       <td style="text-align:center">${r.default_difficulty}級</td>
+      <td style="font-size:11px;color:#6b7280">${r.notice_name||'—'}</td>
       <td><button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delCatalog(${r.id})">刪除</button></td>
-    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:20px">尚未新增公規品</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增公規品</td></tr>';
 }
 
 async function addCatalogItem() {
@@ -463,6 +474,7 @@ async function addCatalogItem() {
     size_spec: document.getElementById('nc-spec').value,
     base_price: document.getElementById('nc-price').value,
     default_difficulty: document.getElementById('nc-diff').value,
+    notice_template_id: document.getElementById('nc-notice').value || null,
   };
   if (!body.name || !body.base_price) return alert('請填寫品項名稱和基礎定價');
   await fetch(`${API}/catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -517,6 +529,10 @@ async function delAddon(id) {
 // ── 貼膜須知模板 ──────────────────────────────────────────────
 async function loadNotices() {
   const data = await fetch(`${API}/notices`).then(r=>r.json());
+  noticesData = data;
+  // Refresh notice selects in catalog form
+  const ncNotice = document.getElementById('nc-notice');
+  if (ncNotice) ncNotice.innerHTML = buildNoticeSelectOpts('');
   const tbody = document.getElementById('notices-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
