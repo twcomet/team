@@ -203,19 +203,21 @@ router.get('/film-prices', requireAuth, (req, res) => {
 router.post('/film-prices', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
           cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, material_id } = req.body;
+  const flameVal = flame_resistant === '' || flame_resistant == null ? null : Number(flame_resistant) ? 1 : 0;
   const r = db.prepare(`INSERT INTO film_price_matrix
     (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,price_flat,price_cabinet,price_custom,sort_order,material_id)
     VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
+    .run(brand, series_code||null, series_name||null, flameVal,
          film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0, sort_order||0, material_id||null);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 router.put('/film-prices/:id', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
           cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, active, material_id } = req.body;
+  const flameVal = flame_resistant === '' || flame_resistant == null ? null : Number(flame_resistant) ? 1 : 0;
   db.prepare(`UPDATE film_price_matrix SET brand=?,series_code=?,series_name=?,flame_resistant=?,film_width_cm=?,
     cost_per_meter=?,price_flat=?,price_cabinet=?,price_custom=?,sort_order=?,active=?,material_id=? WHERE id=?`)
-    .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
+    .run(brand, series_code||null, series_name||null, flameVal,
          film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0,
          sort_order||0, active??1, material_id||null, req.params.id);
   res.json({ ok: true });

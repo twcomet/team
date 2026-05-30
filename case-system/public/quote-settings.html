@@ -92,6 +92,7 @@
             <div class="form-group">
               <label>防焰</label>
               <select id="nf-flame">
+                <option value="">不區分（全系列同價）</option>
                 <option value="0">不防焰</option>
                 <option value="1">防焰</option>
               </select>
@@ -446,7 +447,7 @@ async function loadFilmPrices() {
     <tr>
       <td><span class="brand-badge ${brandClass(r.brand)}">${r.brand}</span></td>
       <td>${r.series_name || r.series_code || '—'}</td>
-      <td><span class="${r.flame_resistant?'flame-yes':'flame-no'}">${r.flame_resistant?'防焰':'不防焰'}</span></td>
+      <td>${r.flame_resistant===1?'<span class="flame-yes">防焰</span>':r.flame_resistant===0?'<span class="flame-no">不防焰</span>':'<span style="color:#9ca3af;font-size:11px">不區分</span>'}</td>
       <td class="price-cell">${fmt(r.price_flat)}</td>
       <td class="price-cell">${fmt(r.price_cabinet)}</td>
       <td class="price-cell">${fmt(r.price_custom)}</td>
@@ -487,7 +488,7 @@ function editFilmPrice(id) {
   if (!r) return;
   document.getElementById('nf-brand').value   = r.brand || '';
   document.getElementById('nf-series').value  = r.series_name || r.series_code || '';
-  document.getElementById('nf-flame').value   = r.flame_resistant ? '1' : '0';
+  document.getElementById('nf-flame').value   = r.flame_resistant === 1 ? '1' : r.flame_resistant === 0 ? '0' : '';
   document.getElementById('nf-flat').value    = r.price_flat    || '';
   document.getElementById('nf-cabinet').value = r.price_cabinet || '';
   document.getElementById('nf-custom').value  = r.price_custom  || '';
