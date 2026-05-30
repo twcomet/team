@@ -121,35 +121,42 @@
   <aside class="sidebar">
     <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
     <nav class="sidebar-nav">
-        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
-        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
-        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
-        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
-        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
-        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
-        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
-        <a class="nav-item" data-page="quote-list"    href="/quote-list">      <span class="icon">📋</span>報價管理</a>
-        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
-        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
-        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
-        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
-        <a class="nav-item" data-page="purchases"      href="/purchases">      <span class="icon">🚚</span>進貨管理</a>
-        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
-        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
-        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
-        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
-        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
-        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
-        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
-        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
-        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
-        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
-      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
-        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
-      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
-      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
-      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
-    </nav>
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+</nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
       <div class="user-role" id="sidebarUserRole"></div>
@@ -285,8 +292,8 @@
             <label>面材類型</label>
             <select id="f-surface" onchange="autoLookupPrice()">
               <option value="flat">平面牆</option>
-              <option value="cabinet">系統櫃 / 門片</option>
-              <option value="custom">造型 / 異形</option>
+              <option value="cabinet">系統櫃/門片</option>
+              <option value="custom">造型/異形</option>
             </select>
           </div>
           <div class="form-group">
@@ -413,7 +420,11 @@
 
 <script src="/js/common.js"></script>
 <script>
-const SURFACE_LABELS = { flat:'平面牆', cabinet:'系統櫃/門片', custom:'造型/異形' };
+const SURFACE_LABELS_DEFAULT = { flat:'平面牆', cabinet:'系統櫃/門片', custom:'造型/異形' };
+function getSurfaceLabel(key) {
+  const st = serviceTypes.find(s => s.key === key);
+  return st ? st.name : (SURFACE_LABELS_DEFAULT[key] || key);
+}
 const TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
 const STATUS_MAP = {
   draft:    { label:'草稿',       cls:'pill-draft'    },
@@ -426,6 +437,7 @@ const STATUS_MAP = {
 
 let quoteId, quoteData;
 let filmPrices = [], catalogItems = [], noticeTemplates = [], skillLevels = [], inventoryMaterials = [];
+let serviceTypes = [];
 let currentItemTab = 'film';
 
 const fmtMoney = n => 'NT$ ' + Math.round(n || 0).toLocaleString('zh-TW');
@@ -442,12 +454,13 @@ async function init() {
   await loadUser();
   highlightNav('quote-list');
 
-  [filmPrices, catalogItems, noticeTemplates, skillLevels, inventoryMaterials] = await Promise.all([
+  [filmPrices, catalogItems, noticeTemplates, skillLevels, inventoryMaterials, serviceTypes] = await Promise.all([
     fetch('/api/quote-settings/film-prices').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/catalog').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/notices').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/skill-levels').then(r => r.json()).catch(() => []),
     fetch('/api/materials').then(r => r.json()).catch(() => []),
+    fetch('/api/service-types/active').then(r => r.json()).catch(() => []),
   ]);
 
   buildFormOptions();
@@ -455,6 +468,14 @@ async function init() {
 }
 
 function buildFormOptions() {
+  // 施工類型下拉（動態）
+  if (serviceTypes.length) {
+    const surfaceSel = document.getElementById('f-surface');
+    surfaceSel.innerHTML = serviceTypes.map(st =>
+      `<option value="${st.key}">${st.name}</option>`
+    ).join('');
+  }
+
   // Brand datalist
   const brands = [...new Set(filmPrices.map(f => f.brand).filter(Boolean))].sort();
   document.getElementById('dl-brand').innerHTML = brands.map(b => `<option value="${esc(b)}">`).join('');
@@ -655,7 +676,7 @@ function buildItemCard(item) {
     const parts = [];
     const brand = [item.film_brand, item.film_spec || item.film_model].filter(Boolean).join(' · ');
     if (brand)          parts.push(`<div class="spec-cell"><div class="spec-lbl">膜料</div><div class="spec-val">${esc(brand)}</div></div>`);
-    if (item.surface_type) parts.push(`<div class="spec-cell"><div class="spec-lbl">面材</div><div class="spec-val">${SURFACE_LABELS[item.surface_type] || item.surface_type}</div></div>`);
+    if (item.surface_type) parts.push(`<div class="spec-cell"><div class="spec-lbl">面材</div><div class="spec-val">${getSurfaceLabel(item.surface_type)}</div></div>`);
     if (item.length_cm && item.width_cm) parts.push(`<div class="spec-cell"><div class="spec-lbl">尺寸</div><div class="spec-val">${item.length_cm} × ${item.width_cm} cm</div></div>`);
     if (item.area_sqchi != null) parts.push(`<div class="spec-cell"><div class="spec-lbl">才數</div><div class="spec-val spec-chi">${Number(item.area_sqchi).toFixed(2)} 才</div></div>`);
     if (item.unit_price) parts.push(`<div class="spec-cell"><div class="spec-lbl">單價</div><div class="spec-val">$${fmtNum(item.unit_price)}/才</div></div>`);
@@ -989,11 +1010,13 @@ function autoLookupPrice() {
   });
 
   if (match) {
-    const priceKey = surface === 'flat' ? 'price_flat' : surface === 'cabinet' ? 'price_cabinet' : 'price_custom';
-    const price = match[priceKey];
+    // 優先從 service_prices 查（新架構），fallback 到舊欄位
+    const svcPrices = match.service_prices || {};
+    const price = svcPrices[surface]
+      ?? (surface === 'flat' ? match.price_flat : surface === 'cabinet' ? match.price_cabinet : match.price_custom);
     if (price) {
       document.getElementById('f-price').value = price;
-      document.getElementById('f-price-hint').textContent = `自動帶入：${match.brand} ${match.series_name || ''} ${SURFACE_LABELS[surface]} = $${price}/才`;
+      document.getElementById('f-price-hint').textContent = `自動帶入：${match.brand} ${match.series_name || ''} ${getSurfaceLabel(surface)} = $${price}/才`;
       updateFilmPreview();
       return;
     }

@@ -56,6 +56,7 @@ body { font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-se
 .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
 .nav-item.active { background: rgba(255,0,128,.45); color: #fff; border-left: 3px solid var(--primary); padding-left: 17px; font-weight: 600; }
 .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+.nav-group-label { display: block; padding: 10px 20px 3px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,.35); user-select: none; margin-top: 4px; }
 .sidebar-user { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
 .sidebar-user .user-name { font-weight: 600; }
 .sidebar-user .user-role { opacity: .6; font-size: 12px; margin-top: 2px; }

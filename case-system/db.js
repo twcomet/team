@@ -2594,6 +2594,61 @@ db.exec(`
   )
 `);
 
+// ── 施工類型（動態化，取代硬編碼 flat/cabinet/custom） ─────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS service_types (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    key        TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    is_active  INTEGER DEFAULT 1
+  )
+`);
+// 種入三個預設類型（已存在時跳過）
+db.prepare(`INSERT OR IGNORE INTO service_types (key,name,sort_order) VALUES (?,?,?)`).run('flat',    '平面牆',       1);
+db.prepare(`INSERT OR IGNORE INTO service_types (key,name,sort_order) VALUES (?,?,?)`).run('cabinet', '系統櫃/門片',  2);
+db.prepare(`INSERT OR IGNORE INTO service_types (key,name,sort_order) VALUES (?,?,?)`).run('custom',  '造型/異形',    3);
+
+// 膜料施工定價（取代 price_flat/cabinet/custom 三欄）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS film_service_prices (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    matrix_id       INTEGER NOT NULL REFERENCES film_price_matrix(id) ON DELETE CASCADE,
+    service_type_id INTEGER NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
+    price           REAL DEFAULT 0,
+    UNIQUE(matrix_id, service_type_id)
+  )
+`);
+
+// 遷移舊的 price_flat/cabinet/custom → film_service_prices（只跑一次）
+if (!db.prepare(`SELECT value FROM settings WHERE key='svc_price_migrated'`).get()) {
+  const stFlat = db.prepare(`SELECT id FROM service_types WHERE key='flat'`).get();
+  const stCab  = db.prepare(`SELECT id FROM service_types WHERE key='cabinet'`).get();
+  const stCust = db.prepare(`SELECT id FROM service_types WHERE key='custom'`).get();
+  if (stFlat && stCab && stCust) {
+    db.prepare(`INSERT OR IGNORE INTO film_service_prices (matrix_id,service_type_id,price)
+      SELECT id,?,price_flat    FROM film_price_matrix WHERE price_flat    > 0`).run(stFlat.id);
+    db.prepare(`INSERT OR IGNORE INTO film_service_prices (matrix_id,service_type_id,price)
+      SELECT id,?,price_cabinet FROM film_price_matrix WHERE price_cabinet > 0`).run(stCab.id);
+    db.prepare(`INSERT OR IGNORE INTO film_service_prices (matrix_id,service_type_id,price)
+      SELECT id,?,price_custom  FROM film_price_matrix WHERE price_custom  > 0`).run(stCust.id);
+  }
+  db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('svc_price_migrated','1')`).run();
+}
+
+// 報價品項加 service_type_id 欄位 + 遷移現有紀錄
+_addCol('quote_sheet_items', 'service_type_id', 'INTEGER REFERENCES service_types(id)');
+if (!db.prepare(`SELECT value FROM settings WHERE key='qsi_svc_migrated'`).get()) {
+  const stMap = {};
+  db.prepare(`SELECT id,key FROM service_types`).all().forEach(r => { stMap[r.key] = r.id; });
+  if (stMap.flat && stMap.cabinet && stMap.custom) {
+    db.prepare(`UPDATE quote_sheet_items SET service_type_id=? WHERE surface_type='flat'    AND service_type_id IS NULL`).run(stMap.flat);
+    db.prepare(`UPDATE quote_sheet_items SET service_type_id=? WHERE surface_type='cabinet' AND service_type_id IS NULL`).run(stMap.cabinet);
+    db.prepare(`UPDATE quote_sheet_items SET service_type_id=? WHERE surface_type='custom'  AND service_type_id IS NULL`).run(stMap.custom);
+  }
+  db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('qsi_svc_migrated','1')`).run();
+}
+
 // ── 設計師查詢存取碼 ──────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS designer_access_codes (

@@ -198,33 +198,68 @@ router.get('/film-prices', requireAuth, (req, res) => {
     ORDER BY brand, series_name, flame_resistant, sort_order
   `).all();
   if (!req.session.user?.can_see_cost) rows.forEach(r => { r.cost_per_meter = null; });
+
+  // 附上各施工類型定價（key'd by service_type_id）
+  const svcPrices = db.prepare(`
+    SELECT fsp.matrix_id, st.id as service_type_id, st.key as service_type_key, fsp.price
+    FROM film_service_prices fsp
+    JOIN service_types st ON st.id = fsp.service_type_id
+  `).all();
+  const priceMap = {};
+  svcPrices.forEach(p => {
+    if (!priceMap[p.matrix_id]) priceMap[p.matrix_id] = {};
+    priceMap[p.matrix_id][p.service_type_key] = p.price;
+  });
+  rows.forEach(r => { r.service_prices = priceMap[r.id] || {}; });
+
   res.json(rows);
 });
+
 router.post('/film-prices', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
-          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, material_id } = req.body;
+          cost_per_meter, service_prices, sort_order, material_id } = req.body;
   const flameVal = flame_resistant === '' || flame_resistant == null ? null : Number(flame_resistant) ? 1 : 0;
   const r = db.prepare(`INSERT INTO film_price_matrix
-    (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,price_flat,price_cabinet,price_custom,sort_order,material_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+    (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,sort_order,material_id)
+    VALUES (?,?,?,?,?,?,?,?)`)
     .run(brand, series_code||null, series_name||null, flameVal,
-         film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0, sort_order||0, material_id||null);
-  res.json({ ok: true, id: r.lastInsertRowid });
+         film_width_cm||122, cost_per_meter||0, sort_order||0, material_id||null);
+  const matrixId = r.lastInsertRowid;
+  _saveServicePrices(matrixId, service_prices || {});
+  res.json({ ok: true, id: matrixId });
 });
+
 router.put('/film-prices/:id', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
-          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, active, material_id } = req.body;
+          cost_per_meter, service_prices, sort_order, active, material_id } = req.body;
   const flameVal = flame_resistant === '' || flame_resistant == null ? null : Number(flame_resistant) ? 1 : 0;
   db.prepare(`UPDATE film_price_matrix SET brand=?,series_code=?,series_name=?,flame_resistant=?,film_width_cm=?,
-    cost_per_meter=?,price_flat=?,price_cabinet=?,price_custom=?,sort_order=?,active=?,material_id=? WHERE id=?`)
+    cost_per_meter=?,sort_order=?,active=?,material_id=? WHERE id=?`)
     .run(brand, series_code||null, series_name||null, flameVal,
-         film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0,
+         film_width_cm||122, cost_per_meter||0,
          sort_order||0, active??1, material_id||null, req.params.id);
+  _saveServicePrices(req.params.id, service_prices || {});
   res.json({ ok: true });
 });
+
 router.delete('/film-prices/:id', requireAuth, (req, res) => {
   db.prepare(`UPDATE film_price_matrix SET active=0 WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
+
+function _saveServicePrices(matrixId, servicePrices) {
+  // servicePrices = { [service_type_key]: price, ... }
+  const stRows = db.prepare(`SELECT id, key FROM service_types`).all();
+  const stMap = {};
+  stRows.forEach(r => { stMap[r.key] = r.id; });
+  for (const [key, price] of Object.entries(servicePrices)) {
+    const stId = stMap[key];
+    if (!stId) continue;
+    db.prepare(`INSERT INTO film_service_prices (matrix_id, service_type_id, price)
+      VALUES (?,?,?)
+      ON CONFLICT(matrix_id, service_type_id) DO UPDATE SET price=excluded.price`)
+      .run(matrixId, stId, price || 0);
+  }
+}
 
 module.exports = router;

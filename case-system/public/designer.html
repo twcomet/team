@@ -52,12 +52,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .welcome-bar .msg { font-size: 15px; font-weight: 600; }
 .welcome-bar .sub  { font-size: 12px; color: #666; margin-top: 2px; }
 
-.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
 .filter-bar input, .filter-bar select {
   padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
   font-size: 13px; background: #fff; outline: none; }
 .filter-bar input:focus, .filter-bar select:focus { border-color: #e91e8c; }
 .filter-bar input { flex: 1; min-width: 180px; }
+
+/* ── 現貨 / 暫缺 切換按鈕 ── */
+.stock-toggle { display: flex; gap: 0; border-radius: 8px; overflow: hidden;
+                border: 1.5px solid #e0e0e0; flex-shrink: 0; }
+.stock-toggle-btn { padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+                    border: none; background: #fff; color: #888; transition: background .15s, color .15s;
+                    white-space: nowrap; }
+.stock-toggle-btn + .stock-toggle-btn { border-left: 1px solid #e0e0e0; }
+.stock-toggle-btn.active          { background: #e91e8c; color: #fff; }
+.stock-toggle-btn.active-in-stock { background: #16a34a; color: #fff; }
+.stock-toggle-btn.active-out      { background: #9ca3af; color: #fff; }
 
 .disc-note { font-size: 13px; color: #e91e8c; font-weight: 600; margin-bottom: 14px; }
 
@@ -186,11 +197,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       <select id="filterSpec" onchange="applyFilter()">
         <option value="">全部材質</option>
       </select>
-      <select id="filterStock" onchange="applyFilter()">
-        <option value="">全部庫存</option>
-        <option value="available">有庫存</option>
-        <option value="low">偏低（&lt;10米）</option>
-      </select>
+      <div class="stock-toggle" id="stockToggle">
+        <button class="stock-toggle-btn active" data-val="" onclick="setStockFilter(this,'','active')">全部</button>
+        <button class="stock-toggle-btn" data-val="available" onclick="setStockFilter(this,'available','active-in-stock')">✅ 現貨</button>
+        <button class="stock-toggle-btn" data-val="out" onclick="setStockFilter(this,'out','active-out')">⬜ 暫缺</button>
+      </div>
     </div>
 
     <div class="disc-note" id="discNote" style="display:none"></div>
@@ -301,18 +312,28 @@ function buildFilters() {
   sSel.innerHTML = '<option value="">全部材質</option>' + specs.map(s => `<option>${s}</option>`).join('');
 }
 
+let stockFilterVal = '';
+
+function setStockFilter(btn, val, activeClass) {
+  stockFilterVal = val;
+  document.querySelectorAll('.stock-toggle-btn').forEach(b => {
+    b.classList.remove('active', 'active-in-stock', 'active-out');
+  });
+  btn.classList.add(activeClass);
+  applyFilter();
+}
+
 function applyFilter() {
   const q     = document.getElementById('searchInput').value.toLowerCase();
   const brand = document.getElementById('filterBrand').value;
   const spec  = document.getElementById('filterSpec').value;
-  const stock = document.getElementById('filterStock').value;
 
   let list = stockData;
   if (q)     list = list.filter(m => (m.brand + m.model + (m.color||'') + (m.spec||'')).toLowerCase().includes(q));
   if (brand) list = list.filter(m => m.brand === brand);
   if (spec)  list = list.filter(m => m.spec === spec);
-  if (stock === 'available') list = list.filter(m => m.total_stock > 0);
-  if (stock === 'low')       list = list.filter(m => m.total_stock > 0 && m.total_stock < 10);
+  if (stockFilterVal === 'available') list = list.filter(m => m.total_stock > 0);
+  if (stockFilterVal === 'out')       list = list.filter(m => m.total_stock <= 0);
 
   renderGrid(list);
 }
