@@ -3396,11 +3396,47 @@ function buildItemCard(it) {
     const sqChi = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) : '0.00';
     const matCostDisp = it.material_cost ? `NT$${Math.round(it.material_cost).toLocaleString()}` : '—';
     const canSeeAmt = currentUser?.can_see_amounts;
+    const isSimple = it.display_mode === 'simple';
+    const modeBtn = `<button onclick="toggleDisplayMode(${it.id})"
+      title="${isSimple?'簡略模式：客戶看不到才數/單價':'詳細模式：客戶看到才數與單價'}"
+      style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${isSimple?'#f59e0b':'#94a3b8'};background:${isSimple?'#fef3c7':'#f8fafc'};color:${isSimple?'#92400e':'#64748b'};margin-right:4px">
+      ${isSimple ? '簡略' : '詳細'}</button>`;
+    const filmDetailRow = `
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
+    <div><label class="q-field-label">長(cm)</label>
+      <input type="number" id="qLen_${it.id}" class="q-input" value="${it.length_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">寬(cm)</label>
+      <input type="number" id="qWid_${it.id}" class="q-input" value="${it.width_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label" style="font-weight:600">才數</label>
+      <div id="qArea_${it.id}" class="q-input" style="background:#f0f7ff;font-weight:700;color:#1e40af">${sqChi}</div></div>
+    <div><label class="q-field-label">單價/才</label>
+      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">小計</label>
+      <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+  </div>`;
+    const filmSimpleRow = `
+  <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px">
+    <div style="font-size:11px;color:#92400e;font-weight:600;margin-bottom:6px">簡略模式 — 客戶僅看到數量與總價，看不到才數與單價</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+      <div><label class="q-field-label" style="color:#b45309">品項總價（可手動調整）</label>
+        <input type="number" id="qSimplePrice_${it.id}" class="q-input" value="${it.simple_price||''}"
+               placeholder="客戶看到的總價" oninput="qCalcSimple(${it.id})" onblur="saveQItem(${it.id})"></div>
+      <div><label class="q-field-label">× 數量</label>
+        <input type="number" id="qSimpleQty_${it.id}" class="q-input" value="${it.quantity||1}" min="1"
+               oninput="qCalcSimple(${it.id})" onblur="saveQItem(${it.id})"></div>
+      <div><div class="q-field-label">小計</div>
+        <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+    </div>
+  </div>
+  <input type="hidden" id="qLen_${it.id}" value="${it.length_cm||''}">
+  <input type="hidden" id="qWid_${it.id}" value="${it.width_cm||''}">
+  <input type="hidden" id="qUprice_${it.id}" value="${it.unit_price||''}">`;
     return `<div class="q-item-card" id="qItem_${it.id}">
   <div class="q-item-header">
     <span class="q-type-badge q-film-badge">貼膜</span>
     <input id="qLoc_${it.id}" class="q-input" style="width:110px" placeholder="施作位置" value="${esc(it.location)}" onblur="saveQItem(${it.id})">
     <span style="flex:1"></span>
+    ${modeBtn}
     <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
     <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
   </div>
@@ -3418,18 +3454,7 @@ function buildItemCard(it) {
         <option value="custom" ${it.surface_type==='custom'?'selected':''}>造型/異形</option>
       </select></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px">
-    <div><label class="q-field-label">長(cm)</label>
-      <input type="number" id="qLen_${it.id}" class="q-input" value="${it.length_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
-    <div><label class="q-field-label">寬(cm)</label>
-      <input type="number" id="qWid_${it.id}" class="q-input" value="${it.width_cm||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
-    <div><label class="q-field-label" style="font-weight:600">才數</label>
-      <div id="qArea_${it.id}" class="q-input" style="background:#f0f7ff;font-weight:700;color:#1e40af">${sqChi}</div></div>
-    <div><label class="q-field-label">單價/才</label>
-      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||''}" oninput="qCalcSqChi(${it.id})" onblur="saveQItem(${it.id})"></div>
-    <div><label class="q-field-label">小計</label>
-      <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
-  </div>
+  ${isSimple ? filmSimpleRow : filmDetailRow}
   ${canSeeAmt ? `
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;background:#fef2f2;border-radius:6px;padding:8px">
     <div><label class="q-field-label" style="color:#991b1b">成本/米（元）</label>
@@ -3455,11 +3480,24 @@ function buildItemCard(it) {
   if (it.item_type === 'catalog') {
     const catalogOpts = catalogAll.map(c => `<option value="${c.id}" data-price="${c.base_price||0}" data-notice="${c.notice_template_id||''}" ${c.id===it.catalog_item_id?'selected':''}>${c.category?c.category+' - ':''}${c.name}</option>`).join('');
     const catNoticeOpts = `<option value="">（不附須知）</option>` + noticeTemplatesAll.map(t => `<option value="${t.id}" ${t.id===it.notice_template_id?'selected':''}>${esc(t.name||'模板'+t.id)}</option>`).join('');
+    const isSimpleCat = it.display_mode === 'simple';
+    const catModeBtn = `<button onclick="toggleDisplayMode(${it.id})"
+      title="${isSimpleCat?'簡略模式：客戶只看數量與總價':'詳細模式：客戶看到數量與單價'}"
+      style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${isSimpleCat?'#f59e0b':'#94a3b8'};background:${isSimpleCat?'#fef3c7':'#f8fafc'};color:${isSimpleCat?'#92400e':'#64748b'};margin-right:4px">
+      ${isSimpleCat ? '簡略' : '詳細'}</button>`;
+    const catPriceRow = isSimpleCat ? `
+    <div><label class="q-field-label" style="color:#b45309">品項總價</label>
+      <input type="number" id="qSimplePrice_${it.id}" class="q-input" value="${it.simple_price||''}"
+             placeholder="客戶看到的總價" oninput="qCalcSimple(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <input type="hidden" id="qUprice_${it.id}" value="${it.unit_price||0}">` : `
+    <div><label class="q-field-label">單價</label>
+      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||0}" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>`;
     return `<div class="q-item-card" id="qItem_${it.id}">
   <div class="q-item-header">
     <span class="q-type-badge q-catalog-badge">公規品</span>
     <input id="qLoc_${it.id}" class="q-input" style="width:110px" placeholder="施作位置" value="${esc(it.location)}" onblur="saveQItem(${it.id})">
     <span style="flex:1"></span>
+    ${catModeBtn}
     <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
     <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
   </div>
@@ -3468,9 +3506,9 @@ function buildItemCard(it) {
       <select id="qCatSel_${it.id}" class="q-input" onchange="qCatalogChange(${it.id},this)">
         <option value="">-- 選擇公規品 --</option>${catalogOpts}</select></div>
     <div><label class="q-field-label">數量</label>
-      <input type="number" id="qQty_${it.id}" class="q-input" value="${it.quantity||1}" min="1" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
-    <div><label class="q-field-label">單價</label>
-      <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||0}" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
+      <input type="number" id="qQty_${it.id}" class="q-input" value="${it.quantity||1}" min="1"
+             oninput="${isSimpleCat?'qCalcSimple':'qCalcLineSub'}(${it.id})" onblur="saveQItem(${it.id})"></div>
+    ${catPriceRow}
     <div><label class="q-field-label">小計</label>
       <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
   </div>
@@ -3540,6 +3578,75 @@ function qCalcMatCost(itemId) {
   if (el) el.textContent = matCost > 0 ? `NT$${matCost.toLocaleString()}` : '—';
 }
 
+function qCalcSimple(itemId) {
+  const price = parseFloat(document.getElementById(`qSimplePrice_${itemId}`)?.value) || 0;
+  const qtyEl = document.getElementById(`qSimpleQty_${itemId}`) || document.getElementById(`qQty_${itemId}`);
+  const qty   = parseFloat(qtyEl?.value) || 1;
+  const total = Math.round(price * qty);
+  const sEl = document.getElementById(`qSub_${itemId}`);
+  const hEl = document.getElementById(`qHeadSub_${itemId}`);
+  const sv  = total > 0 ? QFmt(total) : '—';
+  if (sEl) sEl.textContent = sv;
+  if (hEl) hEl.textContent = sv;
+}
+
+async function toggleDisplayMode(itemId) {
+  if (!currentQuote) return;
+  const item = (currentQuote.items || []).find(i => i.id === itemId);
+  if (!item) return;
+  const newMode = item.display_mode === 'simple' ? 'detail' : 'simple';
+  const g = id => document.getElementById(id)?.value ?? null;
+
+  // Auto-fill simple_price from current subtotal when switching to simple
+  const autoPrice = newMode === 'simple'
+    ? (item.subtotal || Math.round((item.area_sqchi||0) * (item.unit_price||0)))
+    : null;
+
+  let body = {
+    item_type: item.item_type,
+    location: g(`qLoc_${itemId}`) ?? item.location,
+    display_mode: newMode,
+    simple_price: autoPrice,
+  };
+
+  if (item.item_type === 'film') {
+    const seriesSel = document.getElementById(`qSeries_${itemId}`);
+    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim()
+      .replace(/\s*（剩餘[\d.]+m）$/, '').replace(/ \[防焰\]$/, '') || item.film_spec || null;
+    body = { ...body,
+      film_brand:   g(`qBrand_${itemId}`) ?? item.film_brand,
+      film_model:   g(`qSeries_${itemId}`) ?? item.film_model,
+      film_spec:    seriesName,
+      surface_type: g(`qSurface_${itemId}`) ?? item.surface_type ?? 'flat',
+      length_cm:    parseFloat(g(`qLen_${itemId}`)) || item.length_cm || null,
+      width_cm:     parseFloat(g(`qWid_${itemId}`)) || item.width_cm || null,
+      unit_price:   parseFloat(g(`qUprice_${itemId}`)) || item.unit_price || 0,
+      notes:        g(`qNotes_${itemId}`) ?? item.notes,
+      notice_template_id: parseInt(g(`qNotice_${itemId}`)) || item.notice_template_id || null,
+      film_width_cm: parseFloat(document.getElementById(`qFilmWidth_${itemId}`)?.value) || item.film_width_cm || 122,
+      cost_per_meter: parseFloat(g(`qCostPerM_${itemId}`)) || item.cost_per_meter || null,
+      estimated_meters: parseFloat(g(`qEstMeters_${itemId}`)) || item.estimated_meters || null,
+      material_cost: item.material_cost || null,
+      unit: '才',
+      quantity: item.quantity || 1,
+    };
+  } else if (item.item_type === 'catalog') {
+    body = { ...body,
+      catalog_item_id: parseInt(g(`qCatSel_${itemId}`)) || item.catalog_item_id || null,
+      quantity: parseFloat(g(`qQty_${itemId}`)) || item.quantity || 1,
+      unit_price: parseFloat(g(`qUprice_${itemId}`)) || item.unit_price || 0,
+      notice_template_id: parseInt(g(`qNotice_${itemId}`)) || item.notice_template_id || null,
+      unit: '件',
+    };
+  }
+
+  await fetch(`/api/quotes/${currentQuote.id}/items/${itemId}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  const r = await fetch(`/api/quotes/${currentQuote.id}`);
+  if (r.ok) { currentQuote = await r.json(); renderQuotePanel(); }
+}
+
 function qCalcLineSub(itemId) {
   const qty   = parseFloat(document.getElementById(`qQty_${itemId}`)?.value) || 0;
   const price = parseFloat(document.getElementById(`qUprice_${itemId}`)?.value) || 0;
@@ -3595,11 +3702,15 @@ function qCatalogChange(itemId, selEl) {
   const price = parseFloat(opt.getAttribute('data-price') || '0');
   const pFld = document.getElementById(`qUprice_${itemId}`);
   if (pFld) pFld.value = price;
+  // Auto-fill simple_price if in simple mode and empty
+  const sFld = document.getElementById(`qSimplePrice_${itemId}`);
+  if (sFld && !sFld.value) sFld.value = price;
   // Auto-fill notice template from catalog item default
   const noticeId = opt.getAttribute('data-notice') || '';
   const noticeSel = document.getElementById(`qNotice_${itemId}`);
   if (noticeSel && noticeId && !noticeSel.value) noticeSel.value = noticeId;
-  qCalcLineSub(itemId);
+  const item = (currentQuote?.items||[]).find(i => i.id === itemId);
+  if (item?.display_mode === 'simple') { qCalcSimple(itemId); } else { qCalcLineSub(itemId); }
   setTimeout(() => saveQItem(itemId), 50);
 }
 
@@ -3613,8 +3724,10 @@ async function saveQItem(itemId) {
   let body = { item_type: type, location: g(`qLoc_${itemId}`) };
 
   if (type === 'film') {
+    const isSimple = item.display_mode === 'simple';
     const seriesSel = document.getElementById(`qSeries_${itemId}`);
-    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim().replace(/ \[防焰\]$/, '') || null;
+    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim()
+      .replace(/\s*（剩餘[\d.]+m）$/, '').replace(/ \[防焰\]$/, '') || null;
     const noticeId = parseInt(g(`qNotice_${itemId}`)) || null;
     body = { ...body,
       film_brand:          g(`qBrand_${itemId}`),
@@ -3624,21 +3737,27 @@ async function saveQItem(itemId) {
       length_cm:           parseFloat(g(`qLen_${itemId}`)) || null,
       width_cm:            parseFloat(g(`qWid_${itemId}`)) || null,
       unit_price:          parseFloat(g(`qUprice_${itemId}`)) || 0,
-      notes:              g(`qNotes_${itemId}`),
-      notice_template_id: noticeId,
-      film_width_cm:      parseFloat(document.getElementById(`qFilmWidth_${itemId}`)?.value) || 122,
-      cost_per_meter:     parseFloat(g(`qCostPerM_${itemId}`)) || null,
-      estimated_meters:   parseFloat(g(`qEstMeters_${itemId}`)) || null,
-      material_cost:      (parseFloat(g(`qCostPerM_${itemId}`)) || 0) * (parseFloat(g(`qEstMeters_${itemId}`)) || 0) || null,
+      notes:               g(`qNotes_${itemId}`),
+      notice_template_id:  noticeId,
+      film_width_cm:       parseFloat(document.getElementById(`qFilmWidth_${itemId}`)?.value) || 122,
+      cost_per_meter:      parseFloat(g(`qCostPerM_${itemId}`)) || null,
+      estimated_meters:    parseFloat(g(`qEstMeters_${itemId}`)) || null,
+      material_cost:       (parseFloat(g(`qCostPerM_${itemId}`)) || 0) * (parseFloat(g(`qEstMeters_${itemId}`)) || 0) || null,
       unit: '才',
+      display_mode:        isSimple ? 'simple' : 'detail',
+      simple_price:        isSimple ? (parseFloat(g(`qSimplePrice_${itemId}`)) || null) : null,
+      quantity:            isSimple ? (parseFloat(g(`qSimpleQty_${itemId}`)) || 1) : 1,
     };
   } else if (type === 'catalog') {
+    const isSimple = item.display_mode === 'simple';
     body = { ...body,
       catalog_item_id:    parseInt(g(`qCatSel_${itemId}`)) || null,
       quantity:           parseFloat(g(`qQty_${itemId}`)) || 1,
       unit_price:         parseFloat(g(`qUprice_${itemId}`)) || 0,
       notice_template_id: parseInt(g(`qNotice_${itemId}`)) || null,
       unit: '件',
+      display_mode:       isSimple ? 'simple' : 'detail',
+      simple_price:       isSimple ? (parseFloat(g(`qSimplePrice_${itemId}`)) || null) : null,
     };
   } else {
     body = { ...body,

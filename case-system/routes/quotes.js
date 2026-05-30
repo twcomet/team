@@ -235,7 +235,8 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     unit, quantity, unit_price,
     notice_template_id, notice_text,
     material_photo_url, area_photo_url, notes,
-    cost_per_meter, estimated_meters, material_cost
+    cost_per_meter, estimated_meters, material_cost,
+    display_mode, simple_price
   } = req.body;
 
   let area_sqchi = req.body.area_sqchi;
@@ -243,8 +244,13 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     area_sqchi = Math.round((Number(length_cm) * Number(width_cm) / 900) * 100) / 100;
   }
 
-  const qty = item_type === 'film' ? (area_sqchi || 0) : (Number(quantity) || 1);
-  const subtotal = Math.round(qty * (Number(unit_price) || 0) + (Number(addon_total) || 0));
+  let subtotal;
+  if (display_mode === 'simple') {
+    subtotal = Math.round((Number(simple_price) || 0) * (Number(quantity) || 1));
+  } else {
+    const qty = item_type === 'film' ? (area_sqchi || 0) : (Number(quantity) || 1);
+    subtotal = Math.round(qty * (Number(unit_price) || 0) + (Number(addon_total) || 0));
+  }
 
   let finalNoticeText = notice_text;
   if (finalNoticeText === undefined && notice_template_id) {
@@ -259,7 +265,8 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     catalog_item_id=?,catalog_config=?,difficulty_level=?,
     addon_ids=?,addon_total=?,unit=?,quantity=?,unit_price=?,subtotal=?,
     notice_template_id=?,notice_text=?,material_photo_url=?,area_photo_url=?,notes=?,
-    cost_per_meter=?,estimated_meters=?,material_cost=?
+    cost_per_meter=?,estimated_meters=?,material_cost=?,
+    display_mode=?,simple_price=?
     WHERE id=? AND quote_id=?`)
     .run(item_type||'film', location||null, description||null,
          film_brand||null, film_model||null, film_spec||null, film_width_cm||122, surface_type||'flat',
@@ -270,10 +277,11 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
          notice_template_id||null, finalNoticeText??null,
          material_photo_url||null, area_photo_url||null, notes||null,
          cost_per_meter||null, estimated_meters||null, material_cost||null,
+         display_mode||'detail', simple_price||null,
          req.params.itemId, quoteId);
 
   recalcQuote(quoteId);
-  res.json({ ok: true, area_sqchi, subtotal });
+  res.json({ ok: true, area_sqchi, subtotal, display_mode: display_mode||'detail' });
 });
 
 // 刪除品項

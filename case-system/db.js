@@ -2411,6 +2411,10 @@ db.exec(`
   );
 `);
 
+// 擴充 quote_sheet_items
+_addCol('quote_sheet_items', 'display_mode', "TEXT DEFAULT 'detail'");
+_addCol('quote_sheet_items', 'simple_price', 'REAL');
+
 // 擴充 quote_sheets
 _addCol('quote_sheets', 'subtotal',                'REAL DEFAULT 0');
 _addCol('quote_sheets', 'discount_rule_id',        'INTEGER');
