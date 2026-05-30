@@ -49,6 +49,7 @@ router.get('/stock', (req, res) => {
 
   const materials = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.category, m.unit_price,
+           m.fire_retardant, m.width_cm,
            COALESCE(SUM(mr.remaining_meters), 0) as total_stock
     FROM materials m
     LEFT JOIN material_rolls mr ON mr.material_id = m.id AND mr.status = 'active'
