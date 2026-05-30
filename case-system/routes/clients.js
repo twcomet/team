@@ -21,7 +21,7 @@ router.get('/', requireAuth, (req, res) => {
       LEFT JOIN orgs o ON c.org_id = o.id
       LEFT JOIN client_categories cc ON cc.id = c.category_id
       ${orgSql ? `WHERE ${orgSql}` : ''}
-      ORDER BY c.name
+      ORDER BY c.created_at DESC
     `).all(...orgPs);
   clients.forEach(c => {
     c.tags = c.tags_csv
