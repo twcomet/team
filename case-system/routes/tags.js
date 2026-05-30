@@ -14,6 +14,7 @@ router.get('/', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
+  if (me.role !== 'owner') return res.status(403).json({ error: '僅限老闆可新增標籤' });
   const { name, color } = req.body;
   if (!name) return res.status(400).json({ error: '請填入標籤名稱' });
   const result = db.prepare(`INSERT INTO tags (org_id, name, color) VALUES (?, ?, ?)`)
@@ -22,6 +23,8 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 router.delete('/:id', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner') return res.status(403).json({ error: '僅限老闆可刪除標籤' });
   db.prepare(`DELETE FROM tags WHERE id = ?`).run(req.params.id);
   res.json({ ok: true });
 });

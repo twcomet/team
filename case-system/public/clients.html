@@ -142,8 +142,8 @@
         <span style="font-size:12px;color:var(--gray-500)">標籤：</span>
         <span class="type-tab active" data-tag="" style="font-size:12px">全部</span>
         <span id="tagFilterRow"></span>
-        <button class="btn btn-ghost btn-sm" id="manageTagsBtn" style="font-size:11px">⚙ 管理標籤</button>
-        <button class="btn btn-ghost btn-sm" id="manageCatsBtn" style="font-size:11px">⚙ 管理分類</button>
+        <button class="btn btn-ghost btn-sm" id="manageTagsBtn" style="font-size:11px;display:none">⚙ 管理標籤</button>
+        <button class="btn btn-ghost btn-sm" id="manageCatsBtn" style="font-size:11px;display:none">⚙ 管理分類</button>
       </div>
 
       <!-- 客戶卡片列表 -->
@@ -531,6 +531,11 @@ async function init() {
   await loadUser();
   highlightNav('clients');
   await Promise.all([loadClients(), loadTags(), loadCategories()]);
+
+  if (currentUser?.role === 'owner') {
+    document.getElementById('manageTagsBtn').style.display = '';
+    document.getElementById('manageCatsBtn').style.display = '';
+  }
 
   document.getElementById('manageTagsBtn').addEventListener('click', () => {
     renderTagMgrList();
