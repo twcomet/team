@@ -193,27 +193,11 @@ router.get('/film-prices/inventory', requireAuth, (req, res) => {
 });
 router.get('/film-prices', requireAuth, (req, res) => {
   const rows = db.prepare(`
-    SELECT fpm.*,
-      mat.id             AS mat_id,
-      mat.brand          AS mat_brand,
-      mat.model          AS mat_model,
-      mat.spec           AS mat_spec,
-      mat.fire_retardant AS mat_fire_retardant,
-      mat.width_cm       AS mat_width_cm,
-      mat.unit_price     AS mat_unit_price,
-      mat.unit_cost      AS mat_unit_cost_live,
-      COALESCE(SUM(mr.remaining_meters), 0) AS inventory_stock
-    FROM film_price_matrix fpm
-    LEFT JOIN materials mat ON mat.id = fpm.material_id
-    LEFT JOIN material_rolls mr ON mr.material_id = COALESCE(
-      fpm.material_id,
-      (SELECT m2.id FROM materials m2 WHERE m2.brand = fpm.brand AND m2.model = fpm.series_code LIMIT 1)
-    ) AND mr.status='active'
-    WHERE fpm.active=1
-    GROUP BY fpm.id
-    ORDER BY COALESCE(mat.brand, fpm.brand), COALESCE(mat.fire_retardant, fpm.flame_resistant), fpm.sort_order
+    SELECT * FROM film_price_matrix
+    WHERE active=1
+    ORDER BY brand, series_name, flame_resistant, sort_order
   `).all();
-  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.cost_per_meter = null; r.mat_unit_cost_live = null; });
+  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.cost_per_meter = null; });
   res.json(rows);
 });
 router.post('/film-prices', requireAuth, (req, res) => {
