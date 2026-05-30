@@ -73,6 +73,7 @@
             <th>品牌</th><th>系列代號</th><th>系列名稱</th><th>防焰</th>
             <th>膜寬(cm)</th><th>材料成本/米</th>
             <th>全平面牆/才</th><th>系統櫃門片/才</th><th>造型/才</th>
+            <th>庫存</th>
             <th width="60">操作</th>
           </tr></thead>
           <tbody id="film-tbody"></tbody>
@@ -420,22 +421,36 @@ async function loadFilmPrices() {
   const data = await fetch(`${API}/film-prices`).then(r=>r.json());
   _filmPricesCache = data;
   const tbody = document.getElementById('film-tbody');
-  tbody.innerHTML = data.map(r => `
+  tbody.innerHTML = data.map(r => {
+    const hasStock = r.inventory_stock > 0;
+    const stockBadge = hasStock
+      ? `<span style="background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600">${r.inventory_stock}m</span>`
+      : (r.series_code
+          ? `<span style="color:#d1d5db;font-size:11px">—</span>`
+          : `<span style="color:#d1d5db;font-size:11px">無代號</span>`);
+    const costCell = r.cost_per_meter
+      ? `<span style="color:#9ca3af">${fmt(r.cost_per_meter)}</span>`
+      : (r.inventory_cost
+          ? `<span style="color:#f59e0b;cursor:pointer" title="點擊帶入庫存單價 ${fmt(r.inventory_cost)}/米" onclick="applyInventoryCost(${r.id},${r.inventory_cost})">庫存:${fmt(r.inventory_cost)} ↑</span>`
+          : `<span style="color:#d1d5db">—</span>`);
+    return `
     <tr>
       <td><span class="brand-badge ${brandClass(r.brand)}">${r.brand}</span></td>
       <td>${r.series_code||'—'}</td>
       <td>${r.series_name||'—'}</td>
       <td><span class="${r.flame_resistant?'flame-yes':'flame-no'}">${r.flame_resistant?'防焰':'不防焰'}</span></td>
       <td>${r.film_width_cm||122}</td>
-      <td style="color:#9ca3af">${fmt(r.cost_per_meter)}</td>
+      <td>${costCell}</td>
       <td class="price-cell">${fmt(r.price_flat)}</td>
       <td class="price-cell">${fmt(r.price_cabinet)}</td>
       <td class="price-cell">${fmt(r.price_custom)}</td>
+      <td>${stockBadge}</td>
       <td style="white-space:nowrap">
         <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editFilmPrice(${r.id})">編輯</button>
         <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delFilmPrice(${r.id})">刪除</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料價格</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料價格</td></tr>';
 }
 
 let _filmPricesCache = [];
@@ -472,7 +487,7 @@ function editFilmPrice(id) {
   document.getElementById('nf-name').value    = r.series_name||'';
   document.getElementById('nf-flame').value   = r.flame_resistant ? '1' : '0';
   document.getElementById('nf-width').value   = r.film_width_cm||122;
-  document.getElementById('nf-cost').value    = r.cost_per_meter||'';
+  document.getElementById('nf-cost').value    = r.cost_per_meter || (r.inventory_cost||'');
   document.getElementById('nf-flat').value    = r.price_flat||'';
   document.getElementById('nf-cabinet').value = r.price_cabinet||'';
   document.getElementById('nf-custom').value  = r.price_custom||'';
@@ -480,6 +495,18 @@ function editFilmPrice(id) {
   document.getElementById('nf-submit-btn').textContent = '儲存修改';
   document.getElementById('nf-cancel-btn').style.display = '';
   document.querySelector('#panel-film .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+async function applyInventoryCost(id, cost) {
+  if (!confirm(`將成本設為 $${Number(cost).toLocaleString()}/米（來自庫存單價）？`)) return;
+  const r = _filmPricesCache.find(f => f.id === id);
+  if (!r) return;
+  await fetch(`${API}/film-prices/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...r, cost_per_meter: cost }),
+  });
+  loadFilmPrices();
 }
 
 function cancelFilmEdit() {

@@ -3389,7 +3389,9 @@ function buildItemCard(it) {
     const matchSeries = filmMatrix.filter(m => m.brand === (it.film_brand||''));
     const seriesOpts = matchSeries.map(m => {
       const key = m.series_code || String(m.id);
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" data-width="${m.film_width_cm||122}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+      const effectiveCost = m.cost_per_meter || m.inventory_cost || 0;
+      const stockLabel = (m.inventory_stock > 0) ? ` （剩餘${m.inventory_stock}m）` : '';
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${effectiveCost}" data-width="${m.film_width_cm||122}" data-stock="${m.inventory_stock||0}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}${stockLabel}</option>`;
     }).join('');
     const sqChi = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) : '0.00';
     const matCostDisp = it.material_cost ? `NT$${Math.round(it.material_cost).toLocaleString()}` : '—';
@@ -3556,7 +3558,9 @@ function qFilmBrandChange(itemId, brand) {
   seriesSel.innerHTML = `<option value="">-- 系列 --</option>` +
     matchSeries.map(m => {
       const key = m.series_code || String(m.id);
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" data-width="${m.film_width_cm||122}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+      const effectiveCost = m.cost_per_meter || m.inventory_cost || 0;
+      const stockLabel = (m.inventory_stock > 0) ? ` （剩餘${m.inventory_stock}m）` : '';
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${effectiveCost}" data-width="${m.film_width_cm||122}" data-stock="${m.inventory_stock||0}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}${stockLabel}</option>`;
     }).join('');
   setTimeout(() => saveQItem(itemId), 50);
 }

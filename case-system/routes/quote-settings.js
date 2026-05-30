@@ -177,7 +177,17 @@ router.get('/travel-fees/match', requireAuth, (req, res) => {
 
 // ── 膜料價格矩陣 ─────────────────────────────────────────────────
 router.get('/film-prices', requireAuth, (req, res) => {
-  res.json(db.prepare(`SELECT * FROM film_price_matrix WHERE active=1 ORDER BY brand, flame_resistant, sort_order`).all());
+  const rows = db.prepare(`
+    SELECT fpm.*,
+      COALESCE(SUM(m.stock_meters), 0) AS inventory_stock,
+      MAX(m.unit_cost)                 AS inventory_cost
+    FROM film_price_matrix fpm
+    LEFT JOIN materials m ON m.brand = fpm.brand AND m.model = fpm.series_code
+    WHERE fpm.active=1
+    GROUP BY fpm.id
+    ORDER BY fpm.brand, fpm.flame_resistant, fpm.sort_order
+  `).all();
+  res.json(rows);
 });
 router.post('/film-prices', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
