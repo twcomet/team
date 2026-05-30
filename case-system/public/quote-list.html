@@ -292,6 +292,7 @@ async function loadList() {
       <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
         <a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
         ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}
+        ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#fee2e2;color:#991b1b;border-radius:6px;border:none;cursor:pointer" onclick="deleteQuote(${q.id},'${(q.case_number||'').replace(/'/g,"\\'")}')">刪除</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -413,6 +414,14 @@ async function createCaseAndQuote() {
 }
 
 // Enter on search
+async function deleteQuote(id, caseNumber) {
+  if (!confirm(`確定刪除報價單（案件：${caseNumber}）？\n已成交或已簽署的報價單無法刪除。`)) return;
+  const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (res.ok) { showToast('報價單已刪除'); await loadList(); }
+  else showToast(data.error || '刪除失敗', 'error');
+}
+
 document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(); });
 
 // Close modal on overlay click

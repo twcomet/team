@@ -209,6 +209,7 @@ function renderVendors() {
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="btn btn-secondary btn-sm" onclick="openEdit(${v.id})">編輯</button>
           <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deactivate(${v.id}, '${esc(v.name)}')">停用</button>
+          ${currentUser?.role==='owner' ? `<button class="btn btn-sm" style="background:#7f1d1d;color:#fff" onclick="deleteVendorPermanent(${v.id}, '${esc(v.name)}')">刪除</button>` : ''}
         </div>
       </div>
 
@@ -372,6 +373,14 @@ async function deactivate(id, name) {
   const r = await fetch(`/api/vendors/${id}`, { method: 'DELETE' });
   if (!r.ok) { alert('操作失敗'); return; }
   await loadVendors();
+}
+
+async function deleteVendorPermanent(id, name) {
+  if (!confirm(`確定永久刪除供應商「${name}」？\n此操作無法復原。有採購單記錄的供應商無法刪除。`)) return;
+  const r = await fetch(`/api/vendors/${id}?permanent=1`, { method: 'DELETE' });
+  const data = await r.json();
+  if (r.ok) { showToast(`「${name}」已刪除`); await loadVendors(); }
+  else showToast(data.error || '刪除失敗', 'error');
 }
 
 document.getElementById('newVendorBtn').addEventListener('click', openNew);

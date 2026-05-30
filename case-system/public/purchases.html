@@ -308,7 +308,7 @@ function renderOrders() {
                 <button class="btn btn-secondary btn-sm" onclick="openEdit(${po.id})">編輯</button>
               ` : ''}
               ${isManager && po.status === 'pending' ? `
-                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="cancelPo(${po.id})">取消</button>
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="cancelPo(${po.id})">刪除</button>
               ` : ''}
             </div>
           </div>
@@ -429,7 +429,7 @@ async function saveReceipt() {
 }
 
 async function cancelPo(id) {
-  if (!confirm('確定取消此採購單？')) return;
+  if (!confirm('確定刪除此採購單？\n只有「待到貨」狀態的採購單可以刪除。')) return;
   const r = await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
   if (!r.ok) { alert('操作失敗'); return; }
   await loadOrders();

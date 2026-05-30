@@ -380,6 +380,24 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
   res.json({ ok: true, area_sqchi, subtotal, display_mode: display_mode||'detail' });
 });
 
+// 刪除整張報價單
+router.delete('/:quoteId', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner' && !me.manage_users) return res.status(403).json({ error: '僅限老闆或管理員可刪除報價單' });
+  const qs = db.prepare(`SELECT qs.id, qs.status, c.status as case_status, c.case_number
+    FROM quote_sheets qs JOIN cases c ON c.id=qs.case_id
+    WHERE qs.id=?`).get(req.params.quoteId);
+  if (!qs) return res.status(404).json({ error: '找不到報價單' });
+  const dealStatuses = ['contracted','payment','closed'];
+  if (dealStatuses.includes(qs.case_status))
+    return res.status(400).json({ error: `案件 ${qs.case_number} 已成交，報價單無法刪除` });
+  if (qs.status === 'signed')
+    return res.status(400).json({ error: '已簽署的報價單無法刪除' });
+  db.prepare(`DELETE FROM quote_sheet_items WHERE quote_id=?`).run(req.params.quoteId);
+  db.prepare(`DELETE FROM quote_sheets WHERE id=?`).run(req.params.quoteId);
+  res.json({ ok: true });
+});
+
 // 刪除品項
 router.delete('/:quoteId/items/:itemId', requireAuth, (req, res) => {
   const quoteId = Number(req.params.quoteId);

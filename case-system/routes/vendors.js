@@ -77,7 +77,15 @@ router.put('/:id', requireAuth, requireVendorAccess, (req, res) => {
 });
 
 router.delete('/:id', requireAuth, requireVendorAccess, (req, res) => {
-  db.prepare(`UPDATE vendors SET active=0 WHERE id=?`).run(req.params.id);
+  if (req.query.permanent === '1') {
+    if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅限老闆可永久刪除供應商' });
+    const poCount = db.prepare(`SELECT COUNT(*) cnt FROM purchase_orders WHERE vendor_id=?`).get(req.params.id).cnt;
+    if (poCount > 0) return res.status(400).json({ error: `此供應商有 ${poCount} 筆採購單記錄，無法刪除（可改用「停用」）` });
+    db.prepare(`DELETE FROM vendor_brands WHERE vendor_id=?`).run(req.params.id);
+    db.prepare(`DELETE FROM vendors WHERE id=?`).run(req.params.id);
+  } else {
+    db.prepare(`UPDATE vendors SET active=0 WHERE id=?`).run(req.params.id);
+  }
   res.json({ ok: true });
 });
 
