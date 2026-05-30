@@ -279,7 +279,7 @@ async function loadList() {
       <td><span class="status-pill ${st.cls}">${st.label}</span></td>
       <td class="amt-cell">${amt}</td>
       <td style="color:#6b7280;font-size:12px">${dateStr}</td>
-      <td><a href="/case-detail?id=${q.case_id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px">開啟</a></td>
+      <td><a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a></td>
     </tr>`;
   }).join('');
 }

@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報價單編輯 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+/* ── quote-detail 專屬樣式 ──────────────────────────────────────── */
+.qd-header { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:14px 18px; margin-bottom:14px; }
+.qd-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.qd-case-num { font-size:12px; font-weight:700; color:#2563eb; font-family:monospace; background:#eff6ff; padding:2px 8px; border-radius:10px; }
+.qd-case-title { font-size:16px; font-weight:700; color:#111; }
+.qd-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.qd-actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+.status-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.pill-draft    { background:#f3f4f6; color:#374151; }
+.pill-sent     { background:#dbeafe; color:#1e40af; }
+.pill-accepted { background:#d1fae5; color:#065f46; }
+.pill-signed   { background:#ede9fe; color:#6d28d9; }
+.pill-ready    { background:#fef3c7; color:#92400e; }
+
+/* item cards */
+.item-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.item-card-head { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#f8fafc; }
+.item-card-body { padding:8px 14px 12px; }
+.type-badge { font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 8px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
+.badge-film    { background:#dbeafe; color:#1e40af; }
+.badge-catalog { background:#d1fae5; color:#065f46; }
+.badge-service { background:#fef9c3; color:#713f12; }
+.item-loc { font-size:14px; font-weight:600; color:#111; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item-sub { font-size:14px; font-weight:700; color:#0f766e; white-space:nowrap; }
+.item-acts { display:flex; gap:4px; flex-shrink:0; }
+.ico-btn { border:1px solid #e5e7eb; border-radius:6px; padding:3px 8px; cursor:pointer; background:#fff; font-size:12px; line-height:1.4; }
+.ico-btn:hover { background:#f3f4f6; }
+.ico-del { color:#dc2626; border-color:#fecaca; }
+.ico-del:hover { background:#fee2e2; }
+.spec-row { display:flex; flex-wrap:wrap; gap:12px 20px; font-size:12px; }
+.spec-cell { }
+.spec-lbl { color:#9ca3af; font-size:11px; }
+.spec-val { color:#374151; font-weight:500; }
+.spec-chi { color:#2563eb; font-weight:700; }
+.item-notice { margin-top:8px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; font-size:12px; color:#713f12; line-height:1.6; white-space:pre-wrap; word-break:break-all; }
+.notice-tog { font-size:11px; color:#2563eb; cursor:pointer; display:inline-block; margin-top:4px; user-select:none; }
+
+/* sections */
+.section-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:16px 18px; margin-bottom:14px; }
+.section-card h3 { font-size:14px; font-weight:700; margin:0 0 14px; color:#111; display:flex; align-items:center; gap:8px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.form-group label { display:block; font-size:11px; color:#6b7280; margin-bottom:3px; font-weight:500; }
+.form-group input, .form-group select, .form-group textarea {
+  width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:13px; box-sizing:border-box; font-family:inherit;
+}
+.form-group textarea { height:68px; resize:vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.1); }
+
+/* totals */
+.total-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:13px; }
+.total-row .tl { color:#6b7280; }
+.total-row .tv { font-weight:600; font-family:monospace; }
+.total-row.discount .tl, .total-row.discount .tv { color:#d97706; }
+.total-row.marketing .tl, .total-row.marketing .tv { color:#7c3aed; }
+.total-div { border:none; border-top:1px solid #e5e7eb; margin:6px 0; }
+.total-final { background:#1e40af; border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.total-final .tf-lbl { color:rgba(255,255,255,.85); font-size:13px; font-weight:600; }
+.total-final .tf-val { color:#fff; font-size:20px; font-weight:800; font-family:monospace; }
+
+/* share link */
+.share-box { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; font-size:13px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.share-link-text { font-family:monospace; font-size:12px; color:#1d4ed8; word-break:break-all; flex:1; min-width:0; }
+
+/* warn banner */
+.warn-banner { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+.warn-info    { background:#fffbeb; border:1px solid #fde68a; color:#713f12; }
+.warn-success { background:#f0fdf4; border:1px solid #bbf7d0; color:#065f46; }
+
+/* empty items */
+.empty-items { text-align:center; padding:36px 20px; color:#9ca3af; border:2px dashed #e5e7eb; border-radius:10px; }
+
+/* modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9000; display:flex; align-items:center; justify-content:center; padding:12px; }
+.modal-box { background:#fff; border-radius:14px; width:640px; max-width:100%; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; }
+.modal-head { padding:14px 18px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.modal-head h3 { font-size:15px; font-weight:700; margin:0; }
+.modal-body { padding:16px 18px; overflow-y:auto; flex:1; }
+.modal-foot { padding:12px 18px; border-top:1px solid #e5e7eb; display:flex; gap:8px; justify-content:flex-end; flex-shrink:0; }
+.tab-bar { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:14px; }
+.tab-btn { padding:7px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:#6b7280; border-bottom:2.5px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+.tab-btn.active { color:#2563eb; border-bottom-color:#2563eb; font-weight:600; }
+.hint-green { font-size:11px; color:#059669; margin-top:3px; }
+.hint-blue { font-size:11px; color:#2563eb; margin-top:3px; }
+.subtotal-preview { background:#f0fdf4; border-radius:8px; padding:10px 14px; margin-top:12px; font-size:13px; display:flex; align-items:center; justify-content:space-between; }
+.subtotal-preview .sp-val { font-size:16px; font-weight:700; color:#059669; }
+
+/* btn helpers */
+.btn { display:inline-flex; align-items:center; gap:4px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:13px; font-weight:500; text-decoration:none; }
+.btn-primary { background:#2563eb; color:#fff; }
+.btn-primary:hover { background:#1d4ed8; }
+.btn-success { background:#059669; color:#fff; }
+.btn-success:hover { background:#047857; }
+.btn-secondary { background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; }
+.btn-secondary:hover { background:#e5e7eb; }
+.btn-danger { background:#fee2e2; color:#dc2626; }
+.btn-danger:hover { background:#fecaca; }
+.btn-sm { padding:5px 12px; font-size:12px; }
+.btn-copy { padding:5px 10px; border-radius:6px; border:1px solid #bfdbfe; background:#dbeafe; color:#1e40af; cursor:pointer; font-size:12px; white-space:nowrap; }
+
+@media (max-width: 640px) {
+  .grid-2 { grid-template-columns:1fr; }
+  .grid-3 { grid-template-columns:1fr 1fr; }
+  .qd-actions { margin-left:0; width:100%; }
+  .total-final .tf-val { font-size:18px; }
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="quote-list"    href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="purchases"      href="/purchases">      <span class="icon">🚚</span>進貨管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title" id="pageTitle">報價單</span>
+    </div>
+    <div class="page-body">
+
+      <!-- 案件 header -->
+      <div class="qd-header" id="quoteHeader">
+        <div style="text-align:center;padding:20px;color:#9ca3af">載入中…</div>
+      </div>
+
+      <!-- 警示橫幅 -->
+      <div id="warnBanner" style="display:none"></div>
+
+      <!-- 客戶連結 -->
+      <div id="shareBox" class="share-box" style="display:none">
+        <span style="font-weight:600;white-space:nowrap">客戶連結：</span>
+        <span class="share-link-text" id="shareLink"></span>
+        <button class="btn-copy" onclick="copyLink()">複製</button>
+        <a id="sharePreview" href="#" target="_blank" class="btn btn-sm btn-secondary" style="white-space:nowrap">預覽</a>
+      </div>
+
+      <!-- ── 品項明細 ── -->
+      <div class="section-card">
+        <h3>
+          品項明細
+          <button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="openItemModal(null)">＋ 新增品項</button>
+        </h3>
+        <div id="itemsList"></div>
+      </div>
+
+      <!-- ── 報價設定 ── -->
+      <div class="section-card">
+        <h3>報價設定</h3>
+        <div class="grid-3" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>折扣率（1=不折，0.9=九折）</label>
+            <input type="number" id="s-discount" step="0.01" min="0" max="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>行銷優惠率（選填，同意行銷用）</label>
+            <input type="number" id="s-marketing" step="0.01" min="0" max="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>稅率（0=未稅，0.05=含5%稅）</label>
+            <input type="number" id="s-tax" step="0.01" min="0" max="0.3" value="0.05">
+          </div>
+          <div class="form-group">
+            <label>車馬費（元）</label>
+            <input type="number" id="s-travel" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>運費（元）</label>
+            <input type="number" id="s-freight" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>有效天數</label>
+            <input type="number" id="s-valid" min="1" value="30">
+          </div>
+        </div>
+        <div class="grid-2" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>付款條件</label>
+            <textarea id="s-payment" placeholder="例：完工後 7 天內付清…"></textarea>
+          </div>
+          <div class="form-group">
+            <label>備注說明（顯示於客戶報價單）</label>
+            <textarea id="s-notes" placeholder="例：以上報價不含…"></textarea>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <button class="btn btn-primary" onclick="saveSettings()">儲存設定</button>
+        </div>
+      </div>
+
+      <!-- ── 金額合計 ── -->
+      <div class="section-card" id="totalsCard">
+        <h3>金額合計</h3>
+        <div id="totalsBody"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── 品項新增/編輯 Modal ────────────────────────────────────────── -->
+<div id="itemModal" class="modal-overlay" style="display:none" onclick="closeModalOverlay(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3 id="modalTitle">新增品項</h3>
+      <button class="btn btn-sm btn-secondary" onclick="closeItemModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="item-edit-id">
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-film-btn" onclick="switchItemTab('film')">貼膜品項</button>
+        <button class="tab-btn" id="tab-catalog-btn" onclick="switchItemTab('catalog')">公規品 / 其他</button>
+      </div>
+
+      <!-- 貼膜品項 tab -->
+      <div id="tab-film">
+        <div class="grid-2" style="margin-bottom:10px">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>位置 / 名稱 *</label>
+            <input type="text" id="f-location" placeholder="例：主臥室、客廳電視牆">
+          </div>
+          <div class="form-group">
+            <label>品牌</label>
+            <input type="text" id="f-brand" list="dl-brand" placeholder="BODAQ、LX、PAROI…" autocomplete="off" oninput="autoLookupPrice()">
+            <datalist id="dl-brand"></datalist>
+          </div>
+          <div class="form-group">
+            <label>系列 / 型號</label>
+            <input type="text" id="f-spec" list="dl-spec" placeholder="石紋、木紋…" autocomplete="off" oninput="autoLookupPrice()">
+            <datalist id="dl-spec"></datalist>
+          </div>
+          <div class="form-group">
+            <label>面材類型</label>
+            <select id="f-surface" onchange="autoLookupPrice()">
+              <option value="flat">平面牆</option>
+              <option value="cabinet">系統櫃 / 門片</option>
+              <option value="custom">造型 / 異形</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>膜寬</label>
+            <select id="f-film-width">
+              <option value="91">91 cm</option>
+              <option value="122" selected>122 cm</option>
+              <option value="137">137 cm</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>長度 (cm)</label>
+            <input type="number" id="f-length" placeholder="0" min="0" oninput="calcArea()">
+          </div>
+          <div class="form-group">
+            <label>寬度 (cm)</label>
+            <input type="number" id="f-width" placeholder="0" min="0" oninput="calcArea()">
+          </div>
+          <div class="form-group">
+            <label>才數（自動計算）</label>
+            <input type="number" id="f-sqchi" step="0.01" placeholder="長×寬÷900" oninput="updateFilmPreview()">
+            <div class="hint-blue" id="f-sqchi-hint"></div>
+          </div>
+          <div class="form-group">
+            <label>單價 / 才（元）</label>
+            <input type="number" id="f-price" placeholder="0" min="0" oninput="updateFilmPreview()">
+            <div class="hint-green" id="f-price-hint"></div>
+          </div>
+          <div class="form-group">
+            <label>難度等級</label>
+            <select id="f-diff"></select>
+          </div>
+          <div class="form-group">
+            <label>顯示模式</label>
+            <select id="f-display">
+              <option value="detail">詳細（顯示尺寸才數）</option>
+              <option value="simple">簡略（只顯示品項和金額）</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>貼膜須知模板</label>
+            <select id="f-notice-tmpl" onchange="applyNotice('f')"></select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>貼膜須知內容（可手動修改）</label>
+            <textarea id="f-notice-text" style="height:90px"></textarea>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>備注（內部用，不顯示給客戶）</label>
+            <textarea id="f-notes" style="height:60px"></textarea>
+          </div>
+        </div>
+        <div class="subtotal-preview">
+          <span style="color:#6b7280">預計小計</span>
+          <span class="sp-val" id="f-sub-preview">—</span>
+        </div>
+      </div>
+
+      <!-- 公規品/其他 tab -->
+      <div id="tab-catalog" style="display:none">
+        <div class="form-group" style="margin-bottom:10px">
+          <label>從目錄選取（選填）</label>
+          <select id="c-catalog-id" onchange="onCatalogSelect()">
+            <option value="">（手動輸入）</option>
+          </select>
+        </div>
+        <div class="grid-2" style="margin-bottom:10px">
+          <div class="form-group" style="grid-column:1/-1">
+            <label>位置 / 名稱 *</label>
+            <input type="text" id="c-location" placeholder="例：玄關大門、3樓電梯門">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>說明</label>
+            <input type="text" id="c-desc" placeholder="例：單開防火門，含框">
+          </div>
+          <div class="form-group">
+            <label>計量單位</label>
+            <input type="text" id="c-unit" value="件">
+          </div>
+          <div class="form-group">
+            <label>數量</label>
+            <input type="number" id="c-qty" value="1" min="1" oninput="updateCatalogPreview()">
+          </div>
+          <div class="form-group">
+            <label>單價（元）</label>
+            <input type="number" id="c-price" placeholder="0" min="0" oninput="updateCatalogPreview()">
+          </div>
+          <div class="form-group">
+            <label>難度等級</label>
+            <select id="c-diff"></select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>貼膜須知模板</label>
+            <select id="c-notice-tmpl" onchange="applyNotice('c')"></select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>貼膜須知內容（可手動修改）</label>
+            <textarea id="c-notice-text" style="height:90px"></textarea>
+          </div>
+          <div class="form-group">
+            <label>顯示模式</label>
+            <select id="c-display">
+              <option value="detail">詳細</option>
+              <option value="simple">簡略</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>備注（內部用）</label>
+            <textarea id="c-notes" style="height:60px"></textarea>
+          </div>
+        </div>
+        <div class="subtotal-preview">
+          <span style="color:#6b7280">預計小計</span>
+          <span class="sp-val" id="c-sub-preview">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeItemModal()">取消</button>
+      <button class="btn btn-primary" id="itemSaveBtn" onclick="saveItem()">儲存品項</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const SURFACE_LABELS = { flat:'平面牆', cabinet:'系統櫃/門片', custom:'造型/異形' };
+const TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+const STATUS_MAP = {
+  draft:    { label:'草稿',       cls:'pill-draft'    },
+  sent:     { label:'已發送',     cls:'pill-sent'     },
+  accepted: { label:'客戶已確認', cls:'pill-accepted' },
+  signed:   { label:'已簽約',     cls:'pill-signed'   },
+  ready:    { label:'完成',       cls:'pill-ready'    },
+};
+
+let quoteId, quoteData;
+let filmPrices = [], catalogItems = [], noticeTemplates = [], skillLevels = [];
+let currentItemTab = 'film';
+
+const fmtMoney = n => 'NT$ ' + Math.round(n || 0).toLocaleString('zh-TW');
+const fmtNum   = n => Math.round(n || 0).toLocaleString('zh-TW');
+const esc      = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ── init ──────────────────────────────────────────────────────────
+
+async function init() {
+  const p = new URLSearchParams(location.search);
+  quoteId = p.get('id');
+  if (!quoteId) { location.href = '/quote-list'; return; }
+
+  await loadUser();
+  highlightNav('quote-list');
+
+  [filmPrices, catalogItems, noticeTemplates, skillLevels] = await Promise.all([
+    fetch('/api/quote-settings/film-prices').then(r => r.json()).catch(() => []),
+    fetch('/api/quote-settings/catalog').then(r => r.json()).catch(() => []),
+    fetch('/api/quote-settings/notices').then(r => r.json()).catch(() => []),
+    fetch('/api/quote-settings/skill-levels').then(r => r.json()).catch(() => []),
+  ]);
+
+  buildFormOptions();
+  await loadQuote();
+}
+
+function buildFormOptions() {
+  // Brand datalist
+  const brands = [...new Set(filmPrices.map(f => f.brand).filter(Boolean))].sort();
+  document.getElementById('dl-brand').innerHTML = brands.map(b => `<option value="${esc(b)}">`).join('');
+
+  // Spec datalist
+  const specs = [...new Set(filmPrices.map(f => f.series_name || f.series_code).filter(Boolean))].sort();
+  document.getElementById('dl-spec').innerHTML = specs.map(s => `<option value="${esc(s)}">`).join('');
+
+  // Difficulty selects
+  const diffOpts = skillLevels.length
+    ? skillLevels.map(l => `<option value="${l.level}">${l.level}級${l.label ? ' — ' + l.label : ''}</option>`).join('')
+    : [1,2,3,4,5,6,7,8,9,10].map(i => `<option value="${i}">${i}級</option>`).join('');
+  document.getElementById('f-diff').innerHTML = diffOpts;
+  document.getElementById('c-diff').innerHTML = diffOpts;
+  document.getElementById('f-diff').value = '3';
+  document.getElementById('c-diff').value = '3';
+
+  // Notice template selects
+  const noticeOpts = `<option value="">（不附須知）</option>` +
+    noticeTemplates.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('');
+  document.getElementById('f-notice-tmpl').innerHTML = noticeOpts;
+  document.getElementById('c-notice-tmpl').innerHTML = noticeOpts;
+
+  // Catalog select
+  const catLabels = { door_room:'房間門', door_main:'大門', door_fire:'防火門', door_elevator:'電梯門', door_copper:'硫化銅門', other:'其他' };
+  const groups = {};
+  catalogItems.forEach(item => {
+    if (!groups[item.category]) groups[item.category] = [];
+    groups[item.category].push(item);
+  });
+  let catalogHtml = '<option value="">（手動輸入）</option>';
+  for (const [cat, items] of Object.entries(groups)) {
+    catalogHtml += `<optgroup label="${catLabels[cat] || cat}">`;
+    items.forEach(item => {
+      catalogHtml += `<option value="${item.id}" data-price="${item.base_price}" data-diff="${item.default_difficulty || 3}" data-notice="${item.notice_template_id || ''}">${esc(item.name)} — $${fmtNum(item.base_price)}</option>`;
+    });
+    catalogHtml += '</optgroup>';
+  }
+  document.getElementById('c-catalog-id').innerHTML = catalogHtml;
+}
+
+// ── load & render ─────────────────────────────────────────────────
+
+async function loadQuote() {
+  const r = await fetch(`/api/quotes/${quoteId}`);
+  if (!r.ok) {
+    document.getElementById('quoteHeader').innerHTML = '<div style="color:#dc2626;padding:20px;text-align:center">找不到此報價單，請確認連結是否正確。</div>';
+    return;
+  }
+  quoteData = await r.json();
+  renderAll();
+}
+
+function renderAll() {
+  renderHeader();
+  renderBanner();
+  renderShareBox();
+  renderItems();
+  fillSettings();
+  renderTotals();
+}
+
+function renderHeader() {
+  const q = quoteData;
+  const st = STATUS_MAP[q.status] || { label: q.status, cls:'pill-draft' };
+  document.getElementById('pageTitle').textContent = `${q.case_number || '報價單'} — v${q.version}`;
+  document.title = `報價單 ${q.case_number || ''} | 繪新`;
+
+  const typeLabel = TYPE_LABELS[q.case_type] || '';
+  document.getElementById('quoteHeader').innerHTML = `
+    <div class="qd-top">
+      <a href="/quote-list" style="color:#6b7280;font-size:13px;text-decoration:none;white-space:nowrap">← 報價管理</a>
+      <span class="qd-case-num">${esc(q.case_number || '')}</span>
+      <span class="qd-case-title">${esc(q.title || '（無標題）')}</span>
+      ${typeLabel ? `<span class="badge badge-${q.case_type}" style="font-size:11px">${typeLabel}</span>` : ''}
+      <span class="status-pill ${st.cls}">${st.label}</span>
+    </div>
+    <div class="qd-meta">
+      ${q.client_name ? `<span style="font-size:13px;color:#6b7280">客戶：${esc(q.client_name)}</span>` : ''}
+      <span style="font-size:12px;color:#9ca3af">第 ${q.version} 版</span>
+      ${q.creator_name ? `<span style="font-size:12px;color:#9ca3af">建立：${esc(q.creator_name)}</span>` : ''}
+      <div class="qd-actions">
+        <a href="/case-detail?id=${q.case_id}" class="btn btn-sm btn-secondary">查看案件</a>
+        <button class="btn btn-sm btn-secondary" onclick="newVersion()">建立新版本</button>
+        ${q.status === 'draft'
+          ? `<button class="btn btn-sm btn-success" onclick="sendQuote()">發送報價單</button>`
+          : `<button class="btn btn-sm btn-secondary" onclick="copyLink()">複製客戶連結</button>`}
+      </div>
+    </div>`;
+}
+
+function renderBanner() {
+  const q = quoteData;
+  const el = document.getElementById('warnBanner');
+  if (q.status === 'sent') {
+    el.style.display = '';
+    el.className = 'warn-banner warn-info';
+    el.textContent = '⚠️ 此報價單已發送給客戶。修改後須重新發送（或建立新版本）。';
+  } else if (q.status === 'accepted') {
+    el.style.display = '';
+    el.className = 'warn-banner warn-success';
+    el.textContent = '✅ 客戶已確認此報價單。如需修改請建立新版本。';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function renderShareBox() {
+  const q = quoteData;
+  const box = document.getElementById('shareBox');
+  if (q.status !== 'draft' && q.share_token) {
+    const link = `${location.origin}/quote/${q.share_token}`;
+    box.style.display = 'flex';
+    document.getElementById('shareLink').textContent = link;
+    document.getElementById('sharePreview').href = link;
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function renderItems() {
+  const items = quoteData.items || [];
+  const el = document.getElementById('itemsList');
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-items"><div style="font-size:32px;margin-bottom:8px">📋</div><div>尚無品項，點擊「新增品項」開始建立</div></div>`;
+    return;
+  }
+  el.innerHTML = items.map(item => buildItemCard(item)).join('');
+}
+
+function buildItemCard(item) {
+  const typeLabel = item.item_type === 'film' ? '貼膜' : item.item_type === 'catalog' ? '公規品' : '服務';
+  const typeCls   = item.item_type === 'film' ? 'badge-film' : item.item_type === 'catalog' ? 'badge-catalog' : 'badge-service';
+  const location  = esc(item.location || item.description || '（未命名）');
+  const sub       = item.subtotal != null ? `NT$ ${fmtNum(item.subtotal)}` : '—';
+
+  let specHtml = '';
+  if (item.item_type === 'film') {
+    const parts = [];
+    const brand = [item.film_brand, item.film_spec || item.film_model].filter(Boolean).join(' · ');
+    if (brand)          parts.push(`<div class="spec-cell"><div class="spec-lbl">膜料</div><div class="spec-val">${esc(brand)}</div></div>`);
+    if (item.surface_type) parts.push(`<div class="spec-cell"><div class="spec-lbl">面材</div><div class="spec-val">${SURFACE_LABELS[item.surface_type] || item.surface_type}</div></div>`);
+    if (item.length_cm && item.width_cm) parts.push(`<div class="spec-cell"><div class="spec-lbl">尺寸</div><div class="spec-val">${item.length_cm} × ${item.width_cm} cm</div></div>`);
+    if (item.area_sqchi != null) parts.push(`<div class="spec-cell"><div class="spec-lbl">才數</div><div class="spec-val spec-chi">${Number(item.area_sqchi).toFixed(2)} 才</div></div>`);
+    if (item.unit_price) parts.push(`<div class="spec-cell"><div class="spec-lbl">單價</div><div class="spec-val">$${fmtNum(item.unit_price)}/才</div></div>`);
+    if (parts.length) specHtml = `<div class="spec-row">${parts.join('')}</div>`;
+  } else {
+    const parts = [];
+    if (item.description) parts.push(`<div class="spec-cell"><div class="spec-lbl">說明</div><div class="spec-val">${esc(item.description)}</div></div>`);
+    if (item.quantity) parts.push(`<div class="spec-cell"><div class="spec-lbl">數量</div><div class="spec-val">${item.quantity} ${item.unit || '件'}</div></div>`);
+    if (item.unit_price) parts.push(`<div class="spec-cell"><div class="spec-lbl">單價</div><div class="spec-val">$${fmtNum(item.unit_price)}</div></div>`);
+    if (parts.length) specHtml = `<div class="spec-row">${parts.join('')}</div>`;
+  }
+
+  const noticeHtml = item.notice_text
+    ? `<div class="item-notice" id="notice-${item.id}" style="display:none">${esc(item.notice_text)}</div>
+       <span class="notice-tog" onclick="toggleNotice(${item.id}, this)">展開貼膜須知 ▾</span>`
+    : '';
+
+  const hasBody = specHtml || noticeHtml;
+  return `
+<div class="item-card">
+  <div class="item-card-head">
+    <span class="type-badge ${typeCls}">${typeLabel}</span>
+    <span class="item-loc">${location}</span>
+    <span class="item-sub">${sub}</span>
+    <div class="item-acts">
+      <button class="ico-btn" onclick="openItemModal(${item.id})" title="編輯">✎</button>
+      <button class="ico-btn ico-del" onclick="deleteItem(${item.id})" title="刪除">✕</button>
+    </div>
+  </div>
+  ${hasBody ? `<div class="item-card-body">${specHtml}${noticeHtml}</div>` : ''}
+</div>`;
+}
+
+function toggleNotice(itemId, el) {
+  const notice = document.getElementById(`notice-${itemId}`);
+  if (notice.style.display === 'none') {
+    notice.style.display = '';
+    el.textContent = '收合貼膜須知 ▴';
+  } else {
+    notice.style.display = 'none';
+    el.textContent = '展開貼膜須知 ▾';
+  }
+}
+
+function fillSettings() {
+  const q = quoteData;
+  document.getElementById('s-discount').value = q.discount_rate ?? 1;
+  document.getElementById('s-marketing').value = q.marketing_rate ?? 1;
+  document.getElementById('s-tax').value = q.tax_rate ?? 0.05;
+  document.getElementById('s-travel').value = q.travel_fee ?? 0;
+  document.getElementById('s-freight').value = q.freight_fee ?? 0;
+  document.getElementById('s-valid').value = q.valid_days ?? 30;
+  document.getElementById('s-payment').value = q.payment_terms || '';
+  document.getElementById('s-notes').value = q.notes_terms || '';
+}
+
+function renderTotals() {
+  const q = quoteData;
+  const showDiscount  = (q.discount_rate || 1) < 1 && (q.discount_value || 0) > 0;
+  const showMarketing = (q.marketing_rate || 1) < 1 && (q.marketing_total || 0) > 0;
+  const discount_off  = (q.subtotal || 0) - (q.discount_value || 0);
+
+  let html = `
+    <div class="total-row"><span class="tl">品項小計</span><span class="tv">${fmtMoney(q.subtotal)}</span></div>
+    ${(q.travel_fee || 0) > 0 ? `<div class="total-row"><span class="tl">車馬費</span><span class="tv">${fmtMoney(q.travel_fee)}</span></div>` : ''}
+    ${(q.freight_fee || 0) > 0 ? `<div class="total-row"><span class="tl">運費</span><span class="tv">${fmtMoney(q.freight_fee)}</span></div>` : ''}`;
+
+  if (showDiscount) {
+    html += `
+    <hr class="total-div">
+    <div class="total-row discount"><span class="tl">折扣（${Math.round((1 - (q.discount_rate || 1)) * 100)}% off）</span><span class="tv">- ${fmtMoney(discount_off)}</span></div>
+    <div class="total-row"><span class="tl">折後小計</span><span class="tv">${fmtMoney(q.discount_value)}</span></div>`;
+  }
+
+  if ((q.tax_rate || 0) > 0) {
+    html += `<div class="total-row"><span class="tl">稅金（${Math.round((q.tax_rate || 0) * 100)}%）</span><span class="tv">${fmtMoney(q.tax_amount)}</span></div>`;
+  }
+
+  if (showMarketing) {
+    html += `
+    <hr class="total-div">
+    <div class="total-row marketing"><span class="tl">行銷優惠總價</span><span class="tv">${fmtMoney(q.marketing_total)}</span></div>`;
+  }
+
+  html += `
+    <div class="total-final">
+      <span class="tf-lbl">總計${(q.tax_rate || 0) > 0 ? '（含稅）' : ''}</span>
+      <span class="tf-val">${fmtMoney(q.final_total)}</span>
+    </div>`;
+
+  document.getElementById('totalsBody').innerHTML = html;
+}
+
+// ── Settings save ─────────────────────────────────────────────────
+
+async function saveSettings() {
+  const body = {
+    discount_rate:  parseFloat(document.getElementById('s-discount').value) || 1,
+    marketing_rate: parseFloat(document.getElementById('s-marketing').value) || 1,
+    tax_rate:       parseFloat(document.getElementById('s-tax').value) || 0,
+    travel_fee:     parseFloat(document.getElementById('s-travel').value) || 0,
+    freight_fee:    parseFloat(document.getElementById('s-freight').value) || 0,
+    valid_days:     parseInt(document.getElementById('s-valid').value) || 30,
+    payment_terms:  document.getElementById('s-payment').value,
+    notes_terms:    document.getElementById('s-notes').value,
+    status:         quoteData.status,
+    client_type:    quoteData.client_type || 'owner',
+    client_notes:   quoteData.client_notes || null,
+    notes_acceptance: quoteData.notes_acceptance || null,
+  };
+  const r = await fetch(`/api/quotes/${quoteId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    showToast('設定已儲存');
+    await loadQuote();
+  } else {
+    showToast('儲存失敗', 'error');
+  }
+}
+
+// ── Send quote ────────────────────────────────────────────────────
+
+async function sendQuote() {
+  if (!quoteData.items?.length) {
+    showToast('請先新增品項再發送', 'error'); return;
+  }
+  if (!confirm('發送後客戶即可透過連結查看並確認報價，確定要發送嗎？')) return;
+  const r = await fetch(`/api/quotes/${quoteId}/send`, { method: 'POST' });
+  if (r.ok) {
+    showToast('報價單已發送');
+    await loadQuote();
+  } else {
+    showToast('發送失敗', 'error');
+  }
+}
+
+// ── New version ───────────────────────────────────────────────────
+
+async function newVersion() {
+  if (!confirm(`建立新版本？將以目前 v${quoteData.version} 的設定和品項為基礎建立 v${quoteData.version + 1}。`)) return;
+  const r = await fetch(`/api/quotes/cases/${quoteData.case_id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      copy_from_version: quoteData.version,
+      valid_days:     quoteData.valid_days,
+      payment_terms:  quoteData.payment_terms,
+      notes_terms:    quoteData.notes_terms,
+      client_notes:   quoteData.client_notes,
+      client_type:    quoteData.client_type,
+      discount_rate:  quoteData.discount_rate,
+      marketing_rate: quoteData.marketing_rate,
+      tax_rate:       quoteData.tax_rate,
+      travel_fee:     quoteData.travel_fee,
+      freight_fee:    quoteData.freight_fee,
+    }),
+  });
+  if (r.ok) {
+    const result = await r.json();
+    showToast(`已建立第 ${result.version} 版，正在開啟…`);
+    setTimeout(() => { location.href = `/quote-detail?id=${result.id}`; }, 800);
+  } else {
+    showToast('建立失敗', 'error');
+  }
+}
+
+// ── Copy link ─────────────────────────────────────────────────────
+
+function copyLink() {
+  if (!quoteData.share_token) { showToast('請先發送報價單', 'error'); return; }
+  const link = `${location.origin}/quote/${quoteData.share_token}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(link).then(() => showToast('連結已複製'));
+  } else {
+    prompt('請手動複製：', link);
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────
+
+function switchItemTab(tab) {
+  currentItemTab = tab;
+  document.getElementById('tab-film').style.display    = tab === 'film' ? '' : 'none';
+  document.getElementById('tab-catalog').style.display = tab === 'catalog' ? '' : 'none';
+  document.getElementById('tab-film-btn').classList.toggle('active', tab === 'film');
+  document.getElementById('tab-catalog-btn').classList.toggle('active', tab === 'catalog');
+}
+
+function openItemModal(itemId) {
+  document.getElementById('itemModal').style.display = 'flex';
+
+  if (itemId) {
+    const item = (quoteData.items || []).find(i => i.id === itemId);
+    if (!item) return;
+    document.getElementById('modalTitle').textContent = '編輯品項';
+    document.getElementById('item-edit-id').value = itemId;
+
+    if (item.item_type === 'film') {
+      switchItemTab('film');
+      document.getElementById('f-location').value     = item.location || '';
+      document.getElementById('f-brand').value        = item.film_brand || '';
+      document.getElementById('f-spec').value         = item.film_spec || item.film_model || '';
+      document.getElementById('f-surface').value      = item.surface_type || 'flat';
+      document.getElementById('f-film-width').value   = item.film_width_cm || 122;
+      document.getElementById('f-length').value       = item.length_cm || '';
+      document.getElementById('f-width').value        = item.width_cm || '';
+      document.getElementById('f-sqchi').value        = item.area_sqchi || '';
+      document.getElementById('f-price').value        = item.unit_price || '';
+      document.getElementById('f-diff').value         = item.difficulty_level || 3;
+      document.getElementById('f-notice-tmpl').value  = item.notice_template_id || '';
+      document.getElementById('f-notice-text').value  = item.notice_text || '';
+      document.getElementById('f-display').value      = item.display_mode || 'detail';
+      document.getElementById('f-notes').value        = item.notes || '';
+      document.getElementById('f-sqchi-hint').textContent = '';
+      document.getElementById('f-price-hint').textContent = '';
+      updateFilmPreview();
+    } else {
+      switchItemTab('catalog');
+      document.getElementById('c-catalog-id').value   = item.catalog_item_id || '';
+      document.getElementById('c-location').value     = item.location || '';
+      document.getElementById('c-desc').value         = item.description || '';
+      document.getElementById('c-unit').value         = item.unit || '件';
+      document.getElementById('c-qty').value          = item.quantity || 1;
+      document.getElementById('c-price').value        = item.unit_price || '';
+      document.getElementById('c-diff').value         = item.difficulty_level || 3;
+      document.getElementById('c-notice-tmpl').value  = item.notice_template_id || '';
+      document.getElementById('c-notice-text').value  = item.notice_text || '';
+      document.getElementById('c-display').value      = item.display_mode || 'detail';
+      document.getElementById('c-notes').value        = item.notes || '';
+      updateCatalogPreview();
+    }
+  } else {
+    document.getElementById('modalTitle').textContent = '新增品項';
+    document.getElementById('item-edit-id').value = '';
+    switchItemTab('film');
+    // reset film
+    ['f-location','f-brand','f-spec','f-length','f-width','f-sqchi','f-price','f-notice-text','f-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('f-surface').value = 'flat';
+    document.getElementById('f-film-width').value = '122';
+    document.getElementById('f-diff').value = '3';
+    document.getElementById('f-notice-tmpl').value = '';
+    document.getElementById('f-display').value = 'detail';
+    document.getElementById('f-sqchi-hint').textContent = '';
+    document.getElementById('f-price-hint').textContent = '';
+    document.getElementById('f-sub-preview').textContent = '—';
+    // reset catalog
+    ['c-location','c-desc','c-notice-text','c-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('c-catalog-id').value = '';
+    document.getElementById('c-unit').value = '件';
+    document.getElementById('c-qty').value = '1';
+    document.getElementById('c-price').value = '';
+    document.getElementById('c-diff').value = '3';
+    document.getElementById('c-notice-tmpl').value = '';
+    document.getElementById('c-display').value = 'detail';
+    document.getElementById('c-sub-preview').textContent = '—';
+  }
+  document.getElementById('itemSaveBtn').disabled = false;
+  document.getElementById('itemSaveBtn').textContent = '儲存品項';
+}
+
+function closeItemModal() {
+  document.getElementById('itemModal').style.display = 'none';
+}
+
+function closeModalOverlay(e) {
+  if (e.target === document.getElementById('itemModal')) closeItemModal();
+}
+
+// ── Film form calculations ─────────────────────────────────────────
+
+function calcArea() {
+  const len = parseFloat(document.getElementById('f-length').value) || 0;
+  const wid = parseFloat(document.getElementById('f-width').value) || 0;
+  if (len && wid) {
+    const sqchi = Math.round(len * wid / 900 * 100) / 100;
+    document.getElementById('f-sqchi').value = sqchi;
+    document.getElementById('f-sqchi-hint').textContent = `${len} × ${wid} ÷ 900 = ${sqchi} 才`;
+  } else {
+    document.getElementById('f-sqchi-hint').textContent = '';
+  }
+  autoLookupPrice();
+  updateFilmPreview();
+}
+
+function autoLookupPrice() {
+  const brand   = document.getElementById('f-brand').value.trim().toLowerCase();
+  const spec    = document.getElementById('f-spec').value.trim().toLowerCase();
+  const surface = document.getElementById('f-surface').value;
+  if (!brand && !spec) { document.getElementById('f-price-hint').textContent = ''; return; }
+
+  const match = filmPrices.find(fp => {
+    const fb = (fp.brand || '').toLowerCase();
+    const fs = (fp.series_name || fp.series_code || '').toLowerCase();
+    return (!brand || fb === brand) && (!spec || fs === spec);
+  });
+
+  if (match) {
+    const priceKey = surface === 'flat' ? 'price_flat' : surface === 'cabinet' ? 'price_cabinet' : 'price_custom';
+    const price = match[priceKey];
+    if (price) {
+      document.getElementById('f-price').value = price;
+      document.getElementById('f-price-hint').textContent = `自動帶入：${match.brand} ${match.series_name || ''} ${SURFACE_LABELS[surface]} = $${price}/才`;
+      updateFilmPreview();
+      return;
+    }
+  }
+  document.getElementById('f-price-hint').textContent = '';
+  updateFilmPreview();
+}
+
+function updateFilmPreview() {
+  const sqchi = parseFloat(document.getElementById('f-sqchi').value) || 0;
+  const price = parseFloat(document.getElementById('f-price').value) || 0;
+  const sub   = Math.round(sqchi * price);
+  document.getElementById('f-sub-preview').textContent = (sqchi && price) ? `NT$ ${sub.toLocaleString('zh-TW')}` : '—';
+}
+
+// ── Catalog form ──────────────────────────────────────────────────
+
+function updateCatalogPreview() {
+  const qty   = parseFloat(document.getElementById('c-qty').value) || 1;
+  const price = parseFloat(document.getElementById('c-price').value) || 0;
+  const sub   = Math.round(qty * price);
+  document.getElementById('c-sub-preview').textContent = price ? `NT$ ${sub.toLocaleString('zh-TW')}` : '—';
+}
+
+function onCatalogSelect() {
+  const sel = document.getElementById('c-catalog-id');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.value) return;
+  const item = catalogItems.find(c => c.id == opt.value);
+  if (item) {
+    if (!document.getElementById('c-location').value)
+      document.getElementById('c-location').value = item.name;
+    document.getElementById('c-desc').value = item.name;
+  }
+  document.getElementById('c-price').value = opt.dataset.price || '';
+  document.getElementById('c-diff').value  = opt.dataset.diff || '3';
+  if (opt.dataset.notice) {
+    document.getElementById('c-notice-tmpl').value = opt.dataset.notice;
+    applyNotice('c');
+  }
+  document.getElementById('c-unit').value = '件';
+  document.getElementById('c-qty').value  = '1';
+  updateCatalogPreview();
+}
+
+function applyNotice(prefix) {
+  const id = document.getElementById(`${prefix}-notice-tmpl`).value;
+  if (!id) return;
+  const tmpl = noticeTemplates.find(t => t.id == id);
+  if (tmpl) document.getElementById(`${prefix}-notice-text`).value = tmpl.content || '';
+}
+
+// ── Save item ─────────────────────────────────────────────────────
+
+async function saveItem() {
+  const editId = document.getElementById('item-edit-id').value;
+  let body;
+
+  if (currentItemTab === 'film') {
+    const len   = parseFloat(document.getElementById('f-length').value) || null;
+    const wid   = parseFloat(document.getElementById('f-width').value)  || null;
+    let sqchi   = parseFloat(document.getElementById('f-sqchi').value) || null;
+    if (!sqchi && len && wid) sqchi = Math.round(len * wid / 900 * 100) / 100;
+
+    const loc = document.getElementById('f-location').value.trim();
+    if (!loc) { alert('請填寫位置/名稱'); return; }
+
+    body = {
+      item_type:        'film',
+      location:         loc,
+      film_brand:       document.getElementById('f-brand').value.trim() || null,
+      film_spec:        document.getElementById('f-spec').value.trim()  || null,
+      surface_type:     document.getElementById('f-surface').value,
+      film_width_cm:    parseInt(document.getElementById('f-film-width').value) || 122,
+      length_cm:        len,
+      width_cm:         wid,
+      area_sqchi:       sqchi,
+      unit_price:       parseFloat(document.getElementById('f-price').value) || 0,
+      unit:             '才',
+      quantity:         1,
+      difficulty_level: parseInt(document.getElementById('f-diff').value) || 3,
+      notice_template_id: document.getElementById('f-notice-tmpl').value || null,
+      notice_text:      document.getElementById('f-notice-text').value  || null,
+      display_mode:     document.getElementById('f-display').value,
+      notes:            document.getElementById('f-notes').value || null,
+    };
+  } else {
+    const loc = document.getElementById('c-location').value.trim();
+    if (!loc) { alert('請填寫位置/名稱'); return; }
+    const hasCatalog = !!document.getElementById('c-catalog-id').value;
+
+    body = {
+      item_type:        hasCatalog ? 'catalog' : 'service',
+      catalog_item_id:  document.getElementById('c-catalog-id').value || null,
+      location:         loc,
+      description:      document.getElementById('c-desc').value.trim()   || null,
+      unit:             document.getElementById('c-unit').value || '件',
+      quantity:         parseFloat(document.getElementById('c-qty').value) || 1,
+      unit_price:       parseFloat(document.getElementById('c-price').value) || 0,
+      difficulty_level: parseInt(document.getElementById('c-diff').value) || 3,
+      notice_template_id: document.getElementById('c-notice-tmpl').value || null,
+      notice_text:      document.getElementById('c-notice-text').value   || null,
+      display_mode:     document.getElementById('c-display').value,
+      notes:            document.getElementById('c-notes').value || null,
+    };
+  }
+
+  const btn = document.getElementById('itemSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '儲存中…';
+
+  const url    = editId ? `/api/quotes/${quoteId}/items/${editId}` : `/api/quotes/${quoteId}/items`;
+  const method = editId ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  btn.disabled = false;
+  btn.textContent = '儲存品項';
+
+  if (r.ok) {
+    closeItemModal();
+    showToast(editId ? '品項已更新' : '品項已新增');
+    await loadQuote();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    showToast(err.error || '儲存失敗', 'error');
+  }
+}
+
+// ── Delete item ───────────────────────────────────────────────────
+
+async function deleteItem(itemId) {
+  if (!confirm('確定刪除此品項？')) return;
+  const r = await fetch(`/api/quotes/${quoteId}/items/${itemId}`, { method: 'DELETE' });
+  if (r.ok) {
+    showToast('品項已刪除');
+    await loadQuote();
+  } else {
+    showToast('刪除失敗', 'error');
+  }
+}
+
+init().catch(e => {
+  console.error(e);
+  document.getElementById('quoteHeader').innerHTML = `<div style="color:#dc2626;padding:20px;text-align:center">載入失敗：${e.message}</div>`;
+});
+</script>
+</body>
+</html>
