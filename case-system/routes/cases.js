@@ -899,4 +899,66 @@ router.post('/geocode-backfill', requireAuth, async (req, res) => {
   }
 });
 
+// ── CSV 匯出 ──────────────────────────────────────────────────
+router.get('/export.csv', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { group, status, case_type, date_from, date_to, search } = req.query;
+
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
+  let q = `
+    SELECT c.case_number, cl.name as client_name, cl.phone as client_phone,
+           c.title, c.case_type, c.status,
+           s.name as sales_name, cs.name as cs_name, o.name as org_name,
+           c.location, c.case_group,
+           c.contracted_at, c.scheduled_date,
+           COALESCE(c.final_price, c.quoted_price, 0) as amount,
+           ROUND(COALESCE(c.final_price, c.quoted_price, 0)*1.05) as amount_tax,
+           COALESCE(c.payment_received, 0) as received,
+           COALESCE(c.final_price, c.quoted_price, 0) - COALESCE(c.payment_received, 0) as pending,
+           c.payment_status, c.notes
+    FROM cases c
+    LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN users   s  ON c.sales_id  = s.id
+    LEFT JOIN users   cs ON c.cs_id     = cs.id
+    LEFT JOIN orgs    o  ON c.org_id    = o.id
+    WHERE 1=1
+  `;
+  const p = [];
+  if (orgSql) { q += ` AND ${orgSql}`; p.push(...orgPs); }
+  if (group)     { q += ` AND c.case_group=?`; p.push(group); }
+  if (status)    { q += ` AND c.status=?`;     p.push(status); }
+  if (case_type) { q += ` AND c.case_type=?`;  p.push(case_type); }
+  if (date_from) { q += ` AND c.contracted_at>=?`; p.push(date_from); }
+  if (date_to)   { q += ` AND c.contracted_at<=?`; p.push(date_to + ' 23:59:59'); }
+  if (search)    { q += ` AND (c.title LIKE ? OR c.case_number LIKE ? OR cl.name LIKE ?)`; const s=`%${search}%`; p.push(s,s,s); }
+  q += ` ORDER BY c.contracted_at DESC, c.created_at DESC`;
+
+  const rows = db.prepare(q).all(...p);
+
+  const STATUS_MAP = { inquiry:'詢價需初步估價', initial_estimate:'已初步估價', survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘', quote_draft:'已建報價資料', quoted:'已發報價單', contracted:'成交待派工', dispatched:'已派工待施工', constructing:'施工中', payment:'完工請款', closed:'結案保存', invalid:'無效保存' };
+  const TYPE_MAP   = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
+  const PAY_MAP    = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
+
+  const esc = v => v == null ? '' : `"${String(v).replace(/"/g,'""')}"`;
+
+  const header = ['案號','客戶','電話','項目名稱','案件類型','案件群組','業務','客服','店別','地址','成交日期','施工日期','成交金額(未稅)','含稅金額','已收款','待收款','收款狀態','案件狀態','備注'];
+  const csvRows = [header.map(esc).join(',')];
+  rows.forEach(r => {
+    csvRows.push([
+      r.case_number, r.client_name, r.client_phone, r.title,
+      TYPE_MAP[r.case_type]||r.case_type, r.case_group,
+      r.sales_name, r.cs_name, r.org_name, r.location,
+      (r.contracted_at||'').slice(0,10), (r.scheduled_date||'').slice(0,10),
+      r.amount, r.amount_tax, r.received, r.pending,
+      PAY_MAP[r.payment_status]||r.payment_status,
+      STATUS_MAP[r.status]||r.status, r.notes,
+    ].map(esc).join(','));
+  });
+
+  const bom = '﻿';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="cases_export_${new Date().toISOString().slice(0,10)}.csv"`);
+  res.send(bom + csvRows.join('\r\n'));
+});
+
 module.exports = router;

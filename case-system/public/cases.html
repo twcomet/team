@@ -69,6 +69,7 @@
                style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:220px">
         <button class="btn btn-primary btn-sm" id="newCaseBtn" style="display:none">＋ 新增案件</button>
         <button class="btn btn-ghost btn-sm" id="templateMgmtBtn" style="display:none" onclick="toggleTemplateMgmt()">⚙️ 模板管理</button>
+        <button class="btn btn-ghost btn-sm" id="exportCsvBtn" style="display:none" onclick="exportCsv()">⬇ 匯出 CSV</button>
         <button class="btn btn-primary btn-sm" id="saveAssignBtn" style="display:none" onclick="saveAllAssignments()">💾 儲存指派</button>
       </div>
     </div>
@@ -473,6 +474,7 @@ async function init() {
 
   if (cfg.showNewBtn) document.getElementById('newCaseBtn').style.display = '';
   if (cfg.showTypeTabs) document.getElementById('caseTypeTabs').style.display = '';
+  if (MODE === 'deal') document.getElementById('exportCsvBtn').style.display = '';
   if (MODE === 'survey' && currentUser.manage_users) {
     document.getElementById('templateMgmtBtn').style.display = '';
   }
@@ -508,6 +510,17 @@ async function init() {
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
   renderTableHead();
   await loadCases();
+}
+
+function exportCsv() {
+  const status    = activeStatus || '';
+  const caseType  = activeType   || '';
+  const search    = document.getElementById('searchInput')?.value || '';
+  const params    = new URLSearchParams({ group: cfg.group });
+  if (status)   params.set('status',    status);
+  if (caseType) params.set('case_type', caseType);
+  if (search)   params.set('search',    search);
+  window.location.href = `/api/cases/export.csv?${params}`;
 }
 
 function daysSince(dateStr) {
