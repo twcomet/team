@@ -361,14 +361,18 @@ router.get('/pl-monthly', requireAuth, (req, res) => {
 router.get('/sales', requireAuth, (req, res) => {
   try {
     const user = req.session.user;
-    const { period = 'month', org_id } = req.query;
+    const { period = 'month', org_id, from: customFrom, to: customTo } = req.query;
     const orgRestrict = orgFilter(user);
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     let fromDate, toDate, prevFrom, prevTo;
 
-    if (period === 'today') {
+    if (customFrom && customTo) {
+      // 自訂日期區間：不計算前期對比
+      fromDate = customFrom; toDate = customTo;
+      prevFrom = null; prevTo = null;
+    } else if (period === 'today') {
       fromDate = toDate = today;
       const y = new Date(now); y.setDate(y.getDate() - 1);
       prevFrom = prevTo = y.toISOString().slice(0, 10);
@@ -378,14 +382,25 @@ router.get('/sales', requireAuth, (req, res) => {
       const p1 = new Date(d); p1.setDate(p1.getDate() - 7);
       const p2 = new Date(d); p2.setDate(p2.getDate() - 1);
       prevFrom = p1.toISOString().slice(0, 10); prevTo = p2.toISOString().slice(0, 10);
+    } else if (period === 'quarter') {
+      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      fromDate = qStart.toISOString().slice(0, 10); toDate = today;
+      const pqs = new Date(qStart); pqs.setMonth(pqs.getMonth() - 3);
+      const pqe = new Date(qStart); pqe.setDate(pqe.getDate() - 1);
+      prevFrom = pqs.toISOString().slice(0, 10); prevTo = pqe.toISOString().slice(0, 10);
+    } else if (period === 'year') {
+      fromDate = `${now.getFullYear()}-01-01`; toDate = today;
+      prevFrom = `${now.getFullYear() - 1}-01-01`;
+      prevTo   = `${now.getFullYear() - 1}-12-31`;
     } else {
+      // month (default)
       fromDate = `${today.slice(0, 7)}-01`; toDate = today;
       const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const pe = new Date(now.getFullYear(), now.getMonth(), 0);
       prevFrom = pm.toISOString().slice(0, 10); prevTo = pe.toISOString().slice(0, 10);
     }
     const toEnd = toDate + ' 23:59:59';
-    const prevEnd = prevTo + ' 23:59:59';
+    const prevEnd = prevTo ? prevTo + ' 23:59:59' : null;
 
     const params = [], prevParams = [];
     let where = `WHERE c.status IN ('contracted','payment','closed')
@@ -393,7 +408,7 @@ router.get('/sales', requireAuth, (req, res) => {
     params.push(fromDate, toEnd);
     let prevWhere = `WHERE c.status IN ('contracted','payment','closed')
       AND c.contracted_at BETWEEN ? AND ?`;
-    prevParams.push(prevFrom, prevEnd);
+    if (prevFrom && prevEnd) prevParams.push(prevFrom, prevEnd);
 
     if (orgRestrict.org_id) {
       where += ' AND c.org_id=?'; params.push(orgRestrict.org_id);
@@ -411,11 +426,9 @@ router.get('/sales', requireAuth, (req, res) => {
       FROM cases c ${where}
     `).get(...params);
 
-    const prevSummary = db.prepare(`
-      SELECT COUNT(*) as count,
-        SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value
-      FROM cases c ${prevWhere}
-    `).get(...prevParams);
+    const prevSummary = (prevFrom && prevEnd)
+      ? db.prepare(`SELECT COUNT(*) as count, SUM(COALESCE(c.final_price, c.quoted_price, 0)) as gross_value FROM cases c ${prevWhere}`).get(...prevParams)
+      : null;
 
     const bySales = db.prepare(`
       SELECT COALESCE(s.name,'未指定') as name,

@@ -92,6 +92,14 @@
         <button class="period-tab active" onclick="setPeriod('today')">今日</button>
         <button class="period-tab"        onclick="setPeriod('week')">本週</button>
         <button class="period-tab"        onclick="setPeriod('month')">本月</button>
+        <button class="period-tab"        onclick="setPeriod('quarter')">本季</button>
+        <button class="period-tab"        onclick="setPeriod('year')">本年</button>
+        <span style="color:var(--gray-300);margin:0 4px">｜</span>
+        <input type="date" id="customFrom" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"
+               onchange="setCustomRange()">
+        <span style="font-size:13px;color:var(--gray-500)">至</span>
+        <input type="date" id="customTo" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"
+               onchange="setCustomRange()">
       </div>
 
       <div style="font-size:12px;font-weight:600;color:var(--gray-500);letter-spacing:.5px;margin-bottom:6px">回簽業績</div>
@@ -170,6 +178,7 @@
 <script src="/js/common.js"></script>
 <script>
 let currentPeriod = 'month';
+let customFrom = '', customTo = '';
 let orgId = '';
 
 const SOURCE_LABELS = {
@@ -194,14 +203,29 @@ async function init() {
 
 function setPeriod(p) {
   currentPeriod = p;
+  customFrom = ''; customTo = '';
+  document.getElementById('customFrom').value = '';
+  document.getElementById('customTo').value = '';
   document.querySelectorAll('.period-tab').forEach((b, i) =>
-    b.classList.toggle('active', ['today','week','month'][i] === p)
+    b.classList.toggle('active', ['today','week','month','quarter','year'][i] === p)
   );
   load();
 }
 
+function setCustomRange() {
+  const f = document.getElementById('customFrom').value;
+  const t = document.getElementById('customTo').value;
+  if (!f || !t) return;
+  customFrom = f; customTo = t;
+  currentPeriod = '';
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  load();
+}
+
 async function load() {
-  const qs = `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
+  const qs = customFrom && customTo
+    ? `from=${customFrom}&to=${customTo}${orgId ? '&org_id='+orgId : ''}`
+    : `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
   let d;
   try {
     const res = await fetch(`/api/reports/sales?${qs}`);
