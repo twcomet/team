@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -76,6 +77,7 @@ app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
+app.use('/api/storage',               require('./routes/storage'));
 
 // ── 前端公開設定 ──────────────────────────────────────────────
 app.get('/api/config/maps-key', requireAuth, (req, res) => {

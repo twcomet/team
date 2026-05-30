@@ -2571,6 +2571,8 @@ _addCol('materials', 'ec_key',        'TEXT');
 _addCol('materials', 'ec_synced_at',  'DATETIME');
 _addCol('materials', 'fire_retardant','INTEGER DEFAULT 0');
 _addCol('materials', 'width_cm',      'REAL DEFAULT 122');
+_addCol('materials', 'image_url',     'TEXT');
+_addCol('materials', 'image_public_id','TEXT');
 
 // ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
 _addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');
