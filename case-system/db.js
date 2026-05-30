@@ -2002,6 +2002,41 @@ db.exec(`
   )
 `);
 
+// ── 採購單與收貨系統 ──────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS purchase_orders (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id          INTEGER REFERENCES orgs(id),
+    material_id     INTEGER REFERENCES materials(id),
+    vendor_id       INTEGER REFERENCES vendors(id),
+    brand           TEXT,
+    series_code     TEXT,
+    quantity_meters REAL NOT NULL,
+    unit_cost       REAL DEFAULT 0,
+    total_cost      REAL DEFAULT 0,
+    shipping_type   TEXT DEFAULT 'domestic'
+                    CHECK(shipping_type IN ('air','express','sea','domestic')),
+    shipping_cost   REAL DEFAULT 0,
+    expected_date   DATE,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','partial','received','cancelled')),
+    notes           TEXT,
+    created_by      INTEGER REFERENCES users(id),
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS purchase_receipts (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    material_roll_id  INTEGER REFERENCES material_rolls(id),
+    received_date     DATE NOT NULL,
+    quantity_meters   REAL NOT NULL,
+    batch_note        TEXT,
+    created_by        INTEGER REFERENCES users(id),
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // ── 資產借用系統 ─────────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS assets (

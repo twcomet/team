@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>進貨管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.sb-pending   { background:#fef3c7; color:#92400e; }
+.sb-partial   { background:#dbeafe; color:#1e40af; }
+.sb-received  { background:#d1fae5; color:#065f46; }
+.sb-cancelled { background:#f3f4f6; color:#6b7280; }
+.progress-bar-wrap { background:#e5e7eb; border-radius:4px; height:6px; min-width:80px; }
+.progress-bar { background:#3b82f6; border-radius:4px; height:6px; }
+.receipt-row { font-size:13px; color:var(--gray-600); padding:6px 8px; background:#f9fafb; border-radius:6px; margin-bottom:4px; display:flex; justify-content:space-between; }
+.section-label { font-size:11px; font-weight:600; color:var(--gray-400); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 6px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="purchases"      href="/purchases">      <span class="icon">🚚</span>進貨管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">進貨管理</span>
+      <button class="btn btn-primary btn-sm" id="newPoBtn" style="display:none">＋ 新增採購單</button>
+    </div>
+    <div class="page-body">
+      <div class="filter-bar">
+        <select id="statusFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <option value="">全部狀態</option>
+          <option value="pending">待到貨</option>
+          <option value="partial">部分到貨</option>
+          <option value="received">已到齊</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
+          <option value="">全部分店</option>
+        </select>
+      </div>
+      <div id="poList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 採購單 Modal -->
+<div class="modal-overlay" id="poModal" style="display:none">
+  <div class="modal" style="max-width:560px;width:100%">
+    <div class="modal-header"><h3 id="poModalTitle">新增採購單</h3><button class="modal-close" onclick="closeModal('poModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group" id="poOrgGroup" style="display:none">
+        <label class="form-label">分店</label>
+        <select class="form-input" id="po_org_id"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">品牌</label>
+          <input class="form-input" id="po_brand" list="brandList" placeholder="例：3M、Para">
+          <datalist id="brandList"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">型號 / 系列</label>
+          <input class="form-input" id="po_series_code" placeholder="例：SH2CLAR">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">對應膜料（選填）</label>
+        <select class="form-input" id="po_material_id">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">供應商（選填）</label>
+        <select class="form-input" id="po_vendor_id">
+          <option value="">— 不指定 —</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">採購米數 <span style="color:red">*</span></label>
+          <input class="form-input" id="po_quantity_meters" type="number" min="0.1" step="0.1" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">單價（元/米）</label>
+          <input class="form-input" id="po_unit_cost" type="number" min="0" step="0.01" placeholder="0">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">運送方式</label>
+          <select class="form-input" id="po_shipping_type">
+            <option value="domestic">國內</option>
+            <option value="air">空運</option>
+            <option value="express">快遞</option>
+            <option value="sea">海運</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">運費（元）</label>
+          <input class="form-input" id="po_shipping_cost" type="number" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">預計到貨日</label>
+        <input class="form-input" id="po_expected_date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <textarea class="form-input" id="po_notes" rows="2" style="resize:vertical"></textarea>
+      </div>
+      <div id="totalCostDisplay" style="text-align:right;font-size:14px;color:var(--gray-600);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('poModal')">取消</button>
+      <button class="btn btn-primary" id="savePoBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 收貨 Modal -->
+<div class="modal-overlay" id="receiptModal" style="display:none">
+  <div class="modal" style="max-width:440px;width:100%">
+    <div class="modal-header"><h3>登記到貨</h3><button class="modal-close" onclick="closeModal('receiptModal')">✕</button></div>
+    <div class="modal-body">
+      <p id="receiptPoInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:16px"></p>
+      <div class="form-group">
+        <label class="form-label">到貨日期 <span style="color:red">*</span></label>
+        <input class="form-input" id="r_received_date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">到貨米數 <span style="color:red">*</span></label>
+        <input class="form-input" id="r_quantity_meters" type="number" min="0.1" step="0.1" placeholder="0.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">批次備註（選填）</label>
+        <input class="form-input" id="r_batch_note" placeholder="例：第一批空運、顏色代碼…">
+      </div>
+      <div id="r_material_note" style="font-size:12px;color:#1d4ed8;margin-top:8px;display:none">
+        ✓ 將自動新增一筆膜料卷並記入庫存
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('receiptModal')">取消</button>
+      <button class="btn btn-primary" id="saveReceiptBtn">確認到貨</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let currentUser = null;
+let isManager = false;
+let orders = [];
+let materials = [];
+let vendors = [];
+let orgs = [];
+let editPoId = null;
+let receiptPoId = null;
+let receiptPoMaterialId = null;
+
+const STATUS_LABEL    = { pending:'待到貨', partial:'部分到貨', received:'已到齊', cancelled:'已取消' };
+const SHIPPING_LABEL  = { air:'空運', express:'快遞', sea:'海運', domestic:'國內' };
+
+async function init() {
+  currentUser = await loadUser();
+  highlightNav('purchases');
+  isManager = currentUser.role === 'owner' || !!currentUser.can_manage_assets;
+
+  if (isManager) {
+    document.getElementById('newPoBtn').style.display = '';
+  }
+  if (currentUser.role === 'owner') {
+    document.getElementById('orgFilter').style.display = '';
+    document.getElementById('poOrgGroup').style.display = '';
+    const or = await fetch('/api/orgs');
+    if (or.ok) {
+      orgs = await or.json();
+      const sel = document.getElementById('orgFilter');
+      const selPo = document.getElementById('po_org_id');
+      orgs.forEach(o => {
+        sel.innerHTML += `<option value="${o.id}">${esc(o.name)}</option>`;
+        selPo.innerHTML += `<option value="${o.id}">${esc(o.name)}</option>`;
+      });
+    }
+  }
+
+  // 載入膜料清單與供應商
+  const [mr, vr] = await Promise.all([fetch('/api/materials'), fetch('/api/vendors')]);
+  if (mr.ok) {
+    materials = await mr.json();
+    const sel = document.getElementById('po_material_id');
+    materials.forEach(m => { sel.innerHTML += `<option value="${m.id}">${esc(m.brand)} ${esc(m.model)}${m.color?' '+esc(m.color):''}</option>`; });
+    const dl = document.getElementById('brandList');
+    const brands = [...new Set(materials.map(m => m.brand))];
+    brands.forEach(b => { dl.innerHTML += `<option value="${esc(b)}">`; });
+  }
+  if (vr.ok) {
+    vendors = await vr.json();
+    const sel = document.getElementById('po_vendor_id');
+    vendors.forEach(v => { sel.innerHTML += `<option value="${v.id}">${esc(v.name)}</option>`; });
+  }
+
+  document.getElementById('statusFilter').addEventListener('change', loadOrders);
+  document.getElementById('orgFilter').addEventListener('change', loadOrders);
+  ['po_quantity_meters','po_unit_cost','po_shipping_cost'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateTotalDisplay);
+  });
+
+  await loadOrders();
+}
+
+async function loadOrders() {
+  const status = document.getElementById('statusFilter').value;
+  const org_id = document.getElementById('orgFilter').value;
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (org_id) params.set('org_id', org_id);
+  const r = await fetch('/api/purchases?' + params);
+  if (!r.ok) return;
+  orders = await r.json();
+  renderOrders();
+}
+
+function renderOrders() {
+  const el = document.getElementById('poList');
+  if (!orders.length) {
+    el.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:40px">尚無採購紀錄</p>';
+    return;
+  }
+  el.innerHTML = orders.map(po => {
+    const pct = Math.min(100, Math.round((po.received_meters / po.quantity_meters) * 100));
+    const matLabel = po.mat_brand ? `${esc(po.mat_brand)} ${esc(po.mat_model||'')}` : '';
+    const brandLabel = po.brand || matLabel || '—';
+    const overdue = po.expected_date && po.expected_date < new Date().toISOString().slice(0,10) && po.status === 'pending';
+    return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:15px;margin-bottom:2px">
+              ${esc(brandLabel)}${po.series_code ? ' · '+esc(po.series_code) : ''}
+            </div>
+            <div style="font-size:12px;color:var(--gray-500)">
+              ${po.org_name ? esc(po.org_name)+' · ' : ''}${po.vendor_name ? esc(po.vendor_name)+' · ' : ''}
+              ${SHIPPING_LABEL[po.shipping_type]||po.shipping_type} · 採購 ${po.quantity_meters}米
+              ${currentUser.can_see_cost && po.total_cost ? ' · NT$'+Number(po.total_cost).toLocaleString() : ''}
+            </div>
+            <div style="font-size:12px;color:${overdue?'#dc2626':'var(--gray-500)'};margin-top:2px">
+              預計到貨：${po.expected_date || '未設定'}${overdue?' ⚠️ 逾期':''}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+            <span class="status-badge sb-${po.status}">${STATUS_LABEL[po.status]||po.status}</span>
+            <div style="display:flex;gap:6px">
+              ${isManager && po.status !== 'received' && po.status !== 'cancelled' ? `
+                <button class="btn btn-primary btn-sm" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters})">登記到貨</button>
+                <button class="btn btn-secondary btn-sm" onclick="openEdit(${po.id})">編輯</button>
+              ` : ''}
+              ${isManager && po.status === 'pending' ? `
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="cancelPo(${po.id})">取消</button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-500);margin-bottom:4px">
+            <span>已到貨 ${po.received_meters}米 / ${po.quantity_meters}米</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+        </div>
+        ${po.notes ? `<div style="font-size:12px;color:var(--gray-500);margin-top:8px">${esc(po.notes)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateTotalDisplay() {
+  const qty  = parseFloat(document.getElementById('po_quantity_meters').value) || 0;
+  const unit = parseFloat(document.getElementById('po_unit_cost').value) || 0;
+  const ship = parseFloat(document.getElementById('po_shipping_cost').value) || 0;
+  const total = qty * unit + ship;
+  document.getElementById('totalCostDisplay').textContent = total > 0 ? `合計金額：NT$${total.toLocaleString()}` : '';
+}
+
+function openNew() {
+  editPoId = null;
+  document.getElementById('poModalTitle').textContent = '新增採購單';
+  ['po_brand','po_series_code','po_notes','po_expected_date'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('po_quantity_meters').value = '';
+  document.getElementById('po_unit_cost').value = '';
+  document.getElementById('po_shipping_cost').value = '';
+  document.getElementById('po_material_id').value = '';
+  document.getElementById('po_vendor_id').value = '';
+  document.getElementById('po_shipping_type').value = 'domestic';
+  document.getElementById('totalCostDisplay').textContent = '';
+  document.getElementById('poModal').style.display = 'flex';
+}
+
+async function openEdit(id) {
+  editPoId = id;
+  const r = await fetch(`/api/purchases/${id}`);
+  if (!r.ok) return alert('載入失敗');
+  const po = await r.json();
+  document.getElementById('poModalTitle').textContent = '編輯採購單';
+  document.getElementById('po_brand').value           = po.brand || '';
+  document.getElementById('po_series_code').value     = po.series_code || '';
+  document.getElementById('po_material_id').value     = po.material_id || '';
+  document.getElementById('po_vendor_id').value       = po.vendor_id || '';
+  document.getElementById('po_quantity_meters').value = po.quantity_meters || '';
+  document.getElementById('po_unit_cost').value       = po.unit_cost || '';
+  document.getElementById('po_shipping_type').value   = po.shipping_type || 'domestic';
+  document.getElementById('po_shipping_cost').value   = po.shipping_cost || '';
+  document.getElementById('po_expected_date').value   = po.expected_date || '';
+  document.getElementById('po_notes').value           = po.notes || '';
+  updateTotalDisplay();
+  document.getElementById('poModal').style.display = 'flex';
+}
+
+async function savePo() {
+  const qty = parseFloat(document.getElementById('po_quantity_meters').value);
+  if (!qty || qty <= 0) { alert('請填入採購米數'); return; }
+  const payload = {
+    brand:           document.getElementById('po_brand').value.trim() || null,
+    series_code:     document.getElementById('po_series_code').value.trim() || null,
+    material_id:     document.getElementById('po_material_id').value || null,
+    vendor_id:       document.getElementById('po_vendor_id').value || null,
+    quantity_meters: qty,
+    unit_cost:       parseFloat(document.getElementById('po_unit_cost').value) || 0,
+    shipping_type:   document.getElementById('po_shipping_type').value,
+    shipping_cost:   parseFloat(document.getElementById('po_shipping_cost').value) || 0,
+    expected_date:   document.getElementById('po_expected_date').value || null,
+    notes:           document.getElementById('po_notes').value.trim() || null,
+    org_id:          currentUser.role === 'owner' ? (document.getElementById('po_org_id').value || null) : undefined,
+  };
+  const btn = document.getElementById('savePoBtn');
+  btn.disabled = true;
+  try {
+    const url    = editPoId ? `/api/purchases/${editPoId}` : '/api/purchases';
+    const method = editPoId ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) { const e = await r.json(); alert(e.error||'儲存失敗'); return; }
+    closeModal('poModal');
+    await loadOrders();
+  } finally { btn.disabled = false; }
+}
+
+function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) {
+  receiptPoId = poId;
+  receiptPoMaterialId = materialId;
+  const remaining = totalMeters - receivedMeters;
+  document.getElementById('receiptPoInfo').textContent = `${brandLabel} — 尚餘 ${remaining.toFixed(1)}米未到貨`;
+  document.getElementById('r_received_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('r_quantity_meters').value = '';
+  document.getElementById('r_batch_note').value = '';
+  document.getElementById('r_material_note').style.display = materialId ? '' : 'none';
+  document.getElementById('receiptModal').style.display = 'flex';
+}
+
+async function saveReceipt() {
+  const qty = parseFloat(document.getElementById('r_quantity_meters').value);
+  if (!qty || qty <= 0) { alert('請填入到貨米數'); return; }
+  const payload = {
+    received_date:   document.getElementById('r_received_date').value,
+    quantity_meters: qty,
+    batch_note:      document.getElementById('r_batch_note').value.trim() || null,
+  };
+  const btn = document.getElementById('saveReceiptBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/purchases/${receiptPoId}/receipts`, {
+      method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    if (!r.ok) { const e = await r.json(); alert(e.error||'登記失敗'); return; }
+    closeModal('receiptModal');
+    await loadOrders();
+  } finally { btn.disabled = false; }
+}
+
+async function cancelPo(id) {
+  if (!confirm('確定取消此採購單？')) return;
+  const r = await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
+  if (!r.ok) { alert('操作失敗'); return; }
+  await loadOrders();
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('newPoBtn').addEventListener('click', openNew);
+document.getElementById('savePoBtn').addEventListener('click', savePo);
+document.getElementById('saveReceiptBtn').addEventListener('click', saveReceipt);
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
+});
+
+init().catch(console.error);
+</script>
+</body>
+</html>
