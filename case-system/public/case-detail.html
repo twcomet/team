@@ -2482,8 +2482,15 @@ function sf_lockSurveyor(status) {
     if (!note) {
       note = document.createElement('div');
       note.id = 'sf_surveyor_lock_note';
-      note.style.cssText = 'font-size:11px;color:#92400e;margin-top:4px;display:flex;align-items:center;gap:4px';
-      note.innerHTML = '🔒 場勘單已送出，場勘人員已鎖定，如需更換請先聯絡客服主管';
+      note.style.cssText = 'font-size:11px;color:#92400e;margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap';
+
+      const isManager = !!(currentUser?.manage_users);
+      if (isManager) {
+        note.innerHTML = `🔒 場勘單已送出，場勘人員已鎖定
+          <button onclick="sf_unlockSurveyor()" style="margin-left:6px;padding:2px 8px;font-size:11px;border-radius:4px;border:1px solid #f59e0b;background:#fef3c7;color:#92400e;cursor:pointer;font-weight:600">主管解鎖更換</button>`;
+      } else {
+        note.innerHTML = '🔒 場勘單已送出，場勘人員已鎖定，如需更換請先聯絡客服主管';
+      }
       sel.parentNode.appendChild(note);
     }
     sel.style.opacity = '0.6';
@@ -2492,6 +2499,18 @@ function sf_lockSurveyor(status) {
     if (note) note.remove();
     sel.style.opacity = '';
     sel.style.cursor = '';
+  }
+}
+
+function sf_unlockSurveyor() {
+  const sel = document.getElementById('sf_surveyor');
+  sel.disabled = false;
+  sel.style.opacity = '';
+  sel.style.cursor = '';
+  const note = document.getElementById('sf_surveyor_lock_note');
+  if (note) {
+    note.style.cssText = 'font-size:11px;color:#059669;margin-top:4px';
+    note.innerHTML = '✏️ 主管解鎖中，請選取新的場勘人員後儲存場勘資訊';
   }
 }
 
