@@ -435,6 +435,7 @@
             <div style="flex:1"></div>
             <span id="qStatusBadge" style="font-size:12px;padding:2px 10px;border-radius:20px;background:#e5e7eb;color:#374151"></span>
             <button class="btn btn-ghost btn-sm" id="qPreviewBtn" style="display:none">👁 預覽</button>
+            <button class="btn btn-ghost btn-sm" id="qPrintBtn" style="display:none" onclick="printQuote()">🖨 列印</button>
             <button class="btn btn-primary btn-sm" id="qSendBtn">📤 傳送報價單</button>
           </div>
 
@@ -3315,13 +3316,16 @@ function renderQuotePanel() {
   // Share link
   const shareBox  = document.getElementById('qShareBox');
   const prevBtn   = document.getElementById('qPreviewBtn');
+  const printBtn  = document.getElementById('qPrintBtn');
   if (currentQuote.share_token && s !== 'draft') {
     const url = `${location.origin}/quote/${currentQuote.share_token}`;
     if (shareBox) { shareBox.style.display = 'flex'; document.getElementById('qShareUrl').textContent = url; document.getElementById('qOpenBtn').href = url; }
     if (prevBtn) prevBtn.style.display = '';
+    if (printBtn) printBtn.style.display = '';
   } else {
     if (shareBox) shareBox.style.display = 'none';
     if (prevBtn) prevBtn.style.display = 'none';
+    if (printBtn) printBtn.style.display = 'none';
   }
 
   // Settings
@@ -3817,7 +3821,11 @@ async function saveQuoteSettings() {
 
 async function sendQuote() {
   if (!currentQuote) return;
-  if (!confirm('確認傳送報價單給客戶？傳送後將同步更新案件成交金額。')) return;
+  const items = currentQuote.items || [];
+  if (!items.length) { showToast('請先新增品項後再傳送', 'error'); return; }
+  const totalStr = currentQuote.final_total ? QFmt(currentQuote.final_total) : '（尚未計算）';
+  const taxNote  = (currentQuote.tax_rate||0) > 0 ? `含稅${Math.round((currentQuote.tax_rate||0)*100)}%` : '未稅';
+  if (!confirm(`確認傳送報價單給客戶？\n合計：${totalStr}（${taxNote}）\n\n傳送後客戶可透過連結線上簽名確認，並同步更新案件成交金額。`)) return;
   const res = await fetch(`/api/quotes/${currentQuote.id}/send`, { method:'POST' });
   if (!res.ok) { showToast('傳送失敗', 'error'); return; }
   showToast('報價單已傳送');
@@ -3828,6 +3836,10 @@ async function sendQuote() {
 
 function previewQuote() {
   if (currentQuote?.share_token) window.open(`/quote/${currentQuote.share_token}`, '_blank');
+}
+
+function printQuote() {
+  if (currentQuote?.share_token) window.open(`/quote/${currentQuote.share_token}?print=1`, '_blank');
 }
 
 function copyQuoteLink() {
