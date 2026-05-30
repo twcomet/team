@@ -2534,4 +2534,19 @@ _addCol('materials', 'ec_synced_at',  'DATETIME');
 // ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
 _addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');
 
+// ── 設計師查詢存取碼 ──────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS designer_access_codes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id   INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    code        TEXT NOT NULL UNIQUE,
+    pin         TEXT NOT NULL,
+    note        TEXT,
+    is_active   INTEGER DEFAULT 1,
+    expires_at  DATETIME,
+    created_by  INTEGER REFERENCES users(id),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 module.exports = db;

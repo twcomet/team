@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -57,6 +57,7 @@ app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/assets',    require('./routes/assets'));
 app.use('/api/purchases', require('./routes/purchases'));
+app.use('/api/designer',  require('./routes/designer'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
@@ -186,6 +187,11 @@ pages.forEach(page => {
 });
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
+
+// 設計師查詢頁（客戶用，不需登入）
+app.get('/designer', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'designer.html'));
+});
 
 // 公開場勘簽名頁（客戶用，不需登入）
 app.get('/sign/:token', (req, res) => {

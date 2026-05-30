@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>膜料查詢 — 繪新</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: #f8f9fa; color: #1a1a2e; min-height: 100vh; }
+
+/* ── Header ── */
+.header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+           color: #fff; padding: 20px 24px; display: flex; align-items: center; gap: 14px; }
+.header img { width: 36px; height: 36px; object-fit: contain; filter: brightness(0) invert(1); }
+.header-title { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+.header-sub { font-size: 12px; opacity: .7; margin-top: 2px; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.user-chip { background: rgba(255,255,255,.15); border-radius: 20px; padding: 5px 12px;
+              font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.logout-link { font-size: 12px; opacity: .7; cursor: pointer; text-decoration: underline; }
+
+/* ── Login card ── */
+.login-wrap { display: flex; justify-content: center; align-items: center;
+              min-height: calc(100vh - 80px); padding: 24px; }
+.login-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.12);
+               padding: 40px 32px; width: 100%; max-width: 400px; }
+.login-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.login-card .sub { font-size: 13px; color: #666; margin-bottom: 28px; }
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
+.form-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+                    font-size: 15px; transition: border .2s; outline: none;
+                    font-family: monospace; letter-spacing: 2px; }
+.form-group input:focus { border-color: #e91e8c; box-shadow: 0 0 0 3px rgba(233,30,140,.1); }
+.btn-verify { width: 100%; padding: 14px; background: linear-gradient(135deg, #e91e8c, #c2185b);
+               color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
+               cursor: pointer; transition: opacity .2s; }
+.btn-verify:hover { opacity: .9; }
+.btn-verify:disabled { opacity: .5; cursor: not-allowed; }
+.err-msg { background: #fff0f0; border: 1px solid #ffcdd2; border-radius: 8px;
+            padding: 10px 14px; font-size: 13px; color: #c62828; margin-top: 12px; display: none; }
+
+/* ── Stock page ── */
+.page-body { padding: 20px 16px; max-width: 900px; margin: 0 auto; }
+
+.welcome-bar { background: linear-gradient(135deg, #fff0f8, #fce4ec);
+                border: 1px solid #f8bbd9; border-radius: 12px;
+                padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.welcome-bar .icon { font-size: 28px; }
+.welcome-bar .msg { font-size: 15px; font-weight: 600; }
+.welcome-bar .sub  { font-size: 12px; color: #666; margin-top: 2px; }
+
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-bar input, .filter-bar select {
+  padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 13px; background: #fff; outline: none; }
+.filter-bar input:focus, .filter-bar select:focus { border-color: #e91e8c; }
+.filter-bar input { flex: 1; min-width: 180px; }
+
+.disc-note { font-size: 13px; color: #e91e8c; font-weight: 600; margin-bottom: 14px; }
+
+/* ── Material cards ── */
+.mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.mat-card { background: #fff; border-radius: 12px; border: 1px solid #f0f0f0;
+             box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 16px 18px; transition: box-shadow .2s; }
+.mat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.mat-card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.mat-brand { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.brand-BODAQ  { background: #e0e7ff; color: #3730a3; }
+.brand-LG     { background: #dcfce7; color: #14532d; }
+.brand-3M     { background: #dbeafe; color: #1e40af; }
+.brand-Paroi  { background: #fce7f3; color: #9d174d; }
+.brand-穩得   { background: #fef9c3; color: #713f12; }
+.brand-AICA   { background: #f3e8ff; color: #6b21a8; }
+.brand-other  { background: #f3f4f6; color: #374151; }
+.mat-model { font-size: 15px; font-weight: 700; margin: 4px 0 2px; }
+.mat-spec  { font-size: 12px; color: #888; }
+.mat-price-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; }
+.mat-price { font-size: 18px; font-weight: 800; color: #e91e8c; }
+.mat-original { font-size: 13px; color: #aaa; text-decoration: line-through; }
+.mat-disc-badge { font-size: 11px; background: #fff0f8; color: #e91e8c;
+                   border: 1px solid #f8bbd9; border-radius: 12px; padding: 2px 7px; font-weight: 700; }
+.mat-branches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.branch-pill { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.branch-ok   { background: #dcfce7; color: #14532d; }
+.branch-low  { background: #fef9c3; color: #713f12; }
+.branch-out  { background: #f3f4f6; color: #9ca3af; }
+.no-stock    { font-size: 13px; color: #bbb; font-style: italic; }
+
+.no-results  { text-align: center; padding: 60px 20px; color: #aaa; font-size: 15px; }
+
+.loading     { text-align: center; padding: 60px 20px; color: #aaa; }
+
+/* ── Page tabs ── */
+.page-tabs { display: flex; border-bottom: 2px solid #f0f0f0; margin-bottom: 20px; gap: 0; }
+.page-tab  { padding: 10px 20px; font-size: 14px; font-weight: 500; color: #888;
+              cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -2px; }
+.page-tab:hover { color: #333; }
+.page-tab.active { color: #e91e8c; border-bottom-color: #e91e8c; }
+
+/* ── Quote cards ── */
+.quote-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
+               box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 18px 20px; margin-bottom: 12px; }
+.quote-head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+.quote-num  { font-family: monospace; font-size: 12px; color: #888; }
+.quote-title { font-size: 15px; font-weight: 700; margin: 4px 0; }
+.quote-total { font-size: 20px; font-weight: 800; color: #e91e8c; }
+.quote-meta { font-size: 12px; color: #aaa; margin-top: 6px; }
+.q-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.q-sent   { background: #dbeafe; color: #1e40af; }
+.q-signed { background: #dcfce7; color: #14532d; }
+.q-ready  { background: #f3f4f6; color: #374151; }
+.view-quote-btn { padding: 8px 16px; background: #e91e8c; color: #fff; border: none;
+                   border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+                   text-decoration: none; display: inline-block; margin-top: 10px; }
+.view-quote-btn:hover { background: #c2185b; }
+.no-quotes { text-align: center; padding: 48px 20px; color: #bbb; font-size: 14px; }
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .mat-grid { grid-template-columns: 1fr; }
+  .login-card { padding: 28px 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="/logo.png" alt="">
+  <div>
+    <div class="header-title">繪新建材</div>
+    <div class="header-sub">膜料庫存查詢</div>
+  </div>
+  <div class="header-right" id="headerRight" style="display:none">
+    <div class="user-chip" id="userChip">👤 <span id="clientNameSpan"></span></div>
+    <span class="logout-link" onclick="doLogout()">登出</span>
+  </div>
+</div>
+
+<!-- 登入區 -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <h2>查詢膜料庫存</h2>
+    <p class="sub">請輸入您的存取碼與 PIN 碼，查看最新庫存與報價。</p>
+    <div class="form-group">
+      <label>存取碼</label>
+      <input type="text" id="codeInput" placeholder="XXXXXXXX" maxlength="8"
+             style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"
+             onkeydown="if(event.key==='Enter')document.getElementById('pinInput').focus()">
+    </div>
+    <div class="form-group">
+      <label>PIN 碼（4 位數字）</label>
+      <input type="password" id="pinInput" placeholder="····" maxlength="4" inputmode="numeric"
+             onkeydown="if(event.key==='Enter')doVerify()">
+    </div>
+    <button class="btn-verify" onclick="doVerify()" id="verifyBtn">進入查詢</button>
+    <div class="err-msg" id="errMsg"></div>
+  </div>
+</div>
+
+<!-- 庫存查詢區 -->
+<div id="stockWrap" style="display:none">
+  <div class="page-body">
+    <div class="welcome-bar">
+      <div class="icon">🎞️</div>
+      <div>
+        <div class="msg" id="welcomeMsg"></div>
+        <div class="sub">以下為即時庫存數量，如需訂購請聯繫業務。</div>
+      </div>
+    </div>
+
+    <div class="page-tabs">
+      <div class="page-tab active" onclick="switchTab('stock')">🎞️ 庫存查詢</div>
+      <div class="page-tab" onclick="switchTab('quotes')">📋 我的報價單</div>
+    </div>
+
+    <div id="pane-stock">
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="🔍 搜尋品牌 / 型號…" oninput="applyFilter()">
+      <select id="filterBrand" onchange="applyFilter()">
+        <option value="">全部品牌</option>
+      </select>
+      <select id="filterSpec" onchange="applyFilter()">
+        <option value="">全部材質</option>
+      </select>
+      <select id="filterStock" onchange="applyFilter()">
+        <option value="">全部庫存</option>
+        <option value="available">有庫存</option>
+        <option value="low">偏低（&lt;10米）</option>
+      </select>
+    </div>
+
+    <div class="disc-note" id="discNote" style="display:none"></div>
+
+    <div id="matGrid" class="mat-grid">
+      <div class="loading">載入中…</div>
+    </div>
+    </div><!-- end pane-stock -->
+
+    <div id="pane-quotes" style="display:none">
+      <div id="quoteList"><div class="loading">載入中…</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let stockData = [];
+let discountRate = 1.0;
+let quotesLoaded = false;
+
+function switchTab(tab) {
+  document.querySelectorAll('.page-tab').forEach((el, i) => {
+    el.classList.toggle('active', ['stock','quotes'][i] === tab);
+  });
+  document.getElementById('pane-stock').style.display  = tab === 'stock'  ? '' : 'none';
+  document.getElementById('pane-quotes').style.display = tab === 'quotes' ? '' : 'none';
+  if (tab === 'quotes' && !quotesLoaded) loadQuotes();
+}
+
+async function checkSession() {
+  const res = await fetch('/api/designer/me');
+  const data = await res.json();
+  if (data.logged_in) {
+    showStock(data.client_name);
+    loadStock();
+  }
+}
+
+async function doVerify() {
+  const code = document.getElementById('codeInput').value.trim().toUpperCase();
+  const pin  = document.getElementById('pinInput').value.trim();
+  const btn  = document.getElementById('verifyBtn');
+  const err  = document.getElementById('errMsg');
+  if (!code || !pin) { showErr('請填寫存取碼與 PIN'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '驗證中…';
+  err.style.display = 'none';
+
+  const res = await fetch('/api/designer/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, pin }),
+  });
+  const data = await res.json();
+  btn.disabled = false;
+  btn.textContent = '進入查詢';
+
+  if (!res.ok) { showErr(data.error || '驗證失敗'); return; }
+
+  showStock(data.client_name);
+  loadStock();
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showStock(clientName) {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('stockWrap').style.display = 'block';
+  document.getElementById('headerRight').style.display = 'flex';
+  document.getElementById('clientNameSpan').textContent = clientName || '訪客';
+  document.getElementById('welcomeMsg').textContent = `歡迎，${clientName || ''}！`;
+}
+
+async function doLogout() {
+  await fetch('/api/designer/logout', { method: 'POST' });
+  location.reload();
+}
+
+async function loadStock() {
+  const res = await fetch('/api/designer/stock');
+  if (!res.ok) { document.getElementById('matGrid').innerHTML = '<div class="no-results">載入失敗，請重新整理</div>'; return; }
+  const { materials, discount_rate } = await res.json();
+  stockData = materials;
+  discountRate = discount_rate;
+
+  if (discountRate < 1.0) {
+    const el = document.getElementById('discNote');
+    el.textContent = `✨ 您享有 ${Math.round((1 - discountRate) * 100)}% 折扣優惠`;
+    el.style.display = 'block';
+  }
+
+  buildFilters();
+  applyFilter();
+}
+
+function buildFilters() {
+  const brands = [...new Set(stockData.map(m => m.brand))].sort();
+  const specs  = [...new Set(stockData.map(m => m.spec).filter(Boolean))].sort();
+  const bSel = document.getElementById('filterBrand');
+  const sSel = document.getElementById('filterSpec');
+  bSel.innerHTML = '<option value="">全部品牌</option>' + brands.map(b => `<option>${b}</option>`).join('');
+  sSel.innerHTML = '<option value="">全部材質</option>' + specs.map(s => `<option>${s}</option>`).join('');
+}
+
+function applyFilter() {
+  const q     = document.getElementById('searchInput').value.toLowerCase();
+  const brand = document.getElementById('filterBrand').value;
+  const spec  = document.getElementById('filterSpec').value;
+  const stock = document.getElementById('filterStock').value;
+
+  let list = stockData;
+  if (q)     list = list.filter(m => (m.brand + m.model + (m.color||'') + (m.spec||'')).toLowerCase().includes(q));
+  if (brand) list = list.filter(m => m.brand === brand);
+  if (spec)  list = list.filter(m => m.spec === spec);
+  if (stock === 'available') list = list.filter(m => m.total_stock > 0);
+  if (stock === 'low')       list = list.filter(m => m.total_stock > 0 && m.total_stock < 10);
+
+  renderGrid(list);
+}
+
+function brandClass(brand) {
+  const known = ['BODAQ','LG','3M','Paroi','穩得','AICA'];
+  return 'brand-' + (known.includes(brand) ? brand : 'other');
+}
+
+function renderGrid(list) {
+  const grid = document.getElementById('matGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="no-results">沒有符合條件的膜料</div>';
+    return;
+  }
+  grid.innerHTML = list.map(m => {
+    const branches = m.branches || {};
+    const branchKeys = Object.keys(branches);
+    const hasStock = m.total_stock > 0;
+    const hasDiscount = discountRate < 1.0 && m.unit_price;
+
+    let branchHtml = '';
+    if (branchKeys.length) {
+      branchHtml = branchKeys.map(b => {
+        const s = branches[b];
+        const cls = s <= 0 ? 'branch-out' : s < 10 ? 'branch-low' : 'branch-ok';
+        const label = s <= 0 ? '缺貨' : s < 10 ? `${s.toFixed(1)}米` : `${s.toFixed(1)}米`;
+        return `<span class="branch-pill ${cls}">${b} ${label}</span>`;
+      }).join('');
+    } else {
+      branchHtml = '<span class="no-stock">暫無庫存資料</span>';
+    }
+
+    let priceHtml = '';
+    if (m.unit_price) {
+      if (hasDiscount) {
+        priceHtml = `
+          <div class="mat-price-row">
+            <span class="mat-price">$${m.discount_price?.toLocaleString()}</span>
+            <span class="mat-original">$${m.unit_price.toLocaleString()}</span>
+            <span class="mat-disc-badge">${Math.round((1-discountRate)*100)}% off</span>
+          </div>`;
+      } else {
+        priceHtml = `<div class="mat-price-row"><span class="mat-price">$${m.unit_price.toLocaleString()}</span><span style="font-size:12px;color:#aaa">/米</span></div>`;
+      }
+    }
+
+    return `<div class="mat-card" style="${!hasStock ? 'opacity:.6' : ''}">
+      <div class="mat-card-head">
+        <div>
+          <span class="mat-brand ${brandClass(m.brand)}">${m.brand}</span>
+          <div class="mat-model">${m.model}${m.color ? ' · ' + m.color : ''}</div>
+          <div class="mat-spec">${m.spec || ''}</div>
+        </div>
+        ${!hasStock ? '<span style="font-size:12px;color:#bbb;font-weight:600">暫缺</span>' : ''}
+      </div>
+      ${priceHtml}
+      <div class="mat-branches">${branchHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadQuotes() {
+  quotesLoaded = true;
+  const res = await fetch('/api/designer/quotes');
+  const el = document.getElementById('quoteList');
+  if (!res.ok) { el.innerHTML = '<div class="no-quotes">載入失敗，請重新整理</div>'; return; }
+  const quotes = await res.json();
+  if (!quotes.length) {
+    el.innerHTML = '<div class="no-quotes">目前沒有報價單記錄</div>';
+    return;
+  }
+  const Q_STATUS = { sent: '已發送', signed: '已簽署', ready: '待發送' };
+  const Q_CLS    = { sent: 'q-sent', signed: 'q-signed', ready: 'q-ready' };
+  el.innerHTML = quotes.map(q => {
+    const viewBtn = q.share_token
+      ? `<a class="view-quote-btn" href="/quote/${q.share_token}" target="_blank">查看報價單</a>`
+      : '';
+    return `<div class="quote-card">
+      <div class="quote-head">
+        <div>
+          <div class="quote-num">${q.case_number || ''}</div>
+          <div class="quote-title">${q.case_title || '未命名案件'}</div>
+        </div>
+        <span class="q-badge ${Q_CLS[q.status] || ''}">${Q_STATUS[q.status] || q.status}</span>
+      </div>
+      ${q.total_price ? `<div class="quote-total">$${Math.round(q.total_price).toLocaleString()}</div>` : ''}
+      <div class="quote-meta">
+        建立於 ${q.created_at?.slice(0,10) || '—'}
+        ${q.valid_until ? `｜有效至 ${q.valid_until}` : ''}
+        ${q.created_by_name ? `｜負責人：${q.created_by_name}` : ''}
+      </div>
+      ${viewBtn}
+    </div>`;
+  }).join('');
+}
+
+checkSession();
+</script>
+</body>
+</html>

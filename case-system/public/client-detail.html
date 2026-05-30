@@ -144,6 +144,7 @@
         <div class="tab active" onclick="switchTab('cases')">案件記錄</div>
         <div class="tab" onclick="switchTab('deposits')">預收款 &amp; 樣本</div>
         <div class="tab" onclick="switchTab('profile')">基本資料</div>
+        <div class="tab" onclick="switchTab('designer')">🔗 設計師連結</div>
       </div>
 
       <!-- Tab: 案件記錄 -->
@@ -181,6 +182,17 @@
         <div class="card" style="padding:20px;max-width:700px" id="profilePanel">
           <div style="text-align:center;padding:24px;color:var(--gray-400)">載入中…</div>
         </div>
+      </div>
+
+      <!-- Tab: 設計師連結 -->
+      <div class="tab-pane" id="tab-designer">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <p style="font-size:13px;color:var(--gray-500)">
+            發行存取碼後，可將連結分享給設計師或客戶，讓對方免登入查詢膜料庫存與售價。
+          </p>
+          <button class="btn btn-primary btn-sm" onclick="openCodeModal()">＋ 發行存取碼</button>
+        </div>
+        <div id="codeList"><div style="text-align:center;padding:32px;color:var(--gray-400)">載入中…</div></div>
       </div>
 
     </div>
@@ -298,11 +310,12 @@ let activeTab  = 'cases';
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab').forEach((el,i) => {
-    const tabs = ['cases','deposits','profile'];
+    const tabs = ['cases','deposits','profile','designer'];
     el.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
   document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'designer') loadDesignerCodes();
 }
 
 async function init() {
@@ -633,7 +646,126 @@ async function deleteDeposit(id) {
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
+// ── 設計師存取碼 ─────────────────────────────────────────────
+let designerCodes = [];
+
+async function loadDesignerCodes() {
+  const res = await fetch(`/api/designer/codes?client_id=${clientId}`);
+  designerCodes = res.ok ? await res.json() : [];
+  renderDesignerCodes();
+}
+
+function renderDesignerCodes() {
+  const el = document.getElementById('codeList');
+  if (!designerCodes.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:14px">
+      尚未發行任何存取碼<br><span style="font-size:12px">點「＋ 發行存取碼」建立第一個</span></div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">` + designerCodes.map(c => {
+    const url = `${location.origin}/designer?code=${c.code}`;
+    const expired = c.expires_at && new Date(c.expires_at) < new Date();
+    const statusColor = !c.is_active ? 'var(--gray-400)' : expired ? '#b45309' : 'var(--success)';
+    const statusLabel = !c.is_active ? '已停用' : expired ? '已過期' : '使用中';
+    return `<div style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:2px">${c.code}</span>
+          <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
+        </div>
+        <div style="font-size:12px;color:var(--gray-500)">
+          PIN：${c.pin}
+          ${c.expires_at ? `｜有效至 ${c.expires_at.slice(0,10)}` : '｜永久有效'}
+          ${c.note ? `｜備注：${c.note}` : ''}
+          ｜建立：${c.created_by_name || '—'}
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px;font-family:monospace;word-break:break-all">${url}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="copyLink('${url}')">複製連結</button>
+        <button class="btn btn-sm ${c.is_active ? 'btn-ghost' : 'btn-primary'}" style="font-size:12px"
+          onclick="toggleCode(${c.id})">${c.is_active ? '停用' : '啟用'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCode(${c.id})">刪除</button>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => showToast('連結已複製'));
+}
+
+async function toggleCode(id) {
+  const res = await fetch(`/api/designer/codes/${id}/toggle`, { method: 'PATCH' });
+  if (res.ok) { showToast('已更新'); loadDesignerCodes(); }
+  else { showToast('操作失敗', 'error'); }
+}
+
+async function deleteCode(id) {
+  if (!confirm('確定刪除此存取碼？刪除後連結即失效。')) return;
+  const res = await fetch(`/api/designer/codes/${id}`, { method: 'DELETE' });
+  if (res.ok) { showToast('已刪除'); loadDesignerCodes(); }
+  else { showToast('刪除失敗', 'error'); }
+}
+
+function openCodeModal() {
+  document.getElementById('code_pin').value = String(Math.floor(1000 + Math.random() * 9000));
+  document.getElementById('code_expires').value = '';
+  document.getElementById('code_note').value = '';
+  document.getElementById('codeModal').classList.add('open');
+}
+function closeCodeModal() { document.getElementById('codeModal').classList.remove('open'); }
+
+async function saveCode() {
+  const pin = document.getElementById('code_pin').value.trim();
+  if (!/^\d{4}$/.test(pin)) { showToast('PIN 須為 4 位數字', 'error'); return; }
+  const body = {
+    client_id:  clientId,
+    pin,
+    expires_at: document.getElementById('code_expires').value || null,
+    note:       document.getElementById('code_note').value.trim() || null,
+  };
+  const res = await fetch('/api/designer/codes', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    const { code } = await res.json();
+    closeCodeModal();
+    showToast(`存取碼 ${code} 已建立`);
+    loadDesignerCodes();
+  } else {
+    const e = await res.json().catch(() => ({}));
+    showToast(e.error || '建立失敗', 'error');
+  }
+}
+
 init();
 </script>
+
+<!-- 發行存取碼 Modal -->
+<div class="modal-overlay" id="codeModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>發行設計師存取碼</h3>
+      <button class="modal-close" onclick="closeCodeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>PIN 碼（4 位數字）*</label>
+        <input type="text" id="code_pin" maxlength="4" placeholder="1234" inputmode="numeric">
+      </div>
+      <div class="form-group"><label>有效期限（選填，留空為永久）</label>
+        <input type="date" id="code_expires">
+      </div>
+      <div class="form-group"><label>備注</label>
+        <input type="text" id="code_note" placeholder="給設計師 A 使用…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCodeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCode()">發行</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
