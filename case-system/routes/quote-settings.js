@@ -185,7 +185,7 @@ router.post('/film-prices', requireAuth, (req, res) => {
   const r = db.prepare(`INSERT INTO film_price_matrix
     (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,price_flat,price_cabinet,price_custom,sort_order)
     VALUES (?,?,?,?,?,?,?,?,?,?)`)
-    .run(brand, series_code||null, series_name||null, flame_resistant?1:0,
+    .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
          film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0, sort_order||0);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
@@ -194,7 +194,7 @@ router.put('/film-prices/:id', requireAuth, (req, res) => {
           cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, active } = req.body;
   db.prepare(`UPDATE film_price_matrix SET brand=?,series_code=?,series_name=?,flame_resistant=?,film_width_cm=?,
     cost_per_meter=?,price_flat=?,price_cabinet=?,price_custom=?,sort_order=?,active=? WHERE id=?`)
-    .run(brand, series_code||null, series_name||null, flame_resistant?1:0,
+    .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
          film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0,
          sort_order||0, active??1, req.params.id);
   res.json({ ok: true });
