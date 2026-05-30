@@ -31,6 +31,60 @@ function recalcQuote(quoteId) {
     .run(subtotal, discountedTotal, marketingTotal, taxAmount, finalTotal, quoteId);
 }
 
+// ── 報價單總列表（含過濾）────────────────────────────────────────
+router.get('/', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { status, from, to, search, case_type } = req.query;
+
+  let sql = `
+    SELECT qs.id, qs.case_id, qs.version, qs.status, qs.final_total, qs.created_at,
+           qs.discount_rate, qs.share_token, qs.updated_at,
+           c.case_number, c.title, c.case_type, c.org_id,
+           cl.name as client_name,
+           u.name as creator_name
+    FROM quote_sheets qs
+    JOIN cases c ON c.id = qs.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    LEFT JOIN users u ON u.id = qs.created_by
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (me.role !== 'owner') { sql += ` AND c.org_id = ?`; params.push(me.org_id); }
+  if (status)    { sql += ` AND qs.status = ?`; params.push(status); }
+  if (from)      { sql += ` AND date(qs.created_at) >= ?`; params.push(from); }
+  if (to)        { sql += ` AND date(qs.created_at) <= ?`; params.push(to); }
+  if (case_type) { sql += ` AND c.case_type = ?`; params.push(case_type); }
+  if (search) {
+    sql += ` AND (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ?)`;
+    const q = `%${search}%`;
+    params.push(q, q, q);
+  }
+
+  sql += ` ORDER BY qs.created_at DESC LIMIT 300`;
+  res.json(db.prepare(sql).all(...params));
+});
+
+// ── 案件搜尋（新增報價單 modal 用）──────────────────────────────
+router.get('/search-cases', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { q } = req.query;
+  if (!q) return res.json([]);
+  const like = `%${q}%`;
+  let sql = `
+    SELECT c.id, c.case_number, c.title, c.case_type, c.status,
+           cl.name as client_name
+    FROM cases c
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ?)
+    AND c.status NOT IN ('closed','invalid')
+  `;
+  const params = [like, like, like];
+  if (me.role !== 'owner') { sql += ` AND c.org_id = ?`; params.push(me.org_id); }
+  sql += ` ORDER BY c.created_at DESC LIMIT 20`;
+  res.json(db.prepare(sql).all(...params));
+});
+
 // ── 取得案件所有版本的報價單列表 ─────────────────────────────────
 router.get('/cases/:id/versions', requireAuth, (req, res) => {
   const rows = db.prepare(`

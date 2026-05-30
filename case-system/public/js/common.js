@@ -55,6 +55,7 @@ async function loadUser() {
     'cases-survey':   p.page_cases,
     'cases-deal':     p.page_cases_deal !== undefined ? p.page_cases_deal : ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(currentUser.role),
     'case-detail':    p.page_cases,
+    'quote-list':     p.page_cases,
     clients:          p.page_clients,
     calendar:         p.page_calendar,
     payments:         p.page_payments,

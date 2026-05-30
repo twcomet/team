@@ -31,6 +31,7 @@
         <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
         <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
         <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="quote-list"    href="/quote-list">      <span class="icon">📋</span>報價管理</a>
         <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
         <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
         <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
@@ -256,7 +257,10 @@ async function loadOrders() {
   if (status) params.set('status', status);
   if (org_id) params.set('org_id', org_id);
   const r = await fetch('/api/purchases?' + params);
-  if (!r.ok) return;
+  if (!r.ok) {
+    document.getElementById('poList').innerHTML = `<p style="text-align:center;color:#dc2626;padding:40px">載入失敗（${r.status}），請重新整理頁面</p>`;
+    return;
+  }
   orders = await r.json();
   renderOrders();
 }
@@ -264,7 +268,7 @@ async function loadOrders() {
 function renderOrders() {
   const el = document.getElementById('poList');
   if (!orders.length) {
-    el.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:40px">尚無採購紀錄</p>';
+    el.innerHTML = '<p style="text-align:center;color:#6b7280;padding:40px">尚無採購紀錄</p>';
     return;
   }
   el.innerHTML = orders.map(po => {
@@ -438,7 +442,10 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
 });
 
-init().catch(console.error);
+init().catch(e => {
+  console.error(e);
+  document.getElementById('poList').innerHTML = `<p style="text-align:center;color:#dc2626;padding:40px">頁面初始化失敗：${e.message}</p>`;
+});
 </script>
 </body>
 </html>

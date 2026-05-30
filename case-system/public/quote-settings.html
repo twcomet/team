@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>報價設定</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/css/style.css">
 <style>
 .qs-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; border-bottom:2px solid #e5e7eb; padding-bottom:0; }
 .qs-tab { padding:8px 16px; border:none; background:none; cursor:pointer; font-size:14px; color:#6b7280; border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; }
@@ -46,11 +46,49 @@
 </style>
 </head>
 <body>
-<div id="app">
-  <div class="sidebar" id="sidebar"></div>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="quote-list"    href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="purchases"      href="/purchases">      <span class="icon">🚚</span>進貨管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
   <div class="main-content">
-    <div class="page-header">
-      <h1 class="page-title">報價設定</h1>
+    <div class="top-bar">
+      <span class="page-title">報價設定</span>
     </div>
 
     <div class="qs-tabs">
@@ -364,14 +402,14 @@
   </div>
 </div>
 
-<script src="/common.js"></script>
+<script src="/js/common.js"></script>
 <script>
 const API = '/api/quote-settings';
 let clientCategories = [];
 
 async function init() {
-  await loadSidebar();
-  highlightNav('settings');
+  await loadUser();
+  highlightNav('quote-settings');
   const cats = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
   clientCategories = Array.isArray(cats) ? cats : [];
   const sel = document.getElementById('nd-cat');

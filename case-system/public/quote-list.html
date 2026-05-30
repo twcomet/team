@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>報價管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.filter-bar input, .filter-bar select { padding:6px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; }
+.filter-bar input[type="text"] { min-width:180px; }
+.ql-table { width:100%; border-collapse:collapse; font-size:13px; }
+.ql-table th { background:#f8fafc; color:#374151; font-weight:600; padding:9px 12px; text-align:left; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
+.ql-table td { padding:9px 12px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+.ql-table tr:hover td { background:#f9fafb; }
+.qs-draft    { background:#f3f4f6; color:#374151; }
+.qs-sent     { background:#dbeafe; color:#1e40af; }
+.qs-signed   { background:#ede9fe; color:#6d28d9; }
+.qs-accepted { background:#d1fae5; color:#065f46; }
+.qs-ready    { background:#fef3c7; color:#92400e; }
+.status-pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.case-type-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#e0e7ff; color:#3730a3; }
+.amt-cell { font-weight:600; color:#0f766e; }
+/* modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:5000; display:flex; align-items:center; justify-content:center; }
+.modal { background:#fff; border-radius:14px; padding:0; width:100%; max-width:540px; max-height:85vh; display:flex; flex-direction:column; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid #e5e7eb; }
+.modal-header h3 { margin:0; font-size:16px; font-weight:700; }
+.modal-close { border:none; background:none; font-size:18px; cursor:pointer; color:#6b7280; }
+.modal-body { padding:18px 22px; overflow-y:auto; flex:1; }
+.modal-footer { padding:14px 22px; border-top:1px solid #e5e7eb; display:flex; gap:8px; justify-content:flex-end; }
+.search-result-list { max-height:260px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px; margin-top:8px; }
+.search-result-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f3f4f6; transition:background .1s; }
+.search-result-item:last-child { border-bottom:none; }
+.search-result-item:hover { background:#eff6ff; }
+.search-result-item .case-num { font-size:12px; color:#6b7280; }
+.search-result-item .case-name { font-weight:600; font-size:14px; }
+.search-result-item .client-name { font-size:12px; color:#374151; margin-top:2px; }
+.tab-btns { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+.tab-btn { padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:#6b7280; border-bottom:3px solid transparent; margin-bottom:-2px; }
+.tab-btn.active { color:#2563eb; border-bottom-color:#2563eb; font-weight:600; }
+.tab-pane { display:none; } .tab-pane.active { display:block; }
+.empty-state { text-align:center; color:#9ca3af; padding:60px 20px; }
+.empty-state-icon { font-size:40px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="quote-list"    href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="purchases"      href="/purchases">      <span class="icon">🚚</span>進貨管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">報價管理</span>
+      <button class="btn btn-primary btn-sm" onclick="openNewModal()">＋ 新增報價單</button>
+    </div>
+    <div class="page-body">
+      <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="搜尋案件編號、名稱、客戶…" style="flex:1;min-width:160px;max-width:260px">
+        <select id="statusFilter">
+          <option value="">全部狀態</option>
+          <option value="draft">草稿</option>
+          <option value="sent">已發送</option>
+          <option value="accepted">客戶已確認</option>
+          <option value="signed">已簽署</option>
+          <option value="ready">完成</option>
+        </select>
+        <select id="caseTypeFilter">
+          <option value="">全部類型</option>
+          <option value="home">居家</option>
+          <option value="commercial">商空</option>
+          <option value="elevator">電梯</option>
+          <option value="glass">玻璃</option>
+          <option value="extra">外快</option>
+          <option value="outsource">外包</option>
+          <option value="output">輸出</option>
+          <option value="other">其他</option>
+        </select>
+        <input type="date" id="fromDate" title="建立日期起">
+        <input type="date" id="toDate" title="建立日期迄">
+        <button class="btn btn-sm" onclick="loadList()" style="background:#2563eb;color:#fff">查詢</button>
+        <button class="btn btn-sm" onclick="clearFilters()" style="background:#f3f4f6;color:#374151">清除</button>
+      </div>
+      <div style="background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden">
+        <table class="ql-table">
+          <thead>
+            <tr>
+              <th>案件編號</th>
+              <th>案件名稱</th>
+              <th>客戶</th>
+              <th>類型</th>
+              <th>版本</th>
+              <th>狀態</th>
+              <th>金額</th>
+              <th>建立日期</th>
+              <th width="80">操作</th>
+            </tr>
+          </thead>
+          <tbody id="quoteList"></tbody>
+        </table>
+        <div id="emptyState" style="display:none">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div>尚無報價單</div>
+          </div>
+        </div>
+        <div id="errorState" style="display:none;text-align:center;color:#dc2626;padding:40px">載入失敗，請重新整理</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增報價單 Modal -->
+<div class="modal-overlay" id="newQuoteModal" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>新增報價單</h3>
+      <button class="modal-close" onclick="closeNewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-btns">
+        <button class="tab-btn active" onclick="switchModalTab('search')">搜尋現有案件</button>
+        <button class="tab-btn" onclick="switchModalTab('create')">建立新案件</button>
+      </div>
+
+      <!-- 搜尋現有案件 -->
+      <div class="tab-pane active" id="tab-search">
+        <input type="text" id="caseSearch" class="form-input" placeholder="輸入案件編號、名稱或客戶名稱…" style="width:100%;box-sizing:border-box" oninput="debouncedSearch()">
+        <div id="caseSearchResults" class="search-result-list" style="display:none"></div>
+        <p id="searchHint" style="font-size:12px;color:#9ca3af;margin-top:8px">搜尋後選取案件，即可前往該案件的報價頁面建立新版報價單。</p>
+      </div>
+
+      <!-- 建立新案件 -->
+      <div class="tab-pane" id="tab-create">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">客戶 <span style="color:red">*</span></label>
+          <select class="form-input" id="nc_client_id">
+            <option value="">— 請選擇 —</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">案件名稱</label>
+          <input class="form-input" id="nc_title" placeholder="例：林宅居家貼膜">
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">施工類型</label>
+          <select class="form-input" id="nc_case_type">
+            <option value="home">居家</option>
+            <option value="commercial">商空</option>
+            <option value="elevator">電梯</option>
+            <option value="glass">玻璃</option>
+            <option value="extra">外快</option>
+            <option value="outsource">外包</option>
+            <option value="output">輸出</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:4px">
+          <label class="form-label">施工地址</label>
+          <input class="form-input" id="nc_location" placeholder="（選填）">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeNewModal()" style="background:#f3f4f6;color:#374151">取消</button>
+      <button class="btn btn-primary" id="createCaseBtn" onclick="createCaseAndQuote()" style="display:none">建立案件並開始報價</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const API = '/api/quotes';
+let currentUser = null;
+let searchTimer = null;
+
+const STATUS_MAP = {
+  draft:    { label:'草稿',     cls:'qs-draft'    },
+  sent:     { label:'已發送',   cls:'qs-sent'     },
+  accepted: { label:'客戶已確認', cls:'qs-accepted' },
+  signed:   { label:'已簽署',   cls:'qs-signed'   },
+  ready:    { label:'完成',     cls:'qs-ready'    },
+};
+const TYPE_MAP = {
+  home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃',
+  extra:'外快', outsource:'外包', output:'輸出', other:'其他',
+};
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function init() {
+  currentUser = await loadUser();
+  highlightNav('quote-list');
+  loadList();
+}
+
+async function loadList() {
+  const search    = document.getElementById('searchInput').value.trim();
+  const status    = document.getElementById('statusFilter').value;
+  const caseType  = document.getElementById('caseTypeFilter').value;
+  const from      = document.getElementById('fromDate').value;
+  const to        = document.getElementById('toDate').value;
+
+  const params = new URLSearchParams();
+  if (search)   params.set('search', search);
+  if (status)   params.set('status', status);
+  if (caseType) params.set('case_type', caseType);
+  if (from)     params.set('from', from);
+  if (to)       params.set('to', to);
+
+  document.getElementById('quoteList').innerHTML = '';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+
+  const r = await fetch(`${API}?${params}`);
+  if (!r.ok) {
+    document.getElementById('errorState').style.display = '';
+    return;
+  }
+  const rows = await r.json();
+
+  if (!rows.length) {
+    document.getElementById('emptyState').style.display = '';
+    return;
+  }
+
+  const tbody = document.getElementById('quoteList');
+  tbody.innerHTML = rows.map(q => {
+    const st = STATUS_MAP[q.status] || { label: q.status, cls:'qs-draft' };
+    const typeLabel = TYPE_MAP[q.case_type] || q.case_type || '—';
+    const amt = q.final_total != null ? `$${Math.round(q.final_total).toLocaleString()}` : '—';
+    const dateStr = (q.created_at || '').slice(0, 10);
+    return `<tr>
+      <td><a href="/case-detail?id=${q.case_id}" style="color:#2563eb;text-decoration:none;font-weight:600">${esc(q.case_number||'')}</a></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.title||'（無標題）')}</td>
+      <td>${esc(q.client_name||'—')}</td>
+      <td><span class="case-type-badge">${esc(typeLabel)}</span></td>
+      <td style="text-align:center;color:#6b7280">v${q.version}</td>
+      <td><span class="status-pill ${st.cls}">${st.label}</span></td>
+      <td class="amt-cell">${amt}</td>
+      <td style="color:#6b7280;font-size:12px">${dateStr}</td>
+      <td><a href="/case-detail?id=${q.case_id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px">開啟</a></td>
+    </tr>`;
+  }).join('');
+}
+
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('statusFilter').value = '';
+  document.getElementById('caseTypeFilter').value = '';
+  document.getElementById('fromDate').value = '';
+  document.getElementById('toDate').value = '';
+  loadList();
+}
+
+// ── 新增報價單 Modal ───────────────────────────────────────────────
+
+let clients = [];
+let modalTab = 'search';
+
+async function openNewModal() {
+  document.getElementById('newQuoteModal').style.display = 'flex';
+  document.getElementById('caseSearch').value = '';
+  document.getElementById('caseSearchResults').style.display = 'none';
+  document.getElementById('searchHint').style.display = '';
+  document.getElementById('createCaseBtn').style.display = 'none';
+  switchModalTab('search');
+
+  if (!clients.length) {
+    const r = await fetch('/api/clients');
+    if (r.ok) {
+      clients = await r.json();
+      const sel = document.getElementById('nc_client_id');
+      sel.innerHTML = '<option value="">— 請選擇 —</option>';
+      clients.forEach(c => {
+        sel.innerHTML += `<option value="${c.id}">${esc(c.name)}</option>`;
+      });
+    }
+  }
+}
+
+function closeNewModal() {
+  document.getElementById('newQuoteModal').style.display = 'none';
+}
+
+function switchModalTab(tab) {
+  modalTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i===0&&tab==='search')||(i===1&&tab==='create')));
+  document.getElementById('tab-search').classList.toggle('active', tab === 'search');
+  document.getElementById('tab-create').classList.toggle('active', tab === 'create');
+  document.getElementById('createCaseBtn').style.display = tab === 'create' ? '' : 'none';
+}
+
+function debouncedSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 300);
+}
+
+async function doSearch() {
+  const q = document.getElementById('caseSearch').value.trim();
+  const results = document.getElementById('caseSearchResults');
+  if (!q) { results.style.display = 'none'; return; }
+
+  const r = await fetch(`${API}/search-cases?q=${encodeURIComponent(q)}`);
+  if (!r.ok) return;
+  const cases = await r.json();
+
+  if (!cases.length) {
+    results.style.display = '';
+    results.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af;font-size:13px">找不到符合的案件</div>';
+    return;
+  }
+
+  results.style.display = '';
+  results.innerHTML = cases.map(c => {
+    const statusLabel = { inquiry:'詢價', surveyed:'已場勘', quoted:'已報價', confirmed:'確認', dispatched:'派工', constructing:'施工' }[c.status] || c.status;
+    return `<div class="search-result-item" onclick="gotoCase(${c.id})">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="case-name">${esc(c.title||'（無標題）')}</span>
+        <span style="font-size:11px;color:#9ca3af">${statusLabel}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <span class="case-num">${esc(c.case_number||'')}</span>
+        <span style="font-size:12px;color:#374151">${esc(c.client_name||'')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function gotoCase(caseId) {
+  location.href = `/case-detail?id=${caseId}`;
+}
+
+async function createCaseAndQuote() {
+  const client_id = document.getElementById('nc_client_id').value;
+  const title     = document.getElementById('nc_title').value.trim();
+  const case_type = document.getElementById('nc_case_type').value;
+  const location  = document.getElementById('nc_location').value.trim();
+
+  if (!client_id) { alert('請選擇客戶'); return; }
+
+  const btn = document.getElementById('createCaseBtn');
+  btn.disabled = true;
+  btn.textContent = '建立中…';
+
+  const r = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id, title: title||null, case_type, location: location||null, status: 'inquiry' }),
+  });
+
+  if (!r.ok) {
+    alert('建立案件失敗，請稍後再試');
+    btn.disabled = false;
+    btn.textContent = '建立案件並開始報價';
+    return;
+  }
+  const data = await r.json();
+  location.href = `/case-detail?id=${data.id}`;
+}
+
+// Enter on search
+document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(); });
+
+// Close modal on overlay click
+document.getElementById('newQuoteModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('newQuoteModal')) closeNewModal();
+});
+
+init().catch(console.error);
+</script>
+</body>
+</html>

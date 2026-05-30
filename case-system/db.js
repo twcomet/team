@@ -1867,6 +1867,25 @@ _addCol('client_deposits', 'product_name', 'TEXT DEFAULT NULL');
 _addCol('cases', 'line_official_name', 'TEXT');
 _addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
 
+// ── 修復 case_type CHECK 約束：補上 'output' ────────────────────────────────
+{
+  const _csFix = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
+  if (_csFix && /CHECK\s*\(case_type\s+IN\s*\(/.test(_csFix.sql) && !_csFix.sql.includes("'output'")) {
+    db.exec(`PRAGMA foreign_keys=OFF`);
+    const _cols = db.prepare(`PRAGMA table_info(cases)`).all().map(c => c.name);
+    const _newDef = _csFix.sql
+      .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?cases\b/i, 'CREATE TABLE _cases_output_fix')
+      .replace(/CHECK\s*\(case_type\s+IN\s*\([^)]+\)\)/,
+               `CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other'))`);
+    db.exec(_newDef);
+    db.exec(`INSERT INTO _cases_output_fix (${_cols.join(',')}) SELECT ${_cols.join(',')} FROM cases`);
+    db.exec(`DROP TABLE cases`);
+    db.exec(`ALTER TABLE _cases_output_fix RENAME TO cases`);
+    db.exec(`PRAGMA foreign_keys=ON`);
+    console.log('✅ case_type CHECK 約束已修復（新增 output）');
+  }
+}
+
 // ── 合約管理系統 ──────────────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS contracts (
