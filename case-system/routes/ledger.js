@@ -172,7 +172,9 @@ router.patch('/:id/pay', requireOwner, (req, res) => {
 
 // DELETE /api/ledger/:id
 router.delete('/:id', requireAuth, (req, res) => {
-  const uid = req.session.user.id;
+  const me = req.session.user;
+  if (me.role !== 'owner') return res.status(403).json({ error: '只有老闆可以刪除流水帳記錄' });
+  const uid = me.id;
   const entry = db.prepare(`SELECT date,category,amount FROM ledger_entries WHERE id=?`).get(req.params.id);
   db.prepare(`DELETE FROM ledger_entries WHERE id=?`).run(req.params.id);
   if (entry) log(uid, 'delete', 'ledger', req.params.id, `${entry.date} ${entry.category} $${entry.amount}`);

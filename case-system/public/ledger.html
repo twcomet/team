@@ -664,7 +664,7 @@ function renderTable(rows) {
       <td style="white-space:nowrap">
         ${isPending && currentUser?.role === 'owner' ? `<button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer" onclick="markAsPaid(${r.id})">付款</button> ` : ''}
         <button class="btn btn-ghost btn-sm" onclick="editEntry(${r.id})">編輯</button>
-        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteEntry(${r.id})">刪除</button>
+        ${currentUser?.role==='owner' ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteEntry(${r.id})">刪除</button>` : ''}
       </td>
     </tr>`;
   }).join('');

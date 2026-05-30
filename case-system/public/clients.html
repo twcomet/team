@@ -624,6 +624,7 @@ function render() {
           })()}
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">客戶資料編輯</button>
           <button class="btn btn-primary btn-sm" onclick="newCaseForClient(event,${c.id},${JSON.stringify(c.name)})">客戶案件建立</button>
+          ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteClientFromList(event,${c.id},${JSON.stringify(c.name)})">刪除</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -763,6 +764,19 @@ async function saveDeposit() {
     await loadClientDeposits(cid);
   } else {
     const e = await r.json(); alert(e.error || '儲存失敗');
+  }
+}
+
+async function deleteClientFromList(event, id, name) {
+  event.stopPropagation();
+  if (!confirm(`確定刪除客戶「${name}」嗎？\n（有進行中案件的客戶無法刪除）`)) return;
+  const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (res.ok) {
+    showToast(`已刪除「${name}」`);
+    document.getElementById(`cc-${id}`)?.remove();
+  } else {
+    showToast(data.error || '刪除失敗', 'error');
   }
 }
 
