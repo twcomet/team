@@ -624,7 +624,7 @@ function render() {
           })()}
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">客戶資料編輯</button>
           <button class="btn btn-primary btn-sm" onclick="newCaseForClient(event,${c.id},${JSON.stringify(c.name)})">客戶案件建立</button>
-          ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteClientFromList(event,${c.id},${JSON.stringify(c.name)})">刪除</button>` : ''}
+          ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteClientFromList(event,${c.id})">刪除</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -767,8 +767,10 @@ async function saveDeposit() {
   }
 }
 
-async function deleteClientFromList(event, id, name) {
+async function deleteClientFromList(event, id) {
   event.stopPropagation();
+  const client = allClients.find(c => c.id === id);
+  const name = client?.name || '此客戶';
   if (!confirm(`確定刪除客戶「${name}」嗎？\n（有進行中案件的客戶無法刪除）`)) return;
   const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
   const data = await res.json();
