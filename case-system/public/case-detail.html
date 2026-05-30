@@ -3384,15 +3384,7 @@ function buildItemCard(it) {
   const sub = it.subtotal != null ? QFmt(it.subtotal) : '—';
 
   if (it.item_type === 'film') {
-    const brands = [...new Set(filmMatrix.map(m => m.brand))];
-    const brandOpts = brands.map(b => `<option value="${b}" ${b===it.film_brand?'selected':''}>${b}</option>`).join('');
-    const matchSeries = filmMatrix.filter(m => m.brand === (it.film_brand||''));
-    const seriesOpts = matchSeries.map(m => {
-      const key = m.series_code || String(m.id);
-      const effectiveCost = m.cost_per_meter || m.inventory_cost || 0;
-      const stockLabel = (m.inventory_stock > 0) ? ` （剩餘${m.inventory_stock}m）` : '';
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${effectiveCost}" data-width="${m.film_width_cm||122}" data-stock="${m.inventory_stock||0}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}${stockLabel}</option>`;
-    }).join('');
+    const filmSearchVal = [it.film_brand, it.film_spec || it.film_model].filter(Boolean).join(' · ');
     const sqChi = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) : '0.00';
     const matCostDisp = it.material_cost ? `NT$${Math.round(it.material_cost).toLocaleString()}` : '—';
     const canSeeAmt = currentUser?.can_see_amounts;
@@ -3440,15 +3432,23 @@ function buildItemCard(it) {
     <span style="font-size:14px;font-weight:700;color:#1e40af" id="qHeadSub_${it.id}">${sub}</span>
     <button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:4px 8px" onclick="deleteQItem(${it.id})">✕</button>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-    <div><label class="q-field-label">品牌</label>
-      <select id="qBrand_${it.id}" class="q-input" onchange="qFilmBrandChange(${it.id},this.value)">
-        <option value="">-- 品牌 --</option>${brandOpts}</select></div>
-    <div><label class="q-field-label">系列</label>
-      <select id="qSeries_${it.id}" class="q-input" onchange="qFilmSeriesChange(${it.id})">
-        <option value="">-- 系列 --</option>${seriesOpts}</select></div>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="position:relative">
+      <label class="q-field-label">膜料（輸入品牌或型號關鍵字）</label>
+      <input type="text" id="qFilmSearch_${it.id}" class="q-input"
+             placeholder="例：BODAQ、石紋、LX 木紋..."
+             value="${esc(filmSearchVal)}"
+             oninput="qFilmSearchInput(${it.id})"
+             onfocus="qFilmSearchInput(${it.id})"
+             onblur="setTimeout(()=>qFilmSearchClose(${it.id}),200)"
+             autocomplete="off">
+      <div id="qFilmDrop_${it.id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:500;max-height:220px;overflow-y:auto;margin-top:2px"></div>
+      <input type="hidden" id="qBrand_${it.id}" value="${it.film_brand||''}">
+      <input type="hidden" id="qSeries_${it.id}" value="${it.film_model||''}">
+      <input type="hidden" id="qFilmSpec_${it.id}" value="${it.film_spec||''}">
+    </div>
     <div><label class="q-field-label">面材</label>
-      <select id="qSurface_${it.id}" class="q-input" onchange="qFilmSeriesChange(${it.id})">
+      <select id="qSurface_${it.id}" class="q-input" onchange="qSurfaceChange(${it.id})">
         <option value="flat" ${it.surface_type==='flat'?'selected':''}>平面</option>
         <option value="cabinet" ${it.surface_type==='cabinet'?'selected':''}>系統櫃</option>
         <option value="custom" ${it.surface_type==='custom'?'selected':''}>造型/異形</option>
@@ -3610,13 +3610,10 @@ async function toggleDisplayMode(itemId) {
   };
 
   if (item.item_type === 'film') {
-    const seriesSel = document.getElementById(`qSeries_${itemId}`);
-    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim()
-      .replace(/\s*（剩餘[\d.]+m）$/, '').replace(/ \[防焰\]$/, '') || item.film_spec || null;
     body = { ...body,
       film_brand:   g(`qBrand_${itemId}`) ?? item.film_brand,
       film_model:   g(`qSeries_${itemId}`) ?? item.film_model,
-      film_spec:    seriesName,
+      film_spec:    g(`qFilmSpec_${itemId}`) ?? item.film_spec || null,
       surface_type: g(`qSurface_${itemId}`) ?? item.surface_type ?? 'flat',
       length_cm:    parseFloat(g(`qLen_${itemId}`)) || item.length_cm || null,
       width_cm:     parseFloat(g(`qWid_${itemId}`)) || item.width_cm || null,
@@ -3658,40 +3655,81 @@ function qCalcLineSub(itemId) {
   if (hEl) hEl.textContent = sv;
 }
 
-function qFilmBrandChange(itemId, brand) {
-  const seriesSel = document.getElementById(`qSeries_${itemId}`);
-  if (!seriesSel) return;
-  const matchSeries = filmMatrix.filter(m => m.brand === brand);
-  seriesSel.innerHTML = `<option value="">-- 系列 --</option>` +
-    matchSeries.map(m => {
-      const key = m.series_code || String(m.id);
-      const effectiveCost = m.cost_per_meter || m.inventory_cost || 0;
-      const stockLabel = (m.inventory_stock > 0) ? ` （剩餘${m.inventory_stock}m）` : '';
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${effectiveCost}" data-width="${m.film_width_cm||122}" data-stock="${m.inventory_stock||0}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}${stockLabel}</option>`;
-    }).join('');
+function qFilmSearchInput(itemId) {
+  const q = (document.getElementById(`qFilmSearch_${itemId}`)?.value || '').toLowerCase().trim();
+  const drop = document.getElementById(`qFilmDrop_${itemId}`);
+  if (!drop) return;
+  const matches = q.length === 0
+    ? filmMatrix
+    : filmMatrix.filter(m => {
+        const text = [m.brand, m.series_code, m.series_name].filter(Boolean).join(' ').toLowerCase();
+        return q.split(/\s+/).every(kw => text.includes(kw));
+      });
+  if (!matches.length) {
+    drop.innerHTML = `<div style="padding:12px;color:#9ca3af;text-align:center;font-size:13px">無符合結果</div>`;
+    drop.style.display = '';
+    return;
+  }
+  drop.innerHTML = matches.slice(0, 30).map(m => {
+    const flameTag = m.flame_resistant ? ` <span style="color:#dc2626;font-size:10px;font-weight:700">[防焰]</span>` : '';
+    const stockTag = m.inventory_stock > 0 ? ` <span style="color:#16a34a"> · 庫存${m.inventory_stock}m</span>` : '';
+    return `<div data-film-id="${m.id}" onmousedown="qFilmSelectFromSearch(${itemId},this)"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6"
+      onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+      <div style="font-size:13px;font-weight:500">${m.brand}${m.series_name?` · ${m.series_name}`:''}${flameTag}</div>
+      <div style="font-size:11px;color:#6b7280">${m.series_code||''} | 平面 $${m.price_flat||0}/才${stockTag}</div>
+    </div>`;
+  }).join('');
+  drop.style.display = '';
+}
+
+function qFilmSearchClose(itemId) {
+  const drop = document.getElementById(`qFilmDrop_${itemId}`);
+  if (drop) drop.style.display = 'none';
+}
+
+function qFilmSelectFromSearch(itemId, el) {
+  const filmId = parseInt(el.getAttribute('data-film-id'));
+  const m = filmMatrix.find(f => f.id === filmId);
+  if (!m) return;
+  const surSel = document.getElementById(`qSurface_${itemId}`);
+  const surface = surSel?.value || 'flat';
+  const priceMap = { flat: m.price_flat||0, cabinet: m.price_cabinet||0, custom: m.price_custom||0 };
+  const price = priceMap[surface] || 0;
+  const effectiveCost = m.cost_per_meter || m.inventory_cost || 0;
+  // Set hidden fields
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set(`qBrand_${itemId}`,    m.brand);
+  set(`qSeries_${itemId}`,   m.series_code || String(m.id));
+  set(`qFilmSpec_${itemId}`, m.series_name || '');
+  set(`qFilmWidth_${itemId}`, m.film_width_cm || 122);
+  set(`qUprice_${itemId}`,   price);
+  // Auto-fill cost only if empty
+  const costEl = document.getElementById(`qCostPerM_${itemId}`);
+  if (costEl && !costEl.value) costEl.value = effectiveCost;
+  // Reset meters so they recalculate fresh
+  const mFld = document.getElementById(`qEstMeters_${itemId}`);
+  if (mFld) mFld.value = '';
+  // Update search input display
+  const searchInput = document.getElementById(`qFilmSearch_${itemId}`);
+  if (searchInput) searchInput.value = [m.brand, m.series_name || m.series_code].filter(Boolean).join(' · ');
+  qFilmSearchClose(itemId);
+  qCalcSqChi(itemId);
   setTimeout(() => saveQItem(itemId), 50);
 }
 
-function qFilmSeriesChange(itemId) {
-  const serSel = document.getElementById(`qSeries_${itemId}`);
-  const surSel = document.getElementById(`qSurface_${itemId}`);
-  const priFld = document.getElementById(`qUprice_${itemId}`);
-  if (!serSel || !surSel || !priFld) return;
-  const opt = serSel.selectedOptions[0];
-  if (!opt?.value) return;
-  const pMap = { flat:'data-pf', cabinet:'data-pc', custom:'data-px' };
-  const price = parseFloat(opt.getAttribute(pMap[surSel.value]||'data-pf') || '0');
-  priFld.value = price;
-  // Sync film roll width and cost per meter
-  const filmWidth = parseFloat(opt.getAttribute('data-width') || '122');
-  const costPerM  = parseFloat(opt.getAttribute('data-cost') || '0');
-  const widEl = document.getElementById(`qFilmWidth_${itemId}`);
-  if (widEl) widEl.value = filmWidth;
-  const costEl = document.getElementById(`qCostPerM_${itemId}`);
-  if (costEl && !costEl.value) costEl.value = costPerM; // only auto-fill if empty
-  // Reset estimated meters so qCalcSqChi auto-fills it fresh
-  const mFld = document.getElementById(`qEstMeters_${itemId}`);
-  if (mFld) mFld.value = '';
+function qSurfaceChange(itemId) {
+  const brand = document.getElementById(`qBrand_${itemId}`)?.value;
+  const model = document.getElementById(`qSeries_${itemId}`)?.value;
+  if (brand && model) {
+    const m = filmMatrix.find(f => f.brand === brand && (f.series_code === model || String(f.id) === model));
+    if (m) {
+      const surface = document.getElementById(`qSurface_${itemId}`)?.value || 'flat';
+      const priceMap = { flat: m.price_flat||0, cabinet: m.price_cabinet||0, custom: m.price_custom||0 };
+      const priceEl = document.getElementById(`qUprice_${itemId}`);
+      if (priceEl) priceEl.value = priceMap[surface] || 0;
+    }
+  }
   qCalcSqChi(itemId);
   setTimeout(() => saveQItem(itemId), 50);
 }
@@ -3725,9 +3763,7 @@ async function saveQItem(itemId) {
 
   if (type === 'film') {
     const isSimple = item.display_mode === 'simple';
-    const seriesSel = document.getElementById(`qSeries_${itemId}`);
-    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim()
-      .replace(/\s*（剩餘[\d.]+m）$/, '').replace(/ \[防焰\]$/, '') || null;
+    const seriesName = g(`qFilmSpec_${itemId}`) || null;
     const noticeId = parseInt(g(`qNotice_${itemId}`)) || null;
     body = { ...body,
       film_brand:          g(`qBrand_${itemId}`),
