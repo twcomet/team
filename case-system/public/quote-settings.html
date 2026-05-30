@@ -67,44 +67,36 @@
     <div id="panel-film" class="qs-panel active">
       <div class="qs-card">
         <h3>膜料價格矩陣（連工帶料，每才）</h3>
-        <p class="section-hint">輸入各品牌各系列的連工帶料單價，建立報價時可直接選取自動帶入。</p>
+        <p class="section-hint">膜料資訊自動從庫存帶入，選擇膜料後設定各施工類型的連工帶料單價。</p>
         <table class="qs-table" id="film-table">
           <thead><tr>
-            <th>品牌</th><th>系列代號</th><th>系列名稱</th><th>防焰</th>
-            <th>膜寬(cm)</th><th>材料成本/米</th>
-            <th>全平面牆/才</th><th>系統櫃門片/才</th><th>造型/才</th>
+            <th>品牌</th><th>型號</th><th>規格</th><th>防焰</th><th>膜寬</th>
+            <th>全平面牆/才</th><th>系統櫃/才</th><th>造型/才</th>
             <th>庫存</th>
-            <th width="60">操作</th>
+            <th width="80">操作</th>
           </tr></thead>
           <tbody id="film-tbody"></tbody>
         </table>
         <div class="qs-add-row">
-          <h4>+ 新增膜料</h4>
-          <div class="qs-grid qs-grid-4" style="margin-bottom:8px">
-            <div class="form-group"><label>品牌 *</label>
-              <select id="nf-brand">
-                <option value="BODAQ">BODAQ（韓國）</option>
-                <option value="LX">LX BENIF（韓國）</option>
-                <option value="PAROI">PAROI（日本）</option>
-                <option value="3M">3M DI-NOC</option>
-                <option value="穩得">穩得（台灣）</option>
-                <option value="其他">其他</option>
-              </select>
-            </div>
-            <div class="form-group"><label>系列代號</label><input id="nf-code" placeholder="例：AB007"></div>
-            <div class="form-group"><label>系列名稱</label><input id="nf-name" placeholder="例：石紋/不防焰"></div>
-            <div class="form-group"><label>防焰</label>
-              <select id="nf-flame"><option value="0">否</option><option value="1">是</option></select>
-            </div>
+          <h4>+ 新增膜料定價</h4>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>選擇庫存膜料 *</label>
+            <select id="nf-mat-id" onchange="onFilmMatSelect()" style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:13px">
+              <option value="">— 請先選擇庫存中的膜料 —</option>
+            </select>
           </div>
-          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
-            <div class="form-group"><label>膜寬(cm)</label><input id="nf-width" type="number" value="122"></div>
-            <div class="form-group"><label>材料成本/米（隱藏）</label><input id="nf-cost" type="number" placeholder="0"></div>
+          <div id="nf-mat-preview" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;display:none">
+            <strong id="nf-prev-brand"></strong>
+            <span id="nf-prev-model" style="color:#6b7280;margin:0 6px"></span>
+            <span id="nf-prev-spec" style="color:#374151"></span>
+            <span id="nf-prev-flame" style="margin-left:8px;font-weight:600"></span>
+            <span id="nf-prev-width" style="margin-left:8px;color:#6b7280"></span>
+            <span id="nf-prev-price" style="margin-left:8px;color:#0f766e;font-weight:600"></span>
+          </div>
+          <div class="qs-grid qs-grid-3" style="margin-bottom:10px">
             <div class="form-group"><label>全平面牆/才</label><input id="nf-flat" type="number" placeholder="0"></div>
             <div class="form-group"><label>系統櫃門片/才</label><input id="nf-cabinet" type="number" placeholder="0"></div>
-          </div>
-          <div class="qs-grid qs-grid-4" style="margin-bottom:10px">
-            <div class="form-group"><label>造型/才</label><input id="nf-custom" type="number" placeholder="0"></div>
+            <div class="form-group"><label>造型牆/才</label><input id="nf-custom" type="number" placeholder="0"></div>
           </div>
           <input type="hidden" id="nf-edit-id" value="">
           <div style="display:flex;gap:8px">
@@ -397,9 +389,10 @@ function switchTab(name) {
 }
 
 let noticesData = [];
+let _filmInventory = [];
 
 function loadAll() {
-  loadFilmPrices(); loadCatalog(); loadAddons();
+  loadFilmInventory(); loadFilmPrices(); loadCatalog(); loadAddons();
   loadNotices(); loadDiscountRules(); loadTravelFees(); loadSkillLevels();
 }
 
@@ -417,30 +410,60 @@ function brandClass(b) {
 }
 
 // ── 膜料價格 ──────────────────────────────────────────────────
+async function loadFilmInventory() {
+  _filmInventory = await fetch(`${API}/film-prices/inventory`).then(r=>r.json());
+  const sel = document.getElementById('nf-mat-id');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 請先選擇庫存中的膜料 —</option>' +
+    _filmInventory.map(m => {
+      const flame = m.fire_retardant ? ' 🔥防焰' : '';
+      const stock = m.stock_meters > 0 ? ` (庫存${m.stock_meters.toFixed(1)}m)` : ' (無庫存)';
+      return `<option value="${m.id}">${m.brand} ${m.model}${m.spec?' · '+m.spec:''}${flame}${stock}</option>`;
+    }).join('');
+  if (cur) sel.value = cur;
+}
+
+function onFilmMatSelect() {
+  const id = parseInt(document.getElementById('nf-mat-id').value);
+  const mat = _filmInventory.find(m => m.id === id);
+  const preview = document.getElementById('nf-mat-preview');
+  if (!mat) { preview.style.display = 'none'; return; }
+  document.getElementById('nf-prev-brand').textContent  = mat.brand;
+  document.getElementById('nf-prev-model').textContent  = mat.model;
+  document.getElementById('nf-prev-spec').textContent   = mat.spec || '';
+  const flameEl = document.getElementById('nf-prev-flame');
+  flameEl.textContent = mat.fire_retardant ? '防焰' : '不防焰';
+  flameEl.style.color = mat.fire_retardant ? '#dc2626' : '#9ca3af';
+  document.getElementById('nf-prev-width').textContent  = `${mat.width_cm || 122}cm 寬`;
+  document.getElementById('nf-prev-price').textContent  = mat.unit_price ? `售價 $${mat.unit_price}/米` : '';
+  preview.style.display = '';
+}
+
 async function loadFilmPrices() {
   const data = await fetch(`${API}/film-prices`).then(r=>r.json());
   _filmPricesCache = data;
   const tbody = document.getElementById('film-tbody');
   tbody.innerHTML = data.map(r => {
-    const hasStock = r.inventory_stock > 0;
-    const stockBadge = hasStock
-      ? `<span style="background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600">${r.inventory_stock}m</span>`
-      : (r.series_code
-          ? `<span style="color:#d1d5db;font-size:11px">—</span>`
-          : `<span style="color:#d1d5db;font-size:11px">無代號</span>`);
-    const costCell = r.cost_per_meter
-      ? `<span style="color:#9ca3af">${fmt(r.cost_per_meter)}</span>`
-      : (r.inventory_cost
-          ? `<span style="color:#f59e0b;cursor:pointer" title="點擊帶入庫存單價 ${fmt(r.inventory_cost)}/米" onclick="applyInventoryCost(${r.id},${r.inventory_cost})">庫存:${fmt(r.inventory_cost)} ↑</span>`
-          : `<span style="color:#d1d5db">—</span>`);
+    const brand    = r.mat_brand || r.brand;
+    const model    = r.mat_model || r.series_code || '—';
+    const spec     = r.mat_spec  || r.series_name || '—';
+    const isFlame  = r.mat_fire_retardant != null ? r.mat_fire_retardant : r.flame_resistant;
+    const width    = r.mat_width_cm || r.film_width_cm || 122;
+    const stock    = r.inventory_stock || 0;
+    const linked   = r.material_id
+      ? `<span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:8px;font-size:10px;margin-left:4px">🔗庫存</span>`
+      : '';
+    const stockBadge = stock > 0
+      ? `<span style="background:#dcfce7;color:#16a34a;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600">${stock.toFixed(1)}m</span>`
+      : `<span style="color:#d1d5db;font-size:11px">—</span>`;
     return `
     <tr>
-      <td><span class="brand-badge ${brandClass(r.brand)}">${r.brand}</span></td>
-      <td>${r.series_code||'—'}</td>
-      <td>${r.series_name||'—'}</td>
-      <td><span class="${r.flame_resistant?'flame-yes':'flame-no'}">${r.flame_resistant?'防焰':'不防焰'}</span></td>
-      <td>${r.film_width_cm||122}</td>
-      <td>${costCell}</td>
+      <td><span class="brand-badge ${brandClass(brand)}">${brand}</span>${linked}</td>
+      <td>${model}</td>
+      <td style="color:#6b7280;font-size:12px">${spec}</td>
+      <td><span class="${isFlame?'flame-yes':'flame-no'}">${isFlame?'防焰':'不防焰'}</span></td>
+      <td style="color:#6b7280">${width}cm</td>
       <td class="price-cell">${fmt(r.price_flat)}</td>
       <td class="price-cell">${fmt(r.price_cabinet)}</td>
       <td class="price-cell">${fmt(r.price_custom)}</td>
@@ -450,31 +473,53 @@ async function loadFilmPrices() {
         <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delFilmPrice(${r.id})">刪除</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料價格</td></tr>';
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px">尚未新增膜料定價</td></tr>';
 }
 
 let _filmPricesCache = [];
 
 async function saveFilmPrice() {
   const editId = document.getElementById('nf-edit-id').value;
+  const matId  = document.getElementById('nf-mat-id').value;
+  const mat    = _filmInventory.find(m => m.id === parseInt(matId));
+
+  if (!editId && !mat) return alert('請選擇一個庫存膜料');
+
   const body = {
-    brand: document.getElementById('nf-brand').value,
-    series_code: document.getElementById('nf-code').value,
-    series_name: document.getElementById('nf-name').value,
-    flame_resistant: document.getElementById('nf-flame').value,
-    film_width_cm: document.getElementById('nf-width').value,
-    cost_per_meter: document.getElementById('nf-cost').value,
-    price_flat: document.getElementById('nf-flat').value,
-    price_cabinet: document.getElementById('nf-cabinet').value,
-    price_custom: document.getElementById('nf-custom').value,
+    price_flat:    parseFloat(document.getElementById('nf-flat').value)    || 0,
+    price_cabinet: parseFloat(document.getElementById('nf-cabinet').value) || 0,
+    price_custom:  parseFloat(document.getElementById('nf-custom').value)  || 0,
+    material_id:   matId || null,
   };
+
+  if (mat) {
+    body.brand          = mat.brand;
+    body.series_code    = mat.model;
+    body.series_name    = mat.spec || '';
+    body.flame_resistant = mat.fire_retardant || 0;
+    body.film_width_cm  = mat.width_cm || 122;
+    body.cost_per_meter = mat.unit_cost || 0;
+  } else {
+    // 編輯舊資料（未連結庫存），保留既有快照值
+    const ex = _filmPricesCache.find(f => f.id === parseInt(editId));
+    if (ex) {
+      body.brand          = ex.brand;
+      body.series_code    = ex.series_code;
+      body.series_name    = ex.series_name;
+      body.flame_resistant = ex.flame_resistant;
+      body.film_width_cm  = ex.film_width_cm;
+      body.cost_per_meter = ex.cost_per_meter;
+    }
+  }
+
   if (editId) {
     await fetch(`${API}/film-prices/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     cancelFilmEdit();
   } else {
     await fetch(`${API}/film-prices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
-    document.getElementById('nf-width').value = 122;
+    ['nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('nf-mat-id').value = '';
+    document.getElementById('nf-mat-preview').style.display = 'none';
   }
   loadFilmPrices();
 }
@@ -482,37 +527,22 @@ async function saveFilmPrice() {
 function editFilmPrice(id) {
   const r = _filmPricesCache.find(f => f.id === id);
   if (!r) return;
-  document.getElementById('nf-brand').value   = r.brand;
-  document.getElementById('nf-code').value    = r.series_code||'';
-  document.getElementById('nf-name').value    = r.series_name||'';
-  document.getElementById('nf-flame').value   = r.flame_resistant ? '1' : '0';
-  document.getElementById('nf-width').value   = r.film_width_cm||122;
-  document.getElementById('nf-cost').value    = r.cost_per_meter || (r.inventory_cost||'');
-  document.getElementById('nf-flat').value    = r.price_flat||'';
-  document.getElementById('nf-cabinet').value = r.price_cabinet||'';
-  document.getElementById('nf-custom').value  = r.price_custom||'';
+  document.getElementById('nf-mat-id').value  = r.material_id || '';
+  onFilmMatSelect();
+  document.getElementById('nf-flat').value    = r.price_flat    || '';
+  document.getElementById('nf-cabinet').value = r.price_cabinet || '';
+  document.getElementById('nf-custom').value  = r.price_custom  || '';
   document.getElementById('nf-edit-id').value = id;
   document.getElementById('nf-submit-btn').textContent = '儲存修改';
   document.getElementById('nf-cancel-btn').style.display = '';
   document.querySelector('#panel-film .qs-add-row').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
-async function applyInventoryCost(id, cost) {
-  if (!confirm(`將成本設為 $${Number(cost).toLocaleString()}/米（來自庫存單價）？`)) return;
-  const r = _filmPricesCache.find(f => f.id === id);
-  if (!r) return;
-  await fetch(`${API}/film-prices/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...r, cost_per_meter: cost }),
-  });
-  loadFilmPrices();
-}
-
 function cancelFilmEdit() {
-  ['nf-code','nf-name','nf-cost','nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('nf-width').value = 122;
-  document.getElementById('nf-edit-id').value = '';
+  ['nf-flat','nf-cabinet','nf-custom'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('nf-mat-id').value    = '';
+  document.getElementById('nf-edit-id').value   = '';
+  document.getElementById('nf-mat-preview').style.display = 'none';
   document.getElementById('nf-submit-btn').textContent = '新增';
   document.getElementById('nf-cancel-btn').style.display = 'none';
 }

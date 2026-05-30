@@ -2530,6 +2530,8 @@ _addCol('materials', 'category',      "TEXT DEFAULT 'film'");
 // EC 系統代碼（手動回填）
 _addCol('materials', 'ec_key',        'TEXT');
 _addCol('materials', 'ec_synced_at',  'DATETIME');
+_addCol('materials', 'fire_retardant','INTEGER DEFAULT 0');
+_addCol('materials', 'width_cm',      'REAL DEFAULT 122');
 
 // ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
 _addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');

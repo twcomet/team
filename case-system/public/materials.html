@@ -242,6 +242,15 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label>庫存米數</label><input type="number" id="m_stock_meters" min="0" step="0.1" placeholder="0"></div>
+        <div class="form-group"><label>膜寬(cm)</label><input type="number" id="m_width_cm" min="0" step="1" value="122" placeholder="122"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>是否防焰</label>
+          <select id="m_fire_retardant">
+            <option value="0">不防焰</option>
+            <option value="1">防焰</option>
+          </select>
+        </div>
         <div class="form-group"></div>
       </div>
       <div class="form-group"><label>備注</label><textarea id="m_notes" rows="2"></textarea></div>
@@ -831,6 +840,8 @@ function openMatModal() {
   ['m_unit_cost','m_unit_price','m_stock_meters'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('m_spec').value = '';
   document.getElementById('m_category').value = 'film';
+  document.getElementById('m_fire_retardant').value = '0';
+  document.getElementById('m_width_cm').value = '122';
   document.getElementById('matModal').classList.add('open');
 }
 function openMatEdit(id) {
@@ -848,6 +859,8 @@ function openMatEdit(id) {
   document.getElementById('m_stock_meters').value = m.stock_meters || '';
   document.getElementById('m_notes').value        = m.notes || '';
   document.getElementById('m_ec_key').value       = currentUser?.can_see_cost ? (m.ec_key || '') : '';
+  document.getElementById('m_fire_retardant').value = m.fire_retardant ? '1' : '0';
+  document.getElementById('m_width_cm').value       = m.width_cm || 122;
   document.getElementById('matModal').classList.add('open');
 }
 function closeMatModal() { document.getElementById('matModal').classList.remove('open'); }
@@ -858,10 +871,12 @@ async function saveMat() {
     model:        document.getElementById('m_model').value.trim(),
     spec:         document.getElementById('m_spec').value  || null,
     location:     document.getElementById('m_location').value.trim() || null,
-    category:     document.getElementById('m_category').value || 'film',
-    unit_price:   parseFloat(document.getElementById('m_unit_price').value)   || 0,
-    stock_meters: parseFloat(document.getElementById('m_stock_meters').value) || 0,
-    notes:        document.getElementById('m_notes').value.trim() || null,
+    category:       document.getElementById('m_category').value || 'film',
+    unit_price:     parseFloat(document.getElementById('m_unit_price').value)   || 0,
+    stock_meters:   parseFloat(document.getElementById('m_stock_meters').value) || 0,
+    notes:          document.getElementById('m_notes').value.trim() || null,
+    fire_retardant: Number(document.getElementById('m_fire_retardant').value) ? 1 : 0,
+    width_cm:       parseFloat(document.getElementById('m_width_cm').value) || 122,
   };
   if (currentUser?.can_see_cost) {
     body.unit_cost = parseFloat(document.getElementById('m_unit_cost').value) || 0;

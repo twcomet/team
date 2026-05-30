@@ -176,38 +176,61 @@ router.get('/travel-fees/match', requireAuth, (req, res) => {
 });
 
 // ── 膜料價格矩陣 ─────────────────────────────────────────────────
+// 回傳可選庫存膜料列表（給新增 modal 的 dropdown 使用）
+router.get('/film-prices/inventory', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT m.id, m.brand, m.model, m.spec, m.unit_cost, m.unit_price,
+           m.fire_retardant, m.width_cm,
+           COALESCE(SUM(mr.remaining_meters), 0) AS stock_meters
+    FROM materials m
+    LEFT JOIN material_rolls mr ON mr.material_id = m.id AND mr.status='active'
+    WHERE m.category = 'film'
+    GROUP BY m.id
+    ORDER BY m.brand, m.model
+  `).all();
+  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.unit_cost = null; });
+  res.json(rows);
+});
 router.get('/film-prices', requireAuth, (req, res) => {
   const rows = db.prepare(`
     SELECT fpm.*,
-      COALESCE(SUM(m.stock_meters), 0) AS inventory_stock,
-      MAX(m.unit_cost)                 AS inventory_cost
+      mat.id            AS mat_id,
+      mat.brand         AS mat_brand,
+      mat.model         AS mat_model,
+      mat.spec          AS mat_spec,
+      mat.fire_retardant AS mat_fire_retardant,
+      mat.width_cm      AS mat_width_cm,
+      mat.unit_price    AS mat_unit_price,
+      mat.unit_cost     AS mat_unit_cost_live,
+      COALESCE(SUM(mr.remaining_meters), 0) AS inventory_stock
     FROM film_price_matrix fpm
-    LEFT JOIN materials m ON m.brand = fpm.brand AND m.model = fpm.series_code
+    LEFT JOIN materials mat ON mat.id = fpm.material_id
+    LEFT JOIN material_rolls mr ON mr.material_id = fpm.material_id AND mr.status='active'
     WHERE fpm.active=1
     GROUP BY fpm.id
-    ORDER BY fpm.brand, fpm.flame_resistant, fpm.sort_order
+    ORDER BY COALESCE(mat.brand, fpm.brand), COALESCE(mat.fire_retardant, fpm.flame_resistant), fpm.sort_order
   `).all();
-  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.inventory_cost = null; });
+  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.cost_per_meter = null; r.mat_unit_cost_live = null; });
   res.json(rows);
 });
 router.post('/film-prices', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
-          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order } = req.body;
+          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, material_id } = req.body;
   const r = db.prepare(`INSERT INTO film_price_matrix
-    (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,price_flat,price_cabinet,price_custom,sort_order)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`)
+    (brand,series_code,series_name,flame_resistant,film_width_cm,cost_per_meter,price_flat,price_cabinet,price_custom,sort_order,material_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
     .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
-         film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0, sort_order||0);
+         film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0, sort_order||0, material_id||null);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 router.put('/film-prices/:id', requireAuth, (req, res) => {
   const { brand, series_code, series_name, flame_resistant, film_width_cm,
-          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, active } = req.body;
+          cost_per_meter, price_flat, price_cabinet, price_custom, sort_order, active, material_id } = req.body;
   db.prepare(`UPDATE film_price_matrix SET brand=?,series_code=?,series_name=?,flame_resistant=?,film_width_cm=?,
-    cost_per_meter=?,price_flat=?,price_cabinet=?,price_custom=?,sort_order=?,active=? WHERE id=?`)
+    cost_per_meter=?,price_flat=?,price_cabinet=?,price_custom=?,sort_order=?,active=?,material_id=? WHERE id=?`)
     .run(brand, series_code||null, series_name||null, Number(flame_resistant)?1:0,
          film_width_cm||122, cost_per_meter||0, price_flat||0, price_cabinet||0, price_custom||0,
-         sort_order||0, active??1, req.params.id);
+         sort_order||0, active??1, material_id||null, req.params.id);
   res.json({ ok: true });
 });
 router.delete('/film-prices/:id', requireAuth, (req, res) => {
