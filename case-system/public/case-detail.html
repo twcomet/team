@@ -3381,9 +3381,11 @@ function buildItemCard(it) {
     const matchSeries = filmMatrix.filter(m => m.brand === (it.film_brand||''));
     const seriesOpts = matchSeries.map(m => {
       const key = m.series_code || String(m.id);
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" data-width="${m.film_width_cm||122}" ${key===it.film_model?'selected':''}>${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
     }).join('');
     const sqChi = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) : '0.00';
+    const matCostDisp = it.material_cost ? `NT$${Math.round(it.material_cost).toLocaleString()}` : '—';
+    const canSeeAmt = currentUser?.can_see_amounts;
     return `<div class="q-item-card" id="qItem_${it.id}">
   <div class="q-item-header">
     <span class="q-type-badge q-film-badge">貼膜</span>
@@ -3418,6 +3420,16 @@ function buildItemCard(it) {
     <div><label class="q-field-label">小計</label>
       <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
   </div>
+  ${canSeeAmt ? `
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;background:#fef2f2;border-radius:6px;padding:8px">
+    <div><label class="q-field-label" style="color:#991b1b">成本/米（元）</label>
+      <input type="number" id="qCostPerM_${it.id}" class="q-input" value="${it.cost_per_meter||''}" placeholder="0" oninput="qCalcMatCost(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label" style="color:#991b1b">估用量（米）</label>
+      <input type="number" id="qEstMeters_${it.id}" class="q-input" value="${it.estimated_meters||''}" placeholder="自動估算" step="0.1" oninput="qCalcMatCost(${it.id})" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label" style="color:#991b1b">材料成本</label>
+      <div id="qMatCost_${it.id}" class="q-input" style="background:#fef2f2;font-weight:700;color:#dc2626">${matCostDisp}</div></div>
+  </div>` : ''}
+  <input type="hidden" id="qFilmWidth_${it.id}" value="${it.film_width_cm||122}">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
     <div><label class="q-field-label">備註</label>
       <input id="qNotes_${it.id}" class="q-input" value="${esc(it.notes)}" placeholder="選填" onblur="saveQItem(${it.id})"></div>
@@ -3493,6 +3505,23 @@ function qCalcSqChi(itemId) {
   const sv = sub > 0 ? QFmt(sub) : '—';
   if (sEl) sEl.textContent = sv;
   if (hEl) hEl.textContent = sv;
+  // Auto-estimate meters from dimensions
+  const filmWidth = parseFloat(document.getElementById(`qFilmWidth_${itemId}`)?.value) || 122;
+  if (len > 0 && wid > 0) {
+    const areaM2 = len * wid / 10000;
+    const estMeters = Math.ceil(areaM2 / (filmWidth / 100) * 1.15 * 10) / 10; // 15% waste, 1 decimal
+    const mFld = document.getElementById(`qEstMeters_${itemId}`);
+    if (mFld && !mFld.value) mFld.value = estMeters; // only auto-fill if empty
+    qCalcMatCost(itemId);
+  }
+}
+
+function qCalcMatCost(itemId) {
+  const costPerM  = parseFloat(document.getElementById(`qCostPerM_${itemId}`)?.value) || 0;
+  const estMeters = parseFloat(document.getElementById(`qEstMeters_${itemId}`)?.value) || 0;
+  const matCost   = Math.round(costPerM * estMeters);
+  const el = document.getElementById(`qMatCost_${itemId}`);
+  if (el) el.textContent = matCost > 0 ? `NT$${matCost.toLocaleString()}` : '—';
 }
 
 function qCalcLineSub(itemId) {
@@ -3513,7 +3542,7 @@ function qFilmBrandChange(itemId, brand) {
   seriesSel.innerHTML = `<option value="">-- 系列 --</option>` +
     matchSeries.map(m => {
       const key = m.series_code || String(m.id);
-      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
+      return `<option value="${key}" data-pf="${m.price_flat||0}" data-pc="${m.price_cabinet||0}" data-px="${m.price_custom||0}" data-cost="${m.cost_per_meter||0}" data-width="${m.film_width_cm||122}">${m.series_name||key}${m.flame_resistant?' [防焰]':''}</option>`;
     }).join('');
   setTimeout(() => saveQItem(itemId), 50);
 }
@@ -3528,6 +3557,16 @@ function qFilmSeriesChange(itemId) {
   const pMap = { flat:'data-pf', cabinet:'data-pc', custom:'data-px' };
   const price = parseFloat(opt.getAttribute(pMap[surSel.value]||'data-pf') || '0');
   priFld.value = price;
+  // Sync film roll width and cost per meter
+  const filmWidth = parseFloat(opt.getAttribute('data-width') || '122');
+  const costPerM  = parseFloat(opt.getAttribute('data-cost') || '0');
+  const widEl = document.getElementById(`qFilmWidth_${itemId}`);
+  if (widEl) widEl.value = filmWidth;
+  const costEl = document.getElementById(`qCostPerM_${itemId}`);
+  if (costEl && !costEl.value) costEl.value = costPerM; // only auto-fill if empty
+  // Reset estimated meters so qCalcSqChi auto-fills it fresh
+  const mFld = document.getElementById(`qEstMeters_${itemId}`);
+  if (mFld) mFld.value = '';
   qCalcSqChi(itemId);
   setTimeout(() => saveQItem(itemId), 50);
 }
@@ -3563,8 +3602,12 @@ async function saveQItem(itemId) {
       length_cm:           parseFloat(g(`qLen_${itemId}`)) || null,
       width_cm:            parseFloat(g(`qWid_${itemId}`)) || null,
       unit_price:          parseFloat(g(`qUprice_${itemId}`)) || 0,
-      notes:               g(`qNotes_${itemId}`),
-      notice_template_id:  noticeId,
+      notes:              g(`qNotes_${itemId}`),
+      notice_template_id: noticeId,
+      film_width_cm:      parseFloat(document.getElementById(`qFilmWidth_${itemId}`)?.value) || 122,
+      cost_per_meter:     parseFloat(g(`qCostPerM_${itemId}`)) || null,
+      estimated_meters:   parseFloat(g(`qEstMeters_${itemId}`)) || null,
+      material_cost:      (parseFloat(g(`qCostPerM_${itemId}`)) || 0) * (parseFloat(g(`qEstMeters_${itemId}`)) || 0) || null,
       unit: '才',
     };
   } else if (type === 'catalog') {
@@ -3589,13 +3632,22 @@ async function saveQItem(itemId) {
   if (!res.ok) return;
   // Refresh quote totals
   const qr = await fetch(`/api/quotes/${currentQuote.id}`);
+  const data = await res.json();
   if (qr.ok) {
     const fresh = await qr.json();
     fresh.items = currentQuote.items; // keep rendered items
+    // Patch material_cost on the local item so renderQuoteTotals is accurate
+    if (type === 'film') {
+      const localItem = fresh.items.find(i => i.id === itemId);
+      if (localItem) {
+        localItem.cost_per_meter   = body.cost_per_meter   ?? null;
+        localItem.estimated_meters = body.estimated_meters ?? null;
+        localItem.material_cost    = body.material_cost    ?? null;
+      }
+    }
     currentQuote = fresh;
     renderQuoteTotals();
     // Update individual item subtotals from server response
-    const data = await res.json();
     if (data.subtotal != null) {
       const sEl = document.getElementById(`qSub_${itemId}`);
       const hEl = document.getElementById(`qHeadSub_${itemId}`);
