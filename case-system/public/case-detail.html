@@ -1287,7 +1287,7 @@ const ITEM_TYPES = [
 ];
 const BRANDS = ['PAROI（日本）','BODAQ（韓國）','LG BENIF（韓國）','WD穩得','3M DI-NOC','Avery','Lintec','其他'];
 
-let caseId, caseData, users = [], allUsers = [], clients = [], quoteData = null, pushMode = 'manual';
+let caseId, caseData, users = [], allUsers = [], clients = [], pushMode = 'manual';
 let poolIsOn = false, poolType = 'full';
 
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
@@ -2044,102 +2044,8 @@ document.getElementById('toSurveyBtn').addEventListener('click', () => convertCa
 document.getElementById('toDealBtn').addEventListener('click',   () => convertCase('deal'));
 document.getElementById('toInvalidBtn').addEventListener('click',() => convertCase('invalid'));
 
-// ── 報價明細 ───────────────────────────────────────────────
-function renderItems(items) {
-  const tbody = document.getElementById('itemsBody');
-  if (!tbody) return;
-  if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:20px;color:#6b7280">點擊「新增物件」開始建立報價明細</td></tr>`;
-    updateQuoteTotals([]);
-    return;
-  }
-  tbody.innerHTML = items.map((it) => `
-    <tr data-item-id="${it.id}">
-      <td><input class="it-loc" value="${it.location||''}" onblur="saveItem(${it.id})" placeholder="客廳主牆" style="width:90px"></td>
-      <td>
-        <select class="it-type" onchange="saveItem(${it.id})" style="width:80px;margin-bottom:3px">${ITEM_TYPES.map(t=>`<option ${t===it.item_type?'selected':''}>${t}</option>`).join('')}</select>
-        <input class="it-desc" value="${it.description||''}" onblur="saveItem(${it.id})" placeholder="說明" style="width:100px">
-      </td>
-      <td><input class="it-w" type="number" value="${it.width_cm||''}" onblur="calcAndSave(${it.id})" style="width:65px"></td>
-      <td><input class="it-h" type="number" value="${it.height_cm||''}" onblur="calcAndSave(${it.id})" style="width:65px"></td>
-      <td><input class="it-qty" type="number" value="${it.quantity||1}" onblur="calcAndSave(${it.id})" style="width:50px" min="0.1" step="0.1"></td>
-      <td><select class="it-unit" onchange="calcAndSave(${it.id})" style="width:70px">
-        ${['才','平方公尺','件','米','式','其他'].map(u=>`<option ${u===it.unit?'selected':''}>${u}</option>`).join('')}
-      </select></td>
-      <td style="text-align:right;font-weight:500" class="it-area">${it.area ? it.area.toFixed(2) : '—'}</td>
-      <td><select class="it-brand" onchange="saveItem(${it.id})" style="width:100px">${BRANDS.map(b=>`<option ${b===it.material_brand?'selected':''}>${b}</option>`).join('<option value="">—</option>')}</select></td>
-      <td><input class="it-model" value="${it.material_model||''}" onblur="saveItem(${it.id})" placeholder="型號" style="width:80px"></td>
-      <td><input class="it-mcost" type="number" value="${currentUser.can_see_amounts ? (it.material_unit_cost||'') : ''}" ${!currentUser.can_see_amounts?'disabled':''} onblur="calcAndSave(${it.id})" style="width:75px" placeholder="成本"></td>
-      <td><input class="it-icost" type="number" value="${currentUser.can_see_amounts ? (it.install_unit_price||'') : ''}" ${!currentUser.can_see_amounts?'disabled':''} onblur="calcAndSave(${it.id})" style="width:75px" placeholder="施工費"></td>
-      <td style="background:#f0f7ff"><input class="it-cprice" type="number" value="${it.client_unit_price!=null ? it.client_unit_price : ''}" onblur="calcAndSave(${it.id})" style="width:80px;border-color:#bfdbfe" placeholder="對客價"></td>
-      <td style="text-align:right;font-weight:600;background:#f0f7ff" class="it-csubtotal">
-        ${currentUser.can_see_amounts && (it.client_subtotal != null) ? fmt(it.client_subtotal) : (it.subtotal ? fmt(it.subtotal) : '—')}
-      </td>
-      <td><button class="btn btn-ghost btn-sm" onclick="deleteItem(${it.id})" style="color:#e02424;padding:4px 8px">✕</button></td>
-    </tr>
-  `).join('');
-  updateQuoteTotals(items);
-}
-
-function updateQuoteTotals(items) {
-  if (!currentUser.can_see_amounts) return;
-  const clientTotal = items.reduce((s,i) => s + (i.client_subtotal != null ? i.client_subtotal : (i.subtotal||0)), 0);
-  const material = items.reduce((s,i) => s + (i.material_total||0), 0);
-  const install  = items.reduce((s,i) => s + (i.install_total||0), 0);
-  const profit   = clientTotal - material;
-  const margin   = clientTotal > 0 ? (profit / clientTotal * 100).toFixed(1) : null;
-  document.getElementById('qt_client').textContent   = fmt(clientTotal);
-  document.getElementById('qt_material').textContent = fmt(material);
-  document.getElementById('qt_install').textContent  = fmt(install);
-  document.getElementById('qt_profit').textContent   = fmt(profit);
-  const mp = document.getElementById('qt_margin');
-  if (margin === null) { mp.textContent = '—'; mp.className = 'margin-pill'; }
-  else {
-    mp.textContent = margin + '%';
-    mp.className = 'margin-pill ' + (margin < 30 ? 'margin-red' : margin < 50 ? 'margin-yellow' : 'margin-green');
-  }
-}
-
-// addItemBtn removed – use new quote v2 system
-
-async function saveItem(itemId) {
-  const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
-  if (!row) return;
-  const cpVal = row.querySelector('.it-cprice').value;
-  const body = {
-    location:           row.querySelector('.it-loc').value,
-    item_type:          row.querySelector('.it-type').value,
-    description:        row.querySelector('.it-desc').value,
-    width_cm:           parseFloat(row.querySelector('.it-w').value) || null,
-    height_cm:          parseFloat(row.querySelector('.it-h').value) || null,
-    quantity:           parseFloat(row.querySelector('.it-qty').value) || 1,
-    unit:               row.querySelector('.it-unit').value,
-    material_brand:     row.querySelector('.it-brand').value || null,
-    material_model:     row.querySelector('.it-model').value,
-    material_unit_cost: parseFloat(row.querySelector('.it-mcost').value) || 0,
-    install_unit_price: parseFloat(row.querySelector('.it-icost').value) || 0,
-    client_unit_price:  cpVal !== '' ? parseFloat(cpVal) : null,
-  };
-  const res = await fetch(`/api/cases/${caseId}/items/${itemId}`, {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-  });
-  if (res.ok) {
-    const data = await res.json();
-    row.querySelector('.it-area').textContent = data.area ? data.area.toFixed(2) : '—';
-    const cSub = data.client_subtotal != null ? data.client_subtotal : data.subtotal;
-    row.querySelector('.it-csubtotal').textContent = currentUser.can_see_amounts ? fmt(cSub) : '—';
-    const itemsRes = await fetch(`/api/cases/${caseId}/items`);
-    updateQuoteTotals(await itemsRes.json());
-  }
-}
-
-async function calcAndSave(itemId) { await saveItem(itemId); }
-
-async function deleteItem(itemId) {
-  if (!confirm('確定刪除這筆施作物件？')) return;
-  await fetch(`/api/cases/${caseId}/items/${itemId}`, { method:'DELETE' });
-  await loadCase();
-}
+// ── 報價明細（v1 舊系統已移除，由 v2 quote tab 取代）──────────
+function renderItems() {}
 
 // ── 派工 ───────────────────────────────────────────────────
 const DISPATCH_TAGS = { cut_material:'裁切 tag-cut', factory_survey:'廠勘 tag-factory', survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales', other:'其他 tag-other' };
