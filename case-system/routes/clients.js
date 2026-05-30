@@ -126,6 +126,20 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+router.delete('/:id', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner' && !me.manage_users) return res.status(403).json({ error: '無刪除權限' });
+  const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
+  if (!client) return res.status(404).json({ error: '找不到客戶' });
+  const activeCount = db.prepare(`
+    SELECT COUNT(*) AS cnt FROM cases
+    WHERE client_id=? AND status NOT IN ('invalid','closed')
+  `).get(req.params.id).cnt;
+  if (activeCount > 0) return res.status(400).json({ error: `此客戶有 ${activeCount} 筆進行中案件，無法刪除` });
+  db.prepare(`DELETE FROM clients WHERE id=?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
 router.get('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`
     SELECT cl.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,

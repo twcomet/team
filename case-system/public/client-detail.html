@@ -99,6 +99,7 @@
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" id="editClientBtn">✏️ 編輯資料</button>
+        <button class="btn btn-ghost btn-sm" id="deleteClientBtn" style="color:#ef4444;display:none">🗑 刪除客戶</button>
         <a id="newCaseBtn" href="#" class="btn btn-primary btn-sm">＋ 新增案件</a>
       </div>
     </div>
@@ -333,10 +334,28 @@ async function init() {
   await Promise.all([loadClient(), loadCases(), loadDeposits()]);
   document.getElementById('editClientBtn').addEventListener('click', openEditModal);
   document.getElementById('addDepositBtn').addEventListener('click', openDepositModal);
+  if (currentUser?.role === 'owner' || currentUser?.manage_users) {
+    const delBtn = document.getElementById('deleteClientBtn');
+    delBtn.style.display = '';
+    delBtn.addEventListener('click', deleteClient);
+  }
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', {method:'POST'});
     location.href = '/';
   });
+}
+
+async function deleteClient() {
+  const name = clientData?.name || '此客戶';
+  if (!confirm(`確定要刪除「${name}」嗎？\n（有進行中案件的客戶無法刪除）`)) return;
+  const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (res.ok) {
+    showToast(`已刪除客戶「${name}」`);
+    setTimeout(() => location.href = '/clients', 800);
+  } else {
+    showToast(data.error || '刪除失敗', 'error');
+  }
 }
 
 async function loadClient() {
