@@ -3354,6 +3354,10 @@ function renderQuotePanel() {
   const hint = document.getElementById('qDataHint');
   if (hint) hint.style.display = (!filmMatrix.length && !catalogAll.length) ? '' : 'none';
 
+  // 成本分析面板僅管理員可見
+  const costDet = document.getElementById('qCostDet');
+  if (costDet) costDet.style.display = currentUser?.can_see_amounts ? '' : 'none';
+
   renderQuoteItemsV2(currentQuote.items || []);
   renderQuoteTotals();
 }
