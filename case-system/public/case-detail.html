@@ -1325,9 +1325,12 @@ async function init() {
   if (!caseId) { location.href = '/cases'; return; }
   const calcBtn = document.getElementById('openCalcBtn');
   if (calcBtn) calcBtn.href = `/material-calc?case_id=${caseId}`;
-  const [usersRes, allUsersRes, clientsRes, settingsRes, ledgerCatRes] = await Promise.all([
+  const [caseRes, usersRes, allUsersRes, clientsRes, settingsRes, ledgerCatRes] = await Promise.all([
+    fetch(`/api/cases/${caseId}`),
     fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings'), fetch('/api/ledger/categories'),
   ]);
+  if (!caseRes.ok) { location.href = '/cases'; return; }
+  caseData = await caseRes.json();
   users = usersRes; allUsers = allUsersRes; clients = clientsRes;
   if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
   if (ledgerCatRes.ok) {
@@ -1337,7 +1340,15 @@ async function init() {
     document.getElementById('p_balance_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
     document.getElementById('p_survey_fee_category').innerHTML   = '<option value="">— 請選擇（選填）—</option>' + opts;
   }
-  await loadCase();
+  renderHeader();
+  renderPipeline();
+  fillBasicForm();
+  renderItems(caseData.items);
+  renderDispatches(caseData.dispatches);
+  renderMatUsage(caseData.matUsage || [], caseData.matLogs || []);
+  fillPaymentForm();
+  renderLogs(caseData.logs);
+  await loadQuote();
   initAddressAutocomplete();
   loadQuickEstimates();
   buildHourSelect('d_time_h');
@@ -4427,7 +4438,11 @@ async function reviewApp(appId, status) {
   else showToast('操作失敗', 'error');
 }
 
-init();
+init().catch(err => {
+  console.error('[init]', err);
+  const t = document.getElementById('caseTitle');
+  if (t && t.textContent === '載入中…') t.textContent = '載入失敗，請重新整理';
+});
 </script>
 
 <!-- 新增膜料使用紀錄 Modal -->
