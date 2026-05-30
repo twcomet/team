@@ -2002,6 +2002,40 @@ db.exec(`
   )
 `);
 
+// ── 資產借用系統 ─────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS assets (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id       INTEGER REFERENCES orgs(id),
+    name         TEXT NOT NULL,
+    category     TEXT,
+    is_consumable INTEGER DEFAULT 0,
+    quantity     INTEGER DEFAULT 0,
+    unit         TEXT DEFAULT '個',
+    notes        TEXT,
+    active       INTEGER DEFAULT 1,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS asset_requests (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    org_id       INTEGER REFERENCES orgs(id),
+    asset_id     INTEGER NOT NULL REFERENCES assets(id),
+    quantity     INTEGER NOT NULL DEFAULT 1,
+    purpose      TEXT,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    approved_by  INTEGER REFERENCES users(id),
+    approved_at  DATETIME,
+    due_date     DATE,
+    returned_at  DATETIME,
+    returned_by  INTEGER REFERENCES users(id),
+    reject_reason TEXT,
+    notes        TEXT,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 // ── 科目重整 migration（2026-05 簡化版，27 個科目）─────────────
 // 條件：新版「施工服務收入」尚未建立才執行
 const _needCatReset =
@@ -2447,6 +2481,8 @@ _addCol('quote_sheets', 'notes_acceptance',        'TEXT');
 _addCol('users', 'can_see_cost',       'INTEGER DEFAULT 0');
 // 人事成本可見性：僅老闆
 _addCol('users', 'can_see_labor_cost', 'INTEGER DEFAULT 0');
+// 資產倉管權限：可審核資產借用申請
+_addCol('users', 'can_manage_assets',  'INTEGER DEFAULT 0');
 
 // 自動設定：owner 角色 → 兩個成本權限都開
 db.prepare(`UPDATE users SET can_see_cost=1, can_see_labor_cost=1 WHERE role='owner' AND can_see_cost=0`).run();

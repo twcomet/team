@@ -51,6 +51,7 @@ router.post('/login', (req, res) => {
     can_see_amounts:     !!user.can_see_amounts,
     can_see_cost:        !!user.can_see_cost,
     can_see_labor_cost:  !!user.can_see_labor_cost,
+    can_manage_assets:   !!user.can_manage_assets,
     can_delete: !!user.can_delete,
     is_manager: !!user.is_manager,
     view_all_branches: def.viewAllBranches,

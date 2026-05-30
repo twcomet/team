@@ -28,6 +28,7 @@
         <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
         <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
         <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
         <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
         <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
         <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
@@ -356,6 +357,9 @@
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="薪資、師傅費率（僅老闆）">
           <input type="checkbox" id="userCanSeeLaborCost"> 可查看人事成本
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="可審核資產借用申請、管理資產品項">
+          <input type="checkbox" id="userCanManageAssets"> 倉管（資產借用審核）
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
@@ -903,6 +907,7 @@ async function loadUsers() {
       <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
       <td style="text-align:center">${u.can_see_cost ? '💰' : '—'}</td>
       <td style="text-align:center">${u.can_see_labor_cost ? '👔' : '—'}</td>
+      <td style="text-align:center">${u.can_manage_assets ? '🏭' : '—'}</td>
       <td style="text-align:center">${u.can_delete ? '🗑️' : '—'}</td>
       <td><span class="badge ${u.active ? 'badge-completed':'badge-closed'}">${u.active ? '啟用':'停用'}</span></td>
       <td style="display:flex;gap:6px;align-items:center">
@@ -927,6 +932,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userCanDelete').checked = false;
   document.getElementById('userCanSeeCost').checked = false;
   document.getElementById('userCanSeeLaborCost').checked = false;
+  document.getElementById('userCanManageAssets').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userIsSales').checked = false;
   document.getElementById('userDailyCost').value = '';
@@ -1059,6 +1065,7 @@ function openEditUser(id) {
   document.getElementById('userCanDelete').checked         = !!u.can_delete;
   document.getElementById('userCanSeeCost').checked        = !!u.can_see_cost;
   document.getElementById('userCanSeeLaborCost').checked   = !!u.can_see_labor_cost;
+  document.getElementById('userCanManageAssets').checked   = !!u.can_manage_assets;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
   document.getElementById('userIsSales').checked = !!u.is_sales;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
@@ -1126,6 +1133,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     can_delete:          document.getElementById('userCanDelete').checked,
     can_see_cost:        document.getElementById('userCanSeeCost').checked,
     can_see_labor_cost:  document.getElementById('userCanSeeLaborCost').checked,
+    can_manage_assets:   document.getElementById('userCanManageAssets').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
     is_sales: document.getElementById('userIsSales').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,

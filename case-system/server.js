@@ -55,6 +55,7 @@ app.use('/api/quote-settings', require('./routes/quote-settings'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/vendors', require('./routes/vendors'));
+app.use('/api/assets', require('./routes/assets'));
 app.use('/api/tags',       require('./routes/tags'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/my-tasks',        require('./routes/my-tasks'));
@@ -174,7 +175,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'vendors'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'vendors', 'assets'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
@@ -629,6 +630,29 @@ setInterval(() => {
       db.prepare(`UPDATE attendance SET clock_out='18:00', work_end='18:00', auto_clock_out=1 WHERE id=?`).run(r.id);
     }
     if (missing.length) console.log(`[auto-clockout] ${twDate} 自動補下班卡 ${missing.length} 筆`);
+  }
+  // 每天早上 09:00 檢查逾期借用
+  if (hm === '09:00' && autoClockOutDoneDate !== twDate + '_asset') {
+    autoClockOutDoneDate = twDate + '_asset';
+    try {
+      const { pushMessage } = require('./routes/webhook');
+      const overdue = db.prepare(`
+        SELECT r.*, u.name as user_name, a.name as asset_name, a.is_consumable, r.org_id
+        FROM asset_requests r
+        LEFT JOIN users u ON u.id=r.user_id
+        LEFT JOIN assets a ON a.id=r.asset_id
+        WHERE r.status='approved' AND r.due_date IS NOT NULL AND r.due_date < ? AND a.is_consumable=0
+      `).all(twDate);
+      if (overdue.length) {
+        const managers = db.prepare(`SELECT line_user_id, org_id, role FROM users WHERE active=1 AND line_user_id IS NOT NULL AND (role='owner' OR can_manage_assets=1)`).all();
+        overdue.forEach(r => {
+          managers.filter(m => m.role === 'owner' || m.org_id === r.org_id).forEach(m => {
+            pushMessage(m.line_user_id, `【借用逾期提醒】\n${r.user_name} 借用的「${r.asset_name}」已逾期未還\n應還日期：${r.due_date}`).catch(()=>{});
+          });
+        });
+        console.log(`[asset-overdue] 逾期借用 ${overdue.length} 筆，已發送通知`);
+      }
+    } catch(e) { console.error('[asset-overdue]', e.message); }
   }
 }, 60000);
 

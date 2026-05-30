@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資產借用 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--gray-200); }
+.tabs-bar .tab { padding:8px 18px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.sb-pending   { background:#fef3c7; color:#92400e; }
+.sb-approved  { background:#dbeafe; color:#1e40af; }
+.sb-returned  { background:#d1fae5; color:#065f46; }
+.sb-rejected  { background:#fee2e2; color:#991b1b; }
+.consumable-tag { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; background:#f3e8ff; color:#7c3aed; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="assets"         href="/assets">         <span class="icon">📦</span>資產借用</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">資產借用</span>
+      <button class="btn btn-primary btn-sm" id="newRequestBtn">＋ 申請借用</button>
+    </div>
+    <div class="page-body">
+      <div class="tabs-bar">
+        <div class="tab active" data-tab="my">我的申請</div>
+        <div class="tab" data-tab="review" id="tabReview" style="display:none">待審核</div>
+        <div class="tab" data-tab="loans" id="tabLoans" style="display:none">借用中追蹤</div>
+        <div class="tab" data-tab="items" id="tabItems" style="display:none">資產品項管理</div>
+      </div>
+
+      <!-- 我的申請 -->
+      <div id="pane-my">
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>申請日期</th><th>品項</th><th>數量</th><th>說明</th><th>預計歸還</th><th>狀態</th><th></th></tr></thead>
+            <tbody id="myBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 待審核 -->
+      <div id="pane-review" style="display:none">
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>申請日期</th><th>申請人</th><th>品項</th><th>數量</th><th>說明</th><th>狀態</th><th></th></tr></thead>
+            <tbody id="reviewBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 借用中追蹤 -->
+      <div id="pane-loans" style="display:none">
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>借用人</th><th>品項</th><th>數量</th><th>核准日期</th><th>應還日期</th><th>逾期</th><th></th></tr></thead>
+            <tbody id="loansBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 資產品項管理 -->
+      <div id="pane-items" style="display:none">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn-secondary btn-sm" id="newItemBtn">＋ 新增品項</button>
+        </div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>分店</th><th>品項</th><th>類別</th><th>類型</th><th>庫存</th><th>單位</th><th>備註</th><th></th></tr></thead>
+            <tbody id="itemsBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增申請 Modal -->
+<div class="modal-overlay" id="requestModal" style="display:none">
+  <div class="modal" style="max-width:480px;width:100%">
+    <div class="modal-header"><h3>申請借用 / 領用</h3><button class="modal-close" onclick="closeModal('requestModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">品項 <span style="color:red">*</span></label>
+        <select class="form-input" id="req_asset_id"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">數量</label>
+        <input class="form-input" id="req_quantity" type="number" min="1" value="1">
+      </div>
+      <div class="form-group" id="req_due_date_group">
+        <label class="form-label">預計歸還日期（借用品必填）</label>
+        <input class="form-input" id="req_due_date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">說明用途</label>
+        <textarea class="form-input" id="req_purpose" rows="2" placeholder="簡述使用原因"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('requestModal')">取消</button>
+      <button class="btn btn-primary" id="saveRequestBtn">送出申請</button>
+    </div>
+  </div>
+</div>
+
+<!-- 審核 Modal -->
+<div class="modal-overlay" id="approveModal" style="display:none">
+  <div class="modal" style="max-width:420px;width:100%">
+    <div class="modal-header"><h3 id="approveModalTitle">審核申請</h3><button class="modal-close" onclick="closeModal('approveModal')">✕</button></div>
+    <div class="modal-body">
+      <p id="approveModalInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:16px"></p>
+      <div class="form-group" id="approveDueDateGroup">
+        <label class="form-label">設定歸還期限（借用品）</label>
+        <input class="form-input" id="approve_due_date" type="date">
+      </div>
+      <div class="form-group" id="rejectReasonGroup" style="display:none">
+        <label class="form-label">拒絕原因</label>
+        <textarea class="form-input" id="reject_reason" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('approveModal')">取消</button>
+      <button class="btn btn-primary" id="approveConfirmBtn">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 資產品項 Modal -->
+<div class="modal-overlay" id="itemModal" style="display:none">
+  <div class="modal" style="max-width:440px;width:100%">
+    <div class="modal-header"><h3 id="itemModalTitle">新增品項</h3><button class="modal-close" onclick="closeModal('itemModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group" id="itemOrgGroup">
+        <label class="form-label">分店</label>
+        <select class="form-input" id="item_org_id"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">品項名稱 <span style="color:red">*</span></label>
+        <input class="form-input" id="item_name" placeholder="例：投影機、延長線">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">類別</label>
+          <input class="form-input" id="item_category" placeholder="例：電子設備">
+        </div>
+        <div class="form-group">
+          <label class="form-label">類型</label>
+          <select class="form-input" id="item_is_consumable">
+            <option value="0">借用品（需歸還）</option>
+            <option value="1">消耗品（不追蹤歸還）</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">庫存數量</label>
+          <input class="form-input" id="item_quantity" type="number" min="0" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">單位</label>
+          <input class="form-input" id="item_unit" placeholder="個、台、捲…" value="個">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <textarea class="form-input" id="item_notes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('itemModal')">取消</button>
+      <button class="btn btn-primary" id="saveItemBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let currentUser = null;
+let assetItems = [];
+let allRequests = [];
+let editItemId = null;
+let approveAction = null;
+let approveRequestId = null;
+let approveIsConsumable = false;
+let orgs = [];
+
+const STATUS_LABEL = { pending:'待審核', approved:'核准中', returned:'已歸還', rejected:'已拒絕' };
+
+async function init() {
+  currentUser = await loadUser();
+  highlightNav('assets');
+
+  const isManager = currentUser.role === 'owner' || !!currentUser.can_manage_assets;
+  if (isManager) {
+    document.getElementById('tabReview').style.display = '';
+    document.getElementById('tabLoans').style.display  = '';
+    document.getElementById('tabItems').style.display  = '';
+  }
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('[id^="pane-"]').forEach(x => x.style.display = 'none');
+      t.classList.add('active');
+      document.getElementById('pane-' + t.dataset.tab).style.display = '';
+      if (t.dataset.tab === 'my')     loadMyRequests();
+      if (t.dataset.tab === 'review') loadReview();
+      if (t.dataset.tab === 'loans')  loadLoans();
+      if (t.dataset.tab === 'items')  loadItems();
+    });
+  });
+
+  if (currentUser.role === 'owner') {
+    const r = await fetch('/api/orgs');
+    if (r.ok) { orgs = await r.json(); populateOrgSelect(); }
+  }
+
+  await loadMyRequests();
+  await loadAssetItemsForSelect();
+}
+
+function populateOrgSelect() {
+  const sel = document.getElementById('item_org_id');
+  sel.innerHTML = orgs.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
+  if (currentUser.role !== 'owner') document.getElementById('itemOrgGroup').style.display = 'none';
+}
+
+async function loadAssetItemsForSelect() {
+  const r = await fetch('/api/assets/items');
+  if (!r.ok) return;
+  assetItems = await r.json();
+  const sel = document.getElementById('req_asset_id');
+  sel.innerHTML = assetItems.length
+    ? assetItems.map(a => `<option value="${a.id}" data-consumable="${a.is_consumable}">${esc(a.name)}（${a.unit}）${a.is_consumable ? ' [消耗品]' : ''}</option>`).join('')
+    : '<option value="">— 尚無可用品項 —</option>';
+  updateDueDateVisibility();
+}
+
+function updateDueDateVisibility() {
+  const sel = document.getElementById('req_asset_id');
+  const opt = sel.selectedOptions[0];
+  const isConsumable = opt?.dataset.consumable === '1';
+  document.getElementById('req_due_date_group').style.display = isConsumable ? 'none' : '';
+}
+
+async function loadMyRequests() {
+  const r = await fetch('/api/assets?mine=1');
+  if (!r.ok) return;
+  const list = await r.json();
+  const tbody = document.getElementById('myBody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">尚無申請紀錄</td></tr>'; return; }
+  tbody.innerHTML = list.map(r => `
+    <tr>
+      <td>${r.created_at?.slice(0,10) || ''}</td>
+      <td>${esc(r.asset_name)} ${r.is_consumable ? '<span class="consumable-tag">消耗品</span>' : ''}</td>
+      <td>${r.quantity} ${esc(r.unit||'')}</td>
+      <td style="color:var(--gray-500)">${esc(r.purpose||'—')}</td>
+      <td>${r.due_date || '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${STATUS_LABEL[r.status]||r.status}</span></td>
+      <td>${r.reject_reason ? `<span style="font-size:12px;color:#991b1b">${esc(r.reject_reason)}</span>` : ''}</td>
+    </tr>
+  `).join('');
+}
+
+async function loadReview() {
+  const r = await fetch('/api/assets?status=pending');
+  if (!r.ok) return;
+  const list = await r.json();
+  const tbody = document.getElementById('reviewBody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">目前無待審核申請</td></tr>'; return; }
+  tbody.innerHTML = list.map(r => `
+    <tr>
+      <td>${r.created_at?.slice(0,10)||''}</td>
+      <td>${esc(r.user_name)}</td>
+      <td>${esc(r.asset_name)} ${r.is_consumable ? '<span class="consumable-tag">消耗品</span>' : ''}</td>
+      <td>${r.quantity} ${esc(r.unit||'')}</td>
+      <td style="color:var(--gray-500)">${esc(r.purpose||'—')}</td>
+      <td><span class="status-badge sb-pending">待審核</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="openApprove(${r.id},'approve',${r.is_consumable},'${esc(r.user_name)}','${esc(r.asset_name)}',${r.quantity})">核准</button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="openApprove(${r.id},'reject',${r.is_consumable},'${esc(r.user_name)}','${esc(r.asset_name)}',${r.quantity})">拒絕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function loadLoans() {
+  const r = await fetch('/api/assets?status=approved');
+  if (!r.ok) return;
+  const list = await r.json();
+  const today = new Date().toISOString().slice(0,10);
+  const tbody = document.getElementById('loansBody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">目前無借用中紀錄</td></tr>'; return; }
+  tbody.innerHTML = list.map(r => {
+    const overdue = r.due_date && r.due_date < today;
+    return `<tr style="${overdue ? 'background:#fff5f5' : ''}">
+      <td>${esc(r.user_name)}</td>
+      <td>${esc(r.asset_name)}</td>
+      <td>${r.quantity} ${esc(r.unit||'')}</td>
+      <td>${r.approved_at?.slice(0,10)||'—'}</td>
+      <td>${r.due_date||'—'}</td>
+      <td>${overdue ? '<span style="color:#dc2626;font-weight:600">已逾期</span>' : '—'}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="markReturn(${r.id})">標記歸還</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadItems() {
+  const r = await fetch('/api/assets/items');
+  if (!r.ok) return;
+  const list = await r.json();
+  const tbody = document.getElementById('itemsBody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:20px">尚無品項</td></tr>'; return; }
+  tbody.innerHTML = list.map(a => `
+    <tr>
+      <td style="font-size:13px">${esc(a.org_name||'—')}</td>
+      <td style="font-weight:500">${esc(a.name)}</td>
+      <td style="font-size:13px;color:var(--gray-500)">${esc(a.category||'—')}</td>
+      <td>${a.is_consumable ? '<span class="consumable-tag">消耗品</span>' : '<span style="font-size:12px;color:#1e40af">借用品</span>'}</td>
+      <td>${a.quantity}</td>
+      <td>${esc(a.unit)}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${esc(a.notes||'')}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="openEditItem(${a.id})">編輯</button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deleteItem(${a.id})">停用</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openNewRequest() {
+  document.getElementById('req_asset_id').selectedIndex = 0;
+  document.getElementById('req_quantity').value = '1';
+  document.getElementById('req_due_date').value = '';
+  document.getElementById('req_purpose').value = '';
+  updateDueDateVisibility();
+  document.getElementById('requestModal').style.display = 'flex';
+}
+
+async function saveRequest() {
+  const asset_id = document.getElementById('req_asset_id').value;
+  if (!asset_id) { alert('請選擇品項'); return; }
+  const payload = {
+    asset_id: parseInt(asset_id),
+    quantity: parseInt(document.getElementById('req_quantity').value) || 1,
+    due_date: document.getElementById('req_due_date').value || null,
+    purpose:  document.getElementById('req_purpose').value.trim() || null,
+  };
+  const btn = document.getElementById('saveRequestBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/assets', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) { const e = await r.json(); alert(e.error||'送出失敗'); return; }
+    closeModal('requestModal');
+    await loadMyRequests();
+  } finally { btn.disabled = false; }
+}
+
+function openApprove(id, action, isConsumable, userName, assetName, qty) {
+  approveAction = action;
+  approveRequestId = id;
+  approveIsConsumable = isConsumable;
+  document.getElementById('approveModalTitle').textContent = action === 'approve' ? '核准申請' : '拒絕申請';
+  document.getElementById('approveModalInfo').textContent = `${userName} 申請「${assetName}」× ${qty}`;
+  document.getElementById('approveDueDateGroup').style.display = (action === 'approve' && !isConsumable) ? '' : 'none';
+  document.getElementById('rejectReasonGroup').style.display = action === 'reject' ? '' : 'none';
+  document.getElementById('approve_due_date').value = '';
+  document.getElementById('reject_reason').value = '';
+  document.getElementById('approveConfirmBtn').textContent = action === 'approve' ? '核准' : '拒絕';
+  document.getElementById('approveModal').style.display = 'flex';
+}
+
+async function confirmApprove() {
+  const btn = document.getElementById('approveConfirmBtn');
+  btn.disabled = true;
+  try {
+    let url, body;
+    if (approveAction === 'approve') {
+      url = `/api/assets/${approveRequestId}/approve`;
+      body = { due_date: document.getElementById('approve_due_date').value || null };
+    } else {
+      url = `/api/assets/${approveRequestId}/reject`;
+      body = { reason: document.getElementById('reject_reason').value.trim() };
+    }
+    const r = await fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) { const e = await r.json(); alert(e.error||'操作失敗'); return; }
+    closeModal('approveModal');
+    await loadReview();
+  } finally { btn.disabled = false; }
+}
+
+async function markReturn(id) {
+  if (!confirm('確定標記此借用品已歸還？')) return;
+  const r = await fetch(`/api/assets/${id}/return`, { method:'PATCH' });
+  if (!r.ok) { alert('操作失敗'); return; }
+  await loadLoans();
+}
+
+function openNewItem() {
+  editItemId = null;
+  document.getElementById('itemModalTitle').textContent = '新增品項';
+  ['item_name','item_category','item_notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('item_quantity').value = '1';
+  document.getElementById('item_unit').value = '個';
+  document.getElementById('item_is_consumable').value = '0';
+  document.getElementById('itemModal').style.display = 'flex';
+}
+
+function openEditItem(id) {
+  const a = assetItems.find(x => x.id === id);
+  if (!a) return;
+  editItemId = id;
+  document.getElementById('itemModalTitle').textContent = '編輯品項';
+  document.getElementById('item_name').value          = a.name || '';
+  document.getElementById('item_category').value      = a.category || '';
+  document.getElementById('item_quantity').value      = a.quantity ?? 1;
+  document.getElementById('item_unit').value          = a.unit || '個';
+  document.getElementById('item_is_consumable').value = a.is_consumable ? '1' : '0';
+  document.getElementById('item_notes').value         = a.notes || '';
+  document.getElementById('itemModal').style.display  = 'flex';
+}
+
+async function saveItem() {
+  const name = document.getElementById('item_name').value.trim();
+  if (!name) { alert('請填入品項名稱'); return; }
+  const payload = {
+    name,
+    category:     document.getElementById('item_category').value.trim() || null,
+    is_consumable:document.getElementById('item_is_consumable').value === '1',
+    quantity:     parseInt(document.getElementById('item_quantity').value) || 0,
+    unit:         document.getElementById('item_unit').value.trim() || '個',
+    notes:        document.getElementById('item_notes').value.trim() || null,
+    org_id:       currentUser.role === 'owner' ? parseInt(document.getElementById('item_org_id').value) : undefined,
+  };
+  const btn = document.getElementById('saveItemBtn');
+  btn.disabled = true;
+  try {
+    const url = editItemId ? `/api/assets/items/${editItemId}` : '/api/assets/items';
+    const method = editItemId ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) { const e = await r.json(); alert(e.error||'儲存失敗'); return; }
+    closeModal('itemModal');
+    await loadItems();
+    await loadAssetItemsForSelect();
+  } finally { btn.disabled = false; }
+}
+
+async function deleteItem(id) {
+  if (!confirm('確定停用此品項？')) return;
+  const r = await fetch(`/api/assets/items/${id}`, { method: 'DELETE' });
+  if (!r.ok) { alert('操作失敗'); return; }
+  await loadItems();
+  await loadAssetItemsForSelect();
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('newRequestBtn').addEventListener('click', openNewRequest);
+document.getElementById('saveRequestBtn').addEventListener('click', saveRequest);
+document.getElementById('newItemBtn').addEventListener('click', openNewItem);
+document.getElementById('saveItemBtn').addEventListener('click', saveItem);
+document.getElementById('approveConfirmBtn').addEventListener('click', confirmApprove);
+document.getElementById('req_asset_id').addEventListener('change', updateDueDateVisibility);
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
+});
+
+init().catch(console.error);
+</script>
+</body>
+</html>
