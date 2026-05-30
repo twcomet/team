@@ -297,7 +297,10 @@ function renderTable(cases) {
       <td style="color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓ 結清'}</td>
       <td>${paymentBadge(c.payment_status)}</td>
       <td>${c.sales_name||'—'}</td>
-      <td><a class="btn btn-ghost btn-sm" href="/case-detail?id=${c.id}&tab=payment">更新</a></td>
+      <td style="white-space:nowrap">
+        <a class="btn btn-ghost btn-sm" href="/case-detail?id=${c.id}&tab=payment">更新</a>
+        ${currentUser?.role==='owner' ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444;margin-left:4px" onclick="event.stopPropagation();deletePaymentCase(${c.id},'${(c.case_number||'').replace(/'/g,"\\'")}')">刪除</button>` : ''}
+      </td>
     </tr>`;
   }).join('');
 }
@@ -332,6 +335,18 @@ document.getElementById('payConfirm').addEventListener('click', async () => {
 });
 document.getElementById('payCancel').addEventListener('click',    ()=>document.getElementById('payModal').classList.remove('open'));
 document.getElementById('payModalClose').addEventListener('click', ()=>document.getElementById('payModal').classList.remove('open'));
+
+async function deletePaymentCase(id, caseNumber) {
+  if (!confirm(`確定刪除案件「${caseNumber}」？\n只有完全沒有收款、沒有派工的空案件才可刪除。`)) return;
+  const res = await fetch(`/api/cases/${id}?guard=1`, { method: 'DELETE' });
+  const data = await res.json();
+  if (res.ok) {
+    showToast(`案件「${caseNumber}」已刪除`);
+    await loadPayments();
+  } else {
+    showToast(data.error || '刪除失敗', 'error');
+  }
+}
 
 init();
 </script>

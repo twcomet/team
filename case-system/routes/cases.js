@@ -785,8 +785,25 @@ router.patch('/:id/to-deal', requireAuth, (req, res) => {
 // ── 刪除案件 DELETE /:id（管理者或有刪除權限的人員）─────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
-  if (!me.manage_users && me.role !== 'owner' && !me.can_delete)
-    return res.status(403).json({ error: '僅限管理者可刪除案件' });
+
+  // guard=1：來自收款追蹤，嚴格模式 — 只限老闆，且空案件才可刪
+  if (req.query.guard === '1') {
+    if (me.role !== 'owner') return res.status(403).json({ error: '僅限老闆可從收款追蹤刪除案件' });
+    const pay = db.prepare(`SELECT payment_received, payment_status, deposit_amount FROM cases WHERE id=?`).get(req.params.id);
+    if (!pay) return res.status(404).json({ error: '找不到案件' });
+    if ((pay.payment_received || 0) > 0)
+      return res.status(400).json({ error: '此案件已有收款金額，無法刪除' });
+    if ((pay.deposit_amount || 0) > 0)
+      return res.status(400).json({ error: '此案件已有訂金紀錄，無法刪除' });
+    if (pay.payment_status === 'paid')
+      return res.status(400).json({ error: '此案件已標記為已付款，無法刪除' });
+    const dispCount = db.prepare(`SELECT COUNT(*) cnt FROM dispatches WHERE case_id=?`).get(req.params.id).cnt;
+    if (dispCount > 0)
+      return res.status(400).json({ error: `此案件有 ${dispCount} 筆派工紀錄，無法刪除` });
+  } else {
+    if (!me.manage_users && me.role !== 'owner' && !me.can_delete)
+      return res.status(403).json({ error: '僅限管理者可刪除案件' });
+  }
 
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
   if (!c) return res.status(404).json({ error: '找不到案件' });
