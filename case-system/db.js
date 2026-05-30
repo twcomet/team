@@ -1868,13 +1868,14 @@ _addCol('cases', 'line_official_name', 'TEXT');
 _addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
 
 // ── 修復 case_type CHECK 約束：補上 'output' ────────────────────────────────
-{
+try {
   const _csFix = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
   if (_csFix && /CHECK\s*\(case_type\s+IN\s*\(/.test(_csFix.sql) && !_csFix.sql.includes("'output'")) {
     db.exec(`PRAGMA foreign_keys=OFF`);
+    db.exec(`DROP TABLE IF EXISTS _cases_output_fix`);
     const _cols = db.prepare(`PRAGMA table_info(cases)`).all().map(c => c.name);
     const _newDef = _csFix.sql
-      .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?cases\b/i, 'CREATE TABLE _cases_output_fix')
+      .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?cases"?\b/i, 'CREATE TABLE _cases_output_fix')
       .replace(/CHECK\s*\(case_type\s+IN\s*\([^)]+\)\)/,
                `CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other'))`);
     db.exec(_newDef);
@@ -1884,6 +1885,9 @@ _addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
     db.exec(`PRAGMA foreign_keys=ON`);
     console.log('✅ case_type CHECK 約束已修復（新增 output）');
   }
+} catch(e) {
+  db.exec(`PRAGMA foreign_keys=ON`);
+  console.error('⚠️ case_type 約束修復失敗（不影響啟動）:', e.message);
 }
 
 // ── 合約管理系統 ──────────────────────────────────────────────────────────────
