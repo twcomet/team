@@ -6,6 +6,36 @@ const router  = express.Router();
 
 function genToken() { return crypto.randomBytes(16).toString('hex'); }
 
+// 同步庫存保留記錄
+function syncReservations(quoteId, newStatus) {
+  if (newStatus === 'pending') {
+    db.prepare(`DELETE FROM material_reservations WHERE quote_id=? AND status='pending'`).run(quoteId);
+    const q = db.prepare(`SELECT case_id FROM quote_sheets WHERE id=?`).get(quoteId);
+    if (!q) return;
+    const orgId = db.prepare(`SELECT org_id FROM cases WHERE id=?`).get(q.case_id)?.org_id;
+    const items = db.prepare(`
+      SELECT id, material_id, area_sqchi, film_width_cm, estimated_meters
+      FROM quote_sheet_items
+      WHERE quote_id=? AND item_type='film' AND material_id IS NOT NULL
+    `).all(quoteId);
+    const ins = db.prepare(`
+      INSERT INTO material_reservations
+        (material_id, quote_id, quote_item_id, case_id, org_id, quantity_sqchi, quantity_meters, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    `);
+    for (const it of items) {
+      const sqchi = it.area_sqchi || 0;
+      const fw = it.film_width_cm || 122;
+      const meters = it.estimated_meters || Math.round(sqchi * 9 / fw * 100) / 100;
+      ins.run(it.material_id, quoteId, it.id, q.case_id, orgId, sqchi, meters);
+    }
+  } else if (newStatus === 'committed') {
+    db.prepare(`UPDATE material_reservations SET status='committed' WHERE quote_id=? AND status='pending'`).run(quoteId);
+  } else if (newStatus === 'released') {
+    db.prepare(`UPDATE material_reservations SET status='released', released_at=CURRENT_TIMESTAMP WHERE quote_id=? AND status!='released'`).run(quoteId);
+  }
+}
+
 // 計算報價單各項金額，寫回 quote_sheets
 function recalcQuote(quoteId) {
   const items = db.prepare(`SELECT subtotal, item_type FROM quote_sheet_items WHERE quote_id=?`).all(quoteId);
@@ -199,16 +229,26 @@ router.put('/:quoteId', requireAuth, (req, res) => {
   res.json({ ok: true, token: q?.share_token, final_total: q?.final_total });
 });
 
-// 發送報價單（更新狀態為 sent + 同步案件成交金額）
+// 發送報價單（更新狀態為 sent + 同步案件成交金額 + 建立 pending 保留）
 router.post('/:quoteId/send', requireAuth, (req, res) => {
-  recalcQuote(Number(req.params.quoteId));
-  db.prepare(`UPDATE quote_sheets SET status='sent', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(req.params.quoteId);
-  const q = db.prepare(`SELECT share_token, case_id, final_total, marketing_total FROM quote_sheets WHERE id=?`).get(req.params.quoteId);
+  const quoteId = Number(req.params.quoteId);
+  recalcQuote(quoteId);
+  db.prepare(`UPDATE quote_sheets SET status='sent', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(quoteId);
+  const q = db.prepare(`SELECT share_token, case_id, final_total, marketing_total FROM quote_sheets WHERE id=?`).get(quoteId);
   if (q) {
     db.prepare(`UPDATE cases SET contract_amount=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .run(q.final_total || 0, q.case_id);
   }
+  try { syncReservations(quoteId, 'pending'); } catch(e) { /* non-critical */ }
   res.json({ ok: true, token: q?.share_token });
+});
+
+// 退回報價（客戶拒絕或客服取消）
+router.post('/:quoteId/reject', requireAuth, (req, res) => {
+  const quoteId = Number(req.params.quoteId);
+  db.prepare(`UPDATE quote_sheets SET status='rejected', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(quoteId);
+  try { syncReservations(quoteId, 'released'); } catch(e) { /* non-critical */ }
+  res.json({ ok: true });
 });
 
 // ── 品項 CRUD ────────────────────────────────────────────────────
@@ -231,7 +271,8 @@ router.post('/:quoteId/items', requireAuth, (req, res) => {
     unit, quantity, unit_price,
     notice_template_id, notice_text,
     material_photo_url, area_photo_url, notes,
-    cost_per_meter, estimated_meters, material_cost
+    cost_per_meter, estimated_meters, material_cost,
+    material_id
   } = req.body;
 
   // 才數自動計算
@@ -261,8 +302,8 @@ router.post('/:quoteId/items', requireAuth, (req, res) => {
      catalog_item_id,catalog_config,difficulty_level,
      addon_ids,addon_total,unit,quantity,unit_price,subtotal,
      notice_template_id,notice_text,material_photo_url,area_photo_url,notes,
-     cost_per_meter,estimated_meters,material_cost)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+     cost_per_meter,estimated_meters,material_cost,material_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(quoteId, sort_order, item_type||'film', location||null, description||null,
          film_brand||null, film_model||null, film_spec||null, film_width_cm||122, surface_type||'flat',
          length_cm||null, width_cm||null, area_sqchi||null,
@@ -271,7 +312,8 @@ router.post('/:quoteId/items', requireAuth, (req, res) => {
          unit||'才', quantity||1, unit_price||0, subtotal,
          notice_template_id||null, finalNoticeText||null,
          material_photo_url||null, area_photo_url||null, notes||null,
-         cost_per_meter||null, estimated_meters||null, material_cost||null);
+         cost_per_meter||null, estimated_meters||null, material_cost||null,
+         material_id||null);
 
   recalcQuote(quoteId);
   res.json({ ok: true, id: r.lastInsertRowid, area_sqchi, subtotal });
@@ -290,7 +332,7 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     notice_template_id, notice_text,
     material_photo_url, area_photo_url, notes,
     cost_per_meter, estimated_meters, material_cost,
-    display_mode, simple_price
+    display_mode, simple_price, material_id
   } = req.body;
 
   let area_sqchi = req.body.area_sqchi;
@@ -320,7 +362,7 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     addon_ids=?,addon_total=?,unit=?,quantity=?,unit_price=?,subtotal=?,
     notice_template_id=?,notice_text=?,material_photo_url=?,area_photo_url=?,notes=?,
     cost_per_meter=?,estimated_meters=?,material_cost=?,
-    display_mode=?,simple_price=?
+    display_mode=?,simple_price=?,material_id=?
     WHERE id=? AND quote_id=?`)
     .run(item_type||'film', location||null, description||null,
          film_brand||null, film_model||null, film_spec||null, film_width_cm||122, surface_type||'flat',
@@ -331,7 +373,7 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
          notice_template_id||null, finalNoticeText??null,
          material_photo_url||null, area_photo_url||null, notes||null,
          cost_per_meter||null, estimated_meters||null, material_cost||null,
-         display_mode||'detail', simple_price||null,
+         display_mode||'detail', simple_price||null, material_id||null,
          req.params.itemId, quoteId);
 
   recalcQuote(quoteId);
@@ -403,6 +445,9 @@ router.post('/sign/:token', (req, res) => {
   const finalAmt = consent && q.marketing_total ? q.marketing_total : q.final_total;
   db.prepare(`UPDATE cases SET status='confirmed', contract_amount=?, contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP),
     updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(finalAmt || 0, q.case_id);
+
+  // 升級為 committed 保留
+  try { syncReservations(q.id, 'committed'); } catch(e) { /* non-critical */ }
 
   // 通知負責業務
   try {

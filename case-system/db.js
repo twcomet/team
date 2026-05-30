@@ -2533,6 +2533,7 @@ db.exec(`
 // 擴充 quote_sheet_items
 _addCol('quote_sheet_items', 'display_mode', "TEXT DEFAULT 'detail'");
 _addCol('quote_sheet_items', 'simple_price', 'REAL');
+_addCol('quote_sheet_items', 'material_id',  'INTEGER REFERENCES materials(id)');
 
 // 擴充 quote_sheets
 _addCol('quote_sheets', 'subtotal',                'REAL DEFAULT 0');
@@ -2573,6 +2574,25 @@ _addCol('materials', 'width_cm',      'REAL DEFAULT 122');
 
 // ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
 _addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');
+
+// ── 庫存保留 ──────────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS material_reservations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id     INTEGER NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    quote_id        INTEGER NOT NULL REFERENCES quote_sheets(id) ON DELETE CASCADE,
+    quote_item_id   INTEGER REFERENCES quote_sheet_items(id) ON DELETE CASCADE,
+    case_id         INTEGER REFERENCES cases(id),
+    org_id          INTEGER REFERENCES orgs(id),
+    quantity_sqchi  REAL DEFAULT 0,
+    quantity_meters REAL DEFAULT 0,
+    status          TEXT DEFAULT 'pending'
+                    CHECK(status IN ('pending','committed','released')),
+    reserved_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    released_at     DATETIME,
+    notes           TEXT
+  )
+`);
 
 // ── 設計師查詢存取碼 ──────────────────────────────────────────────────────
 db.exec(`

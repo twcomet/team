@@ -12,6 +12,21 @@ router.get('/', requireAuth, (req, res) => {
     : db.prepare(`SELECT * FROM materials WHERE org_id = ? ORDER BY brand, model`).all(me.org_id);
   // 非成本可見者隱藏 unit_cost
   if (!me.can_see_cost) rows.forEach(r => { r.unit_cost = null; });
+  // 加入保留量
+  try {
+    const resRows = db.prepare(`
+      SELECT material_id,
+        COALESCE(SUM(CASE WHEN status='pending'   THEN quantity_meters ELSE 0 END),0) as pending_meters,
+        COALESCE(SUM(CASE WHEN status='committed' THEN quantity_meters ELSE 0 END),0) as committed_meters
+      FROM material_reservations WHERE status!='released' GROUP BY material_id
+    `).all();
+    const resMap = {};
+    resRows.forEach(r => { resMap[r.material_id] = r; });
+    rows.forEach(m => {
+      m.pending_reserved_meters   = resMap[m.id]?.pending_meters   || 0;
+      m.committed_reserved_meters = resMap[m.id]?.committed_meters || 0;
+    });
+  } catch(e) { /* 表格不存在時忽略 */ }
   res.json(rows);
 });
 

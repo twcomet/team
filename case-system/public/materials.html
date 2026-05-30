@@ -587,7 +587,11 @@ function renderTable(list) {
       <td style="font-family:monospace;font-size:12px">${m.location||'—'}</td>
       ${canCost ? `<td>${m.unit_cost?'$'+m.unit_cost:'—'}</td>` : ''}
       <td>${m.unit_price?'$'+m.unit_price:'—'}</td>
-      <td class="${stockClass(m.stock_meters||0)}">${(m.stock_meters||0).toFixed(1)}</td>
+      <td>
+        <span class="${stockClass(m.stock_meters||0)}">${(m.stock_meters||0).toFixed(1)}</span>
+        ${(m.committed_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:0 4px">🔒 成交保留 ${m.committed_reserved_meters.toFixed(1)}m</span>` : ''}
+        ${(m.pending_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px">💬 詢價中 ${m.pending_reserved_meters.toFixed(1)}m</span>` : ''}
+      </td>
       <td style="font-size:12px;color:var(--gray-500)">${m.notes||''}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-primary btn-sm" onclick="openRollModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">＋進貨</button>

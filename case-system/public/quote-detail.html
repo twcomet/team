@@ -265,13 +265,20 @@
           </div>
           <div class="form-group">
             <label>品牌</label>
-            <input type="text" id="f-brand" list="dl-brand" placeholder="BODAQ、LX、PAROI…" autocomplete="off" oninput="autoLookupPrice()">
+            <input type="text" id="f-brand" list="dl-brand" placeholder="BODAQ、LX、PAROI…" autocomplete="off" oninput="autoLookupPrice();filterMaterialSelect()">
             <datalist id="dl-brand"></datalist>
           </div>
           <div class="form-group">
             <label>系列 / 型號</label>
-            <input type="text" id="f-spec" list="dl-spec" placeholder="石紋、木紋…" autocomplete="off" oninput="autoLookupPrice()">
+            <input type="text" id="f-spec" list="dl-spec" placeholder="石紋、木紋…" autocomplete="off" oninput="autoLookupPrice();filterMaterialSelect()">
             <datalist id="dl-spec"></datalist>
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>關聯庫存膜料（選填，用於庫存保留）</label>
+            <select id="f-material-id" onchange="onMaterialSelect()">
+              <option value="">— 不關聯庫存 —</option>
+            </select>
+            <div id="f-material-hint" style="font-size:11px;color:#059669;margin-top:3px;display:none"></div>
           </div>
           <div class="form-group">
             <label>面材類型</label>
@@ -416,7 +423,7 @@ const STATUS_MAP = {
 };
 
 let quoteId, quoteData;
-let filmPrices = [], catalogItems = [], noticeTemplates = [], skillLevels = [];
+let filmPrices = [], catalogItems = [], noticeTemplates = [], skillLevels = [], inventoryMaterials = [];
 let currentItemTab = 'film';
 
 const fmtMoney = n => 'NT$ ' + Math.round(n || 0).toLocaleString('zh-TW');
@@ -433,11 +440,12 @@ async function init() {
   await loadUser();
   highlightNav('quote-list');
 
-  [filmPrices, catalogItems, noticeTemplates, skillLevels] = await Promise.all([
+  [filmPrices, catalogItems, noticeTemplates, skillLevels, inventoryMaterials] = await Promise.all([
     fetch('/api/quote-settings/film-prices').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/catalog').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/notices').then(r => r.json()).catch(() => []),
     fetch('/api/quote-settings/skill-levels').then(r => r.json()).catch(() => []),
+    fetch('/api/materials').then(r => r.json()).catch(() => []),
   ]);
 
   buildFormOptions();
@@ -484,6 +492,50 @@ function buildFormOptions() {
     catalogHtml += '</optgroup>';
   }
   document.getElementById('c-catalog-id').innerHTML = catalogHtml;
+
+  // 庫存膜料 select
+  buildMaterialSelect();
+}
+
+function buildMaterialSelect(filter = '') {
+  const sel = document.getElementById('f-material-id');
+  const cur = sel.value;
+  const list = filter
+    ? inventoryMaterials.filter(m => {
+        const b = (m.brand || '').toLowerCase();
+        const mod = (m.model || '').toLowerCase();
+        const sp = (m.spec || '').toLowerCase();
+        return b.includes(filter) || mod.includes(filter) || sp.includes(filter);
+      })
+    : inventoryMaterials;
+  sel.innerHTML = '<option value="">— 不關聯庫存 —</option>' +
+    list.map(m => {
+      const stock = (m.stock_meters || 0).toFixed(1);
+      const committed = m.committed_reserved_meters || 0;
+      const avail = Math.max(0, (m.stock_meters || 0) - committed).toFixed(1);
+      const label = `${m.brand} ${m.model}${m.color ? ' '+m.color : ''} — 可用 ${avail}米`;
+      return `<option value="${m.id}" data-stock="${stock}" data-avail="${avail}">${esc(label)}</option>`;
+    }).join('');
+  if (cur) sel.value = cur;
+}
+
+function filterMaterialSelect() {
+  const brand = document.getElementById('f-brand').value.trim().toLowerCase();
+  const spec  = document.getElementById('f-spec').value.trim().toLowerCase();
+  buildMaterialSelect(brand || spec);
+}
+
+function onMaterialSelect() {
+  const sel = document.getElementById('f-material-id');
+  const opt = sel.options[sel.selectedIndex];
+  const hint = document.getElementById('f-material-hint');
+  if (opt.value) {
+    const avail = opt.dataset.avail;
+    hint.textContent = `可用庫存：${avail} 米`;
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+  }
 }
 
 // ── load & render ─────────────────────────────────────────────────
@@ -792,6 +844,9 @@ function openItemModal(itemId) {
       document.getElementById('f-location').value     = item.location || '';
       document.getElementById('f-brand').value        = item.film_brand || '';
       document.getElementById('f-spec').value         = item.film_spec || item.film_model || '';
+      filterMaterialSelect();
+      document.getElementById('f-material-id').value  = item.material_id || '';
+      onMaterialSelect();
       document.getElementById('f-surface').value      = item.surface_type || 'flat';
       document.getElementById('f-film-width').value   = item.film_width_cm || 122;
       document.getElementById('f-length').value       = item.length_cm || '';
@@ -827,6 +882,9 @@ function openItemModal(itemId) {
     switchItemTab('film');
     // reset film
     ['f-location','f-brand','f-spec','f-length','f-width','f-sqchi','f-price','f-notice-text','f-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('f-material-id').value = '';
+    document.getElementById('f-material-hint').style.display = 'none';
+    buildMaterialSelect();
     document.getElementById('f-surface').value = 'flat';
     document.getElementById('f-film-width').value = '122';
     document.getElementById('f-diff').value = '3';
@@ -959,16 +1017,18 @@ async function saveItem() {
     const loc = document.getElementById('f-location').value.trim();
     if (!loc) { alert('請填寫位置/名稱'); return; }
 
+    const fw = parseInt(document.getElementById('f-film-width').value) || 122;
     body = {
       item_type:        'film',
       location:         loc,
       film_brand:       document.getElementById('f-brand').value.trim() || null,
       film_spec:        document.getElementById('f-spec').value.trim()  || null,
       surface_type:     document.getElementById('f-surface').value,
-      film_width_cm:    parseInt(document.getElementById('f-film-width').value) || 122,
+      film_width_cm:    fw,
       length_cm:        len,
       width_cm:         wid,
       area_sqchi:       sqchi,
+      estimated_meters: sqchi ? Math.round(sqchi * 9 / fw * 100) / 100 : null,
       unit_price:       parseFloat(document.getElementById('f-price').value) || 0,
       unit:             '才',
       quantity:         1,
@@ -977,6 +1037,7 @@ async function saveItem() {
       notice_text:      document.getElementById('f-notice-text').value  || null,
       display_mode:     document.getElementById('f-display').value,
       notes:            document.getElementById('f-notes').value || null,
+      material_id:      parseInt(document.getElementById('f-material-id').value) || null,
     };
   } else {
     const loc = document.getElementById('c-location').value.trim();
