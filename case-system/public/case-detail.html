@@ -3630,7 +3630,7 @@ async function toggleDisplayMode(itemId) {
     body = { ...body,
       film_brand:   g(`qBrand_${itemId}`) ?? item.film_brand,
       film_model:   g(`qSeries_${itemId}`) ?? item.film_model,
-      film_spec:    g(`qFilmSpec_${itemId}`) ?? item.film_spec || null,
+      film_spec:    (g(`qFilmSpec_${itemId}`) ?? item.film_spec) || null,
       surface_type: g(`qSurface_${itemId}`) ?? item.surface_type ?? 'flat',
       length_cm:    parseFloat(g(`qLen_${itemId}`)) || item.length_cm || null,
       width_cm:     parseFloat(g(`qWid_${itemId}`)) || item.width_cm || null,
