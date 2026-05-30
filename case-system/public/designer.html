@@ -365,7 +365,7 @@ function renderGrid(list) {
         <div>
           <span class="mat-brand ${brandClass(m.brand)}">${m.brand}</span>${m.fire_retardant ? '<span class="mat-flame">防焰</span>' : ''}
           <div class="mat-model">${m.model}${m.color ? ' · ' + m.color : ''}</div>
-          <div class="mat-spec">${m.spec || ''}</div>
+          <div class="mat-spec">${[m.spec, m.width_cm ? `幅寬 ${m.width_cm}cm` : ''].filter(Boolean).join('｜')}</div>
         </div>
         ${!hasStock ? '<span style="font-size:12px;color:#bbb;font-weight:600">暫缺</span>' : ''}
       </div>
@@ -409,6 +409,16 @@ async function loadQuotes() {
     </div>`;
   }).join('');
 }
+
+// 從 URL 參數自動填入存取碼
+(function() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  if (code) {
+    document.getElementById('codeInput').value = code.toUpperCase();
+    document.getElementById('pinInput').focus();
+  }
+})();
 
 checkSession();
 </script>

@@ -49,16 +49,16 @@ router.get('/stock', (req, res) => {
 
   const materials = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.category, m.unit_price,
-           m.fire_retardant, m.width_cm,
-           COALESCE(SUM(mr.remaining_meters), 0) as total_stock
+           m.fire_retardant, m.width_cm, m.stock_meters,
+           COALESCE(SUM(mr.remaining_meters), 0) as rolls_stock
     FROM materials m
     LEFT JOIN material_rolls mr ON mr.material_id = m.id AND mr.status = 'active'
-    WHERE m.unit_price > 0 OR COALESCE(SUM(mr.remaining_meters),0) > 0
     GROUP BY m.id
+    HAVING m.unit_price > 0 OR rolls_stock > 0 OR m.stock_meters > 0
     ORDER BY m.brand, m.model
   `).all();
 
-  // 各分店庫存
+  // 各分店庫存（由 material_rolls 提供）
   const byBranch = db.prepare(`
     SELECT mr.material_id, mr.branch, COALESCE(SUM(mr.remaining_meters),0) as stock
     FROM material_rolls mr WHERE mr.status='active'
@@ -71,11 +71,15 @@ router.get('/stock', (req, res) => {
     branchMap[r.material_id][r.branch || '總部'] = r.stock;
   });
 
-  const result = materials.map(m => ({
-    ...m,
-    discount_price: m.unit_price ? Math.round(m.unit_price * cat_discount) : null,
-    branches: branchMap[m.id] || {},
-  }));
+  const result = materials.map(m => {
+    const total_stock = m.rolls_stock > 0 ? m.rolls_stock : (m.stock_meters || 0);
+    return {
+      ...m,
+      total_stock,
+      discount_price: m.unit_price ? Math.round(m.unit_price * cat_discount) : null,
+      branches: branchMap[m.id] || {},
+    };
+  });
 
   res.json({ materials: result, discount_rate: cat_discount });
 });
