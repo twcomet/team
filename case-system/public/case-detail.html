@@ -455,7 +455,7 @@
                 <div class="form-group" style="margin:0"><label class="q-field-label">有效天數</label><input type="number" id="q_valid_days" value="30" min="1" class="q-input"></div>
                 <div class="form-group" style="margin:0"><label class="q-field-label">稅率</label>
                   <select id="q_tax_rate" class="q-input"><option value="0">不含稅</option><option value="0.05">含稅 5%</option></select></div>
-                <div class="form-group" style="margin:0"><label class="q-field-label">折扣規則</label>
+                <div class="form-group" style="margin:0"><label class="q-field-label">折扣規則<button type="button" onclick="qAutoDiscount()" style="margin-left:6px;font-size:10px;padding:1px 6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:4px;cursor:pointer">依客戶自動套用</button></label>
                   <select id="q_discount_rule_id" class="q-input"><option value="">無折扣（原價）</option></select></div>
                 <div class="form-group" style="margin:0"><label class="q-field-label">行銷優惠（0.9 = 九折）</label><input type="number" id="q_marketing_rate" value="1" min="0.1" max="1" step="0.05" class="q-input"></div>
                 <div class="form-group" style="margin:0"><label class="q-field-label">車馬費（元）<button type="button" onclick="autoMatchTravelFee()" style="margin-left:6px;font-size:10px;padding:1px 6px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:4px;cursor:pointer">依地址自動帶入</button></label><input type="number" id="q_travel_fee" value="0" min="0" class="q-input"></div>
@@ -3712,6 +3712,21 @@ function renderQuoteTotals() {
   if (mp) {
     mp.textContent = margin !== null ? margin + '%' : '—';
     mp.className = 'margin-pill' + (margin === null ? '' : margin < 30 ? ' margin-red' : margin < 50 ? ' margin-yellow' : ' margin-green');
+  }
+}
+
+async function qAutoDiscount() {
+  const clientId = caseData?.client_id;
+  if (!clientId) { showToast('案件尚未綁定客戶，無法自動套用折扣', 'error'); return; }
+  const amount = currentQuote?.subtotal || 0;
+  const r = await fetch(`/api/quote-settings/auto-discount?client_id=${clientId}&amount=${amount}`);
+  if (!r.ok) return;
+  const result = await r.json();
+  if (!result.rule_id) { showToast('此客戶或金額暫無符合的折扣規則'); return; }
+  const drSel = document.getElementById('q_discount_rule_id');
+  if (drSel) {
+    drSel.value = result.rule_id;
+    showToast(`已套用「${result.label || '折扣規則'}」`);
   }
 }
 
