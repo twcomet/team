@@ -2713,7 +2713,8 @@ document.getElementById('sf_completeSurveyBtn').addEventListener('click', async 
   const res = await fetch(`/api/cases/${caseId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...buildSaveBody(), status: 'surveyed' }),
+    body: JSON.stringify({ ...buildSaveBody(), status: 'surveyed',
+      survey_date: document.getElementById('sf_date').value || caseData.survey_date || null }),
   });
   if (res.ok) {
     showToast('已標記場勘完成');

@@ -1890,6 +1890,21 @@ try {
   console.error('⚠️ case_type 約束修復失敗（不影響啟動）:', e.message);
 }
 
+// ── 回填 survey_date：從 survey_forms 同步至 cases ────────────────────────────
+try {
+  db.exec(`
+    UPDATE cases SET survey_date = (
+      SELECT sf.survey_date FROM survey_forms sf
+      WHERE sf.case_id = cases.id AND sf.survey_date IS NOT NULL
+      ORDER BY sf.id DESC LIMIT 1
+    )
+    WHERE survey_date IS NULL AND EXISTS (
+      SELECT 1 FROM survey_forms sf
+      WHERE sf.case_id = cases.id AND sf.survey_date IS NOT NULL
+    )
+  `);
+} catch(e) { /* 欄位不存在時忽略 */ }
+
 // ── 合約管理系統 ──────────────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS contracts (

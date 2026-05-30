@@ -252,15 +252,16 @@ router.post('/sign/:token', (req, res) => {
   const { signature } = req.body;
   if (!signature) return res.status(400).json({ error: '請提供簽名' });
 
-  const form = db.prepare(`SELECT id, case_id, status FROM survey_forms WHERE share_token=?`).get(req.params.token);
+  const form = db.prepare(`SELECT id, case_id, status, survey_date FROM survey_forms WHERE share_token=?`).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到場勘單' });
   if (form.status === 'signed') return res.status(400).json({ error: '此場勘單已完成簽名' });
 
   db.prepare(`UPDATE survey_forms SET status='signed', client_signature=?, client_signed_at=CURRENT_TIMESTAMP WHERE share_token=?`)
     .run(signature, req.params.token);
 
-  // 案件狀態升為 surveyed，記錄完成時間
-  db.prepare(`UPDATE cases SET status='surveyed', surveyed_at=COALESCE(surveyed_at, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(form.case_id);
+  // 案件狀態升為 surveyed，同步 survey_date
+  db.prepare(`UPDATE cases SET status='surveyed', survey_date=COALESCE(survey_date, ?), surveyed_at=COALESCE(surveyed_at, CURRENT_TIMESTAMP), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(form.survey_date || null, form.case_id);
 
   res.json({ ok: true });
 });
