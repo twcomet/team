@@ -3451,7 +3451,8 @@ function buildItemCard(it) {
   }
 
   if (it.item_type === 'catalog') {
-    const catalogOpts = catalogAll.map(c => `<option value="${c.id}" data-price="${c.base_price||0}" ${c.id===it.catalog_item_id?'selected':''}>${c.category?c.category+' - ':''}${c.name}</option>`).join('');
+    const catalogOpts = catalogAll.map(c => `<option value="${c.id}" data-price="${c.base_price||0}" data-notice="${c.notice_template_id||''}" ${c.id===it.catalog_item_id?'selected':''}>${c.category?c.category+' - ':''}${c.name}</option>`).join('');
+    const catNoticeOpts = `<option value="">（不附須知）</option>` + noticeTemplatesAll.map(t => `<option value="${t.id}" ${t.id===it.notice_template_id?'selected':''}>${esc(t.name||'模板'+t.id)}</option>`).join('');
     return `<div class="q-item-card" id="qItem_${it.id}">
   <div class="q-item-header">
     <span class="q-type-badge q-catalog-badge">公規品</span>
@@ -3471,6 +3472,11 @@ function buildItemCard(it) {
     <div><label class="q-field-label">小計</label>
       <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
   </div>
+  ${noticeTemplatesAll.length ? `
+  <div style="margin-top:8px"><label class="q-field-label">貼膜須知（選填）</label>
+    <select id="qNotice_${it.id}" class="q-input" style="max-width:320px" onchange="saveQItem(${it.id})">
+      ${catNoticeOpts}
+    </select></div>` : ''}
 </div>`;
   }
 
@@ -3585,6 +3591,10 @@ function qCatalogChange(itemId, selEl) {
   const price = parseFloat(opt.getAttribute('data-price') || '0');
   const pFld = document.getElementById(`qUprice_${itemId}`);
   if (pFld) pFld.value = price;
+  // Auto-fill notice template from catalog item default
+  const noticeId = opt.getAttribute('data-notice') || '';
+  const noticeSel = document.getElementById(`qNotice_${itemId}`);
+  if (noticeSel && noticeId && !noticeSel.value) noticeSel.value = noticeId;
   qCalcLineSub(itemId);
   setTimeout(() => saveQItem(itemId), 50);
 }
@@ -3620,9 +3630,10 @@ async function saveQItem(itemId) {
     };
   } else if (type === 'catalog') {
     body = { ...body,
-      catalog_item_id: parseInt(g(`qCatSel_${itemId}`)) || null,
-      quantity:  parseFloat(g(`qQty_${itemId}`)) || 1,
-      unit_price: parseFloat(g(`qUprice_${itemId}`)) || 0,
+      catalog_item_id:    parseInt(g(`qCatSel_${itemId}`)) || null,
+      quantity:           parseFloat(g(`qQty_${itemId}`)) || 1,
+      unit_price:         parseFloat(g(`qUprice_${itemId}`)) || 0,
+      notice_template_id: parseInt(g(`qNotice_${itemId}`)) || null,
       unit: '件',
     };
   } else {
