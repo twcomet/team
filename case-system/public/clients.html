@@ -591,39 +591,33 @@ function render() {
     const srcLabel = SOURCE_LABELS[c.source] || '';
     const srcCls   = c.source ? `source-${c.source}` : '';
     return `
-    <div class="client-card" id="cc-${c.id}" onclick="toggleCard(${c.id})">
+    <div class="client-card" id="cc-${c.id}" onclick="goToClient(event,${c.id})">
       <div class="cc-header">
         <div>
           <div class="cc-name">
-            <a href="/client-detail?id=${c.id}" onclick="event.stopPropagation()"
-               style="color:inherit;text-decoration:none;border-bottom:1.5px solid var(--gray-300);padding-bottom:1px"
-               onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
-               onmouseout="this.style.borderColor='var(--gray-300)';this.style.color='inherit'">${c.name}</a>
+            ${escHtml(c.name)}
             ${srcLabel ? `<span class="source-tag ${srcCls}" style="margin-left:8px">${srcLabel}</span>` : ''}
           </div>
           <div class="cc-meta">
-            ${c.contact_person ? `👤 ${c.contact_person}　` : ''}${c.client_level ? `[${c.client_level}級]　` : ''}
+            ${c.contact_person ? `👤 ${escHtml(c.contact_person)}　` : ''}${c.client_level ? `[${c.client_level}級]　` : ''}
             ${c.phone ? `📞 ${c.phone}` : ''}
             ${c.email ? `　✉️ ${c.email}` : ''}
-            ${c.address ? `　📍 ${c.address}` : ''}
-            ${c.tags && c.tags.length ? '<br>' + c.tags.map(t=>`<span class="client-tag" style="background:${t.color}">${t.name}</span>`).join(' ') : ''}
+            ${c.address ? `　📍 ${escHtml(c.address)}` : ''}
+            ${c.tags && c.tags.length ? '<br>' + c.tags.map(t=>`<span class="client-tag" style="background:${t.color}">${escHtml(t.name)}</span>`).join(' ') : ''}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="cc-badge" id="ccase-${c.id}">歷史案件載入中…</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span class="cc-badge" id="ccase-${c.id}">載入中…</span>
           ${(() => {
             const sug = suggestLevel(c);
             return sug !== (c.client_level || '') ?
               `<button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:11px"
                  onclick="event.stopPropagation();applyLevel(${c.id},'${sug}')">✨ 建議${sug}級</button>` : '';
           })()}
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">編輯</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">客戶資料編輯</button>
+          <button class="btn btn-primary btn-sm" onclick="newCaseForClient(event,${c.id},${JSON.stringify(c.name)})">客戶案件建立</button>
         </div>
       </div>
-      <div class="cc-cases" id="cases-${c.id}">
-        <div style="font-size:12px;color:var(--gray-500);text-align:center;padding:8px">載入中…</div>
-      </div>
-      <div class="cc-deposits" id="deposits-${c.id}"></div>
     </div>`;
   }).join('');
 
@@ -762,6 +756,16 @@ async function saveDeposit() {
   } else {
     const e = await r.json(); alert(e.error || '儲存失敗');
   }
+}
+
+function goToClient(event, id) {
+  if (event.target.closest('button,a,select,input')) return;
+  location.href = '/client-detail?id=' + id;
+}
+
+function newCaseForClient(event, id, name) {
+  event.stopPropagation();
+  location.href = '/cases-survey?new_client_id=' + id + '&new_client_name=' + encodeURIComponent(name);
 }
 
 function toggleCard(cid) {

@@ -511,6 +511,15 @@ async function init() {
   populateSelect(document.getElementById('nc_sales'), sales, 'id', 'name', '選擇業務');
   renderTableHead();
   await loadCases();
+
+  // 從客戶管理頁「客戶案件建立」按鈕帶過來，自動開啟新增案件 modal
+  const _qp = new URLSearchParams(location.search);
+  const _newClientId = _qp.get('new_client_id');
+  if (_newClientId) {
+    document.getElementById('nc_client').value = _newClientId;
+    document.getElementById('nc_client_input').value = _qp.get('new_client_name') || '';
+    document.getElementById('newCaseModal').classList.add('open');
+  }
 }
 
 function exportCsv() {

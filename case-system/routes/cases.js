@@ -431,12 +431,14 @@ router.put('/:id', requireAuth, (req, res) => {
 
 // ── 負責人快速指派（列表 inline 批次儲存用）────────────────────
 router.patch('/:id/assign', requireAuth, (req, res) => {
-  const { sales_id, cs_id } = req.body;
   const me = req.session.user;
   const prev = db.prepare(`SELECT sales_id, cs_id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
   if (!prev) return res.status(404).json({ error: 'not found' });
+  // 只更新有明確傳入的欄位，避免只改其中一個時另一個被清空
+  const sales_id = 'sales_id' in req.body ? (req.body.sales_id ?? null) : prev.sales_id;
+  const cs_id    = 'cs_id'    in req.body ? (req.body.cs_id    ?? null) : prev.cs_id;
   db.prepare(`UPDATE cases SET sales_id=?, cs_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(sales_id ?? null, cs_id ?? null, req.params.id);
+    .run(sales_id, cs_id, req.params.id);
   const url = `/case-detail?id=${req.params.id}`;
   const pushMode = db.prepare(`SELECT value FROM settings WHERE key='push_mode'`).get()?.value || 'manual';
   const notifyUser = (uid, role) => {
