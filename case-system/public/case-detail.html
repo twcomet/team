@@ -3251,11 +3251,12 @@ function renderLogs(logs) {
 }
 
 // ── 報價單 v2 ─────────────────────────────────────────────────
-let quoteVersions  = [];
-let currentQuote   = null;
-let filmMatrix     = [];
-let catalogAll     = [];
-let discountRulesAll = [];
+let quoteVersions      = [];
+let currentQuote       = null;
+let filmMatrix         = [];
+let catalogAll         = [];
+let discountRulesAll   = [];
+let noticeTemplatesAll = [];
 
 const QFmt = n => (n == null || isNaN(n)) ? '—' : 'NT$ ' + Math.round(n).toLocaleString();
 
@@ -3271,6 +3272,10 @@ async function loadQuote() {
   if (!discountRulesAll.length) {
     const r = await fetch('/api/quote-settings/discount-rules');
     discountRulesAll = r.ok ? await r.json() : [];
+  }
+  if (!noticeTemplatesAll.length) {
+    const r = await fetch('/api/quote-settings/notices');
+    noticeTemplatesAll = r.ok ? await r.json() : [];
   }
   const vr = await fetch(`/api/quotes/cases/${caseId}/versions`);
   quoteVersions = vr.ok ? await vr.json() : [];
@@ -3413,8 +3418,15 @@ function buildItemCard(it) {
     <div><label class="q-field-label">小計</label>
       <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
   </div>
-  <div style="margin-top:8px"><label class="q-field-label">備註</label>
-    <input id="qNotes_${it.id}" class="q-input" style="width:100%" value="${esc(it.notes)}" placeholder="選填" onblur="saveQItem(${it.id})"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+    <div><label class="q-field-label">備註</label>
+      <input id="qNotes_${it.id}" class="q-input" value="${esc(it.notes)}" placeholder="選填" onblur="saveQItem(${it.id})"></div>
+    <div><label class="q-field-label">貼膜須知</label>
+      <select id="qNotice_${it.id}" class="q-input" onchange="saveQItem(${it.id})">
+        <option value="">（不附須知）</option>
+        ${noticeTemplatesAll.map(t => `<option value="${t.id}" ${t.id===it.notice_template_id?'selected':''}>${esc(t.name||'模板'+t.id)}</option>`).join('')}
+      </select></div>
+  </div>
 </div>`;
   }
 
@@ -3540,14 +3552,19 @@ async function saveQItem(itemId) {
   let body = { item_type: type, location: g(`qLoc_${itemId}`) };
 
   if (type === 'film') {
+    const seriesSel = document.getElementById(`qSeries_${itemId}`);
+    const seriesName = seriesSel?.selectedOptions[0]?.textContent?.trim().replace(/ \[防焰\]$/, '') || null;
+    const noticeId = parseInt(g(`qNotice_${itemId}`)) || null;
     body = { ...body,
-      film_brand:   g(`qBrand_${itemId}`),
-      film_model:   g(`qSeries_${itemId}`),
-      surface_type: g(`qSurface_${itemId}`) || 'flat',
-      length_cm:    parseFloat(g(`qLen_${itemId}`)) || null,
-      width_cm:     parseFloat(g(`qWid_${itemId}`)) || null,
-      unit_price:   parseFloat(g(`qUprice_${itemId}`)) || 0,
-      notes:        g(`qNotes_${itemId}`),
+      film_brand:          g(`qBrand_${itemId}`),
+      film_model:          g(`qSeries_${itemId}`),
+      film_spec:           seriesName,
+      surface_type:        g(`qSurface_${itemId}`) || 'flat',
+      length_cm:           parseFloat(g(`qLen_${itemId}`)) || null,
+      width_cm:            parseFloat(g(`qWid_${itemId}`)) || null,
+      unit_price:          parseFloat(g(`qUprice_${itemId}`)) || 0,
+      notes:               g(`qNotes_${itemId}`),
+      notice_template_id:  noticeId,
       unit: '才',
     };
   } else if (type === 'catalog') {
