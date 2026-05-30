@@ -821,9 +821,10 @@ async function quickUpdateCategory(id, sel) {
     entry.category = newCat;
     sel.style.borderColor = '#10b981';
     setTimeout(() => { sel.style.borderColor = ''; }, 1200);
+    showToast('科目已更新');
   } else {
     showToast('更新失敗', 'error');
-    sel.value = entry.category; // 還原
+    sel.value = entry.category;
   }
 }
 
