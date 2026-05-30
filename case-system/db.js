@@ -1984,11 +1984,23 @@ db.exec(`
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
-_addCol('vendors', 'bank_name',     'TEXT DEFAULT NULL');
-_addCol('vendors', 'bank_account',  'TEXT DEFAULT NULL');
-_addCol('vendors', 'bank_branch',   'TEXT DEFAULT NULL');
-_addCol('vendors', 'payment_terms', 'TEXT DEFAULT NULL');
-_addCol('vendors', 'email',         'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_name',         'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_account',      'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_branch',       'TEXT DEFAULT NULL');
+_addCol('vendors', 'bank_account_name', 'TEXT DEFAULT NULL');
+_addCol('vendors', 'payment_terms',     'TEXT DEFAULT NULL');
+_addCol('vendors', 'email',             'TEXT DEFAULT NULL');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS vendor_brands (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    vendor_id  INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+    brand      TEXT NOT NULL,
+    notes      TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(vendor_id, brand)
+  )
+`);
 
 // ── 科目重整 migration（2026-05 簡化版，27 個科目）─────────────
 // 條件：新版「施工服務收入」尚未建立才執行

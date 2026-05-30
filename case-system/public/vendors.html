@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>供應商管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.vendor-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:20px; margin-bottom:16px; }
+.vendor-name { font-size:17px; font-weight:700; color:var(--gray-900); margin-bottom:4px; }
+.vendor-meta { font-size:13px; color:var(--gray-500); margin-bottom:12px; }
+.vendor-section { margin-top:14px; padding-top:14px; border-top:1px solid var(--gray-100); }
+.vendor-section-title { font-size:12px; font-weight:600; color:var(--gray-400); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.info-row { display:flex; flex-direction:column; gap:2px; }
+.info-label { font-size:11px; color:var(--gray-400); }
+.info-val { font-size:13px; color:var(--gray-800); }
+.brand-tag { display:inline-block; background:#eff6ff; color:#1d4ed8; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; margin:2px; }
+.brand-tag .rm { cursor:pointer; color:#93c5fd; margin-left:4px; font-size:11px; }
+.brand-tag .rm:hover { color:#1d4ed8; }
+.payment-terms-box { background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:10px 14px; font-size:13px; color:#713f12; line-height:1.6; }
+.card-actions { display:flex; gap:8px; margin-top:14px; }
+.inactive-badge { display:inline-block; background:#fee2e2; color:#991b1b; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+        <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+        <a class="nav-item" data-page="my-calendar"    href="/my-calendar">   <span class="icon">🗓️</span>我的行事曆</a>
+        <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"> <span class="icon">💬</span>LINE 詢問</a>
+        <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+        <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+        <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+        <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">  <span class="icon">🏊</span>派案池管理</a>
+        <a class="nav-item" data-page="calendar"       href="/calendar">       <span class="icon">📅</span>派單行事曆</a>
+        <a class="nav-item" data-page="clients"        href="/clients">        <span class="icon">👥</span>客戶管理</a>
+        <a class="nav-item" data-page="materials"      href="/materials">      <span class="icon">🎞️</span>膜料管理</a>
+        <a class="nav-item" data-page="material-calc"  href="/material-calc">  <span class="icon">🧮</span>快速報價</a>
+        <a class="nav-item" data-page="payments"       href="/payments">       <span class="icon">💰</span>收款追蹤</a>
+        <a class="nav-item" data-page="ledger"         href="/ledger">         <span class="icon">📒</span>收支流水帳</a>
+        <a class="nav-item" data-page="expenses"       href="/expenses">       <span class="icon">🧾</span>費用申請管理</a>
+        <a class="nav-item" data-page="vendors"        href="/vendors">        <span class="icon">🏭</span>供應商管理</a>
+        <a class="nav-item" data-page="performance"    href="/performance">    <span class="icon">🏆</span>業績報表</a>
+        <a class="nav-item" data-page="reports"        href="/reports">        <span class="icon">📈</span>財務報表</a>
+        <a class="nav-item" data-page="marketing"      href="/marketing">      <span class="icon">📣</span>行銷報表</a>
+        <a class="nav-item" data-page="hr" href="/hr"><span class="icon">👤</span>人事資料管理</a>
+      <a class="nav-item" data-page="contracts"      href="/contracts" data-need="manage_users">      <span class="icon">📋</span>合約管理</a>
+        <a class="nav-item" data-page="profile"        href="/profile">        <span class="icon">🪪</span>我的個人資料</a>
+      <a class="nav-item" data-page="guide"        href="/guide">        <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="/api/auth/logout" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">供應商管理</span>
+      <button class="btn btn-primary btn-sm" id="newVendorBtn">＋ 新增供應商</button>
+    </div>
+    <div class="page-body">
+      <div id="vendorList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增 / 編輯 Modal -->
+<div class="modal-overlay" id="vendorModal" style="display:none">
+  <div class="modal" style="max-width:600px;width:100%">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增供應商</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:0">
+
+      <!-- 基本資料 -->
+      <div style="font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">基本資料</div>
+      <div class="form-group">
+        <label class="form-label">供應商名稱 <span style="color:red">*</span></label>
+        <input class="form-input" id="v_name" placeholder="例：富茂貿易">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">聯絡人</label>
+          <input class="form-input" id="v_contact" placeholder="業務姓名">
+        </div>
+        <div class="form-group">
+          <label class="form-label">電話</label>
+          <input class="form-input" id="v_phone" placeholder="02-1234-5678">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="v_email" type="email" placeholder="vendor@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">地址</label>
+          <input class="form-input" id="v_address" placeholder="公司地址">
+        </div>
+      </div>
+
+      <!-- 付款條件 -->
+      <div style="font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">付款條件（會計參考）</div>
+      <div class="form-group">
+        <label class="form-label">付款條件備註</label>
+        <textarea class="form-input" id="v_payment_terms" rows="2" placeholder="例：月結30天、出貨前結清、月底前開票…" style="resize:vertical"></textarea>
+      </div>
+
+      <!-- 銀行帳戶 -->
+      <div style="font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">銀行付款資料</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">銀行名稱</label>
+          <input class="form-input" id="v_bank_name" placeholder="例：台灣銀行">
+        </div>
+        <div class="form-group">
+          <label class="form-label">分行</label>
+          <input class="form-input" id="v_bank_branch" placeholder="例：信義分行">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">帳號</label>
+          <input class="form-input" id="v_bank_account" placeholder="帳號">
+        </div>
+        <div class="form-group">
+          <label class="form-label">戶名</label>
+          <input class="form-input" id="v_bank_account_name" placeholder="帳戶名稱">
+        </div>
+      </div>
+
+      <!-- 對應品牌 -->
+      <div style="font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">對應品牌</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input class="form-input" id="v_brand_input" placeholder="輸入品牌名稱（例：3M）" style="flex:1">
+        <button class="btn btn-secondary btn-sm" id="addBrandBtn" type="button">新增</button>
+      </div>
+      <div id="brandTags" style="margin-bottom:8px;min-height:28px"></div>
+      <p style="font-size:12px;color:var(--gray-400)">儲存供應商後，品牌對應才會生效</p>
+
+      <!-- 備註 -->
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">備註</label>
+        <textarea class="form-input" id="v_notes" rows="2" style="resize:vertical" placeholder="其他備註事項"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modalCancelBtn">取消</button>
+      <button class="btn btn-primary" id="modalSaveBtn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let vendors = [];
+let editId = null;
+let pendingBrands = [];   // 新增模式暫存品牌
+let existingBrands = [];  // 編輯模式既有品牌
+
+async function init() {
+  await loadUser();
+  highlightNav('vendors');
+  await loadVendors();
+}
+
+async function loadVendors() {
+  const r = await fetch('/api/vendors');
+  if (!r.ok) { document.getElementById('vendorList').innerHTML = '<p style="color:red;padding:20px">載入失敗，請重新整理</p>'; return; }
+  vendors = await r.json();
+  renderVendors();
+}
+
+function renderVendors() {
+  const el = document.getElementById('vendorList');
+  if (!vendors.length) {
+    el.innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:40px">尚無供應商資料，點右上角新增</p>';
+    return;
+  }
+  el.innerHTML = vendors.map(v => `
+    <div class="vendor-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="vendor-name">${esc(v.name)}</div>
+          <div class="vendor-meta">${[v.contact, v.phone, v.email].filter(Boolean).map(esc).join('　·　')}</div>
+          ${v.address ? `<div class="vendor-meta">${esc(v.address)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="openEdit(${v.id})">編輯</button>
+          <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="deactivate(${v.id}, '${esc(v.name)}')">停用</button>
+        </div>
+      </div>
+
+      ${v.payment_terms ? `
+      <div class="vendor-section">
+        <div class="vendor-section-title">付款條件</div>
+        <div class="payment-terms-box">${esc(v.payment_terms)}</div>
+      </div>` : ''}
+
+      ${(v.bank_name || v.bank_account) ? `
+      <div class="vendor-section">
+        <div class="vendor-section-title">銀行付款資料</div>
+        <div class="info-grid">
+          ${v.bank_name    ? `<div class="info-row"><span class="info-label">銀行</span><span class="info-val">${esc(v.bank_name)}${v.bank_branch ? ' ' + esc(v.bank_branch) : ''}</span></div>` : ''}
+          ${v.bank_account ? `<div class="info-row"><span class="info-label">帳號</span><span class="info-val">${esc(v.bank_account)}</span></div>` : ''}
+          ${v.bank_account_name ? `<div class="info-row"><span class="info-label">戶名</span><span class="info-val">${esc(v.bank_account_name)}</span></div>` : ''}
+        </div>
+      </div>` : ''}
+
+      ${v.brands ? `
+      <div class="vendor-section">
+        <div class="vendor-section-title">對應品牌</div>
+        <div>${v.brands.split('、').map(b => `<span class="brand-tag">${esc(b)}</span>`).join('')}</div>
+      </div>` : ''}
+
+      ${v.notes ? `
+      <div class="vendor-section">
+        <div class="vendor-section-title">備註</div>
+        <div style="font-size:13px;color:var(--gray-600)">${esc(v.notes)}</div>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openNew() {
+  editId = null;
+  pendingBrands = [];
+  existingBrands = [];
+  document.getElementById('modalTitle').textContent = '新增供應商';
+  ['v_name','v_contact','v_phone','v_email','v_address','v_payment_terms',
+   'v_bank_name','v_bank_branch','v_bank_account','v_bank_account_name','v_notes','v_brand_input']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  renderBrandTags();
+  document.getElementById('vendorModal').style.display = 'flex';
+}
+
+async function openEdit(id) {
+  editId = id;
+  pendingBrands = [];
+  const r = await fetch(`/api/vendors/${id}`);
+  if (!r.ok) return alert('載入失敗');
+  const v = await r.json();
+  existingBrands = v.brands || [];
+  document.getElementById('modalTitle').textContent = '編輯供應商';
+  document.getElementById('v_name').value             = v.name || '';
+  document.getElementById('v_contact').value          = v.contact || '';
+  document.getElementById('v_phone').value            = v.phone || '';
+  document.getElementById('v_email').value            = v.email || '';
+  document.getElementById('v_address').value          = v.address || '';
+  document.getElementById('v_payment_terms').value    = v.payment_terms || '';
+  document.getElementById('v_bank_name').value        = v.bank_name || '';
+  document.getElementById('v_bank_branch').value      = v.bank_branch || '';
+  document.getElementById('v_bank_account').value     = v.bank_account || '';
+  document.getElementById('v_bank_account_name').value= v.bank_account_name || '';
+  document.getElementById('v_notes').value            = v.notes || '';
+  document.getElementById('v_brand_input').value      = '';
+  renderBrandTags();
+  document.getElementById('vendorModal').style.display = 'flex';
+}
+
+function renderBrandTags() {
+  const container = document.getElementById('brandTags');
+  const allBrands = [
+    ...existingBrands.map(b => ({ id: b.id, brand: b.brand, existing: true })),
+    ...pendingBrands.map(b => ({ id: null, brand: b, existing: false })),
+  ];
+  if (!allBrands.length) { container.innerHTML = '<span style="font-size:12px;color:var(--gray-400)">尚未加入品牌</span>'; return; }
+  container.innerHTML = allBrands.map(b =>
+    `<span class="brand-tag">${esc(b.brand)}<span class="rm" onclick="removeBrand(${b.existing ? `'existing',${b.id}` : `'pending','${b.brand}'`})">✕</span></span>`
+  ).join('');
+}
+
+async function removeBrand(type, val) {
+  if (type === 'existing') {
+    if (!editId) return;
+    const ok = await fetch(`/api/vendors/${editId}/brands/${val}`, { method: 'DELETE' });
+    if (!ok.ok) return alert('刪除失敗');
+    existingBrands = existingBrands.filter(b => b.id !== val);
+  } else {
+    pendingBrands = pendingBrands.filter(b => b !== val);
+  }
+  renderBrandTags();
+}
+
+function addBrand() {
+  const input = document.getElementById('v_brand_input');
+  const brand = input.value.trim();
+  if (!brand) return;
+  const allExisting = [...existingBrands.map(b => b.brand), ...pendingBrands];
+  if (allExisting.includes(brand)) { alert('此品牌已加入'); return; }
+  pendingBrands.push(brand);
+  input.value = '';
+  renderBrandTags();
+}
+
+function closeModal() {
+  document.getElementById('vendorModal').style.display = 'none';
+}
+
+async function saveVendor() {
+  const name = document.getElementById('v_name').value.trim();
+  if (!name) { alert('請填入供應商名稱'); return; }
+
+  const payload = {
+    name,
+    contact:          document.getElementById('v_contact').value.trim() || null,
+    phone:            document.getElementById('v_phone').value.trim() || null,
+    email:            document.getElementById('v_email').value.trim() || null,
+    address:          document.getElementById('v_address').value.trim() || null,
+    payment_terms:    document.getElementById('v_payment_terms').value.trim() || null,
+    bank_name:        document.getElementById('v_bank_name').value.trim() || null,
+    bank_branch:      document.getElementById('v_bank_branch').value.trim() || null,
+    bank_account:     document.getElementById('v_bank_account').value.trim() || null,
+    bank_account_name:document.getElementById('v_bank_account_name').value.trim() || null,
+    notes:            document.getElementById('v_notes').value.trim() || null,
+  };
+
+  const btn = document.getElementById('modalSaveBtn');
+  btn.disabled = true;
+  try {
+    let vendorId = editId;
+    if (editId) {
+      const r = await fetch(`/api/vendors/${editId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!r.ok) { const e = await r.json(); alert(e.error || '儲存失敗'); return; }
+    } else {
+      const r = await fetch('/api/vendors', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!r.ok) { const e = await r.json(); alert(e.error || '新增失敗'); return; }
+      const d = await r.json();
+      vendorId = d.id;
+    }
+
+    // 儲存暫存品牌
+    for (const brand of pendingBrands) {
+      await fetch(`/api/vendors/${vendorId}/brands`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ brand }) });
+    }
+
+    closeModal();
+    await loadVendors();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deactivate(id, name) {
+  if (!confirm(`確定停用「${name}」？停用後將不會顯示在列表中。`)) return;
+  const r = await fetch(`/api/vendors/${id}`, { method: 'DELETE' });
+  if (!r.ok) { alert('操作失敗'); return; }
+  await loadVendors();
+}
+
+document.getElementById('newVendorBtn').addEventListener('click', openNew);
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
+document.getElementById('modalSaveBtn').addEventListener('click', saveVendor);
+document.getElementById('addBrandBtn').addEventListener('click', addBrand);
+document.getElementById('v_brand_input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addBrand(); } });
+document.getElementById('vendorModal').addEventListener('click', e => { if (e.target === document.getElementById('vendorModal')) closeModal(); });
+
+init().catch(console.error);
+</script>
+</body>
+</html>

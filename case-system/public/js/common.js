@@ -60,6 +60,7 @@ async function loadUser() {
     payments:         p.page_payments,
     ledger:           p.page_ledger !== undefined ? p.page_ledger : p.page_payments,
     expenses:         p.page_expenses !== undefined ? p.page_expenses : ['owner','hq_accounting'].includes(currentUser.role),
+    vendors:          ['owner','hq_accounting'].includes(currentUser.role),
     'line-inquiries': p.page_line_inquiries !== undefined ? p.page_line_inquiries : p.page_cases,
     'dispatch-detail':p.page_cases,
     'my-tasks':       p.my_tasks,
