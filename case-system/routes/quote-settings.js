@@ -187,6 +187,7 @@ router.get('/film-prices', requireAuth, (req, res) => {
     GROUP BY fpm.id
     ORDER BY fpm.brand, fpm.flame_resistant, fpm.sort_order
   `).all();
+  if (!req.session.user?.can_see_cost) rows.forEach(r => { r.inventory_cost = null; });
   res.json(rows);
 });
 router.post('/film-prices', requireAuth, (req, res) => {
