@@ -342,6 +342,20 @@ router.post('/sign/:token', (req, res) => {
   db.prepare(`UPDATE cases SET status='confirmed', contract_amount=?, contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP),
     updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(finalAmt || 0, q.case_id);
 
+  // 通知負責業務
+  try {
+    const caseInfo = db.prepare(`SELECT title, case_number, assigned_to FROM cases WHERE id=?`).get(q.case_id);
+    if (caseInfo?.assigned_to) {
+      const fmtAmt = finalAmt ? 'NT$' + Math.round(finalAmt).toLocaleString('zh-TW') : '';
+      db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'quote','cases',?,?)`)
+        .run(caseInfo.assigned_to,
+          '客戶已確認報價單',
+          `${caseInfo.title||caseInfo.case_number} ${fmtAmt}${consent?' (含行銷同意)':''}`,
+          q.case_id,
+          `/case-detail?id=${q.case_id}`);
+    }
+  } catch(e) { /* non-critical */ }
+
   res.json({ ok: true });
 });
 
