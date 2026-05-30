@@ -106,6 +106,7 @@
 .btn-danger:hover { background:#fecaca; }
 .btn-sm { padding:5px 12px; font-size:12px; }
 .btn-copy { padding:5px 10px; border-radius:6px; border:1px solid #bfdbfe; background:#dbeafe; color:#1e40af; cursor:pointer; font-size:12px; white-space:nowrap; }
+.pill-rejected { background:#fee2e2; color:#991b1b; }
 
 @media (max-width: 640px) {
   .grid-2 { grid-template-columns:1fr; }
@@ -193,16 +194,16 @@
         <h3>報價設定</h3>
         <div class="grid-3" style="margin-bottom:10px">
           <div class="form-group">
-            <label>折扣率（1=不折，0.9=九折）</label>
-            <input type="number" id="s-discount" step="0.01" min="0" max="1" value="1">
+            <label>折扣率 <span id="s-discount-hint" style="color:#d97706;font-size:11px;font-weight:400"></span></label>
+            <input type="number" id="s-discount" step="0.01" min="0" max="1" value="1" oninput="updateRateHints()">
           </div>
           <div class="form-group">
-            <label>行銷優惠率（選填，同意行銷用）</label>
-            <input type="number" id="s-marketing" step="0.01" min="0" max="1" value="1">
+            <label>行銷優惠率 <span id="s-marketing-hint" style="color:#7c3aed;font-size:11px;font-weight:400"></span></label>
+            <input type="number" id="s-marketing" step="0.01" min="0" max="1" value="1" oninput="updateRateHints()">
           </div>
           <div class="form-group">
-            <label>稅率（0=未稅，0.05=含5%稅）</label>
-            <input type="number" id="s-tax" step="0.01" min="0" max="0.3" value="0.05">
+            <label>稅率 <span id="s-tax-hint" style="color:#374151;font-size:11px;font-weight:400"></span></label>
+            <input type="number" id="s-tax" step="0.01" min="0" max="0.3" value="0.05" oninput="updateRateHints()">
           </div>
           <div class="form-group">
             <label>車馬費（元）</label>
@@ -418,6 +419,7 @@ const STATUS_MAP = {
   draft:    { label:'草稿',       cls:'pill-draft'    },
   sent:     { label:'已發送',     cls:'pill-sent'     },
   accepted: { label:'客戶已確認', cls:'pill-accepted' },
+  rejected: { label:'客戶拒絕',   cls:'pill-rejected' },
   signed:   { label:'已簽約',     cls:'pill-signed'   },
   ready:    { label:'完成',       cls:'pill-ready'    },
 };
@@ -583,7 +585,15 @@ function renderHeader() {
         <button class="btn btn-sm btn-secondary" onclick="newVersion()">建立新版本</button>
         ${q.status === 'draft'
           ? `<button class="btn btn-sm btn-success" onclick="sendQuote()">發送報價單</button>`
-          : `<button class="btn btn-sm btn-secondary" onclick="copyLink()">複製客戶連結</button>`}
+          : q.status !== 'rejected'
+            ? `<button class="btn btn-sm btn-secondary" onclick="copyLink()">複製客戶連結</button>`
+            : ''}
+        ${q.status !== 'rejected' && q.share_token
+          ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm btn-secondary">列印</a>`
+          : ''}
+        ${(q.status === 'sent' || q.status === 'accepted')
+          ? `<button class="btn btn-sm btn-danger" onclick="rejectQuote()">客戶拒絕</button>`
+          : ''}
       </div>
     </div>`;
 }
@@ -598,7 +608,14 @@ function renderBanner() {
   } else if (q.status === 'accepted') {
     el.style.display = '';
     el.className = 'warn-banner warn-success';
-    el.textContent = '✅ 客戶已確認此報價單。如需修改請建立新版本。';
+    el.textContent = `✅ 客戶已確認此報價單${q.client_accepted_at ? '（' + q.client_accepted_at.slice(0,16).replace('T',' ') + '）' : ''}。如需修改請建立新版本。`;
+  } else if (q.status === 'rejected') {
+    el.style.display = '';
+    el.className = 'warn-banner';
+    el.style.background = '#fff1f2';
+    el.style.border = '1px solid #fecdd3';
+    el.style.color = '#9f1239';
+    el.textContent = '✕ 客戶已拒絕此報價單。庫存保留已釋放，可建立新版本重新報價。';
   } else {
     el.style.display = 'none';
   }
@@ -693,6 +710,21 @@ function fillSettings() {
   document.getElementById('s-valid').value = q.valid_days ?? 30;
   document.getElementById('s-payment').value = q.payment_terms || '';
   document.getElementById('s-notes').value = q.notes_terms || '';
+  updateRateHints();
+}
+
+function updateRateHints() {
+  const disc = parseFloat(document.getElementById('s-discount').value) || 1;
+  const mkt  = parseFloat(document.getElementById('s-marketing').value) || 1;
+  const tax  = parseFloat(document.getElementById('s-tax').value) || 0;
+  const numToText = n => {
+    if (n >= 1) return '不打折';
+    const pct = Math.round((1 - n) * 100);
+    return `打${Math.round(n*10)}折（省${pct}%）`;
+  };
+  document.getElementById('s-discount-hint').textContent = numToText(disc);
+  document.getElementById('s-marketing-hint').textContent = mkt >= 1 ? '不打折' : numToText(mkt) + '（行銷同意時適用）';
+  document.getElementById('s-tax-hint').textContent = tax === 0 ? '未稅' : `含${Math.round(tax*100)}% 稅`;
 }
 
 function renderTotals() {
@@ -776,6 +808,18 @@ async function sendQuote() {
   } else {
     showToast('發送失敗', 'error');
   }
+}
+
+// ── Reject ───────────────────────────────────────────────────────
+
+async function rejectQuote() {
+  if (!confirm('確定標記為客戶拒絕？此操作會釋放庫存保留。')) return;
+  const r = await fetch(`/api/quotes/${quoteId}/reject`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+  });
+  const d = await r.json();
+  if (d.ok) { showToast('已標記為客戶拒絕'); await loadQuote(); }
+  else showToast(d.error || '操作失敗', 'error');
 }
 
 // ── New version ───────────────────────────────────────────────────

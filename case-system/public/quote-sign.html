@@ -115,11 +115,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 /* ── Footer ── */
 .footer{text-align:center;padding:20px 16px 0;font-size:11px;color:var(--gray-400);line-height:1.8}
 
+.print-bar{text-align:center;padding:14px 16px 0;display:flex;justify-content:center;gap:10px}
+.btn-print{background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;border-radius:8px;padding:8px 20px;font-size:13px;cursor:pointer;font-weight:500}
+.btn-print:hover{background:#e5e7eb}
 @media print{
   body{background:#fff}
   .page{max-width:100%}
   .header{background:#1e40af!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .sig-section,.marketing-toggle,.btn-submit,.sig-controls{display:none!important}
+  .sig-section,.marketing-toggle,.btn-submit,.sig-controls,.print-bar{display:none!important}
   .body{box-shadow:none;margin:0;border-radius:0}
 }
 </style>
@@ -127,6 +130,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 <body>
 <div class="page">
   <div id="app"><div style="text-align:center;padding:80px 20px;color:var(--gray-400);font-size:14px">載入中…</div></div>
+  <div class="print-bar" id="printBar" style="display:none">
+    <button class="btn-print" onclick="window.print()">🖨️ 列印 / 存成 PDF</button>
+  </div>
 </div>
 
 <script>
@@ -154,6 +160,7 @@ async function load() {
   }
   quoteData = await res.json();
   render(quoteData);
+  document.getElementById('printBar').style.display = '';
   if (isPrint) setTimeout(() => window.print(), 800);
 }
 

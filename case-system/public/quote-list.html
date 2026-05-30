@@ -18,6 +18,7 @@
 .qs-sent     { background:#dbeafe; color:#1e40af; }
 .qs-signed   { background:#ede9fe; color:#6d28d9; }
 .qs-accepted { background:#d1fae5; color:#065f46; }
+.qs-rejected { background:#fee2e2; color:#991b1b; }
 .qs-ready    { background:#fef3c7; color:#92400e; }
 .status-pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
 .case-type-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#e0e7ff; color:#3730a3; }
@@ -100,6 +101,7 @@
           <option value="draft">草稿</option>
           <option value="sent">已發送</option>
           <option value="accepted">客戶已確認</option>
+          <option value="rejected">客戶拒絕</option>
           <option value="signed">已簽署</option>
           <option value="ready">完成</option>
         </select>
@@ -213,11 +215,12 @@ let currentUser = null;
 let searchTimer = null;
 
 const STATUS_MAP = {
-  draft:    { label:'草稿',     cls:'qs-draft'    },
-  sent:     { label:'已發送',   cls:'qs-sent'     },
+  draft:    { label:'草稿',       cls:'qs-draft'    },
+  sent:     { label:'已發送',     cls:'qs-sent'     },
   accepted: { label:'客戶已確認', cls:'qs-accepted' },
-  signed:   { label:'已簽署',   cls:'qs-signed'   },
-  ready:    { label:'完成',     cls:'qs-ready'    },
+  rejected: { label:'客戶拒絕',   cls:'qs-rejected' },
+  signed:   { label:'已簽署',     cls:'qs-signed'   },
+  ready:    { label:'完成',       cls:'qs-ready'    },
 };
 const TYPE_MAP = {
   home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃',
@@ -279,7 +282,10 @@ async function loadList() {
       <td><span class="status-pill ${st.cls}">${st.label}</span></td>
       <td class="amt-cell">${amt}</td>
       <td style="color:#6b7280;font-size:12px">${dateStr}</td>
-      <td><a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a></td>
+      <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
+        <a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
+        ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}
+      </td>
     </tr>`;
   }).join('');
 }
