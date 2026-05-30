@@ -1325,21 +1325,11 @@ async function init() {
   if (!caseId) { location.href = '/cases'; return; }
   const calcBtn = document.getElementById('openCalcBtn');
   if (calcBtn) calcBtn.href = `/material-calc?case_id=${caseId}`;
-  const [caseRes, usersRes, allUsersRes, clientsRes, settingsRes, ledgerCatRes] = await Promise.all([
-    fetch(`/api/cases/${caseId}`),
-    fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings'), fetch('/api/ledger/categories'),
-  ]);
+
+  // 先單獨取案件資料並立即渲染，避免 session store 並發問題導致卡住
+  const caseRes = await fetch(`/api/cases/${caseId}`);
   if (!caseRes.ok) { location.href = '/cases'; return; }
   caseData = await caseRes.json();
-  users = usersRes; allUsers = allUsersRes; clients = clientsRes;
-  if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
-  if (ledgerCatRes.ok) {
-    const incCats = (await ledgerCatRes.json()).filter(c => c.section === 'income' && c.active);
-    const opts = incCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-    document.getElementById('p_deposit_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
-    document.getElementById('p_balance_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
-    document.getElementById('p_survey_fee_category').innerHTML   = '<option value="">— 請選擇（選填）—</option>' + opts;
-  }
   renderHeader();
   renderPipeline();
   fillBasicForm();
@@ -1349,6 +1339,22 @@ async function init() {
   fillPaymentForm();
   renderLogs(caseData.logs);
   await loadQuote();
+
+  // 再並發取輔助資料（users / clients / settings / ledger）
+  const [usersRes, allUsersRes, clientsRes, settingsRes, ledgerCatRes] = await Promise.all([
+    fetchDispatchUsers(), fetchUsers(), fetchClients(), fetch('/api/settings'), fetch('/api/ledger/categories'),
+  ]);
+  users = usersRes; allUsers = allUsersRes; clients = clientsRes;
+  fillBasicForm();
+  if (settingsRes.ok) { const s = await settingsRes.json(); pushMode = s.push_mode || 'manual'; }
+  if (ledgerCatRes.ok) {
+    const incCats = (await ledgerCatRes.json()).filter(c => c.section === 'income' && c.active);
+    const opts = incCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    document.getElementById('p_deposit_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_balance_category').innerHTML      = '<option value="">— 請選擇收入科目 —</option>' + opts;
+    document.getElementById('p_survey_fee_category').innerHTML   = '<option value="">— 請選擇（選填）—</option>' + opts;
+    fillPaymentForm();
+  }
   initAddressAutocomplete();
   loadQuickEstimates();
   buildHourSelect('d_time_h');
