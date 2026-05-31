@@ -897,13 +897,14 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const monthStart = today.slice(0, 7) + '-01';
 
+  const monthEnd = new Date(today.slice(0,4), Number(today.slice(5,7)), 0).toISOString().slice(0,10);
   res.json({
     total:        db.prepare(`SELECT COUNT(*) n FROM cases c WHERE 1=1 ${orgCond}`).get(...orgPs2).n,
-    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('confirmed','scheduled','in_progress') ${orgCond}`).get(...orgPs2).n,
-    unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='confirmed' AND (scheduled_date IS NULL OR scheduled_date='') ${orgCond}`).get(...orgPs2).n,
+    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('contracted','dispatched','constructing','payment') ${orgCond}`).get(...orgPs2).n,
+    unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='contracted' ${orgCond}`).get(...orgPs2).n,
     today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today, ...orgPs2).n,
-    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','quoted') ${orgCond}`).get(...orgPs2).n,
-    month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? ${orgCond}`).get(monthStart, ...orgPs2).n,
+    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','invalid') ${orgCond}`).get(...orgPs2).n,
+    month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? AND scheduled_date<=? ${orgCond}`).get(monthStart, monthEnd, ...orgPs2).n,
   });
 });
 

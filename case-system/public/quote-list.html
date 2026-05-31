@@ -386,10 +386,10 @@ function gotoCase(caseId) {
 }
 
 async function createCaseAndQuote() {
-  const client_id = document.getElementById('nc_client_id').value;
-  const title     = document.getElementById('nc_title').value.trim();
-  const case_type = document.getElementById('nc_case_type').value;
-  const location  = document.getElementById('nc_location').value.trim();
+  const client_id  = document.getElementById('nc_client_id').value;
+  const title      = document.getElementById('nc_title').value.trim();
+  const case_type  = document.getElementById('nc_case_type').value;
+  const nc_location = document.getElementById('nc_location').value.trim();
 
   if (!client_id) { alert('請選擇客戶'); return; }
 
@@ -400,7 +400,7 @@ async function createCaseAndQuote() {
   const r = await fetch('/api/cases', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ client_id, title: title||null, case_type, location: location||null, status: 'inquiry' }),
+    body: JSON.stringify({ client_id, title: title||null, case_type, location: nc_location||null, status: 'inquiry' }),
   });
 
   if (!r.ok) {
@@ -410,7 +410,7 @@ async function createCaseAndQuote() {
     return;
   }
   const data = await r.json();
-  location.href = `/case-detail?id=${data.id}`;
+  window.location.href = `/case-detail?id=${data.id}`;
 }
 
 // Enter on search

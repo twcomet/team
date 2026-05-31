@@ -168,30 +168,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
   async function loadNotifications() {
-    const res = await fetch('/api/notifications');
-    if (!res.ok) return;
-    const { notifications, unread } = await res.json();
-    const badge = document.getElementById('notifBadge');
-    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
-    const list = document.getElementById('notifList');
-    if (!list) return;
-    if (!notifications.length) { list.innerHTML = '<div class="notif-empty">暫無通知</div>'; return; }
-    list.innerHTML = notifications.map(n => `
-      <div class="notif-item${n.is_read ? '' : ' unread'}" onclick="location.href='${n.url || '#'}'">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-body">${(n.body||'').replace(/\n/g,'<br>')}</div>
-        <div class="notif-time">${n.created_at?.slice(0,16).replace('T',' ')}</div>
-      </div>`).join('');
+    try {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return;
+      const data = await res.json();
+      const notifications = data.notifications || [];
+      const unread = data.unread || 0;
+      const badge = document.getElementById('notifBadge');
+      if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+      const list = document.getElementById('notifList');
+      if (!list) return;
+      if (!notifications.length) { list.innerHTML = '<div class="notif-empty">暫無通知</div>'; return; }
+      list.innerHTML = notifications.map(n => {
+        const url = n.url ? esc(n.url) : '#';
+        const body = esc(n.body||'').replace(/\n/g,'<br>');
+        const time = (n.created_at||'').slice(0,16).replace('T',' ');
+        return `<div class="notif-item${n.is_read ? '' : ' unread'}" onclick="location.href='${url}'">
+          <div class="notif-title">${esc(n.title)}</div>
+          <div class="notif-body">${body}</div>
+          <div class="notif-time">${time}</div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      const list = document.getElementById('notifList');
+      if (list) list.innerHTML = '<div class="notif-empty">通知載入失敗</div>';
+    }
   }
 
   // 定時刷新未讀數（每 60 秒）
   async function refreshNotifBadge() {
-    const res = await fetch('/api/notifications');
-    if (!res.ok) return;
-    const { unread } = await res.json();
-    const badge = document.getElementById('notifBadge');
-    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+    try {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return;
+      const data = await res.json();
+      const unread = data.unread || 0;
+      const badge = document.getElementById('notifBadge');
+      if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+    } catch(e) { /* silent */ }
   }
   setInterval(refreshNotifBadge, 60000);
   refreshNotifBadge();

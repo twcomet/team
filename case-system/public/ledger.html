@@ -819,18 +819,32 @@ async function quickUpdateCategory(id, sel) {
   const entry = allLedger.find(r => r.id === id);
   if (!entry) return;
   const newCat = sel.value;
-  const res = await fetch(`/api/ledger/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...entry, category: newCat }),
-  });
-  if (res.ok) {
-    entry.category = newCat;
-    sel.style.borderColor = '#10b981';
-    setTimeout(() => { sel.style.borderColor = ''; }, 1200);
-    showToast('科目已更新');
-  } else {
-    showToast('更新失敗', 'error');
+  if (!newCat) { sel.value = entry.category; return; }
+  try {
+    const res = await fetch(`/api/ledger/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: entry.date, type: entry.type, category: newCat,
+        amount: entry.amount, case_id: entry.case_id,
+        description: entry.description, org_id: entry.org_id,
+        hidden: entry.hidden, pay_status: entry.pay_status,
+        pay_due_date: entry.pay_due_date, paid_note: entry.paid_note,
+        vendor: entry.vendor,
+      }),
+    });
+    if (res.ok) {
+      entry.category = newCat;
+      sel.style.borderColor = '#10b981';
+      setTimeout(() => { sel.style.borderColor = ''; }, 1200);
+      showToast('科目已更新');
+    } else {
+      const e = await res.json().catch(() => ({}));
+      showToast(e.error || '更新失敗', 'error');
+      sel.value = entry.category;
+    }
+  } catch(e) {
+    showToast('網路錯誤：' + e.message, 'error');
     sel.value = entry.category;
   }
 }
@@ -1020,7 +1034,12 @@ async function handleScanImage(event) {
 
 // ─── 科目管理 ─────────────────────────────────────────────────
 async function openCatModal() {
-  await loadCategories();
+  try {
+    await loadCategories();
+  } catch(e) {
+    showToast('載入科目失敗，請重新整理', 'error');
+    return;
+  }
   setCatSection('income');
   document.getElementById('catModal').classList.add('open');
 }

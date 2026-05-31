@@ -148,17 +148,23 @@ router.post('/', requireAuth, (req, res) => {
 
 // PUT /api/ledger/:id
 router.put('/:id', requireAuth, (req, res) => {
-  const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
-  const existing = db.prepare(`SELECT paid_at FROM ledger_entries WHERE id=?`).get(req.params.id);
-  const paid_at  = (pay_status !== 'pending' && paid_note && !existing?.paid_at) ? date : (existing?.paid_at || null);
-  db.prepare(`
-    UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?, vendor=?
-    WHERE id=?
-  `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null,
-         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, req.params.id);
-  log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
-  res.json({ ok: true });
+  try {
+    const uid = req.session.user.id;
+    const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
+    if (!date || !category) return res.status(400).json({ error: '日期和科目為必填' });
+    const existing = db.prepare(`SELECT paid_at FROM ledger_entries WHERE id=?`).get(req.params.id);
+    if (!existing) return res.status(404).json({ error: '記錄不存在' });
+    const paid_at  = (pay_status !== 'pending' && paid_note && !existing?.paid_at) ? date : (existing?.paid_at || null);
+    db.prepare(`
+      UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?, vendor=?
+      WHERE id=?
+    `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null,
+           hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, req.params.id);
+    log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH /api/ledger/:id/pay  — 標記已付款（owner only）

@@ -219,21 +219,23 @@ let quillCreate = null;
 let quillEdit = null;
 
 async function init() {
-  initCommon();
+  await loadUser();
   highlightNav('contracts');
 
-  quillCreate = new Quill('#quillCreate', {
-    theme: 'snow',
-    placeholder: '在此輸入或貼上合約內容…',
-    modules: { toolbar: [
-      [{ header: [1,2,3,false] }],
-      ['bold','italic','underline'],
-      [{ list:'ordered'},{list:'bullet'}],
-      ['clean'],
-    ]},
-  });
-
   await Promise.all([loadContracts(), loadUsers()]);
+
+  try {
+    quillCreate = new Quill('#quillCreate', {
+      theme: 'snow',
+      placeholder: '在此輸入或貼上合約內容…',
+      modules: { toolbar: [
+        [{ header: [1,2,3,false] }],
+        ['bold','italic','underline'],
+        [{ list:'ordered'},{list:'bullet'}],
+        ['clean'],
+      ]},
+    });
+  } catch(e) { console.warn('Quill 載入失敗，將使用純文字模式', e); }
 }
 
 async function loadContracts() {
