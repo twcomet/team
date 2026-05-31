@@ -127,6 +127,33 @@
         <button onclick="clearFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
       </div>
 
+      <!-- 成交篩選列（僅 deal 模式） -->
+      <div id="dealFilters" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:12px;color:var(--gray-500);font-weight:500">篩選：</span>
+        <select id="df_type" onchange="applyDealFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:90px">
+          <option value="">全部類型</option>
+          <option value="home">居家</option>
+          <option value="commercial">商空</option>
+          <option value="elevator">電梯</option>
+          <option value="glass">玻璃</option>
+          <option value="extra">外快</option>
+          <option value="outsource">外包</option>
+          <option value="output">輸出</option>
+          <option value="other">其他</option>
+        </select>
+        <select id="df_payment" onchange="applyDealFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部收款</option>
+          <option value="unpaid">未收款</option>
+          <option value="partial">部分收款</option>
+          <option value="paid">已收款</option>
+          <option value="overdue">逾期</option>
+        </select>
+        <select id="df_sales" onchange="applyDealFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
+          <option value="">全部業務</option>
+        </select>
+        <button onclick="clearDealFilters()" style="padding:4px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;cursor:pointer;color:var(--gray-600)">清除篩選</button>
+      </div>
+
       <!-- 場勘篩選列（僅 survey 模式） -->
       <div id="surveyFilters" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
         <span style="font-size:12px;color:var(--gray-500);font-weight:500">篩選：</span>
@@ -474,6 +501,8 @@ let sortDateDir = 'desc';
 let inquirySortField = 'created_at', inquirySortDir = 'desc';
 let surveySortField  = 'survey_date', surveySortDir  = 'desc';
 let filterPriority = '', filterIntent = '', filterSales = '', filterCs = '';
+let dealFilterType = '', dealFilterPayment = '', dealFilterSales = '';
+let dealSortField = 'scheduled_date', dealSortDir = 'asc';
 
 const INTENT_LABELS  = { hot:'積極成交', warm:'有意願', cool:'觀望中', cold:'意願低' };
 const PRIORITY_ORDER = { urgent: 0, high: 1, normal: 2, low: 3 };
@@ -517,6 +546,11 @@ async function init() {
     const svCs    = document.getElementById('sv_cs');
     inquirySalesUsers.forEach(u => svSales.add(new Option(u.name, u.id)));
     inquiryCsUsers.forEach(u => svCs.add(new Option(u.name, u.id)));
+  }
+  if (MODE === 'deal') {
+    document.getElementById('dealFilters').style.display = 'flex';
+    const dfSales = document.getElementById('df_sales');
+    inquirySalesUsers.forEach(u => dfSales.add(new Option(u.name, u.id)));
   }
   initClientAC('nc_client_input', 'nc_client', 'nc_client_dropdown');
   const sales = salesUsers.filter(u => u.is_sales);
@@ -688,13 +722,25 @@ function renderTableHead() {
       <th style="width:65px">操作</th>
     </tr>`;
   } else {
+    const dSortTh = (label, field, w) => {
+      const active = dealSortField === field;
+      const icon = active ? (dealSortDir === 'asc' ? '↑' : '↓') : '↕';
+      const color = active ? 'color:var(--primary)' : 'color:var(--gray-300)';
+      return `<th style="width:${w};cursor:pointer;white-space:nowrap;user-select:none" onclick="setDealSort('${field}')">${label} <span style="font-size:10px;${color}">${icon}</span></th>`;
+    };
     h.innerHTML = `<tr>
-      <th>案號</th><th>案件類型</th><th>客戶</th><th>項目</th>
-      ${sortThHtml('施工日')}<th>業務</th><th>狀態</th>
-      <th id="amountHeader" ${!currentUser?.can_see_amounts ? 'style="display:none"' : ''}>報價／成交</th>
-      <th>毛利</th><th>收款</th>
-      <th id="poolHeader" style="${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
-      <th>操作</th>
+      <th style="width:105px">案號</th>
+      <th style="width:68px">類型</th>
+      <th style="width:100px">客戶</th>
+      <th style="width:180px">項目</th>
+      ${dSortTh('施工日', 'scheduled_date', '90px')}
+      <th style="width:72px">業務</th>
+      ${dSortTh('狀態', 'status', '105px')}
+      <th id="amountHeader" style="width:90px${!currentUser?.can_see_amounts ? ';display:none' : ''}">金額</th>
+      <th style="width:54px">毛利</th>
+      ${dSortTh('收款', 'payment_status', '88px')}
+      <th id="poolHeader" style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
+      <th style="width:120px">操作</th>
     </tr>`;
   }
 }
@@ -708,15 +754,38 @@ async function loadCases(params = {}) {
   renderTable(allCases);
 }
 
+const DEAL_STAGE_COLORS = {
+  contracted:   { bg:'#dbeafe', active:'#2563eb', text:'#1e40af' },
+  dispatched:   { bg:'#ede9fe', active:'#7c3aed', text:'#3730a3' },
+  constructing: { bg:'#fef9c3', active:'#ca8a04', text:'#713f12' },
+  payment:      { bg:'#fed7aa', active:'#ea580c', text:'#9a3412' },
+  closed:       { bg:'#d1fae5', active:'#16a34a', text:'#065f46' },
+  invalid:      { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
+};
+
 function renderPipeline(cases) {
   const counts = {};
   cfg.stages.forEach(s => counts[s] = 0);
   cases.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
-  document.getElementById('pipeline').innerHTML = cfg.stages.map(s => `
-    <div class="pipeline-stage${activeStatus === s ? ' active' : ''}" onclick="filterByStatus('${s}')">
-      <span class="count">${counts[s]}</span>${cfg.stageNames[s]}
-    </div>
-  `).join('');
+  if (MODE === 'deal') {
+    document.getElementById('pipeline').innerHTML = cfg.stages.map(s => {
+      const col = DEAL_STAGE_COLORS[s] || {};
+      const isActive = activeStatus === s;
+      const bg = isActive ? col.active : col.bg;
+      const textColor = isActive ? '#fff' : col.text;
+      const countColor = isActive ? '#fff' : '#111827';
+      return `<div class="pipeline-stage${isActive ? ' active' : ''}" onclick="filterByStatus('${s}')"
+        style="background:${bg};border-radius:10px;margin:0 4px;border:none;color:${textColor};transition:all .2s">
+        <span class="count" style="color:${countColor}">${counts[s]}</span>${cfg.stageNames[s]}
+      </div>`;
+    }).join('');
+  } else {
+    document.getElementById('pipeline').innerHTML = cfg.stages.map(s => `
+      <div class="pipeline-stage${activeStatus === s ? ' active' : ''}" onclick="filterByStatus('${s}')">
+        <span class="count">${counts[s]}</span>${cfg.stageNames[s]}
+      </div>
+    `).join('');
+  }
 }
 
 function renderTable(cases) {
@@ -729,6 +798,11 @@ function renderTable(cases) {
       if (filterIntent   && (c.deal_intent || '') !== filterIntent) return false;
       if (filterSales    && String(c.sales_id || '') !== filterSales) return false;
       if (filterCs       && String(c.cs_id    || '') !== filterCs   ) return false;
+    }
+    if (MODE === 'deal') {
+      if (dealFilterType    && c.case_type !== dealFilterType) return false;
+      if (dealFilterPayment && (c.payment_status || '') !== dealFilterPayment) return false;
+      if (dealFilterSales   && String(c.sales_id || '') !== dealFilterSales) return false;
     }
     return true;
   });
@@ -767,10 +841,10 @@ function renderTable(cases) {
       }
     });
   } else {
-    const dateField = 'scheduled_date';
     filtered.sort((a, b) => {
-      const va = a[dateField] || '', vb = b[dateField] || '';
-      return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
+      const dir = dealSortDir === 'asc' ? 1 : -1;
+      const va = a[dealSortField] || '', vb = b[dealSortField] || '';
+      return va.localeCompare(vb) * dir;
     });
   }
   if (!filtered.length) {
@@ -855,28 +929,41 @@ function getCaseRow(c) {
   // deal mode
   const price = c.final_price || c.quoted_price;
   const margin = c.gross_margin_pct;
+  const marginColor = margin == null ? 'color:var(--gray-400)' : margin < 40 ? 'color:#dc2626;font-weight:700' : margin < 60 ? 'color:#ca8a04;font-weight:600' : 'color:#16a34a;font-weight:600';
   const marginDot = margin == null ? '' : margin < 40
     ? `<span class="margin-dot margin-red"></span>`
     : margin < 60 ? `<span class="margin-dot margin-yellow"></span>`
     : `<span class="margin-dot margin-green"></span>`;
+
+  // scheduled_date coloring
+  let dateStr = '—', dateStyle = '';
+  if (c.scheduled_date) {
+    const today = new Date().toISOString().slice(0,10);
+    const diff = Math.ceil((new Date(c.scheduled_date) - new Date(today)) / 86400000);
+    dateStr = fmtDate(c.scheduled_date);
+    if (diff < 0) dateStyle = 'color:#dc2626;font-weight:700';
+    else if (diff === 0) dateStyle = 'color:#ea580c;font-weight:700';
+    else if (diff <= 7) dateStyle = 'color:#ca8a04;font-weight:600';
+  }
+
   return `<tr ${link}>
-    <td><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-    <td><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
-    <td>${c.client_name || '—'}</td>
-    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
-    <td>${fmtDate(c.scheduled_date)}</td>
-    <td>${c.sales_name || '—'}</td>
-    <td>${statusBadge(c.status)}</td>
-    <td ${!currentUser.can_see_amounts ? 'style="display:none"' : ''}>${price ? fmt(price) : '—'}</td>
-    <td>${marginDot}${margin != null ? margin + '%' : '—'}</td>
-    <td>${paymentBadge(c.payment_status)}</td>
-    <td style="${currentUser?.manage_users ? '' : 'display:none'}">
+    <td style="width:105px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
+    <td style="width:68px"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
+    <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;font-weight:500">${c.client_name || '—'}</td>
+    <td style="width:180px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+    <td style="width:90px;white-space:nowrap;font-size:13px;${dateStyle}">${dateStr}</td>
+    <td style="width:72px;font-size:12px;color:#6b7280">${c.sales_name || '—'}</td>
+    <td style="width:105px;white-space:nowrap">${statusBadge(c.status)}</td>
+    <td style="width:90px;${!currentUser.can_see_amounts ? 'display:none' : ''};font-size:13px;font-weight:500">${price ? fmt(price) : '—'}</td>
+    <td style="width:54px;${marginColor}">${marginDot}${margin != null ? margin + '%' : '—'}</td>
+    <td style="width:88px;white-space:nowrap">${paymentBadge(c.payment_status)}</td>
+    <td style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">
       ${c.outsource_open
-        ? `<button onclick="event.stopPropagation();openPoolModal(${c.id},true)" style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池中</button>`
-        : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 10px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
+        ? `<button onclick="event.stopPropagation();openPoolModal(${c.id},true)" style="padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池</button>`
+        : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
       }
     </td>
-    <td onclick="event.stopPropagation()" style="white-space:nowrap">${dealActionBtns(c)}</td>
+    <td onclick="event.stopPropagation()" style="width:120px;white-space:nowrap">${dealActionBtns(c)}</td>
   </tr>`;
 }
 
@@ -956,6 +1043,34 @@ function clearSurveyFilters() {
     if (el) el.value = '';
   });
   document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderTable(allCases);
+}
+
+function applyDealFilters() {
+  dealFilterType    = document.getElementById('df_type').value;
+  dealFilterPayment = document.getElementById('df_payment').value;
+  dealFilterSales   = document.getElementById('df_sales').value;
+  renderTable(allCases);
+}
+
+function clearDealFilters() {
+  dealFilterType = ''; dealFilterPayment = ''; dealFilterSales = '';
+  activeStatus = '';
+  ['df_type','df_payment','df_sales'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderTable(allCases);
+}
+
+function setDealSort(field) {
+  if (dealSortField === field) {
+    dealSortDir = dealSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    dealSortField = field;
+    dealSortDir = field === 'scheduled_date' ? 'asc' : 'desc';
+  }
+  renderTableHead();
   renderTable(allCases);
 }
 
