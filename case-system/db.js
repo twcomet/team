@@ -313,6 +313,7 @@ _addCol('cases',     'retention_invoiced',   'REAL');
 _addCol('cases',     'needs_invoice',        'INTEGER DEFAULT 0');
 _addCol('cases',     'invoice_contact',      'TEXT');
 _addCol('cases',     'invoice_phone',        'TEXT');
+_addCol('cases',     'survey_preferred_time','TEXT');
 // materials.location 移到 CREATE TABLE 之後處理（避免全新 DB 的 ALTER TABLE 時序錯誤）
 
 // ── 個別捲料 ──────────────────────────────────────────────────

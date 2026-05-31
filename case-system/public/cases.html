@@ -675,14 +675,16 @@ function renderTableHead() {
       ${sSortTh('天數', 'created_at', '42px')}
       ${sSortTh('狀態', 'status', '120px')}
       <th style="width:70px">類型</th>
-      <th style="width:120px">客戶</th>
-      <th style="width:220px">項目</th>
+      <th style="width:100px">客戶</th>
+      <th style="width:160px">項目</th>
+      <th style="width:160px">地址</th>
+      <th style="width:110px">客人希望時間</th>
       ${sSortTh('場勘日', 'survey_date', '85px')}
-      ${sSortTh('成交意願', 'deal_intent', '90px')}
-      <th style="width:88px">負責業務</th>
-      <th style="width:88px">客服</th>
-      <th style="width:88px">場勘人</th>
-      ${sSortTh('優先', 'priority', '76px')}
+      ${sSortTh('成交意願', 'deal_intent', '80px')}
+      <th style="width:80px">業務</th>
+      <th style="width:80px">客服</th>
+      <th style="width:80px">場勘人</th>
+      ${sSortTh('優先', 'priority', '70px')}
       <th style="width:65px">操作</th>
     </tr>`;
   } else {
@@ -772,7 +774,7 @@ function renderTable(cases) {
     });
   }
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 12 : 12;
+    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 15 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -813,25 +815,34 @@ function getCaseRow(c) {
   if (MODE === 'survey') {
     const days = daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
+    const addrEsc = escHtml(c.location || '');
+    const addrCell = c.location
+      ? `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>
+         <button onclick="event.stopPropagation();navigator.clipboard.writeText('${addrEsc}').then(()=>showToast('地址已複製'))"
+           style="margin-left:4px;padding:1px 5px;border-radius:6px;font-size:10px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;flex-shrink:0">複製</button>`
+      : '<span style="color:#9ca3af;font-size:11px">—</span>';
+    const prefTime = escHtml(c.survey_preferred_time || '');
     return `<tr ${link}>
       <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
       <td style="width:70px;white-space:nowrap"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
-      <td style="width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${c.client_name || '—'}</td>
-      <td style="width:220px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${c.client_name || '—'}</td>
+      <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
+      <td style="width:160px;max-width:160px" onclick="event.stopPropagation()">${addrCell}</td>
+      <td style="width:110px;font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${prefTime || '—'}</td>
       <td style="width:85px;white-space:nowrap;font-size:12px;color:#6b7280">${fmtDate(c.survey_date)}</td>
-      <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
-      <td style="width:88px" onclick="event.stopPropagation()">
+      <td style="width:80px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
+      <td style="width:80px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
       </td>
-      <td style="width:88px" onclick="event.stopPropagation()">
+      <td style="width:80px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
       </td>
-      <td style="width:88px" onclick="event.stopPropagation()">
+      <td style="width:80px" onclick="event.stopPropagation()">
         ${surveyorSelect(c.id, c.surveyor_id, salesUsers)}
       </td>
-      <td style="width:76px" onclick="event.stopPropagation()">
+      <td style="width:70px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
       </td>
       <td style="width:65px" onclick="event.stopPropagation()">

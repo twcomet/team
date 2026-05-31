@@ -557,16 +557,18 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="sf-required">場勘日期 *</label><input type="date" id="sf_date"></div>
+            <div class="form-group"><label class="sf-required">場勘日期 *</label><input type="date" id="sf_date" onchange="sf_checkConflict()"></div>
             <div class="form-group"><label>場勘時間</label><input type="text" id="sf_time" placeholder="HH:MM（例：14:30）" maxlength="5" oninput="sf_formatTime(this)" style="letter-spacing:.05em"></div>
+            <div class="form-group"><label>客人希望場勘時間</label><input type="text" id="sf_preferred_time" placeholder="例：週六下午、09/15 上午"></div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="sf-required">場勘人員 *</label><select id="sf_surveyor"><option value="">請選擇</option></select></div>
+            <div class="form-group"><label class="sf-required">場勘人員 *</label><select id="sf_surveyor" onchange="sf_checkConflict()"><option value="">請選擇</option></select></div>
             <div class="form-group" style="flex:2">
               <label>調度留言 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（會出現在 LINE 通知裡）</span></label>
               <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工">
             </div>
           </div>
+          <div id="sf_conflictWarn" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:12px"></div>
           <div class="form-group">
             <label class="sf-required">施工地址 *</label>
             <div style="display:flex;gap:8px;align-items:center">
@@ -2267,6 +2269,7 @@ async function loadSurveyTab() {
   document.getElementById('sf_address').value  = caseData.location || '';
   sf_updateMapLink();
   document.getElementById('sf_date').value     = new Date().toISOString().split('T')[0];
+  document.getElementById('sf_preferred_time').value = caseData.survey_preferred_time || '';
   document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
   document.getElementById('sf_fee_paid').checked  = !!caseData.survey_fee_paid;
   document.getElementById('sf_fee_actual').value  = caseData.survey_fee_actual != null ? caseData.survey_fee_actual : '';
@@ -2458,6 +2461,23 @@ function sf_updateMapLink() {
   }
 }
 
+async function sf_checkConflict() {
+  const surveyorId = document.getElementById('sf_surveyor').value;
+  const date = document.getElementById('sf_date').value;
+  const warn = document.getElementById('sf_conflictWarn');
+  if (!surveyorId || !date) { warn.style.display = 'none'; return; }
+  try {
+    const res = await fetch(`/api/survey/cases/${caseId}/conflict-check?surveyor_id=${surveyorId}&date=${date}`);
+    if (!res.ok) { warn.style.display = 'none'; return; }
+    const data = await res.json();
+    const conflicts = [...(data.survey_conflicts || []), ...(data.dispatch_conflicts || [])];
+    if (!conflicts.length) { warn.style.display = 'none'; return; }
+    warn.style.display = '';
+    warn.innerHTML = `⚠️ 該場勘人員在 ${date} 已有安排：` +
+      conflicts.map(c => `<strong>${c.case_number}</strong> ${c.title || ''}${c.survey_time ? ' @ ' + c.survey_time : ''}`).join('、');
+  } catch(e) { warn.style.display = 'none'; }
+}
+
 function sf_validateRequired() {
   const errors = [];
   const checks = [
@@ -2643,18 +2663,19 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
   const prevSurveyor = sfData?.surveyor_id;
   const newAddress  = document.getElementById('sf_address').value.trim() || null;
   const body = {
-    surveyor_id:      surveyorId,
-    survey_date:      document.getElementById('sf_date').value || null,
-    survey_time:      document.getElementById('sf_time').value || null,
-    dispatch_note:    document.getElementById('sf_dispatch_note').value.trim() || null,
-    site_address:     newAddress,
-    cs_service_note:  document.getElementById('sf_cs_service_note').value || null,
-    findings:         sf_getFindings(),
-    photos_note:      document.getElementById('sf_photos').value || null,
-    extra_notes:      document.getElementById('sf_notes').value || null,
-    cs_notes:         document.getElementById('sf_cs_notes').value || null,
-    checklist_data:   sfChecklistState,
-    status:           sfData?.status || 'draft',
+    surveyor_id:           surveyorId,
+    survey_date:           document.getElementById('sf_date').value || null,
+    survey_time:           document.getElementById('sf_time').value || null,
+    survey_preferred_time: document.getElementById('sf_preferred_time').value.trim() || null,
+    dispatch_note:         document.getElementById('sf_dispatch_note').value.trim() || null,
+    site_address:          newAddress,
+    cs_service_note:       document.getElementById('sf_cs_service_note').value || null,
+    findings:              sf_getFindings(),
+    photos_note:           document.getElementById('sf_photos').value || null,
+    extra_notes:           document.getElementById('sf_notes').value || null,
+    cs_notes:              document.getElementById('sf_cs_notes').value || null,
+    checklist_data:        sfChecklistState,
+    status:                sfData?.status || 'draft',
   };
   // 同步存完工資料夾連結
   const folderUrl = document.getElementById('sf_folder_url')?.value || null;
@@ -2711,6 +2732,8 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
       caseData.location = newAddress;
       document.getElementById('sf_hdr_address').textContent = newAddress;
     }
+    // 更新 caseData 中的場勘偏好時間
+    caseData.survey_preferred_time = body.survey_preferred_time;
     // 重新載入案件資料（狀態可能已升為 survey_scheduled）
     await loadCase();
     sf_updateCompleteBtn();

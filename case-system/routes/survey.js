@@ -35,6 +35,29 @@ function genToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+// GET /api/survey/cases/:id/conflict-check?surveyor_id=X&date=Y
+router.get('/cases/:id/conflict-check', requireAuth, (req, res) => {
+  const { surveyor_id, date } = req.query;
+  if (!surveyor_id || !date) return res.json({ survey_conflicts: [], dispatch_conflicts: [] });
+
+  const surveyConflicts = db.prepare(`
+    SELECT c.case_number, c.title, sf.survey_date, sf.survey_time
+    FROM survey_forms sf
+    JOIN cases c ON c.id = sf.case_id
+    WHERE sf.surveyor_id = ? AND sf.survey_date = ? AND sf.case_id != ?
+  `).all(surveyor_id, date, req.params.id);
+
+  const dispatchConflicts = db.prepare(`
+    SELECT DISTINCT c.case_number, c.title, d.scheduled_date
+    FROM dispatches d
+    JOIN cases c ON c.id = d.case_id
+    JOIN dispatch_users du ON du.dispatch_id = d.id
+    WHERE du.user_id = ? AND d.scheduled_date = ?
+  `).all(surveyor_id, date);
+
+  res.json({ survey_conflicts: surveyConflicts, dispatch_conflicts: dispatchConflicts });
+});
+
 // 取得某案件的場勘單
 router.get('/cases/:id/survey-form', requireAuth, (req, res) => {
   let form = db.prepare(`SELECT sf.*, u.name as surveyor_name, u.username as surveyor_username
@@ -53,7 +76,7 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
           findings, photos_note, extra_notes, dispatch_note, cs_notes, checklist_data,
-          cs_service_note } = req.body;
+          cs_service_note, survey_preferred_time } = req.body;
 
   const existing = db.prepare(`SELECT id FROM survey_forms WHERE case_id = ?`).get(case_id);
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
@@ -73,8 +96,9 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
     cs_service_note ?? null, me.id);
 
-  // 同步 cases.surveyor_id / survey_date（供列表查詢）
-  db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(surveyor_id ?? null, survey_date ?? null, case_id);
+  // 同步 cases.surveyor_id / survey_date / survey_preferred_time（供列表查詢）
+  db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, survey_preferred_time=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(surveyor_id ?? null, survey_date ?? null, survey_preferred_time ?? null, case_id);
 
   // 通知場勘人員
   if (surveyor_id) {
@@ -96,7 +120,7 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
           findings, photos_note, extra_notes, dispatch_note, status,
-          cs_notes, checklist_data, cs_service_note } = req.body;
+          cs_notes, checklist_data, cs_service_note, survey_preferred_time } = req.body;
 
   // 判斷場勘人員是否有變更 → 需重新通知
   const old = db.prepare(`SELECT surveyor_id, worker_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
@@ -116,8 +140,9 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
     cs_service_note ?? null, status || 'draft', existingWorkerToken, req.params.id);
 
-  // 同步 cases.surveyor_id / survey_date（供列表查詢）
-  db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(surveyor_id ?? null, survey_date ?? null, req.params.id);
+  // 同步 cases.surveyor_id / survey_date / survey_preferred_time（供列表查詢）
+  db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, survey_preferred_time=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(surveyor_id ?? null, survey_date ?? null, survey_preferred_time ?? null, req.params.id);
 
   // 場勘人員有變更（且新增了人）→ 通知新的場勘人員
   if (surveyorChanged && surveyor_id) {
