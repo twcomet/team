@@ -310,7 +310,9 @@ router.get('/pool-overview', requireAuth, (req, res) => {
 
   const cases = db.prepare(`
     SELECT c.id, c.case_number, c.case_type, c.title, c.location, c.status,
-           c.outsource_open, c.outsource_types, c.region_id, c.updated_at,
+           c.outsource_open, c.is_outsourced, c.outsource_type,
+           COALESCE(c.outsource_types, CASE WHEN c.is_outsourced=1 THEN json_array(COALESCE(c.outsource_type,'full')) ELSE '[]' END) AS outsource_types,
+           c.region_id, c.updated_at,
            cl.name AS client_name,
            r.name  AS region_name,
            (SELECT COUNT(*) FROM case_applications ca WHERE ca.case_id=c.id AND ca.status='pending') AS pending_count,
@@ -318,7 +320,7 @@ router.get('/pool-overview', requireAuth, (req, res) => {
     FROM cases c
     LEFT JOIN clients cl ON cl.id = c.client_id
     LEFT JOIN regions  r ON r.id  = c.region_id
-    WHERE c.outsource_open = 1
+    WHERE c.outsource_open = 1 OR c.is_outsourced = 1
     ORDER BY c.updated_at DESC
   `).all();
 
@@ -327,7 +329,7 @@ router.get('/pool-overview', requireAuth, (req, res) => {
     FROM case_applications ca
     JOIN cases c ON c.id = ca.case_id
     JOIN users u ON u.id = ca.applicant_id
-    WHERE c.outsource_open = 1
+    WHERE c.outsource_open = 1 OR c.is_outsourced = 1
     ORDER BY ca.created_at ASC
   `).all();
 
