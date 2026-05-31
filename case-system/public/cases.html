@@ -890,12 +890,15 @@ function getCaseRow(c) {
     const days = daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
     const addrEsc = escHtml(c.location || '');
-    const addrCell = c.location
-      ? `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>
-         <button onclick="event.stopPropagation();navigator.clipboard.writeText('${addrEsc}').then(()=>showToast('地址已複製'))"
-           style="margin-left:4px;padding:1px 5px;border-radius:6px;font-size:10px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;flex-shrink:0">複製</button>`
-      : '<span style="color:#9ca3af;font-size:11px">—</span>';
-    const prefTime = escHtml(c.survey_preferred_time || '');
+    const isPending = c.status === 'survey_pending';
+    const addrCell = !c.location
+      ? '<span style="color:#9ca3af;font-size:11px">—</span>'
+      : isPending
+        ? `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>
+           <button onclick="event.stopPropagation();navigator.clipboard.writeText('${addrEsc}').then(()=>showToast('地址已複製'))"
+             style="margin-left:4px;padding:1px 5px;border-radius:6px;font-size:10px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;flex-shrink:0">複製</button>`
+        : `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>`;
+    const prefTime = isPending ? escHtml(c.survey_preferred_time || '') : '';
     return `<tr ${link}>
       <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
