@@ -580,15 +580,14 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
     });
   }
 
-  // 施工派工 → 自動帶入施工日期、升狀態
+  // 派工 → 自動帶入施工日期（任何類型，若案件尚無施工日則填入）、升狀態
   const c = db.prepare(`SELECT status, scheduled_date FROM cases WHERE id=?`).get(case_id);
-  if (dispatch_type === 'install' || dispatch_type === 'survey') {
+  {
     const updates = [];
     const params = [];
-    if (!c?.scheduled_date && dispatch_type === 'install') {
+    if (!c?.scheduled_date) {
       updates.push(`scheduled_date=?`); params.push(scheduled_date);
     }
-    // 建立施工派工時，成交待派工 → 已派工待施工
     if (c?.status === 'contracted' && dispatch_type === 'install') {
       updates.push(`status='dispatched'`, `prev_status='contracted'`);
     }

@@ -2683,4 +2683,32 @@ db.exec(`
   )
 `);
 
+// ── hq_tech 角色預設權限（技術人員合理最小化）────────────────────────────
+{
+  const HQ_TECH_PERMS = {
+    page_dashboard:     false,
+    page_cases:         false,
+    page_line_inquiries:false,
+    page_clients:       false,
+    page_calendar:      true,   // 派單行事曆：看自己的派工
+    page_payments:      false,
+    page_ledger:        false,
+    page_expenses:      true,   // 費用申請
+    page_dispatch_pool: false,
+    page_cases_deal:    false,
+    page_materials:     false,
+    page_material_calc: false,
+    page_performance:   false,
+    page_reports:       false,
+    page_marketing:     false,
+    my_tasks:           true,   // 我的任務
+  };
+  const existing = db.prepare(`SELECT role_value FROM role_defaults WHERE role_value='hq_tech'`).get();
+  if (!existing) {
+    db.prepare(`INSERT INTO role_defaults (role_value, default_perms) VALUES ('hq_tech', ?)`)
+      .run(JSON.stringify(HQ_TECH_PERMS));
+    console.log('✅ hq_tech 角色預設權限已設定');
+  }
+}
+
 module.exports = db;
