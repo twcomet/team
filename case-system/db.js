@@ -314,6 +314,22 @@ _addCol('cases',     'needs_invoice',        'INTEGER DEFAULT 0');
 _addCol('cases',     'invoice_contact',      'TEXT');
 _addCol('cases',     'invoice_phone',        'TEXT');
 _addCol('cases',     'survey_preferred_time','TEXT');
+
+// ── 確保所有在職內部員工都有 page_expenses 權限（不覆蓋已明確設為 false 的值）──
+{
+  const SKIP_ROLES = ['owner','contractor_install','contractor_sales','dealer'];
+  const rows = db.prepare(`SELECT id, permissions FROM users WHERE active=1 AND role NOT IN (${SKIP_ROLES.map(()=>'?').join(',')})`)
+    .all(...SKIP_ROLES);
+  const upd = db.prepare(`UPDATE users SET permissions=? WHERE id=?`);
+  for (const u of rows) {
+    let p = {}; try { p = JSON.parse(u.permissions || '{}'); } catch {}
+    if (p.page_expenses === undefined) {
+      p.page_expenses = true;
+      upd.run(JSON.stringify(p), u.id);
+    }
+  }
+}
+
 // materials.location 移到 CREATE TABLE 之後處理（避免全新 DB 的 ALTER TABLE 時序錯誤）
 
 // ── 個別捲料 ──────────────────────────────────────────────────
