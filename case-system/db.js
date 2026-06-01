@@ -2711,4 +2711,19 @@ db.exec(`
   }
 }
 
+// ── 登入 Session 日誌 ──────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS login_sessions (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id          INTEGER NOT NULL REFERENCES users(id),
+    login_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    logout_at        DATETIME DEFAULT NULL,
+    duration_seconds INTEGER DEFAULT NULL,
+    ip               TEXT DEFAULT NULL
+  );
+`);
+
+// ── cases 修改人追蹤 ────────────────────────────────────────────────────────────
+_addCol('cases', 'updated_by', 'INTEGER REFERENCES users(id)');
+
 module.exports = db;

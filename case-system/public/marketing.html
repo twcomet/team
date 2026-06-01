@@ -6,6 +6,7 @@
 <title>行銷報表 — 繪新管理系統</title>
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 .period-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
 .period-tab { padding:6px 18px; border-radius:20px; border:1px solid var(--gray-300); background:#fff; cursor:pointer; font-size:13px; font-weight:500; color:var(--gray-600); }
@@ -107,6 +108,27 @@
         <button class="period-tab active" onclick="setPeriod('today')">今日</button>
         <button class="period-tab"        onclick="setPeriod('week')">本週</button>
         <button class="period-tab"        onclick="setPeriod('month')">本月</button>
+        <button class="period-tab"        onclick="setPeriod('last_month')">上個月</button>
+        <button class="period-tab"        onclick="setPeriod('quarter')">一季</button>
+        <button class="period-tab"        onclick="setPeriod('year')">一年</button>
+        <button class="period-tab"        id="customTab" onclick="setPeriod('custom')">自訂</button>
+        <span id="customRange" style="display:none;align-items:center;gap:6px;font-size:13px">
+          <input type="date" id="customFrom" style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px">
+          <span>～</span>
+          <input type="date" id="customTo"   style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px">
+          <button onclick="loadCustom()" style="padding:4px 12px;border-radius:8px;background:var(--primary);color:#fff;border:none;cursor:pointer;font-size:12px">查詢</button>
+        </span>
+      </div>
+
+      <!-- 詢問量趨勢曲線圖 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <h3>詢問量趨勢</h3>
+          <span id="chartLabel" style="font-size:12px;color:var(--gray-500)"></span>
+        </div>
+        <div class="card-body">
+          <canvas id="trendChart" style="max-height:280px"></canvas>
+        </div>
       </div>
 
       <!-- Daily KPI table -->
@@ -216,16 +238,28 @@ async function init() {
   await load();
 }
 
+let customFrom = '', customTo = '';
+
 function setPeriod(p) {
   currentPeriod = p;
-  document.querySelectorAll('.period-tab').forEach((b, i) =>
-    b.classList.toggle('active', ['today','week','month'][i] === p)
+  document.querySelectorAll('.period-tab').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('onclick') === `setPeriod('${p}')`)
   );
+  const cr = document.getElementById('customRange');
+  cr.style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') load();
+}
+
+function loadCustom() {
+  customFrom = document.getElementById('customFrom').value;
+  customTo   = document.getElementById('customTo').value;
+  if (!customFrom || !customTo) { alert('請選擇起訖日期'); return; }
   load();
 }
 
 async function load() {
-  const qs = `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
+  let qs = `period=${currentPeriod}${orgId ? '&org_id='+orgId : ''}`;
+  if (currentPeriod === 'custom') qs += `&from=${customFrom}&to=${customTo}`;
   let d, daily;
   try {
     [d, daily] = await Promise.all([
@@ -237,6 +271,7 @@ async function load() {
     document.getElementById('alertContent').innerHTML = `<div style="color:#e02424;font-size:13px">載入失敗：${e.message}</div>`;
     return;
   }
+  renderChart(daily);
   renderDaily(daily);
   renderAlerts(d.alerts);
   renderFunnel(d.funnel, d.period, d.fromDate, d.toDate);
@@ -246,11 +281,52 @@ async function load() {
   renderClientSource(d.clientSourceBreakdown);
 }
 
+let _trendChart = null;
+function renderChart(d) {
+  if (!d || d.error || !d.days?.length) return;
+  const PERIOD_LABELS = {
+    today: '今日', week: '本週', month: '本月', last_month: '上個月',
+    quarter: '近一季', year: '近一年', custom: '自訂區間'
+  };
+  document.getElementById('chartLabel').textContent =
+    `${PERIOD_LABELS[d.period] || d.period}（${d.fromDate} ～ ${d.toDate}）`;
+
+  const sorted = [...d.days].sort((a, b) => a.day.localeCompare(b.day));
+  const labels    = sorted.map(r => r.day.slice(5)); // MM-DD
+  const lineNew   = sorted.map(r => r.line_new);
+  const caseNew   = sorted.map(r => r.case_new);
+  const lineOld   = sorted.map(r => r.line_old);
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (_trendChart) _trendChart.destroy();
+  _trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'LINE 新進詢問', data: lineNew, borderColor: '#0891b2', backgroundColor: 'rgba(8,145,178,0.08)', tension: 0.4, pointRadius: sorted.length > 60 ? 0 : 3, fill: true },
+        { label: '新增詢價案件', data: caseNew, borderColor: '#e11d48', backgroundColor: 'rgba(225,29,72,0.06)', tension: 0.4, pointRadius: sorted.length > 60 ? 0 : 3, fill: true },
+        { label: 'LINE 舊詢問活動', data: lineOld, borderColor: '#6366f1', backgroundColor: 'transparent', tension: 0.4, pointRadius: sorted.length > 60 ? 0 : 2, borderDash: [4,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', labels: { font: { size: 12 } } } },
+      scales: {
+        x: { ticks: { font: { size: 11 }, maxTicksLimit: 20 } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
 function renderDaily(d) {
   if (!d || d.error) return;
-  const label = d.period === 'today' ? `今日（${d.fromDate}）` :
-                d.period === 'week'  ? `本週（${d.fromDate} ～ ${d.toDate}）` :
-                `本月（${d.fromDate} ～ ${d.toDate}）`;
+  const PLABELS = { today:'今日', week:'本週', month:'本月', last_month:'上個月', quarter:'近一季', year:'近一年', custom:'自訂區間' };
+  const label = d.period === 'today'
+    ? `今日（${d.fromDate}）`
+    : `${PLABELS[d.period] || d.period}（${d.fromDate} ～ ${d.toDate}）`;
   document.getElementById('dailyLabel').textContent = label;
 
   const tbody = document.getElementById('dailyBody');

@@ -370,4 +370,62 @@ router.post('/clear-staff-richmenu', requireHR, async (req, res) => {
   }
 });
 
+// ── 員工活動報告 GET /api/hr/staff-activity ──────────────────────────────────
+router.get('/staff-activity', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!me.manage_users) return res.status(403).json({ error: '權限不足' });
+
+  const { from, to } = req.query;
+  const dateFrom = from || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const dateTo   = to   || new Date().toISOString().slice(0, 10);
+
+  // 登入 sessions
+  const sessions = db.prepare(`
+    SELECT ls.id, ls.user_id, u.name as user_name, u.role,
+           ls.login_at, ls.logout_at, ls.duration_seconds, ls.ip
+    FROM login_sessions ls
+    JOIN users u ON ls.user_id = u.id
+    WHERE date(ls.login_at) >= ? AND date(ls.login_at) <= ?
+    ORDER BY ls.login_at DESC
+  `).all(dateFrom, dateTo);
+
+  // 新增案件
+  const created = db.prepare(`
+    SELECT created_by as user_id, COUNT(*) as cnt
+    FROM cases
+    WHERE date(created_at) >= ? AND date(created_at) <= ? AND created_by IS NOT NULL
+    GROUP BY created_by
+  `).all(dateFrom, dateTo);
+
+  // 修改案件（排除自己新增的）
+  const updated = db.prepare(`
+    SELECT updated_by as user_id, COUNT(*) as cnt
+    FROM cases
+    WHERE date(updated_at) >= ? AND date(updated_at) <= ?
+      AND updated_by IS NOT NULL
+      AND NOT (updated_by = created_by AND date(created_at) >= ? AND date(created_at) <= ?)
+    GROUP BY updated_by
+  `).all(dateFrom, dateTo, dateFrom, dateTo);
+
+  // 總登入時間（從上週六開始）
+  const lastSat = new Date();
+  lastSat.setDate(lastSat.getDate() - ((lastSat.getDay() + 1) % 7));
+  const satStr = lastSat.toISOString().slice(0, 10);
+  const totalByUser = db.prepare(`
+    SELECT user_id,
+           SUM(COALESCE(duration_seconds,
+               CAST((julianday(COALESCE(logout_at,'now')) - julianday(login_at)) * 86400 AS INTEGER)
+           )) as total_seconds,
+           COUNT(*) as login_count
+    FROM login_sessions
+    WHERE date(login_at) >= ?
+    GROUP BY user_id
+  `).all(satStr);
+
+  res.json({
+    from: dateFrom, to: dateTo, since_saturday: satStr,
+    sessions, created, updated, totals: totalByUser
+  });
+});
+
 module.exports = router;

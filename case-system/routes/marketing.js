@@ -134,14 +134,23 @@ router.get('/cs-funnel', requireAuth, (req, res) => {
 router.get('/daily', requireAuth, (req, res) => {
   try {
     const me = req.session.user;
-    const { period = 'week', org_id } = req.query;
+    const { period = 'week', org_id, from, to } = req.query;
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    let fromDate;
-    if (period === 'today')      { fromDate = today; }
-    else if (period === 'week')  { const d = new Date(now); d.setDate(d.getDate() - 6); fromDate = d.toISOString().slice(0, 10); }
-    else /* month */             { fromDate = `${today.slice(0, 7)}-01`; }
+    let fromDate, toDate = today;
+    if (period === 'today')       { fromDate = today; }
+    else if (period === 'week')   { const d = new Date(now); d.setDate(d.getDate() - 6); fromDate = d.toISOString().slice(0, 10); }
+    else if (period === 'month')  { fromDate = `${today.slice(0, 7)}-01`; }
+    else if (period === 'last_month') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      fromDate = d.toISOString().slice(0, 10);
+      toDate   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+    }
+    else if (period === 'quarter') { const d = new Date(now); d.setDate(d.getDate() - 89); fromDate = d.toISOString().slice(0, 10); }
+    else if (period === 'year')    { const d = new Date(now); d.setDate(d.getDate() - 364); fromDate = d.toISOString().slice(0, 10); }
+    else if (period === 'custom' && from) { fromDate = from; toDate = to || today; }
+    else                          { fromDate = `${today.slice(0, 7)}-01`; }
 
     const of  = buildOrgFilter(me, 'org_id', org_id);
     const of2 = buildOrgFilter(me, 'i.org_id', org_id);
@@ -154,7 +163,7 @@ router.get('/daily', requireAuth, (req, res) => {
       WHERE date(created_at) BETWEEN ? AND ?
         AND status != 'hidden' ${of2.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of2.params);
+    `).all(fromDate, toDate, ...of2.params);
 
     // LINE 舊詢問活動：當天有收到新訊息（direction='in'）但詢問本身不是今天建立的
     const lineOld = db.prepare(`
@@ -166,7 +175,7 @@ router.get('/daily', requireAuth, (req, res) => {
         AND date(m.created_at) != date(i.created_at)
         ${of2.where.replace('i.org_id', 'i.org_id')}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of2.params);
+    `).all(fromDate, toDate, ...of2.params);
 
     // 每日新增詢價案件
     const caseNew = db.prepare(`
@@ -174,7 +183,7 @@ router.get('/daily', requireAuth, (req, res) => {
       FROM cases
       WHERE date(created_at) BETWEEN ? AND ? ${of.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of.params);
+    `).all(fromDate, toDate, ...of.params);
 
     // 每日初步估價完成
     const caseEstimate = db.prepare(`
@@ -183,7 +192,7 @@ router.get('/daily', requireAuth, (req, res) => {
       WHERE date(initial_estimate_at) BETWEEN ? AND ?
         AND initial_estimate_at IS NOT NULL ${of.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of.params);
+    `).all(fromDate, toDate, ...of.params);
 
     // 場勘案件數（進入 survey_pending 的案件，以 survey_pending_at 計）
     const caseSurvey = db.prepare(`
@@ -192,7 +201,7 @@ router.get('/daily', requireAuth, (req, res) => {
       WHERE date(survey_pending_at) BETWEEN ? AND ?
         AND survey_pending_at IS NOT NULL ${of.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of.params);
+    `).all(fromDate, toDate, ...of.params);
 
     // 每日報價發出
     const caseQuoted = db.prepare(`
@@ -201,7 +210,7 @@ router.get('/daily', requireAuth, (req, res) => {
       WHERE date(quoted_at) BETWEEN ? AND ?
         AND quoted_at IS NOT NULL ${of.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of.params);
+    `).all(fromDate, toDate, ...of.params);
 
     // 每日無效案件
     const caseInvalid = db.prepare(`
@@ -210,7 +219,7 @@ router.get('/daily', requireAuth, (req, res) => {
       WHERE date(invalid_at) BETWEEN ? AND ?
         AND invalid_at IS NOT NULL ${of.where}
       GROUP BY day ORDER BY day
-    `).all(fromDate, today, ...of.params);
+    `).all(fromDate, toDate, ...of.params);
 
     // 合併成每日一列
     const daySet = new Set();
@@ -219,7 +228,7 @@ router.get('/daily', requireAuth, (req, res) => {
     );
     // 填補期間內所有日期（即使無資料也顯示0）
     let d = new Date(fromDate);
-    while (d.toISOString().slice(0,10) <= today) {
+    while (d.toISOString().slice(0,10) <= toDate) {
       daySet.add(d.toISOString().slice(0,10));
       d.setDate(d.getDate() + 1);
     }
@@ -244,7 +253,7 @@ router.get('/daily', requireAuth, (req, res) => {
       invalided:    mInvalid[day]   || 0,
     }));
 
-    res.json({ period, fromDate, toDate: today, days });
+    res.json({ period, fromDate, toDate, days });
   } catch (err) {
     console.error('[marketing/daily]', err);
     res.status(500).json({ error: err.message });

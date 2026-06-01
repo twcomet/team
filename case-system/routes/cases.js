@@ -336,6 +336,7 @@ router.put('/:id', requireAuth, (req, res) => {
       material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
       initial_estimate_data=?,
       survey_fee_credited=?,
+      updated_by=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
@@ -360,6 +361,7 @@ router.put('/:id', requireAuth, (req, res) => {
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     initial_estimate_data ?? null,
     survey_fee_credited ? 1 : 0,
+    req.session.user.id,
     req.params.id,
   );
 

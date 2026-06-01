@@ -82,6 +82,11 @@ router.post('/login', (req, res) => {
   db.prepare(`INSERT INTO audit_logs (user_id, action, detail) VALUES (?, 'login', ?)`)
     .run(user.id, `登入：${req.ip}`);
 
+  // 記錄登入 session（供員工活動報告使用）
+  const loginSession = db.prepare(`INSERT INTO login_sessions (user_id, ip) VALUES (?, ?)`)
+    .run(user.id, req.ip || null);
+  req.session.login_session_id = loginSession.lastInsertRowid;
+
   req.session.user.contract_signed_at = user.contract_signed_at || null;
 
   const isStudent = ['contractor_install','contractor_sales'].includes(user.role);
@@ -91,8 +96,19 @@ router.post('/login', (req, res) => {
 
 router.post('/logout', (req, res) => {
   const uid = req.session.user?.id;
+  const loginSessionId = req.session.login_session_id;
   req.session.destroy(() => {
-    if (uid) db.prepare(`INSERT INTO audit_logs (user_id, action) VALUES (?, 'logout')`).run(uid);
+    if (uid) {
+      db.prepare(`INSERT INTO audit_logs (user_id, action) VALUES (?, 'logout')`).run(uid);
+      if (loginSessionId) {
+        db.prepare(`
+          UPDATE login_sessions
+          SET logout_at=CURRENT_TIMESTAMP,
+              duration_seconds=CAST((julianday('now') - julianday(login_at)) * 86400 AS INTEGER)
+          WHERE id=?
+        `).run(loginSessionId);
+      }
+    }
     res.json({ ok: true });
   });
 });
