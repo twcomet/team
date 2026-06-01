@@ -762,30 +762,36 @@ const DEAL_STAGE_COLORS = {
   closed:       { bg:'#d1fae5', active:'#16a34a', text:'#065f46' },
   invalid:      { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
 };
+const INQUIRY_STAGE_COLORS = {
+  inquiry:          { bg:'#fef3c7', active:'#d97706', text:'#92400e' },
+  initial_estimate: { bg:'#e0f2fe', active:'#0284c7', text:'#0369a1' },
+  invalid:          { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
+};
+const SURVEY_STAGE_COLORS = {
+  survey_pending:   { bg:'#fff7ed', active:'#ea580c', text:'#c2410c' },
+  survey_scheduled: { bg:'#ede9fe', active:'#7c3aed', text:'#6d28d9' },
+  surveyed:         { bg:'#ccfbf1', active:'#0d9488', text:'#0f766e' },
+  quote_draft:      { bg:'#fdf4ff', active:'#c026d3', text:'#a21caf' },
+  quoted:           { bg:'#fef9c3', active:'#ca8a04', text:'#713f12' },
+  invalid:          { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
+};
 
 function renderPipeline(cases) {
   const counts = {};
   cfg.stages.forEach(s => counts[s] = 0);
   cases.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
-  if (MODE === 'deal') {
-    document.getElementById('pipeline').innerHTML = cfg.stages.map(s => {
-      const col = DEAL_STAGE_COLORS[s] || {};
-      const isActive = activeStatus === s;
-      const bg = isActive ? col.active : col.bg;
-      const textColor = isActive ? '#fff' : col.text;
-      const countColor = isActive ? '#fff' : '#111827';
-      return `<div class="pipeline-stage${isActive ? ' active' : ''}" onclick="filterByStatus('${s}')"
-        style="background:${bg};border-radius:10px;margin:0 4px;border:none;color:${textColor};transition:all .2s">
-        <span class="count" style="color:${countColor}">${counts[s]}</span>${cfg.stageNames[s]}
-      </div>`;
-    }).join('');
-  } else {
-    document.getElementById('pipeline').innerHTML = cfg.stages.map(s => `
-      <div class="pipeline-stage${activeStatus === s ? ' active' : ''}" onclick="filterByStatus('${s}')">
-        <span class="count">${counts[s]}</span>${cfg.stageNames[s]}
-      </div>
-    `).join('');
-  }
+  const colorMap = MODE === 'deal' ? DEAL_STAGE_COLORS : MODE === 'inquiry' ? INQUIRY_STAGE_COLORS : SURVEY_STAGE_COLORS;
+  document.getElementById('pipeline').innerHTML = cfg.stages.map(s => {
+    const col = colorMap[s] || {};
+    const isActive = activeStatus === s;
+    const bg = isActive ? (col.active || 'var(--primary)') : (col.bg || '#f3f4f6');
+    const textColor = isActive ? '#fff' : (col.text || 'var(--gray-600)');
+    const countColor = isActive ? '#fff' : '#111827';
+    return `<div class="pipeline-stage${isActive ? ' active' : ''}" onclick="filterByStatus('${s}')"
+      style="background:${bg};border-radius:10px;margin:0 4px;border:none;color:${textColor};transition:all .2s;font-weight:${isActive ? '700' : '500'}">
+      <span class="count" style="color:${countColor}">${counts[s]}</span>${cfg.stageNames[s]}
+    </div>`;
+  }).join('');
 }
 
 function renderTable(cases) {
@@ -972,9 +978,7 @@ function getCaseRow(c) {
 
 function filterByStatus(s) {
   activeStatus = activeStatus === s ? '' : s;
-  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
-    el.classList.toggle('active', cfg.stages[i] === activeStatus);
-  });
+  renderPipeline(allCases);
   const fsSel = document.getElementById(MODE === 'survey' ? 'sv_status' : 'fs_status');
   if (fsSel) fsSel.value = activeStatus;
   renderTable(allCases);
@@ -1005,9 +1009,7 @@ function setSurveySort(field) {
 function applyFilters() {
   const statusVal = document.getElementById('fs_status').value;
   activeStatus = statusVal;
-  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
-    el.classList.toggle('active', cfg.stages[i] === activeStatus);
-  });
+  renderPipeline(allCases);
   filterPriority = document.getElementById('fs_priority').value;
   filterIntent   = document.getElementById('fs_intent').value;
   filterSales    = document.getElementById('fs_sales').value;
@@ -1022,16 +1024,14 @@ function clearFilters() {
   document.getElementById('fs_intent').value   = '';
   document.getElementById('fs_sales').value    = '';
   document.getElementById('fs_cs').value       = '';
-  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderPipeline(allCases);
   renderTable(allCases);
 }
 
 function applySurveyFilters() {
   const sv = document.getElementById('sv_status').value;
   activeStatus = sv;
-  document.querySelectorAll('.pipeline-stage').forEach((el, i) => {
-    el.classList.toggle('active', cfg.stages[i] === activeStatus);
-  });
+  renderPipeline(allCases);
   filterPriority = document.getElementById('sv_priority').value;
   filterIntent   = document.getElementById('sv_intent').value;
   filterSales    = document.getElementById('sv_sales').value;
@@ -1045,7 +1045,7 @@ function clearSurveyFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderPipeline(allCases);
   renderTable(allCases);
 }
 
@@ -1062,7 +1062,7 @@ function clearDealFilters() {
   ['df_type','df_payment','df_sales'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  document.querySelectorAll('.pipeline-stage').forEach(el => el.classList.remove('active'));
+  renderPipeline(allCases);
   renderTable(allCases);
 }
 
