@@ -976,6 +976,17 @@
                 <div style="padding:0 14px 10px;font-size:11px;color:var(--gray-400)">到期自動通知會計請款</div>
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
+              <!-- 行銷優惠折抵 -->
+              <div style="margin-bottom:14px">
+                <label style="font-size:13px;font-weight:600;color:#7c3aed">⭐ 行銷優惠折抵（如 Google 好評，不影響發票金額）</label>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                  <span style="font-size:14px;color:var(--gray-600)">$</span>
+                  <input type="number" id="p_marketing_discount" min="0" step="100" placeholder="0"
+                    style="width:120px;border:1px solid #c4b5fd;border-radius:6px;padding:6px 10px;font-size:14px"
+                    oninput="updatePayCalc()">
+                  <span style="font-size:12px;color:var(--gray-400)">客戶實付金額將減少此金額；發票金額不變</span>
+                </div>
+              </div>
               <!-- 應付餘額 + 收款狀態 -->
               <div style="background:var(--gray-50);border-radius:8px;padding:14px 16px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -987,6 +998,9 @@
                 </div>
                 <div id="p_credits_summary" style="display:none;font-size:12px;color:#065f46;background:#d1fae5;border-radius:6px;padding:6px 10px;margin-top:4px">
                   已折抵預收款 <span id="p_credits_amount"></span>，客戶實付 <span id="p_credits_net" style="font-weight:700"></span>
+                </div>
+                <div id="p_mkt_summary" style="display:none;font-size:12px;color:#6d28d9;background:#f5f3ff;border-radius:6px;padding:6px 10px;margin-top:4px">
+                  ⭐ 已折抵行銷優惠 <span id="p_mkt_amount"></span>，客戶實付 <span id="p_mkt_net" style="font-weight:700"></span>
                 </div>
               </div>
             </div>
@@ -1014,6 +1028,20 @@
               <div class="form-row">
                 <div class="form-group"><label>發票 Email</label><input type="email" id="p_invoice_email"></div>
                 <div class="form-group"><label>品名（發票用）</label><input type="text" id="p_invoice_item_desc" placeholder="例：室內裝潢貼膜施工費"></div>
+              </div>
+              <hr style="border:none;border-top:1px solid #bae6fd;margin:12px 0">
+              <div class="form-row" style="align-items:center">
+                <div class="form-group" style="flex:0 0 auto">
+                  <label>發票開立狀態</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#0369a1">
+                    <input type="checkbox" id="p_invoice_issued" style="width:16px;height:16px">
+                    已開立發票
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>開立日期</label>
+                  <input type="date" id="p_invoice_issued_date">
+                </div>
               </div>
             </div>
           </div>
@@ -1824,6 +1852,9 @@ function buildSaveBody() {
     invoice_email:      document.getElementById('bi_invoice_email').value || null,
     invoice_address:    document.getElementById('bi_invoice_address').value || null,
     invoice_item_desc:  caseData.invoice_item_desc || null,
+    invoice_issued:     document.getElementById('p_invoice_issued')?.checked ? 1 : 0,
+    invoice_issued_date: document.getElementById('p_invoice_issued_date')?.value || null,
+    marketing_discount:  parseFloat(document.getElementById('p_marketing_discount')?.value) || 0,
     status:             document.getElementById('statusSelect').value,
     payment_status:     caseData.payment_status || 'unpaid',
     payment_received:   caseData.payment_received || 0,
@@ -2985,8 +3016,9 @@ function updatePayCalc() {
   const retention    = parseFloat(document.getElementById('p_retention_amount').value)    || 0;
   const retInvoiced  = parseFloat(document.getElementById('p_retention_invoiced').value)  || 0;
   const creditAmt    = getCreditAmount();
+  const marketing    = parseFloat(document.getElementById('p_marketing_discount').value) || 0;
   const totalPaid    = survey + deposit + balance;
-  const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention - creditAmt) : 0;
+  const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention - creditAmt - marketing) : 0;
 
   document.getElementById('p_outstanding_display').textContent = (final || totalPaid) ? fmt(outstanding) : '—';
 
@@ -2995,9 +3027,19 @@ function updatePayCalc() {
     if (creditAmt > 0 && final) {
       creditsSummary.style.display = '';
       document.getElementById('p_credits_amount').textContent = fmt(creditAmt);
-      document.getElementById('p_credits_net').textContent    = fmt(Math.max(0, totalInc - totalPaid - retention - creditAmt));
+      document.getElementById('p_credits_net').textContent    = fmt(Math.max(0, totalInc - totalPaid - retention - creditAmt - marketing));
     } else {
       creditsSummary.style.display = 'none';
+    }
+  }
+  const mktSummary = document.getElementById('p_mkt_summary');
+  if (mktSummary) {
+    if (marketing > 0 && final) {
+      mktSummary.style.display = '';
+      document.getElementById('p_mkt_amount').textContent = fmt(marketing);
+      document.getElementById('p_mkt_net').textContent    = fmt(Math.max(0, totalInc - totalPaid - retention - creditAmt - marketing));
+    } else {
+      mktSummary.style.display = 'none';
     }
   }
   updateCreditsSummary();
@@ -3059,6 +3101,9 @@ function fillPaymentForm() {
   document.getElementById('p_invoice_item_desc').value  = c.invoice_item_desc || '';
   document.getElementById('p_invoice_contact').value    = c.invoice_contact   || cl?.contact_person || c.client_name  || '';
   document.getElementById('p_invoice_phone').value      = c.invoice_phone     || cl?.phone          || c.client_phone || '';
+  document.getElementById('p_invoice_issued').checked        = !!c.invoice_issued;
+  document.getElementById('p_invoice_issued_date').value    = c.invoice_issued_date || '';
+  document.getElementById('p_marketing_discount').value     = c.marketing_discount  || '';
   document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
   document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
   document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';

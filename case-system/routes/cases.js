@@ -294,7 +294,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, (req, res) => { try {
   const {
     client_id, case_type, title, description, location, sales_id,
     final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method, survey_fee_category,
@@ -313,6 +313,8 @@ router.put('/:id', requireAuth, (req, res) => {
     material_cost, install_fee, outsource_cost, shipping_cost, other_cost,
     initial_estimate_data,
     survey_fee_credited,
+    invoice_issued, invoice_issued_date,
+    marketing_discount,
   } = req.body;
 
   const prev = db.prepare(`SELECT sales_id, cs_id, location, lat, lng FROM cases WHERE id=?`).get(req.params.id);
@@ -336,6 +338,8 @@ router.put('/:id', requireAuth, (req, res) => {
       material_cost=?, install_fee=?, outsource_cost=?, shipping_cost=?, other_cost=?,
       initial_estimate_data=?,
       survey_fee_credited=?,
+      invoice_issued=?, invoice_issued_date=?,
+      marketing_discount=?,
       updated_by=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
@@ -361,6 +365,8 @@ router.put('/:id', requireAuth, (req, res) => {
     material_cost ?? null, install_fee ?? null, outsource_cost ?? null, shipping_cost ?? null, other_cost ?? null,
     initial_estimate_data ?? null,
     survey_fee_credited ? 1 : 0,
+    invoice_issued ? 1 : 0, invoice_issued_date ?? null,
+    marketing_discount ? Number(marketing_discount) : 0,
     req.session.user.id,
     req.params.id,
   );
@@ -402,7 +408,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 
   // ── 自動同步收支表 ──────────────────────────────────────────
-  {
+  try {
     const caseId  = Number(req.params.id);
     const c       = db.prepare(`SELECT org_id FROM cases WHERE id=?`).get(caseId);
     const orgId   = c?.org_id || null;
@@ -426,9 +432,15 @@ router.put('/:id', requireAuth, (req, res) => {
     upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      survey_fee_category || '場勘費', `場勘費｜${label}`);
     upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  deposit_category  || '其他收入', `訂金｜${label}`);
     upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    balance_category  || '其他收入', `尾款｜${label}`);
+  } catch(ledgerErr) {
+    console.error('[PUT case ledger sync]', ledgerErr.message);
   }
 
   res.json({ ok: true });
+  } catch(err) {
+    console.error('[PUT /api/cases/:id]', err.message);
+    res.status(500).json({ error: '儲存失敗：' + err.message });
+  }
 });
 
 // ── 負責人快速指派（列表 inline 批次儲存用）────────────────────

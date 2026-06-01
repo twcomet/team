@@ -629,7 +629,7 @@ function render() {
           })()}
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">客戶資料編輯</button>
           <button class="btn btn-primary btn-sm" onclick="newCaseForClient(event,${c.id},${JSON.stringify(c.name)})">客戶案件建立</button>
-          ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteClientFromList(event,${c.id})">刪除</button>` : ''}
+          ${(currentUser?.role==='owner'||currentUser?.manage_users||currentUser?.can_delete) ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteClientFromList(event,${c.id})">刪除</button>` : ''}
         </div>
       </div>
     </div>`;

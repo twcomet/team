@@ -1890,12 +1890,21 @@ try {
   if (_csFix && /CHECK\s*\(case_type\s+IN\s*\(/.test(_csFix.sql) && !_csFix.sql.includes("'output'")) {
     db.exec(`PRAGMA foreign_keys=OFF`);
     db.exec(`DROP TABLE IF EXISTS _cases_output_fix`);
-    const _cols = db.prepare(`PRAGMA table_info(cases)`).all().map(c => c.name);
+    const _allCols = db.prepare(`PRAGMA table_info(cases)`).all();
     const _newDef = _csFix.sql
       .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?cases"?\b/i, 'CREATE TABLE _cases_output_fix')
       .replace(/CHECK\s*\(case_type\s+IN\s*\([^)]+\)\)/,
                `CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other'))`);
     db.exec(_newDef);
+    // 補上後來 _addCol 加入的欄位（原 CREATE TABLE 不含這些）
+    const _newFixCols = new Set(db.prepare(`PRAGMA table_info(_cases_output_fix)`).all().map(c => c.name));
+    for (const col of _allCols) {
+      if (!_newFixCols.has(col.name)) {
+        const typeDef = (col.type || 'TEXT') + (col.dflt_value != null ? ` DEFAULT ${col.dflt_value}` : '');
+        try { db.exec(`ALTER TABLE _cases_output_fix ADD COLUMN "${col.name}" ${typeDef}`); } catch(_) {}
+      }
+    }
+    const _cols = _allCols.map(c => `"${c.name}"`);
     db.exec(`INSERT INTO _cases_output_fix (${_cols.join(',')}) SELECT ${_cols.join(',')} FROM cases`);
     db.exec(`DROP TABLE cases`);
     db.exec(`ALTER TABLE _cases_output_fix RENAME TO cases`);
@@ -2725,5 +2734,12 @@ db.exec(`
 
 // ── cases 修改人追蹤 ────────────────────────────────────────────────────────────
 _addCol('cases', 'updated_by', 'INTEGER REFERENCES users(id)');
+
+// ── 發票開立記錄 ────────────────────────────────────────────────────────────────
+_addCol('cases', 'invoice_issued',      'INTEGER DEFAULT 0');
+_addCol('cases', 'invoice_issued_date', 'DATE DEFAULT NULL');
+
+// ── 行銷優惠折抵（如 Google 好評折抵，不影響發票金額）────────────────────────
+_addCol('cases', 'marketing_discount', 'INTEGER DEFAULT 0');
 
 module.exports = db;
