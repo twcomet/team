@@ -184,22 +184,24 @@ router.get('/monthly', requireAuth, (req, res) => {
 
 // ── 申請請假（web session）──────────────────────────────────
 router.post('/leave', requireAuth, (req, res) => {
-  const { leave_type, leave_date, hours, reason } = req.body;
+  const { leave_type, leave_date, leave_end_date, hours, reason } = req.body;
   if (!leave_type || !leave_date || !hours) return res.status(400).json({ error: 'Missing fields' });
   const valid = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
   if (!valid.includes(leave_type)) return res.status(400).json({ error: 'Invalid leave_type' });
 
-  db.prepare(`INSERT INTO leave_requests (user_id, leave_type, leave_date, hours, reason) VALUES (?,?,?,?,?)`)
-    .run(req.session.user.id, leave_type, leave_date, parseFloat(hours), reason ?? null);
+  const endDate = leave_end_date && leave_end_date >= leave_date ? leave_end_date : null;
+  const r = db.prepare(`INSERT INTO leave_requests (user_id, leave_type, leave_date, leave_end_date, hours, reason) VALUES (?,?,?,?,?,?)`)
+    .run(req.session.user.id, leave_type, leave_date, endDate, parseFloat(hours), reason ?? null);
 
   const hrs  = db.prepare(`SELECT id FROM users WHERE role IN ('owner','hq_hr') AND active=1`).all();
   const user = db.prepare(`SELECT name FROM users WHERE id=?`).get(req.session.user.id);
+  const dateRange = endDate && endDate !== leave_date ? `${leave_date} ~ ${endDate}` : leave_date;
   const insN = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'leave','users',?,?)`);
   for (const h of hrs) {
-    insN.run(h.id, `${user?.name} 申請請假`, `${leave_type}｜${leave_date}｜${hours}小時${reason ? '\n'+reason : ''}`, req.session.user.id, '/hr');
+    insN.run(h.id, `${user?.name} 申請請假`, `${leave_type}｜${dateRange}｜${hours}小時${reason ? '\n'+reason : ''}`, req.session.user.id, '/leave');
   }
 
-  res.json({ ok: true });
+  res.json({ ok: true, id: r.lastInsertRowid });
 });
 
 // ── 申請補打卡（web session）────────────────────────────────

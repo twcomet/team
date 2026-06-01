@@ -31,6 +31,7 @@
   <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
   <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
   <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
   <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
   <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
   <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
@@ -105,7 +106,7 @@
 <script>
 let curYear = new Date().getFullYear();
 let curMonth = new Date().getMonth() + 1;
-let calData = { cases: [], targets: [] };
+let calData = { cases: [], targets: [], leaves: [] };
 let defaultTarget = 100000;
 
 async function init() {
@@ -157,6 +158,21 @@ function renderCalendar() {
     casesByDate[c.scheduled_date].push(c);
   });
 
+  // 請假按日期分組（跨日假期展開到每一天）
+  const leavesByDate = {};
+  (calData.leaves || []).forEach(lv => {
+    const start = lv.leave_date;
+    const end   = lv.leave_end_date || lv.leave_date;
+    const cur   = new Date(start + 'T00:00:00');
+    const endD  = new Date(end   + 'T00:00:00');
+    while (cur <= endD) {
+      const key = cur.toISOString().slice(0, 10);
+      if (!leavesByDate[key]) leavesByDate[key] = [];
+      leavesByDate[key].push(lv);
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+
   // 空格
   for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell other-month"></div>';
 
@@ -194,11 +210,17 @@ function renderCalendar() {
       return `<div class="cal-case-pill ${c.status}" title="${parts.join('｜')}">${parts.join('｜')}</div>`;
     }).join('') + (cases.length > 3 ? `<div style="font-size:11px;color:#6b7280">+${cases.length - 3} 件</div>` : '');
 
+    const dayLeaves = leavesByDate[dateStr] || [];
+    const leavePillsHtml = dayLeaves.map(lv =>
+      `<div style="background:#fde68a;color:#92400e;border-radius:4px;padding:1px 5px;font-size:10px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${lv.user_name} ${lv.leave_type}">🏖️ ${lv.user_name} ${lv.leave_type}</div>`
+    ).join('');
+
     html += `
       <div class="cal-cell${isToday ? ' today' : ''}" onclick="openDayModal('${dateStr}')">
         <div class="cal-day">${d}</div>
         ${revenueHtml}
         ${pillsHtml}
+        ${leavePillsHtml}
       </div>`;
   }
 
@@ -226,12 +248,24 @@ function renderUnscheduled() {
 }
 
 function openDayModal(dateStr) {
-  const cases = calData.cases.filter(c => c.scheduled_date === dateStr);
-  document.getElementById('dayModalTitle').textContent = `${dateStr} 施工安排`;
-  if (!cases.length) {
-    document.getElementById('dayModalBody').innerHTML = '<p style="color:#6b7280">這天沒有排工</p>';
-  } else {
-    document.getElementById('dayModalBody').innerHTML = cases.map(c => `
+  const cases  = calData.cases.filter(c => c.scheduled_date === dateStr);
+  const leaves = (calData.leaves || []).filter(lv => {
+    const s = lv.leave_date, e = lv.leave_end_date || lv.leave_date;
+    return dateStr >= s && dateStr <= e;
+  });
+  document.getElementById('dayModalTitle').textContent = `${dateStr} 當日記錄`;
+
+  let html = '';
+  if (leaves.length) {
+    html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:6px">🏖️ 請假人員</div>`;
+    html += leaves.map(lv => `
+      <div style="background:#fef3c7;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px">
+        <strong>${lv.user_name}</strong>｜${lv.leave_type}｜${lv.hours} 小時
+      </div>`).join('');
+    html += '</div>';
+  }
+  if (cases.length) {
+    html += cases.map(c => `
       <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <code style="font-size:12px;color:#6b7280">${c.case_number}</code>
@@ -244,6 +278,8 @@ function openDayModal(dateStr) {
       </div>
     `).join('');
   }
+  if (!html) html = '<p style="color:#6b7280">這天沒有排工或請假記錄</p>';
+  document.getElementById('dayModalBody').innerHTML = html;
   document.getElementById('dayModal').classList.add('open');
 }
 

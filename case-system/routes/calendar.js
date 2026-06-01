@@ -79,7 +79,22 @@ router.get('/', requireAuth, (req, res) => {
     WHERE date BETWEEN ? AND ? ${orgCondT}
   `).all(dateFrom, dateTo, ...orgPsT);
 
-  res.json({ cases, targets });
+  // 已核准的請假（含跨日）
+  const leaves = db.prepare(`
+    SELECT lr.id, lr.leave_date, lr.leave_end_date, lr.leave_type, lr.hours,
+           u.name AS user_name, u.id AS user_id
+    FROM leave_requests lr
+    JOIN users u ON u.id = lr.user_id
+    WHERE lr.status = 'approved'
+      AND (
+        lr.leave_date BETWEEN ? AND ?
+        OR (lr.leave_end_date IS NOT NULL AND lr.leave_end_date BETWEEN ? AND ?)
+        OR (lr.leave_date <= ? AND lr.leave_end_date >= ?)
+      )
+    ORDER BY lr.leave_date
+  `).all(dateFrom, dateTo, dateFrom, dateTo, dateFrom, dateTo);
+
+  res.json({ cases, targets, leaves });
 });
 
 // POST /api/daily-target  { date, target_amount }

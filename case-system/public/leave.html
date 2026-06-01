@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請假管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--gray-200); }
+.tabs-bar .tab { padding:8px 18px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.filter-bar { display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap; }
+.filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; }
+.leave-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px; margin-bottom:10px; }
+.leave-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.leave-card-meta   { font-size:12px; color:var(--gray-500); margin-top:4px; }
+.leave-type-badge  { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.lt-特休 { background:#dbeafe; color:#1e40af; }
+.lt-病假 { background:#fce7f3; color:#9d174d; }
+.lt-事假 { background:#fef3c7; color:#92400e; }
+.lt-公假 { background:#d1fae5; color:#065f46; }
+.lt-婚假 { background:#ede9fe; color:#5b21b6; }
+.lt-喪假 { background:#f3f4f6; color:#374151; }
+.lt-補休 { background:#ccfbf1; color:#0f766e; }
+.lt-其他 { background:#f3f4f6; color:#374151; }
+.sb-pending  { background:#fef9c3; color:#713f12; }
+.sb-approved { background:#d1fae5; color:#065f46; }
+.sb-rejected { background:#fee2e2; color:#991b1b; }
+.balance-cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.balance-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:14px 20px; min-width:120px; text-align:center; }
+.balance-card .bc-num { font-size:26px; font-weight:700; color:var(--primary); }
+.balance-card .bc-label { font-size:12px; color:var(--gray-500); margin-top:2px; }
+.balance-card.bc-remain { background:#f0fdf4; border-color:#bbf7d0; }
+.balance-card.bc-remain .bc-num { color:#16a34a; }
+.review-actions { display:flex; gap:6px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">🏖️ 請假管理</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="openNewModal()">＋ 申請請假</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="tabs-bar">
+        <div class="tab active" data-tab="my" onclick="switchTab('my')">我的請假</div>
+        <div class="tab" data-tab="review" id="reviewTab" style="display:none" onclick="switchTab('review')">待審核 <span id="pendingBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></div>
+        <div class="tab" data-tab="all" id="allTab" style="display:none" onclick="switchTab('all')">全部記錄</div>
+      </div>
+
+      <!-- 我的請假 -->
+      <div id="pane-my">
+        <div id="myBalance" class="balance-cards"></div>
+        <div class="filter-bar">
+          <select id="myStatusFilter" onchange="loadMyLeaves()">
+            <option value="">全部狀態</option>
+            <option value="pending">審核中</option>
+            <option value="approved">已核准</option>
+            <option value="rejected">已拒絕</option>
+          </select>
+          <select id="myMonthFilter" onchange="loadMyLeaves()">
+            <option value="">全部月份</option>
+          </select>
+        </div>
+        <div id="myLeaveList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">載入中…</p></div>
+      </div>
+
+      <!-- 待審核 -->
+      <div id="pane-review" style="display:none">
+        <div id="reviewList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">載入中…</p></div>
+      </div>
+
+      <!-- 全部記錄 -->
+      <div id="pane-all" style="display:none">
+        <div class="filter-bar">
+          <select id="allStatusFilter" onchange="loadAllLeaves()">
+            <option value="">全部狀態</option>
+            <option value="pending">審核中</option>
+            <option value="approved">已核准</option>
+            <option value="rejected">已拒絕</option>
+          </select>
+          <select id="allMonthFilter" onchange="loadAllLeaves()">
+            <option value="">全部月份</option>
+          </select>
+        </div>
+        <div id="allLeaveList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">載入中…</p></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 申請請假 Modal -->
+<div class="modal-overlay" id="newLeaveModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3>申請請假</h3>
+      <button class="modal-close" onclick="closeNewModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>假別 *</label>
+        <select id="nl_type">
+          <option value="特休">特休</option>
+          <option value="病假">病假</option>
+          <option value="事假">事假</option>
+          <option value="公假">公假</option>
+          <option value="婚假">婚假</option>
+          <option value="喪假">喪假</option>
+          <option value="補休">補休</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始日期 *</label>
+          <input type="date" id="nl_start">
+        </div>
+        <div class="form-group">
+          <label>結束日期（跨日時填）</label>
+          <input type="date" id="nl_end">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>請假時數 *</label>
+        <select id="nl_hours">
+          <option value="8">全天（8 小時）</option>
+          <option value="4">半天（4 小時）</option>
+          <option value="2">2 小時</option>
+          <option value="1">1 小時</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>請假事由</label>
+        <input type="text" id="nl_reason" placeholder="選填，例：家庭因素、就醫…">
+      </div>
+      <div style="background:#eff6ff;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-top:4px">
+        💬 也可以在 LINE 發送指令：<br>
+        <code>請假 特休 2026-06-10 8 出遊</code><br>
+        格式：請假 假別 日期 時數 原因
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeNewModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitLeave()">送出申請</button>
+    </div>
+  </div>
+</div>
+
+<!-- 審核 Modal -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="reviewModalTitle">審核請假</h3>
+      <button class="modal-close" onclick="document.getElementById('reviewModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="reviewModalInfo" style="font-size:14px;margin-bottom:14px"></div>
+      <div class="form-group">
+        <label>審核備註（選填）</label>
+        <input type="text" id="review_note" placeholder="若拒絕請說明原因…">
+      </div>
+      <input type="hidden" id="review_id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('reviewModal').classList.remove('open')">取消</button>
+      <button class="btn btn-ghost" style="color:#ef4444" onclick="doReview('rejected')">拒絕</button>
+      <button class="btn btn-primary" onclick="doReview('approved')">核准</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+
+<script src="/js/common.js"></script>
+<script>
+const LEAVE_STATUS_LABEL = { pending:'審核中', approved:'已核准', rejected:'已拒絕' };
+const LEAVE_TYPES = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+
+let isHR = false;
+let curTab = 'my';
+
+function showToast(msg, type='success') {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `background:${type==='error'?'#dc2626':'#16a34a'};color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15)`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+async function init() {
+  await loadUser();
+  isHR = currentUser?.role === 'owner' || currentUser?.role === 'hq_hr' || !!currentUser?.manage_users;
+  highlightNav('leave');
+
+  // 初始化月份下拉選單
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${d.getFullYear()} 年 ${d.getMonth()+1} 月`;
+    ['myMonthFilter','allMonthFilter'].forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      document.getElementById(id).appendChild(opt);
+    });
+  }
+
+  if (isHR) {
+    document.getElementById('reviewTab').style.display = '';
+    document.getElementById('allTab').style.display    = '';
+  }
+
+  await Promise.all([loadMyLeaves(), loadMyBalance()]);
+  if (isHR) loadPendingCount();
+}
+
+async function loadMyBalance() {
+  try {
+    const r = await fetch(`/api/hr/staff/${currentUser.id}`);
+    if (!r.ok) return;
+    const emp = await r.json();
+    document.getElementById('myBalance').innerHTML = `
+      <div class="balance-card"><div class="bc-num">${emp.leave_entitlement ?? '—'}</div><div class="bc-label">${emp.leave_year} 年應得特休（天）</div></div>
+      <div class="balance-card"><div class="bc-num">${emp.leave_used ?? 0}</div><div class="bc-label">已請特休（天）</div></div>
+      <div class="balance-card bc-remain"><div class="bc-num">${emp.leave_remaining ?? '—'}</div><div class="bc-label">剩餘特休（天）</div></div>
+    `;
+  } catch {}
+}
+
+async function loadPendingCount() {
+  const r = await fetch('/api/hr/leave-requests?status=pending');
+  if (!r.ok) return;
+  const list = await r.json();
+  const badge = document.getElementById('pendingBadge');
+  if (list.length) {
+    badge.textContent = list.length;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function loadMyLeaves() {
+  const status = document.getElementById('myStatusFilter').value;
+  const month  = document.getElementById('myMonthFilter').value;
+  let url = '/api/hr/leave-requests?';
+  if (status) url += `status=${status}&`;
+  if (month)  url += `month=${month}&`;
+
+  const r = await fetch(url);
+  const list = r.ok ? await r.json() : [];
+  renderLeaveList('myLeaveList', list, false);
+}
+
+async function loadReviewLeaves() {
+  const r = await fetch('/api/hr/leave-requests?status=pending');
+  const list = r.ok ? await r.json() : [];
+  renderLeaveList('reviewList', list, true);
+}
+
+async function loadAllLeaves() {
+  const status = document.getElementById('allStatusFilter').value;
+  const month  = document.getElementById('allMonthFilter').value;
+  let url = '/api/hr/leave-requests?';
+  if (status) url += `status=${status}&`;
+  if (month)  url += `month=${month}&`;
+  const r = await fetch(url);
+  const list = r.ok ? await r.json() : [];
+  renderLeaveList('allLeaveList', list, true);
+}
+
+function renderLeaveList(containerId, list, showUser) {
+  const el = document.getElementById(containerId);
+  if (!list.length) {
+    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">尚無請假記錄</p>';
+    return;
+  }
+  el.innerHTML = list.map(lr => {
+    const dateRange = lr.leave_end_date && lr.leave_end_date !== lr.leave_date
+      ? `${lr.leave_date} ~ ${lr.leave_end_date}` : lr.leave_date;
+    const statusHtml = `<span class="leave-type-badge sb-${lr.status}">${LEAVE_STATUS_LABEL[lr.status] || lr.status}</span>`;
+    const typeHtml   = `<span class="leave-type-badge lt-${lr.leave_type}">${lr.leave_type}</span>`;
+    const canCancel  = lr.status === 'pending' && (lr.user_id === currentUser.id || isHR);
+    const canReview  = isHR && lr.status === 'pending';
+
+    return `<div class="leave-card">
+      <div class="leave-card-header">
+        <div>
+          ${showUser ? `<span style="font-weight:600;font-size:14px">${lr.user_name}</span> ` : ''}
+          ${typeHtml} ${statusHtml}
+          <div class="leave-card-meta">
+            📅 ${dateRange}｜${lr.hours} 小時
+            ${lr.reason ? `｜${lr.reason}` : ''}
+          </div>
+          ${lr.status !== 'pending' ? `<div class="leave-card-meta">
+            ${lr.status === 'approved' ? '✅ 核准' : '❌ 拒絕'}：${lr.reviewed_by_name || '—'}
+            ${lr.reviewed_at ? ' / ' + lr.reviewed_at.slice(0,10) : ''}
+            ${lr.review_note ? `｜${lr.review_note}` : ''}
+          </div>` : ''}
+          <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
+        </div>
+      </div>
+      ${(canReview || canCancel) ? `<div class="review-actions">
+        ${canReview ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${lr.id},'${lr.user_name}','${lr.leave_type}','${dateRange}',${lr.hours})">審核</button>` : ''}
+        ${canCancel && !canReview ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">撤銷申請</button>` : ''}
+        ${canReview ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">刪除</button>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function switchTab(tab) {
+  curTab = tab;
+  document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['my','review','all'].forEach(t => document.getElementById(`pane-${t}`).style.display = t === tab ? '' : 'none');
+  if (tab === 'review') loadReviewLeaves();
+  if (tab === 'all')    loadAllLeaves();
+}
+
+function openNewModal() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('nl_type').value   = '特休';
+  document.getElementById('nl_start').value  = today;
+  document.getElementById('nl_end').value    = '';
+  document.getElementById('nl_hours').value  = '8';
+  document.getElementById('nl_reason').value = '';
+  document.getElementById('newLeaveModal').classList.add('open');
+}
+
+function closeNewModal() {
+  document.getElementById('newLeaveModal').classList.remove('open');
+}
+
+async function submitLeave() {
+  const leave_type     = document.getElementById('nl_type').value;
+  const leave_date     = document.getElementById('nl_start').value;
+  const leave_end_date = document.getElementById('nl_end').value;
+  const hours          = document.getElementById('nl_hours').value;
+  const reason         = document.getElementById('nl_reason').value.trim();
+  if (!leave_date) { alert('請選擇日期'); return; }
+  if (leave_end_date && leave_end_date < leave_date) { alert('結束日期不可早於開始日期'); return; }
+
+  const r = await fetch('/api/attendance/leave', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ leave_type, leave_date, leave_end_date: leave_end_date || null, hours, reason: reason || null })
+  });
+  if (r.ok) {
+    showToast('請假申請已送出，等待 HR 審核');
+    closeNewModal();
+    loadMyLeaves();
+    if (isHR) loadPendingCount();
+  } else {
+    const e = await r.json(); showToast(e.error || '送出失敗', 'error');
+  }
+}
+
+async function cancelLeave(id) {
+  if (!confirm('確定撤銷此請假申請？')) return;
+  const r = await fetch(`/api/hr/leave-requests/${id}`, { method:'DELETE' });
+  if (r.ok) {
+    showToast('已撤銷');
+    loadMyLeaves();
+    if (isHR) { loadReviewLeaves(); loadPendingCount(); }
+  } else {
+    const e = await r.json(); showToast(e.error || '操作失敗', 'error');
+  }
+}
+
+function openReviewModal(id, userName, leaveType, dateRange, hours) {
+  document.getElementById('review_id').value = id;
+  document.getElementById('review_note').value = '';
+  document.getElementById('reviewModalTitle').textContent = `審核請假 — ${userName}`;
+  document.getElementById('reviewModalInfo').innerHTML = `
+    <div><strong>${leaveType}</strong>｜${dateRange}｜${hours} 小時</div>
+  `;
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+async function doReview(status) {
+  const id          = document.getElementById('review_id').value;
+  const review_note = document.getElementById('review_note').value.trim();
+  const r = await fetch(`/api/hr/leave-requests/${id}/review`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status, review_note: review_note || null })
+  });
+  if (r.ok) {
+    showToast(status === 'approved' ? '已核准' : '已拒絕');
+    document.getElementById('reviewModal').classList.remove('open');
+    loadReviewLeaves();
+    loadPendingCount();
+    if (curTab === 'all') loadAllLeaves();
+  } else {
+    const e = await r.json(); showToast(e.error || '操作失敗', 'error');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

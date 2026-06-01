@@ -182,6 +182,45 @@ router.get('/pending', requireAuth, requireHR, (req, res) => {
   res.json({ leave, makeup });
 });
 
+// GET /api/hr/leave-requests — 請假申請列表
+router.get('/leave-requests', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const isHR = me.role === 'owner' || me.role === 'hq_hr' || !!me.manage_users;
+  const { status, user_id, month } = req.query;
+
+  let sql = `
+    SELECT lr.*, u.name AS user_name, rv.name AS reviewed_by_name
+    FROM leave_requests lr
+    JOIN users u ON u.id = lr.user_id
+    LEFT JOIN users rv ON rv.id = lr.reviewed_by
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (!isHR) {
+    sql += ` AND lr.user_id = ?`; params.push(me.id);
+  } else if (user_id) {
+    sql += ` AND lr.user_id = ?`; params.push(user_id);
+  }
+  if (status) { sql += ` AND lr.status = ?`; params.push(status); }
+  if (month)  { sql += ` AND lr.leave_date LIKE ?`; params.push(`${month}%`); }
+  sql += ` ORDER BY lr.created_at DESC`;
+
+  res.json(db.prepare(sql).all(...params));
+});
+
+// DELETE /api/hr/leave-requests/:id — 員工撤銷 / HR刪除
+router.delete('/leave-requests/:id', requireAuth, (req, res) => {
+  const lr = db.prepare(`SELECT * FROM leave_requests WHERE id = ?`).get(req.params.id);
+  if (!lr) return res.status(404).json({ error: '找不到請假申請' });
+  const me = req.session.user;
+  const isHR = me.role === 'owner' || me.role === 'hq_hr' || !!me.manage_users;
+  if (lr.user_id !== me.id && !isHR) return res.status(403).json({ error: '無權限' });
+  if (lr.status === 'approved' && !isHR) return res.status(400).json({ error: '已核准的請假無法自行取消，請聯繫 HR' });
+  db.prepare(`DELETE FROM leave_requests WHERE id = ?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
 // PUT /api/hr/leave-requests/:id/review
 router.put('/leave-requests/:id/review', requireAuth, requireHR, (req, res) => {
   const { status, review_note } = req.body;
