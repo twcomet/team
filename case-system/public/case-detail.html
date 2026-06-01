@@ -1685,6 +1685,8 @@ function applyConvertButtons(group) {
     ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="openDetailInvalidModal()">✕ 標記無效</button>` : '';
 
   const ADVANCE_CFG = {
+    survey_pending:   { label: '確認已排場勘', color: '#7c3aed' },
+    survey_scheduled: { label: '確認已場勘',   color: '#0369a1' },
     surveyed:    { label: '已建報價單', color: '#dc2626' },
     quote_draft: { label: '已發報價單', color: '#dc2626' },
     quoted:      { label: '✓ 確認成交', color: '#16a34a' },

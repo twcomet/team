@@ -106,10 +106,10 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
     notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name, workerToken);
   }
 
-  // 案件狀態升為 survey_scheduled
+  // 案件狀態升為 survey_scheduled（有指派場勘人員或設定日期即觸發）
   const c = db.prepare(`SELECT status FROM cases WHERE id=?`).get(case_id);
-  if (['inquiry','quoted'].includes(c?.status)) {
-    db.prepare(`UPDATE cases SET status='survey_scheduled', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(case_id);
+  if (['inquiry','initial_estimate','survey_pending','quoted'].includes(c?.status) && (surveyor_id || survey_date)) {
+    db.prepare(`UPDATE cases SET status='survey_scheduled', case_group='survey', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(case_id);
   }
 
   res.json({ ok: true, id: result.lastInsertRowid, token });
@@ -149,6 +149,12 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(req.params.id);
     const wt = db.prepare(`SELECT worker_token FROM survey_forms WHERE case_id=?`).get(req.params.id)?.worker_token;
     notifySurveyor(surveyor_id, caseData, survey_date, survey_time, dispatch_note, me.name, wt);
+  }
+
+  // 案件狀態升為 survey_scheduled（有指派場勘人員或設定日期即觸發）
+  const cCase = db.prepare(`SELECT status FROM cases WHERE id=?`).get(req.params.id);
+  if (['inquiry','initial_estimate','survey_pending','quoted'].includes(cCase?.status) && (surveyor_id || survey_date)) {
+    db.prepare(`UPDATE cases SET status='survey_scheduled', case_group='survey', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(req.params.id);
   }
 
   const form = db.prepare(`SELECT share_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
