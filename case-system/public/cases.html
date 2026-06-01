@@ -112,11 +112,11 @@
           <option value="low">低優先</option>
         </select>
         <select id="fs_intent" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:110px">
-          <option value="">全部成交意願</option>
-          <option value="hot">積極成交</option>
-          <option value="warm">有意願</option>
-          <option value="cool">觀望中</option>
-          <option value="cold">意願低</option>
+          <option value="">全部處理狀態</option>
+          <option value="called">客服打過電話</option>
+          <option value="incomplete">資料不齊</option>
+          <option value="waiting_quote">客戶等報價</option>
+          <option value="need_survey">需追蹤場勘</option>
         </select>
         <select id="fs_sales" onchange="applyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
           <option value="">全部業務</option>
@@ -174,11 +174,11 @@
           <option value="low">低優先</option>
         </select>
         <select id="sv_intent" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:110px">
-          <option value="">全部成交意願</option>
-          <option value="hot">積極成交</option>
-          <option value="warm">有意願</option>
-          <option value="cool">觀望中</option>
-          <option value="cold">意願低</option>
+          <option value="">全部處理狀態</option>
+          <option value="called">客服打過電話</option>
+          <option value="incomplete">資料不齊</option>
+          <option value="waiting_quote">客戶等報價</option>
+          <option value="need_survey">需追蹤場勘</option>
         </select>
         <select id="sv_sales" onchange="applySurveyFilters()" style="padding:5px 6px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;max-width:100px">
           <option value="">全部業務</option>
@@ -504,9 +504,9 @@ let filterPriority = '', filterIntent = '', filterSales = '', filterCs = '';
 let dealFilterType = '', dealFilterPayment = '', dealFilterSales = '';
 let dealSortField = 'scheduled_date', dealSortDir = 'asc';
 
-const INTENT_LABELS  = { hot:'積極成交', warm:'有意願', cool:'觀望中', cold:'意願低' };
+const INTENT_LABELS  = { called:'客服打過電話', incomplete:'資料不齊', waiting_quote:'客戶等報價', need_survey:'需追蹤場勘' };
 const PRIORITY_ORDER = { urgent: 0, high: 1, normal: 2, low: 3 };
-const INTENT_ORDER   = { hot: 0, warm: 1, cool: 2, cold: 3 };
+const INTENT_ORDER   = { called: 0, incomplete: 1, waiting_quote: 2, need_survey: 3 };
 
 async function init() {
   await loadUser();
@@ -691,7 +691,7 @@ function renderTableHead() {
       <th style="width:130px">客戶</th>
       <th style="width:150px">官方 Line</th>
       <th style="width:240px">項目</th>
-      ${iSortTh('成交意願', 'deal_intent', '90px')}
+      ${iSortTh('處理狀態', 'deal_intent', '90px')}
       <th style="width:88px">負責業務</th>
       <th style="width:88px">負責客服</th>
       ${iSortTh('優先', 'priority', '76px')}
@@ -714,7 +714,7 @@ function renderTableHead() {
       <th style="width:160px">地址</th>
       <th style="width:110px">客人希望時間</th>
       ${sSortTh('場勘日', 'survey_date', '85px')}
-      ${sSortTh('成交意願', 'deal_intent', '80px')}
+      ${sSortTh('處理狀態', 'deal_intent', '80px')}
       <th style="width:80px">業務</th>
       <th style="width:80px">客服</th>
       <th style="width:80px">場勘人</th>

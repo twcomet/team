@@ -110,10 +110,10 @@ tr:hover td { background: #eef2ff !important; }
 .badge-closed           { background: #d1fae5; color: #065f46; }
 .badge-invalid          { background: var(--gray-100); color: var(--gray-500); }
 .badge-tech_accepted    { background: #ffe4e6; color: #9f1239; }
-.badge-intent-hot  { background: #fee2e2; color: #991b1b; }
-.badge-intent-warm { background: #d1fae5; color: #065f46; }
-.badge-intent-cool { background: #fef9c3; color: #713f12; }
-.badge-intent-cold { background: #f3f4f6; color: #6b7280; }
+.badge-intent-called        { background: #d1fae5; color: #065f46; }
+.badge-intent-incomplete    { background: #fed7aa; color: #c2410c; }
+.badge-intent-waiting_quote { background: #dbeafe; color: #1e40af; }
+.badge-intent-need_survey   { background: #ede9fe; color: #6d28d9; }
 .badge-paid { background: #d1fae5; color: #065f46; }
 .badge-partial { background: #fef9c3; color: #713f12; }
 .badge-unpaid { background: #fee2e2; color: #991b1b; }
