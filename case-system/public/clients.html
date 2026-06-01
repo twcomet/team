@@ -64,6 +64,7 @@
   <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
   <span class="nav-group-label">客戶</span>
   <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
   <span class="nav-group-label">進銷存</span>
   <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
   <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
@@ -202,7 +203,15 @@
         <select id="dep_type" onchange="onDepTypeChange()">
           <option value="catalog">膜料本（預收款）</option>
           <option value="sample">樣本索取記錄</option>
+          <option value="survey_fee">場勘費（預收款）</option>
           <option value="other">其他預收款</option>
+        </select>
+      </div>
+      <!-- 場勘費關聯案件（type=survey_fee 才顯示） -->
+      <div class="form-group" id="depCaseRow" style="display:none">
+        <label>關聯案件 *</label>
+        <select id="dep_linked_case_id">
+          <option value="">— 載入中 —</option>
         </select>
       </div>
       <!-- 樣本品名（type=sample 才顯示） -->
@@ -681,17 +690,27 @@ async function loadClientDeposits(cid) {
 }
 
 const DEP_STATUS_LABEL = { pending:'待折抵', applied:'已折抵', forfeited:'已保留', refunded:'已退費' };
-const DEP_TYPE_LABEL   = { catalog:'膜料本', sample:'樣本', other:'其他預收款' };
+const DEP_TYPE_LABEL   = { catalog:'膜料本', sample:'樣本', survey_fee:'場勘費', other:'其他預收款' };
 
 function renderClientDeposits(cid) {
   const el = document.getElementById(`deposits-${cid}`);
   if (!el) return;
   const deps = clientDeposits[cid] || [];
 
+  const canVerify = currentUser?.role === 'owner' || currentUser?.role === 'hq_accounting' || currentUser?.manage_users;
+
   const rows = deps.map(d => {
-    const badge = `<span class="dep-badge dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
-    const caseRef = d.applied_case_number ? `<span style="color:var(--gray-500);font-size:12px">→ ${d.applied_case_number}</span>` : '';
-    const delBtn = d.status === 'pending'
+    const statusBadgeHtml = `<span class="dep-badge dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
+    const verifyBadge = d.accounting_verified
+      ? `<span style="font-size:11px;background:#d1fae5;color:#065f46;border-radius:4px;padding:2px 6px;font-weight:600">✓ 已核銷</span>`
+      : `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 6px">待核銷</span>`;
+    const caseRef = d.applied_case_number
+      ? `<span style="color:var(--gray-500);font-size:12px">→ ${d.applied_case_number}</span>`
+      : (d.linked_case_number ? `<span style="color:var(--gray-500);font-size:12px">關聯：${d.linked_case_number}</span>` : '');
+    const verifyBtn = (!d.accounting_verified && canVerify && d.amount > 0)
+      ? `<button class="btn btn-ghost btn-sm" style="color:#059669;font-size:11px;padding:2px 6px"
+           onclick="event.stopPropagation();verifyDeposit(${d.id},${cid})">核銷確認</button>` : '';
+    const delBtn = (d.status === 'pending' && !d.accounting_verified)
       ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444;font-size:11px;padding:2px 6px"
            onclick="event.stopPropagation();deleteDeposit(${d.id},${cid})">刪除</button>` : '';
     const typeLabel = d.type === 'sample'
@@ -699,20 +718,22 @@ function renderClientDeposits(cid) {
       : (DEP_TYPE_LABEL[d.type] || d.type);
     const amtLabel = d.amount > 0 ? `NT$${fmt(d.amount)}` : '免費';
     return `<div class="dep-row">
-      ${badge}
+      ${statusBadgeHtml}
+      ${verifyBadge}
       <span style="font-weight:500">${typeLabel}</span>
       <span style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtLabel}</span>
       <span style="color:var(--gray-500);font-size:12px">${d.collected_at || ''}</span>
       ${d.note ? `<span style="color:var(--gray-500);font-size:12px">${d.note}</span>` : ''}
       ${caseRef}
       <span style="flex:1"></span>
+      ${verifyBtn}
       ${delBtn}
     </div>`;
   }).join('');
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700;color:var(--gray-700)">💳 預收款記錄（膜料本等）</span>
+      <span style="font-size:13px;font-weight:700;color:var(--gray-700)">💳 預收款記錄（膜料本 ／ 樣本 ／ 場勘費）</span>
       <button class="btn btn-primary btn-sm" style="font-size:12px"
         onclick="event.stopPropagation();openDepositModal(${cid})">＋ 新增預收款</button>
     </div>
@@ -727,37 +748,68 @@ async function deleteDeposit(id, cid) {
   else { const e = await r.json(); alert(e.error || '刪除失敗'); }
 }
 
-function openDepositModal(cid) {
+async function verifyDeposit(id, cid) {
+  if (!confirm('確認會計核銷此筆預收款？核銷後無法刪除，且才可用於案件折抵。')) return;
+  const r = await fetch(`/api/client-deposits/${id}/verify`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  if (r.ok) { delete clientDeposits[cid]; await loadClientDeposits(cid); }
+  else { const e = await r.json(); alert(e.error || '核銷失敗'); }
+}
+
+async function openDepositModal(cid) {
   document.getElementById('dep_client_id').value    = cid;
   document.getElementById('dep_type').value         = 'catalog';
   document.getElementById('dep_amount').value       = '';
   document.getElementById('dep_collected_at').value = new Date().toISOString().slice(0,10);
   document.getElementById('dep_note').value         = '';
   document.getElementById('dep_product_name').value = '';
+  // pre-load cases for this client
+  await loadClientCasesForDeposit(cid);
   onDepTypeChange();
   document.getElementById('depositModal').classList.add('open');
 }
 
+async function loadClientCasesForDeposit(cid) {
+  const sel = document.getElementById('dep_linked_case_id');
+  sel.innerHTML = '<option value="">— 請選擇案件 —</option>';
+  try {
+    const r = await fetch(`/api/cases?client_id=${cid}`);
+    if (r.ok) {
+      const cases = await r.json();
+      cases.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.case_number} ${c.title || ''}`.trim();
+        sel.appendChild(opt);
+      });
+    }
+  } catch {}
+}
+
 function onDepTypeChange() {
   const type = document.getElementById('dep_type').value;
-  const isSample = type === 'sample';
-  document.getElementById('depProductRow').style.display  = isSample ? '' : 'none';
-  document.getElementById('depAmountHint').style.display  = isSample ? '' : 'none';
+  const isSample    = type === 'sample';
+  const isSurveyFee = type === 'survey_fee';
+  document.getElementById('depCaseRow').style.display    = isSurveyFee ? '' : 'none';
+  document.getElementById('depProductRow').style.display = isSample ? '' : 'none';
+  document.getElementById('depAmountHint').style.display = isSample ? '' : 'none';
   document.getElementById('depAmountRequired').style.display = isSample ? 'none' : '';
 }
 
 async function saveDeposit() {
   const cid  = document.getElementById('dep_client_id').value;
   const type = document.getElementById('dep_type').value;
-  const isSample = type === 'sample';
+  const isSample    = type === 'sample';
+  const isSurveyFee = type === 'survey_fee';
   if (isSample && !document.getElementById('dep_product_name').value.trim()) { alert('請填寫品名'); return; }
+  if (isSurveyFee && !document.getElementById('dep_linked_case_id').value) { alert('場勘費必須選擇關聯案件'); return; }
   const payload = {
-    client_id:    cid,
+    client_id:      cid,
     type,
-    amount:       document.getElementById('dep_amount').value || 0,
-    collected_at: document.getElementById('dep_collected_at').value || null,
-    note:         document.getElementById('dep_note').value || null,
-    product_name: document.getElementById('dep_product_name').value.trim() || null,
+    amount:         document.getElementById('dep_amount').value || 0,
+    collected_at:   document.getElementById('dep_collected_at').value || null,
+    note:           document.getElementById('dep_note').value || null,
+    product_name:   document.getElementById('dep_product_name').value.trim() || null,
+    linked_case_id: isSurveyFee ? document.getElementById('dep_linked_case_id').value : null,
   };
   if (!isSample && (!payload.amount || parseFloat(payload.amount) <= 0)) { alert('請輸入金額'); return; }
   const r = await fetch('/api/client-deposits', {

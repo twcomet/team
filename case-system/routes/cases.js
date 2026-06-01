@@ -121,7 +121,7 @@ const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const { status, case_type, date_from, date_to, search, group } = req.query;
+  const { status, case_type, date_from, date_to, search, group, client_id } = req.query;
 
   // 自動將「今天有施工派工」的「已派工待施工」升為「施工中」
   db.prepare(`
@@ -177,6 +177,7 @@ router.get('/', requireAuth, (req, res) => {
     q += ` AND EXISTS (SELECT 1 FROM dispatch_users du JOIN dispatches d ON du.dispatch_id = d.id WHERE d.case_id = c.id AND du.user_id = ?)`;
     p.push(me.id);
   }
+  if (client_id) { q += ` AND c.client_id = ?`;       p.push(client_id); }
   if (group)     { q += ` AND c.case_group = ?`;      p.push(group); }
   if (status)    { q += ` AND c.status = ?`;         p.push(status); }
   if (req.query.active) { q += ` AND c.status NOT IN ('closed','invalid')`; }

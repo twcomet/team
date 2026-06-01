@@ -2742,4 +2742,10 @@ _addCol('cases', 'invoice_issued_date', 'DATE DEFAULT NULL');
 // ── 行銷優惠折抵（如 Google 好評折抵，不影響發票金額）────────────────────────
 _addCol('cases', 'marketing_discount', 'INTEGER DEFAULT 0');
 
+// ── 預收款會計核銷欄位 + 場勘費關聯案件 ─────────────────────────────────────
+_addCol('client_deposits', 'linked_case_id',         'INTEGER REFERENCES cases(id)');
+_addCol('client_deposits', 'accounting_verified',    'INTEGER DEFAULT 0');
+_addCol('client_deposits', 'accounting_verified_at', 'TEXT');
+_addCol('client_deposits', 'accounting_verified_by', 'INTEGER REFERENCES users(id)');
+
 module.exports = db;

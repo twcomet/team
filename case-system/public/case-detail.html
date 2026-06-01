@@ -127,6 +127,7 @@
   <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
   <span class="nav-group-label">客戶</span>
   <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
   <span class="nav-group-label">進銷存</span>
   <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
   <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
@@ -3165,9 +3166,10 @@ function renderCreditsBlock() {
     const checked   = isApplied ? 'checked' : '';
     const disabled  = isApplied ? 'disabled' : '';
     const labelCls  = isApplied ? 'color:var(--gray-400)' : '';
-    const typeLabel = d.type === 'catalog' ? '膜料本'
-                    : d.type === 'sample'  ? `樣本${d.product_name ? '｜' + d.product_name : ''}`
-                    : d.type === 'other'   ? '其他預收款'
+    const typeLabel = d.type === 'catalog'    ? '膜料本'
+                    : d.type === 'sample'     ? `樣本${d.product_name ? '｜' + d.product_name : ''}`
+                    : d.type === 'survey_fee' ? '場勘費'
+                    : d.type === 'other'      ? '其他預收款'
                     : d.type;
     html += `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;${labelCls}">
       <input type="checkbox" id="cred_dep_${d.id}" data-dep-id="${d.id}" ${checked} ${disabled} onchange="updatePayCalc()"
