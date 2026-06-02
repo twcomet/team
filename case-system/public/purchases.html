@@ -17,6 +17,11 @@
 .progress-bar { background:#3b82f6; border-radius:4px; height:6px; }
 .receipt-row { font-size:13px; color:var(--gray-600); padding:6px 8px; background:#f9fafb; border-radius:6px; margin-bottom:4px; display:flex; justify-content:space-between; }
 .section-label { font-size:11px; font-weight:600; color:var(--gray-400); text-transform:uppercase; letter-spacing:.5px; margin:14px 0 6px; }
+.case-ac-wrap { position:relative; }
+.case-ac-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--gray-300); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:200; max-height:200px; overflow-y:auto; display:none; }
+.case-ac-dropdown.open { display:block; }
+.case-ac-item { padding:8px 12px; cursor:pointer; font-size:13px; }
+.case-ac-item:hover { background:var(--gray-50); }
 </style>
 </head>
 <body>
@@ -154,6 +159,18 @@
       <div class="form-group">
         <label class="form-label">預計到貨日</label>
         <input class="form-input" id="po_expected_date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">關聯案件（選填）</label>
+        <div class="case-ac-wrap">
+          <input class="form-input" id="po_case_search" autocomplete="off" placeholder="輸入案號或客戶名稱搜尋…" oninput="onCaseSearch(this.value)">
+          <div class="case-ac-dropdown" id="caseAcDrop"></div>
+        </div>
+        <input type="hidden" id="po_case_id">
+        <div id="po_case_display" style="display:none;margin-top:6px;font-size:12px;color:var(--gray-600);background:var(--gray-50);padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between">
+          <span id="po_case_label"></span>
+          <button type="button" onclick="clearCaseLink()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;line-height:1">×</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">備註</label>
@@ -322,7 +339,8 @@ function renderOrders() {
           </div>
           <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
         </div>
-        ${po.notes ? `<div style="font-size:12px;color:var(--gray-500);margin-top:8px">${esc(po.notes)}</div>` : ''}
+        ${po.case_number ? `<div style="font-size:12px;color:#2563eb;margin-top:6px">🔗 案件：<a href="/case-detail?id=${po.case_id}" style="color:#2563eb;text-decoration:none">${esc(po.case_number)}${po.case_title?' · '+esc(po.case_title):''}</a></div>` : ''}
+        ${po.notes ? `<div style="font-size:12px;color:var(--gray-500);margin-top:4px">${esc(po.notes)}</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -347,6 +365,7 @@ function openNew() {
   document.getElementById('po_vendor_id').value = '';
   document.getElementById('po_shipping_type').value = 'domestic';
   document.getElementById('totalCostDisplay').textContent = '';
+  clearCaseLink();
   document.getElementById('poModal').style.display = 'flex';
 }
 
@@ -366,6 +385,11 @@ async function openEdit(id) {
   document.getElementById('po_shipping_cost').value   = po.shipping_cost || '';
   document.getElementById('po_expected_date').value   = po.expected_date || '';
   document.getElementById('po_notes').value           = po.notes || '';
+  if (po.case_id && po.case_number) {
+    setCaseLink(po.case_id, po.case_number, po.case_title || '');
+  } else {
+    clearCaseLink();
+  }
   updateTotalDisplay();
   document.getElementById('poModal').style.display = 'flex';
 }
@@ -384,6 +408,7 @@ async function savePo() {
     shipping_cost:   parseFloat(document.getElementById('po_shipping_cost').value) || 0,
     expected_date:   document.getElementById('po_expected_date').value || null,
     notes:           document.getElementById('po_notes').value.trim() || null,
+    case_id:         document.getElementById('po_case_id').value || null,
     org_id:          currentUser.role === 'owner' ? (document.getElementById('po_org_id').value || null) : undefined,
   };
   const btn = document.getElementById('savePoBtn');
@@ -438,6 +463,43 @@ async function cancelPo(id) {
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── 關聯案件自動搜尋 ──────────────────────────────────────────────
+let _caseAcTimer = null;
+async function onCaseSearch(q) {
+  clearTimeout(_caseAcTimer);
+  const drop = document.getElementById('caseAcDrop');
+  if (!q || q.length < 1) { drop.classList.remove('open'); return; }
+  _caseAcTimer = setTimeout(async () => {
+    const r = await fetch('/api/cases?search=' + encodeURIComponent(q) + '&limit=20');
+    if (!r.ok) return;
+    const list = await r.json();
+    if (!list.length) { drop.innerHTML = '<div class="case-ac-item" style="color:var(--gray-400)">找不到符合案件</div>'; drop.classList.add('open'); return; }
+    drop.innerHTML = list.map(c => `<div class="case-ac-item" onclick="setCaseLink(${c.id},'${esc(c.case_number)}','${esc(c.title||'')}')"><strong>${esc(c.case_number)}</strong> · ${esc(c.client_name||'')} · ${esc(c.title||'')}</div>`).join('');
+    drop.classList.add('open');
+  }, 200);
+}
+
+function setCaseLink(id, caseNumber, title) {
+  document.getElementById('po_case_id').value = id;
+  document.getElementById('po_case_search').value = '';
+  document.getElementById('caseAcDrop').classList.remove('open');
+  const lbl = document.getElementById('po_case_label');
+  lbl.textContent = caseNumber + (title ? ' · ' + title : '');
+  const disp = document.getElementById('po_case_display');
+  disp.style.display = 'flex';
+}
+
+function clearCaseLink() {
+  document.getElementById('po_case_id').value = '';
+  document.getElementById('po_case_search').value = '';
+  document.getElementById('caseAcDrop').classList.remove('open');
+  document.getElementById('po_case_display').style.display = 'none';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.case-ac-wrap')) document.getElementById('caseAcDrop')?.classList.remove('open');
+});
 
 function esc(s) {
   if (s == null) return '';

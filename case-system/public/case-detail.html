@@ -282,7 +282,7 @@
             <div class="form-group" style="margin-bottom:0"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
           </div>
           <div class="form-row" style="margin-bottom:0;margin-top:8px">
-            <div class="form-group" style="margin-bottom:0"><label>案件紀錄日期</label><input type="date" id="b_contracted_at"></div>
+            <div class="form-group" style="margin-bottom:0"><label>成交日期</label><input type="date" id="b_contracted_at"></div>
             <div class="form-group" style="margin-bottom:0">
               <label>實際進場日期 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（空白時從施工派工自動帶入）</span></label>
               <input type="date" id="b_actual_entry_date">
@@ -843,7 +843,8 @@
 
       <!-- 膜料使用 -->
       <div class="tab-pane" id="tab-material">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+          <button class="btn btn-secondary btn-sm" onclick="openCasePurchaseModal()">＋ 採購進貨</button>
           <button class="btn btn-primary btn-sm" onclick="openMatLogModal()">＋ 新增使用紀錄</button>
         </div>
         <div id="matUsageList"></div>
@@ -4591,6 +4592,68 @@ async function deleteMatLog(id) {
   else showToast('刪除失敗', 'error');
 }
 
+// ── 採購進貨（關聯案件） ──────────────────────────────────────────
+async function openCasePurchaseModal() {
+  if (!_matList.length) {
+    const r = await fetch('/api/materials');
+    _matList = r.ok ? await r.json() : [];
+  }
+  const matSel = document.getElementById('cp_material_id');
+  matSel.innerHTML = '<option value="">— 不指定 —</option>' +
+    _matList.map(m => `<option value="${m.id}">${m.brand} ${m.model}</option>`).join('');
+  const dl = document.getElementById('cpBrandList');
+  dl.innerHTML = [...new Set(_matList.map(m => m.brand))].map(b => `<option value="${b}">`).join('');
+
+  const vr = await fetch('/api/vendors');
+  if (vr.ok) {
+    const vs = await vr.json();
+    const vSel = document.getElementById('cp_vendor_id');
+    vSel.innerHTML = '<option value="">— 不指定 —</option>' + vs.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  }
+
+  ['cp_brand','cp_series_code','cp_notes','cp_expected_date'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cp_qty').value = '';
+  document.getElementById('cp_unit_cost').value = '';
+  document.getElementById('cp_shipping_cost').value = '';
+  document.getElementById('cp_shipping_type').value = 'domestic';
+  document.getElementById('cpTotalDisplay').textContent = '';
+  document.getElementById('casePurchaseModal').classList.add('open');
+}
+
+function updateCpTotal() {
+  const qty  = parseFloat(document.getElementById('cp_qty').value) || 0;
+  const unit = parseFloat(document.getElementById('cp_unit_cost').value) || 0;
+  const ship = parseFloat(document.getElementById('cp_shipping_cost').value) || 0;
+  const total = qty * unit + ship;
+  document.getElementById('cpTotalDisplay').textContent = total > 0 ? `合計金額：NT$${total.toLocaleString()}` : '';
+}
+
+async function saveCasePurchase() {
+  const qty = parseFloat(document.getElementById('cp_qty').value);
+  if (!qty || qty <= 0) { showToast('請填入採購米數', 'error'); return; }
+  const payload = {
+    brand:           document.getElementById('cp_brand').value.trim() || null,
+    series_code:     document.getElementById('cp_series_code').value.trim() || null,
+    material_id:     document.getElementById('cp_material_id').value || null,
+    vendor_id:       document.getElementById('cp_vendor_id').value || null,
+    quantity_meters: qty,
+    unit_cost:       parseFloat(document.getElementById('cp_unit_cost').value) || 0,
+    shipping_type:   document.getElementById('cp_shipping_type').value,
+    shipping_cost:   parseFloat(document.getElementById('cp_shipping_cost').value) || 0,
+    expected_date:   document.getElementById('cp_expected_date').value || null,
+    notes:           document.getElementById('cp_notes').value.trim() || null,
+    case_id:         caseId,
+  };
+  const r = await fetch('/api/purchases', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  if (r.ok) {
+    document.getElementById('casePurchaseModal').classList.remove('open');
+    showToast('採購單已建立');
+  } else {
+    const e = await r.json().catch(() => ({}));
+    showToast(e.error || '建立失敗', 'error');
+  }
+}
+
 // ── 派案設定 Tab ──────────────────────────────────────────────
 let _regions = [], _techList = [];
 
@@ -4805,6 +4868,75 @@ init().catch(err => {
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('matLogModal').classList.remove('open')">取消</button>
       <button class="btn btn-primary" onclick="saveMatLog()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- 採購進貨 Modal（關聯當前案件） -->
+<div class="modal-overlay" id="casePurchaseModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>採購進貨</h3>
+      <button class="modal-close" onclick="document.getElementById('casePurchaseModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>品牌</label>
+          <input id="cp_brand" placeholder="例：3M、Para" list="cpBrandList">
+          <datalist id="cpBrandList"></datalist>
+        </div>
+        <div class="form-group">
+          <label>型號 / 系列</label>
+          <input id="cp_series_code" placeholder="例：SH2CLAR">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>對應膜料（選填）</label>
+        <select id="cp_material_id"><option value="">— 不指定 —</option></select>
+      </div>
+      <div class="form-group">
+        <label>供應商（選填）</label>
+        <select id="cp_vendor_id"><option value="">— 不指定 —</option></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>採購米數 <span style="color:red">*</span></label>
+          <input type="number" id="cp_qty" min="0.1" step="0.1" placeholder="0.0" oninput="updateCpTotal()">
+        </div>
+        <div class="form-group">
+          <label>單價（元/米）</label>
+          <input type="number" id="cp_unit_cost" min="0" step="0.01" placeholder="0" oninput="updateCpTotal()">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>運送方式</label>
+          <select id="cp_shipping_type">
+            <option value="domestic">國內</option>
+            <option value="air">空運</option>
+            <option value="express">快遞</option>
+            <option value="sea">海運</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>運費（元）</label>
+          <input type="number" id="cp_shipping_cost" min="0" placeholder="0" oninput="updateCpTotal()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>預計到貨日</label>
+        <input type="date" id="cp_expected_date">
+      </div>
+      <div class="form-group">
+        <label>備註</label>
+        <textarea id="cp_notes" rows="2" style="resize:vertical"></textarea>
+      </div>
+      <div id="cpTotalDisplay" style="text-align:right;font-size:14px;color:var(--gray-600);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('casePurchaseModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveCasePurchase()">新增採購單</button>
     </div>
   </div>
 </div>

@@ -738,6 +738,7 @@ function renderTableHead() {
       <th style="width:105px">案號</th>
       ${dSortTh('狀態', 'status', '105px')}
       ${dSortTh('施工日', 'scheduled_date', '90px')}
+      ${dSortTh('成交日', 'contracted_at', '90px')}
       <th style="width:68px">類型</th>
       <th style="width:100px">客戶</th>
       <th style="width:180px">項目</th>
@@ -862,7 +863,7 @@ function renderTable(cases) {
     });
   }
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 15 : 11;
+    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 15 : 12;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -969,10 +970,12 @@ function getCaseRow(c) {
     else if (diff <= 7) dateStyle = 'color:#ca8a04;font-weight:600';
   }
 
+  const contractedStr = c.contracted_at ? fmtDate(c.contracted_at.slice(0,10)) : '—';
   return `<tr ${link}>
     <td style="width:105px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
     <td style="width:105px;white-space:nowrap">${statusBadge(c.status)}</td>
     <td style="width:90px;white-space:nowrap;font-size:13px;${dateStyle}">${dateStr}</td>
+    <td style="width:90px;white-space:nowrap;font-size:13px;color:var(--gray-500)">${contractedStr}</td>
     <td style="width:68px"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
     <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;font-weight:500">${c.client_name || '—'}</td>
     <td style="width:180px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>

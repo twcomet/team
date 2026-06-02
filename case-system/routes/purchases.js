@@ -18,12 +18,14 @@ router.get('/', requireAuth, (req, res) => {
   let sql = `
     SELECT po.*, m.brand as mat_brand, m.model as mat_model, m.color as mat_color,
            v.name as vendor_name, u.name as created_by_name, o.name as org_name,
+           c.case_number as case_number, c.title as case_title,
            COALESCE(SUM(pr.quantity_meters),0) as received_meters
     FROM purchase_orders po
     LEFT JOIN materials m ON m.id=po.material_id
     LEFT JOIN vendors v ON v.id=po.vendor_id
     LEFT JOIN users u ON u.id=po.created_by
     LEFT JOIN orgs o ON o.id=po.org_id
+    LEFT JOIN cases c ON c.id=po.case_id
     LEFT JOIN purchase_receipts pr ON pr.purchase_order_id=po.id
     WHERE 1=1
   `;
@@ -39,12 +41,14 @@ router.get('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   const po = db.prepare(`
     SELECT po.*, m.brand as mat_brand, m.model as mat_model, m.color as mat_color,
-           v.name as vendor_name, u.name as created_by_name, o.name as org_name
+           v.name as vendor_name, u.name as created_by_name, o.name as org_name,
+           c.case_number as case_number, c.title as case_title
     FROM purchase_orders po
     LEFT JOIN materials m ON m.id=po.material_id
     LEFT JOIN vendors v ON v.id=po.vendor_id
     LEFT JOIN users u ON u.id=po.created_by
     LEFT JOIN orgs o ON o.id=po.org_id
+    LEFT JOIN cases c ON c.id=po.case_id
     WHERE po.id=?
   `).get(req.params.id);
   if (!po) return res.status(404).json({ error: '找不到採購單' });
@@ -61,18 +65,18 @@ router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id, case_id } = req.body;
   if (!quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入採購米數' });
   const targetOrg = me.role === 'owner' ? (org_id || me.org_id) : me.org_id;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters) + (parseFloat(shipping_cost)||0);
   const r = db.prepare(`
     INSERT INTO purchase_orders (org_id,material_id,vendor_id,brand,series_code,quantity_meters,
-      unit_cost,total_cost,shipping_type,shipping_cost,expected_date,notes,created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      unit_cost,total_cost,shipping_type,shipping_cost,expected_date,notes,created_by,case_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(targetOrg, material_id||null, vendor_id||null, brand||null, series_code||null,
          parseFloat(quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
-         expected_date||null, notes||null, me.id);
+         expected_date||null, notes||null, me.id, case_id||null);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 
@@ -83,14 +87,14 @@ router.put('/:id', requireAuth, (req, res) => {
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, status } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id } = req.body;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters||po.quantity_meters) + (parseFloat(shipping_cost)||0);
   db.prepare(`UPDATE purchase_orders SET material_id=?,vendor_id=?,brand=?,series_code=?,quantity_meters=?,
-    unit_cost=?,total_cost=?,shipping_type=?,shipping_cost=?,expected_date=?,notes=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    unit_cost=?,total_cost=?,shipping_type=?,shipping_cost=?,expected_date=?,notes=?,status=?,case_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(material_id||null, vendor_id||null, brand||null, series_code||null,
          parseFloat(quantity_meters||po.quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
-         expected_date||null, notes||null, status||po.status, po.id);
+         expected_date||null, notes||null, status||po.status, case_id !== undefined ? (case_id||null) : po.case_id, po.id);
   res.json({ ok: true });
 });
 
