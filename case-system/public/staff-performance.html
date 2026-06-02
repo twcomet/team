@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>員工績效報表 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.period-bar { display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+.period-tab { padding:6px 18px; border-radius:20px; border:1px solid var(--gray-300); background:#fff; cursor:pointer; font-size:13px; font-weight:500; color:var(--gray-600); transition:all .15s; }
+.period-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.date-range { display:flex; gap:6px; align-items:center; margin-left:8px; }
+.date-range input { font-size:13px; padding:5px 8px; border:1px solid var(--gray-300); border-radius:8px; }
+
+.summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
+.sum-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 18px; }
+.sum-card .label { font-size:12px; color:var(--gray-500); margin-bottom:6px; }
+.sum-card .value { font-size:24px; font-weight:700; color:var(--gray-900); }
+
+.user-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; margin-bottom:14px; overflow:hidden; }
+.user-header { display:flex; align-items:center; gap:14px; padding:16px 20px; cursor:pointer; user-select:none; }
+.user-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:#fff; flex-shrink:0; }
+.user-name { font-size:15px; font-weight:600; color:var(--gray-800); }
+.user-sub  { font-size:12px; color:var(--gray-400); margin-top:2px; }
+.stat-pills { display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; align-items:center; }
+.pill { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.pill-inquiry { background:#fef3c7; color:#92400e; }
+.pill-survey  { background:#ede9fe; color:#5b21b6; }
+.pill-deal    { background:#d1fae5; color:#065f46; }
+.pill-advance { background:#dbeafe; color:#1e40af; }
+.pill-total   { background:#f3f4f6; color:#374151; }
+.expand-icon  { font-size:12px; color:var(--gray-400); margin-left:8px; transition:transform .2s; flex-shrink:0; }
+.expand-icon.open { transform:rotate(180deg); }
+
+.daily-table { border-top:1px solid var(--gray-100); }
+.daily-table table { width:100%; border-collapse:collapse; }
+.daily-table th { background:var(--gray-50); font-size:11px; font-weight:600; color:var(--gray-500); text-align:left; padding:8px 20px; border-bottom:1px solid var(--gray-100); }
+.daily-table td { padding:8px 20px; font-size:13px; border-bottom:1px solid var(--gray-50); }
+.daily-table tr:last-child td { border-bottom:none; }
+.day-bar { display:inline-block; height:8px; border-radius:4px; background:var(--primary); opacity:.7; min-width:2px; }
+
+.empty-msg { text-align:center; padding:60px 20px; color:var(--gray-400); }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item active" data-page="staff-performance" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">員工績效報表</span>
+    </div>
+    <div class="page-body">
+
+      <!-- 時間篩選 -->
+      <div class="period-bar">
+        <button class="period-tab" onclick="setPeriod('day')">今日</button>
+        <button class="period-tab" onclick="setPeriod('week')">本週</button>
+        <button class="period-tab active" onclick="setPeriod('month')">本月</button>
+        <div class="date-range">
+          <input type="date" id="dateFrom">
+          <span style="color:var(--gray-400)">～</span>
+          <input type="date" id="dateTo">
+          <button class="btn btn-primary btn-sm" onclick="load()">查詢</button>
+        </div>
+      </div>
+
+      <!-- 彙總 -->
+      <div class="summary-grid" id="summaryGrid"></div>
+
+      <!-- 員工列表 -->
+      <div id="userList"></div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let currentUser = null;
+let reportData  = [];
+
+const AVATAR_COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
+
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+function setPeriod(mode) {
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const today = new Date();
+  let from, to = todayStr();
+  if (mode === 'day') {
+    from = to;
+  } else if (mode === 'week') {
+    const d = new Date(today);
+    d.setDate(d.getDate() - d.getDay() + 1);
+    from = d.toISOString().slice(0,10);
+  } else {
+    from = today.toISOString().slice(0,10).slice(0,8) + '01';
+  }
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value   = to;
+  load();
+}
+
+async function load() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to) return;
+  const r = await fetch(`/api/staff-performance?from=${from}&to=${to}`);
+  if (!r.ok) { alert('載入失敗'); return; }
+  reportData = await r.json();
+  renderSummary();
+  renderUsers();
+}
+
+function renderSummary() {
+  const totalUsers   = reportData.length;
+  const totalCases   = reportData.reduce((s, u) => s + u.cases_touched, 0);
+  const totalActions = reportData.reduce((s, u) => s + u.total_actions, 0);
+  const totalAdv     = reportData.reduce((s, u) => s + u.advances, 0);
+  document.getElementById('summaryGrid').innerHTML = `
+    <div class="sum-card"><div class="label">活躍員工</div><div class="value">${totalUsers} 人</div></div>
+    <div class="sum-card"><div class="label">處理案件（合計）</div><div class="value">${totalCases} 件</div></div>
+    <div class="sum-card"><div class="label">操作次數（合計）</div><div class="value">${totalActions} 次</div></div>
+    <div class="sum-card"><div class="label">推進轉單（合計）</div><div class="value" style="color:#2563eb">${totalAdv} 次</div></div>
+  `;
+}
+
+function renderUsers() {
+  const el = document.getElementById('userList');
+  if (!reportData.length) {
+    el.innerHTML = '<div class="empty-msg">此區間無操作紀錄</div>';
+    return;
+  }
+  const maxCases = Math.max(...reportData.map(u => u.cases_touched), 1);
+  el.innerHTML = reportData.map((u, idx) => {
+    const color = avatarColor(u.name);
+    const initial = (u.name || '?')[0];
+    const pct = Math.round((u.cases_touched / maxCases) * 100);
+
+    const dailyRows = u.daily.map(d => {
+      const barW = Math.round((d.cases / Math.max(...u.daily.map(x=>x.cases),1)) * 120);
+      return `<tr>
+        <td style="color:var(--gray-500)">${d.date}</td>
+        <td>${d.cases} 件</td>
+        <td>${d.actions} 次</td>
+        <td>${d.advances > 0 ? `<span style="color:#2563eb;font-weight:600">${d.advances} 次推進</span>` : '—'}</td>
+        <td><span class="day-bar" style="width:${barW}px"></span></td>
+      </tr>`;
+    }).join('');
+
+    return `
+    <div class="user-card">
+      <div class="user-header" onclick="toggleDaily(${idx})">
+        <div class="user-avatar" style="background:${color}">${initial}</div>
+        <div>
+          <div class="user-name">${esc(u.name)}</div>
+          <div class="user-sub">${esc(u.username)} · 處理 ${u.cases_touched} 件 · 操作 ${u.total_actions} 次</div>
+        </div>
+        <div class="stat-pills">
+          ${u.inquiry_cases ? `<span class="pill pill-inquiry">詢價 ${u.inquiry_cases}</span>` : ''}
+          ${u.survey_cases  ? `<span class="pill pill-survey">場勘 ${u.survey_cases}</span>`  : ''}
+          ${u.deal_cases    ? `<span class="pill pill-deal">成交 ${u.deal_cases}</span>`    : ''}
+          ${u.advances      ? `<span class="pill pill-advance">推進 ${u.advances} 單</span>` : ''}
+        </div>
+        <span class="expand-icon" id="icon-${idx}">▾</span>
+      </div>
+      <div class="daily-table" id="daily-${idx}" style="display:none">
+        <table>
+          <thead><tr><th>日期</th><th>處理案件</th><th>操作次數</th><th>推進轉單</th><th>活躍度</th></tr></thead>
+          <tbody>${dailyRows || '<tr><td colspan="5" style="color:var(--gray-400);text-align:center;padding:12px">此區間無紀錄</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDaily(idx) {
+  const body = document.getElementById(`daily-${idx}`);
+  const icon = document.getElementById(`icon-${idx}`);
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  icon.classList.toggle('open', open);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function init() {
+  currentUser = await loadUser();
+  if (currentUser.role !== 'owner') { location.href = '/my-tasks'; return; }
+  highlightNav('staff-performance');
+
+  // 預設本月
+  const today = new Date();
+  document.getElementById('dateFrom').value = today.toISOString().slice(0,8) + '01';
+  document.getElementById('dateTo').value   = today.toISOString().slice(0,10);
+  document.querySelector('.period-tab.active')?.classList.remove('active');
+  document.querySelectorAll('.period-tab')[2].classList.add('active');
+
+  await load();
+}
+
+init();
+</script>
+</body>
+</html>

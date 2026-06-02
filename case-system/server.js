@@ -79,6 +79,7 @@ app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
+app.use('/api/staff-performance',     require('./routes/staff-performance'));
 
 // ── 前端公開設定 ──────────────────────────────────────────────
 app.get('/api/config/maps-key', requireAuth, (req, res) => {
@@ -195,6 +196,12 @@ pages.forEach(page => {
 });
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
+
+// 員工績效報表（僅 owner）
+app.get('/staff-performance', requireAuth, requireContract, (req, res) => {
+  if (req.session.user?.role !== 'owner') return res.redirect('/my-tasks');
+  res.sendFile(path.join(__dirname, 'public', 'staff-performance.html'));
+});
 
 // 設計師查詢頁（客戶用，不需登入）
 app.get('/designer', (req, res) => {
