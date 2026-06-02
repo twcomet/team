@@ -2748,4 +2748,24 @@ _addCol('client_deposits', 'accounting_verified',    'INTEGER DEFAULT 0');
 _addCol('client_deposits', 'accounting_verified_at', 'TEXT');
 _addCol('client_deposits', 'accounting_verified_by', 'INTEGER REFERENCES users(id)');
 
+// ── 申訴及意見回饋 ────────────────────────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS feedback_tickets (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  category   TEXT NOT NULL DEFAULT 'feedback',
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'open',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+db.exec(`CREATE TABLE IF NOT EXISTS feedback_replies (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id  INTEGER NOT NULL REFERENCES feedback_tickets(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  content    TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
 module.exports = db;

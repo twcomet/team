@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申訴及意見回饋 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--gray-200); }
+.tabs-bar .tab { padding:8px 18px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+
+.ticket-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:16px 20px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+.ticket-card:hover { border-color:var(--primary); }
+.ticket-card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.ticket-title { font-weight:600; font-size:15px; flex:1; }
+.ticket-meta  { font-size:12px; color:var(--gray-500); margin-top:5px; }
+
+.cat-appeal   { background:#fee2e2; color:#991b1b; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+.cat-feedback { background:#dbeafe; color:#1e40af; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+.cat-other    { background:#f3f4f6; color:#374151; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+.st-open        { background:#fef9c3; color:#713f12; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+.st-in_progress { background:#ede9fe; color:#5b21b6; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+.st-resolved    { background:#d1fae5; color:#065f46; border-radius:12px; padding:2px 10px; font-size:11px; font-weight:600; }
+
+/* 對話 */
+.convo-wrap { display:flex; flex-direction:column; gap:12px; padding:4px 0 16px; }
+.msg-bubble { max-width:80%; padding:12px 16px; border-radius:12px; font-size:14px; line-height:1.6; }
+.msg-left  { align-self:flex-start; background:#f3f4f6; color:#111827; border-bottom-left-radius:4px; }
+.msg-right { align-self:flex-end;   background:#1a56db; color:#fff;    border-bottom-right-radius:4px; }
+.msg-meta  { font-size:11px; opacity:.65; margin-top:4px; }
+
+.reply-box { border-top:1px solid var(--gray-200); padding-top:14px; margin-top:4px; }
+.filter-bar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.filter-bar select { padding:6px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">📣 申訴及意見回饋</span>
+      <button class="btn btn-primary btn-sm" onclick="openNewModal()">＋ 新增案件</button>
+    </div>
+    <div class="page-body">
+
+      <!-- 列表頁 -->
+      <div id="listView">
+        <div class="tabs-bar">
+          <div class="tab active" data-tab="my"  onclick="switchTab('my')">我的案件</div>
+          <div class="tab"        data-tab="all" id="allTab" style="display:none" onclick="switchTab('all')">全部案件 <span id="openBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></div>
+        </div>
+        <div class="filter-bar">
+          <select id="filterCat" onchange="loadList()">
+            <option value="">全部類別</option>
+            <option value="appeal">申訴</option>
+            <option value="feedback">意見回饋</option>
+            <option value="other">其他</option>
+          </select>
+          <select id="filterStatus" onchange="loadList()">
+            <option value="">全部狀態</option>
+            <option value="open">待處理</option>
+            <option value="in_progress">處理中</option>
+            <option value="resolved">已結案</option>
+          </select>
+        </div>
+        <div id="ticketList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:32px">載入中…</p></div>
+      </div>
+
+      <!-- 對話頁 -->
+      <div id="detailView" style="display:none">
+        <button class="btn btn-ghost btn-sm" style="margin-bottom:16px" onclick="backToList()">← 返回列表</button>
+        <div id="detailHeader" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px 20px;margin-bottom:16px"></div>
+        <div id="convoWrap" class="convo-wrap"></div>
+        <div class="reply-box" id="replyBox">
+          <textarea id="replyContent" rows="3" placeholder="輸入回覆內容…"
+            style="width:100%;border:1px solid var(--gray-300);border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="btn btn-primary btn-sm" onclick="sendReply()">送出回覆</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增案件 Modal -->
+<div class="modal-overlay" id="newTicketModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>新增案件</h3>
+      <button class="modal-close" onclick="closeNewModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>類別 *</label>
+        <select id="nt_category">
+          <option value="appeal">申訴</option>
+          <option value="feedback">意見回饋</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>主旨 *</label>
+        <input type="text" id="nt_title" placeholder="簡要描述問題">
+      </div>
+      <div class="form-group">
+        <label>說明內容 *</label>
+        <textarea id="nt_content" rows="5" placeholder="詳細說明問題或建議內容…"
+          style="width:100%;border:1px solid var(--gray-300);border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+      <div style="font-size:12px;color:var(--gray-500);background:#f9fafb;border-radius:8px;padding:10px 14px">
+        您的案件將由人資或主管處理，提交後無法修改內容，但可在對話中補充說明。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeNewModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitTicket()">送出</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+
+<script src="/js/common.js"></script>
+<script>
+const CAT_LABEL = { appeal:'申訴', feedback:'意見回饋', other:'其他' };
+const ST_LABEL  = { open:'待處理', in_progress:'處理中', resolved:'已結案' };
+
+let isHR = false;
+let curTab = 'my';
+let curTicketId = null;
+
+function showToast(msg, type='success') {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `background:${type==='error'?'#dc2626':'#16a34a'};color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15)`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+async function init() {
+  await loadUser();
+  isHR = currentUser?.role === 'owner' || currentUser?.role === 'hq_hr' || !!currentUser?.manage_users;
+  highlightNav('feedback');
+  if (isHR) {
+    document.getElementById('allTab').style.display = '';
+    loadOpenBadge();
+  }
+  loadList();
+}
+
+async function loadOpenBadge() {
+  const r = await fetch('/api/feedback?status=open');
+  if (!r.ok) return;
+  const list = await r.json();
+  const badge = document.getElementById('openBadge');
+  if (list.length) { badge.textContent = list.length; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+function switchTab(tab) {
+  curTab = tab;
+  document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  loadList();
+}
+
+async function loadList() {
+  const cat    = document.getElementById('filterCat').value;
+  const status = document.getElementById('filterStatus').value;
+  let url = '/api/feedback?';
+  if (cat)    url += `category=${cat}&`;
+  if (status) url += `status=${status}&`;
+  // HR 在 all tab 下不加 user filter（後端自動判斷）
+  if (curTab === 'my' && isHR) url += `_self=1&`;
+
+  const r = await fetch(url);
+  const list = r.ok ? await r.json() : [];
+
+  const filtered = curTab === 'my' ? list.filter(t => t.user_id === currentUser.id) : list;
+  renderList(filtered);
+}
+
+function renderList(list) {
+  const el = document.getElementById('ticketList');
+  if (!list.length) {
+    el.innerHTML = '<p style="color:var(--gray-400);font-size:13px;text-align:center;padding:32px">尚無案件記錄</p>';
+    return;
+  }
+  el.innerHTML = list.map(t => `
+    <div class="ticket-card" onclick="openTicket(${t.id})">
+      <div class="ticket-card-header">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="cat-${t.category}">${CAT_LABEL[t.category] || t.category}</span>
+            <span class="st-${t.status}">${ST_LABEL[t.status] || t.status}</span>
+            ${isHR && curTab === 'all' ? `<span style="font-size:13px;font-weight:600">${t.user_name}</span>` : ''}
+          </div>
+          <div class="ticket-title">${escHtml(t.title)}</div>
+          <div class="ticket-meta">
+            送出：${t.created_at?.slice(0,10) || '—'}
+            ${t.reply_count > 0 ? `｜💬 ${t.reply_count} 則回覆` : ''}
+            ${t.last_reply_at ? `｜最新：${t.last_reply_at.slice(0,10)}` : ''}
+          </div>
+        </div>
+        <span style="font-size:18px;color:var(--gray-300)">›</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openTicket(id) {
+  curTicketId = id;
+  const r = await fetch(`/api/feedback/${id}`);
+  if (!r.ok) { showToast('載入失敗', 'error'); return; }
+  const { ticket, replies } = await r.json();
+
+  document.getElementById('listView').style.display   = 'none';
+  document.getElementById('detailView').style.display = '';
+
+  // 標題區
+  const resolved = ticket.status === 'resolved';
+  document.getElementById('detailHeader').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+          <span class="cat-${ticket.category}">${CAT_LABEL[ticket.category]}</span>
+          <span class="st-${ticket.status}">${ST_LABEL[ticket.status]}</span>
+          ${isHR ? `<span style="font-size:13px;color:var(--gray-500)">提交人：${ticket.user_name}</span>` : ''}
+        </div>
+        <div style="font-size:16px;font-weight:700">${escHtml(ticket.title)}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px">提交時間：${ticket.created_at?.slice(0,16).replace('T',' ') || '—'}</div>
+      </div>
+      ${isHR && !resolved ? `
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="updateStatus('in_progress')" ${ticket.status==='in_progress'?'disabled':''}>標記處理中</button>
+          <button class="btn btn-primary btn-sm" onclick="updateStatus('resolved')">結案</button>
+        </div>` : ''}
+      ${resolved ? `<span style="font-size:12px;color:#065f46;background:#d1fae5;border-radius:6px;padding:4px 10px">已結案</span>` : ''}
+    </div>
+  `;
+
+  // 對話紀錄（第一則是原始內容）
+  let html = `
+    <div style="align-self:flex-start;max-width:80%">
+      <div class="msg-bubble msg-left">${escHtml(ticket.content).replace(/\n/g,'<br>')}</div>
+      <div class="msg-meta" style="font-size:11px;color:var(--gray-400);margin-top:3px;padding-left:4px">${ticket.user_name} · ${ticket.created_at?.slice(0,16).replace('T',' ') || ''}</div>
+    </div>
+  `;
+  replies.forEach(rp => {
+    const isOwn = rp.user_id === currentUser.id;
+    const isStaff = rp.user_role === 'owner' || rp.user_role === 'hq_hr' || rp.user_role === 'hq_cs_manager';
+    const side = isOwn ? 'right' : 'left';
+    const label = isStaff ? `${rp.user_name}（人資）` : rp.user_name;
+    html += `
+      <div style="align-self:flex-${side === 'right' ? 'end' : 'start'};max-width:80%">
+        <div class="msg-bubble msg-${side}">${escHtml(rp.content).replace(/\n/g,'<br>')}</div>
+        <div class="msg-meta" style="text-align:${side === 'right' ? 'right' : 'left'};padding:0 4px">${label} · ${rp.created_at?.slice(0,16).replace('T',' ') || ''}</div>
+      </div>`;
+  });
+  document.getElementById('convoWrap').innerHTML = html;
+  document.getElementById('replyContent').value = '';
+  document.getElementById('replyBox').style.display = resolved ? 'none' : '';
+
+  // 捲到底部
+  const wrap = document.getElementById('convoWrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function backToList() {
+  curTicketId = null;
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('listView').style.display   = '';
+  loadList();
+  if (isHR) loadOpenBadge();
+}
+
+async function sendReply() {
+  const content = document.getElementById('replyContent').value.trim();
+  if (!content) { alert('請輸入回覆內容'); return; }
+  const r = await fetch(`/api/feedback/${curTicketId}/reply`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content })
+  });
+  if (r.ok) { await openTicket(curTicketId); }
+  else { const e = await r.json(); showToast(e.error || '送出失敗', 'error'); }
+}
+
+async function updateStatus(status) {
+  const r = await fetch(`/api/feedback/${curTicketId}/status`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status })
+  });
+  if (r.ok) { await openTicket(curTicketId); if (isHR) loadOpenBadge(); }
+  else { const e = await r.json(); showToast(e.error || '更新失敗', 'error'); }
+}
+
+function openNewModal() {
+  document.getElementById('nt_category').value = 'feedback';
+  document.getElementById('nt_title').value    = '';
+  document.getElementById('nt_content').value  = '';
+  document.getElementById('newTicketModal').classList.add('open');
+}
+function closeNewModal() {
+  document.getElementById('newTicketModal').classList.remove('open');
+}
+
+async function submitTicket() {
+  const category = document.getElementById('nt_category').value;
+  const title    = document.getElementById('nt_title').value.trim();
+  const content  = document.getElementById('nt_content').value.trim();
+  if (!title)   { alert('請填寫主旨');   return; }
+  if (!content) { alert('請填寫說明內容'); return; }
+  const r = await fetch('/api/feedback', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ category, title, content })
+  });
+  if (r.ok) {
+    showToast('案件已送出，人資將盡快回覆');
+    closeNewModal();
+    const { id } = await r.json();
+    openTicket(id);
+  } else {
+    const e = await r.json(); showToast(e.error || '送出失敗', 'error');
+  }
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
