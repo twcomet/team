@@ -433,6 +433,15 @@
       <!-- 正式報價單 v2 -->
       <div class="tab-pane" id="tab-quote">
 
+        <!-- 報價單連結 -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;padding:10px 14px;background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap">報價單連結</span>
+          <input type="url" id="q_ext_link" placeholder="貼上報價單連結（Google 雲端、PDF 等）"
+                 style="flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
+          <a id="q_ext_link_btn" href="#" target="_blank"
+             style="display:none;padding:6px 14px;background:#2563eb;color:#fff;border-radius:6px;font-size:13px;text-decoration:none;white-space:nowrap">開啟 ↗</a>
+        </div>
+
         <!-- 尚無報價單 -->
         <div id="qNoQuote" style="text-align:center;padding:40px 20px;background:#f9fafb;border:2px dashed var(--gray-200);border-radius:12px">
           <div style="font-size:40px;margin-bottom:12px">📋</div>
@@ -2005,6 +2014,15 @@ function fillBasicForm() {
     const v = (c.external_quote_url || '').trim();
     extQuoteLink.style.display = v ? '' : 'none';
     extQuoteLink.href = v || '#';
+  }
+  // 同步到正式報價單 tab 的連結欄
+  const qExtLink = document.getElementById('q_ext_link');
+  const qExtLinkBtn = document.getElementById('q_ext_link_btn');
+  if (qExtLink) qExtLink.value = c.external_quote_url || '';
+  if (qExtLinkBtn) {
+    const v = (c.external_quote_url || '').trim();
+    qExtLinkBtn.style.display = v ? '' : 'none';
+    qExtLinkBtn.href = v || '#';
   }
 
   // 客戶類別（chip + text input）
@@ -4965,6 +4983,19 @@ document.getElementById('b_external_quote_url')?.addEventListener('input', funct
   const link = document.getElementById('b_external_quote_link');
   const v = this.value.trim();
   if (link) { link.style.display = v ? '' : 'none'; link.href = v || '#'; }
+  const qLink = document.getElementById('q_ext_link');
+  const qBtn  = document.getElementById('q_ext_link_btn');
+  if (qLink) qLink.value = this.value;
+  if (qBtn)  { qBtn.style.display = v ? '' : 'none'; qBtn.href = v || '#'; }
+});
+document.getElementById('q_ext_link')?.addEventListener('input', function() {
+  const v = this.value.trim();
+  const bField = document.getElementById('b_external_quote_url');
+  const bLink  = document.getElementById('b_external_quote_link');
+  const qBtn   = document.getElementById('q_ext_link_btn');
+  if (bField) bField.value = this.value;
+  if (bLink)  { bLink.style.display = v ? '' : 'none'; bLink.href = v || '#'; }
+  if (qBtn)   { qBtn.style.display = v ? '' : 'none'; qBtn.href = v || '#'; }
 });
 
 // ── 模板管理（場勘頁面內） ──────────────────────────────────────
