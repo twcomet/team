@@ -206,6 +206,7 @@
         <div class="tab" data-tab="estimate" data-groups="inquiry,survey,deal">初步估價紀錄</div>
         <div class="tab" data-tab="survey" data-groups="survey,deal">場勘</div>
         <div class="tab" data-tab="quote" data-groups="survey,deal">正式報價單</div>
+        <div class="tab" data-tab="documents" data-groups="survey,deal">往來文件</div>
         <div class="tab" data-tab="dispatch" data-groups="deal">派工記錄</div>
         <div class="tab" data-tab="material" data-groups="deal">膜料使用</div>
         <div class="tab" data-tab="payment" data-groups="deal">收款</div>
@@ -527,6 +528,45 @@
 
         </div><!-- end qMain -->
       </div><!-- end tab-quote -->
+
+      <!-- 往來文件 -->
+      <div class="tab-pane" id="tab-documents">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--gray-900)">📎 客戶往來文件</div>
+            <div style="font-size:13px;color:var(--gray-500);margin-top:2px">上傳報價單、合約等與客戶往來的文件（PDF、Excel、Word、圖片）</div>
+          </div>
+          <label id="uploadDocBtn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--primary);color:#fff;border-radius:8px;font-size:13px;font-weight:600">
+            ＋ 上傳文件
+            <input type="file" id="docFileInput" accept=".pdf,.xls,.xlsx,.doc,.docx,image/*" style="display:none" onchange="uploadCaseDocument(this)">
+          </label>
+        </div>
+
+        <!-- 上傳說明 modal（inline） -->
+        <div id="docUploadForm" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px;margin-bottom:20px">
+          <div style="font-size:13px;font-weight:600;color:#0369a1;margin-bottom:12px">📄 <span id="docUploadFilename"></span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>文件類型</label>
+              <select id="docType">
+                <option value="quote">報價單</option>
+                <option value="contract">合約</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:2">
+              <label>備註說明（版本說明、發送日期等）</label>
+              <input type="text" id="docNotes" placeholder="例：第二版報價，已修改尺寸">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="cancelDocUpload()">取消</button>
+            <button class="btn btn-primary btn-sm" id="confirmDocUploadBtn" onclick="confirmDocUpload()">確認上傳</button>
+          </div>
+        </div>
+
+        <div id="docList"><p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">尚無往來文件</p></div>
+      </div><!-- end tab-documents -->
 
       <!-- 場勘 -->
       <div class="tab-pane" id="tab-survey">
@@ -1433,6 +1473,7 @@ async function init() {
       if (t.dataset.tab === 'survey')    loadSurveyTab();
       if (t.dataset.tab === 'outsource') loadOutsourceTab();
       if (t.dataset.tab === 'estimate')  loadQuickEstimates();
+      if (t.dataset.tab === 'documents') loadCaseDocuments();
     });
   });
 
@@ -5039,6 +5080,119 @@ async function deleteCdCk(id, label) {
   const res = await fetch(`/api/survey/checklist-templates/${id}`, { method:'DELETE' });
   if (res.ok) { await cdLoadCkTemplates(); showToast('已刪除'); }
   else { const e=await res.json(); showToast(e.error||'刪除失敗','error'); }
+}
+
+// ── 往來文件 ──────────────────────────────────────────────────────────────────
+let _pendingDocFile = null;
+
+async function loadCaseDocuments() {
+  const res = await fetch(`/api/cases/${caseId}/documents`);
+  if (!res.ok) return;
+  const docs = await res.json();
+  renderDocList(docs);
+}
+
+const DOC_TYPE_LABEL = { quote:'報價單', contract:'合約', other:'其他' };
+const DOC_ICON = {
+  'application/pdf': '📄', 'pdf': '📄',
+  'xls': '📊', 'xlsx': '📊',
+  'doc': '📝', 'docx': '📝',
+  'default': '📎',
+};
+
+function getDocIcon(filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return DOC_ICON[ext] || DOC_ICON.default;
+}
+
+function renderDocList(docs) {
+  const el = document.getElementById('docList');
+  if (!el) return;
+  if (!docs.length) {
+    el.innerHTML = `<p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">尚無往來文件</p>`;
+    return;
+  }
+  el.innerHTML = docs.map(d => {
+    const icon = getDocIcon(d.filename);
+    const typeBadge = `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#e0f2fe;color:#0369a1">${DOC_TYPE_LABEL[d.doc_type] || d.doc_type}</span>`;
+    const date = (d.uploaded_at || '').slice(0, 10);
+    return `
+    <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#fff;border:1px solid var(--gray-200);border-radius:10px;margin-bottom:10px">
+      <div style="font-size:28px;line-height:1;margin-top:2px">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-weight:600;font-size:14px;color:var(--gray-900);word-break:break-all">${esc(d.filename)}</span>
+          ${typeBadge}
+        </div>
+        ${d.notes ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:4px">${esc(d.notes)}</div>` : ''}
+        <div style="font-size:12px;color:var(--gray-400)">${date}　${esc(d.uploader_name || '')}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">下載</a>
+        <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCaseDocument(${d.id})">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function uploadCaseDocument(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _pendingDocFile = file;
+  document.getElementById('docUploadFilename').textContent = file.name;
+  document.getElementById('docNotes').value = '';
+  document.getElementById('docType').value = 'quote';
+  document.getElementById('docUploadForm').style.display = '';
+  input.value = '';
+}
+
+function cancelDocUpload() {
+  _pendingDocFile = null;
+  document.getElementById('docUploadForm').style.display = 'none';
+}
+
+async function confirmDocUpload() {
+  if (!_pendingDocFile) return;
+  const btn = document.getElementById('confirmDocUploadBtn');
+  btn.disabled = true;
+  btn.textContent = '上傳中…';
+
+  const fd = new FormData();
+  fd.append('file', _pendingDocFile);
+  const upRes = await fetch('/api/storage/upload-doc', { method:'POST', body: fd });
+  if (!upRes.ok) {
+    const e = await upRes.json();
+    showToast(e.error || '上傳失敗', 'error');
+    btn.disabled = false; btn.textContent = '確認上傳';
+    return;
+  }
+  const upData = await upRes.json();
+
+  const saveRes = await fetch(`/api/cases/${caseId}/documents`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      doc_type:  document.getElementById('docType').value,
+      filename:  upData.filename,
+      file_url:  upData.url,
+      public_id: upData.public_id,
+      notes:     document.getElementById('docNotes').value || null,
+    }),
+  });
+  if (!saveRes.ok) { showToast('記錄儲存失敗', 'error'); btn.disabled = false; btn.textContent = '確認上傳'; return; }
+
+  _pendingDocFile = null;
+  document.getElementById('docUploadForm').style.display = 'none';
+  btn.disabled = false; btn.textContent = '確認上傳';
+  showToast('文件已上傳');
+  await loadCaseDocuments();
+}
+
+async function deleteCaseDocument(docId) {
+  if (!confirm('確定刪除此文件？')) return;
+  const res = await fetch(`/api/cases/${caseId}/documents/${docId}`, { method:'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadCaseDocuments(); }
+  else { showToast('刪除失敗', 'error'); }
 }
 </script>
 

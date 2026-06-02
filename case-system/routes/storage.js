@@ -34,6 +34,45 @@ router.post('/upload', requireAuth, upload.single('image'), async (req, res) => 
   }
 });
 
+const ALLOWED_DOC_TYPES = [
+  'application/pdf',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+];
+
+const uploadDoc = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_DOC_TYPES.includes(file.mimetype)) return cb(new Error('不支援此檔案格式，請上傳 PDF、Excel、Word 或圖片'));
+    cb(null, true);
+  },
+});
+
+router.post('/upload-doc', requireAuth, uploadDoc.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '請選擇檔案' });
+  try {
+    const isImage = req.file.mimetype.startsWith('image/');
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'huixin-docs',
+          resource_type: isImage ? 'image' : 'raw',
+          public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          use_filename: false,
+        },
+        (error, result) => error ? reject(error) : resolve(result)
+      ).end(req.file.buffer);
+    });
+    res.json({ ok: true, url: result.secure_url, public_id: result.public_id, filename: req.file.originalname });
+  } catch (e) {
+    res.status(500).json({ error: '上傳失敗：' + e.message });
+  }
+});
+
 router.delete('/delete', requireAuth, async (req, res) => {
   const { public_id } = req.body;
   if (!public_id) return res.status(400).json({ error: '缺少 public_id' });

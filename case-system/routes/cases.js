@@ -1010,4 +1010,46 @@ router.get('/export.csv', requireAuth, (req, res) => {
   res.send(bom + csvRows.join('\r\n'));
 });
 
+// ── 往來文件 ────────────────────────────────────────────────────────────────
+router.get('/:id/documents', requireAuth, (req, res) => {
+  const docs = db.prepare(`
+    SELECT d.*, u.name AS uploader_name
+    FROM case_documents d
+    LEFT JOIN users u ON u.id = d.uploaded_by
+    WHERE d.case_id = ?
+    ORDER BY d.uploaded_at DESC
+  `).all(req.params.id);
+  res.json(docs);
+});
+
+router.post('/:id/documents', requireAuth, (req, res) => {
+  const { doc_type, filename, file_url, public_id, notes } = req.body;
+  if (!filename || !file_url) return res.status(400).json({ error: '缺少必要欄位' });
+  const allowed = ['quote', 'contract', 'other'];
+  if (!allowed.includes(doc_type)) return res.status(400).json({ error: '無效文件類型' });
+
+  const r = db.prepare(`
+    INSERT INTO case_documents (case_id, doc_type, filename, file_url, public_id, notes, uploaded_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(req.params.id, doc_type, filename, file_url, public_id || null, notes || null, req.session.user.id);
+
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+router.delete('/:id/documents/:docId', requireAuth, async (req, res) => {
+  const doc = db.prepare(`SELECT * FROM case_documents WHERE id=? AND case_id=?`).get(req.params.docId, req.params.id);
+  if (!doc) return res.status(404).json({ error: '找不到此文件' });
+
+  if (doc.public_id) {
+    try {
+      const cloudinary = require('cloudinary').v2;
+      const isRaw = !doc.file_url.includes('/image/upload/');
+      await cloudinary.uploader.destroy(doc.public_id, { resource_type: isRaw ? 'raw' : 'image' });
+    } catch (e) { /* 刪除 Cloudinary 失敗不中斷 */ }
+  }
+
+  db.prepare(`DELETE FROM case_documents WHERE id=?`).run(req.params.docId);
+  res.json({ ok: true });
+});
+
 module.exports = router;
