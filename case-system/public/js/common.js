@@ -76,8 +76,9 @@ async function loadUser() {
     performance:      p.page_performance  !== undefined ? p.page_performance  : mu,
     materials:        p.page_materials    !== undefined ? p.page_materials    : mu,
     'material-calc':  p.page_material_calc !== undefined ? p.page_material_calc : mu,
-    marketing:        p.page_marketing    !== undefined ? p.page_marketing    : mu,
-    'dispatch-pool':  p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
+    marketing:           p.page_marketing    !== undefined ? p.page_marketing    : mu,
+    'dispatch-pool':     p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
+    'staff-performance': currentUser.role === 'owner',
     marketplace:      true,   // 市集所有人可見
     guide:            true,   // 系統使用說明所有人可見
   };
