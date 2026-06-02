@@ -534,7 +534,6 @@ async function init() {
     const rdRes = await fetch('/api/users/role-defaults');
     if (rdRes.ok) roleDefaultsMap = await rdRes.json();
     await loadCustomRoles();
-    await loadAuditLogs();
     await loadPushMode();
     await loadGcalSetting();
     await loadLineChannels();
@@ -544,6 +543,7 @@ async function init() {
 
   await loadOrgs();
   await loadUsers();
+  if (currentUser.role === 'owner') await loadAuditLogs();
 }
 
 // ── 分店 ───────────────────────────────────────────────────
@@ -1282,20 +1282,12 @@ async function loadAuditLogs() {
   auditPage = 1;
   auditExpanded = false;
 
-  // 每次都重新填充人員選單（依目前篩選結果）
+  // 人員選單從 allUsers 完整清單填充（不依賴查詢結果，避免無紀錄者消失）
   const sel = document.getElementById('auditUser');
-  if (sel) {
+  if (sel && allUsers.length) {
     const currentUid = sel.value;
     sel.innerHTML = '<option value="">全部人員</option>';
-    const seen = new Set();
-    // 若有 uid 篩選，從不帶 uid 的結果取人員清單
-    const allForUsers = uid ? auditAllLogs : auditAllLogs;
-    allForUsers.forEach(l => {
-      if (l.user_id && !seen.has(l.user_id)) {
-        seen.add(l.user_id);
-        sel.add(new Option(l.user_name || l.username || String(l.user_id), l.user_id));
-      }
-    });
+    allUsers.forEach(u => sel.add(new Option(`${u.name}（${u.username}）`, u.id)));
     if (currentUid) sel.value = currentUid;
   }
   renderAuditTable();
