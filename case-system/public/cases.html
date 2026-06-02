@@ -714,12 +714,12 @@ function renderTableHead() {
       <th style="width:100px">案號</th>
       ${sSortTh('天數', 'created_at', '42px')}
       ${sSortTh('狀態', 'status', '120px')}
+      ${sSortTh('場勘日', 'survey_date', '85px')}
       <th style="width:70px">類型</th>
       <th style="width:100px">客戶</th>
       <th style="width:160px">項目</th>
       <th style="width:160px">地址</th>
       <th style="width:110px">客人希望時間</th>
-      ${sSortTh('場勘日', 'survey_date', '85px')}
       ${sSortTh('處理狀態', 'deal_intent', '80px')}
       <th style="width:80px">業務</th>
       <th style="width:80px">客服</th>
@@ -924,12 +924,12 @@ function getCaseRow(c) {
       <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
+      <td style="width:85px;white-space:nowrap;font-size:12px;color:#6b7280">${fmtDate(c.survey_date)}</td>
       <td style="width:70px;white-space:nowrap"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
       <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${c.client_name || '—'}</td>
       <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
       <td style="width:160px;max-width:160px" onclick="event.stopPropagation()">${addrCell}</td>
       <td style="width:110px;font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${prefTime || '—'}</td>
-      <td style="width:85px;white-space:nowrap;font-size:12px;color:#6b7280">${fmtDate(c.survey_date)}</td>
       <td style="width:80px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
       <td style="width:80px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
