@@ -411,6 +411,7 @@ function onNdTypeChange() {
   document.getElementById('ndProductRow').style.display = isSample ? '' : 'none';
   document.getElementById('ndAmountHint').style.display = isSample ? '' : 'none';
   document.getElementById('ndAmountRequired').style.display = isSample ? 'none' : '';
+  if (isSurveyFee) onNdClientChange();
 }
 
 async function saveNew() {
