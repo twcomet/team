@@ -236,6 +236,30 @@ router.get('/worker/:token', (req, res) => {
   res.json(form);
 });
 
+// PUT /api/survey/worker/:token  → 場勘員回填場勘結果（公開，不需登入）
+router.put('/worker/:token', (req, res) => {
+  const row = db.prepare(`SELECT id, case_id, status FROM survey_forms WHERE worker_token=?`).get(req.params.token);
+  if (!row) return res.status(404).json({ error: '找不到場勘任務' });
+  if (row.status === 'signed') return res.status(400).json({ error: '已完成簽署的場勘單無法修改' });
+  const { survey_date, survey_time, site_contact, site_phone, findings, extra_notes } = req.body;
+  db.prepare(`UPDATE survey_forms SET
+    survey_date=COALESCE(?,survey_date), survey_time=COALESCE(?,survey_time),
+    site_contact=?, site_phone=?,
+    findings=?, extra_notes=?,
+    updated_at=CURRENT_TIMESTAMP
+    WHERE worker_token=?`).run(
+    survey_date || null, survey_time || null,
+    site_contact || null, site_phone || null,
+    JSON.stringify(findings || []), extra_notes || null,
+    req.params.token
+  );
+  if (survey_date) {
+    db.prepare(`UPDATE cases SET survey_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .run(survey_date, row.case_id);
+  }
+  res.json({ ok: true });
+});
+
 // PATCH /api/survey/cases/:id/fee  → 更新場勘費相關欄位
 router.patch('/cases/:id/fee', requireAuth, (req, res) => {
   const { survey_fee, survey_fee_paid, survey_fee_required, survey_fee_waive_note, survey_fee_actual } = req.body;

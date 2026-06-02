@@ -377,8 +377,11 @@ function renderTableRows(rows) {
       : `<span class="badge-unverified">待核銷</span>`;
     const caseRef = d.applied_case_number || d.linked_case_number || '—';
     const amtText = d.amount > 0 ? `NT$${Math.round(d.amount).toLocaleString()}` : '免費';
+    const canDelRow = currentUser?.role === 'owner' || currentUser?.role === 'hq_accounting' || !!currentUser?.can_delete;
     const verifyBtn = (!d.accounting_verified && canVerify && d.amount > 0)
       ? `<button class="btn btn-ghost btn-sm" style="color:#059669;font-size:11px" onclick="verifyRow(${d.id})">核銷確認</button>` : '';
+    const deleteBtn = (canDelRow && !d.accounting_verified && d.status === 'pending')
+      ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626;font-size:11px" onclick="deleteRow(${d.id})">刪除</button>` : '';
     const clientLink = `<a href="/clients" style="color:var(--primary);text-decoration:none;font-weight:500">${d.client_name || '—'}</a>`;
     return `<tr>
       <td style="white-space:nowrap">${d.collected_at || '—'}</td>
@@ -390,9 +393,16 @@ function renderTableRows(rows) {
       <td style="font-size:12px;color:var(--gray-500)">${caseRef}</td>
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.note || ''}">${d.note || '—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${d.created_by_name || '—'}</td>
-      <td>${verifyBtn}</td>
+      <td style="white-space:nowrap">${verifyBtn}${deleteBtn}</td>
     </tr>`;
   }).join('');
+}
+
+async function deleteRow(id) {
+  if (!confirm('確定刪除此筆預收款？此操作無法復原。')) return;
+  const r = await fetch(`/api/client-deposits/${id}`, { method:'DELETE' });
+  if (r.ok) { showToast('已刪除'); await loadAllDeposits(); }
+  else { const e = await r.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
 async function verifyRow(id) {

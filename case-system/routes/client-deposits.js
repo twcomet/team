@@ -145,8 +145,10 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ── 刪除（僅限待折抵且未核銷）────────────────────────────────
+// ── 刪除（owner / hq_accounting / can_delete，且限待折抵未核銷）──
 router.delete('/:id', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner' && me.role !== 'hq_accounting' && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
   const dep = db.prepare(`SELECT status, accounting_verified FROM client_deposits WHERE id = ?`).get(req.params.id);
   if (!dep) return res.status(404).json({ error: 'not found' });
   if (dep.status !== 'pending') return res.status(400).json({ error: '只有待折抵的預收款可以刪除' });

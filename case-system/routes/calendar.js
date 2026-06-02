@@ -73,6 +73,23 @@ router.get('/', requireAuth, (req, res) => {
 
   const cases = [...dispatched, ...scheduled];
 
+  // 場勘記錄（survey_date 落在本月的案件）
+  const surveys = db.prepare(`
+    SELECT
+      c.id, c.case_number, c.title, c.status,
+      c.survey_date,
+      cl.name  AS client_name,
+      sv.name  AS surveyor_name,
+      'survey' AS source
+    FROM cases c
+    LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN users   sv ON c.surveyor_id = sv.id
+    WHERE c.survey_date BETWEEN ? AND ?
+      AND c.status NOT IN ('closed','invalid')
+      ${orgCond}
+    ORDER BY c.survey_date
+  `).all(dateFrom, dateTo, ...orgPs);
+
   const orgCondT = orgSqlT ? `AND ${orgSqlT}` : '';
   const targets = db.prepare(`
     SELECT date, target_amount FROM daily_targets
@@ -94,7 +111,7 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY lr.leave_date
   `).all(dateFrom, dateTo, dateFrom, dateTo, dateFrom, dateTo);
 
-  res.json({ cases, targets, leaves });
+  res.json({ cases, surveys, targets, leaves });
 });
 
 // POST /api/daily-target  { date, target_amount }

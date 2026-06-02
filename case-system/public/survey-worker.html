@@ -20,14 +20,27 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC',sans-serif; b
 .badge-draft   { background:#f3f4f6; color:#374151; }
 .badge-sent    { background:#dbeafe; color:#1d4ed8; }
 .badge-signed  { background:#d1fae5; color:#065f46; }
-.dispatch-note { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:14px; }
+.dispatch-note { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:14px; margin-bottom:14px; }
 .dispatch-note .note-label { font-size:11px; color:#92400e; font-weight:600; margin-bottom:6px; }
 .dispatch-note .note-body  { font-size:14px; color:#78350f; line-height:1.7; white-space:pre-wrap; }
-table { width:100%; border-collapse:collapse; font-size:13px; }
-th { background:#f9fafb; padding:8px 10px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; }
-td { padding:10px; border-bottom:1px solid #f3f4f6; vertical-align:top; }
-tr:last-child td { border-bottom:none; }
 .map-btn { display:inline-flex; align-items:center; gap:6px; background:#1a56db; color:#fff; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; text-decoration:none; margin-top:8px; }
+.form-label { font-size:12px; color:#6b7280; font-weight:600; margin-bottom:5px; display:block; }
+input[type="text"],input[type="date"],input[type="time"],input[type="tel"],textarea,select {
+  width:100%; padding:9px 11px; border:1.5px solid #d1d5db; border-radius:8px; font-size:14px; font-family:inherit; background:#fff;
+}
+input:focus,textarea:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+textarea { resize:vertical; }
+.finding-row { display:grid; grid-template-columns:1fr 1.5fr 70px 70px 32px; gap:6px; align-items:center; margin-bottom:6px; }
+.finding-row input { padding:7px 9px; font-size:13px; }
+.del-btn { background:#fee2e2; color:#991b1b; border:none; border-radius:6px; cursor:pointer; font-size:16px; width:32px; height:34px; display:flex; align-items:center; justify-content:center; }
+.add-row-btn { background:#eff6ff; color:#1d4ed8; border:1.5px dashed #93c5fd; border-radius:8px; padding:8px; font-size:13px; cursor:pointer; width:100%; margin-top:4px; }
+.save-btn { background:#1a56db; color:#fff; border:none; border-radius:10px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; width:100%; margin-top:8px; }
+.save-btn:active { background:#1e40af; }
+.save-btn:disabled { background:#9ca3af; cursor:not-allowed; }
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#111; color:#fff; padding:12px 24px; border-radius:10px; font-size:14px; z-index:999; opacity:0; transition:opacity .2s; pointer-events:none; }
+.toast.show { opacity:1; }
+.section-title { font-size:15px; font-weight:700; color:#1f2937; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+th { background:#f9fafb; padding:8px 6px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
 .footer { text-align:center; padding:20px 0; font-size:12px; color:#9ca3af; }
 </style>
 </head>
@@ -35,15 +48,25 @@ tr:last-child td { border-bottom:none; }
 <div class="container" id="app">
   <div class="brand">
     <h1>🎨 繪新國際有限公司</h1>
-    <p>場勘任務</p>
+    <p>場勘任務回填</p>
   </div>
   <div id="content">
     <p style="text-align:center;color:#6b7280;padding:40px">載入中…</p>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 const token = new URLSearchParams(location.search).get('token');
+let formData = null;
+
+function showToast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#059669' : '#dc2626';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
 
 async function load() {
   if (!token) {
@@ -55,97 +78,148 @@ async function load() {
     document.getElementById('content').innerHTML = '<p style="text-align:center;color:#e02424;padding:40px">找不到此場勘任務，連結可能已失效。</p>';
     return;
   }
-  const f = await res.json();
-  render(f);
+  formData = await res.json();
+  render(formData);
 }
 
 function statusLabel(s) {
-  if (s === 'signed')   return { text:'客戶已簽名', cls:'badge-signed' };
-  if (s === 'sent')     return { text:'已發送給客戶', cls:'badge-sent' };
+  if (s === 'signed')    return { text:'客戶已簽名', cls:'badge-signed' };
+  if (s === 'sent')      return { text:'已發送給客戶', cls:'badge-sent' };
   if (s === 'cancelled') return { text:'已取消', cls:'badge-draft' };
   return { text:'草稿', cls:'badge-draft' };
 }
 
 function render(f) {
-  const findings = f.findings || [];
   const { text: stText, cls: stCls } = statusLabel(f.status);
   const address = f.site_address || f.location || '';
   const mapsUrl = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null;
-  const dateStr = [f.survey_date, f.survey_time].filter(Boolean).join(' ');
+  const findings = f.findings || [];
+  const isSigned = f.status === 'signed';
 
   document.getElementById('content').innerHTML = `
+    <!-- 案件資訊（唯讀） -->
     <div class="card">
       <h3>案件資訊</h3>
       <div class="info-grid">
-        <div class="info-item">
-          <div class="label">案號</div>
-          <div class="value" style="font-family:monospace">${f.case_number || '—'}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">狀態</div>
-          <div class="value"><span class="badge ${stCls}">${stText}</span></div>
-        </div>
-        <div class="info-item" style="grid-column:1/-1">
-          <div class="label">案件名稱</div>
-          <div class="value">${f.title || '—'}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">場勘日期</div>
-          <div class="value">${dateStr || '—'}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">場勘人員</div>
-          <div class="value">${f.surveyor_name || '—'}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>施工現場</h3>
-      <div class="info-grid">
-        <div class="info-item" style="grid-column:1/-1">
-          <div class="label">地址</div>
-          <div class="value">${address || '—'}</div>
-        </div>
-        ${f.site_contact ? `<div class="info-item"><div class="label">現場聯絡人</div><div class="value">${f.site_contact}</div></div>` : ''}
-        ${f.site_phone   ? `<div class="info-item"><div class="label">聯絡電話</div><div class="value"><a href="tel:${f.site_phone}" style="color:#1a56db">${f.site_phone}</a></div></div>` : ''}
+        <div class="info-item"><div class="label">案號</div><div class="value" style="font-family:monospace">${f.case_number || '—'}</div></div>
+        <div class="info-item"><div class="label">狀態</div><div class="value"><span class="badge ${stCls}">${stText}</span></div></div>
+        <div class="info-item" style="grid-column:1/-1"><div class="label">案件名稱</div><div class="value">${f.title || '—'}</div></div>
+        <div class="info-item"><div class="label">場勘人員</div><div class="value">${f.surveyor_name || '—'}</div></div>
+        <div class="info-item"><div class="label">施工地址</div><div class="value">${address || '—'}</div></div>
       </div>
       ${mapsUrl ? `<a class="map-btn" href="${mapsUrl}" target="_blank">📍 在地圖中查看地址</a>` : ''}
     </div>
 
-    ${f.dispatch_note ? `
-    <div class="dispatch-note" style="margin-bottom:14px">
-      <div class="note-label">📌 調度備注</div>
-      <div class="note-body">${f.dispatch_note}</div>
-    </div>` : ''}
+    ${f.dispatch_note ? `<div class="dispatch-note"><div class="note-label">📌 調度備注</div><div class="note-body">${f.dispatch_note}</div></div>` : ''}
 
-    ${findings.length ? `
-    <div class="card">
-      <h3>場勘項目</h3>
-      <table>
-        <thead><tr><th>施作位置</th><th>材料 / 說明</th><th>寬(cm)</th><th>高(cm)</th></tr></thead>
-        <tbody>
-          ${findings.map(it => `<tr>
-            <td>${it.location || ''}</td>
-            <td>${it.material || ''}</td>
-            <td>${it.width || '—'}</td>
-            <td>${it.height || '—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>` : ''}
+    <!-- 可編輯區域 -->
+    <div class="card" id="editSection">
+      <div class="section-title">✏️ 場勘回填（可編輯）</div>
 
-    ${f.extra_notes ? `
-    <div class="card">
-      <h3>備註 / 注意事項</h3>
-      <p style="font-size:14px;color:#374151;line-height:1.7;white-space:pre-wrap">${f.extra_notes}</p>
-    </div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label class="form-label">場勘日期</label>
+          <input type="date" id="w_date" value="${f.survey_date || ''}" ${isSigned ? 'disabled' : ''}>
+        </div>
+        <div>
+          <label class="form-label">場勘時間</label>
+          <input type="time" id="w_time" value="${f.survey_time || ''}" ${isSigned ? 'disabled' : ''}>
+        </div>
+        <div>
+          <label class="form-label">現場聯絡人</label>
+          <input type="text" id="w_contact" value="${f.site_contact || ''}" placeholder="聯絡人姓名" ${isSigned ? 'disabled' : ''}>
+        </div>
+        <div>
+          <label class="form-label">聯絡電話</label>
+          <input type="tel" id="w_phone" value="${f.site_phone || ''}" placeholder="0912-345-678" ${isSigned ? 'disabled' : ''}>
+        </div>
+      </div>
 
-    <div class="footer">
-      繪新國際有限公司<br>
-      如有問題請聯繫負責業務
+      <div style="margin-bottom:12px">
+        <label class="form-label">場勘項目清單</label>
+        <div style="overflow-x:auto">
+          <div style="display:grid;grid-template-columns:1fr 1.5fr 70px 70px 32px;gap:6px;margin-bottom:4px">
+            <div style="font-size:11px;color:#9ca3af;padding:0 4px">施作位置</div>
+            <div style="font-size:11px;color:#9ca3af;padding:0 4px">材料 / 說明</div>
+            <div style="font-size:11px;color:#9ca3af;padding:0 4px;text-align:center">寬(cm)</div>
+            <div style="font-size:11px;color:#9ca3af;padding:0 4px;text-align:center">高(cm)</div>
+            <div></div>
+          </div>
+          <div id="findingsList">
+            ${findings.map((it,i) => findingRowHtml(i, it)).join('')}
+          </div>
+        </div>
+        ${!isSigned ? `<button class="add-row-btn" onclick="addFindingRow()">＋ 新增項目</button>` : ''}
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label class="form-label">備註 / 注意事項</label>
+        <textarea id="w_notes" rows="4" placeholder="現場狀況、客戶需求、特殊注意事項…" ${isSigned ? 'disabled' : ''}>${f.extra_notes || ''}</textarea>
+      </div>
+
+      ${isSigned
+        ? `<div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;color:#065f46;font-size:14px">✅ 此場勘單已簽署完成，無法修改</div>`
+        : `<button class="save-btn" id="saveBtn" onclick="save()">💾 儲存場勘結果</button>`}
     </div>
+
+    <div class="footer">繪新國際有限公司<br>如有問題請聯繫負責業務</div>
   `;
+}
+
+function findingRowHtml(i, it={}) {
+  return `<div class="finding-row" id="row_${i}">
+    <input type="text" placeholder="位置" value="${it.location||''}" class="f-loc">
+    <input type="text" placeholder="材料/說明" value="${it.material||''}" class="f-mat">
+    <input type="text" placeholder="寬" value="${it.width||''}" class="f-w" style="text-align:center">
+    <input type="text" placeholder="高" value="${it.height||''}" class="f-h" style="text-align:center">
+    <button class="del-btn" onclick="this.closest('.finding-row').remove()">×</button>
+  </div>`;
+}
+
+let rowIdx = 10;
+function addFindingRow() {
+  const list = document.getElementById('findingsList');
+  const div = document.createElement('div');
+  div.innerHTML = findingRowHtml(rowIdx++);
+  list.appendChild(div.firstElementChild);
+  div.remove();
+  list.lastElementChild.querySelector('.f-loc').focus();
+}
+
+function getFindings() {
+  return [...document.querySelectorAll('#findingsList .finding-row')].map(row => ({
+    location: row.querySelector('.f-loc').value.trim(),
+    material: row.querySelector('.f-mat').value.trim(),
+    width:    row.querySelector('.f-w').value.trim(),
+    height:   row.querySelector('.f-h').value.trim(),
+  })).filter(f => f.location || f.material);
+}
+
+async function save() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  const body = {
+    survey_date:  document.getElementById('w_date').value || null,
+    survey_time:  document.getElementById('w_time').value || null,
+    site_contact: document.getElementById('w_contact').value.trim() || null,
+    site_phone:   document.getElementById('w_phone').value.trim() || null,
+    findings:     getFindings(),
+    extra_notes:  document.getElementById('w_notes').value.trim() || null,
+  };
+  try {
+    const res = await fetch(`/api/survey/worker/${token}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    if (res.ok) {
+      showToast('✅ 已儲存場勘結果');
+    } else {
+      const e = await res.json();
+      showToast(e.error || '儲存失敗', false);
+    }
+  } catch {
+    showToast('網路錯誤，請稍後再試', false);
+  }
+  btn.disabled = false; btn.textContent = '💾 儲存場勘結果';
 }
 
 load();

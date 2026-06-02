@@ -76,11 +76,12 @@
       <div class="cal-grid" id="calGrid"></div>
 
       <!-- 圖例 -->
-      <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#6b7280">
+      <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#6b7280;flex-wrap:wrap">
         <span style="color:#e02424">■</span> 超過目標（過載）
         <span style="color:#c27803">■</span> 低於目標（偏空）
         <span style="color:#057a55">■</span> 達標
         <span style="color:#6b7280">■</span> 未設定目標
+        <span style="color:#7c3aed">■</span> 場勘
       </div>
 
       <!-- 待排工案件 -->
@@ -107,7 +108,7 @@
 <script>
 let curYear = new Date().getFullYear();
 let curMonth = new Date().getMonth() + 1;
-let calData = { cases: [], targets: [], leaves: [] };
+let calData = { cases: [], surveys: [], targets: [], leaves: [] };
 let defaultTarget = 100000;
 
 async function init() {
@@ -159,6 +160,13 @@ function renderCalendar() {
     casesByDate[c.scheduled_date].push(c);
   });
 
+  // 場勘按日期分組
+  const surveysByDate = {};
+  (calData.surveys || []).forEach(s => {
+    if (!surveysByDate[s.survey_date]) surveysByDate[s.survey_date] = [];
+    surveysByDate[s.survey_date].push(s);
+  });
+
   // 請假按日期分組（跨日假期展開到每一天）
   const leavesByDate = {};
   (calData.leaves || []).forEach(lv => {
@@ -206,10 +214,16 @@ function renderCalendar() {
       revenueHtml = `<div class="cal-revenue ${cls}">${label}</div>`;
     }
 
-    const pillsHtml = cases.slice(0, 3).map(c => {
+    const surveys = surveysByDate[dateStr] || [];
+    const totalPills = cases.length + surveys.length;
+    const surveyPillsHtml = surveys.slice(0, 3).map(s => {
+      const label = [s.title, s.client_name, s.surveyor_name].filter(Boolean).join('｜');
+      return `<div class="cal-case-pill" style="background:#ede9fe;color:#6d28d9" title="🔍 場勘｜${label}">🔍 ${label}</div>`;
+    }).join('');
+    const pillsHtml = cases.slice(0, Math.max(0, 3 - surveys.length)).map(c => {
       const parts = [c.title, c.client_name, c.installer_name].filter(Boolean);
       return `<div class="cal-case-pill ${c.status}" title="${parts.join('｜')}">${parts.join('｜')}</div>`;
-    }).join('') + (cases.length > 3 ? `<div style="font-size:11px;color:#6b7280">+${cases.length - 3} 件</div>` : '');
+    }).join('') + (totalPills > 3 ? `<div style="font-size:11px;color:#6b7280">+${totalPills - 3} 件</div>` : '');
 
     const dayLeaves = leavesByDate[dateStr] || [];
     const leavePillsHtml = dayLeaves.map(lv =>
@@ -220,6 +234,7 @@ function renderCalendar() {
       <div class="cal-cell${isToday ? ' today' : ''}" onclick="openDayModal('${dateStr}')">
         <div class="cal-day">${d}</div>
         ${revenueHtml}
+        ${surveyPillsHtml}
         ${pillsHtml}
         ${leavePillsHtml}
       </div>`;
@@ -249,14 +264,29 @@ function renderUnscheduled() {
 }
 
 function openDayModal(dateStr) {
-  const cases  = calData.cases.filter(c => c.scheduled_date === dateStr);
-  const leaves = (calData.leaves || []).filter(lv => {
+  const cases   = calData.cases.filter(c => c.scheduled_date === dateStr);
+  const surveys = (calData.surveys || []).filter(s => s.survey_date === dateStr);
+  const leaves  = (calData.leaves || []).filter(lv => {
     const s = lv.leave_date, e = lv.leave_end_date || lv.leave_date;
     return dateStr >= s && dateStr <= e;
   });
   document.getElementById('dayModalTitle').textContent = `${dateStr} 當日記錄`;
 
   let html = '';
+  if (surveys.length) {
+    html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#6d28d9;margin-bottom:6px">🔍 場勘</div>`;
+    html += surveys.map(s => `
+      <div style="border:1px solid #ddd6fe;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#faf5ff">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <code style="font-size:12px;color:#6b7280">${s.case_number}</code>
+          ${statusBadge(s.status)}
+        </div>
+        <div style="font-weight:600;margin-bottom:2px">${s.client_name || ''} — ${s.title || ''}</div>
+        <div style="font-size:13px;color:#6b7280">勘場人員：${s.surveyor_name || '未指定'}</div>
+        <a href="/case-detail?id=${s.id}" style="font-size:12px;color:#7c3aed;text-decoration:none">→ 開啟案件</a>
+      </div>`).join('');
+    html += '</div>';
+  }
   if (leaves.length) {
     html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:6px">🏖️ 請假人員</div>`;
     html += leaves.map(lv => `
@@ -275,11 +305,11 @@ function openDayModal(dateStr) {
         <div style="font-weight:600;margin-bottom:4px">${c.client_name || ''} — ${c.title}</div>
         <div style="font-size:13px;color:#6b7280">負責：${c.installer_name || '未指定'} ｜ 時間：${c.scheduled_time || '未定'}</div>
         <div style="font-size:13px;color:#6b7280">金額：${fmt(c.final_price || c.quoted_price)}</div>
-        <a href="/case-detail.html?id=${c.id}" style="font-size:12px;color:#1a56db;text-decoration:none">→ 開啟案件</a>
+        <a href="/case-detail?id=${c.id}" style="font-size:12px;color:#1a56db;text-decoration:none">→ 開啟案件</a>
       </div>
     `).join('');
   }
-  if (!html) html = '<p style="color:#6b7280">這天沒有排工或請假記錄</p>';
+  if (!html) html = '<p style="color:#6b7280">這天沒有排工、場勘或請假記錄</p>';
   document.getElementById('dayModalBody').innerHTML = html;
   document.getElementById('dayModal').classList.add('open');
 }

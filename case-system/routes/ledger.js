@@ -179,7 +179,7 @@ router.patch('/:id/pay', requireOwner, (req, res) => {
 // DELETE /api/ledger/:id
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
-  if (me.role !== 'owner' && me.role !== 'hq_accounting') return res.status(403).json({ error: '無刪除權限' });
+  if (me.role !== 'owner' && me.role !== 'hq_accounting' && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
   const uid = me.id;
   const entry = db.prepare(`SELECT date,category,amount FROM ledger_entries WHERE id=?`).get(req.params.id);
   db.prepare(`DELETE FROM ledger_entries WHERE id=?`).run(req.params.id);
