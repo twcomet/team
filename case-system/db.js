@@ -1518,10 +1518,6 @@ _addCol('dispatches', 'has_parking',        'TEXT DEFAULT NULL');
 _addCol('dispatches', 'work_until',         'TEXT DEFAULT NULL');
 _addCol('dispatches', 'access_code',        'TEXT DEFAULT NULL');
 
-// 派工：售後維修費用
-_addCol('dispatches', 'warranty_covered', 'INTEGER DEFAULT 1'); // 1=保固免費, 0=收費
-_addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
-
 // 擴充 dispatch_type 允許值（含裁切材料、廠勘、其他）
 const _dispSql = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='dispatches'`).get();
 if (_dispSql && !_dispSql.sql.includes("'cut_material'")) {
@@ -1556,6 +1552,10 @@ if (_dispSql && !_dispSql.sql.includes("'cut_material'")) {
   db.exec(`ALTER TABLE dispatches_new RENAME TO dispatches`);
   db.exec(`PRAGMA foreign_keys=ON`);
 }
+
+// 派工：售後維修費用（必須在 migration 之後，避免 migration 重建 table 時欄位遺失）
+_addCol('dispatches', 'warranty_covered', 'INTEGER DEFAULT 1'); // 1=保固免費, 0=收費
+_addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
 
 // 場勘備註模板庫
 db.exec(`

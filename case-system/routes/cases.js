@@ -628,19 +628,24 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, actual_hours, material, material_used, status, notes, user_ids,
           unloading_location, has_parking, work_until, access_code,
           warranty_covered, service_fee } = req.body;
-  db.prepare(`
-    UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
-      actual_hours=?, material=?, material_used=?, status=?, notes=?,
-      unloading_location=?, has_parking=?, work_until=?, access_code=?,
-      warranty_covered=?, service_fee=?
-    WHERE id=? AND case_id=?
-  `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
-         actual_hours ?? null, material ?? null, material_used ?? null,
-         status || 'pending', notes ?? null,
-         unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
-         warranty_covered != null ? Number(warranty_covered) : 1,
-         service_fee != null ? Number(service_fee) : null,
-         req.params.did, req.params.id);
+  try {
+    db.prepare(`
+      UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
+        actual_hours=?, material=?, material_used=?, status=?, notes=?,
+        unloading_location=?, has_parking=?, work_until=?, access_code=?,
+        warranty_covered=?, service_fee=?
+      WHERE id=? AND case_id=?
+    `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
+           actual_hours ?? null, material ?? null, material_used ?? null,
+           status || 'pending', notes ?? null,
+           unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
+           warranty_covered != null ? Number(warranty_covered) : 1,
+           service_fee != null ? Number(service_fee) : null,
+           req.params.did, req.params.id);
+  } catch (e) {
+    console.error('PUT dispatch error:', e.message);
+    return res.status(500).json({ error: '儲存失敗：' + e.message });
+  }
 
   // 記錄舊派工人員，用來計算新增的人
   const oldUserIds = new Set(
