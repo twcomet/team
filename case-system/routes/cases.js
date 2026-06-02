@@ -112,7 +112,7 @@ function calcItem(item) {
 
 // ── 案件 CRUD ─────────────────────────────────────────────────
 const STATUS_GROUP_MAP = {
-  inquiry: 'inquiry', initial_estimate: 'inquiry',
+  inquiry: 'inquiry', initial_estimate: 'inquiry', quote_needed: 'inquiry', quote_sent: 'inquiry',
   survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
   quote_draft: 'survey', quoted: 'survey',
   contracted: 'deal', dispatched: 'deal', constructing: 'deal', payment: 'deal', closed: 'deal', aftersales: 'deal',
@@ -989,7 +989,7 @@ router.get('/export.csv', requireAuth, (req, res) => {
 
   const rows = db.prepare(q).all(...p);
 
-  const STATUS_MAP = { inquiry:'詢價需初步估價', initial_estimate:'已初步估價', survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘', quote_draft:'已建報價資料', quoted:'已發報價單', contracted:'成交待派工', dispatched:'已派工待施工', constructing:'施工中', payment:'完工請款', closed:'結案保存', invalid:'無效保存' };
+  const STATUS_MAP = { inquiry:'詢價需初步估價', initial_estimate:'已初步估價', quote_needed:'需出估價單', quote_sent:'已出估價單', survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘', quote_draft:'已建報價資料', quoted:'已發報價單', contracted:'成交待派工', dispatched:'已派工待施工', constructing:'施工中', payment:'完工請款', closed:'結案保存', invalid:'無效保存' };
   const TYPE_MAP   = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', other:'其他' };
   const PAY_MAP    = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
 

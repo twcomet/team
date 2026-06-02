@@ -71,36 +71,42 @@ router.post('/', requireAuth, (req, res) => {
   if (type === 'survey_fee' && !linked_case_id)
     return res.status(400).json({ error: '場勘費必須關聯案件' });
 
-  const amt = parseFloat(amount) || 0;
-  const dateVal = collected_at || new Date().toISOString().slice(0, 10);
-  const typeLabel = TYPE_LABELS[type] || '預收款';
-  const client = db.prepare(`SELECT name FROM clients WHERE id=?`).get(client_id);
-  const clientName = client?.name || `客戶#${client_id}`;
+  try {
+    const amt = parseFloat(amount) || 0;
+    const dateVal = collected_at || new Date().toISOString().slice(0, 10);
+    const typeLabel = TYPE_LABELS[type] || '預收款';
+    const client = db.prepare(`SELECT name FROM clients WHERE id=?`).get(client_id);
+    if (!client) return res.status(400).json({ error: '找不到客戶，請重新選擇' });
+    const clientName = client.name;
 
-  const initCaseId = linked_case_id ? parseInt(linked_case_id) : null;
-  const r = db.prepare(`
-    INSERT INTO client_deposits (client_id, type, amount, collected_at, note, product_name, linked_case_id, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(client_id, type, amt, dateVal, note || null,
-         product_name || null, initCaseId, req.session.user.id);
+    const initCaseId = linked_case_id ? parseInt(linked_case_id) : null;
+    const r = db.prepare(`
+      INSERT INTO client_deposits (client_id, type, amount, collected_at, note, product_name, linked_case_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(parseInt(client_id), type, amt, dateVal, note || null,
+           product_name || null, initCaseId, req.session.user.id);
 
-  // 同步寫入收支流水帳
-  if (amt > 0) {
-    const org = db.prepare(`SELECT org_id FROM clients WHERE id=?`).get(client_id);
-    db.prepare(`
-      INSERT INTO ledger_entries (date, type, category, amount, description, org_id, created_by, source_ref)
-      VALUES (?, 'income', ?, ?, ?, ?, ?, ?)
-    `).run(
-      dateVal,
-      typeLabel,
-      `${clientName}－${typeLabel}${product_name ? `（${product_name}）` : ''}${note ? `，${note}` : ''}`,
-      org?.org_id || null,
-      req.session.user.id,
-      `client_deposit:${r.lastInsertRowid}`
-    );
+    // 同步寫入收支流水帳
+    if (amt > 0) {
+      const org = db.prepare(`SELECT org_id FROM clients WHERE id=?`).get(client_id);
+      db.prepare(`
+        INSERT INTO ledger_entries (date, type, category, amount, description, org_id, created_by, source_ref)
+        VALUES (?, 'income', ?, ?, ?, ?, ?, ?)
+      `).run(
+        dateVal,
+        typeLabel,
+        `${clientName}－${typeLabel}${product_name ? `（${product_name}）` : ''}${note ? `，${note}` : ''}`,
+        org?.org_id || null,
+        req.session.user.id,
+        `client_deposit:${r.lastInsertRowid}`
+      );
+    }
+
+    res.json({ ok: true, id: r.lastInsertRowid });
+  } catch (e) {
+    console.error('新增預收款失敗:', e.message);
+    res.status(500).json({ error: '儲存失敗：' + e.message });
   }
-
-  res.json({ ok: true, id: r.lastInsertRowid });
 });
 
 // ── 更新狀態（applied / forfeited / refunded / pending）────────

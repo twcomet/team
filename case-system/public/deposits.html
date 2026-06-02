@@ -151,9 +151,13 @@
     <div class="modal-body">
       <div class="form-group">
         <label>客戶 *</label>
-        <select id="nd_client_id" onchange="onNdClientChange()">
-          <option value="">— 請選擇客戶 —</option>
-        </select>
+        <div style="position:relative">
+          <input type="text" id="nd_client_search" placeholder="輸入名稱搜尋客戶…"
+                 oninput="onClientSearchInput()" onblur="onClientSearchBlur()" autocomplete="off"
+                 style="width:100%;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input type="hidden" id="nd_client_id">
+          <div id="nd_client_dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div>
+        </div>
       </div>
       <div class="form-group">
         <label>類型</label>
@@ -241,14 +245,35 @@ function buildQueryParams() {
 async function loadClients() {
   const r = await fetch('/api/clients');
   allClients = r.ok ? await r.json() : [];
-  const sel = document.getElementById('nd_client_id');
-  sel.innerHTML = '<option value="">— 請選擇客戶 —</option>';
-  allClients.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    sel.appendChild(opt);
-  });
+}
+
+function onClientSearchInput() {
+  const q = document.getElementById('nd_client_search').value.trim().toLowerCase();
+  document.getElementById('nd_client_id').value = '';
+  const dd = document.getElementById('nd_client_dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+  const matches = allClients.filter(c => c.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!matches.length) {
+    dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果</div>`;
+  } else {
+    dd.innerHTML = matches.map(c =>
+      `<div onmousedown="selectClient(${c.id},${JSON.stringify(c.name)})"
+            style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+            onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${c.name}</div>`
+    ).join('');
+  }
+  dd.style.display = '';
+}
+
+function selectClient(id, name) {
+  document.getElementById('nd_client_id').value = id;
+  document.getElementById('nd_client_search').value = name;
+  document.getElementById('nd_client_dropdown').style.display = 'none';
+  onNdClientChange();
+}
+
+function onClientSearchBlur() {
+  setTimeout(() => { document.getElementById('nd_client_dropdown').style.display = 'none'; }, 150);
 }
 
 function applyFilter() {
@@ -342,7 +367,9 @@ async function verifyRow(id) {
 
 // ── 新增 Modal ────────────────────────────────────────────────────────────────
 function openNewModal() {
+  document.getElementById('nd_client_search').value = '';
   document.getElementById('nd_client_id').value    = '';
+  document.getElementById('nd_client_dropdown').style.display = 'none';
   document.getElementById('nd_type').value         = 'catalog';
   document.getElementById('nd_amount').value       = '';
   document.getElementById('nd_collected_at').value = new Date().toISOString().slice(0,10);
@@ -391,11 +418,11 @@ async function saveNew() {
   const type      = document.getElementById('nd_type').value;
   const isSample    = type === 'sample';
   const isSurveyFee = type === 'survey_fee';
-  if (!client_id) { alert('請選擇客戶'); return; }
+  if (!client_id) { alert('請先從下拉選項中選取客戶'); return; }
   if (isSample && !document.getElementById('nd_product_name').value.trim()) { alert('請填寫品名'); return; }
   if (isSurveyFee && !document.getElementById('nd_linked_case_id').value) { alert('場勘費必須選擇關聯案件'); return; }
   const amount = parseFloat(document.getElementById('nd_amount').value) || 0;
-  if (!isSample && amount <= 0) { alert('請輸入金額'); return; }
+  if (!isSample && amount <= 0) { alert('請輸入金額（須大於 0）'); return; }
 
   const payload = {
     client_id,
@@ -407,15 +434,21 @@ async function saveNew() {
     linked_case_id: isSurveyFee ? document.getElementById('nd_linked_case_id').value : null,
   };
 
-  const r = await fetch('/api/client-deposits', {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-  });
-  if (r.ok) {
-    showToast('已新增預收款');
-    closeNewModal();
-    await loadAllDeposits();
-  } else {
-    const e = await r.json(); showToast(e.error || '儲存失敗', 'error');
+  try {
+    const r = await fetch('/api/client-deposits', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      showToast('已新增預收款');
+      closeNewModal();
+      await loadAllDeposits();
+    } else {
+      let msg = '儲存失敗';
+      try { const e = await r.json(); msg = e.error || msg; } catch {}
+      showToast(msg, 'error');
+    }
+  } catch (e) {
+    showToast('網路錯誤，請稍後再試', 'error');
   }
 }
 
