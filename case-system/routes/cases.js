@@ -154,6 +154,7 @@ router.get('/', requireAuth, (req, res) => {
            qb.name  as quoted_name,
            inv.name as invalided_name,
            o.name   as org_name,
+           ub.name  as updated_by_name,
            ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
     FROM cases c
     LEFT JOIN clients cl  ON c.client_id        = cl.id
@@ -163,6 +164,7 @@ router.get('/', requireAuth, (req, res) => {
     LEFT JOIN users   qdb ON c.quote_drafted_by = qdb.id
     LEFT JOIN users   qb  ON c.quoted_by        = qb.id
     LEFT JOIN users   inv ON c.invalided_by     = inv.id
+    LEFT JOIN users   ub  ON c.updated_by       = ub.id
     LEFT JOIN orgs    o   ON c.org_id           = o.id
     WHERE 1=1
   `;

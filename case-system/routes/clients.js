@@ -9,7 +9,7 @@ router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
   const clients = db.prepare(`
-      SELECT c.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
+      SELECT c.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount, cb.name AS created_by_name,
         (SELECT COUNT(*) FROM cases cs WHERE cs.client_id=c.id
           AND cs.status IN ('contracted','payment','closed')
           AND cs.created_at >= datetime('now','-1 year')) AS orders_last_year,
@@ -20,6 +20,7 @@ router.get('/', requireAuth, (req, res) => {
       FROM clients c
       LEFT JOIN orgs o ON c.org_id = o.id
       LEFT JOIN client_categories cc ON cc.id = c.category_id
+      LEFT JOIN users cb ON cb.id = c.created_by
       ${orgSql ? `WHERE ${orgSql}` : ''}
       ORDER BY c.created_at DESC
     `).all(...orgPs);

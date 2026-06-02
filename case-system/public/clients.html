@@ -628,6 +628,7 @@ function render() {
             ${c.email ? `　✉️ ${c.email}` : ''}
             ${c.address ? `　📍 ${escHtml(c.address)}` : ''}
             ${c.tags && c.tags.length ? '<br>' + c.tags.map(t=>`<span class="client-tag" style="background:${t.color}">${escHtml(t.name)}</span>`).join(' ') : ''}
+            ${c.created_by_name ? `<br><span style="font-size:11px;color:#9ca3af">建立人：${escHtml(c.created_by_name)}</span>` : ''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">

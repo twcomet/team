@@ -701,6 +701,7 @@ function renderTableHead() {
       <th style="width:88px">負責客服</th>
       ${iSortTh('優先', 'priority', '76px')}
       <th style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">派案池</th>
+      <th style="width:60px">更新人</th>
       <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
@@ -725,6 +726,7 @@ function renderTableHead() {
       <th style="width:80px">客服</th>
       <th style="width:80px">場勘人</th>
       ${sSortTh('優先', 'priority', '70px')}
+      <th style="width:60px">更新人</th>
       <th style="width:65px">操作</th>
     </tr>`;
   } else {
@@ -746,6 +748,7 @@ function renderTableHead() {
       <th id="amountHeader" style="width:90px${!currentUser?.can_see_amounts ? ';display:none' : ''}">金額</th>
       ${dSortTh('收款', 'payment_status', '88px')}
       <th id="poolHeader" style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">案件池</th>
+      <th style="width:60px">更新人</th>
       <th style="width:120px">操作</th>
     </tr>`;
   }
@@ -863,7 +866,7 @@ function renderTable(cases) {
     });
   }
   if (!filtered.length) {
-    const cols = MODE === 'inquiry' ? 11 : MODE === 'survey' ? 15 : 12;
+    const cols = MODE === 'inquiry' ? 12 : MODE === 'survey' ? 16 : 13;
     tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state"><div class="icon">📋</div>沒有符合的案件</div></td></tr>`;
     return;
   }
@@ -900,6 +903,7 @@ function getCaseRow(c) {
           : `<button onclick="openPoolModal(${c.id},false)" style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
         }
       </td>
+      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
@@ -943,6 +947,7 @@ function getCaseRow(c) {
       <td style="width:70px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
       </td>
+      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
@@ -988,6 +993,7 @@ function getCaseRow(c) {
         : `<button onclick="event.stopPropagation();openPoolModal(${c.id},false)" style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
       }
     </td>
+    <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${c.updated_by_name || '—'}</td>
     <td onclick="event.stopPropagation()" style="width:120px;white-space:nowrap">${dealActionBtns(c)}</td>
   </tr>`;
 }
