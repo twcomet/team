@@ -122,13 +122,19 @@ router.put('/:id', requireAuth, (req, res) => {
 
 router.delete('/:id', requireAuth, (req, res) => {
   const { org_id, id: uid } = req.session.user;
-  const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=? AND org_id=?`).get(req.params.id, org_id);
-  db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`).run(req.params.id, org_id);
-  if (mat) {
+  try {
+    const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+    if (!mat) return res.status(404).json({ error: '找不到膜料' });
+    db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`).run(req.params.id, org_id);
     db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (NULL, ?, 'delete', ?, ?)`)
       .run(org_id, `刪除膜料型號：${mat.brand} ${mat.model}`, uid);
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.message && e.message.includes('FOREIGN KEY')) {
+      return res.status(409).json({ error: '此膜料已有關聯採購紀錄或報價資料，無法直接刪除。請先刪除相關紀錄後再試。' });
+    }
+    res.status(500).json({ error: e.message });
   }
-  res.json({ ok: true });
 });
 
 // ── 捲料（個別支料）────────────────────────────────────────────

@@ -168,12 +168,16 @@
           <option value="other">其他預收款</option>
         </select>
       </div>
-      <!-- 場勘費關聯案件 -->
-      <div class="form-group" id="ndCaseRow" style="display:none">
-        <label>關聯案件 *</label>
-        <select id="nd_linked_case_id">
-          <option value="">— 請先選擇客戶 —</option>
-        </select>
+      <!-- 關聯案件（選填） -->
+      <div class="form-group" id="ndCaseRow">
+        <label>關聯案件 <span style="font-size:11px;color:var(--gray-400)">(選填)</span></label>
+        <div style="position:relative">
+          <input type="text" id="nd_case_search" placeholder="輸入案件編號或名稱搜尋…"
+                 oninput="onCaseSearchInput()" onblur="onCaseSearchBlur()" autocomplete="off"
+                 style="width:100%;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;box-sizing:border-box">
+          <input type="hidden" id="nd_linked_case_id">
+          <div id="nd_case_dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid var(--gray-300);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div>
+        </div>
       </div>
       <!-- 樣本品名 -->
       <div class="form-group" id="ndProductRow" style="display:none">
@@ -206,6 +210,7 @@ const DEP_STATUS_LABEL = { pending:'待折抵', applied:'已折抵', forfeited:'
 
 let allDeposits = [];
 let allClients  = [];
+let clientCases = [];
 let canVerify   = false;
 
 function showToast(msg, type='success') {
@@ -262,7 +267,7 @@ function onClientSearchInput() {
             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${c.name}</div>`
     ).join('');
   }
-  dd.style.display = '';
+  dd.style.display = 'block';
 }
 
 function selectClient(id, name) {
@@ -274,6 +279,38 @@ function selectClient(id, name) {
 
 function onClientSearchBlur() {
   setTimeout(() => { document.getElementById('nd_client_dropdown').style.display = 'none'; }, 150);
+}
+
+function onCaseSearchInput() {
+  const q = document.getElementById('nd_case_search').value.trim().toLowerCase();
+  document.getElementById('nd_linked_case_id').value = '';
+  const dd = document.getElementById('nd_case_dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+  const matches = clientCases.filter(c =>
+    (c.case_number || '').toLowerCase().includes(q) ||
+    (c.title || '').toLowerCase().includes(q)
+  ).slice(0, 15);
+  if (!matches.length) {
+    dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果${clientCases.length === 0 ? '（請先選擇客戶）' : ''}</div>`;
+  } else {
+    dd.innerHTML = matches.map(c => {
+      const label = `${c.case_number || ''} ${c.title || ''}`.trim();
+      return `<div onmousedown="selectCase(${c.id},${JSON.stringify(label)})"
+            style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+            onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${label}</div>`;
+    }).join('');
+  }
+  dd.style.display = 'block';
+}
+
+function selectCase(id, name) {
+  document.getElementById('nd_linked_case_id').value = id;
+  document.getElementById('nd_case_search').value = name;
+  document.getElementById('nd_case_dropdown').style.display = 'none';
+}
+
+function onCaseSearchBlur() {
+  setTimeout(() => { document.getElementById('nd_case_dropdown').style.display = 'none'; }, 150);
 }
 
 function applyFilter() {
@@ -375,7 +412,10 @@ function openNewModal() {
   document.getElementById('nd_collected_at').value = new Date().toISOString().slice(0,10);
   document.getElementById('nd_note').value         = '';
   document.getElementById('nd_product_name').value = '';
-  document.getElementById('nd_linked_case_id').innerHTML = '<option value="">— 請先選擇客戶 —</option>';
+  document.getElementById('nd_case_search').value  = '';
+  document.getElementById('nd_linked_case_id').value = '';
+  document.getElementById('nd_case_dropdown').style.display = 'none';
+  clientCases = [];
   onNdTypeChange();
   document.getElementById('newDepModal').classList.add('open');
 }
@@ -385,43 +425,32 @@ function closeNewModal() {
 }
 
 async function onNdClientChange() {
+  clientCases = [];
+  document.getElementById('nd_case_search').value = '';
+  document.getElementById('nd_linked_case_id').value = '';
+  document.getElementById('nd_case_dropdown').style.display = 'none';
   const cid = document.getElementById('nd_client_id').value;
-  const sel = document.getElementById('nd_linked_case_id');
-  sel.innerHTML = '<option value="">— 請選擇案件 —</option>';
   if (!cid) return;
   try {
     const r = await fetch(`/api/cases?client_id=${cid}`);
-    if (r.ok) {
-      const cases = await r.json();
-      cases.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = `${c.case_number} ${c.title || ''}`.trim();
-        sel.appendChild(opt);
-      });
-    }
+    if (r.ok) clientCases = await r.json();
   } catch {}
 }
 
 function onNdTypeChange() {
   const type = document.getElementById('nd_type').value;
-  const isSample    = type === 'sample';
-  const isSurveyFee = type === 'survey_fee';
-  document.getElementById('ndCaseRow').style.display    = isSurveyFee ? '' : 'none';
+  const isSample = type === 'sample';
   document.getElementById('ndProductRow').style.display = isSample ? '' : 'none';
   document.getElementById('ndAmountHint').style.display = isSample ? '' : 'none';
   document.getElementById('ndAmountRequired').style.display = isSample ? 'none' : '';
-  if (isSurveyFee) onNdClientChange();
 }
 
 async function saveNew() {
   const client_id = document.getElementById('nd_client_id').value;
   const type      = document.getElementById('nd_type').value;
-  const isSample    = type === 'sample';
-  const isSurveyFee = type === 'survey_fee';
+  const isSample  = type === 'sample';
   if (!client_id) { alert('請先從下拉選項中選取客戶'); return; }
   if (isSample && !document.getElementById('nd_product_name').value.trim()) { alert('請填寫品名'); return; }
-  if (isSurveyFee && !document.getElementById('nd_linked_case_id').value) { alert('場勘費必須選擇關聯案件'); return; }
   const amount = parseFloat(document.getElementById('nd_amount').value) || 0;
   if (!isSample && amount <= 0) { alert('請輸入金額（須大於 0）'); return; }
 
@@ -432,7 +461,7 @@ async function saveNew() {
     collected_at:   document.getElementById('nd_collected_at').value || null,
     note:           document.getElementById('nd_note').value.trim() || null,
     product_name:   document.getElementById('nd_product_name').value.trim() || null,
-    linked_case_id: isSurveyFee ? document.getElementById('nd_linked_case_id').value : null,
+    linked_case_id: document.getElementById('nd_linked_case_id').value || null,
   };
 
   try {
