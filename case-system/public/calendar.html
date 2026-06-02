@@ -136,15 +136,33 @@ async function loadCalendar() {
   renderUnscheduled();
 }
 
-function getPillStyle(c) {
+function getWorkerKey(c) {
   const names = c.installer_name || '';
-  if (!names) return 'background:#e5e7eb;color:#6b7280';           // 未指派 → 灰
-  if (names.includes('紹銘')) return 'background:#fee2e2;color:#b91c1c';  // 紹銘 → 紅
-  if (names.includes('傳恩')) return 'background:#fce7f3;color:#be185d';  // 傳恩 → 粉紅
-  if (names.includes('昇鴻')) return 'background:#ffedd5;color:#c2410c';  // 昇鴻 → 橘
-  if ((c.worker_count || 0) >= 8) return 'background:#fef9c3;color:#92400e'; // 8人以上 → 黃
-  return 'background:#dbeafe;color:#1e40af';                        // 其他 → 淡藍
+  if (!names) return 'none';
+  if (names.includes('紹銘')) return 'shaoming';
+  if (names.includes('傳恩')) return 'chuanen';
+  if (names.includes('昇鴻')) return 'shenghong';
+  if ((c.worker_count || 0) >= 8) return 'large';
+  return 'other';
 }
+const WORKER_PILL = {
+  none:      'background:#e5e7eb;color:#6b7280',
+  shaoming:  'background:#fee2e2;color:#b91c1c',
+  chuanen:   'background:#fce7f3;color:#be185d',
+  shenghong: 'background:#ffedd5;color:#c2410c',
+  large:     'background:#fef9c3;color:#92400e',
+  other:     'background:#dbeafe;color:#1e40af',
+};
+const WORKER_CARD = {
+  none:      'background:#f9fafb;border-color:#e5e7eb',
+  shaoming:  'background:#fff5f5;border-color:#fca5a5',
+  chuanen:   'background:#fff0f7;border-color:#f9a8d4',
+  shenghong: 'background:#fff7ed;border-color:#fdba74',
+  large:     'background:#fefce8;border-color:#fde047',
+  other:     'background:#f0f9ff;border-color:#93c5fd',
+};
+function getPillStyle(c) { return WORKER_PILL[getWorkerKey(c)]; }
+function getCardStyle(c)  { return WORKER_CARD[getWorkerKey(c)]; }
 
 function renderCalendar() {
   const grid = document.getElementById('calGrid');
@@ -315,7 +333,7 @@ function openDayModal(dateStr) {
   }
   if (cases.length) {
     html += cases.map(c => `
-      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:10px">
+      <div style="border:1px solid;border-radius:8px;padding:14px;margin-bottom:10px;${getCardStyle(c)}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <code style="font-size:12px;color:#6b7280">${c.case_number}</code>
           ${statusBadge(c.status)}
