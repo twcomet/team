@@ -481,8 +481,8 @@ const CFG = {
     title: '成交案件管理',
     nav: 'cases-deal',
     group: 'deal',
-    stages: ['contracted', 'dispatched', 'constructing', 'payment', 'closed', 'invalid'],
-    stageNames: { contracted: '成交待派工', dispatched: '已派工待施工', constructing: '施工中', payment: '完工請款', closed: '結案保存', invalid: '無效' },
+    stages: ['contracted', 'dispatched', 'constructing', 'payment', 'aftersales', 'closed', 'invalid'],
+    stageNames: { contracted: '成交待派工', dispatched: '已派工待施工', constructing: '施工中', payment: '完工請款', aftersales: '待售後維修', closed: '結案保存', invalid: '無效' },
     hiddenByDefault: new Set(['closed', 'invalid']),
     showAmounts: true,
     showTypeTabs: true,
@@ -762,6 +762,7 @@ const DEAL_STAGE_COLORS = {
   dispatched:   { bg:'#ede9fe', active:'#7c3aed', text:'#3730a3' },
   constructing: { bg:'#fef9c3', active:'#ca8a04', text:'#713f12' },
   payment:      { bg:'#fed7aa', active:'#ea580c', text:'#9a3412' },
+  aftersales:   { bg:'#f3e8ff', active:'#9333ea', text:'#6b21a8' },
   closed:       { bg:'#d1fae5', active:'#16a34a', text:'#065f46' },
   invalid:      { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
 };

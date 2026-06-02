@@ -115,7 +115,7 @@ const STATUS_GROUP_MAP = {
   inquiry: 'inquiry', initial_estimate: 'inquiry',
   survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
   quote_draft: 'survey', quoted: 'survey',
-  contracted: 'deal', dispatched: 'deal', constructing: 'deal', payment: 'deal', closed: 'deal',
+  contracted: 'deal', dispatched: 'deal', constructing: 'deal', payment: 'deal', closed: 'deal', aftersales: 'deal',
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
@@ -575,17 +575,20 @@ router.get('/:id/dispatches', requireAuth, (req, res) => {
 router.post('/:id/dispatches', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, user_ids,
-          unloading_location, has_parking, work_until, access_code } = req.body;
+          unloading_location, has_parking, work_until, access_code,
+          warranty_covered, service_fee } = req.body;
   if (!scheduled_date) return res.status(400).json({ error: '請選擇派工日期' });
 
   const result = db.prepare(`
     INSERT INTO dispatches (case_id, dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes,
-      unloading_location, has_parking, work_until, access_code, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      unloading_location, has_parking, work_until, access_code, warranty_covered, service_fee, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(case_id, dispatch_type || 'install', scheduled_date,
          scheduled_time ?? null, estimated_hours ?? null,
          material ?? null, notes ?? null,
          unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
+         warranty_covered != null ? Number(warranty_covered) : 1,
+         service_fee != null ? Number(service_fee) : null,
          req.session.user.id);
 
   const did = result.lastInsertRowid;
@@ -606,6 +609,10 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
     if (c?.status === 'contracted' && dispatch_type === 'install') {
       updates.push(`status='dispatched'`, `prev_status='contracted'`);
     }
+    // 在結案案件新增售後維修派工 → 自動切換到 aftersales 狀態
+    if (c?.status === 'closed' && dispatch_type === 'aftersales') {
+      updates.push(`status='aftersales'`, `prev_status='closed'`);
+    }
     if (updates.length) {
       params.push(case_id);
       db.prepare(`UPDATE cases SET ${updates.join(',')}, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(...params);
@@ -619,16 +626,20 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
 
 router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, actual_hours, material, material_used, status, notes, user_ids,
-          unloading_location, has_parking, work_until, access_code } = req.body;
+          unloading_location, has_parking, work_until, access_code,
+          warranty_covered, service_fee } = req.body;
   db.prepare(`
     UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
       actual_hours=?, material=?, material_used=?, status=?, notes=?,
-      unloading_location=?, has_parking=?, work_until=?, access_code=?
+      unloading_location=?, has_parking=?, work_until=?, access_code=?,
+      warranty_covered=?, service_fee=?
     WHERE id=? AND case_id=?
   `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
          actual_hours ?? null, material ?? null, material_used ?? null,
          status || 'pending', notes ?? null,
          unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
+         warranty_covered != null ? Number(warranty_covered) : 1,
+         service_fee != null ? Number(service_fee) : null,
          req.params.did, req.params.id);
 
   // 記錄舊派工人員，用來計算新增的人
@@ -707,6 +718,8 @@ const ADVANCE_MAP = {
   dispatched:       { next: 'constructing',     tsCol: null,                  byCol: null               },
   constructing:     { next: 'payment',          tsCol: 'payment_at',          byCol: null               },
   payment:          { next: 'closed',           tsCol: 'closed_at',           byCol: null               },
+  closed:           { next: 'aftersales',       tsCol: null,                  byCol: null               },
+  aftersales:       { next: 'closed',           tsCol: null,                  byCol: null               },
 };
 router.patch('/:id/advance', requireAuth, (req, res) => {
   const me = req.session.user;
