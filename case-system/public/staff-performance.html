@@ -31,6 +31,7 @@
 .pill-advance { background:#dbeafe; color:#1e40af; }
 .pill-create  { background:#fce7f3; color:#9d174d; }
 .pill-update  { background:#e0f2fe; color:#075985; }
+.pill-login   { background:#f0fdf4; color:#166534; }
 .pill-total   { background:#f3f4f6; color:#374151; }
 .expand-icon  { font-size:12px; color:var(--gray-400); margin-left:8px; transition:transform .2s; flex-shrink:0; }
 .expand-icon.open { transform:rotate(180deg); }
@@ -188,6 +189,14 @@ function renderSummary() {
   `;
 }
 
+function fmtSeconds(s) {
+  if (!s) return '—';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 function renderUsers() {
   const el = document.getElementById('userList');
   if (!reportData.length) {
@@ -208,6 +217,8 @@ function renderUsers() {
         <td>${d.creates > 0 ? `<span style="color:#9d174d;font-weight:600">${d.creates}</span>` : '—'}</td>
         <td>${d.updates > 0 ? `<span style="color:#075985;font-weight:600">${d.updates}</span>` : '—'}</td>
         <td>${d.advances > 0 ? `<span style="color:#2563eb;font-weight:600">${d.advances}</span>` : '—'}</td>
+        <td>${d.login_count > 0 ? d.login_count + ' 次' : '—'}</td>
+        <td>${fmtSeconds(d.login_seconds)}</td>
         <td><span class="day-bar" style="width:${barW}px"></span></td>
       </tr>`;
     }).join('');
@@ -221,6 +232,7 @@ function renderUsers() {
           <div class="user-sub">${esc(u.username)} · 處理 ${u.cases_touched} 件 · 操作 ${u.total_actions} 次</div>
         </div>
         <div class="stat-pills">
+          ${u.login_count         ? `<span class="pill pill-login">登入 ${u.login_count}次・${fmtSeconds(u.total_login_seconds)}</span>` : ''}
           ${u.creates       ? `<span class="pill pill-create">新增 ${u.creates}</span>`       : ''}
           ${u.updates       ? `<span class="pill pill-update">更新 ${u.updates}</span>`       : ''}
           ${u.inquiry_cases ? `<span class="pill pill-inquiry">詢價 ${u.inquiry_cases}</span>` : ''}
@@ -232,8 +244,8 @@ function renderUsers() {
       </div>
       <div class="daily-table" id="daily-${idx}" style="display:none">
         <table>
-          <thead><tr><th>日期</th><th>處理案件</th><th>新增</th><th>更新</th><th>推進</th><th>活躍度</th></tr></thead>
-          <tbody>${dailyRows || '<tr><td colspan="6" style="color:var(--gray-400);text-align:center;padding:12px">此區間無紀錄</td></tr>'}</tbody>
+          <thead><tr><th>日期</th><th>處理案件</th><th>新增</th><th>更新</th><th>推進</th><th>登入次數</th><th>在線時間</th><th>活躍度</th></tr></thead>
+          <tbody>${dailyRows || '<tr><td colspan="8" style="color:var(--gray-400);text-align:center;padding:12px">此區間無紀錄</td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
