@@ -700,6 +700,7 @@ function renderTableHead() {
       <th style="width:88px">負責業務</th>
       <th style="width:88px">負責客服</th>
       ${iSortTh('優先', 'priority', '76px')}
+      <th style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">派案池</th>
       <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
@@ -892,6 +893,12 @@ function getCaseRow(c) {
       </td>
       <td style="width:90px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
+      </td>
+      <td style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}" onclick="event.stopPropagation()">
+        ${c.outsource_open
+          ? `<button onclick="openPoolModal(${c.id},true)" style="padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:#dcfce7;color:#166534;border:none;cursor:pointer;white-space:nowrap">🟢 在池</button>`
+          : `<button onclick="openPoolModal(${c.id},false)" style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
+        }
       </td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"

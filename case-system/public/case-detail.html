@@ -1517,16 +1517,32 @@ async function init() {
     if (autoTabEl) autoTabEl.click();
   }
 
-  // Pool banner buttons
-  document.getElementById('poolBannerBtn').addEventListener('click', () => {
+  // Pool banner buttons — 立即儲存到 API
+  document.getElementById('poolBannerBtn').addEventListener('click', async () => {
     const type = document.getElementById('poolBannerType').value || 'full';
+    const res = await fetch(`/api/marketplace/case-setting/${caseId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ outsource_open: true, outsource_types: [type], region_id: null }),
+    });
+    if (res.ok) { updatePoolBanner(true, type); showToast('已加入派案池'); }
+    else showToast('設定失敗', 'error');
+  });
+  document.getElementById('poolBannerCancel').addEventListener('click', async () => {
+    const res = await fetch(`/api/marketplace/case-setting/${caseId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ outsource_open: false, outsource_types: [], region_id: null }),
+    });
+    if (res.ok) { updatePoolBanner(false, null); showToast('已從派案池移除'); }
+    else showToast('設定失敗', 'error');
+  });
+  document.getElementById('poolBannerType').addEventListener('change', async e => {
+    if (!poolIsOn) return;
+    const type = e.target.value;
+    await fetch(`/api/marketplace/case-setting/${caseId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ outsource_open: true, outsource_types: [type], region_id: null }),
+    });
     updatePoolBanner(true, type);
-  });
-  document.getElementById('poolBannerCancel').addEventListener('click', () => {
-    updatePoolBanner(false, null);
-  });
-  document.getElementById('poolBannerType').addEventListener('change', e => {
-    if (poolIsOn) updatePoolBanner(true, e.target.value);
   });
 
   // Chip 客戶類別
