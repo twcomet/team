@@ -3502,6 +3502,15 @@ function renderQuoteItemsV2(items) {
   el.innerHTML = items.map(it => buildItemCard(it)).join('');
 }
 
+function itemPhotoHtml(itemId, photoUrl) {
+  if (photoUrl) {
+    return `<img src="${photoUrl}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;cursor:pointer" onclick="window.open('${photoUrl}','_blank')" title="點擊放大">
+    <button onclick="removeItemPhoto(${itemId})" style="padding:3px 10px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:11px;cursor:pointer">移除</button>`;
+  }
+  return `<label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px dashed #d1d5db;border-radius:6px;font-size:12px;color:#6b7280;background:#f9fafb">
+    📷 上傳照片<input type="file" accept="image/*" style="display:none" onchange="uploadItemPhoto(${itemId},this)"></label>`;
+}
+
 function buildItemCard(it) {
   const typeLabel = { film:'貼膜', catalog:'公規品', service:'服務', travel:'車馬費', freight:'運費' };
   const typeBadge = { film:'q-film-badge', catalog:'q-catalog-badge', service:'q-service-badge', travel:'q-service-badge', freight:'q-service-badge' };
@@ -3598,6 +3607,11 @@ function buildItemCard(it) {
         ${noticeTemplatesAll.map(t => `<option value="${t.id}" ${t.id===it.notice_template_id?'selected':''}>${esc(t.name||'模板'+t.id)}</option>`).join('')}
       </select></div>
   </div>
+  <input type="hidden" id="qPhotoUrl_${it.id}" value="${esc(it.material_photo_url||'')}">
+  <div style="margin-top:10px">
+    <label class="q-field-label">說明照片</label>
+    <div id="qPhotoArea_${it.id}" style="display:flex;align-items:center;gap:8px;margin-top:4px">${itemPhotoHtml(it.id, it.material_photo_url)}</div>
+  </div>
 </div>`;
   }
 
@@ -3641,6 +3655,11 @@ function buildItemCard(it) {
     <select id="qNotice_${it.id}" class="q-input" style="max-width:320px" onchange="saveQItem(${it.id})">
       ${catNoticeOpts}
     </select></div>` : ''}
+  <input type="hidden" id="qPhotoUrl_${it.id}" value="${esc(it.material_photo_url||'')}">
+  <div style="margin-top:10px">
+    <label class="q-field-label">說明照片</label>
+    <div id="qPhotoArea_${it.id}" style="display:flex;align-items:center;gap:8px;margin-top:4px">${itemPhotoHtml(it.id, it.material_photo_url)}</div>
+  </div>
 </div>`;
   }
 
@@ -3664,6 +3683,11 @@ function buildItemCard(it) {
       <input type="number" id="qUprice_${it.id}" class="q-input" value="${it.unit_price||0}" oninput="qCalcLineSub(${it.id})" onblur="saveQItem(${it.id})"></div>
     <div><label class="q-field-label">小計</label>
       <div id="qSub_${it.id}" class="q-input" style="background:#f9fafb;font-weight:700">${sub}</div></div>
+  </div>
+  <input type="hidden" id="qPhotoUrl_${it.id}" value="${esc(it.material_photo_url||'')}">
+  <div style="margin-top:10px">
+    <label class="q-field-label">說明照片</label>
+    <div id="qPhotoArea_${it.id}" style="display:flex;align-items:center;gap:8px;margin-top:4px">${itemPhotoHtml(it.id, it.material_photo_url)}</div>
   </div>
 </div>`;
 }
@@ -3883,7 +3907,7 @@ async function saveQItem(itemId) {
   const type = item.item_type;
   const g = id => document.getElementById(id)?.value ?? null;
 
-  let body = { item_type: type, location: g(`qLoc_${itemId}`) };
+  let body = { item_type: type, location: g(`qLoc_${itemId}`), material_photo_url: g(`qPhotoUrl_${itemId}`) || null };
 
   if (type === 'film') {
     const isSimple = item.display_mode === 'simple';
@@ -3988,6 +4012,35 @@ async function deleteQItem(itemId) {
   await fetch(`/api/quotes/${currentQuote.id}/items/${itemId}`, { method:'DELETE' });
   const qr = await fetch(`/api/quotes/${currentQuote.id}`);
   if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
+}
+
+async function uploadItemPhoto(itemId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const areaEl = document.getElementById(`qPhotoArea_${itemId}`);
+  if (areaEl) areaEl.innerHTML = '<span style="font-size:12px;color:#6b7280">上傳中…</span>';
+  const fd = new FormData();
+  fd.append('image', file);
+  const r = await fetch('/api/storage/upload', { method:'POST', body: fd });
+  if (!r.ok) { alert('上傳失敗'); if (areaEl) areaEl.innerHTML = itemPhotoHtml(itemId, ''); return; }
+  const data = await r.json();
+  const hiddenEl = document.getElementById(`qPhotoUrl_${itemId}`);
+  if (hiddenEl) hiddenEl.value = data.url;
+  await saveQItem(itemId);
+  if (areaEl) areaEl.innerHTML = itemPhotoHtml(itemId, data.url);
+  const item = (currentQuote?.items || []).find(i => i.id === itemId);
+  if (item) item.material_photo_url = data.url;
+}
+
+async function removeItemPhoto(itemId) {
+  if (!confirm('確定移除此照片？')) return;
+  const hiddenEl = document.getElementById(`qPhotoUrl_${itemId}`);
+  if (hiddenEl) hiddenEl.value = '';
+  await saveQItem(itemId);
+  const areaEl = document.getElementById(`qPhotoArea_${itemId}`);
+  if (areaEl) areaEl.innerHTML = itemPhotoHtml(itemId, '');
+  const item = (currentQuote?.items || []).find(i => i.id === itemId);
+  if (item) item.material_photo_url = null;
 }
 
 function renderQuoteTotals() {
