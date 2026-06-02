@@ -170,9 +170,10 @@ router.put('/:id', requireAuth, (req, res) => {
 // PATCH /api/ledger/:id/pay  — 標記已付款（owner only）
 router.patch('/:id/pay', requireOwner, (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
-  const { paid_note } = req.body;
-  db.prepare(`UPDATE ledger_entries SET pay_status='paid', paid_at=?, paid_note=? WHERE id=?`)
-    .run(today, paid_note || null, req.params.id);
+  const { paid_note, paid_at } = req.body;
+  const actualDate = paid_at || today;
+  db.prepare(`UPDATE ledger_entries SET date=?, pay_status='paid', paid_at=?, paid_note=? WHERE id=?`)
+    .run(actualDate, actualDate, paid_note || null, req.params.id);
   res.json({ ok: true });
 });
 
