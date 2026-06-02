@@ -138,7 +138,11 @@ function avatarColor(name) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-function todayStr() { return new Date().toISOString().slice(0,10); }
+function localDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function todayStr() { return localDate(new Date()); }
 
 function setPeriod(mode) {
   document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
@@ -150,9 +154,9 @@ function setPeriod(mode) {
   } else if (mode === 'week') {
     const d = new Date(today);
     d.setDate(d.getDate() - d.getDay() + 1);
-    from = d.toISOString().slice(0,10);
+    from = localDate(d);
   } else {
-    from = today.toISOString().slice(0,10).slice(0,8) + '01';
+    from = todayStr().slice(0,8) + '01';
   }
   document.getElementById('dateFrom').value = from;
   document.getElementById('dateTo').value   = to;
@@ -251,8 +255,8 @@ async function init() {
 
   // 預設本月
   const today = new Date();
-  document.getElementById('dateFrom').value = today.toISOString().slice(0,8) + '01';
-  document.getElementById('dateTo').value   = today.toISOString().slice(0,10);
+  document.getElementById('dateFrom').value = todayStr().slice(0,8) + '01';
+  document.getElementById('dateTo').value   = todayStr();
   document.querySelector('.period-tab.active')?.classList.remove('active');
   document.querySelectorAll('.period-tab')[2].classList.add('active');
 

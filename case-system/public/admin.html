@@ -45,6 +45,7 @@
   <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
   <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
   <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
   <span class="nav-group-label">系統設定</span>
   <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
   <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
@@ -1108,6 +1109,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_calendar').checked        = editPerm('page_calendar');
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
+  document.getElementById('perm_page_expenses').checked        = isOwner ? true : (perms.page_expenses !== undefined ? !!perms.page_expenses : false);
   document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
   document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials   !== undefined ? !!perms.page_materials   : !!u.is_manager);
   document.getElementById('perm_page_material_calc').checked    = isOwner ? true : (perms.page_material_calc !== undefined ? !!perms.page_material_calc : true);
