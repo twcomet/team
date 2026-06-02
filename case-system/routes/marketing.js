@@ -307,7 +307,7 @@ router.get('/report', requireAuth, (req, res) => {
     const funnel = db.prepare(`
       SELECT
         COUNT(*) as inquiries,
-        SUM(CASE WHEN status IN ('initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as initial_estimate,
+        SUM(CASE WHEN status IN ('initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as initial_estimate,
         SUM(CASE WHEN status IN ('survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as survey_pending,
         SUM(CASE WHEN status IN ('surveyed','quote_draft','quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as surveyed,
         SUM(CASE WHEN status IN ('quoted','contracted','payment','closed') THEN 1 ELSE 0 END) as quoted,

@@ -762,7 +762,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
 });
 
 // ── 標記無效 PATCH /:id/invalidate ──────────────────────────
-const INVALIDATABLE = new Set(['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
+const INVALIDATABLE = new Set(['inquiry','initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
 router.patch('/:id/invalidate', requireAuth, (req, res) => {
   const me = req.session.user;
   const { reason, tags } = req.body;
@@ -937,7 +937,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('contracted','dispatched','constructing','payment') ${orgCond}`).get(...orgPs2).n,
     unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='contracted' ${orgCond}`).get(...orgPs2).n,
     today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today, ...orgPs2).n,
-    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','invalid') ${orgCond}`).get(...orgPs2).n,
+    unpaid:       db.prepare(`SELECT COALESCE(SUM(COALESCE(final_price,quoted_price,0)-payment_received),0) n FROM cases c WHERE payment_status!='paid' AND status NOT IN ('inquiry','initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','invalid') ${orgCond}`).get(...orgPs2).n,
     month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? AND scheduled_date<=? ${orgCond}`).get(monthStart, monthEnd, ...orgPs2).n,
   });
 });
