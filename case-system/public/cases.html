@@ -442,6 +442,12 @@
   background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none;
 }
 .invalid-tag.active { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 600; }
+#editorTooltip {
+  position:fixed; z-index:9999; background:#1f2937; color:#f9fafb;
+  font-size:12px; padding:8px 12px; border-radius:8px; pointer-events:none;
+  display:none; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,.25);
+  line-height:1.8;
+}
 </style>
 
 <script src="/js/common.js"></script>
@@ -903,7 +909,7 @@ function getCaseRow(c) {
           : `<button onclick="openPoolModal(${c.id},false)" style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap">加入池</button>`
         }
       </td>
-      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${c.updated_by_name || '—'}</td>
+      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
@@ -947,7 +953,7 @@ function getCaseRow(c) {
       <td style="width:70px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
       </td>
-      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${c.updated_by_name || '—'}</td>
+      <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
@@ -1572,6 +1578,38 @@ init();
 window.addEventListener('pageshow', e => {
   if (e.persisted) loadCases();
 });
+
+// ── 更新人 tooltip ────────────────────────────────────────────────
+const _editorCache = {};
+const _tooltip = document.getElementById('editorTooltip');
+
+async function showEditorTooltip(e, caseId) {
+  if (!_editorCache[caseId]) {
+    _editorCache[caseId] = 'loading';
+    const r = await fetch(`/api/cases/${caseId}/recent-editors`);
+    _editorCache[caseId] = r.ok ? await r.json() : [];
+  }
+  const data = _editorCache[caseId];
+  if (data === 'loading' || !data.length) return;
+  _tooltip.innerHTML = '<div style="font-size:10px;color:#9ca3af;margin-bottom:4px">最近編輯</div>' +
+    data.map(d => {
+      const dt = new Date(d.created_at + (d.created_at.includes('+') ? '' : 'Z'))
+        .toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      return `<div>${d.name} <span style="color:#9ca3af;font-size:11px">${dt}</span></div>`;
+    }).join('');
+  _tooltip.style.display = 'block';
+  posEditorTooltip(e);
+}
+
+function posEditorTooltip(e) {
+  const x = e.clientX + 12, y = e.clientY + 12;
+  _tooltip.style.left = Math.min(x, window.innerWidth - _tooltip.offsetWidth - 8) + 'px';
+  _tooltip.style.top  = Math.min(y, window.innerHeight - _tooltip.offsetHeight - 8) + 'px';
+}
+
+function hideEditorTooltip() { _tooltip.style.display = 'none'; }
 </script>
+
+<div id="editorTooltip"></div>
 </body>
 </html>

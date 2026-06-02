@@ -192,6 +192,21 @@ router.get('/', requireAuth, (req, res) => {
   res.json(db.prepare(q).all(...p));
 });
 
+// 最近編輯人 tooltip（不限 owner）
+router.get('/:id/recent-editors', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT u.name, l.created_at
+    FROM audit_logs l
+    JOIN users u ON u.id = l.user_id
+    WHERE l.entity = 'cases' AND l.entity_id = ? AND l.action IN ('update','advance')
+    ORDER BY l.id DESC LIMIT 5
+  `).all(req.params.id);
+  // 去重只保留每人最近一筆
+  const seen = new Set();
+  const result = rows.filter(r => { if (seen.has(r.name)) return false; seen.add(r.name); return true; }).slice(0, 3);
+  res.json(result);
+});
+
 router.get('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`
     SELECT c.*,

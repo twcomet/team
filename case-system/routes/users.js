@@ -188,13 +188,14 @@ router.get('/roles', requireAuth, (req, res) => {
 // 操作紀錄（owner only）
 router.get('/audit-logs', requireAuth, (req, res) => {
   if (req.session.user.role !== 'owner') return res.status(403).json({ error: '僅最高管理者可查看' });
-  const { from, to, uid, entity, limit = 200 } = req.query;
+  const { from, to, uid, entity, entity_id, limit = 200 } = req.query;
   let where = 'WHERE 1=1';
   const params = [];
-  if (from)   { where += ' AND l.created_at >= ?'; params.push(from); }
-  if (to)     { where += ' AND l.created_at <= ?'; params.push(to + ' 23:59:59'); }
-  if (uid)    { where += ' AND l.user_id = ?'; params.push(uid); }
-  if (entity) { where += ' AND l.entity = ?'; params.push(entity); }
+  if (from)      { where += ' AND l.created_at >= ?'; params.push(from); }
+  if (to)        { where += ' AND l.created_at <= ?'; params.push(to + ' 23:59:59'); }
+  if (uid)       { where += ' AND l.user_id = ?'; params.push(uid); }
+  if (entity)    { where += ' AND l.entity = ?'; params.push(entity); }
+  if (entity_id) { where += ' AND l.entity_id = ?'; params.push(entity_id); }
   const rows = db.prepare(`
     SELECT l.*, u.name as user_name, u.username
     FROM audit_logs l
