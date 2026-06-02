@@ -1229,7 +1229,7 @@
         <div class="form-group"><label>派工類型</label>
           <select id="d_type" onchange="onDispatchTypeChange()">
             <option value="cut_material">裁切材料</option>
-            <option value="factory_survey">廠勘</option>
+            <option value="factory_survey">場勘</option>
             <option value="install" selected>施工</option>
             <option value="aftersales">售後維修</option>
             <option value="other">其他</option>
@@ -2218,7 +2218,7 @@ document.getElementById('toInvalidBtn').addEventListener('click',() => convertCa
 function renderItems() {}
 
 // ── 派工 ───────────────────────────────────────────────────
-const DISPATCH_TAGS = { cut_material:'裁切 tag-cut', factory_survey:'廠勘 tag-factory', survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales', other:'其他 tag-other' };
+const DISPATCH_TAGS = { cut_material:'裁切 tag-cut', factory_survey:'場勘 tag-factory', survey:'場勘 tag-survey', install:'施工 tag-install', aftersales:'售後 tag-aftersales', other:'其他 tag-other' };
 
 function renderDispatches(dispatches) {
   const el = document.getElementById('dispatchList');
@@ -3405,7 +3405,7 @@ function openClientForInvoice() {
 // ── 歷程 ───────────────────────────────────────────────────
 function renderMatUsage(dispatchList, logList) {
   const el = document.getElementById('matUsageList');
-  const DISPATCH_TYPE = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
+  const DISPATCH_TYPE = { cut_material:'裁切材料', factory_survey:'場勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
   const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留' };
 
   // 統一格式

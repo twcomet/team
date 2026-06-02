@@ -22,7 +22,7 @@ async function geocodeCase(caseId, address) {
 }
 
 // ── 派工通知 ─────────────────────────────────────────────────
-const DISPATCH_LABELS = { cut_material:'裁切材料', factory_survey:'廠勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
+const DISPATCH_LABELS = { cut_material:'裁切材料', factory_survey:'場勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
 
 async function notifyDispatch(case_id, dispatch_type, scheduled_date, user_ids, creatorId) {
   if (!Array.isArray(user_ids) || !user_ids.length) return;
@@ -485,6 +485,16 @@ router.patch('/:id/priority', requireAuth, (req, res) => {
   if (!['urgent','high','normal','low'].includes(priority))
     return res.status(400).json({ error: '無效的優先程度' });
   db.prepare(`UPDATE cases SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(priority, req.params.id);
+  res.json({ ok: true });
+});
+
+router.patch('/:id/intent', requireAuth, (req, res) => {
+  const { deal_intent } = req.body;
+  const allowed = ['', 'called', 'incomplete', 'waiting_quote', 'need_survey'];
+  if (!allowed.includes(deal_intent ?? ''))
+    return res.status(400).json({ error: '無效的處理狀態' });
+  db.prepare(`UPDATE cases SET deal_intent=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(deal_intent || null, req.params.id);
   res.json({ ok: true });
 });
 

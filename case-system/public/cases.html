@@ -883,7 +883,7 @@ function getCaseRow(c) {
       <td style="width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${c.client_name || '—'}</td>
       <td style="width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;font-size:12px;color:#6b7280">${escHtml(c.line_official_name || '—')}</td>
       <td style="width:240px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
-      <td style="width:90px;white-space:nowrap">${intentBadge(c.deal_intent)}</td>
+      <td style="width:100px" onclick="event.stopPropagation()">${intentSelect(c)}</td>
       <td style="width:88px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
       </td>
@@ -1093,6 +1093,22 @@ function setDealSort(field) {
 function intentBadge(v) {
   if (!v) return '<span style="color:var(--gray-400);font-size:12px">—</span>';
   return `<span class="badge badge-intent-${v}">${INTENT_LABELS[v] || v}</span>`;
+}
+
+function intentSelect(c) {
+  const opts = [['', '—'], ['called','客服打過電話'], ['incomplete','資料不齊'], ['waiting_quote','客戶等報價'], ['need_survey','需追蹤場勘']]
+    .map(([v, l]) => `<option value="${v}" ${(c.deal_intent || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+  return `<select onchange="updateIntent(${c.id},this.value)"
+    style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:11px;background:#fff;cursor:pointer;width:100%;max-width:100px">
+    ${opts}</select>`;
+}
+
+async function updateIntent(id, value) {
+  const res = await fetch(`/api/cases/${id}/intent`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ deal_intent: value || '' })
+  });
+  if (!res.ok) showToast('處理狀態更新失敗', 'error');
 }
 
 document.querySelectorAll('.type-tab').forEach(tab => {
