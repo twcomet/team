@@ -9,6 +9,8 @@ const ROLE_LABELS = {
 const STATUS_LABELS = {
   inquiry:           '詢價需初步估價',
   initial_estimate:  '已初步估價',
+  quote_needed:      '需出估價單',
+  quote_sent:        '已出估價單',
   survey_pending:    '待排場勘',
   survey_scheduled:  '已排場勘',
   surveyed:          '已場勘',
