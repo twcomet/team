@@ -87,7 +87,13 @@
             操作紀錄
             <span id="auditCollapseIcon" style="font-size:12px;color:var(--gray-400);transition:transform .2s">▾</span>
           </h3>
-          <div style="display:flex;gap:8px;align-items:center" onclick="event.stopPropagation()">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">
+            <input type="date" id="auditFrom" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px" title="開始日期">
+            <span style="font-size:13px;color:var(--gray-400)">～</span>
+            <input type="date" id="auditTo" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px" title="結束日期">
+            <select id="auditUser" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
+              <option value="">全部人員</option>
+            </select>
             <select id="auditEntity" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
               <option value="">全部類型</option>
               <option value="cases">案件</option>
@@ -95,10 +101,8 @@
               <option value="ledger">流水帳</option>
               <option value="users">帳號</option>
             </select>
-            <select id="auditUser" style="font-size:13px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px">
-              <option value="">全部人員</option>
-            </select>
             <button class="btn btn-ghost btn-sm" onclick="loadAuditLogs()">篩選</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAuditFilter()" style="color:var(--gray-400)">清除</button>
           </div>
         </div>
         <div id="auditBodyWrap">
@@ -1264,22 +1268,44 @@ function auditSetExpanded(expand) {
 async function loadAuditLogs() {
   const entity = document.getElementById('auditEntity')?.value || '';
   const uid    = document.getElementById('auditUser')?.value || '';
-  const params = new URLSearchParams({ limit: 500 });
+  const from   = document.getElementById('auditFrom')?.value || '';
+  const to     = document.getElementById('auditTo')?.value || '';
+  const params = new URLSearchParams({ limit: 1000 });
   if (entity) params.set('entity', entity);
   if (uid)    params.set('uid', uid);
+  if (from)   params.set('from', from);
+  if (to)     params.set('to', to);
   const res = await fetch('/api/users/audit-logs?' + params);
   if (!res.ok) return;
   auditAllLogs = await res.json();
   auditPage = 1;
   auditExpanded = false;
 
-  // Populate user filter (first load only)
+  // 每次都重新填充人員選單（依目前篩選結果）
   const sel = document.getElementById('auditUser');
-  if (sel && sel.options.length === 1) {
+  if (sel) {
+    const currentUid = sel.value;
+    sel.innerHTML = '<option value="">全部人員</option>';
     const seen = new Set();
-    auditAllLogs.forEach(l => { if (l.user_id && !seen.has(l.user_id)) { seen.add(l.user_id); sel.add(new Option(l.user_name || l.username || l.user_id, l.user_id)); } });
+    // 若有 uid 篩選，從不帶 uid 的結果取人員清單
+    const allForUsers = uid ? auditAllLogs : auditAllLogs;
+    allForUsers.forEach(l => {
+      if (l.user_id && !seen.has(l.user_id)) {
+        seen.add(l.user_id);
+        sel.add(new Option(l.user_name || l.username || String(l.user_id), l.user_id));
+      }
+    });
+    if (currentUid) sel.value = currentUid;
   }
   renderAuditTable();
+}
+
+function clearAuditFilter() {
+  document.getElementById('auditFrom').value = '';
+  document.getElementById('auditTo').value = '';
+  document.getElementById('auditUser').value = '';
+  document.getElementById('auditEntity').value = '';
+  loadAuditLogs();
 }
 
 function renderAuditTable() {
