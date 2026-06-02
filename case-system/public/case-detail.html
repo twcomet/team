@@ -3284,6 +3284,8 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     invoice_item_desc:  document.getElementById('p_invoice_item_desc').value              || null,
     invoice_contact:    document.getElementById('p_invoice_contact').value                || null,
     invoice_phone:      document.getElementById('p_invoice_phone').value                  || null,
+    invoice_issued:     document.getElementById('p_invoice_issued')?.checked ? 1 : 0,
+    invoice_issued_date: document.getElementById('p_invoice_issued_date')?.value          || null,
     retention_invoiced: parseFloat(document.getElementById('p_retention_invoiced').value) || null,
     material_cost:      parseFloat(document.getElementById('p_material_cost').value)      || null,
     outsource_cost:     parseFloat(document.getElementById('p_outsource_cost').value)     || null,

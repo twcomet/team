@@ -2752,6 +2752,20 @@ _addCol('client_deposits', 'accounting_verified',    'INTEGER DEFAULT 0');
 _addCol('client_deposits', 'accounting_verified_at', 'TEXT');
 _addCol('client_deposits', 'accounting_verified_by', 'INTEGER REFERENCES users(id)');
 
+// ── 案件往來文件（報價單、合約等） ───────────────────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS case_documents (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  case_id     INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  doc_type    TEXT NOT NULL DEFAULT 'quote'
+              CHECK(doc_type IN ('quote','contract','other')),
+  filename    TEXT NOT NULL,
+  file_url    TEXT NOT NULL,
+  public_id   TEXT,
+  notes       TEXT,
+  uploaded_by INTEGER REFERENCES users(id),
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
 // ── 申訴及意見回饋 ────────────────────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS feedback_tickets (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
