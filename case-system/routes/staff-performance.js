@@ -24,7 +24,8 @@ router.get('/', requireAuth, ownerOnly, (req, res) => {
       COUNT(DISTINCT CASE WHEN c.case_group='survey'  THEN l.entity_id END) AS survey_cases,
       COUNT(DISTINCT CASE WHEN c.case_group='deal'    THEN l.entity_id END) AS deal_cases,
       SUM(CASE WHEN l.action='advance' THEN 1 ELSE 0 END)               AS advances,
-      SUM(CASE WHEN l.action='create'  THEN 1 ELSE 0 END)               AS creates
+      SUM(CASE WHEN l.action='create'  THEN 1 ELSE 0 END)               AS creates,
+      SUM(CASE WHEN l.action='update'  THEN 1 ELSE 0 END)               AS updates
     FROM audit_logs l
     JOIN users u ON u.id = l.user_id
     LEFT JOIN cases c ON c.id = l.entity_id AND l.entity = 'cases'
@@ -41,7 +42,9 @@ router.get('/', requireAuth, ownerOnly, (req, res) => {
       date(l.created_at, '+8 hours') AS date,
       COUNT(*)                        AS actions,
       COUNT(DISTINCT l.entity_id)     AS cases,
-      SUM(CASE WHEN l.action='advance' THEN 1 ELSE 0 END) AS advances
+      SUM(CASE WHEN l.action='advance' THEN 1 ELSE 0 END) AS advances,
+      SUM(CASE WHEN l.action='create'  THEN 1 ELSE 0 END) AS creates,
+      SUM(CASE WHEN l.action='update'  THEN 1 ELSE 0 END) AS updates
     FROM audit_logs l
     WHERE l.entity = 'cases' AND l.user_id = ?
       AND date(l.created_at, '+8 hours') BETWEEN ? AND ?
