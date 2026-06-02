@@ -257,7 +257,7 @@ function onClientSearchInput() {
   document.getElementById('nd_client_id').value = '';
   const dd = document.getElementById('nd_client_dropdown');
   if (!q) { dd.style.display = 'none'; return; }
-  const matches = allClients.filter(c => c.name.toLowerCase().includes(q)).slice(0, 15);
+  const matches = allClients.filter(c => c.name && c.name.toLowerCase().includes(q)).slice(0, 15);
   if (!matches.length) {
     dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果</div>`;
   } else {
