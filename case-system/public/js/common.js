@@ -78,6 +78,7 @@ async function loadUser() {
     'material-calc':  p.page_material_calc !== undefined ? p.page_material_calc : mu,
     marketing:           p.page_marketing    !== undefined ? p.page_marketing    : mu,
     'dispatch-pool':     p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
+    'quote-settings':    p.page_quote_settings !== undefined ? p.page_quote_settings : mu,
     'staff-performance': currentUser.role === 'owner',
     marketplace:      true,   // 市集所有人可見
     guide:            true,   // 系統使用說明所有人可見

@@ -7,6 +7,11 @@ const { requireAuth } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router = express.Router();
 
+function canManagePool(user) {
+  const p = user.permissions || {};
+  return !!user.manage_users || p.page_dispatch_pool === true;
+}
+
 const UPLOAD_DIR = path.join(__dirname, '../public/uploads/completion');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const uploadStorage = multer.diskStorage({
@@ -177,7 +182,7 @@ router.post('/:caseId/apply', requireAuth, (req, res) => {
 
 // POST /api/marketplace/direct-assign/:caseId — HQ 直接指派技師
 router.post('/direct-assign/:caseId', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
   const { technician_id, note } = req.body;
   if (!technician_id) return res.status(400).json({ error: '請選擇技師' });
 
@@ -238,7 +243,7 @@ router.put('/tasks/:caseId/respond', requireAuth, (req, res) => {
 
 // GET /api/marketplace/applications — 總部查看所有申請
 router.get('/applications', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
   const { status } = req.query;
   let where = '1=1';
   const params = [];
@@ -261,7 +266,7 @@ router.get('/applications', requireAuth, (req, res) => {
 
 // PUT /api/marketplace/applications/:id — 總部審核申請
 router.put('/applications/:id', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
   const { status, hq_note } = req.body;
   if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: '無效狀態' });
 
@@ -297,7 +302,7 @@ router.put('/applications/:id', requireAuth, (req, res) => {
 
 // PUT /api/marketplace/case-setting/:id — HQ 設定開放案件池（含區域）
 router.put('/case-setting/:id', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
   const { outsource_open, outsource_types, region_id } = req.body;
   db.prepare(`UPDATE cases SET outsource_open=?, outsource_types=?, region_id=COALESCE(?,region_id), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(outsource_open ? 1 : 0, JSON.stringify(outsource_types || []), region_id || null, req.params.id);
@@ -306,7 +311,7 @@ router.put('/case-setting/:id', requireAuth, (req, res) => {
 
 // GET /api/marketplace/pool-overview — HQ 案件池總覽（含各案申請列表）
 router.get('/pool-overview', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
 
   const cases = db.prepare(`
     SELECT c.id, c.case_number, c.case_type, c.title, c.location, c.status,
@@ -345,7 +350,7 @@ router.get('/pool-overview', requireAuth, (req, res) => {
 
 // GET /api/marketplace/technicians — 取得可指派的技師列表（依區域）
 router.get('/technicians', requireAuth, (req, res) => {
-  if (!req.session.user.manage_users) return res.status(403).json({ error: '權限不足' });
+  if (!canManagePool(req.session.user)) return res.status(403).json({ error: '權限不足' });
   const { region_id } = req.query;
   let where = `u.active=1 AND u.role IN ('contractor_install','contractor_sales','dealer_technician','regional_partner')`;
   const params = [];

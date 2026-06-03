@@ -117,6 +117,7 @@ const PAGE_PERMS = {
   reports:          'page_reports',
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
+  'quote-settings': 'page_quote_settings',
   marketing:        'page_marketing',
   hr:               'page_hr',
   contracts:        'manage_users',
@@ -145,6 +146,8 @@ function requirePagePerm(page) {
       allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
     } else if (key === 'page_dispatch_pool') {
       allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : !!u.manage_users;
+    } else if (key === 'page_quote_settings') {
+      allowed = p.page_quote_settings !== undefined ? p.page_quote_settings === true : !!u.manage_users;
     } else if (key === 'page_cases_deal') {
       const HQ = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
       allowed = p.page_cases_deal !== undefined ? p.page_cases_deal === true : HQ.includes(u.role);

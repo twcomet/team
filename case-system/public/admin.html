@@ -50,7 +50,7 @@
   <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
   <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
   <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
-  <a class="nav-item" data-page="quote-settings" href="/quote-settings" data-need="manage_users"><span class="icon">💹</span>報價設定</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings"><span class="icon">💹</span>報價設定</a>
 </nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
@@ -428,6 +428,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_dispatch_pool"> 🏊 派案池管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_quote_settings"> 💹 報價設定
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_cases_deal"> ✅ 成交案件管理
@@ -1004,6 +1007,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_ledger').checked          = !!p.page_ledger;
     document.getElementById('perm_page_expenses').checked        = !!p.page_expenses;
     document.getElementById('perm_page_dispatch_pool').checked   = !!p.page_dispatch_pool;
+    document.getElementById('perm_page_quote_settings').checked  = !!p.page_quote_settings;
     document.getElementById('perm_page_cases_deal').checked       = !!p.page_cases_deal;
     document.getElementById('perm_page_materials').checked        = !!p.page_materials;
     document.getElementById('perm_page_material_calc').checked    = p.page_material_calc !== undefined ? !!p.page_material_calc : true;
@@ -1025,6 +1029,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_ledger').checked           = false;
     document.getElementById('perm_page_expenses').checked         = false;
     document.getElementById('perm_page_dispatch_pool').checked    = false;
+    document.getElementById('perm_page_quote_settings').checked   = false;
     document.getElementById('perm_page_cases_deal').checked       = isHQ;
     document.getElementById('perm_page_materials').checked        = false;
     document.getElementById('perm_page_material_calc').checked    = true;
@@ -1110,8 +1115,9 @@ function openEditUser(id) {
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
   document.getElementById('perm_page_ledger').checked          = isOwner ? true : (perms.page_ledger !== undefined ? !!perms.page_ledger : false);
   document.getElementById('perm_page_expenses').checked        = isOwner ? true : (perms.page_expenses !== undefined ? !!perms.page_expenses : false);
-  document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool !== undefined ? !!perms.page_dispatch_pool : !!u.is_manager);
-  document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials   !== undefined ? !!perms.page_materials   : !!u.is_manager);
+  document.getElementById('perm_page_dispatch_pool').checked   = isOwner ? true : (perms.page_dispatch_pool  !== undefined ? !!perms.page_dispatch_pool  : !!u.is_manager);
+  document.getElementById('perm_page_quote_settings').checked  = isOwner ? true : (perms.page_quote_settings !== undefined ? !!perms.page_quote_settings : false);
+  document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials      !== undefined ? !!perms.page_materials      : !!u.is_manager);
   document.getElementById('perm_page_material_calc').checked    = isOwner ? true : (perms.page_material_calc !== undefined ? !!perms.page_material_calc : true);
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
@@ -1167,6 +1173,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_ledger:         document.getElementById('perm_page_ledger').checked,
       page_expenses:       document.getElementById('perm_page_expenses').checked,
       page_dispatch_pool:  document.getElementById('perm_page_dispatch_pool').checked,
+      page_quote_settings: document.getElementById('perm_page_quote_settings').checked,
       page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
       page_materials:      document.getElementById('perm_page_materials').checked,
       page_material_calc:  document.getElementById('perm_page_material_calc').checked,
