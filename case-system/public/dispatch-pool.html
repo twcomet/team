@@ -159,7 +159,8 @@ let poolData = [];
 async function init() {
   await loadUser();
   highlightNav('dispatch-pool');
-  if (!currentUser.manage_users) {
+  const hasPoolAccess = currentUser.manage_users || currentUser.permissions?.page_dispatch_pool;
+  if (!hasPoolAccess) {
     document.querySelector('.page-body').innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626">此頁面需要管理權限</div>';
     return;
   }
