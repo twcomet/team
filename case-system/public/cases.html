@@ -713,7 +713,7 @@ function renderTableHead() {
       ${iSortTh('優先', 'priority', '76px')}
       <th style="width:72px;${currentUser?.manage_users ? '' : 'display:none'}">派案池</th>
       <th style="width:60px">更新人</th>
-      <th style="width:100px">操作</th>
+      <th style="width:65px">操作</th>
     </tr>`;
   } else if (MODE === 'survey') {
     const sSortTh = (label, field, w) => {
@@ -738,7 +738,7 @@ function renderTableHead() {
       <th style="width:80px">場勘人</th>
       ${sSortTh('優先', 'priority', '70px')}
       <th style="width:60px">更新人</th>
-      <th style="width:110px">操作</th>
+      <th style="width:65px">操作</th>
     </tr>`;
   } else {
     const dSortTh = (label, field, w) => {
@@ -915,9 +915,7 @@ function getCaseRow(c) {
         }
       </td>
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
-      <td style="width:100px" onclick="event.stopPropagation()">
-        <button onclick="location.href='/case-detail?id=${c.id}&tab=log'"
-          style="padding:3px 7px;border-radius:12px;font-size:11px;background:#f0f9ff;color:#0369a1;border:none;cursor:pointer;margin-right:3px" title="歷程">📋</button>
+      <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
@@ -961,11 +959,7 @@ function getCaseRow(c) {
         ${prioritySelect(c)}
       </td>
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
-      <td style="width:110px" onclick="event.stopPropagation()">
-        <button onclick="location.href='/case-detail?id=${c.id}&tab=documents'"
-          style="padding:3px 7px;border-radius:12px;font-size:11px;background:#f0fdf4;color:#15803d;border:none;cursor:pointer;margin-right:3px" title="往來文件">📎</button>
-        <button onclick="location.href='/case-detail?id=${c.id}&tab=log'"
-          style="padding:3px 7px;border-radius:12px;font-size:11px;background:#f0f9ff;color:#0369a1;border:none;cursor:pointer;margin-right:3px" title="歷程">📋</button>
+      <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
           style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
