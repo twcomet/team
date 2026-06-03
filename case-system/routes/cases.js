@@ -348,7 +348,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
       payment_due_date=?, payment_notes=?, status=?, priority=?, deal_intent=?,
       is_outsourced=?, outsource_type=?, notes=?,
       line_source=?, line_display_name=?, line_official_name=?, keyword=?, client_category=?, material_ordered=?,
-      scheduled_date=?, desired_entry_date=?, contracted_at=?, actual_entry_date=?,
+      scheduled_date=?, desired_entry_date=?, contracted_at=COALESCE(?,contracted_at), actual_entry_date=?,
       invoice_company=?, invoice_tax_id=?, invoice_address=?,
       invoice_email=?, invoice_item_desc=?, invoice_contact=?, invoice_phone=?,
       survey_date=?, surveyor_id=?, cs_id=?,

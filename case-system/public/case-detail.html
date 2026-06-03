@@ -2002,7 +2002,8 @@ function fillBasicForm() {
   }
   document.getElementById('b_desired_entry_date').value = c.desired_entry_date || '';
   document.getElementById('b_scheduled_date').value    = c.scheduled_date || '';
-  document.getElementById('b_contracted_at').value     = c.contracted_at ? c.contracted_at.slice(0,10) : '';
+  { const _ca = c.contracted_at ? c.contracted_at.slice(0,10) : (c.case_group==='deal' ? (()=>{const _d=new Date();return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;})() : '');
+    document.getElementById('b_contracted_at').value = _ca; }
   // 實際進場日期：有儲存值直接用，否則從施工派工的最早日期帶入
   if (c.actual_entry_date) {
     document.getElementById('b_actual_entry_date').value = c.actual_entry_date;
