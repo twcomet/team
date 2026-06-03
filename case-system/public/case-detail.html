@@ -2416,7 +2416,7 @@ async function loadSurveyTab() {
   // 預設帶入地址 & 場勘費
   document.getElementById('sf_address').value  = caseData.location || '';
   sf_updateMapLink();
-  document.getElementById('sf_date').value     = new Date().toISOString().split('T')[0];
+  { const d = new Date(); document.getElementById('sf_date').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   document.getElementById('sf_preferred_time').value = caseData.survey_preferred_time || '';
   document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
   document.getElementById('sf_fee_paid').checked  = !!caseData.survey_fee_paid;

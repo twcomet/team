@@ -73,21 +73,23 @@ router.get('/', requireAuth, (req, res) => {
 
   const cases = [...dispatched, ...scheduled];
 
-  // 場勘記錄（survey_date 落在本月的案件）
+  // 場勘記錄（以 survey_forms 為主，fallback 到 cases.survey_date）
   const surveys = db.prepare(`
     SELECT
       c.id, c.case_number, c.title, c.status,
-      c.survey_date,
+      COALESCE(sf.survey_date, c.survey_date) AS survey_date,
       cl.name  AS client_name,
-      sv.name  AS surveyor_name,
+      COALESCE(sf_u.name, sv.name) AS surveyor_name,
       'survey' AS source
     FROM cases c
+    LEFT JOIN survey_forms sf ON sf.case_id = c.id
     LEFT JOIN clients cl ON c.client_id = cl.id
-    LEFT JOIN users   sv ON c.surveyor_id = sv.id
-    WHERE c.survey_date BETWEEN ? AND ?
+    LEFT JOIN users sv ON c.surveyor_id = sv.id
+    LEFT JOIN users sf_u ON sf.surveyor_id = sf_u.id
+    WHERE COALESCE(sf.survey_date, c.survey_date) BETWEEN ? AND ?
       AND c.status NOT IN ('closed','invalid')
       ${orgCond}
-    ORDER BY c.survey_date
+    ORDER BY COALESCE(sf.survey_date, c.survey_date)
   `).all(dateFrom, dateTo, ...orgPs);
 
   const orgCondT = orgSqlT ? `AND ${orgSqlT}` : '';
