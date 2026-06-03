@@ -132,7 +132,8 @@
           <option value="extra">外快</option>
           <option value="outsource">外包</option>
           <option value="output">輸出</option>
-          <option value="other">其他</option>
+          <option value="material_sale">賣膜料</option>
+            <option value="other">其他</option>
         </select>
         <input type="date" id="fromDate" title="建立日期起">
         <input type="date" id="toDate" title="建立日期迄">
@@ -209,6 +210,7 @@
             <option value="extra">外快</option>
             <option value="outsource">外包</option>
             <option value="output">輸出</option>
+            <option value="material_sale">賣膜料</option>
             <option value="other">其他</option>
           </select>
         </div>
@@ -247,7 +249,7 @@ const STATUS_MAP = {
 };
 const TYPE_MAP = {
   home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃',
-  extra:'外快', outsource:'外包', output:'輸出', other:'其他',
+  extra:'外快', outsource:'外包', output:'輸出', material_sale:'賣膜料', other:'其他',
 };
 
 function esc(s) {
