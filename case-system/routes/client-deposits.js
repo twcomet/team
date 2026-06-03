@@ -95,6 +95,7 @@ router.post('/', requireAuth, (req, res) => {
       `).run(
         dateVal,
         typeLabel,
+        amt,
         `${clientName}－${typeLabel}${product_name ? `（${product_name}）` : ''}${note ? `，${note}` : ''}`,
         org?.org_id || null,
         req.session.user.id,
