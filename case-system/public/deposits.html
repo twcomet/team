@@ -264,18 +264,18 @@ function onClientSearchInput() {
   if (!_clientMatches.length) {
     dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果</div>`;
   } else {
-    dd.innerHTML = _clientMatches.map((c, i) =>
-      `<div onmousedown="pickClient(${i})"
-            style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+    dd.innerHTML = _clientMatches.map(c =>
+      `<div style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${c.name}</div>`
     ).join('');
+    _clientMatches.forEach((c, i) => {
+      dd.children[i].addEventListener('mousedown', e => {
+        e.preventDefault();
+        selectClient(c.id, c.name);
+      });
+    });
   }
   dd.style.display = 'block';
-}
-
-function pickClient(i) {
-  const c = _clientMatches[i];
-  if (c) selectClient(c.id, c.name);
 }
 
 function selectClient(id, name) {
@@ -301,21 +301,20 @@ function onCaseSearchInput() {
   if (!_caseMatches.length) {
     dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果${clientCases.length === 0 ? '（請先選擇客戶）' : ''}</div>`;
   } else {
-    dd.innerHTML = _caseMatches.map((c, i) => {
+    dd.innerHTML = _caseMatches.map(c => {
       const label = `${c.case_number || ''} ${c.title || ''}`.trim();
-      return `<div onmousedown="pickCase(${i})"
-            style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+      return `<div style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${label}</div>`;
     }).join('');
+    _caseMatches.forEach((c, i) => {
+      const label = `${c.case_number || ''} ${c.title || ''}`.trim();
+      dd.children[i].addEventListener('mousedown', e => {
+        e.preventDefault();
+        selectCase(c.id, label);
+      });
+    });
   }
   dd.style.display = 'block';
-}
-
-function pickCase(i) {
-  const c = _caseMatches[i];
-  if (!c) return;
-  const label = `${c.case_number || ''} ${c.title || ''}`.trim();
-  selectCase(c.id, label);
 }
 
 function selectCase(id, name) {
