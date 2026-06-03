@@ -2661,7 +2661,7 @@ function sf_lockSurveyor(status) {
       note.id = 'sf_surveyor_lock_note';
       note.style.cssText = 'font-size:11px;color:#92400e;margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap';
 
-      const isManager = !!(currentUser?.manage_users);
+      const isManager = !!(currentUser?.manage_users || currentUser?.is_manager);
       if (isManager) {
         note.innerHTML = `🔒 場勘單已送出，場勘人員已鎖定
           <button onclick="sf_unlockSurveyor()" style="margin-left:6px;padding:2px 8px;font-size:11px;border-radius:4px;border:1px solid #f59e0b;background:#fef3c7;color:#92400e;cursor:pointer;font-weight:600">主管解鎖更換</button>`;
