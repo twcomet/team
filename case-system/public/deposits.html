@@ -213,6 +213,8 @@ let allDeposits = [];
 let allClients  = [];
 let clientCases = [];
 let canVerify   = false;
+let _clientMatches = [];
+let _caseMatches   = [];
 
 function showToast(msg, type='success') {
   const el = document.createElement('div');
@@ -258,17 +260,22 @@ function onClientSearchInput() {
   document.getElementById('nd_client_id').value = '';
   const dd = document.getElementById('nd_client_dropdown');
   if (!q) { dd.style.display = 'none'; return; }
-  const matches = allClients.filter(c => c.name && c.name.toLowerCase().includes(q)).slice(0, 15);
-  if (!matches.length) {
+  _clientMatches = allClients.filter(c => c.name && c.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!_clientMatches.length) {
     dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果</div>`;
   } else {
-    dd.innerHTML = matches.map(c =>
-      `<div onmousedown="selectClient(${c.id},${JSON.stringify(c.name)})"
+    dd.innerHTML = _clientMatches.map((c, i) =>
+      `<div onmousedown="pickClient(${i})"
             style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${c.name}</div>`
     ).join('');
   }
   dd.style.display = 'block';
+}
+
+function pickClient(i) {
+  const c = _clientMatches[i];
+  if (c) selectClient(c.id, c.name);
 }
 
 function selectClient(id, name) {
@@ -287,21 +294,28 @@ function onCaseSearchInput() {
   document.getElementById('nd_linked_case_id').value = '';
   const dd = document.getElementById('nd_case_dropdown');
   if (!q) { dd.style.display = 'none'; return; }
-  const matches = clientCases.filter(c =>
+  _caseMatches = clientCases.filter(c =>
     (c.case_number || '').toLowerCase().includes(q) ||
     (c.title || '').toLowerCase().includes(q)
   ).slice(0, 15);
-  if (!matches.length) {
+  if (!_caseMatches.length) {
     dd.innerHTML = `<div style="padding:10px 12px;color:var(--gray-500);font-size:13px">無符合結果${clientCases.length === 0 ? '（請先選擇客戶）' : ''}</div>`;
   } else {
-    dd.innerHTML = matches.map(c => {
+    dd.innerHTML = _caseMatches.map((c, i) => {
       const label = `${c.case_number || ''} ${c.title || ''}`.trim();
-      return `<div onmousedown="selectCase(${c.id},${JSON.stringify(label)})"
+      return `<div onmousedown="pickCase(${i})"
             style="padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
             onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">${label}</div>`;
     }).join('');
   }
   dd.style.display = 'block';
+}
+
+function pickCase(i) {
+  const c = _caseMatches[i];
+  if (!c) return;
+  const label = `${c.case_number || ''} ${c.title || ''}`.trim();
+  selectCase(c.id, label);
 }
 
 function selectCase(id, name) {
