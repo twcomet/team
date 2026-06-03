@@ -5,6 +5,24 @@ const { requireAuth, orgFilterSQL } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+// 輕量搜尋（給 autocomplete 用）
+router.get('/search', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { q } = req.query;
+  if (!q) return res.json([]);
+  const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
+  const like = `%${q}%`;
+  const where = [`(c.name LIKE ? OR c.phone LIKE ? OR c.contact LIKE ?)`];
+  const params = [like, like, like, ...orgPs];
+  if (orgSql) where.push(orgSql);
+  const rows = db.prepare(`
+    SELECT c.id, c.name, c.phone, c.contact FROM clients c
+    WHERE ${where.join(' AND ')}
+    ORDER BY c.name ASC LIMIT 20
+  `).all(...params);
+  res.json(rows);
+});
+
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');

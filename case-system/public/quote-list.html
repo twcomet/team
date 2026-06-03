@@ -44,6 +44,13 @@
 .tab-pane { display:none; } .tab-pane.active { display:block; }
 .empty-state { text-align:center; color:#9ca3af; padding:60px 20px; }
 .empty-state-icon { font-size:40px; margin-bottom:12px; }
+/* 客戶 autocomplete */
+.client-ac-wrap { position:relative; }
+.client-ac-drop { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.08); z-index:9999; max-height:200px; overflow-y:auto; display:none; }
+.client-ac-item { padding:9px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid #f3f4f6; }
+.client-ac-item:last-child { border-bottom:none; }
+.client-ac-item:hover { background:#eff6ff; }
+.client-ac-item .sub { font-size:11px; color:#9ca3af; margin-top:1px; }
 </style>
 </head>
 <body>
@@ -170,32 +177,31 @@
     </div>
     <div class="modal-body">
       <div class="tab-btns">
-        <button class="tab-btn active" onclick="switchModalTab('search')">搜尋現有案件</button>
-        <button class="tab-btn" onclick="switchModalTab('create')">建立新案件</button>
+        <button class="tab-btn" id="tabBtnCreate" onclick="switchModalTab('create')">建立新案件</button>
+        <button class="tab-btn" id="tabBtnSearch" onclick="switchModalTab('search')">搜尋現有案件</button>
       </div>
 
-      <!-- 搜尋現有案件 -->
-      <div class="tab-pane active" id="tab-search">
-        <input type="text" id="caseSearch" class="form-input" placeholder="輸入案件編號、名稱或客戶名稱…" style="width:100%;box-sizing:border-box" oninput="debouncedSearch()">
-        <div id="caseSearchResults" class="search-result-list" style="display:none"></div>
-        <p id="searchHint" style="font-size:12px;color:#9ca3af;margin-top:8px">搜尋後選取案件，即可前往該案件的報價頁面建立新版報價單。</p>
-      </div>
-
-      <!-- 建立新案件 -->
+      <!-- 建立新案件（預設） -->
       <div class="tab-pane" id="tab-create">
         <div class="form-group" style="margin-bottom:12px">
           <label class="form-label">客戶 <span style="color:red">*</span></label>
-          <select class="form-input" id="nc_client_id">
-            <option value="">— 請選擇 —</option>
-          </select>
+          <div class="client-ac-wrap">
+            <input type="text" class="form-input" id="nc_client_search" placeholder="輸入客戶名稱或電話搜尋…" autocomplete="off" oninput="onClientSearch()" style="width:100%;box-sizing:border-box">
+            <div class="client-ac-drop" id="clientAcDrop"></div>
+          </div>
+          <input type="hidden" id="nc_client_id">
+          <div id="nc_client_display" style="display:none;margin-top:6px;font-size:13px;color:#2563eb;background:#eff6ff;padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between">
+            <span id="nc_client_name_show"></span>
+            <button onclick="clearClient()" style="border:none;background:none;color:#9ca3af;cursor:pointer;font-size:12px">✕ 清除</button>
+          </div>
         </div>
         <div class="form-group" style="margin-bottom:12px">
-          <label class="form-label">案件名稱</label>
-          <input class="form-input" id="nc_title" placeholder="例：林宅居家貼膜">
+          <label class="form-label">案件名稱 <span style="font-size:11px;color:#9ca3af">（選填）</span></label>
+          <input class="form-input" id="nc_title" placeholder="例：林宅居家貼膜、單買膜料" style="width:100%;box-sizing:border-box">
         </div>
         <div class="form-group" style="margin-bottom:12px">
           <label class="form-label">施工類型</label>
-          <select class="form-input" id="nc_case_type">
+          <select class="form-input" id="nc_case_type" style="width:100%;box-sizing:border-box">
             <option value="home">居家</option>
             <option value="commercial">商空</option>
             <option value="elevator">電梯</option>
@@ -207,9 +213,16 @@
           </select>
         </div>
         <div class="form-group" style="margin-bottom:4px">
-          <label class="form-label">施工地址</label>
-          <input class="form-input" id="nc_location" placeholder="（選填）">
+          <label class="form-label">施工地址 <span style="font-size:11px;color:#9ca3af">（選填）</span></label>
+          <input class="form-input" id="nc_location" placeholder="（選填）" style="width:100%;box-sizing:border-box">
         </div>
+      </div>
+
+      <!-- 搜尋現有案件 -->
+      <div class="tab-pane" id="tab-search">
+        <input type="text" id="caseSearch" class="form-input" placeholder="輸入案件編號、名稱或客戶名稱…" style="width:100%;box-sizing:border-box" oninput="debouncedSearch()">
+        <div id="caseSearchResults" class="search-result-list" style="display:none"></div>
+        <p id="searchHint" style="font-size:12px;color:#9ca3af;margin-top:8px">搜尋後選取案件，即可前往該案件的報價頁面建立新版報價單。</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -312,28 +325,62 @@ function clearFilters() {
 
 // ── 新增報價單 Modal ───────────────────────────────────────────────
 
-let clients = [];
-let modalTab = 'search';
+let modalTab = 'create';
+let clientAcTimer = null;
 
-async function openNewModal() {
+function openNewModal() {
   document.getElementById('newQuoteModal').style.display = 'flex';
   document.getElementById('caseSearch').value = '';
   document.getElementById('caseSearchResults').style.display = 'none';
   document.getElementById('searchHint').style.display = '';
-  document.getElementById('createCaseBtn').style.display = 'none';
-  switchModalTab('search');
+  // 重置客戶欄位
+  document.getElementById('nc_client_search').value = '';
+  document.getElementById('nc_client_id').value = '';
+  document.getElementById('nc_client_display').style.cssText = 'display:none';
+  document.getElementById('clientAcDrop').style.display = 'none';
+  document.getElementById('nc_title').value = '';
+  document.getElementById('nc_case_type').value = 'home';
+  document.getElementById('nc_location').value = '';
+  switchModalTab('create');
+}
 
-  if (!clients.length) {
-    const r = await fetch('/api/clients');
-    if (r.ok) {
-      clients = await r.json();
-      const sel = document.getElementById('nc_client_id');
-      sel.innerHTML = '<option value="">— 請選擇 —</option>';
-      clients.forEach(c => {
-        sel.innerHTML += `<option value="${c.id}">${esc(c.name)}</option>`;
-      });
+let clientAcSearchTimer = null;
+function onClientSearch() {
+  clearTimeout(clientAcSearchTimer);
+  clientAcSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('nc_client_search').value.trim();
+    const drop = document.getElementById('clientAcDrop');
+    if (!q) { drop.style.display = 'none'; return; }
+    const r = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`);
+    if (!r.ok) return;
+    const list = await r.json();
+    if (!list.length) {
+      drop.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:13px">找不到符合客戶</div>';
+      drop.style.display = '';
+      return;
     }
-  }
+    drop.innerHTML = list.map(c => `
+      <div class="client-ac-item" onclick="selectClient(${c.id},${JSON.stringify(esc(c.name))})">
+        <div>${esc(c.name)}</div>
+        <div class="sub">${esc(c.phone||'')}${c.contact ? ' · ' + esc(c.contact) : ''}</div>
+      </div>`).join('');
+    drop.style.display = '';
+  }, 250);
+}
+
+function selectClient(id, name) {
+  document.getElementById('nc_client_id').value = id;
+  document.getElementById('nc_client_search').value = '';
+  document.getElementById('clientAcDrop').style.display = 'none';
+  const disp = document.getElementById('nc_client_display');
+  document.getElementById('nc_client_name_show').textContent = name;
+  disp.style.cssText = 'display:flex;margin-top:6px;font-size:13px;color:#2563eb;background:#eff6ff;padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between';
+}
+
+function clearClient() {
+  document.getElementById('nc_client_id').value = '';
+  document.getElementById('nc_client_search').value = '';
+  document.getElementById('nc_client_display').style.cssText = 'display:none';
 }
 
 function closeNewModal() {
@@ -342,7 +389,8 @@ function closeNewModal() {
 
 function switchModalTab(tab) {
   modalTab = tab;
-  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i===0&&tab==='search')||(i===1&&tab==='create')));
+  document.getElementById('tabBtnCreate').classList.toggle('active', tab === 'create');
+  document.getElementById('tabBtnSearch').classList.toggle('active', tab === 'search');
   document.getElementById('tab-search').classList.toggle('active', tab === 'search');
   document.getElementById('tab-create').classList.toggle('active', tab === 'create');
   document.getElementById('createCaseBtn').style.display = tab === 'create' ? '' : 'none';
@@ -389,7 +437,7 @@ function gotoCase(caseId) {
 }
 
 async function createCaseAndQuote() {
-  const client_id  = document.getElementById('nc_client_id').value;
+  const client_id = document.getElementById('nc_client_id').value;
   const title      = document.getElementById('nc_title').value.trim();
   const case_type  = document.getElementById('nc_case_type').value;
   const nc_location = document.getElementById('nc_location').value.trim();
