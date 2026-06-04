@@ -27,6 +27,18 @@ router.get('/', requireAuth, (req, res) => {
       m.committed_reserved_meters = resMap[m.id]?.committed_meters || 0;
     });
   } catch(e) { /* 表格不存在時忽略 */ }
+  // 加入案件膜料保留量（來自 material_logs，log_type='reserve'）
+  try {
+    const caseResRows = db.prepare(`
+      SELECT material_id,
+        COALESCE(SUM(CASE WHEN status='active' THEN -meters ELSE 0 END), 0) as case_reserved_meters
+      FROM material_logs WHERE log_type='reserve'
+      GROUP BY material_id
+    `).all();
+    const caseResMap = {};
+    caseResRows.forEach(r => { caseResMap[r.material_id] = r; });
+    rows.forEach(m => { m.case_reserved_meters = caseResMap[m.id]?.case_reserved_meters || 0; });
+  } catch(e) {}
   res.json(rows);
 });
 
@@ -198,15 +210,36 @@ router.post('/:matId/rolls', requireAuth, (req, res) => {
   res.json({ id: r.lastInsertRowid });
 });
 
-// PUT /:matId/rolls/:rid — 編輯捲料
+// PUT /:matId/rolls/:rid — 編輯捲料（含 remaining_meters）
 router.put('/:matId/rolls/:rid', requireAuth, (req, res) => {
   const { roll_no, purchase_date, unit_cost, location, branch, status, notes } = req.body;
-  db.prepare(`
-    UPDATE material_rolls SET roll_no=?, purchase_date=?, unit_cost=?, location=?, branch=?, status=?, notes=?
-    WHERE id=? AND org_id=?
-  `).run(roll_no || null, purchase_date || null, unit_cost || 0, location || null,
-         branch || '總部', status || 'active', notes || null,
-         req.params.rid, req.session.user.org_id);
+  const newRemaining = req.body.remaining_meters !== undefined ? parseFloat(req.body.remaining_meters) : undefined;
+
+  // 若有傳入 remaining_meters → 同步更新 materials.stock_meters
+  if (newRemaining !== undefined) {
+    const cur = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id=? AND org_id=?`)
+      .get(req.params.rid, req.session.user.org_id);
+    if (cur) {
+      const delta = newRemaining - (cur.remaining_meters || 0);
+      if (delta !== 0) {
+        db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters + ?) WHERE id=?`)
+          .run(delta, req.params.matId);
+      }
+    }
+    db.prepare(`
+      UPDATE material_rolls SET roll_no=?, purchase_date=?, unit_cost=?, location=?, branch=?, status=?, notes=?, remaining_meters=?
+      WHERE id=? AND org_id=?
+    `).run(roll_no || null, purchase_date || null, unit_cost || 0, location || null,
+           branch || '總部', status || 'active', notes || null, newRemaining,
+           req.params.rid, req.session.user.org_id);
+  } else {
+    db.prepare(`
+      UPDATE material_rolls SET roll_no=?, purchase_date=?, unit_cost=?, location=?, branch=?, status=?, notes=?
+      WHERE id=? AND org_id=?
+    `).run(roll_no || null, purchase_date || null, unit_cost || 0, location || null,
+           branch || '總部', status || 'active', notes || null,
+           req.params.rid, req.session.user.org_id);
+  }
   res.json({ ok: true });
 });
 

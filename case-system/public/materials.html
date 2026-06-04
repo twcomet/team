@@ -420,6 +420,61 @@
   </div>
 </div>
 
+<!-- 捲料修改 Modal -->
+<div class="modal-overlay" id="rollEditModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>修改捲料</h3>
+      <button class="modal-close" onclick="closeRollEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>捲料編號</label>
+        <input type="text" id="re_roll_no" placeholder="例：3M-AE-2160-20250101-01">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>狀態</label>
+          <select id="re_status">
+            <option value="active">使用中</option>
+            <option value="finished">已用完</option>
+            <option value="lost">遺失</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>剩餘米數（更新後同步庫存）</label>
+          <input type="number" id="re_remaining" min="0" step="0.1" placeholder="0.0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>進貨日期</label>
+          <input type="date" id="re_purchase_date">
+        </div>
+        <div class="form-group">
+          <label>單位成本（$/米）</label>
+          <input type="number" id="re_unit_cost" min="0" step="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>位置</label>
+          <input type="text" id="re_location" placeholder="例：A架">
+        </div>
+        <div class="form-group">
+          <label>分店</label>
+          <input type="text" id="re_branch" placeholder="總部">
+        </div>
+      </div>
+      <div class="form-group"><label>備注</label><textarea id="re_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRollEditModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveRollEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let materials = [];
@@ -432,6 +487,7 @@ let knownBranches = [];
 let showFinishedSet = new Set();  // 哪些 matId 要顯示已用完捲料
 let activeCases = [];
 let sellTargetMatId = null;
+const rollsCache = {};  // matId → rolls array，供捲料修改modal使用
 let sellRolls = [];
 
 const LOG_LABELS = {
@@ -621,6 +677,7 @@ function renderTable(list) {
         <span class="${stockClass(m.stock_meters||0)}">${(m.stock_meters||0).toFixed(1)}</span>
         ${(m.committed_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:0 4px">🔒 成交保留 ${m.committed_reserved_meters.toFixed(1)}m</span>` : ''}
         ${(m.pending_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px">💬 詢價中 ${m.pending_reserved_meters.toFixed(1)}m</span>` : ''}
+        ${(m.case_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px">📋 案件保留 ${m.case_reserved_meters.toFixed(1)}m</span>` : ''}
       </td>
       <td style="font-size:12px;color:var(--gray-500)">${m.notes||''}</td>
       <td style="white-space:nowrap">
@@ -666,6 +723,7 @@ async function loadRolls(matId) {
     fetch(`/api/materials/${matId}/logs`),
   ]);
   const rolls = rRes.ok ? await rRes.json() : [];
+  rollsCache[matId] = rolls;  // 供捲料修改 modal 使用
   const logs  = lRes.ok ? await lRes.json() : [];
 
   const logsByRoll = {};
@@ -710,6 +768,7 @@ async function loadRolls(matId) {
             ${r.created_by_name ? `<span style="font-size:11px;color:var(--gray-400)">登錄：${r.created_by_name}</span>` : ''}
           </div>
           <button class="btn btn-ghost btn-sm" onclick="openLogModal(${r.id},'${r.roll_no||'#'+r.id}')">＋使用</button>
+          <button class="btn btn-ghost btn-sm" onclick="openRollEditModal(${matId},${r.id})" title="修改捲料資料">✏️</button>
         </div>`;
 
       if (rLogs.length) {
@@ -1083,6 +1142,53 @@ function openLogModal(rollId, rollName) {
   document.getElementById('logModal').classList.add('open');
 }
 function closeLogModal() { document.getElementById('logModal').classList.remove('open'); }
+
+// ── 捲料修改 ──────────────────────────────────────────────────
+let rollEditMatId = null;
+let rollEditRollId = null;
+
+function openRollEditModal(matId, rollId) {
+  const r = (rollsCache[matId] || []).find(x => x.id === rollId);
+  if (!r) return;
+  rollEditMatId = matId;
+  rollEditRollId = rollId;
+  document.getElementById('re_roll_no').value       = r.roll_no || '';
+  document.getElementById('re_status').value        = r.status || 'active';
+  document.getElementById('re_remaining').value     = r.remaining_meters != null ? r.remaining_meters : '';
+  document.getElementById('re_purchase_date').value = r.purchase_date || '';
+  document.getElementById('re_unit_cost').value     = r.unit_cost || '';
+  document.getElementById('re_location').value      = r.location || '';
+  document.getElementById('re_branch').value        = r.branch || '總部';
+  document.getElementById('re_notes').value         = r.notes || '';
+  document.getElementById('rollEditModal').classList.add('open');
+}
+
+function closeRollEditModal() { document.getElementById('rollEditModal').classList.remove('open'); }
+
+async function saveRollEdit() {
+  const body = {
+    roll_no:           document.getElementById('re_roll_no').value.trim() || null,
+    status:            document.getElementById('re_status').value,
+    remaining_meters:  parseFloat(document.getElementById('re_remaining').value) || 0,
+    purchase_date:     document.getElementById('re_purchase_date').value || null,
+    unit_cost:         parseFloat(document.getElementById('re_unit_cost').value) || 0,
+    location:          document.getElementById('re_location').value.trim() || null,
+    branch:            document.getElementById('re_branch').value.trim() || '總部',
+    notes:             document.getElementById('re_notes').value.trim() || null,
+  };
+  const res = await fetch(`/api/materials/${rollEditMatId}/rolls/${rollEditRollId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    showToast('捲料資料已更新');
+    closeRollEditModal();
+    await loadMaterials();
+    loadRolls(rollEditMatId);
+  } else {
+    const err = await res.json().catch(() => ({}));
+    showToast(err.error || '更新失敗', 'error');
+  }
+}
 
 let caseSearchTimer;
 async function searchCase() {

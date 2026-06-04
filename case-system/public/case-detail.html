@@ -4550,7 +4550,7 @@ async function onMatLogMaterialChange() {
   _matRolls = res.ok ? await res.json() : [];
   const active = _matRolls.filter(r => r.status !== 'finished');
   if (active.length === 0) {
-    rollSel.innerHTML = '<option value="">— 尚無庫存（保留類型可直接儲存）—</option>';
+    rollSel.innerHTML = '<option value="">— 此型號無可用捲料，選「保留」記錄計畫用量 —</option>';
     rollHint.style.display = '';
   } else {
     rollSel.innerHTML = '<option value="">— 選擇捲料 —</option>' +
@@ -4847,7 +4847,7 @@ init().catch(err => {
         <label>捲料 *</label>
         <select id="ml_roll"></select>
         <div id="ml_roll_hint" style="display:none;font-size:12px;color:#6b7280;margin-top:4px">
-          此型號尚無庫存捲料。若選「保留」用途可直接儲存（計畫用量）；若需實際扣料，請先至<a href="/materials" target="_blank">膜料管理</a>新增進貨。
+          此型號目前無可用捲料。選「保留」用途可記錄計畫用量；若需實際扣料，請先至<a href="/materials" target="_blank">膜料管理</a>修改捲料狀態或新增進貨。
         </div>
       </div>
       <div class="form-row">
