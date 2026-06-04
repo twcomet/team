@@ -2697,6 +2697,11 @@ function sf_updateCompleteBtn() {
     (caseData?.status === 'survey_scheduled') ? '' : 'none';
   document.getElementById('sf_reNotifyBtn').style.display =
     (sfData?.surveyor_id) ? '' : 'none';
+  const badge = document.getElementById('sf_notifyBadge');
+  if (sfData?.surveyor_id && sfData?.surveyor_name) {
+    badge.textContent = `✅ 派案成功｜${sfData.surveyor_name}`;
+    badge.style.display = '';
+  }
 }
 
 async function sf_reNotify() {
@@ -2707,9 +2712,8 @@ async function sf_reNotify() {
   if (res.ok) {
     const surveyorName = document.getElementById('sf_surveyor').selectedOptions[0]?.text || '場勘人員';
     const badge = document.getElementById('sf_notifyBadge');
-    badge.textContent = `✅ 已重新通知 ${surveyorName}`;
+    badge.textContent = `✅ 已重新通知｜${surveyorName}`;
     badge.style.display = '';
-    setTimeout(() => { badge.style.display = 'none'; }, 6000);
     showToast(`已重新通知 ${surveyorName}`);
   } else {
     const e = await res.json().catch(() => ({}));
@@ -2868,9 +2872,8 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     if (surveyorId && String(surveyorId) !== String(prevSurveyor || '')) {
       const surveyorName = users.find(u => String(u.id) === String(surveyorId))?.name || '場勘人員';
       const badge = document.getElementById('sf_notifyBadge');
-      badge.textContent = `✅ 已通知 ${surveyorName}`;
+      badge.textContent = `✅ 派案成功｜${surveyorName}`;
       badge.style.display = '';
-      setTimeout(() => { badge.style.display = 'none'; }, 6000);
     }
     // 施工地址雙向同步回案件
     if (newAddress && newAddress !== (caseData.location || '').trim()) {
