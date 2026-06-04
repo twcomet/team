@@ -135,6 +135,7 @@
   <span class="nav-group-label">員工功能</span>
   <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
   <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>缺失管理</a>
   <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
   <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
   <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
@@ -214,6 +215,7 @@
         <div class="tab" data-tab="payment" data-groups="deal">收款</div>
         <div class="tab" data-tab="log" data-groups="inquiry,survey,deal">歷程</div>
         <div class="tab" data-tab="outsource" data-groups="deal" data-need="manage_users">派案設定</div>
+        <div class="tab" data-tab="deficiency" data-groups="deal">缺失管理</div>
       </div>
 
       <!-- 轉換階段橫幅（所有 tab 可見） -->
@@ -1222,6 +1224,17 @@
   </div>
 </div>
 
+<!-- 缺失管理 Tab -->
+<div class="tab-pane" id="tab-deficiency">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h3 style="font-size:16px;font-weight:700;margin:0">缺失紀錄</h3>
+    <div id="defTotalDmg" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:6px 14px;font-size:13px;color:#b91c1c;font-weight:600"></div>
+  </div>
+  <div id="deficiencyList" style="display:flex;flex-direction:column;gap:12px">
+    <div style="color:var(--gray-400);font-size:13px;padding:20px 0">載入中…</div>
+  </div>
+</div>
+
 <!-- 新增派工 Modal -->
 <div class="modal-overlay" id="dispatchModal">
   <div class="modal" style="max-width:740px;width:95vw">
@@ -1489,10 +1502,11 @@ async function init() {
       document.querySelectorAll('.tab,.tab-pane').forEach(el => el.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
-      if (t.dataset.tab === 'survey')    loadSurveyTab();
-      if (t.dataset.tab === 'outsource') loadOutsourceTab();
-      if (t.dataset.tab === 'estimate')  loadQuickEstimates();
-      if (t.dataset.tab === 'documents') loadCaseDocuments();
+      if (t.dataset.tab === 'survey')     loadSurveyTab();
+      if (t.dataset.tab === 'outsource')  loadOutsourceTab();
+      if (t.dataset.tab === 'estimate')   loadQuickEstimates();
+      if (t.dataset.tab === 'documents')  loadCaseDocuments();
+      if (t.dataset.tab === 'deficiency') loadCaseDeficiencies();
     });
   });
 
@@ -5283,6 +5297,50 @@ async function loadCaseDocuments() {
   if (!res.ok) return;
   const docs = await res.json();
   renderDocList(docs);
+}
+
+async function loadCaseDeficiencies() {
+  const res = await fetch(`/api/deficiencies?case_id=${caseId}`);
+  const list = document.getElementById('deficiencyList');
+  const totalEl = document.getElementById('defTotalDmg');
+  if (!res.ok) { list.innerHTML = '<div style="color:#ef4444;font-size:13px">載入失敗</div>'; return; }
+  const rows = await res.json();
+  if (!rows.length) {
+    list.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:20px 0">此案件尚無缺失記錄</div>';
+    totalEl.style.display = 'none';
+    return;
+  }
+  const totalDmg = rows.reduce((s, d) => s + (d.damage_amount || 0), 0);
+  if (totalDmg > 0) {
+    totalEl.textContent = `本案缺失損失合計：$${totalDmg.toLocaleString()}`;
+    totalEl.style.display = '';
+  } else {
+    totalEl.style.display = 'none';
+  }
+  const STATUS_LABEL = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
+  const STATUS_COLOR = { pending:'#fef3c7;color:#92400e', in_review:'#dbeafe;color:#1e40af', resolved:'#d1fae5;color:#065f46' };
+  const TYPE_LABEL = { missing_material:'材料遺失', lost_tool:'工具遺失', construction_damage:'施工損壞', other:'其他' };
+  list.innerHTML = rows.map(d => {
+    const persons = (d.persons||[]).map(p =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;background:#f3f4f6;border-radius:12px;padding:2px 10px;font-size:12px">
+        ${esc(p.user_name)}
+        ${p.acknowledged_at ? '<span style="color:#059669">✓</span>' : '<span style="color:#d97706">●</span>'}
+      </span>`
+    ).join('');
+    return `<div style="background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div>
+          <span style="font-size:12px;background:#f3f4f6;border-radius:6px;padding:2px 8px;color:var(--gray-600);margin-right:6px">${TYPE_LABEL[d.type]||d.type}</span>
+          <span style="font-weight:600;font-size:14px">${esc(d.title)}</span>
+        </div>
+        <span style="flex-shrink:0;font-size:11px;font-weight:600;border-radius:8px;padding:3px 10px;background:${STATUS_COLOR[d.status]||'#f3f4f6;color:#374151'}">${STATUS_LABEL[d.status]||d.status}</span>
+      </div>
+      ${d.description ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:8px">${esc(d.description)}</div>` : ''}
+      ${d.damage_amount ? `<div style="font-size:12px;color:#b91c1c;margin-bottom:8px">損失金額：$${d.damage_amount.toLocaleString()}</div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">${persons}</div>
+      <div style="font-size:11px;color:var(--gray-400)">${(d.created_at||'').slice(0,10)} · ${esc(d.created_by_name||'')}</div>
+    </div>`;
+  }).join('');
 }
 
 const DOC_TYPE_LABEL = { quote:'報價單', contract:'合約', other:'其他' };

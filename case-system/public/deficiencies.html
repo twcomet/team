@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>缺失管理 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.def-type-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.type-missing_material    { background:#fef3c7; color:#92400e; }
+.type-lost_tool           { background:#fee2e2; color:#991b1b; }
+.type-construction_damage { background:#fce7f3; color:#9d174d; }
+.type-other               { background:var(--gray-100); color:var(--gray-600); }
+
+.status-pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+.status-pending   { background:#fef3c7; color:#92400e; }
+.status-in_review { background:#dbeafe; color:#1e40af; }
+.status-resolved  { background:#dcfce7; color:#166534; }
+
+.def-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; margin-bottom:12px; overflow:hidden; }
+.def-card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; gap:12px; cursor:pointer; }
+.def-card-header:hover { background:var(--gray-50); }
+.def-card-body { padding:14px 18px; border-top:1px solid var(--gray-100); display:none; }
+.def-card.open .def-card-body { display:block; }
+
+.person-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; margin-bottom:6px; font-size:13px; }
+.person-row.acked   { background:#f0fdf4; }
+.person-row.unacked { background:#fff7ed; }
+.person-ack-badge   { font-size:11px; padding:2px 8px; border-radius:8px; }
+.person-ack-badge.yes { background:#bbf7d0; color:#166534; }
+.person-ack-badge.no  { background:#fed7aa; color:#c2410c; }
+
+.view-tabs { display:flex; gap:8px; margin-bottom:16px; }
+.view-tab  { padding:6px 16px; border-radius:20px; border:1px solid var(--gray-300); cursor:pointer; font-size:13px; background:#fff; }
+.view-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+.damage-badge { display:inline-block; font-size:12px; font-weight:600; color:#991b1b; background:#fee2e2; padding:2px 8px; border-radius:6px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">缺失管理</span>
+      <button class="btn btn-primary" id="newBtn" style="display:none">＋ 新增缺失</button>
+    </div>
+    <div class="page-body">
+
+      <div class="view-tabs" id="viewTabs">
+        <button class="view-tab active" onclick="switchView('all')" id="tabAll" style="display:none">全部缺失</button>
+        <button class="view-tab" onclick="switchView('mine')" id="tabMine">我的待確認</button>
+      </div>
+
+      <!-- 全部視圖（manager） -->
+      <div id="viewAll" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select id="filterStatus" onchange="loadAll()" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部狀態</option>
+            <option value="pending">待確認</option>
+            <option value="in_review">改善中</option>
+            <option value="resolved">已結案</option>
+          </select>
+          <div id="yearTabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        </div>
+        <div id="allList"></div>
+      </div>
+
+      <!-- 我的待確認視圖 -->
+      <div id="viewMine">
+        <div id="mineList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增 / 編輯 Modal -->
+<div class="modal-overlay" id="defModal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <h3 id="defModalTitle">新增缺失記錄</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>缺失類型 *</label>
+          <select id="f_type">
+            <option value="missing_material">材料未攜帶</option>
+            <option value="lost_tool">工具遺失</option>
+            <option value="construction_damage">施工損壞</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>損害金額（選填）</label>
+          <input type="number" id="f_damage" min="0" step="1" placeholder="例：500">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>缺失標題 *</label>
+        <input type="text" id="f_title" placeholder="例：安裝人員未帶壓克力刮刀">
+      </div>
+
+      <div class="form-group">
+        <label>關聯案件（選填）</label>
+        <input type="text" id="f_case_search" placeholder="輸入案件編號或客戶名稱…" oninput="searchCase()" autocomplete="off">
+        <div id="f_case_results" style="border:1px solid var(--gray-200);border-radius:6px;max-height:150px;overflow-y:auto;display:none;margin-top:4px"></div>
+        <input type="hidden" id="f_case_id">
+        <div id="f_case_selected" style="font-size:12px;color:var(--primary);margin-top:4px"></div>
+      </div>
+
+      <div class="form-group">
+        <label>缺失說明</label>
+        <textarea id="f_description" rows="3" placeholder="詳細說明缺失情況、背景…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>相關人員 * <span style="font-size:11px;color:var(--gray-400)">（可多選，將收到通知）</span></label>
+        <div id="personList" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="save()">發布缺失</button>
+    </div>
+  </div>
+</div>
+
+<!-- 改善說明 Modal -->
+<div class="modal-overlay" id="improveModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>填寫改善說明</h3>
+      <button class="modal-close" onclick="document.getElementById('improveModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="improveDefTitle" style="font-size:13px;color:var(--gray-600);margin-bottom:12px"></p>
+      <div class="form-group">
+        <label>改善說明 *</label>
+        <textarea id="improveText" rows="4" placeholder="說明你如何改善或預防此缺失…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('improveModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" id="improveSaveBtn" onclick="saveImprovement()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const TYPE_LABELS   = { missing_material:'材料未攜帶', lost_tool:'工具遺失', construction_damage:'施工損壞', other:'其他' };
+const STATUS_LABELS = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
+let allDeficiencies = [], allUsers = [];
+let editId  = null, curView = 'mine', curYear = String(new Date().getFullYear());
+let improveDefId = null, improvePid = null;
+let isManager = false;
+let selectedPersonIds = new Set();
+
+async function init() {
+  await loadUser();
+  highlightNav('deficiencies');
+  isManager = currentUser.role === 'owner' || currentUser.role === 'hq_hr';
+
+  if (isManager) {
+    document.getElementById('newBtn').style.display = '';
+    document.getElementById('tabAll').style.display = '';
+    switchView('all');
+    await loadUsers();
+    await loadYears();
+    await loadAll();
+  }
+  await loadMine();
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/users');
+  allUsers = res.ok ? (await res.json()).filter(u => u.active !== 0) : [];
+}
+
+async function loadYears() {
+  const res = await fetch('/api/deficiencies/years');
+  const years = res.ok ? await res.json() : [];
+  const thisYear = String(new Date().getFullYear());
+  if (!years.includes(thisYear)) years.unshift(thisYear);
+  const el = document.getElementById('yearTabs');
+  el.innerHTML = years.map(y =>
+    `<button style="padding:4px 12px;border-radius:20px;border:1px solid var(--gray-300);font-size:12px;cursor:pointer;background:${y===curYear?'var(--primary)':'#fff'};color:${y===curYear?'#fff':'inherit'}"
+      onclick="switchYear('${y}')">${y}</button>`
+  ).join('');
+}
+
+function switchYear(y) { curYear = y; loadYears(); loadAll(); }
+
+function switchView(v) {
+  curView = v;
+  document.getElementById('tabAll').classList.toggle('active', v === 'all');
+  document.getElementById('tabMine').classList.toggle('active', v === 'mine');
+  document.getElementById('viewAll').style.display  = v === 'all'  ? '' : 'none';
+  document.getElementById('viewMine').style.display = v === 'mine' ? '' : 'none';
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── 全部缺失（manager） ──────────────────────────────────────
+async function loadAll() {
+  const status = document.getElementById('filterStatus').value;
+  const res = await fetch(`/api/deficiencies?year=${curYear}${status ? '&status='+status : ''}`);
+  allDeficiencies = res.ok ? await res.json() : [];
+  renderAll();
+}
+
+function renderAll() {
+  const el = document.getElementById('allList');
+  if (!allDeficiencies.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div>${curYear} 年尚無缺失記錄</div>`;
+    return;
+  }
+  el.innerHTML = allDeficiencies.map(d => defCard(d, true)).join('');
+}
+
+// ── 我的待確認 ────────────────────────────────────────────────
+async function loadMine() {
+  const res = await fetch('/api/deficiencies/my-pending');
+  const mine = res.ok ? await res.json() : [];
+  const el = document.getElementById('mineList');
+  if (!mine.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div>目前沒有待確認的缺失通知</div>`;
+    return;
+  }
+  el.innerHTML = mine.map(d => defCardMine(d)).join('');
+}
+
+// ── 卡片渲染 ─────────────────────────────────────────────────
+function defCard(d, showActions) {
+  const allAcked = d.persons?.every(p => p.acknowledged_at);
+  const ackCount = d.persons?.filter(p => p.acknowledged_at).length || 0;
+  const total    = d.persons?.length || 0;
+  return `
+  <div class="def-card" id="dc-${d.id}">
+    <div class="def-card-header" onclick="toggleCard(${d.id})">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1">
+        <span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>
+        <span style="font-weight:600">${esc(d.title)}</span>
+        ${d.damage_amount ? `<span class="damage-badge">損失 $${Number(d.damage_amount).toLocaleString()}</span>` : ''}
+        <span class="status-pill status-${d.status}">${STATUS_LABELS[d.status]||d.status}</span>
+        ${d.case_number ? `<a href="/case-detail?id=${d.case_id}" onclick="event.stopPropagation()" style="font-size:12px;color:var(--primary)">${esc(d.case_number)}</a>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:12px;color:var(--gray-500)">
+        <span>閱讀 ${ackCount}/${total}</span>
+        <span>${d.created_at?.slice(0,10)||''}</span>
+      </div>
+    </div>
+    <div class="def-card-body">
+      ${d.description ? `<p style="font-size:13px;color:var(--gray-700);margin-bottom:12px;white-space:pre-wrap">${esc(d.description)}</p>` : ''}
+      <div style="margin-bottom:12px">
+        ${(d.persons||[]).map(p => `
+          <div class="person-row ${p.acknowledged_at ? 'acked' : 'unacked'}">
+            <span style="font-weight:600;min-width:80px">${esc(p.user_name)}</span>
+            <span class="person-ack-badge ${p.acknowledged_at ? 'yes' : 'no'}">${p.acknowledged_at ? '已閱讀 ' + p.acknowledged_at.slice(0,10) : '未閱讀'}</span>
+            ${p.improvement ? `<span style="font-size:12px;color:var(--gray-600)">💬 ${esc(p.improvement)}</span>` : ''}
+          </div>`).join('')}
+      </div>
+      ${showActions ? `<div style="display:flex;gap:8px">
+        ${d.status !== 'resolved' ? `<button class="btn btn-primary btn-sm" onclick="resolve(${d.id})">✅ 結案</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openEdit(${d.id})">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="del(${d.id})">刪除</button>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function defCardMine(d) {
+  return `
+  <div class="def-card" id="mine-${d.id}">
+    <div class="def-card-header" onclick="toggleCard('mine-${d.id}', true)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1">
+        <span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>
+        <span style="font-weight:600">${esc(d.title)}</span>
+        ${d.damage_amount ? `<span class="damage-badge">損失 $${Number(d.damage_amount).toLocaleString()}</span>` : ''}
+        ${d.case_number ? `<a href="/case-detail?id=${d.case_id}" onclick="event.stopPropagation()" style="font-size:12px;color:var(--primary)">${esc(d.case_number)}</a>` : ''}
+      </div>
+      <span style="font-size:12px;color:var(--gray-500)">${d.created_at?.slice(0,10)||''}</span>
+    </div>
+    <div class="def-card-body">
+      ${d.description ? `<p style="font-size:13px;color:var(--gray-700);margin-bottom:12px;white-space:pre-wrap">${esc(d.description)}</p>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="acknowledge(${d.id})">✅ 標記已閱讀</button>
+        <button class="btn btn-ghost btn-sm" onclick="openImprove(${d.id}, ${d.dp_id}, '${esc(d.title)}')">💬 填改善說明</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleCard(id, useMinePrefix) {
+  const el = document.getElementById(useMinePrefix ? `mine-${id}` : `dc-${id}`);
+  if (el) el.classList.toggle('open');
+}
+
+// ── 確認已閱讀 ────────────────────────────────────────────────
+async function acknowledge(defId) {
+  const res = await fetch(`/api/deficiencies/${defId}/acknowledge`, { method:'POST' });
+  if (res.ok) { showToast('已標記閱讀'); await loadMine(); }
+  else { const e = await res.json(); showToast(e.error||'操作失敗','error'); }
+}
+
+// ── 改善說明 ─────────────────────────────────────────────────
+function openImprove(defId, pid, title) {
+  improveDefId = defId;
+  improvePid   = pid;
+  document.getElementById('improveDefTitle').textContent = `缺失：${title}`;
+  document.getElementById('improveText').value = '';
+  document.getElementById('improveModal').classList.add('open');
+}
+
+async function saveImprovement() {
+  const text = document.getElementById('improveText').value.trim();
+  if (!text) { showToast('請填寫改善說明','error'); return; }
+  const btn = document.getElementById('improveSaveBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/deficiencies/${improveDefId}/persons/${improvePid}/improvement`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ improvement: text })
+    });
+    if (res.ok) {
+      showToast('改善說明已儲存');
+      document.getElementById('improveModal').classList.remove('open');
+      await loadMine();
+    } else { const e = await res.json(); showToast(e.error||'儲存失敗','error'); }
+  } finally { btn.disabled = false; }
+}
+
+// ── 結案 ──────────────────────────────────────────────────────
+async function resolve(id) {
+  if (!confirm('確定將此缺失標記為「已結案」？')) return;
+  const res = await fetch(`/api/deficiencies/${id}/resolve`, { method:'POST' });
+  if (res.ok) { showToast('已結案'); await loadAll(); }
+  else { const e = await res.json(); showToast(e.error||'操作失敗','error'); }
+}
+
+async function del(id) {
+  if (!confirm('確定刪除此缺失記錄？')) return;
+  const res = await fetch(`/api/deficiencies/${id}`, { method:'DELETE' });
+  if (res.ok) { showToast('已刪除'); await loadAll(); }
+  else showToast('刪除失敗','error');
+}
+
+// ── 新增 / 編輯 ───────────────────────────────────────────────
+function openNew() {
+  editId = null;
+  selectedPersonIds = new Set();
+  document.getElementById('defModalTitle').textContent = '新增缺失記錄';
+  ['f_type','f_title','f_description','f_case_search','f_damage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'f_type' ? 'missing_material' : '';
+  });
+  document.getElementById('f_case_id').value = '';
+  document.getElementById('f_case_selected').textContent = '';
+  document.getElementById('f_case_results').style.display = 'none';
+  renderPersonList();
+  document.getElementById('defModal').classList.add('open');
+}
+
+function openEdit(id) {
+  const d = allDeficiencies.find(x => x.id === id);
+  if (!d) return;
+  editId = id;
+  selectedPersonIds = new Set((d.persons||[]).map(p => p.user_id));
+  document.getElementById('defModalTitle').textContent = '編輯缺失記錄';
+  document.getElementById('f_type').value         = d.type || 'other';
+  document.getElementById('f_title').value        = d.title || '';
+  document.getElementById('f_description').value  = d.description || '';
+  document.getElementById('f_damage').value       = d.damage_amount || '';
+  document.getElementById('f_case_id').value      = d.case_id || '';
+  document.getElementById('f_case_selected').textContent = d.case_number ? `✓ ${d.case_number} ${d.case_title||''}` : '';
+  document.getElementById('f_case_results').style.display = 'none';
+  renderPersonList();
+  document.getElementById('defModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('defModal').classList.remove('open'); }
+
+function renderPersonList() {
+  const el = document.getElementById('personList');
+  el.innerHTML = allUsers.map(u => {
+    const sel = selectedPersonIds.has(u.id);
+    return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1.5px solid ${sel ? 'var(--primary)' : 'var(--gray-200)'};background:${sel ? 'rgba(255,0,128,.06)' : '#fff'};cursor:pointer;font-size:12px;font-weight:600">
+      <input type="checkbox" style="display:none" onchange="togglePerson(${u.id},this.checked)" ${sel?'checked':''}>
+      ${esc(u.name)}
+    </label>`;
+  }).join('');
+}
+
+function togglePerson(uid, checked) {
+  if (checked) selectedPersonIds.add(uid);
+  else selectedPersonIds.delete(uid);
+  renderPersonList();
+}
+
+async function save() {
+  const title  = document.getElementById('f_title').value.trim();
+  const damage = document.getElementById('f_damage').value;
+  if (!title) { showToast('請填寫缺失標題','error'); return; }
+  if (!editId && !selectedPersonIds.size) { showToast('請選擇相關人員','error'); return; }
+
+  const body = {
+    type:          document.getElementById('f_type').value,
+    title,
+    description:   document.getElementById('f_description').value.trim() || null,
+    damage_amount: damage ? parseFloat(damage) : null,
+    case_id:       document.getElementById('f_case_id').value || null,
+    person_ids:    [...selectedPersonIds],
+  };
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  try {
+    const url    = editId ? `/api/deficiencies/${editId}` : '/api/deficiencies';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { const e = await res.json(); showToast(e.error||'儲存失敗','error'); return; }
+    showToast(editId ? '已更新' : '缺失已發布，相關人員將收到通知');
+    closeModal();
+    await loadYears();
+    await loadAll();
+  } finally { btn.disabled = false; }
+}
+
+// ── 案件搜尋 ─────────────────────────────────────────────────
+let caseTimer;
+async function searchCase() {
+  clearTimeout(caseTimer);
+  const q = document.getElementById('f_case_search').value.trim();
+  const el = document.getElementById('f_case_results');
+  if (!q) { el.style.display = 'none'; return; }
+  caseTimer = setTimeout(async () => {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) { el.style.display = 'none'; return; }
+    const items = ((await res.json()).results || []).slice(0, 8);
+    if (!items.length) { el.style.display = 'none'; return; }
+    el.innerHTML = items.map(r => {
+      const c = r.case;
+      return `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
+        onmousedown="selectCase(${c.id},'${c.case_number}','${(c.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span>
+        ${c.client_name?`<span style="color:var(--gray-400)"> · ${c.client_name}</span>`:''}
+        ${c.title?`<span> ${c.title}</span>`:''}
+      </div>`;
+    }).join('');
+    el.style.display = 'block';
+  }, 300);
+}
+
+function selectCase(id, num, title) {
+  document.getElementById('f_case_id').value  = id;
+  document.getElementById('f_case_search').value = '';
+  document.getElementById('f_case_selected').textContent = `✓ ${num} ${title}`;
+  document.getElementById('f_case_results').style.display = 'none';
+}
+
+document.getElementById('newBtn').addEventListener('click', openNew);
+document.getElementById('defModal').addEventListener('click', e => { if (e.target === document.getElementById('defModal')) closeModal(); });
+
+init();
+</script>
+</body>
+</html>

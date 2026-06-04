@@ -2817,4 +2817,35 @@ db.exec(`
 `);
 _addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
 
+// ── 缺失管理 ────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deficiencies (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id       INTEGER REFERENCES cases(id) ON DELETE SET NULL,
+    type          TEXT NOT NULL DEFAULT 'other'
+                  CHECK(type IN ('missing_material','lost_tool','construction_damage','other')),
+    title         TEXT NOT NULL,
+    description   TEXT,
+    damage_amount REAL,
+    status        TEXT NOT NULL DEFAULT 'pending'
+                  CHECK(status IN ('pending','in_review','resolved')),
+    org_id        INTEGER REFERENCES orgs(id),
+    created_by    INTEGER REFERENCES users(id),
+    resolved_at   DATETIME,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deficiency_persons (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    deficiency_id   INTEGER NOT NULL REFERENCES deficiencies(id) ON DELETE CASCADE,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    acknowledged_at DATETIME,
+    improvement     TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(deficiency_id, user_id)
+  )
+`);
+
 module.exports = db;
