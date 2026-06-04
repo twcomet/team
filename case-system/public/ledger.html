@@ -864,7 +864,7 @@ async function quickUpdateCategory(id, sel) {
 async function deleteEntry(id) {
   if (!confirm('確定刪除這筆記錄？')) return;
   const res = await fetch(`/api/ledger/${id}`, { method:'DELETE' });
-  if (res.ok) { showToast('已刪除'); await loadLedger(); }
+  if (res.ok) { showToast('已刪除'); await loadLedger(); await loadPendingPayments(); }
   else showToast('刪除失敗', 'error');
 }
 
@@ -890,7 +890,7 @@ async function saveLedgerEntry() {
   if (!body.amount || isNaN(body.amount)) return showToast('請填寫金額', 'error');
   const url = id ? `/api/ledger/${id}` : '/api/ledger';
   const res = await fetch(url, { method:id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if (res.ok) { document.getElementById('ledgerModal').classList.remove('open'); showToast(id?'已更新':'已新增'); await loadLedger(); }
+  if (res.ok) { document.getElementById('ledgerModal').classList.remove('open'); showToast(id?'已更新':'已新增'); await loadLedger(); await loadPendingPayments(); }
   else { const e = await res.json().catch(() => ({})); showToast(e.error || '儲存失敗', 'error'); }
 }
 
