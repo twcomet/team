@@ -93,11 +93,30 @@ router.get('/', requireAuth, async (req, res) => {
     ORDER BY d.scheduled_date, d.scheduled_time
   `).all(me.id, from, to);
 
+  // 我的場勘排程（被指派為場勘師傅的 survey_forms）
+  const surveys = db.prepare(`
+    SELECT
+      sf.id AS survey_id,
+      sf.survey_date AS date,
+      sf.survey_time,
+      sf.worker_token,
+      c.id AS case_id, c.case_number, c.title,
+      cl.name AS client_name,
+      c.location
+    FROM survey_forms sf
+    JOIN cases c ON c.id = sf.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE sf.surveyor_id = ?
+      AND sf.survey_date BETWEEN ? AND ?
+      AND sf.status != 'cancelled'
+    ORDER BY sf.survey_date, sf.survey_time
+  `).all(me.id, from, to);
+
   // Google 行事曆公告（只回傳這個月份的）
   const allGcal = await fetchGCalEvents();
   const announcements = allGcal.filter(e => e.date >= from && e.date <= to);
 
-  res.json({ jobs, announcements });
+  res.json({ jobs, surveys, announcements });
 });
 
 module.exports = router;
