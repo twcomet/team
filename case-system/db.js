@@ -2037,19 +2037,21 @@ db.prepare(`
 // ── 廠商資料表 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS vendors (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    name           TEXT NOT NULL UNIQUE,
-    category       TEXT,
-    contact        TEXT,
-    phone          TEXT,
-    email          TEXT,
-    bank_name      TEXT,
-    bank_account   TEXT,
-    bank_branch    TEXT,
-    payment_terms  TEXT,
-    notes          TEXT,
-    active         INTEGER DEFAULT 1,
-    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    name              TEXT NOT NULL UNIQUE,
+    category          TEXT,
+    contact           TEXT,
+    phone             TEXT,
+    email             TEXT,
+    address           TEXT,
+    bank_name         TEXT,
+    bank_account      TEXT,
+    bank_branch       TEXT,
+    bank_account_name TEXT,
+    payment_terms     TEXT,
+    notes             TEXT,
+    active            INTEGER DEFAULT 1,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 _addCol('vendors', 'bank_name',         'TEXT DEFAULT NULL');
@@ -2058,6 +2060,7 @@ _addCol('vendors', 'bank_branch',       'TEXT DEFAULT NULL');
 _addCol('vendors', 'bank_account_name', 'TEXT DEFAULT NULL');
 _addCol('vendors', 'payment_terms',     'TEXT DEFAULT NULL');
 _addCol('vendors', 'email',             'TEXT DEFAULT NULL');
+_addCol('vendors', 'address',           'TEXT DEFAULT NULL');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS vendor_brands (
@@ -2788,5 +2791,30 @@ db.exec(`CREATE TABLE IF NOT EXISTS feedback_replies (
   content    TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+
+// ── 寄件管理 ────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS shipments (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    shipped_at        TEXT,
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_name       TEXT,
+    line_id_name      TEXT,
+    case_id           INTEGER REFERENCES cases(id) ON DELETE SET NULL,
+    recipient_name    TEXT,
+    recipient_phone   TEXT,
+    postal_code       TEXT,
+    recipient_address TEXT,
+    recipient_note    TEXT,
+    content           TEXT,
+    tracking_no       TEXT,
+    carrier           TEXT,
+    org_id            INTEGER REFERENCES orgs(id),
+    created_by        INTEGER REFERENCES users(id),
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+_addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
 
 module.exports = db;
