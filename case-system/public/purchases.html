@@ -452,7 +452,12 @@ async function saveReceipt() {
     });
     if (!r.ok) { const e = await r.json(); alert(e.error||'登記失敗'); return; }
     closeModal('receiptModal');
-    await loadOrders();
+    if (receiptPoMaterialId) {
+      // 有關聯膜料 → 跳到膜料管理查看新增的捲料
+      window.location.href = '/materials';
+    } else {
+      await loadOrders();
+    }
   } finally { btn.disabled = false; }
 }
 
