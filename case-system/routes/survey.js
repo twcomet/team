@@ -224,7 +224,9 @@ router.get('/worker/:token', (req, res) => {
   const form = db.prepare(`
     SELECT sf.surveyor_id, sf.survey_date, sf.survey_time, sf.site_contact, sf.site_phone,
            sf.site_address, sf.dispatch_note, sf.findings, sf.extra_notes, sf.status,
+           sf.share_token,
            c.case_number, c.title, c.location,
+           c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
            u.name as surveyor_name
     FROM survey_forms sf
     JOIN cases c ON c.id = sf.case_id
@@ -257,6 +259,14 @@ router.put('/worker/:token', (req, res) => {
     db.prepare(`UPDATE cases SET survey_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .run(survey_date, row.case_id);
   }
+  res.json({ ok: true });
+});
+
+// POST /api/survey/worker/:token/mark-fee-paid  → 師傅現場確認已收場勘費（公開，不需登入）
+router.post('/worker/:token/mark-fee-paid', (req, res) => {
+  const row = db.prepare(`SELECT id, case_id FROM survey_forms WHERE worker_token=?`).get(req.params.token);
+  if (!row) return res.status(404).json({ error: '找不到場勘任務' });
+  db.prepare(`UPDATE cases SET survey_fee_paid=1, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(row.case_id);
   res.json({ ok: true });
 });
 

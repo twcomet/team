@@ -42,7 +42,17 @@ textarea { resize:vertical; }
 .section-title { font-size:15px; font-weight:700; color:#1f2937; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
 th { background:#f9fafb; padding:8px 6px; text-align:left; font-size:11px; color:#6b7280; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
 .footer { text-align:center; padding:20px 0; font-size:12px; color:#9ca3af; }
+.fee-card { background:#fff7ed; border:1.5px solid #fdba74; border-radius:12px; padding:16px; margin-bottom:14px; }
+.fee-card h3 { font-size:14px; font-weight:600; color:#9a3412; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #fed7aa; }
+.fee-amount { font-size:24px; font-weight:800; color:#9a3412; }
+.fee-paid-badge { background:#d1fae5; color:#065f46; border-radius:8px; padding:6px 14px; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; margin-top:10px; }
+.sign-entry-card { background:#eff6ff; border:1.5px solid #93c5fd; border-radius:12px; padding:16px; margin-bottom:14px; }
+.sign-entry-card h3 { font-size:14px; font-weight:600; color:#1d4ed8; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #bfdbfe; }
+.sign-open-btn { display:block; background:#1a56db; color:#fff; text-align:center; border-radius:10px; padding:12px; font-size:14px; font-weight:700; text-decoration:none; margin-top:12px; }
+.confirm-fee-btn { background:#059669; color:#fff; border:none; border-radius:10px; padding:12px; font-size:15px; font-weight:700; cursor:pointer; width:100%; margin-top:12px; }
+.confirm-fee-btn:active { background:#047857; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="container" id="app">
@@ -112,6 +122,36 @@ function render(f) {
 
     ${f.dispatch_note ? `<div class="dispatch-note"><div class="note-label">📌 調度備注</div><div class="note-body">${f.dispatch_note}</div></div>` : ''}
 
+    <!-- 場勘費資訊 -->
+    ${f.survey_fee_required != null ? `
+    <div class="fee-card">
+      <h3>💰 場勘費</h3>
+      ${f.survey_fee_required == 1 ? `
+        <div style="font-size:12px;color:#92400e;margin-bottom:6px">現場向客戶收取</div>
+        <div class="fee-amount">NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}</div>
+        ${isSigned
+          ? (f.survey_fee_paid
+              ? `<div class="fee-paid-badge">✅ 已確認收款</div>`
+              : `<button class="confirm-fee-btn" onclick="markFeePaid()">確認已收取場勘費</button>`)
+          : `<div style="font-size:12px;color:#92400e;margin-top:10px">客戶簽名後即可確認收款</div>`}
+      ` : `
+        <div style="font-size:16px;font-weight:700;color:#065f46">✓ 免收場勘費</div>
+      `}
+    </div>` : ''}
+
+    <!-- 客戶簽名入口 -->
+    ${f.share_token ? `
+    <div class="sign-entry-card">
+      <h3>${isSigned ? '✅ 客戶已完成簽名' : '📋 請客戶簽名'}</h3>
+      ${!isSigned ? `
+        <div style="font-size:13px;color:#374151;margin-bottom:12px">請讓客戶掃描 QR code，或點擊下方按鈕將手機交給客戶操作。</div>
+        <div id="qrcode" style="background:#fff;padding:10px;border-radius:8px;width:fit-content;margin:0 auto 12px"></div>
+        <a class="sign-open-btn" href="/sign/${f.share_token}" target="_blank">📱 開啟客戶簽名頁</a>
+      ` : `
+        <p style="font-size:13px;color:#047857">客戶已完成簽名確認，場勘單已鎖定。</p>
+      `}
+    </div>` : ''}
+
     <!-- 可編輯區域 -->
     <div class="card" id="editSection">
       <div class="section-title">✏️ 場勘回填（可編輯）</div>
@@ -164,6 +204,16 @@ function render(f) {
 
     <div class="footer">繪新國際有限公司<br>如有問題請聯繫負責業務</div>
   `;
+
+  if (f.share_token && !isSigned && typeof QRCode !== 'undefined') {
+    try {
+      new QRCode(document.getElementById('qrcode'), {
+        text: `${location.origin}/sign/${f.share_token}`,
+        width: 180, height: 180,
+        colorDark: '#1f2937', colorLight: '#ffffff',
+      });
+    } catch(e) {}
+  }
 }
 
 function findingRowHtml(i, it={}) {
@@ -193,6 +243,18 @@ function getFindings() {
     width:    row.querySelector('.f-w').value.trim(),
     height:   row.querySelector('.f-h').value.trim(),
   })).filter(f => f.location || f.material);
+}
+
+async function markFeePaid() {
+  if (!confirm('確認已向客戶收取場勘費？')) return;
+  const res = await fetch(`/api/survey/worker/${token}/mark-fee-paid`, { method: 'POST' });
+  if (res.ok) {
+    showToast('✅ 已確認收款');
+    load();
+  } else {
+    const e = await res.json().catch(() => ({}));
+    showToast(e.error || '操作失敗', false);
+  }
 }
 
 async function save() {
