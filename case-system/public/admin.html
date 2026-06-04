@@ -1001,8 +1001,13 @@ function applyRoleDefaults(roleValue) {
   const dbPerms = roleDef?.default_perms ? JSON.parse(roleDef.default_perms) : roleDefaultsMap[roleValue];
   if (dbPerms) {
     const p = dbPerms;
-    document.getElementById('userIsManager').checked       = !!p.is_manager;
-    document.getElementById('userCanSeeAmounts').checked   = !!p.can_see_amounts;
+    document.getElementById('userIsManager').checked         = !!p.is_manager;
+    document.getElementById('userCanSeeAmounts').checked     = !!p.can_see_amounts;
+    document.getElementById('userCanDelete').checked          = !!p.can_delete;
+    document.getElementById('userCanSeeCost').checked         = !!p.can_see_cost;
+    document.getElementById('userCanSeeLaborCost').checked    = !!p.can_see_labor_cost;
+    document.getElementById('userCanManageAssets').checked    = !!p.can_manage_assets;
+    document.getElementById('userCanShip').checked            = !!p.can_ship;
     document.getElementById('perm_page_dashboard').checked      = !!p.page_dashboard;
     document.getElementById('perm_my_tasks').checked             = !!p.my_tasks;
     document.getElementById('perm_page_cases').checked           = !!p.page_cases;
@@ -1026,6 +1031,10 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('userIsManager').checked              = false;
     document.getElementById('userCanSeeAmounts').checked          = false;
     document.getElementById('userCanDelete').checked              = false;
+    document.getElementById('userCanSeeCost').checked             = false;
+    document.getElementById('userCanSeeLaborCost').checked        = false;
+    document.getElementById('userCanManageAssets').checked        = false;
+    document.getElementById('userCanShip').checked                = false;
     document.getElementById('perm_page_dashboard').checked        = !isContractor;
     document.getElementById('perm_page_cases').checked            = !isContractor;
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
