@@ -2393,7 +2393,8 @@ function buildDayRows() {
   const cur = new Date(start + 'T00:00:00');
   const last = new Date(end + 'T00:00:00');
   while (cur <= last) {
-    days.push(cur.toISOString().slice(0,10));
+    const y = cur.getFullYear(), mo = String(cur.getMonth()+1).padStart(2,'0'), d = String(cur.getDate()).padStart(2,'0');
+    days.push(`${y}-${mo}-${d}`);
     cur.setDate(cur.getDate() + 1);
   }
   if (days.length > 60) { container.innerHTML = '<p style="color:#ef4444;font-size:13px">區間不可超過 60 天</p>'; return; }
