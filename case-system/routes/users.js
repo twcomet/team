@@ -96,9 +96,12 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   const canLaborVal      = can_see_labor_cost !== undefined ? (can_see_labor_cost ? 1 : 0) : (target.can_see_labor_cost ?? 0);
   const canAssetsVal     = can_manage_assets  !== undefined ? (can_manage_assets  ? 1 : 0) : (target.can_manage_assets  ?? 0);
   const canShipVal       = can_ship           !== undefined ? (can_ship           ? 1 : 0) : (target.can_ship           ?? 0);
+  const canAmountsVal    = can_see_amounts    !== undefined ? (can_see_amounts    ? 1 : 0) : (target.can_see_amounts    ?? 0);
+  const activeVal        = active             !== undefined ? (active             ? 1 : 0) : (target.active             ?? 1);
+  const serviceAreasVal  = service_areas      !== undefined ? JSON.stringify(service_areas || []) : (target.service_areas || '[]');
   db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=? WHERE id=?`)
-    .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal,
-         JSON.stringify(service_areas || []), active ?? 1,
+    .run(name, role, department, is_manager ? 1 : 0, canAmountsVal, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal,
+         serviceAreasVal, activeVal,
          JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, isSalesVal, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）
   if ('line_user_id' in req.body) {
