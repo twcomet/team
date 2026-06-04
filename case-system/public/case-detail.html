@@ -1105,10 +1105,19 @@
             </div>
           </div>
 
-          <!-- ③ 收款備註 -->
-          <div class="form-group" style="margin-bottom:16px">
-            <label>收款備註</label>
-            <textarea id="p_payment_notes" rows="2" placeholder="發票號碼、匯款帳號、催收進度…"></textarea>
+          <!-- ③ 追款提醒 + 收款備註 -->
+          <div class="form-row" style="margin-bottom:16px;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:0 0 200px">
+              <label style="display:flex;align-items:center;gap:6px">
+                🔔 提醒追款日
+                <span style="font-size:11px;color:var(--gray-400)">（通知會計追款）</span>
+              </label>
+              <input type="date" id="p_followup_date">
+            </div>
+            <div class="form-group" style="margin:0;flex:1">
+              <label>收款備註</label>
+              <textarea id="p_payment_notes" rows="2" placeholder="發票號碼、匯款帳號、催收進度…"></textarea>
+            </div>
           </div>
 
           <!-- ④ 成本費用 -->
@@ -3245,6 +3254,7 @@ function fillPaymentForm() {
   document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
   document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
   document.getElementById('p_payment_notes').value      = c.payment_notes    || '';
+  document.getElementById('p_followup_date').value      = c.followup_date    || '';
   // 發票欄位：案件層級有值優先，否則從客戶資料帶入
   document.getElementById('p_invoice_company').value    = c.invoice_company   || cl?.invoice_title || cl?.name || '';
   document.getElementById('p_invoice_tax_id').value     = c.invoice_tax_id    || cl?.tax_id           || '';
@@ -3380,6 +3390,7 @@ document.getElementById('savePaymentBtn').addEventListener('click', async () => 
     retention_due_date: document.getElementById('p_retention_due_date').value             || null,
     payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
     payment_notes:      document.getElementById('p_payment_notes').value                  || null,
+    followup_date:      document.getElementById('p_followup_date').value                   || null,
     invoice_company:    document.getElementById('p_invoice_company').value                || null,
     invoice_tax_id:     document.getElementById('p_invoice_tax_id').value                 || null,
     invoice_address:    document.getElementById('p_invoice_address').value                || null,

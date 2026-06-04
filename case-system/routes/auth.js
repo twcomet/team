@@ -53,6 +53,7 @@ router.post('/login', (req, res) => {
     can_see_labor_cost:  !!user.can_see_labor_cost,
     can_manage_assets:   !!user.can_manage_assets,
     can_delete: !!user.can_delete,
+    can_ship:   !!user.can_ship,
     is_manager: !!user.is_manager,
     view_all_branches: def.viewAllBranches,
     allowed_org_ids: user.allowed_org_ids ? JSON.parse(user.allowed_org_ids) : [],
@@ -116,13 +117,14 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: '未登入' });
   // 每次都從 DB 刷新可異動的權限欄位，讓管理員改完立即生效（不需重登）
-  const fresh = db.prepare(`SELECT can_see_amounts, can_see_cost, can_see_labor_cost, can_manage_assets, can_delete, is_manager, permissions FROM users WHERE id=?`).get(req.session.user.id);
+  const fresh = db.prepare(`SELECT can_see_amounts, can_see_cost, can_see_labor_cost, can_manage_assets, can_delete, can_ship, is_manager, permissions FROM users WHERE id=?`).get(req.session.user.id);
   if (fresh) {
     req.session.user.can_see_amounts    = !!fresh.can_see_amounts;
     req.session.user.can_see_cost       = !!fresh.can_see_cost;
     req.session.user.can_see_labor_cost = !!fresh.can_see_labor_cost;
     req.session.user.can_manage_assets  = !!fresh.can_manage_assets;
     req.session.user.can_delete         = !!fresh.can_delete;
+    req.session.user.can_ship           = !!fresh.can_ship;
     req.session.user.is_manager         = !!fresh.is_manager;
     // 同步個人權限覆蓋（permissions JSON）
     if (fresh.permissions) {

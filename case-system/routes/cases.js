@@ -333,6 +333,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
     survey_fee_credited,
     invoice_issued, invoice_issued_date,
     marketing_discount,
+    followup_date,
   } = req.body;
 
   const prev = db.prepare(`SELECT sales_id, cs_id, location, lat, lng FROM cases WHERE id=?`).get(req.params.id);
@@ -358,6 +359,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
       survey_fee_credited=?,
       invoice_issued=?, invoice_issued_date=?,
       marketing_discount=?,
+      followup_date=?,
       updated_by=?,
       updated_at=CURRENT_TIMESTAMP
     WHERE id=?
@@ -385,6 +387,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
     survey_fee_credited ? 1 : 0,
     invoice_issued ? 1 : 0, invoice_issued_date ?? null,
     marketing_discount ? Number(marketing_discount) : 0,
+    followup_date ?? null,
     req.session.user.id,
     req.params.id,
   );

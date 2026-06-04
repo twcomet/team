@@ -117,7 +117,7 @@
                   <th>案號</th><th style="min-width:80px;max-width:100px">客戶</th><th>案件名稱</th><th id="payDateTh" style="cursor:pointer;white-space:nowrap;user-select:none" onclick="togglePayDateSort()">施工日 <span id="payDateIcon" style="color:var(--primary);font-size:12px">↓</span></th>
                   <th style="white-space:nowrap">逾期天數</th>
                   <th>成交金額</th><th>含稅總額</th><th>訂金</th>
-                  <th>已收</th><th>待收</th><th>收款狀態</th><th>業務</th><th style="min-width:60px"></th>
+                  <th>已收</th><th>待收</th><th>收款狀態</th><th style="white-space:nowrap">🔔 追款日</th><th>業務</th><th style="min-width:60px"></th>
                 </tr>
               </thead>
               <tbody id="payBody"></tbody>
@@ -281,7 +281,7 @@ function renderTable(cases) {
     return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
   });
   if (!cases.length) {
-    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">💰</div>沒有符合的收款記錄</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13"><div class="empty-state"><div class="icon">💰</div>沒有符合的收款記錄</div></td></tr>';
     return;
   }
   tbody.innerHTML = cases.map(c => {
@@ -302,6 +302,7 @@ function renderTable(cases) {
       <td style="color:#057a55">${recv?fmt(recv):'—'}</td>
       <td style="color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓ 結清'}</td>
       <td>${paymentBadge(c.payment_status)}</td>
+      <td>${c.followup_date ? `<span style="font-size:12px;font-weight:600;color:${new Date(c.followup_date) <= new Date() ? '#dc2626' : '#2563eb'}">${fmtDate(c.followup_date)}</span>` : '—'}</td>
       <td>${c.sales_name||'—'}</td>
       <td style="white-space:nowrap">
         <a class="btn btn-ghost btn-sm" href="/case-detail?id=${c.id}&tab=payment">更新</a>

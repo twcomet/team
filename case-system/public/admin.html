@@ -384,6 +384,9 @@
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
         </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="可使用寄件管理功能（客服/行銷等自訂角色用）">
+          <input type="checkbox" id="userCanShip"> 寄件管理
+        </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userIsSales"> 業務派案
         </label>
@@ -1092,6 +1095,7 @@ function openEditUser(id) {
   document.getElementById('userCanSeeLaborCost').checked   = !!u.can_see_labor_cost;
   document.getElementById('userCanManageAssets').checked   = !!u.can_manage_assets;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
+  document.getElementById('userCanShip').checked        = !!u.can_ship;
   document.getElementById('userIsSales').checked = !!u.is_sales;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
@@ -1162,6 +1166,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     can_see_labor_cost:  document.getElementById('userCanSeeLaborCost').checked,
     can_manage_assets:   document.getElementById('userCanManageAssets').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
+    can_ship:        document.getElementById('userCanShip').checked,
     is_sales: document.getElementById('userIsSales').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: 1,

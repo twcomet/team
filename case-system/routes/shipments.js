@@ -5,7 +5,7 @@ const router  = express.Router();
 
 function canShip(req, res, next) {
   const u = req.session.user;
-  if (['owner', 'vp'].includes(u.role) || u.can_ship) return next();
+  if (['owner', 'vp', 'hq_cs', 'hq_cs_manager'].includes(u.role) || u.can_ship) return next();
   res.status(403).json({ error: '無寄件管理權限' });
 }
 

@@ -85,7 +85,7 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
     if (target.role === 'owner') return res.status(403).json({ error: '無法修改最高管理者' });
   }
 
-  const { name, role, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales } = req.body;
+  const { name, role, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, can_ship, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales } = req.body;
   const newAllowed = 'allowed_org_ids' in req.body
     ? (req.body.allowed_org_ids?.length ? JSON.stringify(req.body.allowed_org_ids) : null)
     : target.allowed_org_ids;
@@ -95,8 +95,9 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   const canCostVal       = can_see_cost       !== undefined ? (can_see_cost       ? 1 : 0) : (target.can_see_cost       ?? 0);
   const canLaborVal      = can_see_labor_cost !== undefined ? (can_see_labor_cost ? 1 : 0) : (target.can_see_labor_cost ?? 0);
   const canAssetsVal     = can_manage_assets  !== undefined ? (can_manage_assets  ? 1 : 0) : (target.can_manage_assets  ?? 0);
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=? WHERE id=?`)
-    .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0, canCostVal, canLaborVal, canAssetsVal, canDeleteVal,
+  const canShipVal       = can_ship           !== undefined ? (can_ship           ? 1 : 0) : (target.can_ship           ?? 0);
+  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=? WHERE id=?`)
+    .run(name, role, department, is_manager ? 1 : 0, can_see_amounts ? 1 : 0, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal,
          JSON.stringify(service_areas || []), active ?? 1,
          JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, isSalesVal, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）

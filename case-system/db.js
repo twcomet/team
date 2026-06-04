@@ -2848,4 +2848,7 @@ db.exec(`
   )
 `);
 
+// 追款提醒日
+_addCol('cases', 'followup_date', 'DATE DEFAULT NULL');
+
 module.exports = db;
