@@ -75,11 +75,12 @@ router.get('/', requireAuth, (req, res) => {
 
   let sql = `
     SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title,
-           o.name as org_name
+           o.name as org_name, cl.name as client_name
     FROM ledger_entries l
     LEFT JOIN users u ON l.created_by = u.id
     LEFT JOIN cases c ON l.case_id = c.id
     LEFT JOIN orgs  o ON l.org_id  = o.id
+    LEFT JOIN clients cl ON l.client_id = cl.id
     WHERE 1=1
   `;
   const params = [];
@@ -133,15 +134,15 @@ router.get('/vendor-analysis', requireAuth, (req, res) => {
 // POST /api/ledger
 router.post('/', requireAuth, (req, res) => {
   const uid = req.session.user.id;
-  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
+  const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor, client_id } = req.body;
   if (!date || !type || !category || !amount) return res.status(400).json({ error: '必填欄位不完整' });
   const isPaid   = pay_status !== 'pending' && !!paid_note;
   const paid_at  = isPaid ? date : null;
   const r = db.prepare(`
-    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden, pay_status, pay_due_date, paid_note, paid_at, vendor)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, hidden, pay_status, pay_due_date, paid_note, paid_at, vendor, client_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null, uid,
-         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null);
+         hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, client_id || null);
   log(uid, 'create', 'ledger', r.lastInsertRowid, `${date} ${category} $${amount}`);
   res.json({ id: r.lastInsertRowid });
 });
@@ -150,16 +151,16 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   try {
     const uid = req.session.user.id;
-    const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor } = req.body;
+    const { date, type, category, amount, case_id, description, org_id, hidden, pay_status, pay_due_date, paid_note, vendor, client_id } = req.body;
     if (!date || !category) return res.status(400).json({ error: '日期和科目為必填' });
     const existing = db.prepare(`SELECT paid_at FROM ledger_entries WHERE id=?`).get(req.params.id);
     if (!existing) return res.status(404).json({ error: '記錄不存在' });
     const paid_at  = (pay_status !== 'pending' && paid_note && !existing?.paid_at) ? date : (existing?.paid_at || null);
     db.prepare(`
-      UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?, vendor=?
+      UPDATE ledger_entries SET date=?, type=?, category=?, amount=?, case_id=?, description=?, org_id=?, hidden=?, pay_status=?, pay_due_date=?, paid_note=?, paid_at=?, vendor=?, client_id=?
       WHERE id=?
     `).run(date, type, category, Number(amount), case_id || null, description || null, org_id || null,
-           hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, req.params.id);
+           hidden ? 1 : 0, pay_status || null, pay_due_date || null, paid_note || null, paid_at, vendor || null, client_id || null, req.params.id);
     log(uid, 'update', 'ledger', req.params.id, `${date} ${category} $${amount}`);
     res.json({ ok: true });
   } catch(e) {

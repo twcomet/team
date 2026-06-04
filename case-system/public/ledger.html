@@ -177,7 +177,7 @@
               <thead>
                 <tr>
                   <th id="ledgerDateTh" style="cursor:pointer;white-space:nowrap;user-select:none" onclick="toggleLedgerDateSort()">日期 <span id="ledgerDateIcon" style="color:var(--primary);font-size:12px">↓</span></th><th>類型</th><th>科目</th><th>說明</th>
-                  <th>關聯案件</th><th>店別</th>
+                  <th>廠商/客戶</th><th>關聯案件</th><th>店別</th>
                   <th style="text-align:right">收入</th>
                   <th style="text-align:right">支出</th>
                   <th>登記人</th><th></th>
@@ -214,7 +214,7 @@
 </div>
 
 <!-- 廠商管理 Modal -->
-<div class="modal-overlay" id="vendorMgrModal">
+<div class="modal-overlay" id="vendorMgrModal" style="z-index:1100">
   <div class="modal" style="max-width:720px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <h3>廠商管理</h3>
@@ -374,6 +374,14 @@
           <option value="">（不選廠商）</option>
         </select>
         <div id="vendorBankHint" style="font-size:11px;color:var(--gray-500);margin-top:3px;display:none"></div>
+      </div>
+
+      <!-- 客戶（收入才顯示） -->
+      <div class="form-group" id="clientRow" style="display:none;position:relative">
+        <label>客戶（選填）</label>
+        <input type="text" id="ledgerClientSearch" placeholder="輸入客戶名稱搜尋…" autocomplete="off" style="width:100%">
+        <input type="hidden" id="ledgerClientId">
+        <div id="ledgerClientSuggest" style="display:none;position:absolute;z-index:100;background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;font-size:13px;min-width:260px"></div>
       </div>
 
       <!-- 付款狀態（支出才顯示） -->
@@ -541,7 +549,7 @@ async function init() {
   document.getElementById('vaFrom').value = `${ym}-01`;
   document.getElementById('vaTo').value   = `${ym}-31`;
 
-  await Promise.all([loadOrgs(), loadCategories(), loadCasesForSearch(), loadVendors()]);
+  await Promise.all([loadOrgs(), loadCategories(), loadCasesForSearch(), loadVendors(), loadClientsForSearch()]);
   updateCategoryOptions();
   populateOrgSelects();
   await loadLedger();
@@ -555,9 +563,12 @@ async function init() {
     loadLedger();
   });
   document.getElementById('ledgerCaseSearch').addEventListener('input', onCaseSearch);
+  document.getElementById('ledgerClientSearch').addEventListener('input', onClientSearch);
   document.addEventListener('click', e => {
     if (!e.target.closest('#ledgerCaseSuggest') && !e.target.closest('#ledgerCaseSearch'))
       document.getElementById('ledgerCaseSuggest').style.display = 'none';
+    if (!e.target.closest('#ledgerClientSuggest') && !e.target.closest('#ledgerClientSearch'))
+      document.getElementById('ledgerClientSuggest').style.display = 'none';
   });
 }
 
@@ -640,7 +651,7 @@ function renderTable(rows) {
     return sortDateDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
   });
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">📒</div>尚無帳務記錄</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📒</div>尚無帳務記錄</div></td></tr>';
     document.getElementById('ledgerFoot').innerHTML = '';
     return;
   }
@@ -668,6 +679,7 @@ function renderTable(rows) {
         </select>
       </td>
       <td style="color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.description||'').replace(/"/g,'&quot;')}">${r.description||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-600);white-space:nowrap">${r.type==='expense'?(r.vendor||'—'):(r.client_name||'—')}</td>
       <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}&tab=payment" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
@@ -686,7 +698,7 @@ function renderTable(rows) {
   const net = inc - exp;
   document.getElementById('ledgerFoot').innerHTML = `
     <tr style="font-weight:700;background:var(--gray-50)">
-      <td colspan="6">合計</td>
+      <td colspan="7">合計</td>
       <td style="text-align:right;color:#057a55">${fmt(inc)}</td>
       <td style="text-align:right;color:#e02424">${fmt(exp)}</td>
       <td colspan="2" style="color:${net>=0?'#057a55':'#e02424'}">淨餘 ${fmt(net)}</td>
@@ -738,6 +750,7 @@ function updateCategoryOptions() {
 
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   document.getElementById('vendorRow').style.display     = isExp ? '' : 'none';
+  document.getElementById('clientRow').style.display     = isExp ? 'none' : '';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
   document.getElementById('payDueDateRow').style.display  = isPending ? '' : 'none';
   document.getElementById('paidAccountRow').style.display = (isExp && !isPending) ? '' : 'none';
@@ -818,6 +831,10 @@ function openLedgerModal(arg=null) {
   // 廠商
   document.getElementById('ledgerVendor').value = entry?.vendor || '';
   onVendorChange();
+  // 客戶
+  document.getElementById('ledgerClientSearch').value = entry?.client_name || '';
+  document.getElementById('ledgerClientId').value = entry?.client_id || '';
+  document.getElementById('ledgerClientSuggest').style.display = 'none';
   // reset scan
   document.getElementById('scanStatus').textContent = '拍照或選取收據，自動辨識填入';
   document.getElementById('scanPreview').style.display = 'none';
@@ -842,7 +859,7 @@ async function quickUpdateCategory(id, sel) {
         description: entry.description, org_id: entry.org_id,
         hidden: entry.hidden, pay_status: entry.pay_status,
         pay_due_date: entry.pay_due_date, paid_note: entry.paid_note,
-        vendor: entry.vendor,
+        vendor: entry.vendor, client_id: entry.client_id || null,
       }),
     });
     if (res.ok) {
@@ -884,6 +901,7 @@ async function saveLedgerEntry() {
     paid_note:     (!document.getElementById('payStatusPending').checked && document.getElementById('ledgerPaidNote')?.value)
                      ? document.getElementById('ledgerPaidNote').value : null,
     vendor:        document.getElementById('ledgerVendor').value || null,
+    client_id:     document.getElementById('ledgerClientId').value || null,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');
@@ -1226,6 +1244,36 @@ function selectCase(id, number) {
 function clearCaseLink() {
   document.getElementById('ledgerCaseId').value = '';
   document.getElementById('ledgerCaseLink').style.display = 'none';
+}
+
+// ─── 客戶搜尋 ───────────────────────────────────────────────────
+let allClients = [];
+
+async function loadClientsForSearch() {
+  const res = await fetch('/api/clients');
+  allClients = res.ok ? await res.json() : [];
+}
+
+function onClientSearch(e) {
+  const q = e.target.value.trim().toLowerCase();
+  const box = document.getElementById('ledgerClientSuggest');
+  if (!q) { box.style.display='none'; document.getElementById('ledgerClientId').value=''; return; }
+  const matches = allClients.filter(c => (c.name||'').toLowerCase().includes(q)).slice(0, 8);
+  if (!matches.length) { box.style.display='none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(c=>`
+    <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+         onmousedown="selectClient(${c.id},'${(c.name||'').replace(/'/g,"\\'")}')">
+      <span>${c.name||''}</span>
+      ${c.phone ? `<span style="color:var(--gray-400);font-size:12px;margin-left:6px">${c.phone}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+function selectClient(id, name) {
+  document.getElementById('ledgerClientId').value = ''+id;
+  document.getElementById('ledgerClientSearch').value = name;
+  document.getElementById('ledgerClientSuggest').style.display = 'none';
 }
 
 // ─── 廠商（Vendors）─────────────────────────────────────────────

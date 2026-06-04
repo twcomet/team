@@ -629,6 +629,7 @@ _addCol('ledger_entries',    'paid_at',      "DATE DEFAULT NULL");
 _addCol('ledger_entries',    'paid_note',    "TEXT DEFAULT NULL");
 _addCol('ledger_entries',    'pay_due_date', "DATE DEFAULT NULL");
 _addCol('ledger_entries',    'vendor',       "TEXT DEFAULT NULL");
+_addCol('ledger_entries',    'client_id',    "INTEGER REFERENCES clients(id) DEFAULT NULL");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
