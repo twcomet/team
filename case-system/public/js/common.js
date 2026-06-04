@@ -66,6 +66,13 @@ async function loadUser() {
     vendors:          ['owner','hq_accounting'].includes(currentUser.role),
     assets:           true,
     purchases:        p.page_materials !== undefined ? p.page_materials : mu,
+    shipments:        ['owner','vp'].includes(currentUser.role) || !!currentUser.can_ship,
+    deficiencies:     true,   // 所有人可見（manager 看全部，員工看自己）
+    leave:            true,
+    feedback:         true,
+    profile:          true,
+    deposits:         p.page_deposits !== undefined ? p.page_deposits : p.page_payments,
+    contracts:        true,
     'line-inquiries': p.page_line_inquiries !== undefined ? p.page_line_inquiries : p.page_cases,
     'dispatch-detail':p.page_cases,
     'my-tasks':       p.my_tasks,
