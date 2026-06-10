@@ -639,9 +639,9 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
     if (c?.status === 'contracted' && dispatch_type === 'install') {
       updates.push(`status='dispatched'`, `prev_status='contracted'`);
     }
-    // 在結案案件新增售後維修派工 → 自動切換到 aftersales 狀態
-    if (c?.status === 'closed' && dispatch_type === 'aftersales') {
-      updates.push(`status='aftersales'`, `prev_status='closed'`);
+    // 在結案/請款案件新增售後維修派工 → 自動切換到 aftersales 狀態
+    if (['closed', 'payment'].includes(c?.status) && dispatch_type === 'aftersales') {
+      updates.push(`status='aftersales'`, `prev_status='${c.status}'`);
     }
     if (updates.length) {
       params.push(case_id);

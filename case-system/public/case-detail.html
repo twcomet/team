@@ -1408,6 +1408,7 @@ const STAGES_BY_GROUP = {
     {key:'constructing', label:'施工中'},
     {key:'payment',      label:'完工請款'},
     {key:'closed',       label:'結案保存'},
+    {key:'aftersales',   label:'待售後維修'},
     {key:'invalid',      label:'無效'},
   ],
 };
@@ -1424,7 +1425,7 @@ const STATUS_OPTIONS_BY_GROUP = {
   ],
   deal: [
     ['contracted','成交待派工'],['dispatched','已派工待施工'],['constructing','施工中'],
-    ['payment','完工請款'],['closed','結案保存'],['invalid','無效保存'],
+    ['payment','完工請款'],['closed','結案保存'],['aftersales','待售後維修'],['invalid','無效保存'],
   ],
 };
 const ITEM_TYPES = [
@@ -1765,7 +1766,11 @@ function renderHeader() {
   document.getElementById('caseTitle').textContent = caseData.title;
   document.getElementById('caseNumber').textContent = caseData.case_number;
   // 動態填充狀態選單
-  const group = caseData.case_group || 'inquiry';
+  const STATUS_TO_GROUP = {
+    contracted:'deal', dispatched:'deal', constructing:'deal', payment:'deal', closed:'deal', aftersales:'deal',
+    survey_pending:'survey', survey_scheduled:'survey', surveyed:'survey', quote_draft:'survey', quoted:'survey',
+  };
+  const group = caseData.case_group || STATUS_TO_GROUP[caseData.status] || 'inquiry';
   const sel = document.getElementById('statusSelect');
   sel.innerHTML = (STATUS_OPTIONS_BY_GROUP[group] || STATUS_OPTIONS_BY_GROUP.inquiry)
     .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
@@ -1869,11 +1874,15 @@ function applyConvertButtons(group) {
     const advBtn = adv
       ? `<button class="btn btn-sm" style="background:${adv.color};color:#fff;font-weight:600;${status==='payment'&&!isPaid?'opacity:.5;cursor:not-allowed':''}"
            onclick="advanceInDetail()" ${status==='payment'&&!isPaid?'disabled title="收款未完成，無法結案"':''}>${adv.label}</button>` : '';
-    // 結案案件：顯示「新增售後維修」按鈕
-    const aftersalesBtn = status === 'closed'
+    // 結案/請款案件：顯示「新增售後維修」按鈕
+    const aftersalesBtn = (status === 'closed' || status === 'payment')
       ? `<button class="btn btn-sm" style="background:#9333ea;color:#fff;font-weight:600" onclick="openAftersalesDispatch()">🔧 新增售後維修</button>` : '';
-    document.getElementById('convertBannerTitle').textContent = status === 'aftersales' ? '售後維修中' : '成交管理 ─ 下一步';
-    document.getElementById('convertBannerDesc').textContent  = status === 'aftersales' ? '維修完成後點擊「完成維修 → 結案」' : '請確認完成後再推進';
+    document.getElementById('convertBannerTitle').textContent =
+      status === 'aftersales' ? '售後維修中' :
+      status === 'closed'     ? '結案保存'   : '成交管理 ─ 下一步';
+    document.getElementById('convertBannerDesc').textContent  =
+      status === 'aftersales' ? '維修完成後點擊「完成維修 → 結案」' :
+      status === 'closed'     ? '如有客戶反映問題，可新增售後維修派工' : '請確認完成後再推進';
     bannerBtns.innerHTML = advBtn + (advBtn && aftersalesBtn ? '&nbsp;&nbsp;' : '') + aftersalesBtn;
   } else {
     document.getElementById('convertBannerTitle').textContent = '基本資訊';
