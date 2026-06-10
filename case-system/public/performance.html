@@ -109,6 +109,9 @@
         <button class="period-tab"        onclick="setPeriod('quarter')">本季</button>
         <button class="period-tab"        onclick="setPeriod('year')">本年</button>
         <span style="color:var(--gray-300);margin:0 4px">｜</span>
+        <input type="month" id="customMonth" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"
+               onchange="setMonthRange()">
+        <span style="color:var(--gray-300);margin:0 4px">｜</span>
         <input type="date" id="customFrom" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"
                onchange="setCustomRange()">
         <span style="font-size:13px;color:var(--gray-500)">至</span>
@@ -218,11 +221,26 @@ async function init() {
 function setPeriod(p) {
   currentPeriod = p;
   customFrom = ''; customTo = '';
+  document.getElementById('customMonth').value = '';
   document.getElementById('customFrom').value = '';
   document.getElementById('customTo').value = '';
   document.querySelectorAll('.period-tab').forEach((b, i) =>
     b.classList.toggle('active', ['today','week','month','quarter','year'][i] === p)
   );
+  load();
+}
+
+function setMonthRange() {
+  const m = document.getElementById('customMonth').value;
+  if (!m) return;
+  const [y, mo] = m.split('-');
+  const lastDay = new Date(+y, +mo, 0).getDate();
+  customFrom = `${m}-01`;
+  customTo   = `${m}-${String(lastDay).padStart(2,'0')}`;
+  currentPeriod = '';
+  document.getElementById('customFrom').value = '';
+  document.getElementById('customTo').value = '';
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
   load();
 }
 
@@ -232,6 +250,7 @@ function setCustomRange() {
   if (!f || !t) return;
   customFrom = f; customTo = t;
   currentPeriod = '';
+  document.getElementById('customMonth').value = '';
   document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
   load();
 }
