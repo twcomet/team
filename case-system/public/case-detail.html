@@ -273,12 +273,16 @@
           </div>
           <div class="form-group" style="margin-bottom:12px"><label>案件名稱</label><input type="text" id="b_title"></div>
           <div class="form-group" style="margin-bottom:12px">
-            <label style="display:flex;align-items:center;justify-content:space-between">
+            <label style="display:flex;align-items:center;justify-content:space-between;gap:8px">
               案場地址
-              <a id="b_location_maplink" href="#" target="_blank"
-                 style="display:none;font-size:12px;color:var(--primary);text-decoration:none;font-weight:400">
-                🗺 Google Maps 查看
-              </a>
+              <span style="display:flex;gap:8px;align-items:center">
+                <a id="b_location_maplink" href="#" target="_blank"
+                   style="display:none;font-size:12px;color:var(--primary);text-decoration:none;font-weight:400">
+                  🗺 Google Maps 查看
+                </a>
+                <button type="button" onclick="clearCaseLocation()"
+                  style="border:none;background:none;font-size:11px;color:#9ca3af;cursor:pointer;padding:0;line-height:1">× 清除</button>
+              </span>
             </label>
             <input type="text" id="b_location" placeholder="請輸入完整地址以開啟地圖連動" autocomplete="off">
           </div>
@@ -4203,6 +4207,12 @@ async function deleteQItem(itemId) {
   if (qr.ok) { currentQuote = await qr.json(); renderQuotePanel(); }
 }
 
+function clearCaseLocation() {
+  document.getElementById('b_location').value = '';
+  const mapLink = document.getElementById('b_location_maplink');
+  if (mapLink) { mapLink.href = '#'; mapLink.style.display = 'none'; }
+}
+
 function openAftersalesDispatch() {
   document.getElementById('addDispatchBtn').click();
 }
@@ -4502,8 +4512,13 @@ async function initAddressAutocomplete() {
       componentRestrictions: { country: 'tw' },
       fields: ['formatted_address', 'geometry', 'name']
     });
+    // 防止 Enter 直接觸發 autocomplete place_changed（避免強制覆蓋手動輸入的文字）
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
+      if (!place.geometry) return; // 使用者未從下拉選取，保留手動輸入值
       if (place.formatted_address) input.value = place.formatted_address;
       const mapLink = document.getElementById('b_location_maplink');
       if (mapLink && place.geometry?.location) {
