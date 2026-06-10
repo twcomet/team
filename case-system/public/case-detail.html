@@ -1336,7 +1336,7 @@
       <!-- 指派人員 -->
       <div class="form-group">
         <label>指派人員（可多選）</label>
-        <div id="d_users" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
+        <div id="d_users" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
       </div>
 
       <!-- 售後維修費用（僅 aftersales 類型顯示） -->
@@ -2374,9 +2374,9 @@ function buildUserCheckboxes(selectedIds = []) {
   const container = document.getElementById('d_users');
   const techUsers = users;
   container.innerHTML = techUsers.map(u => `
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid ${selectedIds.includes(u.id)?'var(--primary)':'var(--gray-200)'};background:${selectedIds.includes(u.id)?'#dbeafe':''};overflow:hidden">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid ${selectedIds.includes(u.id)?'var(--primary)':'var(--gray-200)'};background:${selectedIds.includes(u.id)?'#dbeafe':''}">
       <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.name}</span>
+      ${u.name}
     </label>
   `).join('');
 }
