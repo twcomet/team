@@ -360,7 +360,7 @@ function onClientSearch() {
     const list = await r.json();
     if (!list.length) {
       drop.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:13px">找不到符合客戶</div>';
-      drop.style.display = '';
+      drop.style.display = 'block';
       return;
     }
     drop.innerHTML = list.map(c => `
@@ -368,7 +368,7 @@ function onClientSearch() {
         <div>${esc(c.name)}</div>
         <div class="sub">${esc(c.phone||'')}${c.contact ? ' · ' + esc(c.contact) : ''}</div>
       </div>`).join('');
-    drop.style.display = '';
+    drop.style.display = 'block';
   }, 250);
 }
 
@@ -415,12 +415,12 @@ async function doSearch() {
   const cases = await r.json();
 
   if (!cases.length) {
-    results.style.display = '';
+    results.style.display = 'block';
     results.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af;font-size:13px">找不到符合的案件</div>';
     return;
   }
 
-  results.style.display = '';
+  results.style.display = 'block';
   results.innerHTML = cases.map(c => {
     const statusLabel = { inquiry:'詢價', surveyed:'已場勘', quoted:'已報價', confirmed:'確認', dispatched:'派工', constructing:'施工' }[c.status] || c.status;
     return `<div class="search-result-item" onclick="gotoCase(${c.id})">
