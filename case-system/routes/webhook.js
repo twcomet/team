@@ -300,7 +300,7 @@ async function handleStaffText(event) {
   if (leaveMatch) {
     if (!emp) { await reply(event.replyToken, '請先綁定帳號才能使用請假功能。\n指令：綁定 你的系統帳號', STAFF_TOKEN()); return; }
     const [, leave_type, leave_date, hours, reasonRaw] = leaveMatch;
-    const valid = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+    const valid = ['特休','病假','事假','公假','婚假','喪假','補休','產檢假','其他'];
     if (!valid.includes(leave_type)) {
       await reply(event.replyToken, `假別不正確，可用：${valid.join('、')}`, STAFF_TOKEN()); return;
     }
@@ -331,7 +331,7 @@ async function handleStaffText(event) {
   // 請假申請（圖文選單按鈕）
   if (text === '請假申請') {
     const msg = emp
-      ? `📅 請假申請格式：\n\n請假 假別 日期 時數 原因\n\n例：請假 特休 2026-06-01 8 出遊\n\n可用假別：特休、病假、事假、公假、婚假、喪假、補休、其他`
+      ? `📅 請假申請格式：\n\n請假 假別 日期 時數 原因\n\n例：請假 特休 2026-06-01 8 出遊\n\n可用假別：特休、病假、事假、公假、婚假、喪假、補休、產檢假、其他`
       : '請先綁定帳號。\n指令：綁定 你的系統帳號\n例：綁定 flora';
     await reply(event.replyToken, msg, STAFF_TOKEN()); return;
   }
@@ -346,7 +346,7 @@ async function handleStaffText(event) {
 
   // 說明
   const helpText = emp
-    ? `${emp.name} 您好！可用指令：\n\n【請假】\n請假 假別 日期 時數 原因\n例：請假 特休 2026-06-01 8 出遊\n\n假別：特休、病假、事假、公假、婚假、喪假、補休、其他\n\n【補打卡】\n補打卡 日期 原因\n例：補打卡 2026-06-01 忘記打卡`
+    ? `${emp.name} 您好！可用指令：\n\n【請假】\n請假 假別 日期 時數 原因\n例：請假 特休 2026-06-01 8 出遊\n\n假別：特休、病假、事假、公假、婚假、喪假、補休、產檢假、其他\n\n【補打卡】\n補打卡 日期 原因\n例：補打卡 2026-06-01 忘記打卡`
     : `您好！這是繪新派單系統。\n\n若要綁定帳號，請傳送：\n綁定 你的系統帳號\n\n例如：綁定 flora`;
   await reply(event.replyToken, helpText, STAFF_TOKEN());
 }

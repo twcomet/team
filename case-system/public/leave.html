@@ -23,6 +23,7 @@
 .lt-婚假 { background:#ede9fe; color:#5b21b6; }
 .lt-喪假 { background:#f3f4f6; color:#374151; }
 .lt-補休 { background:#ccfbf1; color:#0f766e; }
+.lt-產檢假 { background:#fdf2f8; color:#be185d; }
 .lt-其他 { background:#f3f4f6; color:#374151; }
 .sb-pending  { background:#fef9c3; color:#713f12; }
 .sb-approved { background:#d1fae5; color:#065f46; }
@@ -166,6 +167,7 @@
           <option value="婚假">婚假</option>
           <option value="喪假">喪假</option>
           <option value="補休">補休</option>
+          <option value="產檢假">產檢假</option>
           <option value="其他">其他</option>
         </select>
       </div>
@@ -233,7 +235,7 @@
 <script src="/js/common.js"></script>
 <script>
 const LEAVE_STATUS_LABEL = { pending:'審核中', approved:'已核准', rejected:'已拒絕' };
-const LEAVE_TYPES = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+const LEAVE_TYPES = ['特休','病假','事假','公假','婚假','喪假','補休','產檢假','其他'];
 
 let isHR = false;
 let curTab = 'my';
