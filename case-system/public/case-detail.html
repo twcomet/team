@@ -287,10 +287,10 @@
             <div class="form-group" style="margin-bottom:0"><label>預計進場時間</label><input type="date" id="b_scheduled_date"></div>
           </div>
           <div class="form-row" style="margin-bottom:0;margin-top:8px">
-            <div class="form-group" style="margin-bottom:0"><label>成交日期</label><input type="date" id="b_contracted_at"></div>
+            <div class="form-group" style="margin-bottom:0"><label>成交日期</label><input type="date" id="b_contracted_at" oninput="document.getElementById('p_contracted_at').value=this.value"></div>
             <div class="form-group" style="margin-bottom:0">
               <label>實際進場日期 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（空白時從施工派工自動帶入）</span></label>
-              <input type="date" id="b_actual_entry_date">
+              <input type="date" id="b_actual_entry_date" oninput="document.getElementById('p_actual_entry_date').value=this.value">
             </div>
           </div>
         </div>
@@ -859,6 +859,20 @@
       <!-- 收款 -->
       <div class="tab-pane" id="tab-payment">
         <div style="max-width:680px">
+
+          <!-- 日期資訊（會計用） -->
+          <div style="display:flex;gap:12px;margin-bottom:16px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px 16px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--gray-500);font-weight:600;margin-bottom:4px">成交日期</div>
+              <input type="date" id="p_contracted_at" style="width:100%;box-sizing:border-box;border:1px solid var(--gray-300);border-radius:6px;padding:6px 8px;font-size:13px"
+                oninput="document.getElementById('b_contracted_at').value=this.value">
+            </div>
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--gray-500);font-weight:600;margin-bottom:4px">實際進場日期</div>
+              <input type="date" id="p_actual_entry_date" style="width:100%;box-sizing:border-box;border:1px solid var(--gray-300);border-radius:6px;padding:6px 8px;font-size:13px"
+                oninput="document.getElementById('b_actual_entry_date').value=this.value">
+            </div>
+          </div>
 
           <!-- ① 案件金額與收款 -->
           <div style="border:1px solid var(--gray-200);border-radius:12px;margin-bottom:16px;overflow:hidden">
@@ -2048,6 +2062,9 @@ function fillBasicForm() {
       .sort();
     document.getElementById('b_actual_entry_date').value = installDates[0] || '';
   }
+  // 同步日期到收款 tab
+  document.getElementById('p_contracted_at').value    = document.getElementById('b_contracted_at').value;
+  document.getElementById('p_actual_entry_date').value = document.getElementById('b_actual_entry_date').value;
   document.getElementById('b_line_source').value       = c.line_source || '';
   document.getElementById('b_keyword').value           = c.keyword || '';
   document.getElementById('b_desc').value              = c.description || '';
