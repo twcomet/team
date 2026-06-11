@@ -24,6 +24,7 @@
 .cal-day.weekend-day .cal-day-num { color:#e02424; }
 
 .cal-event { font-size:11px; padding:2px 6px; border-radius:4px; margin-bottom:2px; cursor:default; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cal-event.job, .cal-event.survey { cursor:pointer; }
 .cal-event.job    { background:#dcfce7; color:#166534; }
 .cal-event.survey { background:#dbeafe; color:#1e40af; }
 .cal-event.gcal   { background:#fef3c7; color:#92400e; }
@@ -231,8 +232,8 @@ function renderMonth() {
     html += `<div class="cal-day${isToday?' today':''}${isWeekend?' weekend-day':''}">
       <div class="cal-day-num">${d}</div>
       ${events.map(e => {
-        if (e.type === 'job')    return `<div class="cal-event job" title="${e.case_number} ${e.title||''}">🔧 ${e.title||e.case_number}</div>`;
-        if (e.type === 'survey') return `<div class="cal-event survey" title="場勘：${e.case_number} ${e.title||''}">🔍 ${e.title||e.case_number}</div>`;
+        if (e.type === 'job')    return `<div class="cal-event job" title="${e.case_number} ${e.title||''}" onclick="location.href='/case-detail?id=${e.case_id}'">🔧 ${e.title||e.case_number}</div>`;
+        if (e.type === 'survey') return `<div class="cal-event survey" title="場勘：${e.case_number} ${e.title||''}" onclick="location.href='${e.worker_token ? '/survey-worker?token='+e.worker_token : '/case-detail?id='+e.case_id+'&tab=survey'}'">🔍 ${e.title||e.case_number}</div>`;
         return `<div class="cal-event gcal" title="${e.title}">📢 ${e.title}</div>`;
       }).join('')}
     </div>`;
@@ -252,7 +253,7 @@ function renderMonth() {
 function renderAgenda() {
   const all = [
     ...allJobs.map(j => ({ type:'job',    date:j.date, title:j.title||j.case_number, sub:`${j.case_number} · ${j.client_name||''}${j.scheduled_time?' · '+j.scheduled_time:''}${j.location?' · '+j.location:''}`, caseId:j.case_id })),
-    ...allSurveys.map(s => ({ type:'survey', date:s.date, title:s.title||s.case_number, sub:`${s.case_number} · ${s.client_name||''}${s.survey_time?' · '+s.survey_time:''}${s.location?' · '+s.location:''}`, caseId:s.case_id })),
+    ...allSurveys.map(s => ({ type:'survey', date:s.date, title:s.title||s.case_number, sub:`${s.case_number} · ${s.client_name||''}${s.survey_time?' · '+s.survey_time:''}${s.location?' · '+s.location:''}`, caseId:s.case_id, workerToken:s.worker_token })),
     ...allGcal.map(g => ({ type:'gcal',   date:g.date, title:g.title, sub:g.note||'' })),
   ].sort((a,b) => a.date.localeCompare(b.date));
 
@@ -271,7 +272,7 @@ function renderAgenda() {
     return `<div class="agenda-day">
       <div class="agenda-date${isToday?' today-label':''}">${label}</div>
       ${evts.map(e => `
-        <div class="agenda-item ${e.type}" ${e.caseId ? `onclick="location.href='/case-detail?id=${e.caseId}${e.type==='survey'?'&tab=survey':''}'" style="cursor:pointer"` : ''}>
+        <div class="agenda-item ${e.type}" ${e.caseId ? `onclick="location.href='${e.type==='survey'&&e.workerToken ? '/survey-worker?token='+e.workerToken : '/case-detail?id='+e.caseId+(e.type==='survey'?'&tab=survey':'')}'" style="cursor:pointer"` : ''}>
           <span class="agenda-tag ${e.type}">${e.type==='job'?'派工':e.type==='survey'?'場勘':'公告'}</span>
           <div class="agenda-body">
             <div class="agenda-title">${e.title}</div>
