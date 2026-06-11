@@ -322,7 +322,7 @@ function openDayModal(dateStr) {
         </div>
         <div style="font-weight:600;margin-bottom:2px">${s.client_name || ''} — ${s.title || ''}</div>
         <div style="font-size:13px;color:#6b7280">勘場人員：${s.surveyor_name || '未指定'}</div>
-        <a href="/case-detail?id=${s.id}&tab=survey" style="font-size:12px;color:#7c3aed;text-decoration:none">→ 開啟場勘單</a>
+        <button onclick="location.href='/case-detail?id=${s.id}&tab=survey'" style="border:none;background:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;text-decoration:underline">→ 開啟場勘單</button>
       </div>`).join('');
     html += '</div>';
   }
