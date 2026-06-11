@@ -212,15 +212,17 @@ let currentPeriod = 'today';
 let orgId = '';
 
 const STAGE_LABELS = {
-  inquiry:          '詢價',
-  initial_estimate: '初步估價',
+  inquiry:          '詢價中',
+  initial_estimate: '已初步估價',
+  quote_needed:     '需出估價單',
+  quote_sent:       '已出估價單',
   survey_pending:   '待排場勘',
   survey_scheduled: '已排場勘',
   surveyed:         '已場勘',
-  quote_draft:      '報價草稿',
-  quoted:           '已報價',
+  quote_draft:      '已建報價資料',
+  quoted:           '已發報價單',
 };
-const STAGE_ORDER = ['inquiry','initial_estimate','survey_pending','survey_scheduled','surveyed','quote_draft','quoted'];
+const STAGE_ORDER = ['inquiry','initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted'];
 
 function daysSince(ts) {
   if (!ts) return '?';
@@ -415,11 +417,11 @@ function renderFunnel(f, period, from, to) {
     `本月（${from} ～ ${to}）`;
 
   const steps = [
-    { label:'詢入',     val: f.inquiries },
+    { label:'流入',     val: f.inquiries },
     { label:'初步估價', val: f.initial_estimate },
-    { label:'待場勘',   val: f.survey_pending },
+    { label:'待排場勘', val: f.survey_pending },
     { label:'已場勘',   val: f.surveyed },
-    { label:'已報價',   val: f.quoted },
+    { label:'已發報價', val: f.quoted },
     { label:'成交',     val: f.contracted },
   ];
 

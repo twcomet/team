@@ -69,12 +69,17 @@
     </div>
     <div class="page-body">
       <div class="stats-grid" id="statsGrid">
-        <div class="stat-card"><div class="label">全部案件</div><div class="value" id="s-total">—</div></div>
-        <div class="stat-card"><div class="label">進行中</div><div class="value" id="s-active">—</div></div>
+        <div class="stat-card"><div class="label">進行中案件</div><div class="value" id="s-active">—</div></div>
         <div class="stat-card"><div class="label">今日施工</div><div class="value" id="s-today">—</div></div>
         <div class="stat-card"><div class="label">待排工</div><div class="value warning" id="s-unscheduled">—</div></div>
         <div class="stat-card"><div class="label">本月已收</div><div class="value success" id="s-revenue">—</div></div>
         <div class="stat-card"><div class="label">待收款總額</div><div class="value danger" id="s-unpaid">—</div></div>
+        <div class="stat-card" id="s-leave-card" style="display:none"><div class="label">今日請假</div><div class="value" id="s-leave">—</div></div>
+      </div>
+      <!-- 今日請假名單：HR/老闆可見 -->
+      <div id="todayLeaveSection" style="display:none;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px">🏖️ 今日請假人員</div>
+        <div id="todayLeaveList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
       <!-- 財務摘要：老闆專屬 -->
@@ -134,6 +139,7 @@ async function init() {
   const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   const fromDate = `${ym}-01`, toDate = `${ym}-${String(lastDay).padStart(2,'0')}`;
 
+  const isHR = user?.role === 'owner' || user?.role === 'hq_hr' || !!user?.manage_users;
   const fetches = [fetch('/api/cases/stats/summary'), fetch('/api/cases')];
   if (user?.manage_users) {
     fetches.push(fetch(`/api/reports/pl-monthly?from=${ym}&to=${ym}`));
@@ -143,12 +149,33 @@ async function init() {
   const stats = await results[0].json();
   const cases = await results[1].json();
 
-  document.getElementById('s-total').textContent = stats.total ?? 0;
   document.getElementById('s-active').textContent = stats.active ?? 0;
   document.getElementById('s-today').textContent = stats.today_jobs ?? 0;
   document.getElementById('s-unscheduled').textContent = stats.unscheduled ?? 0;
   document.getElementById('s-revenue').textContent = fmt(stats.month_income ?? 0);
   document.getElementById('s-unpaid').textContent = fmt(stats.unpaid ?? 0);
+
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  // 今日請假（HR/老闆）
+  if (isHR) {
+    const leaveRes = await fetch(`/api/hr/leave-requests?status=approved&month=${ym}`);
+    if (leaveRes.ok) {
+      const leaves = await leaveRes.json();
+      const todayLeaves = leaves.filter(l => l.leave_date === todayStr);
+      document.getElementById('s-leave-card').style.display = '';
+      document.getElementById('s-leave').textContent = `${todayLeaves.length} 人`;
+      if (todayLeaves.length) {
+        document.getElementById('todayLeaveSection').style.display = '';
+        document.getElementById('todayLeaveList').innerHTML = todayLeaves.map(l =>
+          `<span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:20px;padding:3px 12px;font-size:12px">${l.user_name}｜${l.leave_type}${l.hours ? ' '+l.hours+'h' : ''}</span>`
+        ).join('');
+      }
+    }
+  }
 
   // 財務摘要（老闆）
   if (user?.manage_users && results[2] && results[3]) {
@@ -156,11 +183,6 @@ async function init() {
     const cf = await results[3].json();
     renderFinance(pl, cf, ym);
   }
-
-  const todayStr = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  })();
 
   const ACTIVE = ['contracted','dispatched','constructing','payment'];
   const active = cases.filter(c => ACTIVE.includes(c.status));
