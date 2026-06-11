@@ -205,10 +205,10 @@
 <script>
 // ── 主題定義 ─────────────────────────────────────────────────
 const THEMES = {
-  survey:     { icon:'🔍', label:'場勘任務',    cls:'theme-survey',     url: t => t.survey_worker_token ? `/survey-worker?token=${t.survey_worker_token}` : `/survey-form?case_id=${t.id}` },
+  survey:     { icon:'🔍', label:'場勘任務',    cls:'theme-survey',     url: t => `/case-detail?id=${t.id}&tab=survey` },
   install:    { icon:'🔨', label:'施工任務',    cls:'theme-install',    url: t => `/dispatch-detail?id=${t.id}` },
   aftersales: { icon:'🔧', label:'維修任務',    cls:'theme-aftersales', url: t => `/dispatch-detail?id=${t.id}` },
-  surveyor:   { icon:'📋', label:'場勘員',      cls:'theme-surveyor',   url: t => t.survey_worker_token ? `/survey-worker?token=${t.survey_worker_token}` : `/survey-form?case_id=${t.id}` },
+  surveyor:   { icon:'📋', label:'場勘員',      cls:'theme-surveyor',   url: t => `/case-detail?id=${t.id}&tab=survey` },
   sales:      { icon:'💼', label:'案件負責業務', cls:'theme-sales',      url: t => `/case-detail?id=${t.id}` },
   cs:         { icon:'🎧', label:'案件負責客服', cls:'theme-cs',         url: t => `/case-detail?id=${t.id}` },
 };
@@ -423,22 +423,32 @@ async function init() {
     return;
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const day10    = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
-  const day30    = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const day10    = new Date(Date.now() + 10 * 86400000);
+  const day10Str = `${day10.getFullYear()}-${String(day10.getMonth()+1).padStart(2,'0')}-${String(day10.getDate()).padStart(2,'0')}`;
+  const day30    = new Date(Date.now() + 30 * 86400000);
+  const day30Str = `${day30.getFullYear()}-${String(day30.getMonth()+1).padStart(2,'0')}-${String(day30.getDate()).padStart(2,'0')}`;
 
-  // 使用 next_dispatch 日期優先（若無則用 scheduled_date）排序用
+  // 今日場勘：is_surveyor 且 survey_date === 今天
+  const todaySurvey = tasks.filter(t => t.is_surveyor && t.survey_date === todayStr);
+  const todaySurveyIds = new Set(todaySurvey.map(t => t.id));
+
+  // 排序用日期：場勘員優先用 survey_date，否則用 next_dispatch / scheduled_date
   function sortDate(t) {
+    if (t.is_surveyor && t.survey_date) return t.survey_date;
     if (t.next_dispatch) return t.next_dispatch.split('|')[1] || '9999-12-31';
     return t.scheduled_date || '9999-12-31';
   }
 
-  const overdue = tasks.filter(t => { const d = sortDate(t); return d < todayStr; });
-  const near10  = tasks.filter(t => { const d = sortDate(t); return d >= todayStr && d <= day10; });
-  const near30  = tasks.filter(t => { const d = sortDate(t); return d > day10 && d <= day30; });
-  const noDate  = tasks.filter(t => !t.scheduled_date && !t.next_dispatch);
+  const remaining = tasks.filter(t => !todaySurveyIds.has(t.id));
+  const overdue = remaining.filter(t => { const d = sortDate(t); return d < todayStr; });
+  const near10  = remaining.filter(t => { const d = sortDate(t); return d >= todayStr && d <= day10Str; });
+  const near30  = remaining.filter(t => { const d = sortDate(t); return d > day10Str && d <= day30Str; });
+  const noDate  = remaining.filter(t => !t.survey_date && !t.scheduled_date && !t.next_dispatch);
 
   el.innerHTML =
+    renderSection('📋 今日場勘', 'lbl-week', todaySurvey) +
     renderSection('🔴 已逾期任務', 'lbl-overdue', overdue) +
     renderSection('📌 本週任務（近 10 天）', 'lbl-week', near10) +
     renderSection('🟡 本月任務', 'lbl-month', near30) +
