@@ -13,7 +13,7 @@ function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNo
   const systemUrl = `/case-detail?id=${caseData.id}&tab=survey`;
   const workerUrl = workerToken ? `${process.env.APP_URL || ''}/survey-worker?token=${workerToken}` : null;
   const notifUrl = systemUrl;
-  const appUrl = process.env.APP_URL || '';
+  const appUrl = process.env.APP_URL || 'https://twcometsystem.zeabur.app';
   const caseLink = appUrl ? `\n查看場勘單：${appUrl}${systemUrl}` : '';
   const workerLink = workerUrl && appUrl ? `\n場勘填寫：${workerUrl}` : '';
   const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}${caseLink}${workerLink}`;
