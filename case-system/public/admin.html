@@ -225,7 +225,7 @@
                 <tr>
                   <th style="width:28px"></th>
                   <th>姓名</th><th>帳號</th><th>角色</th><th>所屬</th>
-                  <th>可看金額</th><th>材料成本</th><th>人事成本</th><th>可刪除</th><th>狀態</th><th></th>
+                  <th>LINE</th><th>可看金額</th><th>材料成本</th><th>人事成本</th><th>可刪除</th><th>狀態</th><th></th>
                 </tr>
               </thead>
               <tbody id="userBody"></tbody>
@@ -930,6 +930,7 @@ async function loadUsers() {
       <td><code style="font-size:12px">${u.username}</code></td>
       <td>${roleLabelsMap[u.role] || ROLE_LABELS[u.role] || u.role}</td>
       <td style="font-size:13px;color:#6b7280">${u.org_name || '—'}</td>
+      <td style="text-align:center">${u.line_user_id ? '<span style="color:#00b900;font-size:13px" title="已綁定">✅</span>' : '<span style="color:#9ca3af;font-size:12px">未綁定</span>'}</td>
       <td style="text-align:center">${u.can_see_amounts ? '✅' : '—'}</td>
       <td style="text-align:center">${u.can_see_cost ? '💰' : '—'}</td>
       <td style="text-align:center">${u.can_see_labor_cost ? '👔' : '—'}</td>

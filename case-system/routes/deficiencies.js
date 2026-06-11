@@ -3,11 +3,11 @@ const db      = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const router  = express.Router();
 
-// owner 或 hq_hr 才可發布/編輯/刪除
+// owner、hq_hr 或有 manage_users 權限的管理者才可發布/編輯/刪除
 function requireManager(req, res, next) {
-  const { role } = req.session.user;
-  if (role === 'owner' || role === 'hq_hr') return next();
-  res.status(403).json({ error: '僅限老闆或人資主管操作' });
+  const u = req.session.user;
+  if (u.role === 'owner' || u.role === 'hq_hr' || !!u.manage_users) return next();
+  res.status(403).json({ error: '僅限管理者操作' });
 }
 
 function withPersons(row) {
@@ -27,7 +27,7 @@ function withPersons(row) {
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, year, case_id } = req.query;
-  const isManager = me.role === 'owner' || me.role === 'hq_hr';
+  const isManager = me.role === 'owner' || me.role === 'hq_hr' || !!me.manage_users;
 
   let where = 'WHERE d.org_id=?';
   const params = [me.org_id];
@@ -100,7 +100,7 @@ router.get('/:id', requireAuth, (req, res) => {
     WHERE d.id=? AND d.org_id=?
   `).get(req.params.id, me.org_id);
   if (!row) return res.status(404).json({ error: '找不到缺失記錄' });
-  const isManager = me.role === 'owner' || me.role === 'hq_hr';
+  const isManager = me.role === 'owner' || me.role === 'hq_hr' || !!me.manage_users;
   const isMember  = db.prepare(`SELECT 1 FROM deficiency_persons WHERE deficiency_id=? AND user_id=?`).get(row.id, me.id);
   if (!isManager && !isMember) return res.status(403).json({ error: '無權限' });
   res.json(withPersons(row));
