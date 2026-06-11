@@ -10,11 +10,13 @@ function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNo
   const tech = db.prepare(`SELECT id, name, line_user_id FROM users WHERE id=?`).get(surveyorId);
   if (!tech) return;
   const dateStr = [surveyDate, surveyTime].filter(Boolean).join(' ');
-  const taskUrl = workerToken
-    ? `${process.env.APP_URL || ''}/survey-worker?token=${workerToken}`
-    : `/survey-form?case_id=${caseData.id}`;
-  const notifUrl = workerToken ? taskUrl : `/survey-form?case_id=${caseData.id}`;
-  const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}${workerToken && process.env.APP_URL ? '\n查看場勘單：' + taskUrl : ''}`;
+  const systemUrl = `/case-detail?id=${caseData.id}&tab=survey`;
+  const workerUrl = workerToken ? `${process.env.APP_URL || ''}/survey-worker?token=${workerToken}` : null;
+  const notifUrl = systemUrl;
+  const appUrl = process.env.APP_URL || '';
+  const caseLink = appUrl ? `\n查看場勘單：${appUrl}${systemUrl}` : '';
+  const workerLink = workerUrl && appUrl ? `\n場勘填寫：${workerUrl}` : '';
+  const msg = `📋 您被指派為場勘人員\n案件：${caseData.case_number} ${caseData.title}\n${dateStr ? '場勘時間：' + dateStr + '\n' : ''}地址：${caseData.location || '未填'}${dispatchNote ? '\n備注：' + dispatchNote : ''}\n指派者：${assignerName}${caseLink}${workerLink}`;
   db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'dispatch','cases',?,?)`)
     .run(tech.id, '您有場勘任務', `${caseData.case_number} ${caseData.title}${dateStr ? ' @ ' + dateStr : ''}`, caseData.id, notifUrl);
   if (tech.line_user_id) pushMessage(tech.line_user_id, msg);
