@@ -186,7 +186,7 @@ router.get('/monthly', requireAuth, (req, res) => {
 router.post('/leave', requireAuth, (req, res) => {
   const { leave_type, leave_date, leave_end_date, hours, reason } = req.body;
   if (!leave_type || !leave_date || !hours) return res.status(400).json({ error: 'Missing fields' });
-  const valid = ['特休','病假','事假','公假','婚假','喪假','補休','其他'];
+  const valid = ['特休','病假','事假','公假','婚假','喪假','補休','產檢假','其他'];
   if (!valid.includes(leave_type)) return res.status(400).json({ error: 'Invalid leave_type' });
 
   const endDate = leave_end_date && leave_end_date >= leave_date ? leave_end_date : null;
