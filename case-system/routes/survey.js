@@ -229,10 +229,12 @@ router.get('/worker/:token', (req, res) => {
            sf.share_token,
            c.case_number, c.title, c.location,
            c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
-           u.name as surveyor_name
+           u.name as surveyor_name,
+           cl.name as client_name, cl.phone as client_phone
     FROM survey_forms sf
     JOIN cases c ON c.id = sf.case_id
     LEFT JOIN users u ON u.id = sf.surveyor_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
     WHERE sf.worker_token = ?
   `).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到場勘任務' });

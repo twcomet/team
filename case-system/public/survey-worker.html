@@ -167,11 +167,11 @@ function render(f) {
         </div>
         <div>
           <label class="form-label">現場聯絡人</label>
-          <input type="text" id="w_contact" value="${f.site_contact || ''}" placeholder="聯絡人姓名" ${isSigned ? 'disabled' : ''}>
+          <input type="text" id="w_contact" value="${f.site_contact || f.client_name || ''}" placeholder="聯絡人姓名" ${isSigned ? 'disabled' : ''}>
         </div>
         <div>
           <label class="form-label">聯絡電話</label>
-          <input type="tel" id="w_phone" value="${f.site_phone || ''}" placeholder="0912-345-678" ${isSigned ? 'disabled' : ''}>
+          <input type="tel" id="w_phone" value="${f.site_phone || f.client_phone || ''}" placeholder="0912-345-678" ${isSigned ? 'disabled' : ''}>
         </div>
       </div>
 
