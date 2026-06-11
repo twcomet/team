@@ -162,10 +162,10 @@ async function init() {
 
   // 今日請假（HR/老闆）
   if (isHR) {
-    const leaveRes = await fetch(`/api/hr/leave-requests?status=approved&month=${ym}`);
+    const leaveRes = await fetch(`/api/hr/leave-requests?status=approved&date=${todayStr}`);
     if (leaveRes.ok) {
       const leaves = await leaveRes.json();
-      const todayLeaves = leaves.filter(l => l.leave_date === todayStr);
+      const todayLeaves = leaves;
       document.getElementById('s-leave-card').style.display = '';
       document.getElementById('s-leave').textContent = `${todayLeaves.length} 人`;
       if (todayLeaves.length) {

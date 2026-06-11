@@ -186,7 +186,7 @@ router.get('/pending', requireAuth, requireHR, (req, res) => {
 router.get('/leave-requests', requireAuth, (req, res) => {
   const me = req.session.user;
   const isHR = me.role === 'owner' || me.role === 'hq_hr' || !!me.manage_users;
-  const { status, user_id, month } = req.query;
+  const { status, user_id, month, date } = req.query;
 
   let sql = `
     SELECT lr.*, u.name AS user_name, rv.name AS reviewed_by_name
@@ -203,7 +203,8 @@ router.get('/leave-requests', requireAuth, (req, res) => {
     sql += ` AND lr.user_id = ?`; params.push(user_id);
   }
   if (status) { sql += ` AND lr.status = ?`; params.push(status); }
-  if (month)  { sql += ` AND lr.leave_date LIKE ?`; params.push(`${month}%`); }
+  if (date)   { sql += ` AND lr.leave_date <= ? AND COALESCE(lr.leave_end_date, lr.leave_date) >= ?`; params.push(date, date); }
+  else if (month) { sql += ` AND lr.leave_date LIKE ?`; params.push(`${month}%`); }
   sql += ` ORDER BY lr.created_at DESC`;
 
   res.json(db.prepare(sql).all(...params));
