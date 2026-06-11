@@ -75,12 +75,14 @@ router.get('/', requireAuth, (req, res) => {
 
   let sql = `
     SELECT l.*, u.name as created_by_name, c.case_number, c.title as case_title,
-           o.name as org_name, cl.name as client_name
+           o.name as org_name, cl.name as client_name,
+           v.bank_name, v.bank_account, v.bank_branch, v.bank_account_name
     FROM ledger_entries l
     LEFT JOIN users u ON l.created_by = u.id
     LEFT JOIN cases c ON l.case_id = c.id
     LEFT JOIN orgs  o ON l.org_id  = o.id
     LEFT JOIN clients cl ON l.client_id = cl.id
+    LEFT JOIN vendors v ON v.name = l.vendor AND v.active != 0
     WHERE 1=1
   `;
   const params = [];

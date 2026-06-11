@@ -52,12 +52,14 @@
 .tr-pending td:first-child { border-left:3px solid #d97706 !important; }
 .pending-panel { background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:14px 18px; margin-bottom:16px; }
 .pending-panel .pp-title { font-weight:600; color:#92400e; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
-.pending-item { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #fde68a; font-size:13px; }
+.pending-item { display:flex; flex-direction:column; padding:7px 0; border-bottom:1px solid #fde68a; font-size:13px; gap:3px; }
 .pending-item:last-child { border-bottom:none; }
+.pending-item .pi-row { display:flex; align-items:center; gap:10px; }
 .pending-item .pi-cat { color:var(--gray-600); flex:1; }
 .pending-item .pi-desc { color:var(--gray-400); font-size:12px; flex:2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pending-item .pi-amt { font-weight:600; color:#e02424; white-space:nowrap; }
 .pending-item .pi-date { color:var(--gray-400); font-size:12px; white-space:nowrap; }
+.pending-item .pi-bank { font-size:11px; color:#78716c; background:#fef3c7; border-radius:4px; padding:2px 8px; display:inline-flex; align-items:center; gap:6px; align-self:flex-start; }
 </style>
 </head>
 <body>
@@ -944,15 +946,22 @@ function renderPendingPanel() {
     const dueBadge  = r.pay_due_date
       ? `<span style="font-size:11px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 7px;border-radius:10px;flex-shrink:0">${isOverdue?'逾期 ':'到期 '}${r.pay_due_date.slice(5)}</span>`
       : '';
+    const bankParts = [r.bank_name, r.bank_branch, r.bank_account, r.bank_account_name].filter(Boolean);
+    const bankLine  = bankParts.length
+      ? `<div class="pi-bank">🏦 ${bankParts.join('　')}</div>`
+      : '';
     return `
     <div class="pending-item">
-      <span class="pi-date">${fmtDate(r.date)}</span>
-      <span class="pi-cat">${r.category}</span>
-      <span class="pi-desc">${r.description || '—'}</span>
-      ${dueBadge}
-      <span class="pi-amt">${fmt(r.amount)}</span>
-      <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;flex-shrink:0"
-              onclick="markAsPaid(${r.id})">付款</button>
+      <div class="pi-row">
+        <span class="pi-date">${fmtDate(r.date)}</span>
+        <span class="pi-cat">${r.category}</span>
+        <span class="pi-desc">${r.description || '—'}</span>
+        ${dueBadge}
+        <span class="pi-amt">${fmt(r.amount)}</span>
+        <button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;flex-shrink:0"
+                onclick="markAsPaid(${r.id})">付款</button>
+      </div>
+      ${bankLine}
     </div>`;
   }).join('');
 }
@@ -969,8 +978,12 @@ let payTargetId = null;
 function markAsPaid(id) {
   payTargetId = id;
   const entry = allPending.find(r => r.id === id) || allLedger.find(r => r.id === id);
+  const bankParts = entry ? [entry.bank_name, entry.bank_branch, entry.bank_account, entry.bank_account_name].filter(Boolean) : [];
+  const bankHtml  = bankParts.length
+    ? `<br><span style="font-size:12px;background:#fef3c7;border-radius:4px;padding:2px 8px;display:inline-block;margin-top:4px">🏦 ${bankParts.join('　')}</span>`
+    : '';
   document.getElementById('payModalInfo').innerHTML = entry
-    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}`
+    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}${bankHtml}`
     : `ID: ${id}`;
   document.getElementById('payNote').value = '';
   document.getElementById('payActualDate').value = new Date().toISOString().slice(0, 10);
