@@ -271,7 +271,7 @@ function renderAgenda() {
     return `<div class="agenda-day">
       <div class="agenda-date${isToday?' today-label':''}">${label}</div>
       ${evts.map(e => `
-        <div class="agenda-item ${e.type}" ${e.caseId ? `onclick="location.href='/case-detail?id=${e.caseId}'" style="cursor:pointer"` : ''}>
+        <div class="agenda-item ${e.type}" ${e.caseId ? `onclick="location.href='/case-detail?id=${e.caseId}${e.type==='survey'?'&tab=survey':''}'" style="cursor:pointer"` : ''}>
           <span class="agenda-tag ${e.type}">${e.type==='job'?'派工':e.type==='survey'?'場勘':'公告'}</span>
           <div class="agenda-body">
             <div class="agenda-title">${e.title}</div>

@@ -322,7 +322,7 @@ function openDayModal(dateStr) {
         </div>
         <div style="font-weight:600;margin-bottom:2px">${s.client_name || ''} — ${s.title || ''}</div>
         <div style="font-size:13px;color:#6b7280">勘場人員：${s.surveyor_name || '未指定'}</div>
-        <a href="/case-detail?id=${s.id}" style="font-size:12px;color:#7c3aed;text-decoration:none">→ 開啟案件</a>
+        <a href="/case-detail?id=${s.id}&tab=survey" style="font-size:12px;color:#7c3aed;text-decoration:none">→ 開啟場勘單</a>
       </div>`).join('');
     html += '</div>';
   }
