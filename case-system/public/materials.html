@@ -191,6 +191,7 @@
                 <th>品牌</th>
                 <th>型號</th>
                 <th>材質</th>
+                <th>防焰</th>
                 <th>貨架</th>
                 <th id="thCost">成本/米</th>
                 <th>售價/米</th>
@@ -672,6 +673,7 @@ function renderTable(list) {
         <strong>${m.model}</strong>${m.color?`<br><span style="font-size:11px;color:var(--gray-500)">${m.color}</span>`:''}
       </td>
       <td style="color:var(--gray-500)">${m.spec||'—'}</td>
+      <td>${m.fire_retardant ? `<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600">防焰</span>` : `<span style="color:var(--gray-400);font-size:12px">—</span>`}</td>
       <td style="font-family:monospace;font-size:12px">${m.location||'—'}</td>
       ${canCost ? `<td>${m.unit_cost?'$'+m.unit_cost:'—'}</td>` : ''}
       <td>${m.unit_price?'$'+m.unit_price:'—'}</td>
