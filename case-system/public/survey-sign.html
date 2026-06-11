@@ -130,8 +130,6 @@ function render(f) {
     ${signed ? `
     <div class="signed-box">
       <h2>✅ 場勘單已確認簽名</h2>
-      <p>感謝您的確認，我們將依約安排場勘作業。</p>
-      ${f.client_signed_at ? `<p style="margin-top:10px;font-size:13px;color:#6b7280">簽名時間：${f.client_signed_at.slice(0,16).replace('T',' ')}</p>` : ''}
     </div>` : ''}
 
     <!-- 場勘時間 -->
