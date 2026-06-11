@@ -26,10 +26,10 @@
 .task-theme .theme-label { flex:1; }
 .task-theme .theme-arrow { font-size:12px; opacity:.6; }
 
-.theme-survey    { background:#dbeafe; color:#1e40af; border-bottom:1px solid #bfdbfe; }
+.theme-survey    { background:#ede9fe; color:#6d28d9; border-bottom:1px solid #ddd6fe; }
 .theme-install   { background:#ffedd5; color:#9a3412; border-bottom:1px solid #fed7aa; }
 .theme-aftersales{ background:#f3e8ff; color:#6b21a8; border-bottom:1px solid #e9d5ff; }
-.theme-surveyor  { background:#d1fae5; color:#065f46; border-bottom:1px solid #a7f3d0; }
+.theme-surveyor  { background:#ede9fe; color:#6d28d9; border-bottom:1px solid #ddd6fe; }
 .theme-sales     { background:#fef9c3; color:#713f12; border-bottom:1px solid #fde68a; }
 .theme-cs        { background:#fee2e2; color:#7f1d1d; border-bottom:1px solid #fca5a5; }
 .theme-multi     { background:#f1f5f9; color:#334155; border-bottom:1px solid #e2e8f0; }
@@ -449,10 +449,10 @@ async function init() {
 
   el.innerHTML =
     renderSection('📋 今日場勘', 'lbl-week', todaySurvey) +
-    renderSection('🔴 已逾期任務', 'lbl-overdue', overdue) +
     renderSection('📌 本週任務（近 10 天）', 'lbl-week', near10) +
     renderSection('🟡 本月任務', 'lbl-month', near30) +
-    renderSection('⚪ 未排日期', '', noDate);
+    renderSection('⚪ 未排日期', '', noDate) +
+    renderSection('🔴 已逾期任務', 'lbl-overdue', overdue);
 }
 
 init();

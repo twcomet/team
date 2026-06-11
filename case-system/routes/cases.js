@@ -743,7 +743,7 @@ router.post('/:id/dispatches/:did/push', requireAuth, async (req, res) => {
 // ── 狀態推進 PATCH /:id/advance ──────────────────────────────
 const ADVANCE_MAP = {
   inquiry:          { next: 'initial_estimate',  tsCol: 'initial_estimate_at', byCol: null },
-  initial_estimate: { next: 'survey_pending',    tsCol: null,                  byCol: null },
+  initial_estimate: { next: 'survey_pending',    tsCol: 'survey_pending_at',   byCol: null },
   survey_pending:   { next: 'survey_scheduled',  tsCol: null,                  byCol: null },
   survey_scheduled: { next: 'surveyed',          tsCol: 'surveyed_at',         byCol: null },
   surveyed:         { next: 'quote_draft',       tsCol: 'quote_draft_at',      byCol: 'quote_drafted_by' },
