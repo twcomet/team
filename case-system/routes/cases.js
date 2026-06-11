@@ -978,7 +978,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
                  AND status IN ('contracted','dispatched','constructing','payment','closed','tech_accepted')
                  AND COALESCE(final_price,quoted_price,0) > 0
                  ${orgCond}`).get(...orgPs2).n,
-    month_income: db.prepare(`SELECT COALESCE(SUM(payment_received),0) n FROM cases c WHERE scheduled_date>=? AND scheduled_date<=? ${orgCond}`).get(monthStart, monthEnd, ...orgPs2).n,
+    month_income: db.prepare(`SELECT COALESCE(SUM(COALESCE(survey_fee,0)+COALESCE(deposit_amount,0)+COALESCE(balance_paid,0)),0) n FROM cases c WHERE scheduled_date>=? AND scheduled_date<=? ${orgCond}`).get(monthStart, monthEnd, ...orgPs2).n,
   });
 });
 

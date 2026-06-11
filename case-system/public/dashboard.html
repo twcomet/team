@@ -109,16 +109,11 @@
 
       <div class="card">
         <div class="card-header">
-          <h3>最新案件</h3>
+          <h3>進行中案件</h3>
           <a href="/cases" class="btn btn-ghost btn-sm">查看全部</a>
         </div>
         <div class="card-body" style="padding:0">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>案號</th><th>客戶</th><th>項目</th><th>施工日</th><th>業務</th><th>狀態</th><th>收款</th></tr></thead>
-              <tbody id="recentCases"></tbody>
-            </table>
-          </div>
+          <div id="activeCasesWrap"></div>
         </div>
       </div>
     </div>
@@ -162,23 +157,58 @@ async function init() {
     renderFinance(pl, cf, ym);
   }
 
-  const tbody = document.getElementById('recentCases');
-  const recent = cases.slice(0, 10);
-  if (!recent.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">目前沒有案件</td></tr>';
-    return;
-  }
-  tbody.innerHTML = recent.map(c => `
-    <tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  const ACTIVE = ['contracted','dispatched','constructing','payment'];
+  const active = cases.filter(c => ACTIVE.includes(c.status));
+
+  const todayJobs   = active.filter(c => c.scheduled_date === todayStr);
+  const pendingWork = active.filter(c => c.status === 'dispatched' && c.scheduled_date !== todayStr);
+  const unscheduled = active.filter(c => c.status === 'contracted');
+  const inPayment   = active.filter(c => (c.status === 'constructing' || c.status === 'payment') && c.scheduled_date !== todayStr);
+
+  function caseRow(c) {
+    const dateCell = c.scheduled_date
+      ? fmtDate(c.scheduled_date)
+      : `<span style="color:#9ca3af;font-size:12px">待安排</span>`;
+    return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:12px">${c.case_number}</code></td>
       <td>${c.client_name || '—'}</td>
       <td>${c.title}</td>
-      <td>${fmtDate(c.scheduled_date)}</td>
+      <td>${dateCell}</td>
       <td>${c.sales_name || '—'}</td>
       <td>${statusBadge(c.status)}</td>
       <td>${paymentBadge(c.payment_status)}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }
+
+  function renderSection(icon, label, color, bg, sectionCases) {
+    if (!sectionCases.length) return '';
+    return `
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:${bg};border-top:1px solid var(--gray-200)">
+          <span style="font-size:13px;font-weight:600;color:${color}">${icon} ${label}</span>
+          <span style="font-size:12px;background:${color};color:#fff;padding:1px 8px;border-radius:10px">${sectionCases.length} 件</span>
+        </div>
+        <div class="table-wrap" style="margin:0">
+          <table>
+            <thead><tr><th>案號</th><th>客戶</th><th>項目</th><th>施工日</th><th>業務</th><th>狀態</th><th>收款</th></tr></thead>
+            <tbody>${sectionCases.map(caseRow).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  const wrap = document.getElementById('activeCasesWrap');
+  const html =
+    renderSection('📌', '今日施工', '#92400e', '#fef3c7', todayJobs) +
+    renderSection('🚚', '待施工',   '#1e40af', '#eff6ff', pendingWork) +
+    renderSection('📋', '待排工',   '#166534', '#f0fdf4', unscheduled) +
+    renderSection('💰', '完工請款', '#6d28d9', '#faf5ff', inPayment);
+  wrap.innerHTML = html || '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:14px">目前沒有進行中的案件</div>';
 }
 function renderFinance(pl, cf, ym) {
   document.getElementById('financeSection').style.display = '';
