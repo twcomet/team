@@ -964,7 +964,8 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   const monthEnd = new Date(today.slice(0,4), Number(today.slice(5,7)), 0).toISOString().slice(0,10);
   res.json({
     total:        db.prepare(`SELECT COUNT(*) n FROM cases c WHERE 1=1 ${orgCond}`).get(...orgPs2).n,
-    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('contracted','dispatched','constructing','payment') ${orgCond}`).get(...orgPs2).n,
+    active:       db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status IN ('contracted','dispatched','constructing') ${orgCond}`).get(...orgPs2).n,
+    in_payment:   db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='payment' ${orgCond}`).get(...orgPs2).n,
     unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='contracted' ${orgCond}`).get(...orgPs2).n,
     today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today, ...orgPs2).n,
     unpaid:       db.prepare(`SELECT COALESCE(SUM(

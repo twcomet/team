@@ -28,7 +28,8 @@
 .cal-event.job    { background:#dcfce7; color:#166534; }
 .cal-event.survey { background:#dbeafe; color:#1e40af; }
 .cal-event.gcal   { background:#fef3c7; color:#92400e; }
-.cal-event.job:hover, .cal-event.survey:hover, .cal-event.gcal:hover { opacity:.8; }
+.cal-event.sales  { background:#f3e8ff; color:#6d28d9; cursor:pointer; }
+.cal-event.job:hover, .cal-event.survey:hover, .cal-event.gcal:hover, .cal-event.sales:hover { opacity:.8; }
 
 /* 列表模式 */
 .agenda-day { margin-bottom:20px; }
@@ -38,10 +39,12 @@
 .agenda-item.job    { background:#f0fdf4; border-left:3px solid #16a34a; }
 .agenda-item.survey { background:#eff6ff; border-left:3px solid #3b82f6; }
 .agenda-item.gcal   { background:#fffbeb; border-left:3px solid #f59e0b; }
+.agenda-item.sales  { background:#faf5ff; border-left:3px solid #7c3aed; }
 .agenda-tag { font-size:10px; font-weight:600; padding:2px 6px; border-radius:10px; flex-shrink:0; margin-top:1px; }
 .agenda-tag.job    { background:#bbf7d0; color:#166534; }
 .agenda-tag.survey { background:#bfdbfe; color:#1e40af; }
 .agenda-tag.gcal   { background:#fde68a; color:#92400e; }
+.agenda-tag.sales  { background:#ede9fe; color:#6d28d9; }
 .agenda-body { flex:1; }
 .agenda-title { font-weight:600; }
 .agenda-sub { font-size:12px; color:var(--gray-500); margin-top:2px; }
@@ -160,7 +163,7 @@
 let curYear    = new Date().getFullYear();
 let curMonth   = new Date().getMonth() + 1;
 let viewMode   = 'month';
-let allJobs    = [], allSurveys = [], allGcal = [];
+let allJobs    = [], allSurveys = [], allSales = [], allGcal = [];
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
 const todayStr = new Date().toISOString().slice(0,10);
 
@@ -182,6 +185,7 @@ async function loadData() {
   const data = await res.json();
   allJobs    = data.jobs    || [];
   allSurveys = data.surveys || [];
+  allSales   = data.sales   || [];
   allGcal    = data.announcements || [];
   render();
 }
@@ -205,6 +209,10 @@ function renderMonth() {
   allSurveys.forEach(s => {
     if (!byDate[s.date]) byDate[s.date] = [];
     byDate[s.date].push({ type:'survey', ...s });
+  });
+  allSales.forEach(s => {
+    if (!byDate[s.date]) byDate[s.date] = [];
+    byDate[s.date].push({ type:'sales', ...s });
   });
   allGcal.forEach(g => {
     if (!byDate[g.date]) byDate[g.date] = [];
@@ -234,6 +242,7 @@ function renderMonth() {
       ${events.map(e => {
         if (e.type === 'job')    return `<div class="cal-event job" title="${e.case_number} ${e.title||''}" onclick="location.href='/case-detail?id=${e.case_id}'">🔧 ${e.title||e.case_number}</div>`;
         if (e.type === 'survey') return `<div class="cal-event survey" title="場勘：${e.case_number} ${e.title||''}" onclick="location.href='${e.worker_token ? '/survey-worker?token='+e.worker_token : '/case-detail?id='+e.case_id+'&tab=survey'}'">🔍 ${e.title||e.case_number}</div>`;
+        if (e.type === 'sales')  return `<div class="cal-event sales" title="業務案件：${e.case_number} ${e.title||''}" onclick="location.href='/case-detail?id=${e.case_id}'">💼 ${e.title||e.case_number}</div>`;
         return `<div class="cal-event gcal" title="${e.title}">📢 ${e.title}</div>`;
       }).join('')}
     </div>`;
@@ -254,6 +263,7 @@ function renderAgenda() {
   const all = [
     ...allJobs.map(j => ({ type:'job',    date:j.date, title:j.title||j.case_number, sub:`${j.case_number} · ${j.client_name||''}${j.scheduled_time?' · '+j.scheduled_time:''}${j.location?' · '+j.location:''}`, caseId:j.case_id })),
     ...allSurveys.map(s => ({ type:'survey', date:s.date, title:s.title||s.case_number, sub:`${s.case_number} · ${s.client_name||''}${s.survey_time?' · '+s.survey_time:''}${s.location?' · '+s.location:''}`, caseId:s.case_id, workerToken:s.worker_token })),
+    ...allSales.map(s => ({ type:'sales', date:s.date, title:s.title||s.case_number, sub:`${s.case_number} · ${s.client_name||''}${s.location?' · '+s.location:''}`, caseId:s.case_id })),
     ...allGcal.map(g => ({ type:'gcal',   date:g.date, title:g.title, sub:g.note||'' })),
   ].sort((a,b) => a.date.localeCompare(b.date));
 
@@ -273,7 +283,7 @@ function renderAgenda() {
       <div class="agenda-date${isToday?' today-label':''}">${label}</div>
       ${evts.map(e => `
         <div class="agenda-item ${e.type}" ${e.caseId ? `onclick="location.href='${e.type==='survey'&&e.workerToken ? '/survey-worker?token='+e.workerToken : '/case-detail?id='+e.caseId+(e.type==='survey'?'&tab=survey':'')}'" style="cursor:pointer"` : ''}>
-          <span class="agenda-tag ${e.type}">${e.type==='job'?'派工':e.type==='survey'?'場勘':'公告'}</span>
+          <span class="agenda-tag ${e.type}">${e.type==='job'?'派工':e.type==='survey'?'場勘':e.type==='sales'?'業務案件':'公告'}</span>
           <div class="agenda-body">
             <div class="agenda-title">${e.title}</div>
             ${e.sub ? `<div class="agenda-sub">${e.sub}</div>` : ''}

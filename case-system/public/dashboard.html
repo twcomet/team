@@ -72,6 +72,7 @@
         <div class="stat-card"><div class="label">進行中案件</div><div class="value" id="s-active">—</div></div>
         <div class="stat-card"><div class="label">今日施工</div><div class="value" id="s-today">—</div></div>
         <div class="stat-card"><div class="label">待排工</div><div class="value warning" id="s-unscheduled">—</div></div>
+        <div class="stat-card"><div class="label">完工請款</div><div class="value danger" id="s-payment">—</div></div>
         <div class="stat-card"><div class="label">本月已收</div><div class="value success" id="s-revenue">—</div></div>
         <div class="stat-card"><div class="label">待收款總額</div><div class="value danger" id="s-unpaid">—</div></div>
         <div class="stat-card" id="s-leave-card" style="display:none"><div class="label">今日請假</div><div class="value" id="s-leave">—</div></div>
@@ -152,6 +153,7 @@ async function init() {
   document.getElementById('s-active').textContent = stats.active ?? 0;
   document.getElementById('s-today').textContent = stats.today_jobs ?? 0;
   document.getElementById('s-unscheduled').textContent = stats.unscheduled ?? 0;
+  document.getElementById('s-payment').textContent = stats.in_payment ?? 0;
   document.getElementById('s-revenue').textContent = fmt(stats.month_income ?? 0);
   document.getElementById('s-unpaid').textContent = fmt(stats.unpaid ?? 0);
 
@@ -190,7 +192,8 @@ async function init() {
   const todayJobs   = active.filter(c => c.scheduled_date === todayStr);
   const pendingWork = active.filter(c => c.status === 'dispatched' && c.scheduled_date !== todayStr);
   const unscheduled = active.filter(c => c.status === 'contracted');
-  const inPayment   = active.filter(c => (c.status === 'constructing' || c.status === 'payment') && c.scheduled_date !== todayStr);
+  const constructing = active.filter(c => c.status === 'constructing' && c.scheduled_date !== todayStr);
+  const inPayment   = active.filter(c => c.status === 'payment');
 
   function caseRow(c) {
     const dateCell = c.scheduled_date
@@ -229,6 +232,7 @@ async function init() {
     renderSection('📌', '今日施工', '#92400e', '#fef3c7', todayJobs) +
     renderSection('🚚', '待施工',   '#1e40af', '#eff6ff', pendingWork) +
     renderSection('📋', '待排工',   '#166534', '#f0fdf4', unscheduled) +
+    renderSection('🔨', '施工中',   '#0369a1', '#f0f9ff', constructing) +
     renderSection('💰', '完工請款', '#6d28d9', '#faf5ff', inPayment);
   wrap.innerHTML = html || '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:14px">目前沒有進行中的案件</div>';
 }
