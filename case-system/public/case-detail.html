@@ -2203,7 +2203,15 @@ async function doSaveBasic() {
   }
 }
 document.getElementById('saveBasicBtn').addEventListener('click', doSaveBasic);
-document.getElementById('saveBasicBtnBanner')?.addEventListener('click', doSaveBasic);
+document.getElementById('saveBasicBtnBanner')?.addEventListener('click', () => {
+  // 收款分頁時，banner 儲存改為觸發收款儲存
+  const activeTab = document.querySelector('.tab-btn.active')?.dataset?.tab;
+  if (activeTab === 'payment') {
+    document.getElementById('savePaymentBtn')?.click();
+  } else {
+    doSaveBasic();
+  }
+});
 
 // ── 報價 v2 按鈕 ──────────────────────────────────────────
 document.getElementById('qCreateBtn')?.addEventListener('click', () => createQuoteVersion(false));
