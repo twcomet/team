@@ -22,6 +22,8 @@
 .case-ac-dropdown.open { display:block; }
 .case-ac-item { padding:8px 12px; cursor:pointer; font-size:13px; }
 .case-ac-item:hover { background:var(--gray-50); }
+.vendor-cat-pill { padding:3px 10px; border-radius:14px; border:1px solid var(--gray-300); background:#fff; font-size:12px; cursor:pointer; }
+.vendor-cat-pill.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 </style>
 </head>
 <body>
@@ -130,6 +132,14 @@
       </div>
       <div class="form-group">
         <label class="form-label">供應商（選填）</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px" id="vendorCatPills">
+          <button type="button" class="vendor-cat-pill active" data-cat="" onclick="filterVendorCat('')">全部</button>
+          <button type="button" class="vendor-cat-pill" data-cat="film"       onclick="filterVendorCat('film')">🎞️ 膜料</button>
+          <button type="button" class="vendor-cat-pill" data-cat="logistics"  onclick="filterVendorCat('logistics')">🚚 物流</button>
+          <button type="button" class="vendor-cat-pill" data-cat="expense"    onclick="filterVendorCat('expense')">🧾 費用</button>
+          <button type="button" class="vendor-cat-pill" data-cat="government" onclick="filterVendorCat('government')">🏛️ 政府</button>
+          <button type="button" class="vendor-cat-pill" data-cat="other"      onclick="filterVendorCat('other')">📦 其他</button>
+        </div>
         <div class="case-ac-wrap" id="vendorAcWrap">
           <input class="form-input" id="po_vendor_search" autocomplete="off" placeholder="輸入供應商名稱搜尋…" oninput="onVendorSearch(this.value)">
           <div class="case-ac-dropdown" id="vendorAcDrop"></div>
@@ -477,10 +487,35 @@ async function cancelPo(id) {
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
 // ── 供應商自動搜尋 ────────────────────────────────────────────────
+let vendorCatFilter = '';
+
+function filterVendorCat(cat) {
+  vendorCatFilter = cat;
+  document.querySelectorAll('.vendor-cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === cat));
+  const q = document.getElementById('po_vendor_search').value;
+  if (q) onVendorSearch(q);
+  else showVendorDropdownForCat(cat);
+}
+
+function showVendorDropdownForCat(cat) {
+  const drop = document.getElementById('vendorAcDrop');
+  const list = cat ? vendors.filter(v => (v.category || 'other') === cat) : vendors;
+  if (!list.length) { drop.classList.remove('open'); return; }
+  drop.innerHTML = list.map(v =>
+    `<div class="case-ac-item" onclick="setVendor(${v.id},'${esc(v.name)}')">${esc(v.name)}</div>`
+  ).join('');
+  drop.classList.add('open');
+}
+
 function onVendorSearch(q) {
   const drop = document.getElementById('vendorAcDrop');
-  if (!q) { drop.classList.remove('open'); return; }
-  const filtered = vendors.filter(v => v.name.toLowerCase().includes(q.toLowerCase()));
+  if (!q) {
+    if (vendorCatFilter) { showVendorDropdownForCat(vendorCatFilter); }
+    else { drop.classList.remove('open'); }
+    return;
+  }
+  const base = vendorCatFilter ? vendors.filter(v => (v.category || 'other') === vendorCatFilter) : vendors;
+  const filtered = base.filter(v => v.name.toLowerCase().includes(q.toLowerCase()));
   if (!filtered.length) {
     drop.innerHTML = '<div class="case-ac-item" style="color:var(--gray-400)">找不到符合供應商</div>';
     drop.classList.add('open');

@@ -35,15 +35,15 @@ router.get('/:id', requireAuth, requireVendorAccess, (req, res) => {
 router.post('/', requireAuth, requireVendorAccess, (req, res) => {
   const { name, contact, phone, email, address,
           bank_name, bank_branch, bank_account, bank_account_name,
-          payment_terms, notes } = req.body;
+          payment_terms, notes, category } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: '請填入供應商名稱' });
   try {
     const r = db.prepare(`
-      INSERT INTO vendors (name, contact, phone, email, address,
+      INSERT INTO vendors (name, category, contact, phone, email, address,
         bank_name, bank_branch, bank_account, bank_account_name,
         payment_terms, notes)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)
-    `).run(name.trim(), contact||null, phone||null, email||null, req.body.address||null,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(name.trim(), category||'other', contact||null, phone||null, email||null, address||null,
            bank_name||null, bank_branch||null, bank_account||null, bank_account_name||null,
            payment_terms||null, notes||null);
     res.json({ ok: true, id: r.lastInsertRowid });
@@ -56,17 +56,17 @@ router.post('/', requireAuth, requireVendorAccess, (req, res) => {
 router.put('/:id', requireAuth, requireVendorAccess, (req, res) => {
   const { name, contact, phone, email, address,
           bank_name, bank_branch, bank_account, bank_account_name,
-          payment_terms, notes, active } = req.body;
+          payment_terms, notes, active, category } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: '請填入供應商名稱' });
   const v = db.prepare(`SELECT id FROM vendors WHERE id=?`).get(req.params.id);
   if (!v) return res.status(404).json({ error: '找不到供應商' });
   try {
     db.prepare(`
-      UPDATE vendors SET name=?, contact=?, phone=?, email=?, address=?,
+      UPDATE vendors SET name=?, category=?, contact=?, phone=?, email=?, address=?,
         bank_name=?, bank_branch=?, bank_account=?, bank_account_name=?,
         payment_terms=?, notes=?, active=?
       WHERE id=?
-    `).run(name.trim(), contact||null, phone||null, email||null, address||null,
+    `).run(name.trim(), category||'other', contact||null, phone||null, email||null, address||null,
            bank_name||null, bank_branch||null, bank_account||null, bank_account_name||null,
            payment_terms||null, notes||null, active??1, req.params.id);
     res.json({ ok: true });

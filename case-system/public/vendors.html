@@ -22,6 +22,15 @@
 .payment-terms-box { background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:10px 14px; font-size:13px; color:#713f12; line-height:1.6; }
 .card-actions { display:flex; gap:8px; margin-top:14px; }
 .inactive-badge { display:inline-block; background:#fee2e2; color:#991b1b; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:6px; }
+.cat-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.cat-tab  { padding:6px 16px; border-radius:20px; border:1px solid var(--gray-300); cursor:pointer; font-size:13px; background:#fff; }
+.cat-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.cat-badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px; margin-left:6px; }
+.cat-film       { background:#dcfce7; color:#166534; }
+.cat-logistics  { background:#dbeafe; color:#1e40af; }
+.cat-expense    { background:#fef3c7; color:#92400e; }
+.cat-government { background:#f3e8ff; color:#6b21a8; }
+.cat-other      { background:#f3f4f6; color:#6b7280; }
 </style>
 </head>
 <body>
@@ -85,6 +94,14 @@
       <button class="btn btn-primary btn-sm" id="newVendorBtn">＋ 新增供應商</button>
     </div>
     <div class="page-body">
+      <div class="cat-tabs" id="catTabs">
+        <button class="cat-tab active" data-cat="" onclick="switchCat('')">全部</button>
+        <button class="cat-tab" data-cat="film"       onclick="switchCat('film')">🎞️ 膜料供應商</button>
+        <button class="cat-tab" data-cat="logistics"  onclick="switchCat('logistics')">🚚 物流廠商</button>
+        <button class="cat-tab" data-cat="expense"    onclick="switchCat('expense')">🧾 費用廠商</button>
+        <button class="cat-tab" data-cat="government" onclick="switchCat('government')">🏛️ 政府/保險</button>
+        <button class="cat-tab" data-cat="other"      onclick="switchCat('other')">📦 其他</button>
+      </div>
       <div id="vendorList"></div>
     </div>
   </div>
@@ -104,6 +121,16 @@
       <div class="form-group">
         <label class="form-label">供應商名稱 <span style="color:red">*</span></label>
         <input class="form-input" id="v_name" placeholder="例：富茂貿易">
+      </div>
+      <div class="form-group">
+        <label class="form-label">分類</label>
+        <select class="form-input" id="v_category">
+          <option value="film">🎞️ 膜料供應商</option>
+          <option value="logistics">🚚 物流廠商</option>
+          <option value="expense">🧾 費用廠商</option>
+          <option value="government">🏛️ 政府/保險</option>
+          <option value="other" selected>📦 其他</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
@@ -182,13 +209,23 @@
 <script>
 let vendors = [];
 let editId = null;
-let pendingBrands = [];   // 新增模式暫存品牌
-let existingBrands = [];  // 編輯模式既有品牌
+let pendingBrands = [];
+let existingBrands = [];
+let curCat = '';
+
+const CAT_LABEL = { film:'膜料供應商', logistics:'物流廠商', expense:'費用廠商', government:'政府/保險', other:'其他' };
+const CAT_CLASS = { film:'cat-film', logistics:'cat-logistics', expense:'cat-expense', government:'cat-government', other:'cat-other' };
 
 async function init() {
   await loadUser();
   highlightNav('vendors');
   await loadVendors();
+}
+
+function switchCat(cat) {
+  curCat = cat;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+  renderVendors();
 }
 
 async function loadVendors() {
@@ -200,15 +237,18 @@ async function loadVendors() {
 
 function renderVendors() {
   const el = document.getElementById('vendorList');
-  if (!vendors.length) {
-    el.innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:40px">尚無供應商資料，點右上角新增</p>';
+  const list = curCat ? vendors.filter(v => (v.category || 'other') === curCat) : vendors;
+  if (!list.length) {
+    el.innerHTML = `<p style="color:var(--gray-400);text-align:center;padding:40px">${curCat ? '此分類尚無供應商' : '尚無供應商資料，點右上角新增'}</p>`;
     return;
   }
-  el.innerHTML = vendors.map(v => `
+  el.innerHTML = list.map(v => {
+    const cat = v.category || 'other';
+    return `
     <div class="vendor-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
-          <div class="vendor-name">${esc(v.name)}</div>
+          <div class="vendor-name">${esc(v.name)}<span class="cat-badge ${CAT_CLASS[cat]}">${CAT_LABEL[cat] || cat}</span></div>
           <div class="vendor-meta">${[v.contact, v.phone, v.email].filter(Boolean).map(esc).join('　·　')}</div>
           ${v.address ? `<div class="vendor-meta">${esc(v.address)}</div>` : ''}
         </div>
@@ -263,6 +303,7 @@ function openNew() {
   ['v_name','v_contact','v_phone','v_email','v_address','v_payment_terms',
    'v_bank_name','v_bank_branch','v_bank_account','v_bank_account_name','v_notes','v_brand_input']
     .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('v_category').value = curCat || 'other';
   renderBrandTags();
   document.getElementById('vendorModal').style.display = 'flex';
 }
@@ -286,6 +327,7 @@ async function openEdit(id) {
   document.getElementById('v_bank_account').value     = v.bank_account || '';
   document.getElementById('v_bank_account_name').value= v.bank_account_name || '';
   document.getElementById('v_notes').value            = v.notes || '';
+  document.getElementById('v_category').value         = v.category || 'other';
   document.getElementById('v_brand_input').value      = '';
   renderBrandTags();
   document.getElementById('vendorModal').style.display = 'flex';
@@ -336,6 +378,7 @@ async function saveVendor() {
 
   const payload = {
     name,
+    category:         document.getElementById('v_category').value || 'other',
     contact:          document.getElementById('v_contact').value.trim() || null,
     phone:            document.getElementById('v_phone').value.trim() || null,
     email:            document.getElementById('v_email').value.trim() || null,
