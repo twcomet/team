@@ -2817,6 +2817,11 @@ db.exec(`
   )
 `);
 _addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
+_addCol('client_deposits', 'verify_signature',   'TEXT DEFAULT NULL');
+_addCol('client_deposits', 'owner_confirmed',    'INTEGER DEFAULT 0');
+_addCol('client_deposits', 'owner_confirmed_at', 'DATETIME DEFAULT NULL');
+_addCol('client_deposits', 'owner_confirmed_by', 'INTEGER DEFAULT NULL');
+_addCol('client_deposits', 'owner_signature',    'TEXT DEFAULT NULL');
 
 // ── 缺失管理 ────────────────────────────────────────────────
 db.exec(`

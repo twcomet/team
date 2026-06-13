@@ -84,7 +84,7 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">寄件管理</span>
-      <button class="btn btn-primary" id="newBtn">＋新增寄件</button>
+      <a href="/shipment-form" class="btn btn-primary">＋新增寄件</a>
     </div>
     <div class="page-body">
 
@@ -117,106 +117,11 @@
   </div>
 </div>
 
-<!-- 新增 / 編輯 Modal -->
-<div class="modal-overlay" id="shipModal">
-  <div class="modal" style="max-width:600px">
-    <div class="modal-header">
-      <h3 id="shipModalTitle">新增寄件紀錄</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>寄件日期 *</label>
-          <input type="date" id="f_shipped_at">
-        </div>
-        <div class="form-group">
-          <label>物流</label>
-          <select id="f_carrier">
-            <option value="">— 選擇物流 —</option>
-            <option value="便利袋">便利袋</option>
-            <option value="大榮">大榮</option>
-            <option value="順豐">順豐</option>
-            <option value="郵寄">郵寄</option>
-            <option value="Lalamove">Lalamove</option>
-            <option value="i郵箱">i郵箱</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>客戶名稱</label>
-          <input type="text" id="f_client_name" placeholder="客戶姓名或公司名稱">
-        </div>
-        <div class="form-group">
-          <label>LINE ID 名稱</label>
-          <input type="text" id="f_line_id_name" placeholder="LINE 顯示名稱">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>關聯案件（選填）</label>
-        <input type="text" id="f_case_search" placeholder="輸入案件編號或客戶名稱搜尋…" oninput="searchCase()" autocomplete="off">
-        <div id="f_case_results" style="border:1px solid var(--gray-200);border-radius:6px;max-height:160px;overflow-y:auto;display:none;margin-top:4px"></div>
-        <input type="hidden" id="f_case_id">
-        <div id="f_case_selected" style="font-size:12px;color:var(--primary);margin-top:4px"></div>
-      </div>
-
-      <fieldset style="border:1px solid var(--gray-200);border-radius:8px;padding:12px 16px;margin-bottom:12px">
-        <legend style="font-size:12px;font-weight:600;color:var(--gray-600);padding:0 6px">收件資訊</legend>
-        <div class="form-row">
-          <div class="form-group">
-            <label>收件人</label>
-            <input type="text" id="f_recipient_name" placeholder="收件人姓名">
-          </div>
-          <div class="form-group">
-            <label>電話</label>
-            <input type="tel" id="f_recipient_phone" placeholder="0912-345-678">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group" style="flex:0 0 120px">
-            <label>郵遞區號</label>
-            <input type="text" id="f_postal_code" placeholder="100">
-          </div>
-          <div class="form-group">
-            <label>地址</label>
-            <input type="text" id="f_recipient_address" placeholder="縣市、區、街道…">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>收件備注</label>
-          <input type="text" id="f_recipient_note" placeholder="例：大樓管理室代收">
-        </div>
-      </fieldset>
-
-      <div class="form-group">
-        <label>寄件內容 *</label>
-        <textarea id="f_content" rows="2" placeholder="例：3M AE-2160 大樣 2張、膜料型錄"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label>物流條碼</label>
-        <input type="text" id="f_tracking_no" placeholder="追蹤號碼">
-      </div>
-
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="save()">儲存</button>
-    </div>
-  </div>
-</div>
 
 <script src="/js/common.js"></script>
 <script>
 let shipments = [];
-let editId    = null;
 let curYear   = new Date().getFullYear();
-
-const CARRIERS = ['便利袋','大榮','順豐','郵寄','Lalamove','i郵箱'];
 
 async function init() {
   await loadUser();
@@ -273,88 +178,14 @@ function render() {
       <td style="font-family:monospace;font-size:12px">${esc(s.tracking_no || '—')}</td>
       <td>${s.carrier ? `<span class="carrier-pill ${carrierClass}">${esc(s.carrier)}</span>` : '—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="openEdit(${s.id})">編輯</button>
+        <button class="btn btn-ghost btn-sm" onclick="printLabel(${s.id})">🖨️ 標籤</button>
+        <a href="/shipment-form?id=${s.id}" class="btn btn-ghost btn-sm">編輯</a>
         <button class="btn btn-danger btn-sm" onclick="del(${s.id})">刪除</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-function openNew() {
-  editId = null;
-  document.getElementById('shipModalTitle').textContent = '新增寄件紀錄';
-  ['f_shipped_at','f_carrier','f_client_name','f_line_id_name','f_case_search',
-   'f_recipient_name','f_recipient_phone','f_postal_code','f_recipient_address',
-   'f_recipient_note','f_content','f_tracking_no'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.getElementById('f_shipped_at').value = new Date().toISOString().slice(0,10);
-  document.getElementById('f_case_id').value = '';
-  document.getElementById('f_case_selected').textContent = '';
-  document.getElementById('f_case_results').style.display = 'none';
-  document.getElementById('shipModal').classList.add('open');
-}
-
-function openEdit(id) {
-  const s = shipments.find(x => x.id === id);
-  if (!s) return;
-  editId = id;
-  document.getElementById('shipModalTitle').textContent = '編輯寄件紀錄';
-  document.getElementById('f_shipped_at').value       = s.shipped_at || '';
-  document.getElementById('f_carrier').value          = s.carrier || '';
-  document.getElementById('f_client_name').value      = s.client_name || '';
-  document.getElementById('f_line_id_name').value     = s.line_id_name || '';
-  document.getElementById('f_case_search').value      = '';
-  document.getElementById('f_case_id').value          = s.case_id || '';
-  document.getElementById('f_case_selected').textContent = s.case_number ? `✓ ${s.case_number} ${s.case_title||''}` : '';
-  document.getElementById('f_recipient_name').value   = s.recipient_name || '';
-  document.getElementById('f_recipient_phone').value  = s.recipient_phone || '';
-  document.getElementById('f_postal_code').value      = s.postal_code || '';
-  document.getElementById('f_recipient_address').value = s.recipient_address || '';
-  document.getElementById('f_recipient_note').value   = s.recipient_note || '';
-  document.getElementById('f_content').value          = s.content || '';
-  document.getElementById('f_tracking_no').value      = s.tracking_no || '';
-  document.getElementById('f_case_results').style.display = 'none';
-  document.getElementById('shipModal').classList.add('open');
-}
-
-function closeModal() { document.getElementById('shipModal').classList.remove('open'); }
-
-async function save() {
-  const shipped_at = document.getElementById('f_shipped_at').value;
-  const content    = document.getElementById('f_content').value.trim();
-  if (!shipped_at) { showToast('請填寄件日期', 'error'); return; }
-  if (!content)    { showToast('請填寄件內容', 'error'); return; }
-
-  const body = {
-    shipped_at,
-    client_name:       document.getElementById('f_client_name').value.trim() || null,
-    line_id_name:      document.getElementById('f_line_id_name').value.trim() || null,
-    case_id:           document.getElementById('f_case_id').value || null,
-    recipient_name:    document.getElementById('f_recipient_name').value.trim() || null,
-    recipient_phone:   document.getElementById('f_recipient_phone').value.trim() || null,
-    postal_code:       document.getElementById('f_postal_code').value.trim() || null,
-    recipient_address: document.getElementById('f_recipient_address').value.trim() || null,
-    recipient_note:    document.getElementById('f_recipient_note').value.trim() || null,
-    content,
-    tracking_no:       document.getElementById('f_tracking_no').value.trim() || null,
-    carrier:           document.getElementById('f_carrier').value || null,
-  };
-
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true;
-  try {
-    const url    = editId ? `/api/shipments/${editId}` : '/api/shipments';
-    const method = editId ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if (!res.ok) { const e = await res.json(); showToast(e.error || '儲存失敗', 'error'); return; }
-    showToast(editId ? '已更新' : '已新增');
-    closeModal();
-    await loadYears();
-    await loadShipments();
-  } finally { btn.disabled = false; }
-}
 
 async function del(id) {
   if (!confirm('確定刪除此寄件紀錄？')) return;
@@ -364,41 +195,6 @@ async function del(id) {
   await loadShipments();
 }
 
-// 案件搜尋
-let caseSearchTimer;
-async function searchCase() {
-  clearTimeout(caseSearchTimer);
-  const q  = document.getElementById('f_case_search').value.trim();
-  const el = document.getElementById('f_case_results');
-  if (!q) { el.style.display = 'none'; return; }
-  caseSearchTimer = setTimeout(async () => {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    if (!res.ok) { el.style.display = 'none'; return; }
-    const data = await res.json();
-    const items = (data.results || []).slice(0, 8);
-    if (!items.length) { el.style.display = 'none'; return; }
-    el.innerHTML = items.map(r => {
-      const c = r.case;
-      return `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
-        onmousedown="selectCase(${c.id},'${c.case_number}','${(c.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span>
-        ${c.client_name ? `<span style="color:var(--gray-400)"> · ${c.client_name}</span>` : ''}
-        ${c.title ? `<span> ${c.title}</span>` : ''}
-      </div>`;
-    }).join('');
-    el.style.display = 'block';
-  }, 300);
-}
-
-function selectCase(id, num, title) {
-  document.getElementById('f_case_id').value   = id;
-  document.getElementById('f_case_search').value = '';
-  document.getElementById('f_case_selected').textContent = `✓ ${num} ${title}`;
-  document.getElementById('f_case_results').style.display = 'none';
-}
-
-document.getElementById('newBtn').addEventListener('click', openNew);
-document.getElementById('shipModal').addEventListener('click', e => { if (e.target === document.getElementById('shipModal')) closeModal(); });
 
 init();
 </script>

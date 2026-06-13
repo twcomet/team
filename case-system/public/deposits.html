@@ -204,6 +204,56 @@
   </div>
 </div>
 
+<!-- 核銷確認 + 簽名 Modal -->
+<div class="modal-overlay" id="verifyModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3>核銷確認</h3>
+      <button class="modal-close" onclick="closeVerifyModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="verifyInfo" style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#374151"></div>
+      <div class="form-group">
+        <label style="font-weight:600">收款人簽名 <span style="color:#e02424">*</span></label>
+        <div style="position:relative;border:1.5px solid var(--gray-300);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
+          <canvas id="sigCanvas" width="400" height="140" style="display:block;width:100%;height:140px;cursor:crosshair"></canvas>
+          <button onclick="clearSig()" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:12px;color:var(--gray-400);cursor:pointer">清除</button>
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">請在上方框內簽名以確認已收到款項</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeVerifyModal()">取消</button>
+      <button class="btn btn-primary" id="verifyConfirmBtn" onclick="submitVerify()">確認核銷</button>
+    </div>
+  </div>
+</div>
+
+<!-- 老闆確認收款 Modal -->
+<div class="modal-overlay" id="ownerConfirmModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3>老闆確認收款</h3>
+      <button class="modal-close" onclick="closeOwnerConfirmModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="ownerConfirmInfo" style="background:#f5f3ff;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#374151"></div>
+      <div class="form-group">
+        <label style="font-weight:600">老闆簽名確認 <span style="color:#e02424">*</span></label>
+        <div style="position:relative;border:1.5px solid var(--gray-300);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
+          <canvas id="ownerSigCanvas" width="400" height="140" style="display:block;width:100%;height:140px;cursor:crosshair"></canvas>
+          <button onclick="clearOwnerSig()" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:12px;color:var(--gray-400);cursor:pointer">清除</button>
+        </div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">請在上方框內簽名以確認已從會計處收到此筆款項</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeOwnerConfirmModal()">取消</button>
+      <button class="btn btn-primary" id="ownerConfirmBtn" onclick="submitOwnerConfirm()" style="background:#7c3aed;border-color:#7c3aed">確認收款</button>
+    </div>
+  </div>
+</div>
+
 <div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script src="/js/common.js"></script>
@@ -230,6 +280,7 @@ async function init() {
   await loadUser();
   canVerify = currentUser?.role === 'owner' || currentUser?.role === 'hq_accounting' || !!currentUser?.manage_users;
   highlightNav('deposits');
+  initSigPad();
   await Promise.all([loadAllDeposits(), loadClients()]);
 }
 
@@ -391,25 +442,37 @@ function renderTableRows(rows) {
     const verifyHtml = d.accounting_verified
       ? `<span class="badge-verified">✓ 已核銷</span><br><span style="font-size:11px;color:var(--gray-400)">${(d.accounting_verified_at || '').slice(0,10)} ${d.verified_by_name || ''}</span>`
       : `<span class="badge-unverified">待核銷</span>`;
-    const caseRef = d.applied_case_number || d.linked_case_number || '—';
+    const caseId  = d.linked_case_id || d.applied_case_id;
+    const caseNum = d.applied_case_number || d.linked_case_number;
+    const caseRef = caseId && caseNum
+      ? `<a href="/case-detail?id=${caseId}" style="color:var(--primary);text-decoration:none">${caseNum}</a>`
+      : '—';
     const amtText = d.amount > 0 ? `NT$${Math.round(d.amount).toLocaleString()}` : '免費';
     const canDelRow = currentUser?.role === 'owner' || currentUser?.role === 'hq_accounting' || !!currentUser?.can_delete;
     const verifyBtn = (!d.accounting_verified && canVerify && d.amount > 0)
       ? `<button class="btn btn-ghost btn-sm" style="color:#059669;font-size:11px" onclick="verifyRow(${d.id})">核銷確認</button>` : '';
+    const isOwner = currentUser?.role === 'owner';
+    const ownerConfirmBtn = (d.accounting_verified && !d.owner_confirmed && isOwner && d.amount > 0)
+      ? `<button class="btn btn-ghost btn-sm" style="color:#7c3aed;font-size:11px" onclick="ownerConfirmRow(${d.id})">老闆確認收款</button>` : '';
+    const ownerConfirmBadge = d.owner_confirmed
+      ? `<br><span style="font-size:11px;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:1px 6px">✓ 老闆已確認</span>`
+      : (d.accounting_verified ? `<br><span style="font-size:11px;color:#d97706">⏳ 待老闆確認</span>` : '');
     const deleteBtn = (canDelRow && !d.accounting_verified && d.status === 'pending')
       ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626;font-size:11px" onclick="deleteRow(${d.id})">刪除</button>` : '';
-    const clientLink = `<a href="/clients" style="color:var(--primary);text-decoration:none;font-weight:500">${d.client_name || '—'}</a>`;
+    const clientLink = d.client_id
+      ? `<a href="/client-detail?id=${d.client_id}" style="color:var(--primary);text-decoration:none;font-weight:500">${d.client_name || '—'}</a>`
+      : (d.client_name || '—');
     return `<tr>
       <td style="white-space:nowrap">${d.collected_at || '—'}</td>
       <td>${clientLink}</td>
       <td>${typeLabel}</td>
       <td style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtText}</td>
       <td>${statusHtml}</td>
-      <td>${verifyHtml}</td>
-      <td style="font-size:12px;color:var(--gray-500)">${caseRef}</td>
+      <td>${verifyHtml}${ownerConfirmBadge}</td>
+      <td style="font-size:12px">${caseRef}</td>
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.note || ''}">${d.note || '—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${d.created_by_name || '—'}</td>
-      <td style="white-space:nowrap">${verifyBtn}${deleteBtn}</td>
+      <td style="white-space:nowrap">${verifyBtn}${ownerConfirmBtn}${deleteBtn}</td>
     </tr>`;
   }).join('');
 }
@@ -421,11 +484,149 @@ async function deleteRow(id) {
   else { const e = await r.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
-async function verifyRow(id) {
-  if (!confirm('確認會計核銷此筆預收款？核銷後無法刪除，且才可用於案件折抵。')) return;
-  const r = await fetch(`/api/client-deposits/${id}/verify`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
-  if (r.ok) { showToast('已核銷'); await loadAllDeposits(); }
-  else { const e = await r.json(); showToast(e.error || '核銷失敗', 'error'); }
+let _verifyId = null;
+
+function verifyRow(id) {
+  const dep = allDeposits.find(d => d.id === id);
+  if (!dep) return;
+  _verifyId = id;
+  const typeLabel = DEP_TYPE_LABEL[dep.type] || dep.type;
+  document.getElementById('verifyInfo').innerHTML =
+    `<strong>${dep.client_name || '—'}</strong>　${typeLabel}　<strong style="color:var(--primary)">NT$${Math.round(dep.amount).toLocaleString()}</strong>` +
+    (dep.linked_case_number ? `<br><span style="font-size:12px;color:var(--gray-500)">關聯案件：${dep.linked_case_number}</span>` : '');
+  clearSig();
+  document.getElementById('verifyModal').classList.add('open');
+}
+
+function closeVerifyModal() {
+  document.getElementById('verifyModal').classList.remove('open');
+  _verifyId = null;
+}
+
+async function submitVerify() {
+  if (!_verifyId) return;
+  const canvas = document.getElementById('sigCanvas');
+  if (isSigEmpty(canvas)) { showToast('請先簽名後再核銷', 'error'); return; }
+  const signature = canvas.toDataURL('image/png');
+  const btn = document.getElementById('verifyConfirmBtn');
+  btn.disabled = true;
+  const r = await fetch(`/api/client-deposits/${_verifyId}/verify`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ signature })
+  });
+  btn.disabled = false;
+  if (r.ok) {
+    showToast('已核銷並記錄簽名');
+    closeVerifyModal();
+    await loadAllDeposits();
+  } else {
+    const e = await r.json();
+    showToast(e.error || '核銷失敗', 'error');
+  }
+}
+
+// ── 簽名板 ──────────────────────────────────────────────────
+let _sigDrawing = false, _sigCtx = null;
+
+function initSigPad() {
+  const canvas = document.getElementById('sigCanvas');
+  const rect = () => canvas.getBoundingClientRect();
+  const scaleX = () => canvas.width  / rect().width;
+  const scaleY = () => canvas.height / rect().height;
+  _sigCtx = canvas.getContext('2d');
+  _sigCtx.strokeStyle = '#1e293b';
+  _sigCtx.lineWidth = 2;
+  _sigCtx.lineCap = 'round';
+  _sigCtx.lineJoin = 'round';
+
+  const pos = e => {
+    const r = rect();
+    const src = e.touches ? e.touches[0] : e;
+    return [(src.clientX - r.left) * scaleX(), (src.clientY - r.top) * scaleY()];
+  };
+  canvas.addEventListener('mousedown',  e => { _sigDrawing = true; _sigCtx.beginPath(); const [x,y]=pos(e); _sigCtx.moveTo(x,y); });
+  canvas.addEventListener('mousemove',  e => { if (!_sigDrawing) return; const [x,y]=pos(e); _sigCtx.lineTo(x,y); _sigCtx.stroke(); });
+  canvas.addEventListener('mouseup',    () => _sigDrawing = false);
+  canvas.addEventListener('mouseleave', () => _sigDrawing = false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); _sigDrawing = true; _sigCtx.beginPath(); const [x,y]=pos(e); _sigCtx.moveTo(x,y); }, {passive:false});
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!_sigDrawing) return; const [x,y]=pos(e); _sigCtx.lineTo(x,y); _sigCtx.stroke(); }, {passive:false});
+  canvas.addEventListener('touchend',   () => _sigDrawing = false);
+}
+
+function clearSig() {
+  const canvas = document.getElementById('sigCanvas');
+  if (!_sigCtx) initSigPad();
+  _sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function isSigEmpty(canvas) {
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) if (data[i] > 0) return false;
+  return true;
+}
+
+// ── 老闆確認收款 ──────────────────────────────────────────────
+let _ownerConfirmId = null, _ownerSigCtx = null, _ownerSigDrawing = false;
+
+function ownerConfirmRow(id) {
+  const dep = allDeposits.find(d => d.id === id);
+  if (!dep) return;
+  _ownerConfirmId = id;
+  const typeLabel = DEP_TYPE_LABEL[dep.type] || dep.type;
+  document.getElementById('ownerConfirmInfo').innerHTML =
+    `確認從會計處收到：<strong>${dep.client_name || '—'}</strong>　${typeLabel}　<strong style="color:#7c3aed">NT$${Math.round(dep.amount).toLocaleString()}</strong>` +
+    (dep.linked_case_number ? `<br><span style="font-size:12px;color:var(--gray-500)">關聯案件：${dep.linked_case_number}</span>` : '') +
+    `<br><span style="font-size:12px;color:var(--gray-500)">會計核銷：${(dep.accounting_verified_at || '').slice(0,10)} ${dep.verified_by_name || ''}</span>`;
+  clearOwnerSig();
+  document.getElementById('ownerConfirmModal').classList.add('open');
+}
+
+function closeOwnerConfirmModal() {
+  document.getElementById('ownerConfirmModal').classList.remove('open');
+  _ownerConfirmId = null;
+}
+
+async function submitOwnerConfirm() {
+  if (!_ownerConfirmId) return;
+  const canvas = document.getElementById('ownerSigCanvas');
+  if (isSigEmpty(canvas)) { showToast('請先簽名後再確認', 'error'); return; }
+  const signature = canvas.toDataURL('image/png');
+  const btn = document.getElementById('ownerConfirmBtn');
+  btn.disabled = true;
+  const r = await fetch(`/api/client-deposits/${_ownerConfirmId}/owner-confirm`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ signature })
+  });
+  btn.disabled = false;
+  if (r.ok) {
+    showToast('已確認收款並記錄簽名');
+    closeOwnerConfirmModal();
+    await loadAllDeposits();
+  } else {
+    const e = await r.json();
+    showToast(e.error || '確認失敗', 'error');
+  }
+}
+
+function clearOwnerSig() {
+  const canvas = document.getElementById('ownerSigCanvas');
+  if (!_ownerSigCtx) {
+    _ownerSigCtx = canvas.getContext('2d');
+    _ownerSigCtx.strokeStyle = '#1e293b';
+    _ownerSigCtx.lineWidth = 2;
+    _ownerSigCtx.lineCap = 'round';
+    _ownerSigCtx.lineJoin = 'round';
+    const rect = () => canvas.getBoundingClientRect();
+    const pos = e => { const r=rect(); const src=e.touches?e.touches[0]:e; return [(src.clientX-r.left)*canvas.width/r.width,(src.clientY-r.top)*canvas.height/r.height]; };
+    canvas.addEventListener('mousedown',  e => { _ownerSigDrawing=true; _ownerSigCtx.beginPath(); const [x,y]=pos(e); _ownerSigCtx.moveTo(x,y); });
+    canvas.addEventListener('mousemove',  e => { if(!_ownerSigDrawing)return; const [x,y]=pos(e); _ownerSigCtx.lineTo(x,y); _ownerSigCtx.stroke(); });
+    canvas.addEventListener('mouseup',    () => _ownerSigDrawing=false);
+    canvas.addEventListener('mouseleave', () => _ownerSigDrawing=false);
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); _ownerSigDrawing=true; _ownerSigCtx.beginPath(); const [x,y]=pos(e); _ownerSigCtx.moveTo(x,y); }, {passive:false});
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!_ownerSigDrawing)return; const [x,y]=pos(e); _ownerSigCtx.lineTo(x,y); _ownerSigCtx.stroke(); }, {passive:false});
+    canvas.addEventListener('touchend',   () => _ownerSigDrawing=false);
+  }
+  _ownerSigCtx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 // ── 新增 Modal ────────────────────────────────────────────────────────────────

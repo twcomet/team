@@ -943,6 +943,11 @@ function openMatModal() {
   document.getElementById('m_image_file').value = '';
   document.getElementById('m_image_preview').style.display = 'none';
   document.getElementById('m_image_filename').textContent = '支援 JPG、PNG（上傳後自動壓縮）';
+
+  // 恢復未儲存的草稿
+  const restored = restoreMatDraft();
+  if (restored) showToast('已恢復上次未完成的資料', 'info');
+
   document.getElementById('matModal').classList.add('open');
 }
 function openMatEdit(id) {
@@ -1039,6 +1044,7 @@ async function saveMat() {
   if (res.ok) {
     const data = await res.json();
     showToast(editMatId ? '膜料已更新' : '膜料已新增');
+    if (!editMatId) clearMatDraft();
     closeMatModal();
     await Promise.all([loadMaterials(), loadActivity()]);
     if (!editMatId && body.stock_meters > 0 && data.id) {
@@ -1250,7 +1256,53 @@ async function saveLog() {
   }
 }
 
+// ── 膜料新增表單草稿自動儲存（防切換視窗資料遺失）──────────────
+const MAT_DRAFT_KEY = 'mat_new_draft';
+const MAT_DRAFT_FIELDS = [
+  'm_brand','m_model','m_spec','m_location','m_category',
+  'm_fire_retardant','m_width_cm','m_ec_key',
+  'm_unit_cost','m_unit_price','m_stock_meters','m_notes'
+];
+
+function saveMatDraft() {
+  if (editMatId) return;
+  const draft = {};
+  MAT_DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) draft[id] = el.value;
+  });
+  localStorage.setItem(MAT_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function restoreMatDraft() {
+  try {
+    const raw = localStorage.getItem(MAT_DRAFT_KEY);
+    if (!raw) return false;
+    const draft = JSON.parse(raw);
+    const hasContent = MAT_DRAFT_FIELDS.some(id => draft[id] && draft[id].toString().trim());
+    if (!hasContent) return false;
+    MAT_DRAFT_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && draft[id] !== undefined) el.value = draft[id];
+    });
+    return true;
+  } catch { return false; }
+}
+
+function clearMatDraft() {
+  localStorage.removeItem(MAT_DRAFT_KEY);
+}
+
+function initMatDraft() {
+  MAT_DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveMatDraft);
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', saveMatDraft);
+  });
+}
+
 init();
+initMatDraft();
 </script>
 </body>
 </html>

@@ -271,6 +271,15 @@ router.post('/worker/:token/mark-fee-paid', (req, res) => {
   const row = db.prepare(`SELECT id, case_id FROM survey_forms WHERE worker_token=?`).get(req.params.token);
   if (!row) return res.status(404).json({ error: '找不到場勘任務' });
   db.prepare(`UPDATE cases SET survey_fee_paid=1, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(row.case_id);
+  // 自動建立「待核銷」預收款（會計核銷後才寫入流水帳）
+  const c = db.prepare(`SELECT client_id, survey_fee FROM cases WHERE id=?`).get(row.case_id);
+  if (c?.client_id && c?.survey_fee > 0) {
+    const existing = db.prepare(`SELECT id FROM client_deposits WHERE linked_case_id=? AND type='survey_fee'`).get(row.case_id);
+    if (!existing) {
+      db.prepare(`INSERT INTO client_deposits (client_id, type, amount, collected_at, note, linked_case_id, created_by) VALUES (?,?,?,?,?,?,NULL)`)
+        .run(c.client_id, 'survey_fee', c.survey_fee, new Date().toISOString().slice(0,10), '師傅回簽確認收款（系統自動建立）', row.case_id);
+    }
+  }
   res.json({ ok: true });
 });
 
@@ -289,6 +298,23 @@ router.patch('/cases/:id/fee', requireAuth, (req, res) => {
       survey_fee_actual ?? null,
       req.params.id
     );
+  // 若標記已收款，自動建立「待核銷」預收款（會計核銷後才寫入流水帳）
+  if (survey_fee_paid && parseFloat(survey_fee) > 0) {
+    const c = db.prepare(`SELECT client_id FROM cases WHERE id=?`).get(req.params.id);
+    if (c?.client_id) {
+      const existing = db.prepare(`SELECT id FROM client_deposits WHERE linked_case_id=? AND type='survey_fee'`).get(req.params.id);
+      if (!existing) {
+        db.prepare(`INSERT INTO client_deposits (client_id, type, amount, collected_at, linked_case_id, created_by) VALUES (?,?,?,?,?,?)`)
+          .run(c.client_id, 'survey_fee', parseFloat(survey_fee), new Date().toISOString().slice(0,10), req.params.id, req.session.user.id);
+      } else {
+        // 若已有記錄但尚未核銷，更新金額
+        const dep = db.prepare(`SELECT id, accounting_verified FROM client_deposits WHERE id=?`).get(existing.id);
+        if (!dep.accounting_verified) {
+          db.prepare(`UPDATE client_deposits SET amount=? WHERE id=?`).run(parseFloat(survey_fee), existing.id);
+        }
+      }
+    }
+  }
   res.json({ ok: true });
 });
 

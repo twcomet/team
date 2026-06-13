@@ -450,7 +450,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
     };
     const c2 = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(caseId);
     const label = `${c2?.case_number || ''} ${c2?.title || ''}`.trim();
-    upsertLedger(`case_${caseId}_survey_fee`,  survey_fee_date,   survey_fee,      survey_fee_category || '場勘費', `場勘費｜${label}`);
+    // 場勘費不在此寫帳，由 survey_fee_paid 觸發建立預收款，再由會計核銷後寫入
     upsertLedger(`case_${caseId}_deposit`,     deposit_date,      deposit_amount,  deposit_category  || '其他收入', `訂金｜${label}`);
     upsertLedger(`case_${caseId}_balance`,     balance_paid_date, balance_paid,    balance_category  || '其他收入', `尾款｜${label}`);
   } catch(ledgerErr) {

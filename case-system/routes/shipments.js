@@ -40,6 +40,19 @@ router.get('/years', requireAuth, canShip, (req, res) => {
   res.json(years);
 });
 
+// GET /:id — 單筆（編輯頁用）
+router.get('/:id', requireAuth, canShip, (req, res) => {
+  const { org_id } = req.session.user;
+  const row = db.prepare(`
+    SELECT s.*, c.case_number, c.title AS case_title
+    FROM shipments s
+    LEFT JOIN cases c ON c.id = s.case_id
+    WHERE s.id=? AND s.org_id=?
+  `).get(req.params.id, org_id);
+  if (!row) return res.status(404).json({ error: 'not found' });
+  res.json(row);
+});
+
 // POST / — 新增
 router.post('/', requireAuth, canShip, (req, res) => {
   const { org_id, id: uid } = req.session.user;

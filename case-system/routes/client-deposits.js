@@ -86,8 +86,8 @@ router.post('/', requireAuth, (req, res) => {
     `).run(parseInt(client_id), type, amt, dateVal, note || null,
            product_name || null, initCaseId, req.session.user.id);
 
-    // 同步寫入收支流水帳
-    if (amt > 0) {
+    // 同步寫入收支流水帳（場勘費由案件 PUT 的 upsertLedger 負責，避免重複）
+    if (amt > 0 && type !== 'survey_fee') {
       const org = db.prepare(`SELECT org_id FROM clients WHERE id=?`).get(client_id);
       db.prepare(`
         INSERT INTO ledger_entries (date, type, category, amount, description, org_id, created_by, source_ref)
@@ -137,11 +137,69 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
   if (!dep) return res.status(404).json({ error: 'not found' });
   if (dep.accounting_verified) return res.status(400).json({ error: '此筆預收款已核銷' });
 
+  const { signature } = req.body;
   db.prepare(`
     UPDATE client_deposits
-    SET accounting_verified=1, accounting_verified_at=?, accounting_verified_by=?
+    SET accounting_verified=1, accounting_verified_at=?, accounting_verified_by=?, verify_signature=?
     WHERE id=?
-  `).run(new Date().toISOString(), req.session.user.id, req.params.id);
+  `).run(new Date().toISOString(), req.session.user.id, signature || null, req.params.id);
+
+  // 核銷後寫入流水帳（場勘費在此時才正式入帳）
+  if (dep.amount > 0) {
+    try {
+      const typeLabel = TYPE_LABELS[dep.type] || '預收款';
+      const client = db.prepare(`SELECT name FROM clients WHERE id=?`).get(dep.client_id);
+      const clientName = client?.name || '';
+      let desc = `${clientName}－${typeLabel}`;
+      if (dep.product_name) desc += `（${dep.product_name}）`;
+      if (dep.note) desc += `，${dep.note}`;
+
+      let sourceRef = `client_deposit:${dep.id}`;
+      let caseIdForLedger = null;
+
+      if (dep.type === 'survey_fee' && dep.linked_case_id) {
+        // 場勘費統一用案件 source_ref，防止與案件 upsertLedger 衝突
+        sourceRef = `case_${dep.linked_case_id}_survey_fee`;
+        caseIdForLedger = dep.linked_case_id;
+        const c = db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(dep.linked_case_id);
+        desc = `場勘費｜${c?.case_number || ''} ${c?.title || ''}`.trim();
+      }
+
+      const org = db.prepare(`SELECT org_id FROM clients WHERE id=?`).get(dep.client_id);
+      const dateVal = dep.collected_at || new Date().toISOString().slice(0, 10);
+
+      const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(sourceRef);
+      if (existing) {
+        db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+          .run(dateVal, dep.amount, typeLabel, desc, existing.id);
+      } else {
+        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+          .run(dateVal, typeLabel, dep.amount, caseIdForLedger, desc, org?.org_id || null, req.session.user.id, sourceRef);
+      }
+    } catch (e) {
+      console.error('[verify ledger]', e.message);
+    }
+  }
+
+  res.json({ ok: true });
+});
+
+// ── 老闆確認收款 ──────────────────────────────────────────────
+router.patch('/:id/owner-confirm', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner') return res.status(403).json({ error: '僅限老闆確認' });
+
+  const dep = db.prepare(`SELECT * FROM client_deposits WHERE id = ?`).get(req.params.id);
+  if (!dep) return res.status(404).json({ error: 'not found' });
+  if (!dep.accounting_verified) return res.status(400).json({ error: '尚未完成會計核銷' });
+  if (dep.owner_confirmed) return res.status(400).json({ error: '老闆已確認過此筆' });
+
+  const { signature } = req.body;
+  db.prepare(`
+    UPDATE client_deposits
+    SET owner_confirmed=1, owner_confirmed_at=?, owner_confirmed_by=?, owner_signature=?
+    WHERE id=?
+  `).run(new Date().toISOString(), me.id, signature || null, req.params.id);
 
   res.json({ ok: true });
 });

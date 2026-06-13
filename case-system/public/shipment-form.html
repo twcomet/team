@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>寄件紀錄 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.form-card {
+  background:#fff;
+  border:1px solid var(--gray-200);
+  border-radius:12px;
+  padding:24px 28px;
+  max-width:680px;
+}
+.form-section-title {
+  font-size:13px;
+  font-weight:600;
+  color:var(--gray-500);
+  margin:20px 0 10px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--gray-100);
+}
+.case-results {
+  border:1px solid var(--gray-200);
+  border-radius:6px;
+  max-height:160px;
+  overflow-y:auto;
+  display:none;
+  margin-top:4px;
+  background:#fff;
+  z-index:10;
+  position:relative;
+}
+.case-result-item {
+  padding:8px 12px;
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid var(--gray-100);
+}
+.case-result-item:hover { background:var(--gray-50); }
+.draft-notice {
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:12px;
+  color:#1d4ed8;
+  margin-bottom:16px;
+  display:none;
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="quote-settings" href="/quote-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title" id="pageTitle">新增寄件紀錄</span>
+      <a href="/shipments" class="btn btn-ghost">← 返回列表</a>
+    </div>
+    <div class="page-body">
+
+      <div id="draftNotice" class="draft-notice">
+        ✏️ 已恢復上次未完成的草稿
+        <button onclick="clearDraft(true)" style="margin-left:12px;background:none;border:none;color:#1d4ed8;cursor:pointer;font-size:12px;text-decoration:underline">清除草稿</button>
+      </div>
+
+      <div class="form-card">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>寄件日期 <span style="color:red">*</span></label>
+            <input type="date" id="f_shipped_at">
+          </div>
+          <div class="form-group">
+            <label>物流</label>
+            <select id="f_carrier">
+              <option value="">— 選擇物流 —</option>
+              <option value="便利袋">便利袋</option>
+              <option value="大榮">大榮</option>
+              <option value="順豐">順豐</option>
+              <option value="郵寄">郵寄</option>
+              <option value="Lalamove">Lalamove</option>
+              <option value="i郵箱">i郵箱</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>客戶名稱</label>
+            <input type="text" id="f_client_name" placeholder="客戶姓名或公司名稱">
+          </div>
+          <div class="form-group">
+            <label>LINE ID 名稱</label>
+            <input type="text" id="f_line_id_name" placeholder="LINE 顯示名稱">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>關聯案件（選填）</label>
+          <input type="text" id="f_case_search" placeholder="輸入案件編號或客戶名稱搜尋…" autocomplete="off">
+          <div class="case-results" id="f_case_results"></div>
+          <input type="hidden" id="f_case_id">
+          <div id="f_case_selected" style="font-size:12px;color:var(--primary);margin-top:4px"></div>
+          <button id="f_case_clear" onclick="clearCaseSelection()" style="display:none;font-size:11px;color:var(--gray-500);background:none;border:none;cursor:pointer;padding:2px 0">✕ 清除關聯案件</button>
+        </div>
+
+        <div class="form-section-title">收件資訊</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>收件人</label>
+            <input type="text" id="f_recipient_name" placeholder="收件人姓名">
+          </div>
+          <div class="form-group">
+            <label>電話</label>
+            <input type="tel" id="f_recipient_phone" placeholder="0912-345-678">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 140px">
+            <label>郵遞區號</label>
+            <input type="text" id="f_postal_code" placeholder="100">
+          </div>
+          <div class="form-group">
+            <label>地址</label>
+            <input type="text" id="f_recipient_address" placeholder="縣市、區、街道…">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>收件備注</label>
+          <input type="text" id="f_recipient_note" placeholder="例：大樓管理室代收">
+        </div>
+
+        <div class="form-section-title">寄件資訊</div>
+
+        <div class="form-group">
+          <label>寄件內容 <span style="color:red">*</span></label>
+          <textarea id="f_content" rows="3" placeholder="例：3M AE-2160 大樣 2張、膜料型錄"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>物流條碼</label>
+          <input type="text" id="f_tracking_no" placeholder="追蹤號碼">
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--gray-100)">
+          <a href="/shipments" class="btn btn-ghost">取消</a>
+          <button class="btn btn-primary" id="saveBtn" onclick="save()">儲存</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const DRAFT_KEY = 'ship_new_draft';
+const DRAFT_FIELDS = ['f_shipped_at','f_carrier','f_client_name','f_line_id_name',
+  'f_recipient_name','f_recipient_phone','f_postal_code','f_recipient_address',
+  'f_recipient_note','f_content','f_tracking_no'];
+
+const params = new URLSearchParams(location.search);
+const editId = params.get('id') ? parseInt(params.get('id')) : null;
+
+async function init() {
+  await loadUser();
+  highlightNav('shipments');
+
+  if (editId) {
+    document.getElementById('pageTitle').textContent = '編輯寄件紀錄';
+    await loadEdit();
+  } else {
+    document.getElementById('f_shipped_at').value = new Date().toISOString().slice(0, 10);
+    if (restoreDraft()) {
+      document.getElementById('draftNotice').style.display = 'block';
+    }
+    initDraftListeners();
+  }
+
+  document.getElementById('f_case_search').addEventListener('input', searchCase);
+}
+
+// ── Draft persistence (new records only) ────────────────────────
+function saveDraft() {
+  if (editId) return;
+  const data = {};
+  DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data[id] = el.value;
+  });
+  data._case_id       = document.getElementById('f_case_id').value;
+  data._case_selected = document.getElementById('f_case_selected').textContent;
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+}
+
+function restoreDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw);
+    DRAFT_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data[id] !== undefined) el.value = data[id];
+    });
+    if (data._case_id) {
+      document.getElementById('f_case_id').value = data._case_id;
+      document.getElementById('f_case_selected').textContent = data._case_selected || '';
+      document.getElementById('f_case_clear').style.display = data._case_id ? 'inline' : 'none';
+    }
+    return true;
+  } catch { return false; }
+}
+
+function clearDraft(showMsg) {
+  localStorage.removeItem(DRAFT_KEY);
+  if (showMsg) {
+    document.getElementById('draftNotice').style.display = 'none';
+    showToast('草稿已清除', 'info');
+  }
+}
+
+function initDraftListeners() {
+  DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveDraft);
+    if (el) el.addEventListener('change', saveDraft);
+  });
+}
+
+// ── Load for editing ─────────────────────────────────────────────
+async function loadEdit() {
+  const res = await fetch(`/api/shipments/${editId}`);
+  if (!res.ok) { showToast('載入失敗', 'error'); return; }
+  const s = await res.json();
+  document.getElementById('f_shipped_at').value        = s.shipped_at || '';
+  document.getElementById('f_carrier').value           = s.carrier || '';
+  document.getElementById('f_client_name').value       = s.client_name || '';
+  document.getElementById('f_line_id_name').value      = s.line_id_name || '';
+  document.getElementById('f_case_id').value           = s.case_id || '';
+  document.getElementById('f_case_selected').textContent = s.case_number ? `✓ ${s.case_number} ${s.case_title || ''}` : '';
+  document.getElementById('f_case_clear').style.display = s.case_id ? 'inline' : 'none';
+  document.getElementById('f_recipient_name').value    = s.recipient_name || '';
+  document.getElementById('f_recipient_phone').value   = s.recipient_phone || '';
+  document.getElementById('f_postal_code').value       = s.postal_code || '';
+  document.getElementById('f_recipient_address').value = s.recipient_address || '';
+  document.getElementById('f_recipient_note').value    = s.recipient_note || '';
+  document.getElementById('f_content').value           = s.content || '';
+  document.getElementById('f_tracking_no').value       = s.tracking_no || '';
+}
+
+// ── Case search ──────────────────────────────────────────────────
+let caseSearchTimer;
+async function searchCase() {
+  clearTimeout(caseSearchTimer);
+  const q  = document.getElementById('f_case_search').value.trim();
+  const el = document.getElementById('f_case_results');
+  if (!q) { el.style.display = 'none'; return; }
+  caseSearchTimer = setTimeout(async () => {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) { el.style.display = 'none'; return; }
+    const data = await res.json();
+    const items = (data.results || []).slice(0, 8);
+    if (!items.length) { el.style.display = 'none'; return; }
+    el.innerHTML = items.map(r => {
+      const c = r.case;
+      const title = (c.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      return `<div class="case-result-item"
+        onmousedown="selectCase(${c.id},'${c.case_number}','${title}')">
+        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number}</span>
+        ${c.client_name ? `<span style="color:var(--gray-400)"> · ${c.client_name}</span>` : ''}
+        ${c.title ? `<span> ${c.title}</span>` : ''}
+      </div>`;
+    }).join('');
+    el.style.display = 'block';
+  }, 300);
+}
+
+function selectCase(id, num, title) {
+  document.getElementById('f_case_id').value            = id;
+  document.getElementById('f_case_search').value        = '';
+  document.getElementById('f_case_selected').textContent = `✓ ${num} ${title}`;
+  document.getElementById('f_case_results').style.display = 'none';
+  document.getElementById('f_case_clear').style.display = 'inline';
+  saveDraft();
+}
+
+function clearCaseSelection() {
+  document.getElementById('f_case_id').value             = '';
+  document.getElementById('f_case_search').value         = '';
+  document.getElementById('f_case_selected').textContent  = '';
+  document.getElementById('f_case_clear').style.display   = 'none';
+  saveDraft();
+}
+
+// ── Save ─────────────────────────────────────────────────────────
+async function save() {
+  const shipped_at = document.getElementById('f_shipped_at').value;
+  const content    = document.getElementById('f_content').value.trim();
+  if (!shipped_at) { showToast('請填寄件日期', 'error'); return; }
+  if (!content)    { showToast('請填寄件內容', 'error'); return; }
+
+  const body = {
+    shipped_at,
+    client_name:       document.getElementById('f_client_name').value.trim() || null,
+    line_id_name:      document.getElementById('f_line_id_name').value.trim() || null,
+    case_id:           document.getElementById('f_case_id').value || null,
+    recipient_name:    document.getElementById('f_recipient_name').value.trim() || null,
+    recipient_phone:   document.getElementById('f_recipient_phone').value.trim() || null,
+    postal_code:       document.getElementById('f_postal_code').value.trim() || null,
+    recipient_address: document.getElementById('f_recipient_address').value.trim() || null,
+    recipient_note:    document.getElementById('f_recipient_note').value.trim() || null,
+    content,
+    tracking_no:       document.getElementById('f_tracking_no').value.trim() || null,
+    carrier:           document.getElementById('f_carrier').value || null,
+  };
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  try {
+    const url    = editId ? `/api/shipments/${editId}` : '/api/shipments';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) { const e = await res.json(); showToast(e.error || '儲存失敗', 'error'); return; }
+    if (!editId) clearDraft(false);
+    showToast(editId ? '已更新' : '已新增');
+    setTimeout(() => { location.href = '/shipments'; }, 600);
+  } finally { btn.disabled = false; }
+}
+
+init();
+</script>
+</body>
+</html>

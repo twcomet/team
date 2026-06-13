@@ -130,9 +130,15 @@
       </div>
       <div class="form-group">
         <label class="form-label">供應商（選填）</label>
-        <select class="form-input" id="po_vendor_id">
-          <option value="">— 不指定 —</option>
-        </select>
+        <div class="case-ac-wrap" id="vendorAcWrap">
+          <input class="form-input" id="po_vendor_search" autocomplete="off" placeholder="輸入供應商名稱搜尋…" oninput="onVendorSearch(this.value)">
+          <div class="case-ac-dropdown" id="vendorAcDrop"></div>
+        </div>
+        <input type="hidden" id="po_vendor_id">
+        <div id="po_vendor_display" style="display:none;margin-top:6px;font-size:12px;color:var(--gray-600);background:var(--gray-50);padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between">
+          <span id="po_vendor_label"></span>
+          <button type="button" onclick="clearVendor()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;line-height:1">×</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
@@ -266,8 +272,6 @@ async function init() {
   }
   if (vr.ok) {
     vendors = await vr.json();
-    const sel = document.getElementById('po_vendor_id');
-    vendors.forEach(v => { sel.innerHTML += `<option value="${v.id}">${esc(v.name)}</option>`; });
   }
 
   document.getElementById('statusFilter').addEventListener('change', loadOrders);
@@ -365,7 +369,7 @@ function openNew() {
   document.getElementById('po_unit_cost').value = '';
   document.getElementById('po_shipping_cost').value = '';
   document.getElementById('po_material_id').value = '';
-  document.getElementById('po_vendor_id').value = '';
+  clearVendor();
   document.getElementById('po_shipping_type').value = 'domestic';
   document.getElementById('totalCostDisplay').textContent = '';
   clearCaseLink();
@@ -381,7 +385,7 @@ async function openEdit(id) {
   document.getElementById('po_brand').value           = po.brand || '';
   document.getElementById('po_series_code').value     = po.series_code || '';
   document.getElementById('po_material_id').value     = po.material_id || '';
-  document.getElementById('po_vendor_id').value       = po.vendor_id || '';
+  if (po.vendor_id && po.vendor_name) { setVendor(po.vendor_id, po.vendor_name); } else { clearVendor(); }
   document.getElementById('po_quantity_meters').value = po.quantity_meters || '';
   document.getElementById('po_unit_cost').value       = po.unit_cost || '';
   document.getElementById('po_shipping_type').value   = po.shipping_type || 'domestic';
@@ -472,6 +476,37 @@ async function cancelPo(id) {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+// ── 供應商自動搜尋 ────────────────────────────────────────────────
+function onVendorSearch(q) {
+  const drop = document.getElementById('vendorAcDrop');
+  if (!q) { drop.classList.remove('open'); return; }
+  const filtered = vendors.filter(v => v.name.toLowerCase().includes(q.toLowerCase()));
+  if (!filtered.length) {
+    drop.innerHTML = '<div class="case-ac-item" style="color:var(--gray-400)">找不到符合供應商</div>';
+    drop.classList.add('open');
+    return;
+  }
+  drop.innerHTML = filtered.map(v =>
+    `<div class="case-ac-item" onclick="setVendor(${v.id},'${esc(v.name)}')">${esc(v.name)}</div>`
+  ).join('');
+  drop.classList.add('open');
+}
+
+function setVendor(id, name) {
+  document.getElementById('po_vendor_id').value = id;
+  document.getElementById('po_vendor_search').value = '';
+  document.getElementById('vendorAcDrop').classList.remove('open');
+  document.getElementById('po_vendor_label').textContent = name;
+  document.getElementById('po_vendor_display').style.display = 'flex';
+}
+
+function clearVendor() {
+  document.getElementById('po_vendor_id').value = '';
+  document.getElementById('po_vendor_search').value = '';
+  document.getElementById('vendorAcDrop').classList.remove('open');
+  document.getElementById('po_vendor_display').style.display = 'none';
+}
+
 // ── 關聯案件自動搜尋 ──────────────────────────────────────────────
 let _caseAcTimer = null;
 async function onCaseSearch(q) {
@@ -507,6 +542,7 @@ function clearCaseLink() {
 
 document.addEventListener('click', e => {
   if (!e.target.closest('.case-ac-wrap')) document.getElementById('caseAcDrop')?.classList.remove('open');
+  if (!e.target.closest('#vendorAcWrap')) document.getElementById('vendorAcDrop')?.classList.remove('open');
 });
 
 function esc(s) {
