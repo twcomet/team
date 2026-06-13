@@ -64,24 +64,29 @@ function genCaseNumber(org_id) {
   return `${prefix}-${String(seq).padStart(3, '0')}`;
 }
 
-// 依 install_fee / 總人次 重算每筆施工派工的 labor_cost
+// 依 actual_hours（或 estimated_hours）× 派工人員 daily_cost / 8 計算施工人工成本
 function recalcLaborCost(case_id) {
-  const c = db.prepare(`SELECT install_fee FROM cases WHERE id=?`).get(case_id);
   const rows = db.prepare(`
-    SELECT d.id, COUNT(du.user_id) AS worker_count
+    SELECT d.id,
+      COALESCE(d.actual_hours, d.estimated_hours, 0) AS hrs,
+      COALESCE(SUM(u.daily_cost), 0) AS total_daily_cost
     FROM dispatches d
     LEFT JOIN dispatch_users du ON du.dispatch_id = d.id
+    LEFT JOIN users u ON u.id = du.user_id
     WHERE d.case_id=? AND d.dispatch_type='install'
     GROUP BY d.id
   `).all(case_id);
-  const totalPersons = rows.reduce((s, r) => s + (r.worker_count || 0), 0);
+
   const upd = db.prepare(`UPDATE dispatches SET labor_cost=? WHERE id=?`);
-  if (!c?.install_fee || !totalPersons) {
-    rows.forEach(r => upd.run(null, r.id));
-    return;
-  }
-  const perPerson = c.install_fee / totalPersons;
-  rows.forEach(r => upd.run((r.worker_count || 0) * perPerson, r.id));
+  let totalLaborCost = 0;
+  rows.forEach(r => {
+    const cost = (r.hrs > 0 && r.total_daily_cost > 0)
+      ? Math.round(r.total_daily_cost * r.hrs / 8.0 * 100) / 100
+      : null;
+    upd.run(cost, r.id);
+    if (cost) totalLaborCost += cost;
+  });
+  db.prepare(`UPDATE cases SET labor_cost=? WHERE id=?`).run(totalLaborCost || null, case_id);
 }
 
 function recalcCase(case_id) {

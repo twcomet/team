@@ -2865,4 +2865,7 @@ db.exec(`
 // 追款提醒日
 _addCol('cases', 'followup_date', 'DATE DEFAULT NULL');
 
+// 派工人工成本（從 hours × daily_cost 自動計算）
+_addCol('cases', 'labor_cost', 'REAL');
+
 module.exports = db;

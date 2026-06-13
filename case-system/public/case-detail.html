@@ -1306,7 +1306,7 @@
 
       <!-- 單日模式 -->
       <div id="d_single_wrap">
-        <div style="display:grid;grid-template-columns:1.4fr 2fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1.4fr 2fr 1fr 1fr;gap:12px;margin-bottom:16px">
           <div class="form-group" style="margin-bottom:0"><label>日期 *</label><input type="date" id="d_date" style="width:100%;box-sizing:border-box"></div>
           <div class="form-group" style="margin-bottom:0">
             <label>到場時間</label>
@@ -1321,6 +1321,7 @@
             </div>
           </div>
           <div class="form-group" style="margin-bottom:0"><label>預估工時（時）</label><input type="number" id="d_hours" step="0.5" placeholder="4" min="0" style="width:100%;box-sizing:border-box"></div>
+          <div class="form-group" style="margin-bottom:0"><label>實際工時（時）</label><input type="number" id="d_actual_hours" step="0.5" placeholder="—" min="0" style="width:100%;box-sizing:border-box"></div>
         </div>
       </div>
 
@@ -2287,19 +2288,22 @@ function renderDispatches(dispatches) {
     return;
   }
 
-  // 施工日人工成本摘要
+  // 施工日人工成本摘要（依 actual_hours/estimated_hours × 人員日費 計算）
   const installDisps = dispatches.filter(d => d.dispatch_type === 'install');
   const totalPersons = installDisps.reduce((s, d) => s + (d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0), 0);
-  const installFee = caseData.install_fee;
+  const laborCost = caseData.labor_cost;
+  const matCost   = caseData.material_cost;
   let summaryHtml = '';
-  if (installDisps.length > 0 && installFee) {
-    const perPerson = totalPersons ? Math.round(installFee / totalPersons) : 0;
+  if (installDisps.length > 0 && currentUser?.can_see_labor_cost) {
+    const laborStr = laborCost != null ? `<span style="color:#16a34a;font-weight:600">👷 人工成本 $${Math.round(laborCost).toLocaleString()}</span>` : `<span style="color:#6b7280">👷 人工成本（尚無工時或日費資料）</span>`;
+    const matStr   = matCost   != null ? `<span style="color:#2563eb;font-weight:600">🎨 材料成本 $${Math.round(matCost).toLocaleString()}</span>` : '';
+    const totalCost = (laborCost || 0) + (matCost || 0);
+    const totalStr = totalCost > 0 ? `<span style="color:#374151;font-weight:700">合計成本 $${Math.round(totalCost).toLocaleString()}</span>` : '';
     summaryHtml = `
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
       <span>📅 施工 <strong>${installDisps.length}</strong> 天</span>
-      <span>👷 總人次 <strong>${totalPersons}</strong> 人次</span>
-      <span>每人次 <strong>$${perPerson.toLocaleString()}</strong></span>
-      <span style="color:#16a34a;font-weight:600">人工成本合計 $${installFee.toLocaleString()}</span>
+      <span>總人次 <strong>${totalPersons}</strong> 人次</span>
+      ${laborStr}${matStr ? ' ' + matStr : ''}${totalStr ? ' ' + totalStr : ''}
     </div>`;
   }
 
@@ -2307,8 +2311,11 @@ function renderDispatches(dispatches) {
   el.innerHTML = summaryHtml + dispatches.map(d => {
     const [tag, tagClass] = (DISPATCH_TAGS[d.dispatch_type] || '派工 tag-install').split(' ');
     const wCount = d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0;
-    const laborHtml = (d.dispatch_type === 'install' && d.labor_cost != null)
-      ? `<span style="margin-left:16px;color:#16a34a;font-weight:600">人工 $${Math.round(d.labor_cost).toLocaleString()}（${wCount} 人）</span>`
+    const dispHrs = d.actual_hours ?? d.estimated_hours;
+    const laborHtml = (d.dispatch_type === 'install' && currentUser?.can_see_labor_cost)
+      ? (d.labor_cost != null
+          ? `<span style="margin-left:16px;color:#16a34a;font-weight:600">人工 $${Math.round(d.labor_cost).toLocaleString()}（${wCount}人×${dispHrs}hr）</span>`
+          : (wCount ? `<span style="margin-left:16px;color:#6b7280">${wCount} 人</span>` : ''))
       : (wCount ? `<span style="margin-left:16px;color:#6b7280">${wCount} 人</span>` : '');
     const warrantyBadge = d.dispatch_type === 'aftersales'
       ? (d.warranty_covered !== 0
@@ -2323,7 +2330,7 @@ function renderDispatches(dispatches) {
           ${warrantyBadge}
           <strong>${d.scheduled_date}</strong>
           ${d.scheduled_time ? `<span style="color:#6b7280;font-size:13px">${d.scheduled_time}</span>` : ''}
-          ${d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">${d.estimated_hours}hr</span>` : ''}
+          ${d.actual_hours ? `<span style="color:#374151;font-size:13px;font-weight:600">${d.actual_hours}hr</span>` : (d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">預${d.estimated_hours}hr</span>` : '')}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:13px;color:#6b7280">${statusMap[d.status] || d.status}</span>
@@ -3053,6 +3060,7 @@ document.getElementById('addDispatchBtn').addEventListener('click', () => {
   document.getElementById('d_date').value   = '';
   setTimeStr('d_time_h','d_time_m', null);
   document.getElementById('d_hours').value  = '';
+  document.getElementById('d_actual_hours').value = '';
   document.getElementById('d_start_date').value = '';
   document.getElementById('d_end_date').value   = '';
   document.getElementById('d_day_rows').innerHTML = '';
@@ -3080,6 +3088,7 @@ function editDispatch(did) {
   document.getElementById('d_date').value   = d.scheduled_date;
   setTimeStr('d_time_h','d_time_m', d.scheduled_time || null);
   document.getElementById('d_hours').value  = d.estimated_hours || '';
+  document.getElementById('d_actual_hours').value = d.actual_hours || '';
   document.getElementById('d_material').value = d.material || '';
   document.getElementById('d_notes').value  = d.notes || '';
   document.getElementById('d_unloading_location').value = d.unloading_location || '';
@@ -3133,6 +3142,7 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
       scheduled_date,
       scheduled_time:  getTimeStr('d_time_h','d_time_m'),
       estimated_hours: parseFloat(document.getElementById('d_hours').value) || null,
+      actual_hours:    parseFloat(document.getElementById('d_actual_hours').value) || null,
     };
     const url    = did ? `/api/cases/${caseId}/dispatches/${did}` : `/api/cases/${caseId}/dispatches`;
     const method = did ? 'PUT' : 'POST';
