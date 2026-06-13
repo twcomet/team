@@ -1148,7 +1148,12 @@
               <div class="form-row-3" style="margin-bottom:10px">
                 <div class="form-group" style="margin:0"><label>材料成本</label><input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
                 <div class="form-group" style="margin:0"><label>外包成本</label><input type="number" id="p_outsource_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
-                <div class="form-group" style="margin:0"><label>施工成本</label><input type="number" id="p_install_fee" placeholder="0" min="0" oninput="updateProfit()"></div>
+                <div class="form-group" style="margin:0">
+                  <label style="display:flex;align-items:center;gap:6px">施工成本
+                    <button type="button" id="recalcLaborBtn" onclick="recalcLaborFromDispatch()" title="從派工工時重新計算" style="display:none;padding:1px 7px;font-size:11px;border:1px solid #16a34a;border-radius:4px;background:#f0fdf4;color:#16a34a;cursor:pointer;line-height:1.6">↺ 重算</button>
+                  </label>
+                  <input type="number" id="p_install_fee" placeholder="0" min="0" oninput="updateProfit()">
+                </div>
               </div>
               <div class="form-row" style="margin-bottom:14px">
                 <div class="form-group" style="margin:0"><label>運費</label><input type="number" id="p_shipping_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
@@ -3178,6 +3183,14 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
   }
 });
 
+function recalcLaborFromDispatch() {
+  if (caseData?.labor_cost != null) {
+    document.getElementById('p_install_fee').value = caseData.labor_cost;
+    updateProfit();
+    showToast(`已帶入人工成本 $${Math.round(caseData.labor_cost).toLocaleString()}`);
+  }
+}
+
 // ── 收款 ───────────────────────────────────────────────────
 function updateProfit() {
   const revenue = parseFloat(document.getElementById('p_final_price').value) || 0;
@@ -3309,7 +3322,10 @@ function fillPaymentForm() {
   document.getElementById('p_marketing_discount').value     = c.marketing_discount  || '';
   document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
   document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
-  document.getElementById('p_install_fee').value        = c.install_fee      != null ? c.install_fee      : '';
+  const installFeeVal = c.labor_cost != null ? c.labor_cost : (c.install_fee != null ? c.install_fee : '');
+  document.getElementById('p_install_fee').value = installFeeVal;
+  const recalcBtn = document.getElementById('recalcLaborBtn');
+  if (recalcBtn) recalcBtn.style.display = c.labor_cost != null ? '' : 'none';
   document.getElementById('p_shipping_cost').value      = c.shipping_cost    != null ? c.shipping_cost    : '';
   document.getElementById('p_other_cost').value         = c.other_cost       != null ? c.other_cost       : '';
   loadCaseCredits(caseId);
