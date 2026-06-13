@@ -32,6 +32,8 @@
 .cat-government { background:#f3e8ff; color:#6b21a8; }
 .cat-construction { background:#ffedd5; color:#9a3412; }
 .cat-print      { background:#e0f2fe; color:#075985; }
+.cat-professional { background:#fae8ff; color:#7e22ce; }
+.cat-auto       { background:#ecfdf5; color:#065f46; }
 .cat-other      { background:#f3f4f6; color:#6b7280; }
 .cat-select { outline:none; appearance:auto; }
 </style>
@@ -103,9 +105,11 @@
         <button class="cat-tab" data-cat="logistics"  onclick="switchCat('logistics')">🚚 物流廠商</button>
         <button class="cat-tab" data-cat="expense"    onclick="switchCat('expense')">🧾 費用廠商</button>
         <button class="cat-tab" data-cat="government"   onclick="switchCat('government')">🏛️ 政府/保險</button>
-        <button class="cat-tab" data-cat="construction" onclick="switchCat('construction')">🔧 工程協力廠商</button>
-        <button class="cat-tab" data-cat="print"        onclick="switchCat('print')">🖨️ 大圖輸出供應商</button>
-        <button class="cat-tab" data-cat="other"        onclick="switchCat('other')">📦 其他</button>
+        <button class="cat-tab" data-cat="construction"  onclick="switchCat('construction')">🔧 工程協力廠商</button>
+        <button class="cat-tab" data-cat="print"         onclick="switchCat('print')">🖨️ 大圖輸出供應商</button>
+        <button class="cat-tab" data-cat="professional"  onclick="switchCat('professional')">💼 專業服務</button>
+        <button class="cat-tab" data-cat="auto"          onclick="switchCat('auto')">🚗 汽車維修</button>
+        <button class="cat-tab" data-cat="other"         onclick="switchCat('other')">📦 其他</button>
       </div>
       <div id="vendorList"></div>
     </div>
@@ -136,6 +140,8 @@
           <option value="government">🏛️ 政府/保險</option>
           <option value="construction">🔧 工程協力廠商</option>
           <option value="print">🖨️ 大圖輸出供應商</option>
+          <option value="professional">💼 專業服務</option>
+          <option value="auto">🚗 汽車維修</option>
           <option value="other" selected>📦 其他</option>
         </select>
       </div>
@@ -220,8 +226,8 @@ let pendingBrands = [];
 let existingBrands = [];
 let curCat = '';
 
-const CAT_LABEL = { film:'膜料供應商', logistics:'物流廠商', expense:'費用廠商', government:'政府/保險', construction:'工程協力廠商', print:'大圖輸出供應商', other:'其他' };
-const CAT_CLASS = { film:'cat-film', logistics:'cat-logistics', expense:'cat-expense', government:'cat-government', construction:'cat-construction', print:'cat-print', other:'cat-other' };
+const CAT_LABEL = { film:'膜料供應商', logistics:'物流廠商', expense:'費用廠商', government:'政府/保險', construction:'工程協力廠商', print:'大圖輸出供應商', professional:'專業服務', auto:'汽車維修', other:'其他' };
+const CAT_CLASS = { film:'cat-film', logistics:'cat-logistics', expense:'cat-expense', government:'cat-government', construction:'cat-construction', print:'cat-print', professional:'cat-professional', auto:'cat-auto', other:'cat-other' };
 
 async function init() {
   await loadUser();
@@ -284,6 +290,8 @@ function renderVendors() {
               <option value="government"   ${cat==='government'   ?'selected':''}>🏛️ 政府/保險</option>
               <option value="construction" ${cat==='construction' ?'selected':''}>🔧 工程協力廠商</option>
               <option value="print"        ${cat==='print'        ?'selected':''}>🖨️ 大圖輸出供應商</option>
+              <option value="professional" ${cat==='professional' ?'selected':''}>💼 專業服務</option>
+              <option value="auto"         ${cat==='auto'         ?'selected':''}>🚗 汽車維修</option>
               <option value="other"        ${cat==='other'        ?'selected':''}>📦 其他</option>
             </select>
           </div>
