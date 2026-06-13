@@ -2064,30 +2064,12 @@ _addCol('vendors', 'email',             'TEXT DEFAULT NULL');
 _addCol('vendors', 'address',           'TEXT DEFAULT NULL');
 _addCol('vendors', 'category',          "TEXT DEFAULT 'other'");
 
-// 依名稱關鍵字自動補上分類（只補尚未分類的）
-db.prepare(`
-  UPDATE vendors SET category='logistics'
-  WHERE category IS NULL OR category='other'
-  AND (name LIKE '%物流%' OR name LIKE '%快遞%' OR name LIKE '%便利袋%'
-       OR name LIKE '%大榮%' OR name LIKE '%順豐%' OR name LIKE '%郵寄%'
-       OR name LIKE '%Lalamove%' OR name LIKE '%i郵箱%')
-`).run();
-
-db.prepare(`
-  UPDATE vendors SET category='government'
-  WHERE category IS NULL OR category='other'
-  AND (name LIKE '%健保%' OR name LIKE '%勞保%' OR name LIKE '%保險%'
-       OR name LIKE '%保全%' OR name LIKE '%政府%' OR name LIKE '%國稅局%'
-       OR name LIKE '%財政部%' OR name LIKE '%勞動部%')
-`).run();
-
-db.prepare(`
-  UPDATE vendors SET category='expense'
-  WHERE category IS NULL OR category='other'
-  AND (name LIKE '%電信%' OR name LIKE '%電力%' OR name LIKE '%水費%'
-       OR name LIKE '%郵政%' OR name LIKE '%中華電%' OR name LIKE '%台灣電%'
-       OR name LIKE '%網路%' OR name LIKE '%電話%')
-`).run();
+// 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
+try {
+  db.prepare(`UPDATE vendors SET category='logistics'  WHERE (category IS NULL OR category='other') AND (name LIKE '%物流%' OR name LIKE '%快遞%' OR name LIKE '%便利袋%' OR name LIKE '%大榮%' OR name LIKE '%順豐%' OR name LIKE '%郵寄%' OR name LIKE '%Lalamove%' OR name LIKE '%i郵箱%')`).run();
+  db.prepare(`UPDATE vendors SET category='government' WHERE (category IS NULL OR category='other') AND (name LIKE '%健保%' OR name LIKE '%勞保%' OR name LIKE '%保險%' OR name LIKE '%保全%' OR name LIKE '%政府%' OR name LIKE '%國稅局%')`).run();
+  db.prepare(`UPDATE vendors SET category='expense'    WHERE (category IS NULL OR category='other') AND (name LIKE '%電信%' OR name LIKE '%電力%' OR name LIKE '%郵政%' OR name LIKE '%中華電%' OR name LIKE '%台灣電%' OR name LIKE '%網路%')`).run();
+} catch (e) { console.warn('[vendor category migration]', e.message); }
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS vendor_brands (

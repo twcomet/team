@@ -229,10 +229,17 @@ function switchCat(cat) {
 }
 
 async function loadVendors() {
-  const r = await fetch('/api/vendors');
-  if (!r.ok) { document.getElementById('vendorList').innerHTML = '<p style="color:red;padding:20px">載入失敗，請重新整理</p>'; return; }
-  vendors = await r.json();
-  renderVendors();
+  try {
+    const r = await fetch('/api/vendors');
+    if (!r.ok) {
+      document.getElementById('vendorList').innerHTML = `<p style="color:red;padding:20px">載入失敗（${r.status}），請重新整理頁面</p>`;
+      return;
+    }
+    vendors = await r.json();
+    renderVendors();
+  } catch (e) {
+    document.getElementById('vendorList').innerHTML = `<p style="color:red;padding:20px">連線失敗：${e.message}</p>`;
+  }
 }
 
 function renderVendors() {
