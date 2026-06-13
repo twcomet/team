@@ -2868,4 +2868,40 @@ _addCol('cases', 'followup_date', 'DATE DEFAULT NULL');
 // 派工人工成本（從 hours × daily_cost 自動計算）
 _addCol('cases', 'labor_cost', 'REAL');
 
+// 補算所有施工派工的人工成本（含歷史資料）
+try {
+  const _cases = db.prepare(`SELECT DISTINCT case_id FROM dispatches WHERE dispatch_type='install'`).all();
+  const _updD = db.prepare(`UPDATE dispatches SET labor_cost=? WHERE id=?`);
+  const _updC = db.prepare(`UPDATE cases SET labor_cost=? WHERE id=?`);
+  _cases.forEach(({ case_id }) => {
+    const _rows = db.prepare(`
+      SELECT d.id,
+        COALESCE(d.actual_hours, d.estimated_hours, 0) AS hrs,
+        COALESCE(SUM(u.daily_cost), 0) AS total_daily_cost
+      FROM dispatches d
+      LEFT JOIN dispatch_users du ON du.dispatch_id = d.id
+      LEFT JOIN users u ON u.id = du.user_id
+      WHERE d.case_id=? AND d.dispatch_type='install'
+      GROUP BY d.id
+    `).all(case_id);
+    let _total = 0;
+    _rows.forEach(r => {
+      const cost = (r.hrs > 0 && r.total_daily_cost > 0)
+        ? Math.round(r.total_daily_cost * r.hrs / 8.0 * 100) / 100 : null;
+      _updD.run(cost, r.id);
+      if (cost) _total += cost;
+    });
+    _updC.run(_total || null, case_id);
+  });
+} catch(e) { console.warn('[labor_cost backfill]', e.message); }
+
+// 補算所有案件的材料成本（從 dispatch_materials 加總）
+try {
+  const _matCases = db.prepare(`SELECT DISTINCT case_id FROM dispatch_materials`).all();
+  _matCases.forEach(({ case_id }) => {
+    const row = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS total FROM dispatch_materials WHERE case_id=?`).get(case_id);
+    db.prepare(`UPDATE cases SET material_cost=? WHERE id=?`).run(row.total || null, case_id);
+  });
+} catch(e) { console.warn('[material_cost backfill]', e.message); }
+
 module.exports = db;
