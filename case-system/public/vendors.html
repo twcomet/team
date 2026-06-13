@@ -31,6 +31,7 @@
 .cat-expense    { background:#fef3c7; color:#92400e; }
 .cat-government { background:#f3e8ff; color:#6b21a8; }
 .cat-other      { background:#f3f4f6; color:#6b7280; }
+.cat-select { outline:none; appearance:auto; }
 </style>
 </head>
 <body>
@@ -222,6 +223,20 @@ async function init() {
   await loadVendors();
 }
 
+async function updateCat(id, sel) {
+  const cat = sel.value;
+  const r = await fetch(`/api/vendors/${id}/category`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: cat }),
+  });
+  if (!r.ok) { showToast('更新失敗', 'error'); return; }
+  sel.className = `cat-select ${CAT_CLASS[cat]}`;
+  const v = vendors.find(x => x.id === id);
+  if (v) v.category = cat;
+  showToast('分類已更新');
+}
+
 function switchCat(cat) {
   curCat = cat;
   document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
@@ -255,7 +270,15 @@ function renderVendors() {
     <div class="vendor-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
-          <div class="vendor-name">${esc(v.name)}<span class="cat-badge ${CAT_CLASS[cat]}">${CAT_LABEL[cat] || cat}</span></div>
+          <div class="vendor-name">${esc(v.name)}
+            <select class="cat-select ${CAT_CLASS[cat]}" onchange="updateCat(${v.id}, this)" style="margin-left:8px;padding:2px 6px;border-radius:10px;border:1px solid transparent;font-size:11px;font-weight:600;cursor:pointer">
+              <option value="film"       ${cat==='film'       ?'selected':''}>🎞️ 膜料供應商</option>
+              <option value="logistics"  ${cat==='logistics'  ?'selected':''}>🚚 物流廠商</option>
+              <option value="expense"    ${cat==='expense'    ?'selected':''}>🧾 費用廠商</option>
+              <option value="government" ${cat==='government' ?'selected':''}>🏛️ 政府/保險</option>
+              <option value="other"      ${cat==='other'      ?'selected':''}>📦 其他</option>
+            </select>
+          </div>
           <div class="vendor-meta">${[v.contact, v.phone, v.email].filter(Boolean).map(esc).join('　·　')}</div>
           ${v.address ? `<div class="vendor-meta">${esc(v.address)}</div>` : ''}
         </div>
