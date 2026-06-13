@@ -79,7 +79,7 @@ router.put('/:id', requireAuth, requireVendorAccess, (req, res) => {
 // PATCH /:id/category — 只更新分類（列表直接改用）
 router.patch('/:id/category', requireAuth, requireVendorAccess, (req, res) => {
   const { category } = req.body;
-  const allowed = ['film', 'logistics', 'expense', 'government', 'construction', 'print', 'professional', 'auto', 'other'];
+  const allowed = ['film', 'logistics', 'expense', 'government', 'construction', 'print', 'professional', 'auto', 'tools', 'other'];
   if (!allowed.includes(category)) return res.status(400).json({ error: '無效分類' });
   db.prepare(`UPDATE vendors SET category=? WHERE id=?`).run(category, req.params.id);
   res.json({ ok: true });
