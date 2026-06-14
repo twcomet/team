@@ -250,9 +250,12 @@ async function init() {
 
   const isManager = currentUser.role === 'owner' || !!currentUser.can_manage_assets;
   if (isManager) {
-    document.getElementById('tabReview').style.display = '';
-    document.getElementById('tabLoans').style.display  = '';
-    document.getElementById('tabItems').style.display  = '';
+    document.getElementById('tabReview').style.display = 'block';
+    document.getElementById('tabLoans').style.display  = 'block';
+    document.getElementById('tabItems').style.display  = 'block';
+  } else {
+    // 顯示診斷資訊（方便 debug）
+    console.info('[assets] role:', currentUser.role, '| can_manage_assets:', currentUser.can_manage_assets);
   }
 
   document.querySelectorAll('.tab').forEach(t => {
@@ -529,6 +532,21 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 init().catch(console.error);
+
+// 切換回此分頁時重新檢查權限（管理員在另一分頁開啟權限後立即生效）
+window.addEventListener('focus', async () => {
+  if (!currentUser) return;
+  const r = await fetch('/api/auth/me');
+  if (!r.ok) return;
+  const u = await r.json();
+  currentUser.can_manage_assets = u.can_manage_assets;
+  const isNowManager = currentUser.role === 'owner' || !!currentUser.can_manage_assets;
+  if (isNowManager) {
+    document.getElementById('tabReview').style.display = 'block';
+    document.getElementById('tabLoans').style.display  = 'block';
+    document.getElementById('tabItems').style.display  = 'block';
+  }
+});
 </script>
 </body>
 </html>
