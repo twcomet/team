@@ -217,7 +217,7 @@ let selectedPersonIds = new Set();
 async function init() {
   await loadUser();
   highlightNav('deficiencies');
-  isManager = currentUser.role === 'owner' || currentUser.role === 'hq_hr' || !!currentUser.manage_users;
+  isManager = currentUser.role === 'owner' || currentUser.role === 'hq_hr' || !!currentUser.manage_users || !!currentUser.is_manager;
 
   if (isManager) {
     document.getElementById('newBtn').style.display = '';
