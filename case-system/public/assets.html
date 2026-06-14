@@ -246,16 +246,16 @@ const STATUS_LABEL = { pending:'待審核', approved:'核准中', returned:'已�
 
 async function init() {
   currentUser = await loadUser();
+  if (!currentUser) return;
   highlightNav('assets');
+
+  console.log('[assets] role:', currentUser.role, 'can_manage_assets:', currentUser.can_manage_assets);
 
   const isManager = currentUser.role === 'owner' || !!currentUser.can_manage_assets;
   if (isManager) {
     document.getElementById('tabReview').style.display = 'block';
     document.getElementById('tabLoans').style.display  = 'block';
     document.getElementById('tabItems').style.display  = 'block';
-  } else {
-    // 顯示診斷資訊（方便 debug）
-    console.info('[assets] role:', currentUser.role, '| can_manage_assets:', currentUser.can_manage_assets);
   }
 
   document.querySelectorAll('.tab').forEach(t => {

@@ -137,6 +137,21 @@ router.get('/me', (req, res) => {
   res.json(req.session.user);
 });
 
+// GET /api/auth/debug-session（暫時診斷用）
+router.get('/debug-session', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: '未登入' });
+  const dbUser = db.prepare(`SELECT id, name, role, can_manage_assets, active FROM users WHERE id=?`).get(req.session.user.id);
+  res.json({
+    session_role: req.session.user.role,
+    session_can_manage_assets: req.session.user.can_manage_assets,
+    db_role: dbUser?.role,
+    db_can_manage_assets: dbUser?.can_manage_assets,
+    db_active: dbUser?.active,
+    user_id: req.session.user.id,
+    user_name: req.session.user.name,
+  });
+});
+
 // POST /api/auth/sign-contract
 router.post('/sign-contract', (req, res) => {
   if (!req.session?.user) return res.status(401).json({ error: '請先登入' });
