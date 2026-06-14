@@ -194,12 +194,14 @@
       </div>
       <div class="form-group">
         <label class="form-label">品項名稱 <span style="color:red">*</span></label>
-        <input class="form-input" id="item_name" placeholder="例：投影機、延長線">
+        <input class="form-input" id="item_name" placeholder="例：投影機、延長線" list="itemNameList" autocomplete="off">
+        <datalist id="itemNameList"></datalist>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
           <label class="form-label">類別</label>
-          <input class="form-input" id="item_category" placeholder="例：電子設備">
+          <input class="form-input" id="item_category" placeholder="例：電子設備" list="itemCategoryList" autocomplete="off">
+          <datalist id="itemCategoryList"></datalist>
         </div>
         <div class="form-group">
           <label class="form-label">類型</label>
@@ -286,10 +288,18 @@ function populateOrgSelect() {
   if (currentUser.role !== 'owner') document.getElementById('itemOrgGroup').style.display = 'none';
 }
 
+function refreshItemDatalist() {
+  const names = [...new Set(assetItems.map(a => a.name).filter(Boolean))];
+  const cats  = [...new Set(assetItems.map(a => a.category).filter(Boolean))];
+  document.getElementById('itemNameList').innerHTML     = names.map(n => `<option value="${esc(n)}">`).join('');
+  document.getElementById('itemCategoryList').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+}
+
 async function loadAssetItemsForSelect() {
   const r = await fetch('/api/assets/items');
   if (!r.ok) return;
   assetItems = await r.json();
+  refreshItemDatalist();
   const sel = document.getElementById('req_asset_id');
   sel.innerHTML = assetItems.length
     ? assetItems.map(a => `<option value="${a.id}" data-consumable="${a.is_consumable}">${esc(a.name)}（${a.unit}）${a.is_consumable ? ' [消耗品]' : ''}</option>`).join('')
@@ -502,7 +512,7 @@ async function saveItem() {
     if (!r.ok) { const e = await r.json(); alert(e.error||'儲存失敗'); return; }
     closeModal('itemModal');
     await loadItems();
-    await loadAssetItemsForSelect();
+    await loadAssetItemsForSelect(); // 同步更新 datalist 建議選項
   } finally { btn.disabled = false; }
 }
 
