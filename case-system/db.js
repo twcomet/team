@@ -2869,6 +2869,7 @@ _addCol('cases', 'followup_date', 'DATE DEFAULT NULL');
 _addCol('cases', 'labor_cost', 'REAL');
 // 派工膜料成本（從 dispatch_materials 自動計算，獨立於報價材料成本）
 _addCol('cases', 'dispatch_material_cost', 'REAL');
+_addCol('assets', 'location', 'TEXT DEFAULT NULL');
 
 // 補算所有施工派工的人工成本（含歷史資料）
 try {

@@ -123,7 +123,7 @@
         </div>
         <div class="card"><div class="card-body" style="padding:0">
           <div class="table-wrap"><table>
-            <thead><tr><th>分店</th><th>品項</th><th>類別</th><th>類型</th><th>庫存</th><th>單位</th><th>備註</th><th></th></tr></thead>
+            <thead><tr><th>分店</th><th>品項</th><th>類別</th><th>放置位置</th><th>類型</th><th>庫存</th><th>單位</th><th>備註</th><th></th></tr></thead>
             <tbody id="itemsBody"></tbody>
           </table></div>
         </div></div>
@@ -222,6 +222,11 @@
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">放置位置</label>
+        <input class="form-input" id="item_location" placeholder="例：倉庫A區、辦公室櫃子" list="itemLocationList" autocomplete="off">
+        <datalist id="itemLocationList"></datalist>
+      </div>
+      <div class="form-group">
         <label class="form-label">備註</label>
         <textarea class="form-input" id="item_notes" rows="2"></textarea>
       </div>
@@ -291,8 +296,10 @@ function populateOrgSelect() {
 function refreshItemDatalist() {
   const names = [...new Set(assetItems.map(a => a.name).filter(Boolean))];
   const cats  = [...new Set(assetItems.map(a => a.category).filter(Boolean))];
+  const locs  = [...new Set(assetItems.map(a => a.location).filter(Boolean))];
   document.getElementById('itemNameList').innerHTML     = names.map(n => `<option value="${esc(n)}">`).join('');
   document.getElementById('itemCategoryList').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  document.getElementById('itemLocationList').innerHTML = locs.map(l => `<option value="${esc(l)}">`).join('');
 }
 
 async function loadAssetItemsForSelect() {
@@ -387,6 +394,7 @@ async function loadItems() {
       <td style="font-size:13px">${esc(a.org_name||'—')}</td>
       <td style="font-weight:500">${esc(a.name)}</td>
       <td style="font-size:13px;color:var(--gray-500)">${esc(a.category||'—')}</td>
+      <td style="font-size:13px;color:var(--gray-500)">${esc(a.location||'—')}</td>
       <td>${a.is_consumable ? '<span class="consumable-tag">消耗品</span>' : '<span style="font-size:12px;color:#1e40af">借用品</span>'}</td>
       <td>${a.quantity}</td>
       <td>${esc(a.unit)}</td>
@@ -470,7 +478,7 @@ async function markReturn(id) {
 function openNewItem() {
   editItemId = null;
   document.getElementById('itemModalTitle').textContent = '新增品項';
-  ['item_name','item_category','item_notes'].forEach(id => document.getElementById(id).value = '');
+  ['item_name','item_category','item_location','item_notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('item_quantity').value = '1';
   document.getElementById('item_unit').value = '個';
   document.getElementById('item_is_consumable').value = '0';
@@ -484,6 +492,7 @@ function openEditItem(id) {
   document.getElementById('itemModalTitle').textContent = '編輯品項';
   document.getElementById('item_name').value          = a.name || '';
   document.getElementById('item_category').value      = a.category || '';
+  document.getElementById('item_location').value      = a.location || '';
   document.getElementById('item_quantity').value      = a.quantity ?? 1;
   document.getElementById('item_unit').value          = a.unit || '個';
   document.getElementById('item_is_consumable').value = a.is_consumable ? '1' : '0';
@@ -497,6 +506,7 @@ async function saveItem() {
   const payload = {
     name,
     category:     document.getElementById('item_category').value.trim() || null,
+    location:     document.getElementById('item_location').value.trim() || null,
     is_consumable:document.getElementById('item_is_consumable').value === '1',
     quantity:     parseInt(document.getElementById('item_quantity').value) || 0,
     unit:         document.getElementById('item_unit').value.trim() || '個',

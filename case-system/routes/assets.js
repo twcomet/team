@@ -35,20 +35,20 @@ router.get('/items', requireAuth, (req, res) => {
 router.post('/items', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
-  const { name, category, is_consumable, quantity, unit, notes, org_id } = req.body;
+  const { name, category, is_consumable, quantity, unit, notes, location, org_id } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: '請填入品項名稱' });
   const targetOrg = me.role === 'owner' ? (org_id || me.org_id) : me.org_id;
-  const r = db.prepare(`INSERT INTO assets (org_id,name,category,is_consumable,quantity,unit,notes) VALUES (?,?,?,?,?,?,?)`)
-    .run(targetOrg, name.trim(), category||null, is_consumable?1:0, quantity||0, unit||'個', notes||null);
+  const r = db.prepare(`INSERT INTO assets (org_id,name,category,is_consumable,quantity,unit,notes,location) VALUES (?,?,?,?,?,?,?,?)`)
+    .run(targetOrg, name.trim(), category||null, is_consumable?1:0, quantity||0, unit||'個', notes||null, location||null);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 
 router.put('/items/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
-  const { name, category, is_consumable, quantity, unit, notes, active } = req.body;
-  db.prepare(`UPDATE assets SET name=?,category=?,is_consumable=?,quantity=?,unit=?,notes=?,active=? WHERE id=?`)
-    .run(name, category||null, is_consumable?1:0, quantity||0, unit||'個', notes||null, active??1, req.params.id);
+  const { name, category, is_consumable, quantity, unit, notes, location, active } = req.body;
+  db.prepare(`UPDATE assets SET name=?,category=?,is_consumable=?,quantity=?,unit=?,notes=?,location=?,active=? WHERE id=?`)
+    .run(name, category||null, is_consumable?1:0, quantity||0, unit||'個', notes||null, location||null, active??1, req.params.id);
   res.json({ ok: true });
 });
 
