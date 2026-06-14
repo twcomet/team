@@ -3,6 +3,21 @@ const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
+// 同步案件的 dispatch_material_cost（含 dispatch_materials 和 material_logs 兩個來源）
+function syncCaseMaterialCost(caseId) {
+  if (!caseId) return;
+  const fromDispatch = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS t FROM dispatch_materials WHERE case_id=?`).get(caseId).t || 0;
+  const fromLogs = db.prepare(`
+    SELECT COALESCE(SUM(ABS(ml.meters) * mr.unit_cost), 0) AS t
+    FROM material_logs ml
+    LEFT JOIN material_rolls mr ON mr.id = ml.roll_id
+    WHERE ml.case_id=? AND ml.log_type IN ('case_cut','case_loss')
+    AND ml.status != 'cancelled' AND mr.unit_cost IS NOT NULL
+  `).get(caseId).t || 0;
+  const total = fromDispatch + fromLogs;
+  db.prepare(`UPDATE cases SET dispatch_material_cost=? WHERE id=?`).run(total || null, caseId);
+}
+
 // ── 膜料目錄 ─────────────────────────────────────────────────
 
 router.get('/', requireAuth, (req, res) => {
@@ -371,6 +386,7 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
     }
   }
 
+  if (case_id && ['case_cut','case_loss'].includes(log_type)) syncCaseMaterialCost(case_id);
   res.json({ ok: true, remaining: newRemaining });
 });
 
@@ -393,6 +409,7 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
   }
 
   db.prepare(`DELETE FROM material_logs WHERE id = ?`).run(req.params.id);
+  if (log.case_id && ['case_cut','case_loss'].includes(log.log_type)) syncCaseMaterialCost(log.case_id);
   res.json({ ok: true });
 });
 

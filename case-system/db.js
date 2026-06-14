@@ -2897,12 +2897,16 @@ try {
   });
 } catch(e) { console.warn('[labor_cost backfill]', e.message); }
 
-// 補算所有案件的派工膜料成本（從 dispatch_materials 加總）
+// 補算所有案件的膜料成本（dispatch_materials + material_logs 兩個來源）
 try {
-  const _matCases = db.prepare(`SELECT DISTINCT case_id FROM dispatch_materials`).all();
-  _matCases.forEach(({ case_id }) => {
-    const row = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS total FROM dispatch_materials WHERE case_id=?`).get(case_id);
-    db.prepare(`UPDATE cases SET dispatch_material_cost=? WHERE id=?`).run(row.total || null, case_id);
+  const _matCaseIds = new Set([
+    ...db.prepare(`SELECT DISTINCT case_id FROM dispatch_materials WHERE case_id IS NOT NULL`).all().map(r => r.case_id),
+    ...db.prepare(`SELECT DISTINCT case_id FROM material_logs WHERE case_id IS NOT NULL AND log_type IN ('case_cut','case_loss')`).all().map(r => r.case_id),
+  ]);
+  _matCaseIds.forEach(case_id => {
+    const fromD = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS t FROM dispatch_materials WHERE case_id=?`).get(case_id).t || 0;
+    const fromL = db.prepare(`SELECT COALESCE(SUM(ABS(ml.meters) * mr.unit_cost), 0) AS t FROM material_logs ml LEFT JOIN material_rolls mr ON mr.id=ml.roll_id WHERE ml.case_id=? AND ml.log_type IN ('case_cut','case_loss') AND ml.status!='cancelled' AND mr.unit_cost IS NOT NULL`).get(case_id).t || 0;
+    db.prepare(`UPDATE cases SET dispatch_material_cost=? WHERE id=?`).run((fromD + fromL) || null, case_id);
   });
 } catch(e) { console.warn('[dispatch_material_cost backfill]', e.message); }
 

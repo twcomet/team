@@ -75,11 +75,16 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 function syncMaterialCost(caseId) {
-  const row = db.prepare(`
-    SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS total
-    FROM dispatch_materials WHERE case_id = ?
-  `).get(caseId);
-  db.prepare(`UPDATE cases SET dispatch_material_cost = ? WHERE id = ?`).run(row.total || null, caseId);
+  const fromDispatch = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS t FROM dispatch_materials WHERE case_id=?`).get(caseId).t || 0;
+  const fromLogs = db.prepare(`
+    SELECT COALESCE(SUM(ABS(ml.meters) * mr.unit_cost), 0) AS t
+    FROM material_logs ml
+    LEFT JOIN material_rolls mr ON mr.id = ml.roll_id
+    WHERE ml.case_id=? AND ml.log_type IN ('case_cut','case_loss')
+    AND ml.status != 'cancelled' AND mr.unit_cost IS NOT NULL
+  `).get(caseId).t || 0;
+  const total = fromDispatch + fromLogs;
+  db.prepare(`UPDATE cases SET dispatch_material_cost = ? WHERE id = ?`).run(total || null, caseId);
 }
 
 // POST /api/dispatch-detail/:id/material
