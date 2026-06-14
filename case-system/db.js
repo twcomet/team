@@ -2867,6 +2867,8 @@ _addCol('cases', 'followup_date', 'DATE DEFAULT NULL');
 
 // 派工人工成本（從 hours × daily_cost 自動計算）
 _addCol('cases', 'labor_cost', 'REAL');
+// 派工膜料成本（從 dispatch_materials 自動計算，獨立於報價材料成本）
+_addCol('cases', 'dispatch_material_cost', 'REAL');
 
 // 補算所有施工派工的人工成本（含歷史資料）
 try {
@@ -2895,13 +2897,13 @@ try {
   });
 } catch(e) { console.warn('[labor_cost backfill]', e.message); }
 
-// 補算所有案件的材料成本（從 dispatch_materials 加總）
+// 補算所有案件的派工膜料成本（從 dispatch_materials 加總）
 try {
   const _matCases = db.prepare(`SELECT DISTINCT case_id FROM dispatch_materials`).all();
   _matCases.forEach(({ case_id }) => {
     const row = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS total FROM dispatch_materials WHERE case_id=?`).get(case_id);
-    db.prepare(`UPDATE cases SET material_cost=? WHERE id=?`).run(row.total || null, case_id);
+    db.prepare(`UPDATE cases SET dispatch_material_cost=? WHERE id=?`).run(row.total || null, case_id);
   });
-} catch(e) { console.warn('[material_cost backfill]', e.message); }
+} catch(e) { console.warn('[dispatch_material_cost backfill]', e.message); }
 
 module.exports = db;

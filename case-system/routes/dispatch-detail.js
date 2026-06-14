@@ -79,7 +79,7 @@ function syncMaterialCost(caseId) {
     SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS total
     FROM dispatch_materials WHERE case_id = ?
   `).get(caseId);
-  db.prepare(`UPDATE cases SET material_cost = ? WHERE id = ?`).run(row.total || null, caseId);
+  db.prepare(`UPDATE cases SET dispatch_material_cost = ? WHERE id = ?`).run(row.total || null, caseId);
 }
 
 // POST /api/dispatch-detail/:id/material

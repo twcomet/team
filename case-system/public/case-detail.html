@@ -1146,7 +1146,12 @@
             </div>
             <div id="costBody" style="padding:18px 20px">
               <div class="form-row-3" style="margin-bottom:10px">
-                <div class="form-group" style="margin:0"><label>材料成本</label><input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
+                <div class="form-group" style="margin:0">
+                  <label style="display:flex;align-items:center;gap:6px">材料成本
+                    <button type="button" id="recalcMatBtn" onclick="recalcMatFromDispatch()" title="從派工膜料使用重新計算" style="display:none;padding:1px 7px;font-size:11px;border:1px solid #2563eb;border-radius:4px;background:#eff6ff;color:#2563eb;cursor:pointer;line-height:1.6">↺ 重算</button>
+                  </label>
+                  <input type="number" id="p_material_cost" placeholder="0" min="0" oninput="updateProfit()">
+                </div>
                 <div class="form-group" style="margin:0"><label>外包成本</label><input type="number" id="p_outsource_cost" placeholder="0" min="0" oninput="updateProfit()"></div>
                 <div class="form-group" style="margin:0">
                   <label style="display:flex;align-items:center;gap:6px">施工成本
@@ -2305,7 +2310,7 @@ function renderDispatches(dispatches) {
   const installDisps = dispatches.filter(d => d.dispatch_type === 'install');
   const totalPersons = installDisps.reduce((s, d) => s + (d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0), 0);
   const laborCost = caseData.labor_cost;
-  const matCost   = caseData.material_cost;
+  const matCost   = caseData.dispatch_material_cost;
   let summaryHtml = '';
   if (installDisps.length > 0 && currentUser?.can_see_labor_cost) {
     const laborStr = laborCost != null ? `<span style="color:#16a34a;font-weight:600">👷 人工成本 $${Math.round(laborCost).toLocaleString()}</span>` : `<span style="color:#6b7280">👷 人工成本（尚無工時或日費資料）</span>`;
@@ -3199,6 +3204,14 @@ function recalcLaborFromDispatch() {
   }
 }
 
+function recalcMatFromDispatch() {
+  if (caseData?.dispatch_material_cost != null) {
+    document.getElementById('p_material_cost').value = caseData.dispatch_material_cost;
+    updateProfit();
+    showToast(`已帶入材料成本 $${Math.round(caseData.dispatch_material_cost).toLocaleString()}`);
+  }
+}
+
 // ── 收款 ───────────────────────────────────────────────────
 function updateProfit() {
   const revenue = parseFloat(document.getElementById('p_final_price').value) || 0;
@@ -3328,7 +3341,10 @@ function fillPaymentForm() {
   document.getElementById('p_invoice_issued').checked        = !!c.invoice_issued;
   document.getElementById('p_invoice_issued_date').value    = c.invoice_issued_date || '';
   document.getElementById('p_marketing_discount').value     = c.marketing_discount  || '';
-  document.getElementById('p_material_cost').value      = c.material_cost    != null ? c.material_cost    : '';
+  const matVal = c.dispatch_material_cost != null ? c.dispatch_material_cost : (c.material_cost != null ? c.material_cost : '');
+  document.getElementById('p_material_cost').value = matVal;
+  const recalcMatBtn = document.getElementById('recalcMatBtn');
+  if (recalcMatBtn) recalcMatBtn.style.display = c.dispatch_material_cost != null ? '' : 'none';
   document.getElementById('p_outsource_cost').value     = c.outsource_cost   != null ? c.outsource_cost   : '';
   const installFeeVal = c.labor_cost != null ? c.labor_cost : (c.install_fee != null ? c.install_fee : '');
   document.getElementById('p_install_fee').value = installFeeVal;
