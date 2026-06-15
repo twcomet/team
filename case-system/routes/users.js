@@ -40,7 +40,9 @@ router.post('/reorder', requireAuth, (req, res) => {
 router.post('/', requireCanManageUsers, (req, res) => {
   const me = req.session.user;
   const { name, username, password, role, org_id, department, is_manager,
-          can_see_amounts, service_areas, allowed_org_ids } = req.body;
+          can_see_amounts, can_see_cost, can_see_labor_cost, can_delete,
+          can_manage_assets, can_ship, service_areas, allowed_org_ids,
+          permissions, daily_cost, accept_dispatch, is_sales } = req.body;
 
   // 非 owner 只能建立自己分店的人
   if (me.role !== 'owner' && org_id != me.org_id) {
@@ -54,15 +56,26 @@ router.post('/', requireCanManageUsers, (req, res) => {
   try {
     const result = db.prepare(`
       INSERT INTO users (name, username, password, role, org_id, department,
-                         is_manager, can_see_amounts, service_areas, allowed_org_ids)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         is_manager, can_see_amounts, can_see_cost, can_see_labor_cost,
+                         can_delete, can_manage_assets, can_ship, service_areas, allowed_org_ids,
+                         permissions, daily_cost, accept_dispatch, is_sales)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(name, username, hash, role,
            org_id || me.org_id,
            department || null,
            is_manager ? 1 : 0,
            can_see_amounts ? 1 : 0,
+           can_see_cost ? 1 : 0,
+           can_see_labor_cost ? 1 : 0,
+           can_delete ? 1 : 0,
+           can_manage_assets ? 1 : 0,
+           can_ship ? 1 : 0,
            JSON.stringify(service_areas || []),
-           allowed_org_ids?.length ? JSON.stringify(allowed_org_ids) : null);
+           allowed_org_ids?.length ? JSON.stringify(allowed_org_ids) : null,
+           JSON.stringify(permissions || {}),
+           daily_cost ?? null,
+           accept_dispatch ? 1 : 0,
+           is_sales ? 1 : 0);
 
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create_user', 'users', ?, ?)`)
       .run(me.id, result.lastInsertRowid, `新增帳號：${username} (${role})`);
