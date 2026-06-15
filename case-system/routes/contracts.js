@@ -7,8 +7,15 @@ const { requireAuth, requireOwner } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const router   = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, '../uploads/contracts');
+// 上傳目錄放在永久磁碟（與資料庫同一個 volume），避免重新部署被清掉
+const DATA_DIR   = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(__dirname, '..');
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads', 'contracts');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+// multer 的 originalname 對非 ASCII 檔名是 latin1，轉回 UTF-8 才不會亂碼
+function decodeOriginalName(file) {
+  return file ? Buffer.from(file.originalname, 'latin1').toString('utf8') : null;
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -63,7 +70,7 @@ router.post('/', requireAuth, (req, res, next) => {
       description?.trim() || null,
       content?.trim() || null,
       req.file ? req.file.filename : null,
-      req.file ? req.file.originalname : null,
+      decodeOriginalName(req.file),
       req.session.user.id,
     );
 
@@ -80,7 +87,7 @@ router.put('/:id', requireAuth, (req, res, next) => {
 
   const existing = db.prepare(`SELECT filename FROM contracts WHERE id=?`).get(req.params.id);
   const newFilename = req.file ? req.file.filename : existing?.filename || null;
-  const newOriginal = req.file ? req.file.originalname : (existing ? db.prepare(`SELECT original_name FROM contracts WHERE id=?`).get(req.params.id)?.original_name : null);
+  const newOriginal = req.file ? decodeOriginalName(req.file) : (existing ? db.prepare(`SELECT original_name FROM contracts WHERE id=?`).get(req.params.id)?.original_name : null);
 
   db.prepare(`UPDATE contracts SET title=?, description=?, content=?, filename=?, original_name=? WHERE id=?`)
     .run(title.trim(), description?.trim() || null, content?.trim() || null, newFilename, newOriginal || null, req.params.id);
