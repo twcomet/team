@@ -168,6 +168,10 @@
 <script>
 let myId = null;
 
+function logout() {
+  fetch('/api/auth/logout', { method: 'POST' }).finally(() => location.href = '/');
+}
+
 async function init() {
   await loadUser();
   highlightNav('profile');

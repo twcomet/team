@@ -149,7 +149,7 @@ router.get('/my-profile', requireAuth, (req, res) => {
   u.line_bound        = !!u.line_user_id;
   delete u.line_user_id;
 
-  const org = db.prepare(`SELECT name FROM organizations WHERE id=?`).get(u.org_id);
+  const org = db.prepare(`SELECT name FROM orgs WHERE id=?`).get(u.org_id);
   u.org_name = org?.name || '';
 
   res.json(u);
