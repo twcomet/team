@@ -92,7 +92,8 @@ async function check(label, pathname, { method = 'GET', body, expect = 200 } = {
     ['詢價管理', '/cases-inquiry'], ['客戶管理', '/clients'], ['人員管理', '/admin'],
     ['缺失管理', '/deficiencies'], ['請假管理', '/leave'], ['收支流水帳', '/ledger'],
     ['膜料管理', '/materials'], ['報價管理', '/quote-list'], ['業績報表', '/performance'],
-    ['財務報表', '/reports'],
+    ['財務報表', '/reports'], ['預收款管理', '/deposits'], ['合約管理', '/contracts'],
+    ['我的任務', '/my-tasks'], ['人事資料', '/hr'],
   ]) await check(label, p);
 
   // 主要 API

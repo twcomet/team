@@ -7,22 +7,34 @@
 <link rel="stylesheet" href="/css/style.css">
 <link rel="icon" href="/logo.png" type="image/png">
 <style>
-.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
-.filter-bar select, .filter-bar input { padding:6px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; }
+.filter-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px; background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:10px 14px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.filter-bar select, .filter-bar input { padding:7px 11px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; background:#fff; transition:border-color .15s, box-shadow .15s; }
+.filter-bar select:focus, .filter-bar input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+
+.table-card { background:#fff; border:1px solid var(--gray-200); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.05); overflow-x:auto; }
 .dep-table { width:100%; border-collapse:collapse; }
-.dep-table th { background:#f9fafb; font-size:12px; font-weight:600; color:var(--gray-600); padding:10px 12px; text-align:left; border-bottom:2px solid var(--gray-200); }
-.dep-table td { padding:10px 12px; border-bottom:1px solid var(--gray-100); font-size:13px; vertical-align:middle; }
-.dep-table tr:hover td { background:#fafafa; }
-.badge-verified   { background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 8px; font-size:11px; font-weight:600; }
-.badge-unverified { background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 8px; font-size:11px; }
-.badge-dep-pending   { background:#eff6ff; color:#1e40af; border-radius:12px; padding:2px 9px; font-size:11px; font-weight:600; }
-.badge-dep-applied   { background:#d1fae5; color:#065f46; border-radius:12px; padding:2px 9px; font-size:11px; font-weight:600; }
-.badge-dep-forfeited { background:#f3f4f6; color:#374151; border-radius:12px; padding:2px 9px; font-size:11px; }
-.badge-dep-refunded  { background:#fee2e2; color:#991b1b; border-radius:12px; padding:2px 9px; font-size:11px; }
-.summary-bar { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
-.summary-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:14px 20px; min-width:140px; }
-.summary-card .label { font-size:12px; color:var(--gray-500); margin-bottom:4px; }
-.summary-card .value { font-size:20px; font-weight:700; color:var(--primary); }
+.dep-table th { background:var(--gray-50); font-size:11px; font-weight:700; color:var(--gray-500); letter-spacing:.03em; padding:12px 16px; text-align:left; border-bottom:1px solid var(--gray-200); white-space:nowrap; }
+.dep-table td { padding:13px 16px; border-bottom:1px solid var(--gray-100); font-size:13px; vertical-align:middle; }
+.dep-table tbody tr:last-child td { border-bottom:none; }
+.dep-table tbody tr { transition:background .12s; }
+.dep-table tr:hover td { background:#f9fafb; }
+.badge-verified   { background:#d1fae5; color:#065f46; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
+.badge-unverified { background:#fef3c7; color:#92400e; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
+.badge-dep-pending   { background:#eff6ff; color:#1e40af; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; }
+.badge-dep-applied   { background:#d1fae5; color:#065f46; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; }
+.badge-dep-forfeited { background:#f3f4f6; color:#374151; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; }
+.badge-dep-refunded  { background:#fee2e2; color:#991b1b; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; }
+
+.summary-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-bottom:22px; }
+.summary-card { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--gray-200); border-radius:14px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .15s, box-shadow .15s; }
+.summary-card:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(0,0,0,.08); }
+.summary-card .ico { width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+.summary-card .label { font-size:12px; color:var(--gray-500); margin-bottom:5px; font-weight:500; }
+.summary-card .value { font-size:23px; font-weight:800; line-height:1.05; letter-spacing:-.5px; color:var(--gray-800); }
+.sc-blue  .ico{ background:#dbeafe } .sc-blue  .value{ color:#2563eb }
+.sc-amber .ico{ background:#fef3c7 } .sc-amber .value{ color:#d97706 }
+.sc-orange .ico{ background:#ffedd5 } .sc-orange .value{ color:#ea580c }
+.sc-gray  .ico{ background:#f1f5f9 } .sc-gray  .value{ color:#475569 }
 </style>
 </head>
 <body>
@@ -118,7 +130,7 @@
       </div>
 
       <!-- 列表 -->
-      <div style="overflow-x:auto">
+      <div class="table-card">
         <table class="dep-table" id="depTable">
           <thead>
             <tr>
@@ -402,21 +414,21 @@ function renderSummary() {
   const totalUnverified = unverified.reduce((s, d) => s + (d.amount || 0), 0);
 
   document.getElementById('summaryBar').innerHTML = `
-    <div class="summary-card">
-      <div class="label">待折抵總額</div>
-      <div class="value">NT$${Math.round(totalPending).toLocaleString()}</div>
+    <div class="summary-card sc-blue">
+      <div class="ico">💰</div>
+      <div><div class="label">待折抵總額</div><div class="value">NT$${Math.round(totalPending).toLocaleString()}</div></div>
     </div>
-    <div class="summary-card" style="border-color:#fbbf24">
-      <div class="label">待核銷筆數</div>
-      <div class="value" style="color:#d97706">${unverified.length} 筆</div>
+    <div class="summary-card sc-amber">
+      <div class="ico">📋</div>
+      <div><div class="label">待核銷筆數</div><div class="value">${unverified.length} 筆</div></div>
     </div>
-    <div class="summary-card" style="border-color:#fbbf24">
-      <div class="label">待核銷金額</div>
-      <div class="value" style="color:#d97706">NT$${Math.round(totalUnverified).toLocaleString()}</div>
+    <div class="summary-card sc-orange">
+      <div class="ico">⏳</div>
+      <div><div class="label">待核銷金額</div><div class="value">NT$${Math.round(totalUnverified).toLocaleString()}</div></div>
     </div>
-    <div class="summary-card">
-      <div class="label">全部筆數</div>
-      <div class="value" style="color:var(--gray-600)">${allDeposits.length} 筆</div>
+    <div class="summary-card sc-gray">
+      <div class="ico">📊</div>
+      <div><div class="label">全部筆數</div><div class="value">${allDeposits.length} 筆</div></div>
     </div>
   `;
 }
