@@ -494,51 +494,51 @@ router.get('/sales', requireAuth, (req, res) => {
       ORDER BY c.contracted_at DESC
     `).all(...params);
 
-    // ── 施工派案統計（以 dispatch scheduled_date 為準）──────────────
-    let dispatchWhere = `WHERE d.dispatch_type='install' AND date(d.scheduled_date) BETWEEN ? AND ?`;
-    const dispatchParams = [fromDate, toDate];
-    let prevDispatchWhere = `WHERE d.dispatch_type='install' AND date(d.scheduled_date) BETWEEN ? AND ?`;
-    const prevDispatchParams = [prevFrom, prevTo];
-    if (orgRestrict.org_id) {
-      dispatchWhere     += ' AND c.org_id=?'; dispatchParams.push(orgRestrict.org_id);
-      prevDispatchWhere += ' AND c.org_id=?'; prevDispatchParams.push(orgRestrict.org_id);
-    } else if (org_id) {
-      dispatchWhere     += ' AND c.org_id=?'; dispatchParams.push(Number(org_id));
-      prevDispatchWhere += ' AND c.org_id=?'; prevDispatchParams.push(Number(org_id));
-    }
+    // ── 施工派案統計（依施工日；跨多日案件按工作量攤分，與派單行事曆一致）──
+    // 每個 install 派工權重 = 指派人數（至少 1）；案件攤分 = 全額 × (期間內權重 / 全部權重)
+    const orgVal  = orgRestrict.org_id || (org_id ? Number(org_id) : null);
+    const orgCond = orgVal ? ' AND c.org_id = ?' : '';
+    const IDISP_CTE = `
+      WITH idisp AS (
+        SELECT d.id, d.case_id, d.scheduled_date,
+               MAX(1, (SELECT COUNT(DISTINCT du.user_id) FROM dispatch_users du WHERE du.dispatch_id = d.id)) AS w
+        FROM dispatches d WHERE d.dispatch_type = 'install'
+      )`;
 
-    const dispatchSummary = db.prepare(`
-      SELECT COUNT(*) as count, SUM(gross_value) as gross_value
+    const dispatchSummarySql = `
+      ${IDISP_CTE}
+      SELECT COUNT(*) AS count,
+             COALESCE(SUM(price * period_w * 1.0 / NULLIF(total_w, 0)), 0) AS gross_value
       FROM (
-        SELECT c.id, COALESCE(c.final_price, c.quoted_price, 0) as gross_value
-        FROM dispatches d JOIN cases c ON c.id = d.case_id
-        ${dispatchWhere} GROUP BY c.id
-      )
-    `).get(...dispatchParams);
+        SELECT c.id, COALESCE(c.final_price, c.quoted_price, 0) AS price,
+               SUM(idisp.w) AS total_w,
+               SUM(CASE WHEN date(idisp.scheduled_date) BETWEEN ? AND ? THEN idisp.w ELSE 0 END) AS period_w
+        FROM idisp JOIN cases c ON c.id = idisp.case_id
+        WHERE 1=1 ${orgCond}
+        GROUP BY c.id
+      ) WHERE period_w > 0`;
 
-    const prevDispatchSummary = db.prepare(`
-      SELECT COUNT(*) as count, SUM(gross_value) as gross_value
-      FROM (
-        SELECT c.id, COALESCE(c.final_price, c.quoted_price, 0) as gross_value
-        FROM dispatches d JOIN cases c ON c.id = d.case_id
-        ${prevDispatchWhere} GROUP BY c.id
-      )
-    `).get(...prevDispatchParams);
+    const dispatchSummary     = db.prepare(dispatchSummarySql).get(fromDate, toDate, ...(orgVal ? [orgVal] : []));
+    const prevDispatchSummary = db.prepare(dispatchSummarySql).get(prevFrom, prevTo, ...(orgVal ? [orgVal] : []));
 
     const dispatchCases = db.prepare(`
+      ${IDISP_CTE}
       SELECT c.id, c.case_number, c.title, c.case_type,
-             cl.name as client_name, s.name as sales_name,
-             COALESCE(c.final_price, c.quoted_price, 0) as value,
-             MIN(d.scheduled_date) as dispatch_date,
-             COUNT(d.id) as dispatch_count
-      FROM dispatches d
-      JOIN cases c ON c.id = d.case_id
+             cl.name AS client_name, s.name AS sales_name,
+             COALESCE(c.final_price, c.quoted_price, 0) AS full_value,
+             COALESCE(c.final_price, c.quoted_price, 0)
+               * SUM(CASE WHEN date(idisp.scheduled_date) BETWEEN ? AND ? THEN idisp.w ELSE 0 END) * 1.0
+               / NULLIF(SUM(idisp.w), 0) AS value,
+             MIN(CASE WHEN date(idisp.scheduled_date) BETWEEN ? AND ? THEN idisp.scheduled_date END) AS dispatch_date,
+             SUM(CASE WHEN date(idisp.scheduled_date) BETWEEN ? AND ? THEN 1 ELSE 0 END) AS dispatch_count
+      FROM idisp JOIN cases c ON c.id = idisp.case_id
       LEFT JOIN clients cl ON cl.id = c.client_id
       LEFT JOIN users s ON s.id = c.sales_id
-      ${dispatchWhere}
+      WHERE 1=1 ${orgCond}
       GROUP BY c.id
+      HAVING SUM(CASE WHEN date(idisp.scheduled_date) BETWEEN ? AND ? THEN idisp.w ELSE 0 END) > 0
       ORDER BY dispatch_date DESC
-    `).all(...dispatchParams);
+    `).all(fromDate, toDate, fromDate, toDate, fromDate, toDate, ...(orgVal ? [orgVal] : []), fromDate, toDate);
 
     res.json({ period, fromDate, toDate, summary, prevSummary, bySales, byType, bySource, byLevel, pipeline, cases, dispatchSummary, prevDispatchSummary, dispatchCases });
   } catch (err) {
