@@ -55,23 +55,29 @@
 .att-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--gray-500); margin-bottom:14px; }
 .att-legend span { display:inline-flex; align-items:center; gap:5px; }
 
-.att-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
-.att-card { display:flex; align-items:center; gap:12px; border:1px solid var(--gray-200); border-radius:10px; padding:12px 14px; }
-.att-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
+.att-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:10px; }
+.att-card { display:flex; align-items:center; gap:12px; border:1px solid var(--gray-200); border-left:7px solid var(--gray-300); border-radius:10px; padding:12px 14px; }
+.att-avatar { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; box-shadow:0 1px 2px rgba(0,0,0,.12); }
 .att-info { min-width:0; flex:1; }
-.att-name { font-size:14px; font-weight:600; color:var(--gray-800); display:flex; align-items:center; gap:6px; }
+.att-name { font-size:14px; font-weight:700; color:var(--gray-800); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.att-unit-tag { font-size:11px; font-weight:600; padding:1px 7px; border-radius:10px; }
 .att-badges { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
-.att-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; background:var(--gray-100); color:var(--gray-600); }
-.att-score { text-align:right; flex-shrink:0; }
-.att-score .num { font-size:20px; font-weight:800; line-height:1; }
-.att-score .max { font-size:11px; color:var(--gray-400); }
+.att-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; background:#fff; border:1px solid var(--gray-200); color:var(--gray-600); }
+.att-status { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; min-width:62px; }
+.att-light-big { width:26px; height:26px; border-radius:50%; }
+.att-status-label { font-size:12px; font-weight:700; }
+.att-status .sc { font-size:12px; color:var(--gray-500); font-weight:600; }
+.att-status .sc b { font-size:17px; }
 
-.light-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.light-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; display:inline-block; }
 .light-green  { background:#22c55e; }
 .light-yellow { background:#eab308; }
 .light-red    { background:#ef4444; }
 .light-black  { background:#1f2937; }
-.att-name .light-dot { width:14px; height:14px; box-shadow:0 0 0 3px rgba(0,0,0,.04); }
+.att-light-big.light-green  { box-shadow:0 0 0 4px #dcfce7; }
+.att-light-big.light-yellow { box-shadow:0 0 0 4px #fef9c3; }
+.att-light-big.light-red    { box-shadow:0 0 0 4px #fee2e2; }
+.att-light-big.light-black  { box-shadow:0 0 0 4px #e5e7eb; }
 </style>
 </head>
 <body>
@@ -323,27 +329,47 @@ async function loadAttendance() {
   renderAttendance(data.employees);
 }
 
+// 身份單位：圖示 + 底色（柔和色，刻意避開紅綠燈的綠/黃/紅/黑）
+const UNIT_STYLE = {
+  sales:     { color:'#8b5cf6', icon:'💼', label:'業務'   },
+  marketing: { color:'#ec4899', icon:'📣', label:'行銷'   },
+  tech:      { color:'#6366f1', icon:'🪛', label:'技術'   },
+  admin:     { color:'#b45309', icon:'👑', label:'總管理' },
+  other:     { color:'#6b7280', icon:'📋', label:'行政'   },
+};
+// 紅綠燈狀態：色 + 淡底色 + 文字
+const STATUS_STYLE = {
+  green:  { color:'#16a34a', bg:'#f0fdf4', label:'良好' },
+  yellow: { color:'#ca8a04', bg:'#fefce8', label:'注意' },
+  red:    { color:'#dc2626', bg:'#fef2f2', label:'警示' },
+  black:  { color:'#1f2937', bg:'#f3f4f6', label:'嚴重' },
+};
+
 function renderAttendance(emps) {
   const el = document.getElementById('attGrid');
   if (!emps || !emps.length) { el.innerHTML = '<div class="empty-msg">無在職員工資料</div>'; return; }
   el.innerHTML = emps.map(e => {
-    const color = avatarColor(e.name);
-    const initial = (e.name || '?')[0];
+    const u = UNIT_STYLE[e.unit]          || UNIT_STYLE.other;
+    const s = STATUS_STYLE[e.overall_light] || STATUS_STYLE.green;
     const lateTxt = e.late_count > 0 ? `遲到 ${e.late_count}次` : '全勤';
     const defTxt  = e.deficiency_count > 0 ? `缺失 ${e.deficiency_count}件` : '無缺失';
-    const scoreColor = e.total_score >= 8 ? '#16a34a' : e.total_score >= 5 ? '#eab308' : '#ef4444';
     return `
-      <div class="att-card">
-        <div class="att-avatar" style="background:${color}">${initial}</div>
+      <div class="att-card" style="border-left-color:${s.color};background:${s.bg}">
+        <div class="att-avatar" style="background:${u.color}" title="${u.label}">${u.icon}</div>
         <div class="att-info">
-          <div class="att-name"><i class="light-dot light-${e.overall_light}"></i>${esc(e.name)}</div>
+          <div class="att-name">${esc(e.name)}
+            <span class="att-unit-tag" style="background:${u.color}1a;color:${u.color}">${u.icon} ${u.label}</span>
+          </div>
           <div class="att-badges">
             <span class="att-badge"><i class="light-dot light-${e.late_light}"></i>⏰ ${lateTxt}</span>
             <span class="att-badge"><i class="light-dot light-${e.deficiency_light}"></i>⚠ ${defTxt}</span>
+            <span class="att-badge">🔑 登入 ${e.login_count}次</span>
           </div>
         </div>
-        <div class="att-score">
-          <span class="num" style="color:${scoreColor}">${e.total_score}</span><span class="max">/10</span>
+        <div class="att-status">
+          <div class="att-light-big light-${e.overall_light}"></div>
+          <div class="att-status-label" style="color:${s.color}">${s.label}</div>
+          <div class="sc"><b style="color:${s.color}">${e.total_score}</b>/10</div>
         </div>
       </div>`;
   }).join('');
