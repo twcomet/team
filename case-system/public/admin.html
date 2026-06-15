@@ -970,6 +970,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userOrgId').value = currentUser.org_id;
   // 新增人員：先依選取角色決定預設值
   applyRoleDefaults(document.getElementById('userRole').value);
+  lastRoleValue = document.getElementById('userRole').value;
   renderAllowedOrgs(parseInt(document.getElementById('userOrgId').value) || 0, []);
   document.getElementById('userModal').classList.add('open');
 });
@@ -1056,10 +1057,21 @@ function applyRoleDefaults(roleValue) {
   }
 }
 
+// 記住切換前的角色，編輯既有帳號時用來還原
+let lastRoleValue = '';
 // 選角色時自動帶入預設權限
 document.getElementById('userRole').addEventListener('change', function() {
+  // 編輯既有帳號：切換角色會覆蓋目前手動勾選的權限 → 先確認，避免權限被無聲重置
+  if (editingUserId) {
+    const ok = confirm('切換角色會套用「該角色的預設權限」，覆蓋你目前手動勾選的所有權限。\n\n確定要套用新角色的預設權限嗎？\n（若只是想保留現有權限、不重置，請按「取消」）');
+    if (!ok) {
+      this.value = lastRoleValue;   // 還原角色選擇，權限維持不變
+      return;
+    }
+  }
   applyRoleDefaults(this.value);
   renderAllowedOrgs(parseInt(document.getElementById('userOrgId').value) || 0, []);
+  lastRoleValue = this.value;
 });
 // 切換所屬組織時重繪可視店別
 document.getElementById('userOrgId').addEventListener('change', function() {
@@ -1097,6 +1109,7 @@ function openEditUser(id) {
   document.getElementById('userPassword').value = '';
   document.getElementById('pwdHint').style.display = 'inline';
   document.getElementById('userRole').value = u.role;
+  lastRoleValue = u.role;   // 記住目前角色，切換時用來還原
   document.getElementById('userOrgId').value = u.org_id;
   document.getElementById('userDept').value = u.department || '';
   document.getElementById('userIsManager').checked = !!u.is_manager;
