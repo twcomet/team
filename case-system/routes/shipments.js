@@ -3,11 +3,8 @@ const db      = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const router  = express.Router();
 
-function canShip(req, res, next) {
-  const u = req.session.user;
-  if (['owner', 'vp', 'hq_cs', 'hq_cs_manager'].includes(u.role) || u.can_ship) return next();
-  res.status(403).json({ error: '無寄件管理權限' });
-}
+// 寄件管理全員開放：所有登入者皆可使用
+function canShip(req, res, next) { return next(); }
 
 // GET / — 列出所有寄件紀錄
 router.get('/', requireAuth, canShip, (req, res) => {
