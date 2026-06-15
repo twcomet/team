@@ -401,6 +401,16 @@ function renderEditTab(c) {
   `;
 }
 
+function toggleAssignAll(on) {
+  document.querySelectorAll('.people-chip:not(.already-signed) input[type=checkbox]').forEach(cb => {
+    cb.checked = on;
+    const uid = Number(cb.value);
+    if (on) checkedUsers.add(uid); else checkedUsers.delete(uid);
+    cb.closest('.people-chip').classList.toggle('checked', on);
+  });
+  updateAssignBtn();
+}
+
 function renderAssignTab(c, assignments) {
   const assignedIds = new Set(assignments.map(a => a.user_id));
   const signedIds   = new Set(assignments.filter(a => a.signed_at).map(a => a.user_id));
@@ -435,7 +445,9 @@ function renderAssignTab(c, assignments) {
     <div class="assign-section">
       <div class="assign-title">依職位篩選</div>
       <div class="role-select-row">${roleChips}</div>
-      <div class="assign-title">選擇人員（劃線者已完成簽署）</div>
+      <div class="assign-title" style="display:flex;justify-content:space-between;align-items:center">選擇人員（劃線者已完成簽署）
+        <label style="font-size:12px;font-weight:400;cursor:pointer;color:var(--primary)"><input type="checkbox" id="assignSelectAll" onchange="toggleAssignAll(this.checked)" style="margin-right:4px;vertical-align:middle">全選</label>
+      </div>
       <div class="people-list">${peopleHtml || '<div style="color:var(--gray-400);font-size:13px;padding:8px">此職位無成員</div>'}</div>
       <div class="assign-actions">
         <button class="btn btn-primary btn-sm" id="assignSendBtn" onclick="doAssignAndNotify()">指派並發送通知</button>
