@@ -207,6 +207,7 @@
       <div class="tabs">
         <div class="tab active" data-tab="basic" data-groups="inquiry,survey,deal">基本資訊</div>
         <div class="tab" data-tab="estimate" data-groups="inquiry,survey,deal">初步估價紀錄</div>
+        <div class="tab" data-tab="care" data-groups="inquiry,survey,deal">客服關懷紀錄</div>
         <div class="tab" data-tab="survey" data-groups="survey,deal">場勘</div>
         <div class="tab" data-tab="quote" data-groups="survey,deal">正式報價單</div>
         <div class="tab" data-tab="documents" data-groups="inquiry,survey,deal">往來文件</div>
@@ -437,6 +438,41 @@
           </div>
         </div>
         <button class="btn btn-primary" id="saveEstimateBtn">儲存初步估價紀錄</button>
+      </div>
+
+      <!-- 客服關懷紀錄 -->
+      <div class="tab-pane" id="tab-care">
+        <div class="sf-tab-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
+            <div style="font-size:14px;font-weight:600;color:var(--gray-700)">📞 客服關懷紀錄</div>
+            <button class="btn btn-primary btn-sm" onclick="openCareForm()">＋ 新增關懷紀錄</button>
+          </div>
+          <div id="careForm" style="display:none;background:#f9fafb;border:1px solid var(--gray-200);border-radius:10px;padding:16px;margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;color:var(--gray-500);display:block;margin-bottom:4px">客服人員</label>
+                <select id="care_user" style="width:100%;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"></select>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--gray-500);display:block;margin-bottom:4px">處理事項</label>
+                <select id="care_action" style="width:100%;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+                  <option value="message">訊息</option>
+                  <option value="call">電聯</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <label style="font-size:12px;color:var(--gray-500);display:block;margin-bottom:4px">備註 Memo</label>
+              <textarea id="care_memo" rows="3" placeholder="例如：已電聯客戶，確認要轉場勘" style="width:100%;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-ghost btn-sm" onclick="closeCareForm()">取消</button>
+              <button class="btn btn-primary btn-sm" id="careSaveBtn" onclick="submitCareLog()">儲存紀錄</button>
+            </div>
+          </div>
+          <div id="careList"></div>
+        </div>
       </div>
 
       <!-- 正式報價單 v2 -->
@@ -1546,6 +1582,7 @@ async function init() {
       if (t.dataset.tab === 'estimate')   loadQuickEstimates();
       if (t.dataset.tab === 'documents')  loadCaseDocuments();
       if (t.dataset.tab === 'deficiency') loadCaseDeficiencies();
+      if (t.dataset.tab === 'care')       loadCareTab();
     });
   });
 
@@ -1848,6 +1885,68 @@ function applyGroupTabs(group) {
     const pane = document.getElementById('tab-' + firstVisible.dataset.tab);
     if (pane) pane.classList.add('active');
   }
+}
+
+// ── 客服關懷紀錄 ──────────────────────────────────────────────
+const CARE_ACTION_LABEL = { message:'💬 訊息', call:'📞 電聯', other:'📝 其他' };
+
+function careTime(s) {
+  if (!s) return '';
+  const d = new Date(s.replace(' ', 'T') + 'Z');
+  return isNaN(d) ? s : d.toLocaleString('zh-TW', { timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+function openCareForm() {
+  const sel = document.getElementById('care_user');
+  sel.innerHTML = (allUsers || []).filter(u => u.active !== 0)
+    .map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  sel.value = currentUser?.id || '';
+  document.getElementById('care_action').value = 'message';
+  document.getElementById('care_memo').value = '';
+  document.getElementById('careForm').style.display = 'block';
+}
+function closeCareForm() { document.getElementById('careForm').style.display = 'none'; }
+
+async function loadCareTab() {
+  const el = document.getElementById('careList');
+  const r = await fetch(`/api/cases/${caseId}/care-logs`);
+  if (!r.ok) { el.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:24px">載入失敗</div>'; return; }
+  const logs = await r.json();
+  if (!logs.length) { el.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:32px">尚無關懷紀錄，點右上角「新增關懷紀錄」開始記錄</div>'; return; }
+  const canDel = currentUser?.role === 'owner' || currentUser?.manage_users || currentUser?.is_manager;
+  el.innerHTML = logs.map(l => `
+    <div style="display:flex;gap:12px;padding:12px 2px;border-bottom:1px solid var(--gray-100)">
+      <div style="font-size:12px;flex-shrink:0;width:140px;color:var(--gray-400)">${careTime(l.created_at)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-700)">${CARE_ACTION_LABEL[l.action] || esc(l.action || '')} · ${esc(l.cs_name || '—')}</div>
+        ${l.memo ? `<div style="font-size:13px;color:var(--gray-600);margin-top:3px;white-space:pre-wrap">${esc(l.memo)}</div>` : ''}
+      </div>
+      ${canDel ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626;flex-shrink:0;padding:2px 8px;font-size:11px" onclick="deleteCareLog(${l.id})">刪除</button>` : ''}
+    </div>`).join('');
+}
+
+async function submitCareLog() {
+  const cs_user_id = document.getElementById('care_user').value || null;
+  const action = document.getElementById('care_action').value;
+  const memo = document.getElementById('care_memo').value.trim();
+  const btn = document.getElementById('careSaveBtn');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  const r = await fetch(`/api/cases/${caseId}/care-logs`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cs_user_id, action, memo }),
+  });
+  btn.disabled = false; btn.textContent = '儲存紀錄';
+  if (!r.ok) { const d = await r.json().catch(()=>({})); showToast(d.error || '儲存失敗', 'error'); return; }
+  showToast('已新增關懷紀錄');
+  closeCareForm();
+  loadCareTab();
+}
+
+async function deleteCareLog(id) {
+  if (!confirm('確定刪除這筆關懷紀錄？')) return;
+  const r = await fetch(`/api/cases/${caseId}/care-logs/${id}`, { method:'DELETE' });
+  if (r.ok) { showToast('已刪除'); loadCareTab(); }
+  else { const d = await r.json().catch(()=>({})); showToast(d.error || '刪除失敗', 'error'); }
 }
 
 function applyConvertButtons(group) {

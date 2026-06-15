@@ -1103,4 +1103,37 @@ router.delete('/:id/documents/:docId', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 客服關懷紀錄 ──────────────────────────────────────────────
+router.get('/:id/care-logs', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT cl.id, cl.cs_user_id, cl.action, cl.memo, cl.created_at,
+           u.name AS cs_name, cb.name AS created_by_name
+    FROM case_care_logs cl
+    LEFT JOIN users u  ON u.id  = cl.cs_user_id
+    LEFT JOIN users cb ON cb.id = cl.created_by
+    WHERE cl.case_id = ?
+    ORDER BY cl.created_at DESC
+  `).all(req.params.id);
+  res.json(rows);
+});
+
+router.post('/:id/care-logs', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { cs_user_id, action, memo } = req.body;
+  if (!memo?.trim() && !action) return res.status(400).json({ error: '請至少填寫處理事項或備註' });
+  const r = db.prepare(`INSERT INTO case_care_logs (case_id, cs_user_id, action, memo, created_by) VALUES (?,?,?,?,?)`)
+    .run(req.params.id, cs_user_id || me.id, action || 'other', memo?.trim() || null, me.id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'care_log', 'cases', req.params.id, `客服關懷：${action || ''}`);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+router.delete('/:id/care-logs/:logId', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const isMgr = me.role === 'owner' || !!me.manage_users || !!me.is_manager;
+  if (!isMgr) return res.status(403).json({ error: '僅管理者可刪除紀錄' });
+  db.prepare(`DELETE FROM case_care_logs WHERE id=? AND case_id=?`).run(req.params.logId, req.params.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

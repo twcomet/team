@@ -2007,6 +2007,19 @@ db.exec(`
   );
 `);
 
+// ── 客服關懷紀錄（每個案件可多筆，保留完整歷史）──────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS case_care_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id     INTEGER NOT NULL REFERENCES cases(id),
+    cs_user_id  INTEGER REFERENCES users(id),   -- 哪位客服人員處理
+    action      TEXT,                            -- 處理事項：message(訊息)/call(電聯)/other
+    memo        TEXT,                            -- 備註 Memo
+    created_by  INTEGER REFERENCES users(id),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // ── 費用申請系統 ──────────────────────────────────────────────
 db.prepare(`
   CREATE TABLE IF NOT EXISTS expense_categories (
