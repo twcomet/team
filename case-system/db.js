@@ -2930,6 +2930,21 @@ db.exec(`
     UNIQUE(deficiency_id, user_id)
   )
 `);
+// 嘉獎缺失：類別(reward/penalty)、等級、考核分數（須在 CREATE TABLE 之後）
+_addCol('deficiencies', 'category', "TEXT DEFAULT 'penalty'");  // reward | penalty
+_addCol('deficiencies', 'level',    'TEXT DEFAULT NULL');        // 嘉獎/小功/大功 ‧ 警告/申誡/小過/大過
+_addCol('deficiencies', 'points',   'REAL DEFAULT 0');           // 考核分數
+// 嘉獎/懲罰原因（可手動新增，依類別）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rp_reasons (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    category   TEXT NOT NULL,   -- reward | penalty
+    label      TEXT NOT NULL,
+    org_id     INTEGER REFERENCES orgs(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(category, label)
+  );
+`);
 
 // 追款提醒日
 _addCol('cases', 'followup_date', 'DATE DEFAULT NULL');

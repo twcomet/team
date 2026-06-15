@@ -90,6 +90,14 @@ router.get('/my-pending', requireAuth, (req, res) => {
 });
 
 // GET /:id
+// GET /reasons?category=reward|penalty — 事由清單（手動新增過的）；須在 /:id 之前
+router.get('/reasons', requireAuth, (req, res) => {
+  const cat = req.query.category === 'reward' ? 'reward' : 'penalty';
+  const rows = db.prepare(`SELECT label FROM rp_reasons WHERE category=? AND org_id=? ORDER BY label`)
+    .all(cat, req.session.user.org_id).map(r => r.label);
+  res.json(rows);
+});
+
 router.get('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   const row = db.prepare(`
@@ -109,21 +117,28 @@ router.get('/:id', requireAuth, (req, res) => {
 // POST / — 新增缺失
 router.post('/', requireAuth, requireManager, (req, res) => {
   const { org_id, id: uid } = req.session.user;
-  const { case_id, type, title, description, damage_amount, person_ids } = req.body;
-  if (!title?.trim()) return res.status(400).json({ error: '請填寫缺失標題' });
+  const { case_id, type, title, description, damage_amount, person_ids,
+          category, level, points } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: '請填寫事由' });
   if (!person_ids?.length) return res.status(400).json({ error: '請選擇至少一位相關人員' });
+  const cat = category === 'reward' ? 'reward' : 'penalty';
 
   const r = db.prepare(`
-    INSERT INTO deficiencies (case_id, type, title, description, damage_amount, org_id, created_by)
-    VALUES (?,?,?,?,?,?,?)
+    INSERT INTO deficiencies (case_id, type, title, description, damage_amount, org_id, created_by, category, level, points)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
   `).run(case_id||null, type||'other', title.trim(), description||null,
-         damage_amount||null, org_id, uid);
+         damage_amount||null, org_id, uid, cat, level||null, Number(points)||0);
 
   const defId = r.lastInsertRowid;
+
+  // 自動記住事由（供下次下拉選用）
+  try { db.prepare(`INSERT OR IGNORE INTO rp_reasons (category, label, org_id) VALUES (?,?,?)`).run(cat, title.trim(), org_id); } catch(_) {}
 
   // 建立人員記錄 + 送站內通知
   const caseInfo = case_id ? db.prepare(`SELECT case_number, title FROM cases WHERE id=?`).get(case_id) : null;
   const caseLabel = caseInfo ? `【${caseInfo.case_number}】` : '';
+  const isReward = cat === 'reward';
+  const notifTitle = `${isReward ? '🏅 嘉獎通知' : '⚠️ 缺失通知'}${level ? `（${level}）` : ''}：${title.trim()}`;
 
   for (const userId of person_ids) {
     try {
@@ -131,15 +146,15 @@ router.post('/', requireAuth, requireManager, (req, res) => {
       db.prepare(`
         INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url)
         VALUES (?, ?, ?, 'deficiency', 'deficiencies', ?, '/deficiencies')
-      `).run(userId,
-             `⚠️ 缺失通知：${title.trim()}`,
-             `${caseLabel}${description || '請至缺失管理頁面查看詳情並確認閱讀。'}`,
+      `).run(userId, notifTitle,
+             `${caseLabel}${description || '請至嘉獎缺失管理頁面查看詳情並確認閱讀。'}`,
              defId);
     } catch(e) { /* 忽略重複插入 */ }
   }
 
   res.json({ ok: true, id: defId });
 });
+
 
 // PUT /:id — 編輯
 router.put('/:id', requireAuth, requireManager, (req, res) => {

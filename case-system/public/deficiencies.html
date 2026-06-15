@@ -36,6 +36,11 @@
 .view-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 
 .damage-badge { display:inline-block; font-size:12px; font-weight:600; color:#991b1b; background:#fee2e2; padding:2px 8px; border-radius:6px; }
+.cat-btn { flex:1; padding:10px; border:1.5px solid var(--gray-300); background:#fff; border-radius:8px; font-size:14px; font-weight:600; color:var(--gray-600); cursor:pointer; transition:all .15s; }
+.cat-btn.active { border-color:var(--primary); background:#eff6ff; color:var(--primary); }
+.rp-badge { display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:6px; }
+.rp-reward  { background:#dcfce7; color:#166534; }
+.rp-penalty { background:#fef3c7; color:#92400e; }
 </style>
 </head>
 <body>
@@ -95,7 +100,7 @@
   <div class="main-content">
     <div class="top-bar">
       <span class="page-title">嘉獎缺失管理</span>
-      <button class="btn btn-primary" id="newBtn" style="display:none">＋ 新增缺失</button>
+      <button class="btn btn-primary" id="newBtn" style="display:none">＋ 新增嘉獎／缺失</button>
     </div>
     <div class="page-body">
 
@@ -136,25 +141,47 @@
     </div>
     <div class="modal-body">
 
+      <div class="form-group">
+        <label>類別 *</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="cat-btn active" id="catPenalty" onclick="setCategory('penalty')">⚠️ 懲罰／缺失</button>
+          <button type="button" class="cat-btn" id="catReward" onclick="setCategory('reward')">🏅 獎勵／嘉獎</button>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
-          <label>缺失類型 *</label>
-          <select id="f_type">
-            <option value="missing_material">材料未攜帶</option>
-            <option value="lost_tool">工具遺失</option>
-            <option value="construction_damage">施工損壞</option>
-            <option value="other">其他</option>
-          </select>
+          <label>等級 *</label>
+          <select id="f_level" onchange="onLevelChange()"></select>
         </div>
         <div class="form-group">
-          <label>損害金額（選填）</label>
-          <input type="number" id="f_damage" min="0" step="1" placeholder="例：500">
+          <label>考核分數 <span style="font-size:11px;color:var(--gray-400)">（依等級自動帶，可改）</span></label>
+          <input type="number" id="f_points" step="1" placeholder="0">
+        </div>
+      </div>
+
+      <div id="penaltyFields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>缺失類型 *</label>
+            <select id="f_type">
+              <option value="missing_material">材料未攜帶</option>
+              <option value="lost_tool">工具遺失</option>
+              <option value="construction_damage">施工損壞</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>損害金額（選填）</label>
+            <input type="number" id="f_damage" min="0" step="1" placeholder="例：500">
+          </div>
         </div>
       </div>
 
       <div class="form-group">
-        <label>缺失標題 *</label>
-        <input type="text" id="f_title" placeholder="例：安裝人員未帶壓克力刮刀">
+        <label>事由 *</label>
+        <input type="text" id="f_title" list="reasonList" placeholder="輸入事由，或選曾用過的（可手動新增）">
+        <datalist id="reasonList"></datalist>
       </div>
 
       <div class="form-group">
@@ -207,6 +234,38 @@
 <script src="/js/common.js"></script>
 <script>
 const TYPE_LABELS   = { missing_material:'材料未攜帶', lost_tool:'工具遺失', construction_damage:'施工損壞', other:'其他' };
+
+// 嘉獎缺失：類別 → 等級與考核分數（依工作規則）
+const RP_LEVELS = {
+  reward:  [['嘉獎',1],['小功',2],['大功',4]],
+  penalty: [['警告',0],['申誡',-1],['小過',-2],['大過',-4]],
+};
+let curCategory = 'penalty';
+function setCategory(cat) {
+  curCategory = (cat === 'reward') ? 'reward' : 'penalty';
+  document.getElementById('catPenalty').classList.toggle('active', curCategory === 'penalty');
+  document.getElementById('catReward').classList.toggle('active', curCategory === 'reward');
+  document.getElementById('penaltyFields').style.display = curCategory === 'penalty' ? 'block' : 'none';
+  document.getElementById('f_level').innerHTML = RP_LEVELS[curCategory]
+    .map(([l, p]) => `<option value="${l}" data-pts="${p}">${l}（${p >= 0 ? '+' : ''}${p} 分）</option>`).join('');
+  onLevelChange();
+  loadReasons(curCategory);
+  const t = document.getElementById('defModalTitle');
+  if (t && !editId) t.textContent = curCategory === 'reward' ? '新增嘉獎記錄' : '新增缺失記錄';
+}
+function onLevelChange() {
+  const opt = document.getElementById('f_level').selectedOptions[0];
+  document.getElementById('f_points').value = opt ? opt.dataset.pts : 0;
+}
+async function loadReasons(cat) {
+  try {
+    const r = await fetch(`/api/deficiencies/reasons?category=${cat}`);
+    if (r.ok) {
+      const rs = await r.json();
+      document.getElementById('reasonList').innerHTML = rs.map(x => `<option value="${esc(x)}">`).join('');
+    }
+  } catch(_) {}
+}
 const DEF_STATUS_LABELS = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
 let allDeficiencies = [], allUsers = [];
 let editId  = null, curView = 'mine', curYear = String(new Date().getFullYear());
@@ -297,7 +356,7 @@ function defCard(d, showActions) {
   <div class="def-card" id="dc-${d.id}">
     <div class="def-card-header" onclick="toggleCard(${d.id})">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1">
-        <span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>
+        ${d.level ? `<span class="rp-badge rp-${d.category||'penalty'}">${d.category==='reward'?'🏅':'⚠️'} ${esc(d.level)} ${d.points>=0?'+':''}${d.points}分</span>` : ''}${(d.category!=='reward') ? `<span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>` : ''}
         <span style="font-weight:600">${esc(d.title)}</span>
         ${d.damage_amount ? `<span class="damage-badge">損失 $${Number(d.damage_amount).toLocaleString()}</span>` : ''}
         <span class="status-pill status-${d.status}">${DEF_STATUS_LABELS[d.status]||d.status}</span>
@@ -332,7 +391,7 @@ function defCardMine(d) {
   <div class="def-card" id="mine-${d.id}">
     <div class="def-card-header" onclick="toggleCard('mine-${d.id}', true)">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1">
-        <span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>
+        ${d.level ? `<span class="rp-badge rp-${d.category||'penalty'}">${d.category==='reward'?'🏅':'⚠️'} ${esc(d.level)} ${d.points>=0?'+':''}${d.points}分</span>` : ''}${(d.category!=='reward') ? `<span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>` : ''}
         <span style="font-weight:600">${esc(d.title)}</span>
         ${d.damage_amount ? `<span class="damage-badge">損失 $${Number(d.damage_amount).toLocaleString()}</span>` : ''}
         ${d.case_number ? `<a href="/case-detail?id=${d.case_id}" onclick="event.stopPropagation()" style="font-size:12px;color:var(--primary)">${esc(d.case_number)}</a>` : ''}
@@ -414,6 +473,7 @@ function openNew() {
   document.getElementById('f_case_id').value = '';
   document.getElementById('f_case_selected').textContent = '';
   document.getElementById('f_case_results').style.display = 'none';
+  setCategory('penalty');   // 預設懲罰、帶出等級與分數、載入事由
   renderPersonList();
   document.getElementById('defModal').classList.add('open');
 }
@@ -457,11 +517,14 @@ function togglePerson(uid, checked) {
 async function save() {
   const title  = document.getElementById('f_title').value.trim();
   const damage = document.getElementById('f_damage').value;
-  if (!title) { showToast('請填寫缺失標題','error'); return; }
+  if (!title) { showToast('請填寫事由','error'); return; }
   if (!editId && !selectedPersonIds.size) { showToast('請選擇相關人員','error'); return; }
 
   const body = {
-    type:          document.getElementById('f_type').value,
+    category:      curCategory,
+    level:         document.getElementById('f_level').value || null,
+    points:        parseFloat(document.getElementById('f_points').value) || 0,
+    type:          curCategory === 'penalty' ? document.getElementById('f_type').value : 'other',
     title,
     description:   document.getElementById('f_description').value.trim() || null,
     damage_amount: damage ? parseFloat(damage) : null,
