@@ -109,10 +109,7 @@ db.exec(`
     outsource_type  TEXT CHECK(outsource_type IN ('full','survey_only','install_only')),
 
     -- 狀態
-    status          TEXT DEFAULT 'inquiry'
-                    CHECK(status IN ('inquiry','quoted','survey_scheduled',
-                                     'surveyed','confirmed','scheduled',
-                                     'in_progress','completed','aftersales','closed')),
+    status          TEXT DEFAULT 'inquiry',  -- 不設 CHECK：狀態值由應用層管理（與遷移後 schema 一致，避免全新 DB 誤觸發 cases 表重建）
     priority        TEXT DEFAULT 'normal'
                     CHECK(priority IN ('low','normal','high','urgent')),
     notes           TEXT,
