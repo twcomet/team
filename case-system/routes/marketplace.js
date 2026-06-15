@@ -12,7 +12,9 @@ function canManagePool(user) {
   return !!user.manage_users || p.page_dispatch_pool === true;
 }
 
-const UPLOAD_DIR = path.join(__dirname, '../public/uploads/completion');
+// 施工完成照片放永久磁碟（與資料庫同 volume），避免重新部署被清掉；用 /uploads 靜態路由提供
+const DATA_DIR   = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(__dirname, '..');
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads', 'completion');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const uploadStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),

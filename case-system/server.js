@@ -33,6 +33,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// 上傳檔（如施工完成照片）存在永久磁碟，從這裡提供，避免部署被清掉
+app.use('/uploads', express.static(path.join(dataDir, 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
