@@ -1981,6 +1981,32 @@ db.exec(`
 `);
 _addCol('contract_signatures', 'signature', 'TEXT');
 
+// ── 公司公告（簽核引擎：發佈→指定→閱讀/簽名→簽收追蹤）──────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS announcements (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    title             TEXT NOT NULL,
+    content           TEXT,
+    require_signature INTEGER DEFAULT 0,   -- 1=需手寫簽名, 0=只需已讀
+    force_on_login    INTEGER DEFAULT 0,   -- 1=必讀/必簽, 登入強制（保留，後續啟用）
+    audience_type     TEXT DEFAULT 'all',  -- all | users
+    active            INTEGER DEFAULT 1,
+    org_id            INTEGER REFERENCES orgs(id),
+    created_by        INTEGER REFERENCES users(id),
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS announcement_recipients (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id   INTEGER NOT NULL REFERENCES announcements(id),
+    user_id           INTEGER NOT NULL REFERENCES users(id),
+    read_at           DATETIME,
+    signed_at         DATETIME,
+    signature         TEXT,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(announcement_id, user_id)
+  );
+`);
+
 // ── 費用申請系統 ──────────────────────────────────────────────
 db.prepare(`
   CREATE TABLE IF NOT EXISTS expense_categories (
