@@ -3,8 +3,12 @@ const db      = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const router  = express.Router();
 
-// 寄件管理全員開放：所有登入者皆可使用
-function canShip(req, res, next) { return next(); }
+// 寄件管理權限：HQ 角色或勾選 can_ship 者可用（外包/特約施工廠商看不到）
+function canShip(req, res, next) {
+  const u = req.session.user;
+  if (['owner', 'vp', 'hq_cs', 'hq_cs_manager'].includes(u.role) || u.can_ship) return next();
+  res.status(403).json({ error: '無寄件管理權限' });
+}
 
 // GET / — 列出所有寄件紀錄
 router.get('/', requireAuth, canShip, (req, res) => {
