@@ -263,7 +263,7 @@ const STATUS_NAMES = {
   draft: '草稿', submitted: '待店長審核', mgr_approved: '待老闆審核',
   owner_approved: '待付款', settled: '已付款', rejected: '已退回'
 };
-let currentUser = null, categories = [], dealCases = [];
+let categories = [], dealCases = [];  // currentUser 由 common.js 全域提供
 let currentTab = 'my';
 let pendingSettleIds = [];
 

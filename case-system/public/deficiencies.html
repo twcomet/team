@@ -207,7 +207,7 @@
 <script src="/js/common.js"></script>
 <script>
 const TYPE_LABELS   = { missing_material:'材料未攜帶', lost_tool:'工具遺失', construction_damage:'施工損壞', other:'其他' };
-const STATUS_LABELS = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
+const DEF_STATUS_LABELS = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
 let allDeficiencies = [], allUsers = [];
 let editId  = null, curView = 'mine', curYear = String(new Date().getFullYear());
 let improveDefId = null, improvePid = null;
@@ -300,7 +300,7 @@ function defCard(d, showActions) {
         <span class="def-type-pill type-${d.type}">${TYPE_LABELS[d.type]||d.type}</span>
         <span style="font-weight:600">${esc(d.title)}</span>
         ${d.damage_amount ? `<span class="damage-badge">損失 $${Number(d.damage_amount).toLocaleString()}</span>` : ''}
-        <span class="status-pill status-${d.status}">${STATUS_LABELS[d.status]||d.status}</span>
+        <span class="status-pill status-${d.status}">${DEF_STATUS_LABELS[d.status]||d.status}</span>
         ${d.case_number ? `<a href="/case-detail?id=${d.case_id}" onclick="event.stopPropagation()" style="font-size:12px;color:var(--primary)">${esc(d.case_number)}</a>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:12px;color:var(--gray-500)">

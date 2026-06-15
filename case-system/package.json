@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "smoke": "node scripts/smoke.js"
+    "check-pages": "node scripts/check-pages.js",
+    "smoke": "node scripts/check-pages.js && node scripts/smoke.js"
   },
   "engines": {
     "node": ">=22.0.0"
