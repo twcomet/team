@@ -2020,6 +2020,18 @@ db.exec(`
   );
 `);
 
+// ── 自訂處理狀態標籤（內建 4 個寫死，這裡只存客服自訂的）────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS case_intent_tags (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    label       TEXT NOT NULL UNIQUE,
+    sort_order  INTEGER DEFAULT 0,
+    active      INTEGER DEFAULT 1,
+    created_by  INTEGER REFERENCES users(id),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // ── 費用申請系統 ──────────────────────────────────────────────
 db.prepare(`
   CREATE TABLE IF NOT EXISTS expense_categories (

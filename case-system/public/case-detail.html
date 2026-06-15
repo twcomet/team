@@ -262,7 +262,10 @@
                 <option value="urgent">緊急</option><option value="low">低優先</option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom:0"><label>處理狀態</label>
+            <div class="form-group" style="margin-bottom:0">
+              <label style="display:flex;justify-content:space-between;align-items:center">處理狀態
+                <a href="#" onclick="openIntentTagModal();return false" style="font-size:11px;color:var(--primary);text-decoration:none;font-weight:400">⚙ 管理標籤</a>
+              </label>
               <select id="b_deal_intent">
                 <option value="">未設定</option>
                 <option value="called">客服打過電話</option>
@@ -1818,6 +1821,7 @@ async function loadCase() {
   renderHeader();
   renderPipeline();
   fillBasicForm();
+  loadIntentTags();
   renderItems(caseData.items);
   renderDispatches(caseData.dispatches);
   renderMatUsage(caseData.matUsage || [], caseData.matLogs || []);
@@ -1885,6 +1889,56 @@ function applyGroupTabs(group) {
     const pane = document.getElementById('tab-' + firstVisible.dataset.tab);
     if (pane) pane.classList.add('active');
   }
+}
+
+// ── 處理狀態自訂標籤 ──────────────────────────────────────────
+let _intentTags = { builtin: [], custom: [] };
+async function loadIntentTags() {
+  try { const r = await fetch('/api/intent-tags'); if (r.ok) _intentTags = await r.json(); } catch(_) {}
+  const sel = document.getElementById('b_deal_intent');
+  if (!sel) return;
+  const cur = caseData?.deal_intent || '';
+  while (sel.options.length > 5) sel.remove(5);   // 保留：未設定 + 4 內建
+  (_intentTags.custom || []).forEach(t => {
+    const o = document.createElement('option'); o.value = t.label; o.textContent = t.label; sel.appendChild(o);
+  });
+  // 目前值若是已被刪除的自訂標籤，補一個臨時 option 以正確顯示
+  if (cur && ![...sel.options].some(o => o.value === cur)) {
+    const o = document.createElement('option'); o.value = cur; o.textContent = cur; sel.appendChild(o);
+  }
+  sel.value = cur;
+}
+async function openIntentTagModal() {
+  await loadIntentTags();
+  renderIntentTagModal();
+  document.getElementById('intentTagModal').classList.add('open');
+}
+function closeIntentTagModal() { document.getElementById('intentTagModal').classList.remove('open'); }
+function renderIntentTagModal() {
+  const canDel = currentUser?.role === 'owner' || currentUser?.manage_users || currentUser?.is_manager;
+  const builtinHtml = (_intentTags.builtin || []).map(b =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;color:var(--gray-400);font-size:13px"><span>${esc(b.label)}</span><span style="font-size:11px">內建</span></div>`).join('');
+  const customHtml = (_intentTags.custom || []).map(t =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px"><span>${esc(t.label)}</span>${canDel ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626;padding:2px 8px;font-size:11px" onclick="deleteIntentTag(${t.id})">刪除</button>` : ''}</div>`).join('')
+    || '<div style="color:#9ca3af;font-size:12px;padding:7px 0">尚無自訂標籤</div>';
+  document.getElementById('intentTagList').innerHTML = builtinHtml + '<hr style="border:none;border-top:1px solid var(--gray-100);margin:6px 0">' + customHtml;
+}
+async function addIntentTag() {
+  const inp = document.getElementById('newIntentTag');
+  const label = inp.value.trim();
+  if (!label) return;
+  const r = await fetch('/api/intent-tags', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ label }) });
+  if (!r.ok) { const d = await r.json().catch(()=>({})); showToast(d.error || '新增失敗', 'error'); return; }
+  inp.value = '';
+  await loadIntentTags(); renderIntentTagModal();
+  showToast('已新增標籤');
+}
+async function deleteIntentTag(id) {
+  if (!confirm('刪除此標籤？（已使用此標籤的案件不受影響）')) return;
+  const r = await fetch(`/api/intent-tags/${id}`, { method:'DELETE' });
+  if (!r.ok) { const d = await r.json().catch(()=>({})); showToast(d.error || '刪除失敗', 'error'); return; }
+  await loadIntentTags(); renderIntentTagModal();
+  showToast('已刪除');
 }
 
 // ── 客服關懷紀錄 ──────────────────────────────────────────────
@@ -5288,6 +5342,25 @@ init().catch(err => {
 </div>
 
 <!-- 無效案件 Modal（案件詳情頁用）-->
+<div class="modal-overlay" id="intentTagModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>管理處理狀態標籤</h3></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input type="text" id="newIntentTag" placeholder="輸入新標籤名稱" maxlength="20"
+          onkeydown="if(event.key==='Enter')addIntentTag()"
+          style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box">
+        <button class="btn btn-primary btn-sm" onclick="addIntentTag()">＋ 新增</button>
+      </div>
+      <div id="intentTagList" style="max-height:300px;overflow-y:auto"></div>
+      <p style="font-size:11px;color:#9ca3af;margin:12px 0 0">內建標籤不可刪除；刪除自訂標籤不影響已使用該標籤的案件。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeIntentTagModal()">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="detailInvalidModal">
   <div class="modal" style="max-width:480px">
     <div class="modal-header"><h3>標記無效</h3></div>

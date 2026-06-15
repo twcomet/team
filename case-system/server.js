@@ -49,6 +49,7 @@ app.use('/api/orgs',   require('./routes/orgs'));
 app.use('/api/users',  require('./routes/users'));
 app.use('/api/clients',require('./routes/clients'));
 app.use('/api/cases',  require('./routes/cases'));
+app.use('/api/intent-tags', require('./routes/intent-tags'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));

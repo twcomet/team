@@ -515,8 +515,10 @@ router.patch('/:id/priority', requireAuth, (req, res) => {
 
 router.patch('/:id/intent', requireAuth, (req, res) => {
   const { deal_intent } = req.body;
-  const allowed = ['', 'called', 'incomplete', 'waiting_quote', 'need_survey'];
-  if (!allowed.includes(deal_intent ?? ''))
+  const v = deal_intent ?? '';
+  const builtin = ['', 'called', 'incomplete', 'waiting_quote', 'need_survey'];
+  const isCustomTag = v && db.prepare(`SELECT 1 FROM case_intent_tags WHERE label=? AND active=1`).get(v);
+  if (!builtin.includes(v) && !isCustomTag)
     return res.status(400).json({ error: '無效的處理狀態' });
   db.prepare(`UPDATE cases SET deal_intent=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(deal_intent || null, req.params.id);
