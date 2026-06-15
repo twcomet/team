@@ -44,6 +44,34 @@
 .day-bar { display:inline-block; height:8px; border-radius:4px; background:var(--primary); opacity:.7; min-width:2px; }
 
 .empty-msg { text-align:center; padding:60px 20px; color:var(--gray-400); }
+
+/* 出缺勤紅綠燈 */
+.att-section { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:18px 20px; margin-bottom:24px; }
+.att-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.att-title { font-size:16px; font-weight:700; color:var(--gray-800); }
+.att-month-wrap { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.att-month-wrap label { font-size:13px; color:var(--gray-500); }
+.att-month-wrap input { font-size:13px; padding:5px 8px; border:1px solid var(--gray-300); border-radius:8px; }
+.att-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--gray-500); margin-bottom:14px; }
+.att-legend span { display:inline-flex; align-items:center; gap:5px; }
+
+.att-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+.att-card { display:flex; align-items:center; gap:12px; border:1px solid var(--gray-200); border-radius:10px; padding:12px 14px; }
+.att-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
+.att-info { min-width:0; flex:1; }
+.att-name { font-size:14px; font-weight:600; color:var(--gray-800); display:flex; align-items:center; gap:6px; }
+.att-badges { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.att-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; background:var(--gray-100); color:var(--gray-600); }
+.att-score { text-align:right; flex-shrink:0; }
+.att-score .num { font-size:20px; font-weight:800; line-height:1; }
+.att-score .max { font-size:11px; color:var(--gray-400); }
+
+.light-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.light-green  { background:#22c55e; }
+.light-yellow { background:#eab308; }
+.light-red    { background:#ef4444; }
+.light-black  { background:#1f2937; }
+.att-name .light-dot { width:14px; height:14px; box-shadow:0 0 0 3px rgba(0,0,0,.04); }
 </style>
 </head>
 <body>
@@ -106,6 +134,25 @@
       <span class="page-title">員工績效報表</span>
     </div>
     <div class="page-body">
+
+      <!-- 出缺勤紅綠燈績效 -->
+      <div class="att-section">
+        <div class="att-head">
+          <span class="att-title">🚦 員工出缺勤狀況</span>
+          <div class="att-month-wrap">
+            <label for="attMonth">月份</label>
+            <input type="month" id="attMonth" onchange="loadAttendance()">
+          </div>
+        </div>
+        <div class="att-legend">
+          <span><i class="light-dot light-green"></i> 良好</span>
+          <span><i class="light-dot light-yellow"></i> 注意</span>
+          <span><i class="light-dot light-red"></i> 警示</span>
+          <span><i class="light-dot light-black"></i> 嚴重</span>
+          <span style="margin-left:auto">滿分 10（遲到 7＋缺失 3）</span>
+        </div>
+        <div class="att-grid" id="attGrid"></div>
+      </div>
 
       <!-- 時間篩選 -->
       <div class="period-bar">
@@ -266,6 +313,42 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ── 出缺勤紅綠燈 ──────────────────────────────────────────
+async function loadAttendance() {
+  const month = document.getElementById('attMonth').value;
+  if (!month) return;
+  const r = await fetch(`/api/staff-performance/attendance?month=${month}`);
+  if (!r.ok) { document.getElementById('attGrid').innerHTML = '<div class="empty-msg">載入失敗</div>'; return; }
+  const data = await r.json();
+  renderAttendance(data.employees);
+}
+
+function renderAttendance(emps) {
+  const el = document.getElementById('attGrid');
+  if (!emps || !emps.length) { el.innerHTML = '<div class="empty-msg">無在職員工資料</div>'; return; }
+  el.innerHTML = emps.map(e => {
+    const color = avatarColor(e.name);
+    const initial = (e.name || '?')[0];
+    const lateTxt = e.late_count > 0 ? `遲到 ${e.late_count}次` : '全勤';
+    const defTxt  = e.deficiency_count > 0 ? `缺失 ${e.deficiency_count}件` : '無缺失';
+    const scoreColor = e.total_score >= 8 ? '#16a34a' : e.total_score >= 5 ? '#eab308' : '#ef4444';
+    return `
+      <div class="att-card">
+        <div class="att-avatar" style="background:${color}">${initial}</div>
+        <div class="att-info">
+          <div class="att-name"><i class="light-dot light-${e.overall_light}"></i>${esc(e.name)}</div>
+          <div class="att-badges">
+            <span class="att-badge"><i class="light-dot light-${e.late_light}"></i>⏰ ${lateTxt}</span>
+            <span class="att-badge"><i class="light-dot light-${e.deficiency_light}"></i>⚠ ${defTxt}</span>
+          </div>
+        </div>
+        <div class="att-score">
+          <span class="num" style="color:${scoreColor}">${e.total_score}</span><span class="max">/10</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 async function init() {
   currentUser = await loadUser();
   if (currentUser.role !== 'owner') { location.href = '/my-tasks'; return; }
@@ -278,7 +361,10 @@ async function init() {
   document.querySelector('.period-tab.active')?.classList.remove('active');
   document.querySelectorAll('.period-tab')[2].classList.add('active');
 
-  await load();
+  // 出缺勤預設本月
+  document.getElementById('attMonth').value = todayStr().slice(0, 7);
+
+  await Promise.all([ load(), loadAttendance() ]);
 }
 
 init();

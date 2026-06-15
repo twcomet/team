@@ -109,4 +109,75 @@ router.get('/', requireAuth, ownerOnly, (req, res) => {
   res.json(result);
 });
 
+// ── 出缺勤紅綠燈績效 ──────────────────────────────────────────
+// 遲到（attendance.is_late）佔 7 分、缺失（deficiencies）佔 3 分，合計 10 分
+// 燈號嚴重度：green > yellow > red > black；總燈號取兩指標中較差者
+const LIGHT_RANK = { green: 3, yellow: 2, red: 1, black: 0 };
+
+function lateScore(n) {
+  if (n === 0)  return { light: 'green',  score: 7 };
+  if (n <= 5)   return { light: 'yellow', score: 5 };
+  if (n <= 10)  return { light: 'red',    score: 2 };
+  return                { light: 'black',  score: 0 };
+}
+function deficiencyScore(n) {
+  if (n === 0)  return { light: 'green',  score: 3 };
+  if (n === 1)  return { light: 'yellow', score: 1.5 };
+  if (n === 2)  return { light: 'red',    score: 0 };
+  return                { light: 'black',  score: 0 };
+}
+
+router.get('/attendance', requireAuth, ownerOnly, (req, res) => {
+  // month 格式 YYYY-MM，預設本月（台灣時區）
+  const month = req.query.month
+    || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'month 格式須為 YYYY-MM' });
+
+  // 全部在職員工（從完整清單載入，沒紀錄者也要顯示綠燈）
+  const users = db.prepare(`
+    SELECT id, name, username FROM users WHERE active = 1 ORDER BY name
+  `).all();
+
+  // 遲到次數（work_date 已是台灣當地日期，免時區校正）
+  const lateRows = db.prepare(`
+    SELECT user_id, COUNT(*) AS n
+    FROM attendance
+    WHERE is_late = 1 AND substr(work_date, 1, 7) = ?
+    GROUP BY user_id
+  `).all(month);
+  const lateMap = {};
+  lateRows.forEach(r => { lateMap[r.user_id] = r.n; });
+
+  // 缺失件數（created_at 為 UTC，+8 小時換算台灣月份；以被點名人員計）
+  const defRows = db.prepare(`
+    SELECT dp.user_id, COUNT(*) AS n
+    FROM deficiency_persons dp
+    JOIN deficiencies d ON d.id = dp.deficiency_id
+    WHERE strftime('%Y-%m', d.created_at, '+8 hours') = ?
+    GROUP BY dp.user_id
+  `).all(month);
+  const defMap = {};
+  defRows.forEach(r => { defMap[r.user_id] = r.n; });
+
+  const result = users.map(u => {
+    const lateCount = lateMap[u.id] || 0;
+    const defCount  = defMap[u.id]  || 0;
+    const late = lateScore(lateCount);
+    const def  = deficiencyScore(defCount);
+    const total = late.score + def.score;
+    const overall = LIGHT_RANK[late.light] <= LIGHT_RANK[def.light] ? late.light : def.light;
+    return {
+      user_id: u.id, name: u.name, username: u.username,
+      late_count: lateCount, late_light: late.light, late_score: late.score,
+      deficiency_count: defCount, deficiency_light: def.light, deficiency_score: def.score,
+      total_score: total, overall_light: overall,
+    };
+  });
+
+  // 問題優先：總分低的排前面，方便主管一眼看到需要關注的人
+  result.sort((a, b) => a.total_score - b.total_score || a.name.localeCompare(b.name));
+
+  res.json({ month, max_score: 10, employees: result });
+});
+
 module.exports = router;
