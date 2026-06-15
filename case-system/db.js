@@ -623,13 +623,6 @@ db.exec(`
 _addCol('ledger_categories', 'section',      "TEXT DEFAULT NULL");
 _addCol('ledger_categories', 'sensitive',   "INTEGER DEFAULT 0");
 _addCol('ledger_categories', 'product_line',"TEXT DEFAULT NULL");
-_addCol('ledger_entries',    'hidden',       "INTEGER DEFAULT 0");
-_addCol('ledger_entries',    'pay_status',   "TEXT DEFAULT NULL");
-_addCol('ledger_entries',    'paid_at',      "DATE DEFAULT NULL");
-_addCol('ledger_entries',    'paid_note',    "TEXT DEFAULT NULL");
-_addCol('ledger_entries',    'pay_due_date', "DATE DEFAULT NULL");
-_addCol('ledger_entries',    'vendor',       "TEXT DEFAULT NULL");
-_addCol('ledger_entries',    'client_id',    "INTEGER REFERENCES clients(id) DEFAULT NULL");
 
 // ── 流水帳 ────────────────────────────────────────────────────
 db.exec(`
@@ -646,6 +639,14 @@ db.exec(`
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+// ledger_entries 補欄位（必須在 CREATE TABLE 之後，全新 DB 才不會 "no such table"）
+_addCol('ledger_entries', 'hidden',       "INTEGER DEFAULT 0");
+_addCol('ledger_entries', 'pay_status',   "TEXT DEFAULT NULL");
+_addCol('ledger_entries', 'paid_at',      "DATE DEFAULT NULL");
+_addCol('ledger_entries', 'paid_note',    "TEXT DEFAULT NULL");
+_addCol('ledger_entries', 'pay_due_date', "DATE DEFAULT NULL");
+_addCol('ledger_entries', 'vendor',       "TEXT DEFAULT NULL");
+_addCol('ledger_entries', 'client_id',    "INTEGER REFERENCES clients(id) DEFAULT NULL");
 
 // 初始會計科目（只在空的時候 seed）
 const catExists = db.prepare(`SELECT id FROM ledger_categories LIMIT 1`).get();
@@ -1086,6 +1087,11 @@ for (const uname of ['M01', 'M02']) {
   }
 }
 
+// 合約欄位須在下方 PRESIGN UPDATE 之前先補上（全新 DB 才不會 "no such column"）
+_addCol('users', 'contract_signed_at',  'DATETIME DEFAULT NULL');
+_addCol('users', 'contract_type',       "TEXT DEFAULT NULL");
+_addCol('users', 'contract_signature',  'TEXT DEFAULT NULL');
+
 // ── 測試用：預先簽署新帳號合約，測試完畢後清除 ───────────────
 // 狀態：PRESIGN = 測試中（跳過合約頁）；NULL = 正式上線時需簽署
 // 切換：將下方 PRESIGN_FOR_TESTING 改為 false 後部署即可清除
@@ -1375,6 +1381,8 @@ _addCol('users', 'is_sales',          'INTEGER DEFAULT 0');
 // 預設將現有業務相關角色標記為可派業務
 db.prepare(`UPDATE users SET is_sales=1 WHERE role IN ('owner','hq_sales','hq_cs','branch_manager','branch_sales','contractor_sales') AND is_sales=0`).run();
 // 已有施工日期的成交待派工 → 升為已派工待施工
+_addCol('cases', 'prev_status', 'TEXT');         // 須在下方 UPDATE 之前（全新 DB）
+_addCol('cases', 'case_group', 'TEXT DEFAULT NULL');  // 同上
 db.prepare(`UPDATE cases SET status='dispatched', prev_status='contracted', updated_at=CURRENT_TIMESTAMP
             WHERE status='contracted' AND case_group='deal' AND scheduled_date IS NOT NULL AND scheduled_date != ''`).run();
 // clients
