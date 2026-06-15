@@ -1730,8 +1730,9 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
     // 備用日期：成交日 or 更新日 or 今天
     const fallback = (c.contracted_at || c.updated_at || new Date().toISOString()).slice(0, 10);
     const label = `${c.case_number || ''} ${c.title || ''}`.trim();
+    // 場勘費不自動匯入收支：客服 key 的是「預估值」非實收，只能由「預收款核銷+老闆確認」
+    // 或會計手動登記才入帳，否則會重複計算（2026-06-15 移除 survey_fee 自動匯入）
     const entries = [
-      { ref: `case_${c.id}_survey_fee`, date: c.survey_fee_date   || fallback, amount: c.survey_fee,     cat: '場勘費', desc: `場勘費｜${label}` },
       { ref: `case_${c.id}_deposit`,    date: c.deposit_date      || fallback, amount: c.deposit_amount, cat: '訂金',   desc: `訂金｜${label}` },
       { ref: `case_${c.id}_balance`,    date: c.balance_paid_date || fallback, amount: c.balance_paid,   cat: '尾款',   desc: `尾款｜${label}` },
     ];
@@ -1742,6 +1743,18 @@ _addCol('ledger_entries', 'source_ref', 'TEXT');
     }
   }
 }
+
+// ── 一次性清理：移除過去「開機自動匯入」誤計入的場勘費收入（2026-06-15）──
+// 客服 key 的場勘費是預估值非實收，曾被自動寫入 ledger 造成重複計算。
+// 只刪 source_ref 形如 case_<id>_survey_fee 的帳（GLOB 精準鎖定），
+// 不影響訂金/尾款、預收款核銷確認、會計手動登記的帳。
+try {
+  const ph = db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(amount),0) AS total FROM ledger_entries WHERE source_ref GLOB 'case_*_survey_fee'`).get();
+  if (ph.n > 0) {
+    db.prepare(`DELETE FROM ledger_entries WHERE source_ref GLOB 'case_*_survey_fee'`).run();
+    console.log(`🧹 已清除誤匯入的場勘費收入 ${ph.n} 筆，共 $${ph.total}（客服預估值，非實收）`);
+  }
+} catch (e) { console.warn('場勘費清理略過:', e.message.slice(0,80)); }
 
 // ── 刪除舊版 survey 狀態案件（2026-05-26）──────────────────────────────────
 {
