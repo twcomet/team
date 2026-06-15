@@ -1894,9 +1894,10 @@ function applyConvertButtons(group) {
     const DIRECT_DEAL_STAGES = new Set(['survey_pending','survey_scheduled','surveyed','quote_draft']);
     const dealBtn = DIRECT_DEAL_STAGES.has(status)
       ? `<button class="btn btn-sm" style="background:#16a34a;color:#fff;font-weight:600" onclick="convertCase('deal')">✓ 直接成交</button>` : '';
+    const backToInquiryBtn = `<button class="btn btn-ghost btn-sm" style="color:#b45309" onclick="convertCase('inquiry')">↩ 退回詢價</button>`;
     document.getElementById('convertBannerTitle').textContent = '場勘管理 ─ 下一步';
     document.getElementById('convertBannerDesc').textContent  = '完成後狀態將自動推進';
-    bannerBtns.innerHTML = advBtn + (advBtn ? '&nbsp;&nbsp;' : '') + dealBtn + (dealBtn ? '&nbsp;&nbsp;' : '') + invalidBtn;
+    bannerBtns.innerHTML = advBtn + (advBtn ? '&nbsp;&nbsp;' : '') + dealBtn + (dealBtn ? '&nbsp;&nbsp;' : '') + backToInquiryBtn + '&nbsp;&nbsp;' + invalidBtn;
   } else if (group === 'deal') {
     const adv = ADVANCE_CFG[status];
     const isPaid = caseData.payment_status === 'paid';
@@ -1912,7 +1913,9 @@ function applyConvertButtons(group) {
     document.getElementById('convertBannerDesc').textContent  =
       status === 'aftersales' ? '維修完成後點擊「完成維修 → 結案」' :
       status === 'closed'     ? '如有客戶反映問題，可新增售後維修派工' : '請確認完成後再推進';
-    bannerBtns.innerHTML = advBtn + (advBtn && aftersalesBtn ? '&nbsp;&nbsp;' : '') + aftersalesBtn;
+    const backToSurveyBtn = ['contracted','dispatched'].includes(status)
+      ? `<button class="btn btn-ghost btn-sm" style="color:#b45309" onclick="convertCase('survey')">↩ 退回場勘</button>` : '';
+    bannerBtns.innerHTML = advBtn + (advBtn && (aftersalesBtn||backToSurveyBtn) ? '&nbsp;&nbsp;' : '') + aftersalesBtn + (aftersalesBtn && backToSurveyBtn ? '&nbsp;&nbsp;' : '') + backToSurveyBtn;
   } else {
     document.getElementById('convertBannerTitle').textContent = '基本資訊';
     document.getElementById('convertBannerDesc').textContent  = '儲存後立即生效';
@@ -1964,9 +1967,9 @@ async function doDetailInvalidate() {
 }
 
 async function convertCase(targetGroup) {
-  const STATUS_MAP = { survey: 'survey_pending', deal: 'contracted', invalid: 'invalid' };
+  const STATUS_MAP = { survey: 'survey_pending', deal: 'contracted', invalid: 'invalid', inquiry: 'initial_estimate' };
   const targetStatus = STATUS_MAP[targetGroup];
-  const labels = { survey: '場勘案件', deal: '成交案件', invalid: '無效保存' };
+  const labels = { survey: '場勘案件（待排場勘）', deal: '成交案件', invalid: '無效保存', inquiry: '詢價案件（已初步估價）' };
   if (!confirm(`確認要將此案件轉為「${labels[targetGroup]}」？`)) return;
   const res = await fetch(`/api/cases/${caseId}`, {
     method: 'PUT',
@@ -1977,7 +1980,7 @@ async function convertCase(targetGroup) {
     showToast(`已轉為${labels[targetGroup]}`);
     await loadCase();
     // 跳回對應管理頁
-    const pages = { survey: '/cases-survey', deal: '/cases-deal', invalid: '/cases-inquiry' };
+    const pages = { survey: '/cases-survey', deal: '/cases-deal', invalid: '/cases-inquiry', inquiry: '/cases-inquiry' };
     if (pages[targetGroup]) setTimeout(() => location.href = pages[targetGroup], 1000);
   } else { showToast('操作失敗', 'error'); }
 }
