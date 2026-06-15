@@ -108,9 +108,13 @@ router.delete('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ── 取得 PDF 檔案（限 admin）────────────────────────────────
+// ── 取得 PDF 檔案（admin 或被指派此合約的員工，供簽署頁檢視）──────
 router.get('/:id/file', requireAuth, (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  if (!isAdmin(req)) {
+    const assigned = db.prepare(`SELECT 1 FROM contract_assignments WHERE contract_id=? AND user_id=?`)
+      .get(req.params.id, req.session.user.id);
+    if (!assigned) return res.status(403).json({ error: 'Forbidden' });
+  }
   const contract = db.prepare(`SELECT * FROM contracts WHERE id=?`).get(req.params.id);
   if (!contract) return res.status(404).json({ error: '找不到合約' });
 
