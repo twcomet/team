@@ -384,9 +384,6 @@
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userAcceptDispatch"> 接收派工
         </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="可使用寄件管理功能（客服/行銷等自訂角色用）">
-          <input type="checkbox" id="userCanShip"> 寄件管理
-        </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
           <input type="checkbox" id="userIsSales"> 業務派案
         </label>
@@ -960,7 +957,6 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userCanSeeCost').checked = false;
   document.getElementById('userCanSeeLaborCost').checked = false;
   document.getElementById('userCanManageAssets').checked = false;
-  document.getElementById('userCanShip').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userIsSales').checked = false;
   document.getElementById('userDailyCost').value = '';
@@ -1009,7 +1005,6 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('userCanSeeCost').checked         = !!p.can_see_cost;
     document.getElementById('userCanSeeLaborCost').checked    = !!p.can_see_labor_cost;
     document.getElementById('userCanManageAssets').checked    = !!p.can_manage_assets;
-    document.getElementById('userCanShip').checked            = !!p.can_ship;
     document.getElementById('perm_page_dashboard').checked      = !!p.page_dashboard;
     document.getElementById('perm_my_tasks').checked             = !!p.my_tasks;
     document.getElementById('perm_page_cases').checked           = !!p.page_cases;
@@ -1036,7 +1031,6 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('userCanSeeCost').checked             = false;
     document.getElementById('userCanSeeLaborCost').checked        = false;
     document.getElementById('userCanManageAssets').checked        = false;
-    document.getElementById('userCanShip').checked                = false;
     document.getElementById('perm_page_dashboard').checked        = !isContractor;
     document.getElementById('perm_page_cases').checked            = !isContractor;
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
@@ -1119,7 +1113,6 @@ function openEditUser(id) {
   document.getElementById('userCanSeeLaborCost').checked   = !!u.can_see_labor_cost;
   document.getElementById('userCanManageAssets').checked   = !!u.can_manage_assets;
   document.getElementById('userAcceptDispatch').checked = !!u.accept_dispatch;
-  document.getElementById('userCanShip').checked        = !!u.can_ship;
   document.getElementById('userIsSales').checked = !!u.is_sales;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
@@ -1190,7 +1183,6 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     can_see_labor_cost:  document.getElementById('userCanSeeLaborCost').checked,
     can_manage_assets:   document.getElementById('userCanManageAssets').checked,
     accept_dispatch: document.getElementById('userAcceptDispatch').checked,
-    can_ship:        document.getElementById('userCanShip').checked,
     is_sales: document.getElementById('userIsSales').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: id ? (allUsers.find(u => u.id === parseInt(id))?.active ?? 1) : 1,
