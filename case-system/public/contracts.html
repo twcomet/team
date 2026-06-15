@@ -244,9 +244,17 @@ async function init() {
 }
 
 async function loadContracts() {
-  const r = await fetch('/api/contracts');
-  if (!r.ok) return;
-  allContracts = await r.json();
+  let r;
+  try { r = await fetch('/api/contracts'); }
+  catch (e) { document.getElementById('contractList').innerHTML = `<div style="padding:20px;color:#dc2626;font-size:12px">連線失敗：${e.message}</div>`; return; }
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try { const d = await r.json(); if (d.error) msg += '：' + d.error; } catch(_) {}
+    document.getElementById('contractList').innerHTML = `<div style="padding:20px;color:#dc2626;font-size:12px;line-height:1.6">合約清單載入失敗<br>${msg}</div>`;
+    return;
+  }
+  try { allContracts = await r.json(); }
+  catch (e) { document.getElementById('contractList').innerHTML = `<div style="padding:20px;color:#dc2626;font-size:12px">回應非預期格式（可能登入過期），請重新整理或重新登入</div>`; return; }
   renderList();
 }
 

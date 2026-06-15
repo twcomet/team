@@ -31,16 +31,21 @@ function isAdmin(req) {
 // ── 取得所有合約（admin）──────────────────────────────────────
 router.get('/', requireAuth, (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  const rows = db.prepare(`
-    SELECT c.*,
-      u.name as creator_name,
-      (SELECT COUNT(*) FROM contract_assignments WHERE contract_id=c.id) as assign_count,
-      (SELECT COUNT(*) FROM contract_signatures  WHERE contract_id=c.id) as sign_count
-    FROM contracts c
-    LEFT JOIN users u ON u.id = c.created_by
-    ORDER BY c.created_at DESC
-  `).all();
-  res.json(rows);
+  try {
+    const rows = db.prepare(`
+      SELECT c.*,
+        u.name as creator_name,
+        (SELECT COUNT(*) FROM contract_assignments WHERE contract_id=c.id) as assign_count,
+        (SELECT COUNT(*) FROM contract_signatures  WHERE contract_id=c.id) as sign_count
+      FROM contracts c
+      LEFT JOIN users u ON u.id = c.created_by
+      ORDER BY c.created_at DESC
+    `).all();
+    res.json(rows);
+  } catch (e) {
+    console.error('[GET /api/contracts]', e.message);
+    res.status(500).json({ error: 'contracts 查詢失敗：' + e.message });
+  }
 });
 
 // ── 新增合約（PDF 為選填，content 文字為主）──────────────────
