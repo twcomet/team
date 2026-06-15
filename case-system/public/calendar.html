@@ -180,14 +180,9 @@ function renderCalendar() {
   const targetMap = {};
   calData.targets.forEach(t => { targetMap[t.date] = t.target_amount; });
 
-  // 預計算：同一案件「施工(install)派工」日的權重總和（每日權重 = 派工人數，沒人時算 1）
-  // 與業績報表一致：金額只算施工派工，攤分 = 全額 × 該日權重 / 總權重；場勘/售後不計入
-  const caseTotalWeight = {};  // case_id → 全部施工派工日權重總和
-  calData.cases.forEach(c => {
-    if (c.source === 'dispatch' && c.dispatch_type === 'install') {
-      caseTotalWeight[c.id] = (caseTotalWeight[c.id] || 0) + Math.max(c.worker_count || 0, 1);
-    }
-  });
+  // 攤分分母改用後端提供的「全部日期」施工(install)派工權重總和
+  // （排除已取消，與業績報表完全一致；不再只用當月，避免跨月攤分不一致）
+  const caseTotalWeight = calData.caseInstallWeight || {};
 
   // 案件按日期分組
   const casesByDate = {};

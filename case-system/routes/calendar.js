@@ -113,7 +113,17 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY lr.leave_date
   `).all(dateFrom, dateTo, dateFrom, dateTo, dateFrom, dateTo);
 
-  res.json({ cases, surveys, targets, leaves });
+  // 各案件「全部日期」的施工(install)派工權重總和（攤分分母，與業績報表一致；排除已取消）
+  const caseInstallWeight = {};
+  db.prepare(`
+    SELECT d.case_id,
+           SUM(MAX(1, (SELECT COUNT(DISTINCT du.user_id) FROM dispatch_users du WHERE du.dispatch_id = d.id))) AS w
+    FROM dispatches d
+    WHERE d.dispatch_type = 'install' AND d.status != 'cancelled'
+    GROUP BY d.case_id
+  `).all().forEach(r => { caseInstallWeight[r.case_id] = r.w; });
+
+  res.json({ cases, surveys, targets, leaves, caseInstallWeight });
 });
 
 // POST /api/daily-target  { date, target_amount }

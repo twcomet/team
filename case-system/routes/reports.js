@@ -502,7 +502,7 @@ router.get('/sales', requireAuth, (req, res) => {
       WITH idisp AS (
         SELECT d.id, d.case_id, d.scheduled_date,
                MAX(1, (SELECT COUNT(DISTINCT du.user_id) FROM dispatch_users du WHERE du.dispatch_id = d.id)) AS w
-        FROM dispatches d WHERE d.dispatch_type = 'install'
+        FROM dispatches d WHERE d.dispatch_type = 'install' AND d.status != 'cancelled'
       )`;
 
     const dispatchSummarySql = `
