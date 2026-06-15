@@ -1,0 +1,30 @@
+name: 上線前體檢（smoke）
+
+# 每次 push 到 main、或開 PR 時，自動在 GitHub 雲端跑一次體檢。
+# 失敗會在該 commit 標紅 ❌ 並寄 email 通知，用來攔截「新功能弄壞舊功能」。
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: case-system
+    steps:
+      - name: 取出程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 安裝相依套件
+        run: npm ci
+
+      - name: 執行體檢（空白 DB 啟動全系統 → 登入 → 巡頁面與 API）
+        run: npm run smoke
