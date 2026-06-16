@@ -69,6 +69,11 @@ th { background:#f9fafb; padding:8px 6px; text-align:left; font-size:11px; color
 <script>
 const token = new URLSearchParams(location.search).get('token');
 let formData = null;
+// 施作項目檢查清單
+let ckTemplates = {};   // { category: [{id,item}] }
+let ckCategories = [];
+let ckState = [];       // [{category,item,template_id,checked}]
+let ckSigned = false;
 
 function showToast(msg, ok=true) {
   const t = document.getElementById('toast');
@@ -105,6 +110,10 @@ function render(f) {
   const mapsUrl = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null;
   const findings = f.findings || [];
   const isSigned = f.status === 'signed';
+  ckSigned = isSigned;
+  ckTemplates  = (f.checklist_templates && f.checklist_templates.grouped) || {};
+  ckCategories = (f.checklist_templates && f.checklist_templates.categories) || [];
+  ckState      = Array.isArray(f.checklist_data) ? f.checklist_data : [];
 
   document.getElementById('content').innerHTML = `
     <!-- 案件資訊（唯讀） -->
@@ -192,6 +201,21 @@ function render(f) {
         ${!isSigned ? `<button class="add-row-btn" onclick="addFindingRow()">＋ 新增項目</button>` : ''}
       </div>
 
+      <!-- 施作項目檢查清單（應注意事項）-->
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <label class="form-label" style="margin:0">✅ 施作項目檢查清單</label>
+          ${!isSigned ? `<div style="display:flex;gap:6px;align-items:center">
+            <select id="ckCatSel" style="padding:7px 9px;font-size:13px;width:auto;min-width:140px">
+              <option value="">＋ 加入施作類型…</option>
+              ${ckCategories.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <button type="button" class="add-row-btn" style="width:auto;margin:0;padding:7px 14px;white-space:nowrap" onclick="ckAddCategory()">加入</button>
+          </div>` : ''}
+        </div>
+        <div id="ckArea" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px">${ckAreaHtml()}</div>
+      </div>
+
       <div style="margin-bottom:16px">
         <label class="form-label">備註 / 注意事項</label>
         <textarea id="w_notes" rows="4" placeholder="現場狀況、客戶需求、特殊注意事項…" ${isSigned ? 'disabled' : ''}>${f.extra_notes || ''}</textarea>
@@ -245,6 +269,48 @@ function getFindings() {
   })).filter(f => f.location || f.material);
 }
 
+// ── 施作項目檢查清單 ──────────────────────────────
+function ckEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ckAreaHtml() {
+  if (!ckState.length) {
+    return `<p style="font-size:13px;color:#9ca3af;text-align:center;padding:8px;margin:0">尚未加入施作類型${ckSigned ? '' : '，請從上方選擇'}</p>`;
+  }
+  const cats = [...new Set(ckState.map(s => s.category))];
+  return cats.map(cat => {
+    const items = ckState.filter(s => s.category === cat);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:#6b7280">${ckEsc(cat)}</span>
+        ${ckSigned ? '' : `<button type="button" onclick="ckRemoveCategory('${ckEsc(cat).replace(/'/g,"\\'")}')" style="font-size:11px;color:#e02424;background:none;border:none;cursor:pointer">移除</button>`}
+      </div>
+      ${items.map(s => {
+        const gi = ckState.indexOf(s);
+        return `<label style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:14px;${ckSigned?'':'cursor:pointer'}">
+          <input type="checkbox" ${s.checked?'checked':''} ${ckSigned?'disabled':''} onchange="ckToggle(${gi}, this.checked)" style="margin-top:2px;flex-shrink:0;width:18px;height:18px">
+          <span>${ckEsc(s.item)}</span>
+        </label>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+function ckRenderArea() {
+  const el = document.getElementById('ckArea');
+  if (el) el.innerHTML = ckAreaHtml();
+}
+function ckAddCategory() {
+  const cat = document.getElementById('ckCatSel').value;
+  if (!cat) return;
+  if (ckState.some(s => s.category === cat)) { showToast(`「${cat}」已加入`, false); return; }
+  (ckTemplates[cat] || []).forEach(t => ckState.push({ category: cat, item: t.item, template_id: t.id, checked: false }));
+  document.getElementById('ckCatSel').value = '';
+  ckRenderArea();
+}
+function ckRemoveCategory(cat) {
+  ckState = ckState.filter(s => s.category !== cat);
+  ckRenderArea();
+}
+function ckToggle(idx, val) { if (ckState[idx]) ckState[idx].checked = val; }
+
 async function markFeePaid() {
   if (!confirm('確認已向客戶收取場勘費？')) return;
   const res = await fetch(`/api/survey/worker/${token}/mark-fee-paid`, { method: 'POST' });
@@ -267,6 +333,7 @@ async function save() {
     site_phone:   document.getElementById('w_phone').value.trim() || null,
     findings:     getFindings(),
     extra_notes:  document.getElementById('w_notes').value.trim() || null,
+    checklist_data: ckState,
   };
   try {
     const res = await fetch(`/api/survey/worker/${token}`, {

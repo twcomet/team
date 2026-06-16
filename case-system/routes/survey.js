@@ -226,7 +226,7 @@ router.get('/worker/:token', (req, res) => {
   const form = db.prepare(`
     SELECT sf.surveyor_id, sf.survey_date, sf.survey_time, sf.site_contact, sf.site_phone,
            sf.site_address, sf.dispatch_note, sf.findings, sf.extra_notes, sf.status,
-           sf.share_token,
+           sf.share_token, sf.checklist_data,
            c.case_number, c.title, c.location,
            c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
            u.name as surveyor_name,
@@ -239,6 +239,12 @@ router.get('/worker/:token', (req, res) => {
   `).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到場勘任務' });
   try { form.findings = JSON.parse(form.findings || '[]'); } catch { form.findings = []; }
+  try { form.checklist_data = JSON.parse(form.checklist_data || '[]'); } catch { form.checklist_data = []; }
+  // 一併附上施作類型檢查清單模板（師傅頁免登入，故由此 token 端點帶出）
+  const ckRows = db.prepare(`SELECT * FROM survey_checklist_templates ORDER BY category, sort_order, id`).all();
+  const grouped = {};
+  ckRows.forEach(r => { (grouped[r.category] ||= []).push(r); });
+  form.checklist_templates = { grouped, categories: Object.keys(grouped) };
   res.json(form);
 });
 
@@ -247,16 +253,18 @@ router.put('/worker/:token', (req, res) => {
   const row = db.prepare(`SELECT id, case_id, status FROM survey_forms WHERE worker_token=?`).get(req.params.token);
   if (!row) return res.status(404).json({ error: '找不到場勘任務' });
   if (row.status === 'signed') return res.status(400).json({ error: '已完成簽署的場勘單無法修改' });
-  const { survey_date, survey_time, site_contact, site_phone, findings, extra_notes } = req.body;
+  const { survey_date, survey_time, site_contact, site_phone, findings, extra_notes, checklist_data } = req.body;
   db.prepare(`UPDATE survey_forms SET
     survey_date=COALESCE(?,survey_date), survey_time=COALESCE(?,survey_time),
     site_contact=?, site_phone=?,
     findings=?, extra_notes=?,
+    checklist_data=COALESCE(?,checklist_data),
     updated_at=CURRENT_TIMESTAMP
     WHERE worker_token=?`).run(
     survey_date || null, survey_time || null,
     site_contact || null, site_phone || null,
     JSON.stringify(findings || []), extra_notes || null,
+    checklist_data !== undefined ? JSON.stringify(checklist_data || []) : null,
     req.params.token
   );
   if (survey_date) {
