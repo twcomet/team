@@ -72,8 +72,9 @@
 /* 場勘 tab */
 .sf-tab-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:20px; margin-bottom:12px; }
 .sf-tab-title { font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--gray-100); }
-.sf-required { color:#dc2626 !important; }
-.sf-finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 36px; gap:8px; align-items:center; margin-bottom:8px; }
+.sf-required { color:#dc2626 !important; font-weight:700 !important; }
+.sf-required::after { content:'必填'; display:inline-block; font-size:10px; font-weight:700; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:5px; padding:0 6px; margin-left:6px; vertical-align:1px; }
+.sf-finding-row { display:grid; grid-template-columns:1.2fr 1.4fr 72px 72px 72px 32px; gap:8px; align-items:center; margin-bottom:8px; }
 .sf-finding-row input, .sf-finding-row select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; width:100%; }
 .sf-status-draft  { background:#f9fafb; border:1px solid var(--gray-200); }
 .sf-status-sent   { background:#dbeafe; border:1px solid #93c5fd; color:#1e40af; }
@@ -658,20 +659,21 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="sf-required">場勘日期 *</label><input type="date" id="sf_date" onchange="sf_checkConflict()"></div>
+            <div class="form-group"><label class="sf-required">場勘日期</label><input type="date" id="sf_date" onchange="sf_checkConflict()"></div>
             <div class="form-group"><label>場勘時間</label><input type="text" id="sf_time" placeholder="HH:MM（例：14:30）" maxlength="5" oninput="sf_formatTime(this)" style="letter-spacing:.05em"></div>
             <div class="form-group"><label>客人希望場勘時間</label><input type="text" id="sf_preferred_time" placeholder="例：週六下午、09/15 上午"></div>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label class="sf-required">場勘人員 *</label><select id="sf_surveyor" onchange="sf_checkConflict()"><option value="">請選擇</option></select></div>
-            <div class="form-group" style="flex:2">
-              <label>調度留言 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（會出現在 LINE 通知裡）</span></label>
-              <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工">
+          <div class="form-group">
+            <label class="sf-required">場勘人員</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="sf_surveyor" onchange="sf_checkConflict()" style="flex:1"><option value="">請選擇</option></select>
+              <button type="button" class="btn btn-sm" onclick="sf_reNotify()" title="重新發送 LINE 派案通知給目前場勘人員"
+                style="white-space:nowrap;border:1px solid #f59e0b;color:#92400e;background:#fef3c7;font-weight:600">📲 重新派案通知</button>
             </div>
           </div>
           <div id="sf_conflictWarn" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:12px"></div>
           <div class="form-group">
-            <label class="sf-required">施工地址 *</label>
+            <label class="sf-required">施工地址</label>
             <div style="display:flex;gap:8px;align-items:center">
               <input type="text" id="sf_address" style="flex:1" placeholder="請輸入施工地址" oninput="sf_updateMapLink()">
               <a id="sf_mapLink" href="#" target="_blank" rel="noopener"
@@ -681,7 +683,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label>客服場勘資訊備註</label>
+            <label>客服場勘資訊備註 <span style="font-size:11px;color:var(--gray-400);font-weight:400">（進場資訊：位置、停車、聯絡人）</span></label>
             <textarea id="sf_cs_service_note" rows="5"
               placeholder="客服填入場勘相關說明，例如：廠區位置、停車資訊、聯絡人、注意事項…"
               style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;resize:vertical"></textarea>
@@ -703,12 +705,19 @@
         <!-- 2. 客服提醒備註 -->
         <div class="sf-tab-section" style="background:#fffbeb;border:1.5px solid #fcd34d">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <h4 class="sf-tab-title" style="margin:0;color:#92400e">📌 客服提醒備註</h4>
+            <h4 class="sf-tab-title" style="margin:0;color:#92400e">📌 場勘注意提醒備註</h4>
             <div style="display:flex;gap:6px">
               <button class="btn btn-ghost btn-sm" id="sf_noteTemplateBtn" style="font-size:12px">從模板帶入</button>
               <button class="btn btn-ghost btn-sm" onclick="openTmplMgmt()" style="font-size:12px">⚙️ 模板管理</button>
             </div>
           </div>
+          <!-- 調度留言（併入此區，會出現在 LINE 通知）-->
+          <div class="form-group" style="margin-bottom:10px">
+            <label style="color:#92400e">調度留言 <span style="font-size:11px;color:#b45309;font-weight:400">（會出現在 LINE 通知裡）</span></label>
+            <input type="text" id="sf_dispatch_note" placeholder="例：請準備梯子，現場有高處施工"
+              style="width:100%;padding:9px 11px;border:1px solid #fcd34d;border-radius:8px;font-size:13px;background:#fff">
+          </div>
+          <label style="display:block;font-size:13px;color:#92400e;margin-bottom:4px">場勘注意提醒（例：矽利康處理、特殊施作細節，可從模板帶入）</label>
           <textarea id="sf_cs_notes" rows="3" placeholder="客服填寫後技術人員到場前請務必閱讀…"
             style="width:100%;padding:10px;border:1px solid #fcd34d;border-radius:8px;font-size:13px;background:#fefce8;resize:vertical"></textarea>
           <div id="sf_noteTemplatePicker" style="display:none;margin-top:8px;border:1px solid var(--gray-200);border-radius:8px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.1)">
@@ -724,7 +733,7 @@
         <div class="sf-tab-section" style="border:2px solid #fbbf24">
           <h4 class="sf-tab-title" style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:16px;display:flex;align-items:center;gap:8px">
             💴 場勘費是否要收取
-            <span class="sf-required" style="font-size:12px;font-weight:400;border:none;background:transparent;padding:0;border-bottom:none">（必填）</span>
+            <span style="font-size:11px;font-weight:700;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:5px;padding:0 6px">必填</span>
           </h4>
           <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px">
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:14px">
@@ -770,8 +779,8 @@
             <h4 class="sf-tab-title" style="margin:0">場勘項目紀錄</h4>
             <button class="btn btn-ghost btn-sm" id="sf_addFindingBtn">＋ 新增項目</button>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 36px;gap:8px;margin-bottom:8px;font-size:12px;color:var(--gray-500);font-weight:500">
-            <div>施作位置</div><div>材料 / 說明</div><div>寬(cm)</div><div>高(cm)</div><div></div>
+          <div style="display:grid;grid-template-columns:1.2fr 1.4fr 72px 72px 72px 32px;gap:8px;margin-bottom:8px;font-size:12px;color:var(--gray-500);font-weight:500">
+            <div>施作位置</div><div>材料 / 說明</div><div>寬(cm)</div><div>高(cm)</div><div>數量</div><div></div>
           </div>
           <div id="sf_findingsList"></div>
         </div>
@@ -795,7 +804,6 @@
         <!-- 補充說明 -->
         <div class="sf-tab-section">
           <h4 class="sf-tab-title">補充說明</h4>
-          <div class="form-group"><label>拍照紀錄說明</label><textarea id="sf_photos" rows="2" placeholder="照片拍攝位置、特殊狀況紀錄…"></textarea></div>
           <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
         </div>
 
@@ -2861,7 +2869,6 @@ function sf_fillForm(f) {
   document.getElementById('sf_address').value           = f.site_address || '';
   sf_updateMapLink();
   document.getElementById('sf_cs_service_note').value  = f.cs_service_note || '';
-  document.getElementById('sf_photos').value            = f.photos_note || '';
   document.getElementById('sf_notes').value             = f.extra_notes || '';
   document.getElementById('sf_cs_notes').value          = f.cs_notes || '';
   sf_renderFindings(f.findings || []);
@@ -3060,6 +3067,7 @@ function sf_renderFindings(findings) {
       <input class="f-mat" value="${f.material||''}" placeholder="PAROI MX001 / 隔熱紙">
       <input class="f-w" type="number" value="${f.width||''}" placeholder="cm">
       <input class="f-h" type="number" value="${f.height||''}" placeholder="cm">
+      <input class="f-qty" type="number" value="${f.qty||''}" placeholder="數量">
       <button class="btn btn-ghost btn-sm" style="color:#e02424;padding:4px 8px" onclick="sf_removeFinding(${i})">✕</button>
     </div>
   `).join('');
@@ -3071,6 +3079,7 @@ function sf_getFindings() {
     material: row.querySelector('.f-mat').value,
     width:    row.querySelector('.f-w').value || null,
     height:   row.querySelector('.f-h').value || null,
+    qty:      row.querySelector('.f-qty').value || null,
   })).filter(f => f.location || f.material);
 }
 
@@ -3082,7 +3091,7 @@ function sf_removeFinding(idx) {
 
 document.getElementById('sf_addFindingBtn').addEventListener('click', () => {
   const cur = sf_getFindings();
-  cur.push({ location:'', material:'', width:'', height:'' });
+  cur.push({ location:'', material:'', width:'', height:'', qty:'' });
   sf_renderFindings(cur);
   const rows = document.querySelectorAll('.sf-finding-row');
   if (rows.length) rows[rows.length - 1].querySelector('.f-loc').focus();
@@ -3104,7 +3113,6 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     site_address:          newAddress,
     cs_service_note:       document.getElementById('sf_cs_service_note').value || null,
     findings:              sf_getFindings(),
-    photos_note:           document.getElementById('sf_photos').value || null,
     extra_notes:           document.getElementById('sf_notes').value || null,
     cs_notes:              document.getElementById('sf_cs_notes').value || null,
     checklist_data:        sfChecklistState,
