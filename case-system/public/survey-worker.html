@@ -172,19 +172,6 @@ function render(f) {
       `}
     </div>` : ''}
 
-    <!-- 客戶簽名入口 -->
-    ${f.share_token ? `
-    <div class="sign-entry-card">
-      <h3>${isSigned ? '✅ 客戶已完成簽名' : '📋 請客戶簽名'}</h3>
-      ${!isSigned ? `
-        <div style="font-size:13px;color:#374151;margin-bottom:12px">請讓客戶掃描 QR code，或點擊下方按鈕將手機交給客戶操作。</div>
-        <div id="qrcode" style="background:#fff;padding:10px;border-radius:8px;width:fit-content;margin:0 auto 12px"></div>
-        <a class="sign-open-btn" href="/sign/${f.share_token}" target="_blank">📱 開啟客戶簽名頁</a>
-      ` : `
-        <p style="font-size:13px;color:#047857">客戶已完成簽名確認，場勘單已鎖定。</p>
-      `}
-    </div>` : ''}
-
     <!-- 可編輯區域 -->
     <div class="card" id="editSection">
       <div class="section-title">✏️ 場勘回填（可編輯）</div>
@@ -255,6 +242,20 @@ function render(f) {
         ? `<div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;color:#065f46;font-size:14px">✅ 此場勘單已簽署完成，無法修改</div>`
         : `<button class="save-btn" id="saveBtn" onclick="save()">💾 儲存場勘結果</button>`}
     </div>
+
+    <!-- 客戶簽名（移到最下面：師傅先填完場勘，再請客戶簽名）-->
+    ${f.share_token ? `
+    <div class="sign-entry-card">
+      <h3>${isSigned ? '✅ 客戶已完成簽名' : '📋 請客戶簽名'}</h3>
+      ${!isSigned ? `
+        <div style="font-size:13px;color:#374151;margin-bottom:12px">請先填完上方場勘資料並儲存，再讓客戶掃描 QR code，或點下方按鈕把手機交給客戶簽名。</div>
+        <div id="qrcode" style="background:#fff;padding:10px;border-radius:8px;width:fit-content;margin:0 auto 12px"></div>
+        <a class="sign-open-btn" href="/sign/${f.share_token}" target="_blank">📱 開啟客戶簽名頁</a>
+      ` : `
+        <p style="font-size:13px;color:#047857;margin-bottom:12px">客戶已完成簽名確認，場勘單已鎖定。</p>
+        <a class="sign-open-btn" href="/sign/${f.share_token}" target="_blank">📄 查看已簽署內容</a>
+      `}
+    </div>` : ''}
 
     <div class="footer">繪新國際有限公司<br>如有問題請聯繫負責業務</div>
   `;
