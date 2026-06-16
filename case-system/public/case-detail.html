@@ -2855,7 +2855,8 @@ async function sf_checkConflict() {
     const res = await fetch(`/api/survey/cases/${caseId}/conflict-check?surveyor_id=${surveyorId}&date=${date}`);
     if (!res.ok) { warn.style.display = 'none'; return; }
     const data = await res.json();
-    const conflicts = [...(data.survey_conflicts || []), ...(data.dispatch_conflicts || [])];
+    // 場勘一天可排多場，不再警告場勘撞期；僅提示施工派工撞期（不同類工作）
+    const conflicts = [...(data.dispatch_conflicts || [])];
     if (!conflicts.length) { warn.style.display = 'none'; return; }
     warn.style.display = '';
     warn.innerHTML = `⚠️ 該場勘人員在 ${date} 已有安排：` +
@@ -2889,7 +2890,7 @@ function sf_validateRequired() {
 
 function sf_lockSurveyor(status) {
   const sel = document.getElementById('sf_surveyor');
-  const locked = ['sent','signed'].includes(status);
+  const locked = false;   // 場勘人員不再鎖定：一人一天可排多場場勘，可隨時更換、免主管解鎖
   sel.disabled = locked;
   let note = document.getElementById('sf_surveyor_lock_note');
   if (locked) {
