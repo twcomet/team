@@ -32,6 +32,22 @@ input:focus,textarea:focus { outline:none; border-color:#2563eb; box-shadow:0 0 
 textarea { resize:vertical; }
 .finding-row { display:grid; grid-template-columns:1fr 1.5fr 70px 70px 32px; gap:6px; align-items:center; margin-bottom:6px; }
 .finding-row input { padding:7px 9px; font-size:13px; }
+/* 手機：場勘項目改直式卡片，欄位變大好填 */
+@media (max-width:600px) {
+  .finding-head { display:none !important; }
+  .finding-row {
+    grid-template-columns: 1fr 1fr auto;
+    gap:8px; align-items:center;
+    border:1px solid #e5e7eb; border-radius:10px;
+    padding:12px; margin-bottom:10px; background:#fafafa;
+  }
+  .finding-row input { padding:11px 12px; font-size:15px; }
+  .finding-row .f-loc { grid-column:1 / -1; }
+  .finding-row .f-mat { grid-column:1 / -1; }
+  .finding-row .f-w   { grid-column:1 / 2; }
+  .finding-row .f-h   { grid-column:2 / 3; }
+  .finding-row .del-btn { grid-column:3 / 4; width:40px; height:42px; }
+}
 .del-btn { background:#fee2e2; color:#991b1b; border:none; border-radius:6px; cursor:pointer; font-size:16px; width:32px; height:34px; display:flex; align-items:center; justify-content:center; }
 .add-row-btn { background:#eff6ff; color:#1d4ed8; border:1.5px dashed #93c5fd; border-radius:8px; padding:8px; font-size:13px; cursor:pointer; width:100%; margin-top:4px; }
 .save-btn { background:#1a56db; color:#fff; border:none; border-radius:10px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; width:100%; margin-top:8px; }
@@ -52,7 +68,7 @@ th { background:#f9fafb; padding:8px 6px; text-align:left; font-size:11px; color
 .confirm-fee-btn { background:#059669; color:#fff; border:none; border-radius:10px; padding:12px; font-size:15px; font-weight:700; cursor:pointer; width:100%; margin-top:12px; }
 .confirm-fee-btn:active { background:#047857; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/js/qrcode.min.js"></script>
 </head>
 <body>
 <div class="container" id="app">
@@ -199,7 +215,7 @@ function render(f) {
       <div style="margin-bottom:12px">
         <label class="form-label">場勘項目清單</label>
         <div style="overflow-x:auto">
-          <div style="display:grid;grid-template-columns:1fr 1.5fr 70px 70px 32px;gap:6px;margin-bottom:4px">
+          <div class="finding-head" style="display:grid;grid-template-columns:1fr 1.5fr 70px 70px 32px;gap:6px;margin-bottom:4px">
             <div style="font-size:11px;color:#9ca3af;padding:0 4px">施作位置</div>
             <div style="font-size:11px;color:#9ca3af;padding:0 4px">材料 / 說明</div>
             <div style="font-size:11px;color:#9ca3af;padding:0 4px;text-align:center">寬(cm)</div>
