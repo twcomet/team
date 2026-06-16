@@ -229,6 +229,7 @@ router.get('/worker/:token', (req, res) => {
            sf.share_token, sf.checklist_data,
            c.case_number, c.title, c.location,
            c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
+           c.survey_fee_actual, c.survey_fee_report, c.survey_site_absent,
            u.name as surveyor_name,
            cl.name as client_name, cl.phone as client_phone
     FROM survey_forms sf
@@ -271,6 +272,17 @@ router.put('/worker/:token', (req, res) => {
     db.prepare(`UPDATE cases SET survey_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .run(survey_date, row.case_id);
   }
+  // 場勘費回報 / 現場沒有人（寫回 cases）
+  const { fee_report, site_absent, fee_actual } = req.body;
+  if (fee_report !== undefined || site_absent !== undefined) {
+    const absent = site_absent ? 1 : 0;
+    // 現場沒有人 → 場勘費回報歸空、未收費；否則 paid=已收 / unpaid=沒收到
+    const rep = absent ? null : (fee_report === 'paid' ? 'paid' : (fee_report === 'unpaid' ? 'unpaid' : null));
+    const paid = rep === 'paid' ? 1 : 0;
+    db.prepare(`UPDATE cases SET survey_site_absent=?, survey_fee_report=?, survey_fee_paid=?,
+      survey_fee_actual=COALESCE(?,survey_fee_actual), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .run(absent, rep, paid, (rep === 'paid' && fee_actual != null ? fee_actual : null), row.case_id);
+  }
   res.json({ ok: true });
 });
 
@@ -293,21 +305,28 @@ router.post('/worker/:token/mark-fee-paid', (req, res) => {
 
 // PATCH /api/survey/cases/:id/fee  → 更新場勘費相關欄位
 router.patch('/cases/:id/fee', requireAuth, (req, res) => {
-  const { survey_fee, survey_fee_paid, survey_fee_required, survey_fee_waive_note, survey_fee_actual } = req.body;
+  const { survey_fee, survey_fee_paid, survey_fee_required, survey_fee_waive_note, survey_fee_actual,
+          survey_fee_report, survey_site_absent } = req.body;
+  const absent = survey_site_absent ? 1 : 0;
+  // 現場沒有人 → 回報歸空、未收費；否則依 survey_fee_report（paid/unpaid）
+  const rep  = absent ? null : (survey_fee_report === 'paid' ? 'paid' : (survey_fee_report === 'unpaid' ? 'unpaid' : null));
+  const paid = absent ? 0 : (survey_fee_paid || rep === 'paid' ? 1 : 0);
   db.prepare(`UPDATE cases SET
     survey_fee=?, survey_fee_paid=?,
     survey_fee_required=?, survey_fee_waive_note=?, survey_fee_actual=?,
+    survey_fee_report=?, survey_site_absent=?,
     updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(
       survey_fee ?? null,
-      survey_fee_paid ? 1 : 0,
+      paid,
       survey_fee_required ?? null,
       survey_fee_waive_note || null,
       survey_fee_actual ?? null,
+      rep, absent,
       req.params.id
     );
   // 若標記已收款，自動建立「待核銷」預收款（會計核銷後才寫入流水帳）
-  if (survey_fee_paid && parseFloat(survey_fee) > 0) {
+  if (paid && parseFloat(survey_fee) > 0) {
     const c = db.prepare(`SELECT client_id FROM cases WHERE id=?`).get(req.params.id);
     if (c?.client_id) {
       const existing = db.prepare(`SELECT id FROM client_deposits WHERE linked_case_id=? AND type='survey_fee'`).get(req.params.id);

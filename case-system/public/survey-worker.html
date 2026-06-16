@@ -131,18 +131,25 @@ function render(f) {
 
     ${f.dispatch_note ? `<div class="dispatch-note"><div class="note-label">📌 調度備注</div><div class="note-body">${f.dispatch_note}</div></div>` : ''}
 
-    <!-- 場勘費資訊 -->
+    <!-- 場勘費回報 -->
     ${f.survey_fee_required != null ? `
     <div class="fee-card">
-      <h3>💰 場勘費</h3>
+      <h3>💰 場勘費回報</h3>
       ${f.survey_fee_required == 1 ? `
-        <div style="font-size:12px;color:#92400e;margin-bottom:6px">現場向客戶收取</div>
+        <div style="font-size:12px;color:#92400e;margin-bottom:6px">應向客戶收取</div>
         <div class="fee-amount">NT$ ${f.survey_fee ? Number(f.survey_fee).toLocaleString() : '—'}</div>
-        ${isSigned
-          ? (f.survey_fee_paid
-              ? `<div class="fee-paid-badge">✅ 已確認收款</div>`
-              : `<button class="confirm-fee-btn" onclick="markFeePaid()">確認已收取場勘費</button>`)
-          : `<div style="font-size:12px;color:#92400e;margin-top:10px">客戶簽名後即可確認收款</div>`}
+        <div id="wFeeReport" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;${isSigned?'':'cursor:pointer'}">
+            <input type="radio" name="w_fee_rep" value="paid" onchange="wOnFeeRep()" ${(f.survey_fee_paid||f.survey_fee_report==='paid')?'checked':''} ${isSigned?'disabled':''} style="width:18px;height:18px"> 已收場勘費
+          </label>
+          <div id="wFeeActualWrap" style="display:none;align-items:center;gap:8px;padding-left:26px">
+            <span style="font-size:13px;color:#92400e">實收金額 $</span>
+            <input type="text" id="w_fee_actual" inputmode="numeric" value="${f.survey_fee_actual!=null?f.survey_fee_actual:''}" placeholder="實收金額" ${isSigned?'disabled':''} style="width:130px">
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;${isSigned?'':'cursor:pointer'}">
+            <input type="radio" name="w_fee_rep" value="unpaid" onchange="wOnFeeRep()" ${f.survey_fee_report==='unpaid'?'checked':''} ${isSigned?'disabled':''} style="width:18px;height:18px"> 沒收到場勘費
+          </label>
+        </div>
       ` : `
         <div style="font-size:16px;font-weight:700;color:#065f46">✓ 免收場勘費</div>
       `}
@@ -164,6 +171,11 @@ function render(f) {
     <!-- 可編輯區域 -->
     <div class="card" id="editSection">
       <div class="section-title">✏️ 場勘回填（可編輯）</div>
+
+      <!-- 現場沒有人 -->
+      <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#b45309;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:11px 13px;margin-bottom:14px;${isSigned?'':'cursor:pointer'}">
+        <input type="checkbox" id="w_site_absent" onchange="wOnSiteAbsent()" ${f.survey_site_absent?'checked':''} ${isSigned?'disabled':''} style="width:18px;height:18px;flex-shrink:0"> 🚫 現場沒有人（無法收費、無法簽收）
+      </label>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
         <div>
@@ -238,6 +250,27 @@ function render(f) {
       });
     } catch(e) {}
   }
+  wOnSiteAbsent();   // 初始化現場沒有人/場勘費回報顯示
+  wOnFeeRep();
+}
+
+// ── 場勘費回報 / 現場沒有人 ──────────────────────
+function wOnFeeRep() {
+  const wrap = document.getElementById('wFeeActualWrap');
+  if (!wrap) return;
+  const paid = document.querySelector('input[name="w_fee_rep"][value="paid"]');
+  wrap.style.display = (paid && paid.checked) ? 'flex' : 'none';
+}
+function wOnSiteAbsent() {
+  const absent = document.getElementById('w_site_absent');
+  const rep = document.getElementById('wFeeReport');
+  if (!absent) return;
+  if (rep) {
+    rep.style.opacity = absent.checked ? '.4' : '';
+    rep.style.pointerEvents = absent.checked ? 'none' : '';
+    if (absent.checked) document.querySelectorAll('input[name="w_fee_rep"]').forEach(r => r.checked = false);
+  }
+  wOnFeeRep();
 }
 
 function findingRowHtml(i, it={}) {
@@ -335,6 +368,12 @@ async function save() {
     extra_notes:  document.getElementById('w_notes').value.trim() || null,
     checklist_data: ckState,
   };
+  // 場勘費回報 / 現場沒有人
+  const absent = document.getElementById('w_site_absent')?.checked;
+  const feeRep = document.querySelector('input[name="w_fee_rep"]:checked');
+  body.site_absent = absent ? 1 : 0;
+  body.fee_report  = absent ? null : (feeRep ? feeRep.value : null);
+  body.fee_actual  = parseFloat(document.getElementById('w_fee_actual')?.value) || null;
   try {
     const res = await fetch(`/api/survey/worker/${token}`, {
       method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)

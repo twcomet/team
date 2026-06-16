@@ -806,16 +806,27 @@
           </h4>
           <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:16px;margin-bottom:14px">
             <div style="font-size:11px;font-weight:700;color:var(--gray-500);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">師傅回報區</div>
-            <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">
-              <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;cursor:pointer">
-                <input type="checkbox" id="sf_fee_paid" style="width:17px;height:17px;accent-color:var(--primary)"> 已收場勘費
-              </label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:14px;color:var(--gray-600)">實收金額</span>
-                <span style="font-size:15px;color:var(--gray-500)">$</span>
-                <input type="number" id="sf_fee_actual" placeholder="請輸入實收金額" min="0"
-                  style="width:160px;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:15px;font-weight:600;background:#fff">
-                <span style="font-size:14px;color:var(--gray-500)">元</span>
+            <!-- 現場沒有人 -->
+            <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:14px;color:#b45309">
+              <input type="checkbox" id="sf_site_absent" onchange="sf_onSiteAbsentChange()" style="width:17px;height:17px;accent-color:#d97706"> 🚫 現場沒有人（無法收費、無法簽收）
+            </label>
+            <!-- 場勘費回報：三選一 -->
+            <div id="sf_feeReportBox">
+              <div style="font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:8px">場勘費回報</div>
+              <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+                <label style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;cursor:pointer">
+                  <input type="radio" name="sf_fee_rep" id="sf_fee_rep_paid" value="paid" onchange="sf_onFeeReportChange()"> 已收場勘費
+                </label>
+                <div id="sf_feeActualWrap" style="display:none;align-items:center;gap:6px">
+                  <span style="font-size:14px;color:var(--gray-600)">實收金額</span><span style="color:var(--gray-500)">$</span>
+                  <input type="number" id="sf_fee_actual" placeholder="實收金額" min="0"
+                    style="width:140px;padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:15px;font-weight:600;background:#fff">
+                  <span style="font-size:14px;color:var(--gray-500)">元</span>
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;cursor:pointer">
+                  <input type="radio" name="sf_fee_rep" id="sf_fee_rep_unpaid" value="unpaid" onchange="sf_onFeeReportChange()"> 沒收到場勘費
+                </label>
+                <span id="sf_feeWaiveTag" style="display:none;font-size:14px;color:#059669;font-weight:600">✓ 免收場勘費（客服設定不需收）</span>
               </div>
             </div>
           </div>
@@ -2656,8 +2667,14 @@ async function loadSurveyTab() {
   { const d = new Date(); document.getElementById('sf_date').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   document.getElementById('sf_preferred_time').value = caseData.survey_preferred_time || '';
   document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
-  document.getElementById('sf_fee_paid').checked  = !!caseData.survey_fee_paid;
+  // 場勘費回報 / 現場沒有人
+  document.getElementById('sf_site_absent').checked = !!caseData.survey_site_absent;
+  if (caseData.survey_fee_report === 'paid' || (caseData.survey_fee_paid && caseData.survey_fee_report == null))
+    document.getElementById('sf_fee_rep_paid').checked = true;
+  else if (caseData.survey_fee_report === 'unpaid')
+    document.getElementById('sf_fee_rep_unpaid').checked = true;
   document.getElementById('sf_fee_actual').value  = caseData.survey_fee_actual != null ? caseData.survey_fee_actual : '';
+  sf_refreshFeeReport();
   if (caseData.survey_fee_required === 1) {
     document.getElementById('sf_req_yes').checked = true;
   } else if (caseData.survey_fee_required === 0) {
@@ -2730,7 +2747,33 @@ function sf_onFeeRequiredChange() {
   yesLbl.style.background  = required ? 'var(--primary-bg)' : '#fff';
   noLbl.style.borderColor  = notRequired ? '#f97316' : 'var(--gray-200)';
   noLbl.style.background   = notRequired ? '#fff7ed' : '#fff';
+  sf_refreshFeeReport();
 }
+
+// 場勘費回報 / 現場沒有人 顯示邏輯
+function sf_refreshFeeReport() {
+  const absent  = document.getElementById('sf_site_absent')?.checked;
+  const notReq  = document.getElementById('sf_req_no')?.checked;   // 免收
+  const box     = document.getElementById('sf_feeReportBox');
+  const paidR   = document.getElementById('sf_fee_rep_paid');
+  const unpaidR = document.getElementById('sf_fee_rep_unpaid');
+  const waiveTag   = document.getElementById('sf_feeWaiveTag');
+  const actualWrap = document.getElementById('sf_feeActualWrap');
+  if (!box || !paidR) return;
+  // 現場沒有人 → 停用整個回報區並清掉選擇
+  box.style.opacity = absent ? '.4' : '';
+  box.style.pointerEvents = absent ? 'none' : '';
+  if (absent) { paidR.checked = false; unpaidR.checked = false; }
+  // 免收 → 隱藏 radio、顯示免收標籤
+  const showRadios = !notReq;
+  paidR.closest('label').style.display   = showRadios ? '' : 'none';
+  unpaidR.closest('label').style.display = showRadios ? '' : 'none';
+  waiveTag.style.display = (notReq && !absent) ? '' : 'none';
+  // 實收金額只在「已收」時出現
+  actualWrap.style.display = (showRadios && paidR.checked && !absent) ? 'flex' : 'none';
+}
+function sf_onSiteAbsentChange() { sf_refreshFeeReport(); }
+function sf_onFeeReportChange()  { sf_refreshFeeReport(); }
 
 function sf_renderNoteTemplates(q) {
   const kw = q.toLowerCase();
@@ -3079,7 +3122,11 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       survey_fee:            parseFloat(document.getElementById('sf_fee').value) || null,
-      survey_fee_paid:       document.getElementById('sf_fee_paid').checked,
+      survey_fee_paid:       document.getElementById('sf_fee_rep_paid').checked,
+      survey_fee_report:     document.getElementById('sf_site_absent').checked ? null
+                              : (document.getElementById('sf_fee_rep_paid').checked ? 'paid'
+                              : document.getElementById('sf_fee_rep_unpaid').checked ? 'unpaid' : null),
+      survey_site_absent:    document.getElementById('sf_site_absent').checked ? 1 : 0,
       survey_fee_required:   document.getElementById('sf_req_yes').checked ? 1 : document.getElementById('sf_req_no').checked ? 0 : null,
       survey_fee_waive_note: document.getElementById('sf_fee_waive_note').value || null,
       survey_fee_actual:     parseFloat(document.getElementById('sf_fee_actual').value) || null,

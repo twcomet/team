@@ -286,6 +286,8 @@ _addCol('cases',     'survey_fee_paid',       'INTEGER DEFAULT 0');
 _addCol('cases',     'survey_fee_required',   'INTEGER');  // 1=需收, 0=不需收, NULL=未設定
 _addCol('cases',     'survey_fee_waive_note', 'TEXT');     // 不需收原因
 _addCol('cases',     'survey_fee_actual',     'REAL');     // 師傅實收金額
+_addCol('cases',     'survey_fee_report',     'TEXT');     // 師傅回報：paid=已收 / unpaid=沒收到 / NULL=未回報
+_addCol('cases',     'survey_site_absent',    'INTEGER DEFAULT 0');  // 1=現場沒有人（無法收費、無法簽收）
 _addCol('cases',     'entry_info',        'TEXT');
 _addCol('cases',     'photo_upload_url',  'TEXT');
 _addCol('cases',     'outsource_cost',    'REAL');
