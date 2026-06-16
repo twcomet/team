@@ -879,6 +879,9 @@ router.delete('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
   if (!c) return res.status(404).json({ error: '找不到案件' });
 
+  // 先關閉外鍵檢查（必須在 BEGIN 之前，PRAGMA 於交易內無效），
+  // 確保即使有未列舉到的關聯表也能順利刪除，避免 FOREIGN KEY constraint failed
+  db.exec('PRAGMA foreign_keys=OFF');
   db.exec('BEGIN');
   try {
     const id = req.params.id;
@@ -916,6 +919,8 @@ router.delete('/:id', requireAuth, (req, res) => {
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch {}
     return res.status(500).json({ error: e.message });
+  } finally {
+    db.exec('PRAGMA foreign_keys=ON');   // 無論成敗都恢復外鍵檢查
   }
 
   res.json({ ok: true });
