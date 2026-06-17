@@ -747,6 +747,7 @@ function renderTableHead() {
       ${sSortTh('天數', 'created_at', '42px')}
       ${sSortTh('狀態', 'status', '120px')}
       ${sSortTh('場勘日', 'survey_date', '85px')}
+      ${sSortTh('發送報價單日', 'quoted_at', '95px')}
       <th style="width:70px">類型</th>
       <th style="width:100px">客戶</th>
       <th style="width:160px">項目</th>
@@ -880,8 +881,8 @@ function renderTable(cases) {
       } else if (surveySortField === 'status') {
         const STATUS_ORD = { survey_pending: 0, survey_scheduled: 1, surveyed: 2, quote_draft: 3, quoted: 4, invalid: 5 };
         return ((STATUS_ORD[a.status] ?? 9) - (STATUS_ORD[b.status] ?? 9)) * dir;
-      } else if (surveySortField === 'survey_date') {
-        const va = a.survey_date || '', vb = b.survey_date || '';
+      } else if (surveySortField === 'survey_date' || surveySortField === 'quoted_at') {
+        const va = a[surveySortField] || '', vb = b[surveySortField] || '';
         return surveySortDir === 'desc' ? vb.localeCompare(va) : va.localeCompare(vb);
       } else {
         const va = a.created_at || '', vb = b.created_at || '';
@@ -942,8 +943,11 @@ function getCaseRow(c) {
   }
 
   if (MODE === 'survey') {
-    const days = daysSince(c.created_at);
+    // 已發報價單：天數改算「發送報價單至今」；其他狀態仍算「建立至今」
+    const daysFromQuote = c.status === 'quoted' && c.quoted_at;
+    const days = daysFromQuote ? daysSince(c.quoted_at) : daysSince(c.created_at);
     const daysColor = days >= 7 ? 'color:#e02424;font-weight:700' : days >= 3 ? 'color:#c27803;font-weight:600' : '';
+    const daysTitle = daysFromQuote ? '發送報價單至今天數' : '案件建立至今天數';
     const addrEsc = escHtml(c.location || '');
     const isPending = c.status === 'survey_pending';
     const addrCell = !c.location
@@ -955,9 +959,10 @@ function getCaseRow(c) {
         : `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>`;
     return `<tr ${link}>
       <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
-      <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
+      <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}" title="${daysTitle}">${days}</td>
       <td style="width:120px;white-space:nowrap">${statusBadge(c.status)}</td>
       <td style="width:85px;white-space:nowrap;font-size:12px;color:#6b7280">${fmtDate(c.survey_date)}</td>
+      <td style="width:95px;white-space:nowrap;font-size:12px;color:#6b7280">${c.quoted_at ? fmtDate(c.quoted_at) : '<span style="color:#9ca3af">—</span>'}</td>
       <td style="width:70px;white-space:nowrap"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
       <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${c.client_name || '—'}</td>
       <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
