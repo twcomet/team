@@ -512,6 +512,7 @@ const PRIORITY_COLORS = { urgent:'#e02424', high:'#c27803', normal:'', low:'#9ca
 
 let allCases = [], clients = [], salesUsers = [];
 let inquirySalesUsers = [], inquiryCsUsers = [];
+let surveyorUsers = [];   // 可被派工的技術人員（場勘人下拉用）
 const pendingChanges = new Map();
 const pendingSurveyorChanges = new Map();
 let activeStatus = '', activeType = '';
@@ -549,6 +550,17 @@ async function init() {
   [clients, salesUsers] = await Promise.all([fetchClients(), fetchUsers()]);
   inquirySalesUsers = salesUsers.filter(u => u.is_sales);
   inquiryCsUsers    = salesUsers.filter(u => u.is_sales);
+  surveyorUsers     = salesUsers.filter(u => u.accept_dispatch);   // 場勘人只列可派工技術人員
+  // 載入自訂處理狀態標籤，併入列表與篩選下拉
+  try {
+    const it = await (await fetch('/api/intent-tags')).json();
+    (it.custom || []).forEach(t => {
+      if (!INTENT_LABELS[t.label]) INTENT_LABELS[t.label] = t.label;
+      document.querySelectorAll('#fs_intent, #sv_intent').forEach(sel => {
+        if (![...sel.options].some(o => o.value === t.label)) sel.add(new Option(t.label, t.label));
+      });
+    });
+  } catch(_) {}
   if (MODE === 'inquiry') {
     document.getElementById('saveAssignBtn').style.display = '';
     document.getElementById('inquiryFilters').style.display = 'flex';
@@ -641,8 +653,14 @@ function onAssignChange(caseId, field, value) {
 }
 
 function surveyorSelect(caseId, surveyorId, usersList) {
+  let list = usersList;
+  // 舊資料若現任場勘人不在可派工清單，仍保留顯示，避免選擇消失
+  if (surveyorId && !list.some(u => u.id == surveyorId)) {
+    const cur = salesUsers.find(u => u.id == surveyorId);
+    if (cur) list = [cur, ...list];
+  }
   const opts = ['<option value="">—</option>',
-    ...usersList.map(u => `<option value="${u.id}" ${u.id == surveyorId ? 'selected' : ''}>${escHtml(u.name)}</option>`)
+    ...list.map(u => `<option value="${u.id}" ${u.id == surveyorId ? 'selected' : ''}>${escHtml(u.name)}</option>`)
   ].join('');
   return `<select onchange="onSurveyorChange(${caseId},this.value)"
     style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:12px;background:#fff;width:100%;max-width:88px">
@@ -732,8 +750,7 @@ function renderTableHead() {
       <th style="width:70px">類型</th>
       <th style="width:100px">客戶</th>
       <th style="width:160px">項目</th>
-      <th style="width:160px">地址</th>
-      <th style="width:110px">客人希望時間</th>
+      <th style="width:240px">地址</th>
       ${sSortTh('處理狀態', 'deal_intent', '80px')}
       <th style="width:80px">業務</th>
       <th style="width:80px">客服</th>
@@ -936,7 +953,6 @@ function getCaseRow(c) {
            <button onclick="event.stopPropagation();navigator.clipboard.writeText('${addrEsc}').then(()=>showToast('地址已複製'))"
              style="margin-left:4px;padding:1px 5px;border-radius:6px;font-size:10px;background:#e0f2fe;color:#0369a1;border:none;cursor:pointer;flex-shrink:0">複製</button>`
         : `<span style="font-size:11px;color:#374151;word-break:break-all">${addrEsc}</span>`;
-    const prefTime = isPending ? escHtml(c.survey_preferred_time || '') : '';
     return `<tr ${link}>
       <td style="width:100px;white-space:nowrap"><code style="font-size:12px;${priorityStyle}">${c.case_number}</code></td>
       <td style="width:42px;text-align:center;white-space:nowrap;${daysColor}">${days}</td>
@@ -945,8 +961,7 @@ function getCaseRow(c) {
       <td style="width:70px;white-space:nowrap"><span style="font-size:12px;color:#6b7280">${TYPE_NAMES[c.case_type] || c.case_type}</span></td>
       <td style="width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${c.client_name || '—'}</td>
       <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title)}</td>
-      <td style="width:160px;max-width:160px" onclick="event.stopPropagation()">${addrCell}</td>
-      <td style="width:110px;font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${prefTime || '—'}</td>
+      <td style="width:240px;max-width:240px" onclick="event.stopPropagation()">${addrCell}</td>
       <td style="width:80px" onclick="event.stopPropagation()">${intentSelect(c)}</td>
       <td style="width:80px" onclick="event.stopPropagation()">
         ${assignSelect(c.id, 'sales_id', c.sales_id, inquirySalesUsers)}
@@ -955,7 +970,7 @@ function getCaseRow(c) {
         ${assignSelect(c.id, 'cs_id', c.cs_id, inquiryCsUsers)}
       </td>
       <td style="width:80px" onclick="event.stopPropagation()">
-        ${surveyorSelect(c.id, c.surveyor_id, salesUsers)}
+        ${surveyorSelect(c.id, c.surveyor_id, surveyorUsers)}
       </td>
       <td style="width:70px" onclick="event.stopPropagation()">
         ${prioritySelect(c)}
@@ -1118,7 +1133,7 @@ function intentBadge(v) {
 }
 
 function intentSelect(c) {
-  const opts = [['', '—'], ['called','客服打過電話'], ['incomplete','資料不齊'], ['waiting_quote','客戶等報價'], ['need_survey','需追蹤場勘']]
+  const opts = [['', '—'], ...Object.entries(INTENT_LABELS)]
     .map(([v, l]) => `<option value="${v}" ${(c.deal_intent || '') === v ? 'selected' : ''}>${l}</option>`).join('');
   return `<select onchange="updateIntent(${c.id},this.value)"
     style="border:1px solid #e2e8f0;border-radius:6px;padding:2px 4px;font-size:11px;background:#fff;cursor:pointer;width:100%;max-width:100px">

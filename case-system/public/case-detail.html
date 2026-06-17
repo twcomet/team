@@ -661,7 +661,6 @@
           <div class="form-row">
             <div class="form-group"><label class="sf-required">場勘日期</label><input type="date" id="sf_date" onchange="sf_checkConflict()"></div>
             <div class="form-group"><label>場勘時間</label><input type="text" id="sf_time" placeholder="HH:MM（例：14:30）" maxlength="5" oninput="sf_formatTime(this)" style="letter-spacing:.05em"></div>
-            <div class="form-group"><label>客人希望場勘時間</label><input type="text" id="sf_preferred_time" placeholder="例：週六下午、09/15 上午"></div>
           </div>
           <div class="form-group">
             <label class="sf-required">場勘人員</label>
@@ -2673,7 +2672,6 @@ async function loadSurveyTab() {
   document.getElementById('sf_address').value  = caseData.location || '';
   sf_updateMapLink();
   { const d = new Date(); document.getElementById('sf_date').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-  document.getElementById('sf_preferred_time').value = caseData.survey_preferred_time || '';
   document.getElementById('sf_fee').value        = caseData.survey_fee != null ? caseData.survey_fee : '';
   // 場勘費回報 / 現場沒有人
   document.getElementById('sf_site_absent').checked = !!caseData.survey_site_absent;
@@ -3108,7 +3106,6 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     surveyor_id:           surveyorId,
     survey_date:           document.getElementById('sf_date').value || null,
     survey_time:           document.getElementById('sf_time').value || null,
-    survey_preferred_time: document.getElementById('sf_preferred_time').value.trim() || null,
     dispatch_note:         document.getElementById('sf_dispatch_note').value.trim() || null,
     site_address:          newAddress,
     cs_service_note:       document.getElementById('sf_cs_service_note').value || null,
@@ -3177,7 +3174,6 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
       document.getElementById('sf_hdr_address').textContent = newAddress;
     }
     // 更新 caseData 中的場勘偏好時間
-    caseData.survey_preferred_time = body.survey_preferred_time;
     // 重新載入案件資料（狀態可能已升為 survey_scheduled）
     await loadCase();
     sf_updateCompleteBtn();
