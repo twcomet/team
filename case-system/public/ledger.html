@@ -131,6 +131,8 @@
       <div class="filter-bar">
         <label style="font-size:13px;color:var(--gray-600)">月份</label>
         <input type="month" id="filterMonth" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <input type="search" id="ledgerSearch" placeholder="🔍 搜尋客戶 / 案號 / 說明…" oninput="applyFilter()"
+          style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;min-width:200px">
         <span id="orgFilterWrap" style="display:none;align-items:center;gap:6px">
           <label style="font-size:13px;color:var(--gray-600)">店別</label>
           <select id="filterOrg" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
@@ -561,6 +563,7 @@ async function init() {
   document.getElementById('filterOrg').addEventListener('change', loadLedger);
   document.getElementById('clearLedgerBtn').addEventListener('click', () => {
     document.getElementById('filterOrg').value = '';
+    document.getElementById('ledgerSearch').value = '';
     setTab('all');
     loadLedger();
   });
@@ -616,7 +619,11 @@ async function loadLedger() {
 }
 
 function applyFilter() {
-  const rows = activeTab !== 'all' ? allLedger.filter(r => r.type === activeTab) : allLedger;
+  let rows = activeTab !== 'all' ? allLedger.filter(r => r.type === activeTab) : allLedger;
+  const kw = (document.getElementById('ledgerSearch')?.value || '').trim().toLowerCase();
+  if (kw) {
+    rows = rows.filter(r => `${r.description||''} ${r.client_name||''} ${r.vendor||''} ${r.case_number||''} ${r.category||''}`.toLowerCase().includes(kw));
+  }
   renderStats(rows);
   renderTable(rows);
 }
