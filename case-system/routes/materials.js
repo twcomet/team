@@ -427,6 +427,40 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// PUT /logs/:id — 編輯使用紀錄（改米數/備註，連動還原並重套庫存）
+router.put('/logs/:id', requireAuth, (req, res) => {
+  const org_id = req.session.user.org_id;
+  const log = db.prepare(`SELECT * FROM material_logs WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+  if (!log) return res.status(404).json({ error: '找不到記錄' });
+  if (log.status === 'cancelled') return res.status(400).json({ error: '已取消的紀錄無法編輯' });
+  const { meters, notes } = req.body;
+  const newAbs = Math.abs(parseFloat(meters));
+  if (!newAbs || newAbs <= 0) return res.status(400).json({ error: '請填寫用量（米）' });
+  const isOut = log.log_type !== 'purchase';
+  const newDelta = isOut ? -newAbs : newAbs;
+
+  if (log.roll_id) {
+    const roll = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id=?`).get(log.roll_id);
+    if (roll) {
+      const restored = roll.remaining_meters - log.meters;   // 撤銷原本這筆後的可用量
+      if (isOut && newAbs > restored + 1e-6) {
+        return res.status(400).json({ error: `用量 ${newAbs} 米超過捲料可用庫存（可用 ${restored} 米）` });
+      }
+      const newRemaining = Math.max(0, restored + newDelta);
+      db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`)
+        .run(newRemaining, newRemaining > 0 ? 'active' : 'finished', log.roll_id);
+    }
+  }
+  // 調整 materials.stock_meters：差額 = 新delta - 舊delta
+  db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters + ?) WHERE id=?`)
+    .run(newDelta - log.meters, log.material_id);
+
+  db.prepare(`UPDATE material_logs SET meters=?, notes=? WHERE id=?`)
+    .run(newDelta, notes !== undefined ? (notes || null) : log.notes, req.params.id);
+  if (log.case_id && ['case_cut','case_loss'].includes(log.log_type)) syncCaseMaterialCost(log.case_id);
+  res.json({ ok: true });
+});
+
 // GET /activity — 全站膜料異動紀錄（最新 N 筆）
 router.get('/activity', requireAuth, (req, res) => {
   const { org_id, view_all_branches } = req.session.user;
