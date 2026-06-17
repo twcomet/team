@@ -2832,6 +2832,11 @@ _addCol('cases', 'marketing_discount', 'INTEGER DEFAULT 0');
 // ── 採購單關聯案件 ───────────────────────────────────────────────────────────
 _addCol('purchase_orders', 'case_id', 'INTEGER REFERENCES cases(id)');
 
+// ── 到貨登記：貨運公司 / 稅金(純備註不進帳) / 運費 ───────────────────────────
+_addCol('purchase_receipts', 'carrier',      'TEXT');
+_addCol('purchase_receipts', 'tax',          'REAL');
+_addCol('purchase_receipts', 'shipping_fee', 'REAL');
+
 // ── 預收款會計核銷欄位 + 場勘費關聯案件 ─────────────────────────────────────
 _addCol('client_deposits', 'linked_case_id',         'INTEGER REFERENCES cases(id)');
 _addCol('client_deposits', 'accounting_verified',    'INTEGER DEFAULT 0');

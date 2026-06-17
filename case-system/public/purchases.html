@@ -165,21 +165,6 @@
           <input class="form-input" id="po_unit_cost" type="number" min="0" step="0.01" placeholder="0">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group">
-          <label class="form-label">運送方式</label>
-          <select class="form-input" id="po_shipping_type">
-            <option value="domestic">國內</option>
-            <option value="air">空運</option>
-            <option value="express">快遞</option>
-            <option value="sea">海運</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">運費（元）</label>
-          <input class="form-input" id="po_shipping_cost" type="number" min="0" placeholder="0">
-        </div>
-      </div>
       <div class="form-group">
         <label class="form-label">預計到貨日</label>
         <input class="form-input" id="po_expected_date" type="date">
@@ -226,6 +211,24 @@
       <div class="form-group">
         <label class="form-label">批次備註（選填）</label>
         <input class="form-input" id="r_batch_note" placeholder="例：第一批空運、顏色代碼…">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">貨運公司</label>
+          <select class="form-input" id="r_carrier">
+            <option value="">—</option>
+            <option value="新竹物流">新竹物流</option>
+            <option value="順豐快遞">順豐快遞</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">運費（元）</label>
+          <input class="form-input" id="r_shipping_fee" type="number" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">稅金（元）<span style="font-size:11px;color:var(--gray-400);font-weight:400">（純備註，不進會計帳）</span></label>
+        <input class="form-input" id="r_tax" type="number" min="0" placeholder="0">
       </div>
       <div id="r_material_note" style="font-size:12px;color:#1d4ed8;margin-top:8px;display:none">
         ✓ 將自動新增一筆膜料卷並記入庫存
@@ -291,7 +294,7 @@ async function init() {
 
   document.getElementById('statusFilter').addEventListener('change', loadOrders);
   document.getElementById('orgFilter').addEventListener('change', loadOrders);
-  ['po_quantity_meters','po_unit_cost','po_shipping_cost'].forEach(id => {
+  ['po_quantity_meters','po_unit_cost'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateTotalDisplay);
   });
 
@@ -333,22 +336,24 @@ function renderOrders() {
               ${esc(brandLabel)}${po.series_code ? ' · '+esc(po.series_code) : ''}
             </div>
             <div style="font-size:12px;color:var(--gray-500)">
-              ${po.org_name ? esc(po.org_name)+' · ' : ''}${po.vendor_name ? esc(po.vendor_name)+' · ' : ''}
-              ${SHIPPING_LABEL[po.shipping_type]||po.shipping_type} · 採購 ${po.quantity_meters}米
+              ${po.org_name ? esc(po.org_name)+' · ' : ''}${po.vendor_name ? esc(po.vendor_name)+' · ' : ''}採購 ${po.quantity_meters}米
               ${currentUser.can_see_cost && po.total_cost ? ' · NT$'+Number(po.total_cost).toLocaleString() : ''}
             </div>
             <div style="font-size:12px;color:${overdue?'#dc2626':'var(--gray-500)'};margin-top:2px">
               預計到貨：${po.expected_date || '未設定'}${overdue?' ⚠️ 逾期':''}
             </div>
+            ${(po.receiver_name || po.total_tax > 0) ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px">
+              ${po.receiver_name ? '✍️ 簽收：'+esc(po.receiver_name) : ''}${(po.receiver_name && po.total_tax>0)?' · ':''}${po.total_tax>0 ? '稅金 NT$'+Number(po.total_tax).toLocaleString() : ''}
+            </div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
             <span class="status-badge sb-${po.status}">${STATUS_LABEL[po.status]||po.status}</span>
             <div style="display:flex;gap:6px">
               ${isManager && po.status !== 'received' && po.status !== 'cancelled' ? `
                 <button class="btn btn-primary btn-sm" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters})">登記到貨</button>
-                <button class="btn btn-secondary btn-sm" onclick="openEdit(${po.id})">編輯</button>
               ` : ''}
-              ${isManager && po.status === 'pending' ? `
+              ${isManager && po.status !== 'cancelled' ? `
+                <button class="btn btn-secondary btn-sm" onclick="openEdit(${po.id})">編輯</button>
                 <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="cancelPo(${po.id})">刪除</button>
               ` : ''}
             </div>
@@ -371,8 +376,7 @@ function renderOrders() {
 function updateTotalDisplay() {
   const qty  = parseFloat(document.getElementById('po_quantity_meters').value) || 0;
   const unit = parseFloat(document.getElementById('po_unit_cost').value) || 0;
-  const ship = parseFloat(document.getElementById('po_shipping_cost').value) || 0;
-  const total = qty * unit + ship;
+  const total = qty * unit;
   document.getElementById('totalCostDisplay').textContent = total > 0 ? `合計金額：NT$${total.toLocaleString()}` : '';
 }
 
@@ -382,10 +386,8 @@ function openNew() {
   ['po_brand','po_series_code','po_notes','po_expected_date'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('po_quantity_meters').value = '';
   document.getElementById('po_unit_cost').value = '';
-  document.getElementById('po_shipping_cost').value = '';
   document.getElementById('po_material_id').value = '';
   clearVendor();
-  document.getElementById('po_shipping_type').value = 'domestic';
   document.getElementById('totalCostDisplay').textContent = '';
   clearCaseLink();
   document.getElementById('poModal').style.display = 'flex';
@@ -403,8 +405,6 @@ async function openEdit(id) {
   if (po.vendor_id && po.vendor_name) { setVendor(po.vendor_id, po.vendor_name); } else { clearVendor(); }
   document.getElementById('po_quantity_meters').value = po.quantity_meters || '';
   document.getElementById('po_unit_cost').value       = po.unit_cost || '';
-  document.getElementById('po_shipping_type').value   = po.shipping_type || 'domestic';
-  document.getElementById('po_shipping_cost').value   = po.shipping_cost || '';
   document.getElementById('po_expected_date').value   = po.expected_date || '';
   document.getElementById('po_notes').value           = po.notes || '';
   if (po.case_id && po.case_number) {
@@ -426,8 +426,6 @@ async function savePo() {
     vendor_id:       document.getElementById('po_vendor_id').value || null,
     quantity_meters: qty,
     unit_cost:       parseFloat(document.getElementById('po_unit_cost').value) || 0,
-    shipping_type:   document.getElementById('po_shipping_type').value,
-    shipping_cost:   parseFloat(document.getElementById('po_shipping_cost').value) || 0,
     expected_date:   document.getElementById('po_expected_date').value || null,
     notes:           document.getElementById('po_notes').value.trim() || null,
     case_id:         document.getElementById('po_case_id').value || null,
@@ -453,6 +451,9 @@ function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) 
   document.getElementById('r_received_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('r_quantity_meters').value = '';
   document.getElementById('r_batch_note').value = '';
+  document.getElementById('r_carrier').value = '';
+  document.getElementById('r_shipping_fee').value = '';
+  document.getElementById('r_tax').value = '';
   document.getElementById('r_material_note').style.display = materialId ? '' : 'none';
   document.getElementById('receiptModal').style.display = 'flex';
 }
@@ -464,6 +465,9 @@ async function saveReceipt() {
     received_date:   document.getElementById('r_received_date').value,
     quantity_meters: qty,
     batch_note:      document.getElementById('r_batch_note').value.trim() || null,
+    carrier:         document.getElementById('r_carrier').value || null,
+    shipping_fee:    document.getElementById('r_shipping_fee').value || null,
+    tax:             document.getElementById('r_tax').value || null,
   };
   const btn = document.getElementById('saveReceiptBtn');
   btn.disabled = true;
@@ -483,9 +487,13 @@ async function saveReceipt() {
 }
 
 async function cancelPo(id) {
-  if (!confirm('確定刪除此採購單？\n只有「待到貨」狀態的採購單可以刪除。')) return;
+  const po = orders.find(o => o.id === id);
+  const msg = (po && po.status !== 'pending')
+    ? '確定刪除此採購單？\n會一併移除它登記的到貨與膜料卷（僅限該卷尚未被使用）。'
+    : '確定刪除此採購單？';
+  if (!confirm(msg)) return;
   const r = await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
-  if (!r.ok) { alert('操作失敗'); return; }
+  if (!r.ok) { const e = await r.json().catch(()=>({})); alert(e.error || '操作失敗'); return; }
   await loadOrders();
 }
 

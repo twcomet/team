@@ -19,7 +19,10 @@ router.get('/', requireAuth, (req, res) => {
     SELECT po.*, m.brand as mat_brand, m.model as mat_model, m.color as mat_color,
            v.name as vendor_name, u.name as created_by_name, o.name as org_name,
            c.case_number as case_number, c.title as case_title,
-           COALESCE(SUM(pr.quantity_meters),0) as received_meters
+           COALESCE(SUM(pr.quantity_meters),0) as received_meters,
+           COALESCE(SUM(pr.tax),0) as total_tax,
+           (SELECT u2.name FROM purchase_receipts pr2 LEFT JOIN users u2 ON u2.id=pr2.created_by
+            WHERE pr2.purchase_order_id=po.id ORDER BY pr2.received_date DESC, pr2.id DESC LIMIT 1) as receiver_name
     FROM purchase_orders po
     LEFT JOIN materials m ON m.id=po.material_id
     LEFT JOIN vendors v ON v.id=po.vendor_id
@@ -103,8 +106,46 @@ router.delete('/:id', requireAuth, (req, res) => {
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
   const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
   if (!po) return res.status(404).json({ error: '找不到採購單' });
-  if (po.status !== 'pending') return res.status(400).json({ error: '只有待到貨的採購單可以取消' });
-  db.prepare(`UPDATE purchase_orders SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(po.id);
+  if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
+  if (po.status === 'cancelled') return res.status(400).json({ error: '採購單已取消' });
+
+  // 待到貨：無到貨、無庫存 → 直接軟取消
+  if (po.status === 'pending') {
+    db.prepare(`UPDATE purchase_orders SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(po.id);
+    return res.json({ ok: true });
+  }
+
+  // 已到齊／部分到貨：反向處理已建立的膜料卷與庫存；該卷必須完全未被使用
+  const receipts = db.prepare(`SELECT * FROM purchase_receipts WHERE purchase_order_id=?`).all(po.id);
+  const rollIds = receipts.map(r => r.material_roll_id).filter(Boolean);
+  for (const rid of rollIds) {
+    const roll = db.prepare(`SELECT initial_meters, remaining_meters FROM material_rolls WHERE id=?`).get(rid);
+    if (!roll) continue;
+    const usedLogs = db.prepare(`SELECT COUNT(*) n FROM material_logs WHERE roll_id=? AND log_type!='purchase'`).get(rid).n;
+    if (usedLogs > 0 || Math.abs((roll.remaining_meters||0) - (roll.initial_meters||0)) > 1e-6) {
+      return res.status(400).json({ error: '此採購單到貨的膜料卷已被使用，無法刪除，請先處理相關使用紀錄' });
+    }
+  }
+  db.exec('PRAGMA foreign_keys=OFF');
+  db.exec('BEGIN');
+  try {
+    for (const rid of rollIds) {
+      const roll = db.prepare(`SELECT material_id, initial_meters FROM material_rolls WHERE id=?`).get(rid);
+      if (roll) {
+        db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id=?`).run(roll.initial_meters||0, roll.material_id);
+        db.prepare(`DELETE FROM material_logs WHERE roll_id=?`).run(rid);
+        db.prepare(`DELETE FROM material_rolls WHERE id=?`).run(rid);
+      }
+    }
+    db.prepare(`DELETE FROM purchase_receipts WHERE purchase_order_id=?`).run(po.id);
+    db.prepare(`DELETE FROM purchase_orders WHERE id=?`).run(po.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch {}
+    return res.status(500).json({ error: e.message });
+  } finally {
+    db.exec('PRAGMA foreign_keys=ON');
+  }
   res.json({ ok: true });
 });
 
@@ -117,7 +158,7 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (['received','cancelled'].includes(po.status)) return res.status(400).json({ error: '此採購單無法新增收貨' });
 
-  const { received_date, quantity_meters, batch_note } = req.body;
+  const { received_date, quantity_meters, batch_note, carrier, tax, shipping_fee } = req.body;
   if (!received_date || !quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入收貨日期與米數' });
 
   // 建立新膜料卷
@@ -136,8 +177,9 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   }
 
   // 建立收貨紀錄
-  db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,created_by) VALUES (?,?,?,?,?,?)`)
-    .run(po.id, rollId, received_date, parseFloat(quantity_meters), batch_note||null, me.id);
+  db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,carrier,tax,shipping_fee,created_by) VALUES (?,?,?,?,?,?,?,?,?)`)
+    .run(po.id, rollId, received_date, parseFloat(quantity_meters), batch_note||null,
+         carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, me.id);
 
   // 更新採購單狀態
   const totalReceived = db.prepare(`SELECT COALESCE(SUM(quantity_meters),0) as total FROM purchase_receipts WHERE purchase_order_id=?`).get(po.id).total;
