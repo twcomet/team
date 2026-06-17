@@ -329,6 +329,20 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   const isOut = log_type !== 'purchase';
   const delta = isOut ? -Math.abs(meters) : Math.abs(meters);
 
+  // 擋超量：出料/保留不可超過捲料可用庫存（須在任何異動之前檢查，避免改一半才擋）
+  if (isOut) {
+    let available = roll.remaining_meters;
+    // 實際出料(case_cut/case_loss)會先還原本案在此捲料的保留，故可用量要加回這些保留
+    if (['case_cut', 'case_loss'].includes(log_type) && case_id) {
+      const back = db.prepare(`SELECT COALESCE(SUM(-meters),0) AS m FROM material_logs
+        WHERE roll_id=? AND case_id=? AND log_type='reserve' AND status='active'`).get(req.params.rid, case_id).m;
+      available += back;
+    }
+    if (Math.abs(meters) > available + 1e-6) {
+      return res.status(400).json({ error: `用量 ${Math.abs(meters)} 米超過捲料可用庫存（可用 ${available} 米）` });
+    }
+  }
+
   // 若為實際出料（case_cut / case_loss），自動取消同案件的所有保留
   if (['case_cut', 'case_loss'].includes(log_type) && case_id) {
     // 1. 取消綁定同一捲料的保留
