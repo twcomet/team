@@ -55,19 +55,21 @@ const uploadDoc = multer({
 router.post('/upload-doc', requireAuth, uploadDoc.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: '請選擇檔案' });
   try {
+    // multer 預設把 multipart 檔名當 latin1 解碼，中文會亂碼 → 還原為 UTF-8
+    const origName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
     const isImage = req.file.mimetype.startsWith('image/');
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           folder: 'huixin-docs',
           resource_type: isImage ? 'image' : 'raw',
-          public_id: `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          public_id: `${Date.now()}_${origName.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
           use_filename: false,
         },
         (error, result) => error ? reject(error) : resolve(result)
       ).end(req.file.buffer);
     });
-    res.json({ ok: true, url: result.secure_url, public_id: result.public_id, filename: req.file.originalname });
+    res.json({ ok: true, url: result.secure_url, public_id: result.public_id, filename: origName });
   } catch (e) {
     res.status(500).json({ error: '上傳失敗：' + e.message });
   }
