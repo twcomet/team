@@ -120,12 +120,12 @@ router.put('/:id', requireAuth, (req, res) => {
          safeImageUrl, safePublicId,
          req.params.id, org_id);
 
-  // 若編輯後有庫存但完全沒有捲料紀錄 → 自動補建初始捲料，避免銷貨找不到可用捲料
+  // 編輯庫存米數：同步捲料剩餘，避免 stock_meters 與捲料脫鉤（否則之後扣庫會帶到舊的捲料剩餘）
   const meters = parseFloat(stock_meters) || 0;
-  if (meters > 0) {
-    const rollCount = db.prepare(`SELECT COUNT(*) as cnt FROM material_rolls WHERE material_id = ? AND org_id = ?`)
-      .get(req.params.id, org_id)?.cnt || 0;
-    if (rollCount === 0) {
+  const activeRolls = db.prepare(`SELECT id, remaining_meters, initial_meters FROM material_rolls WHERE material_id=? AND org_id=? AND status!='lost' ORDER BY (status='active') DESC, id`).all(req.params.id, org_id);
+  if (activeRolls.length === 0) {
+    // 完全沒有捲料且有庫存 → 自動補建初始捲料
+    if (meters > 0) {
       const today    = new Date().toISOString().slice(0, 10);
       const orgName  = db.prepare(`SELECT name FROM orgs WHERE id = ?`).get(org_id)?.name || '總部';
       const dateCode = today.replace(/-/g, '');
@@ -139,6 +139,22 @@ router.put('/:id', requireAuth, (req, res) => {
         INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by)
         VALUES (?, ?, ?, 'purchase', ?, '編輯膜料時補建初始捲料', ?)
       `).run(roll.lastInsertRowid, req.params.id, org_id, meters, uid);
+    }
+  } else {
+    // 已有捲料 → 把新庫存同步到捲料剩餘
+    const oldTotal = activeRolls.reduce((s, r) => s + (r.remaining_meters || 0), 0);
+    if (Math.abs(meters - oldTotal) > 1e-6) {
+      if (activeRolls.length === 1) {
+        const r = activeRolls[0], nr = Math.max(0, meters);
+        db.prepare(`UPDATE material_rolls SET remaining_meters=?, initial_meters=MAX(initial_meters,?), status=? WHERE id=?`)
+          .run(nr, nr, nr > 0 ? 'active' : 'finished', r.id);
+      } else {
+        // 多支捲料：差額套到剩餘最多的那支
+        const tgt = activeRolls.slice().sort((a, b) => (b.remaining_meters || 0) - (a.remaining_meters || 0))[0];
+        const nr = Math.max(0, (tgt.remaining_meters || 0) + (meters - oldTotal));
+        db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`)
+          .run(nr, nr > 0 ? 'active' : 'finished', tgt.id);
+      }
     }
   }
 
