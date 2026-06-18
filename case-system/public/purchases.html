@@ -170,6 +170,10 @@
         <input class="form-input" id="po_expected_date" type="date">
       </div>
       <div class="form-group">
+        <label class="form-label">通知訂貨人（選填）</label>
+        <select class="form-input" id="po_ordered_by"><option value="">— 不指派 —</option></select>
+      </div>
+      <div class="form-group">
         <label class="form-label">關聯案件（選填）</label>
         <div class="case-ac-wrap">
           <input class="form-input" id="po_case_search" autocomplete="off" placeholder="輸入案號或客戶名稱搜尋…" oninput="onCaseSearch(this.value)">
@@ -292,6 +296,24 @@ async function init() {
     vendors = await vr.json();
   }
 
+  // 載入預設訂購人（6 位：Dan、Flora、恰吉、Melody、Peggy、Tina）
+  try {
+    const us = await (await fetch('/api/users')).json();
+    const want = [
+      { label:'Dan',    m: u => u.name==='Dan'    || (u.username||'').toLowerCase()==='dan' },
+      { label:'Flora',  m: u => u.name==='佳樺'   || (u.username||'').toLowerCase()==='flora' },
+      { label:'恰吉',   m: u => u.name==='恰吉' },
+      { label:'Melody', m: u => u.name==='Melody' || (u.username||'').toLowerCase()==='melody' },
+      { label:'Peggy',  m: u => u.name==='Peggy'  || (u.username||'').toLowerCase()==='peggy' },
+      { label:'Tina',   m: u => u.name==='Tina'   || (u.username||'').toLowerCase()==='tina' },
+    ];
+    const sel = document.getElementById('po_ordered_by');
+    want.forEach(w => {
+      const u = (us||[]).filter(x => x.active !== 0).find(w.m);
+      if (u) sel.innerHTML += `<option value="${u.id}">${esc(u.name)}</option>`;
+    });
+  } catch(_) {}
+
   document.getElementById('statusFilter').addEventListener('change', loadOrders);
   document.getElementById('orgFilter').addEventListener('change', loadOrders);
   ['po_quantity_meters','po_unit_cost'].forEach(id => {
@@ -345,10 +367,18 @@ function renderOrders() {
             ${(po.receiver_name || po.total_tax > 0) ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px">
               ${po.receiver_name ? '✍️ 簽收：'+esc(po.receiver_name) : ''}${(po.receiver_name && po.total_tax>0)?' · ':''}${po.total_tax>0 ? '稅金 NT$'+Number(po.total_tax).toLocaleString() : ''}
             </div>` : ''}
+            ${po.ordered_by ? `<div style="font-size:12px;margin-top:2px">
+              ${po.order_status === 'ordered'
+                ? `<span style="color:#059669;font-weight:600">✅ 已訂貨</span>${po.ordered_by_name ? ' · '+esc(po.ordered_by_name) : ''}${po.ordered_at ? ' · '+po.ordered_at.slice(0,10) : ''}`
+                : `<span style="color:#b45309;font-weight:600">🛒 待訂貨</span>${po.ordered_by_name ? ' · 訂貨人：'+esc(po.ordered_by_name) : ''}`}
+            </div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
             <span class="status-badge sb-${po.status}">${STATUS_LABEL[po.status]||po.status}</span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              ${po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager) ? `
+                <button class="btn btn-sm" style="background:#d1fae5;color:#065f46" onclick="confirmOrder(${po.id})">✅ 已訂貨</button>
+              ` : ''}
               ${isManager && po.status !== 'received' && po.status !== 'cancelled' ? `
                 <button class="btn btn-primary btn-sm" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters})">登記到貨</button>
               ` : ''}
@@ -387,6 +417,7 @@ function openNew() {
   document.getElementById('po_quantity_meters').value = '';
   document.getElementById('po_unit_cost').value = '';
   document.getElementById('po_material_id').value = '';
+  document.getElementById('po_ordered_by').value = '';
   clearVendor();
   document.getElementById('totalCostDisplay').textContent = '';
   clearCaseLink();
@@ -405,6 +436,7 @@ async function openEdit(id) {
   if (po.vendor_id && po.vendor_name) { setVendor(po.vendor_id, po.vendor_name); } else { clearVendor(); }
   document.getElementById('po_quantity_meters').value = po.quantity_meters || '';
   document.getElementById('po_unit_cost').value       = po.unit_cost || '';
+  document.getElementById('po_ordered_by').value      = po.ordered_by || '';
   document.getElementById('po_expected_date').value   = po.expected_date || '';
   document.getElementById('po_notes').value           = po.notes || '';
   if (po.case_id && po.case_number) {
@@ -426,6 +458,7 @@ async function savePo() {
     vendor_id:       document.getElementById('po_vendor_id').value || null,
     quantity_meters: qty,
     unit_cost:       parseFloat(document.getElementById('po_unit_cost').value) || 0,
+    ordered_by:      document.getElementById('po_ordered_by').value || null,
     expected_date:   document.getElementById('po_expected_date').value || null,
     notes:           document.getElementById('po_notes').value.trim() || null,
     case_id:         document.getElementById('po_case_id').value || null,
@@ -484,6 +517,13 @@ async function saveReceipt() {
       await loadOrders();
     }
   } finally { btn.disabled = false; }
+}
+
+async function confirmOrder(id) {
+  if (!confirm('確認此採購單已完成訂貨？')) return;
+  const r = await fetch(`/api/purchases/${id}/confirm-order`, { method: 'PATCH' });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); alert(e.error || '操作失敗'); return; }
+  await loadOrders();
 }
 
 async function cancelPo(id) {

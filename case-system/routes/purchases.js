@@ -18,6 +18,7 @@ router.get('/', requireAuth, (req, res) => {
   let sql = `
     SELECT po.*, m.brand as mat_brand, m.model as mat_model, m.color as mat_color,
            v.name as vendor_name, u.name as created_by_name, o.name as org_name,
+           uo.name as ordered_by_name,
            c.case_number as case_number, c.title as case_title,
            COALESCE(SUM(pr.quantity_meters),0) as received_meters,
            COALESCE(SUM(pr.tax),0) as total_tax,
@@ -27,6 +28,7 @@ router.get('/', requireAuth, (req, res) => {
     LEFT JOIN materials m ON m.id=po.material_id
     LEFT JOIN vendors v ON v.id=po.vendor_id
     LEFT JOIN users u ON u.id=po.created_by
+    LEFT JOIN users uo ON uo.id=po.ordered_by
     LEFT JOIN orgs o ON o.id=po.org_id
     LEFT JOIN cases c ON c.id=po.case_id
     LEFT JOIN purchase_receipts pr ON pr.purchase_order_id=po.id
@@ -68,20 +70,32 @@ router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id, case_id } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id, case_id, ordered_by } = req.body;
   if (!quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入採購米數' });
   const targetOrg = me.role === 'owner' ? (org_id || me.org_id) : me.org_id;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters) + (parseFloat(shipping_cost)||0);
   const r = db.prepare(`
     INSERT INTO purchase_orders (org_id,material_id,vendor_id,brand,series_code,quantity_meters,
-      unit_cost,total_cost,shipping_type,shipping_cost,expected_date,notes,created_by,case_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      unit_cost,total_cost,shipping_type,shipping_cost,expected_date,notes,created_by,case_id,ordered_by,order_status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')
   `).run(targetOrg, material_id||null, vendor_id||null, brand||null, series_code||null,
          parseFloat(quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
-         expected_date||null, notes||null, me.id, case_id||null);
+         expected_date||null, notes||null, me.id, case_id||null, ordered_by||null);
+  // 通知訂貨人
+  if (ordered_by) notifyOrderer(r.lastInsertRowid, ordered_by, me.name, brand, series_code, quantity_meters);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
+
+// 通知被指派的訂貨人
+function notifyOrderer(poId, orderedBy, byName, brand, series, qty) {
+  try {
+    const label = `${brand || ''}${series ? ' '+series : ''} ${qty}米`.trim();
+    db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url)
+      VALUES (?,?,?,'purchase','purchase_orders',?, '/purchases')`)
+      .run(orderedBy, `🛒 採購單待訂貨：${label}`, `${byName} 指派你訂貨，請確認後回報「已訂貨」。`, poId);
+  } catch (_) {}
+}
 
 router.put('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
@@ -90,14 +104,33 @@ router.put('/:id', requireAuth, (req, res) => {
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id, ordered_by } = req.body;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters||po.quantity_meters) + (parseFloat(shipping_cost)||0);
+  const newOrderedBy = ordered_by !== undefined ? (ordered_by || null) : po.ordered_by;
   db.prepare(`UPDATE purchase_orders SET material_id=?,vendor_id=?,brand=?,series_code=?,quantity_meters=?,
-    unit_cost=?,total_cost=?,shipping_type=?,shipping_cost=?,expected_date=?,notes=?,status=?,case_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    unit_cost=?,total_cost=?,shipping_type=?,shipping_cost=?,expected_date=?,notes=?,status=?,case_id=?,ordered_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(material_id||null, vendor_id||null, brand||null, series_code||null,
          parseFloat(quantity_meters||po.quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
-         expected_date||null, notes||null, status||po.status, case_id !== undefined ? (case_id||null) : po.case_id, po.id);
+         expected_date||null, notes||null, status||po.status, case_id !== undefined ? (case_id||null) : po.case_id, newOrderedBy, po.id);
+  // 改派了新訂貨人（且尚未訂貨）→ 通知新的人
+  if (newOrderedBy && String(newOrderedBy) !== String(po.ordered_by || '') && po.order_status !== 'ordered') {
+    notifyOrderer(po.id, newOrderedBy, me.name, brand, series_code, quantity_meters || po.quantity_meters);
+  }
+  res.json({ ok: true });
+});
+
+// PATCH /:id/confirm-order — 訂貨人確認「已訂貨」
+router.patch('/:id/confirm-order', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
+  if (!po) return res.status(404).json({ error: '找不到採購單' });
+  // 限被指派的訂貨人本人，或管理者
+  const isManager = me.role === 'owner' || !!me.manage_users || !!me.can_manage_assets;
+  if (String(po.ordered_by || '') !== String(me.id) && !isManager) {
+    return res.status(403).json({ error: '只有被指派的訂貨人或管理者可以確認' });
+  }
+  db.prepare(`UPDATE purchase_orders SET order_status='ordered', ordered_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(po.id);
   res.json({ ok: true });
 });
 

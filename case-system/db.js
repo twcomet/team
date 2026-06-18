@@ -2837,6 +2837,11 @@ _addCol('purchase_receipts', 'carrier',      'TEXT');
 _addCol('purchase_receipts', 'tax',          'REAL');
 _addCol('purchase_receipts', 'shipping_fee', 'REAL');
 
+// ── 採購單：通知訂貨人 + 訂貨狀態（與到貨狀態獨立）───────────────────────────
+_addCol('purchase_orders', 'ordered_by',   'INTEGER REFERENCES users(id)');  // 指派的訂貨人
+_addCol('purchase_orders', 'order_status', "TEXT DEFAULT 'pending'");          // pending=待訂貨 / ordered=已訂貨
+_addCol('purchase_orders', 'ordered_at',   'DATETIME');                        // 訂貨人確認時間
+
 // ── 預收款會計核銷欄位 + 場勘費關聯案件 ─────────────────────────────────────
 _addCol('client_deposits', 'linked_case_id',         'INTEGER REFERENCES cases(id)');
 _addCol('client_deposits', 'accounting_verified',    'INTEGER DEFAULT 0');
