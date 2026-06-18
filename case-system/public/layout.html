@@ -140,8 +140,6 @@
               <div class="card-header"><h3>設定</h3></div>
               <div class="card-body">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-                  <label style="font-size:13px">間隔(cm)</label>
-                  <input id="ed_gap" type="number" class="lay-input" style="width:70px" value="0" min="0" onchange="markDirty()">
                   <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer">
                     <input type="checkbox" id="ed_rot_all" checked onchange="toggleRotAll()"> 全部可轉向
                   </label>
@@ -224,23 +222,37 @@ async function openProject(id){
   document.getElementById('projListView').style.display='none';
   document.getElementById('editorView').style.display='';
   document.getElementById('ed_name').value = proj.name;
-  document.getElementById('ed_gap').value = proj.gap;
   document.getElementById('ed_rot_all').checked = proj.rotAll;
   renderMaterials(); renderAreas();
-  sheets=[]; curSheet=0; dirty=false; drawSheet();
+  sheets=[]; curSheet=0; dirty=false; clearTimeout(autoSaveTimer); drawSheet();
 }
-function backToList(){ if(dirty && !confirm('尚未儲存，確定離開？'))return; proj=null; document.getElementById('editorView').style.display='none'; document.getElementById('projListView').style.display=''; loadProjects(); }
-function markDirty(){ dirty=true; document.getElementById('ed_saved').textContent=''; }
-async function saveProject(){
-  if (!proj) return;
+async function backToList(){ clearTimeout(autoSaveTimer); if(dirty && proj) await doSave(true); proj=null; document.getElementById('editorView').style.display='none'; document.getElementById('projListView').style.display=''; loadProjects(); }
+let autoSaveTimer = null, saving = false;
+function setSaveStatus(txt, color){ const el=document.getElementById('ed_saved'); el.textContent=txt; el.style.color=color; }
+function markDirty(){
+  dirty = true;
+  setSaveStatus('待儲存…', '#b45309');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(()=>{ if (dirty && proj) doSave(true); }, 1500);  // 改動後 1.5 秒自動儲存
+}
+async function doSave(silent){
+  if (!proj || saving) return;
+  saving = true;
   collectInputs();
+  setSaveStatus('儲存中…', '#6b7280');
   const body = { name: proj.name, data:{ gap:proj.gap, rotAll:proj.rotAll, materials:proj.materials, areas:proj.areas } };
-  const r = await fetch(`/api/layout/projects/${proj.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if (r.ok){ dirty=false; document.getElementById('ed_saved').textContent='✓ 已儲存'; }
+  try {
+    const r = await fetch(`/api/layout/projects/${proj.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if (r.ok){ dirty=false; const t=new Date(), hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
+      setSaveStatus((silent?'✓ 已自動儲存 ':'✓ 已儲存 ')+hh+':'+mm, '#059669'); }
+    else setSaveStatus('⚠️ 儲存失敗，稍後自動重試', '#dc2626');
+  } catch { setSaveStatus('⚠️ 網路問題，稍後自動重試', '#dc2626'); }
+  saving = false;
 }
+async function saveProject(){ await doSave(false); }
 function collectInputs(){
   proj.name = document.getElementById('ed_name').value.trim() || '未命名';
-  proj.gap = parseFloat(document.getElementById('ed_gap').value)||0;
+  proj.gap = proj.gap || 0;
   proj.rotAll = document.getElementById('ed_rot_all').checked;
 }
 
@@ -334,36 +346,64 @@ function calculate(){
   else warn.style.display='none';
   drawSheet();
 }
+// MaxRects 最佳短邊貼合（BSSF）：大件優先、把剩料區的空位也緊密填滿
 function packMaterial(pieces, W, L, gap){
   const out = [];
-  let remaining = pieces.slice().sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+  // 大件優先（長邊大者先排）
+  let remaining = pieces.slice().sort((a,b)=> Math.max(b.w,b.h)-Math.max(a.w,a.h) || (b.w*b.h)-(a.w*a.h));
   let guard = 0;
-  while (remaining.length && guard++<100){
-    const placed = [];
+  while (remaining.length && guard++ < 300){
     let free = [{x:0,y:0,w:W,h:L}];
+    const placed = [];
     const next = [];
     for (const p of remaining){
-      let best=null,bi=-1,rot=false,score=Infinity;
-      for (let i=0;i<free.length;i++){
-        const f=free[i];
-        if (p.w+gap<=f.w+1e-6 && p.h+gap<=f.h+1e-6){ const sc=f.w*f.h-(p.w+gap)*(p.h+gap); if(sc<score){score=sc;best=f;bi=i;rot=false;} }
-        if (p.rotatable && p.h+gap<=f.w+1e-6 && p.w+gap<=f.h+1e-6){ const sc=f.w*f.h-(p.h+gap)*(p.w+gap); if(sc<score){score=sc;best=f;bi=i;rot=true;} }
-      }
-      if (!best){ next.push(p); continue; }
-      const pw=rot?p.h:p.w, ph=rot?p.w:p.h;
-      placed.push({x:best.x,y:best.y,w:pw,h:ph,label:p.label,rot});
-      const uw=pw+gap, uh=ph+gap, f=best;
-      free.splice(bi,1);
-      if (f.w-uw>1e-6) free.push({x:f.x+uw,y:f.y,w:f.w-uw,h:uh});
-      if (f.h-uh>1e-6) free.push({x:f.x,y:f.y+uh,w:f.w,h:f.h-uh});
+      const pos = bestFit(free, p, gap);
+      if (!pos){ next.push(p); continue; }
+      const pw = pos.rot ? p.h : p.w, ph = pos.rot ? p.w : p.h;
+      placed.push({x:pos.x, y:pos.y, w:pw, h:ph, label:p.label, rot:pos.rot});
+      splitFree(free, {x:pos.x, y:pos.y, w:pw+gap, h:ph+gap});
     }
     if (!placed.length) break;
-    const usedLen = Math.max(0,...placed.map(p=>p.y+p.h+gap));
-    const usedArea = placed.reduce((s,p)=>s+p.w*p.h,0);
+    const usedLen = Math.max(0, ...placed.map(p=>p.y+p.h+gap));
+    const usedArea = placed.reduce((s,p)=>s+p.w*p.h, 0);
     out.push({placed, usedLen, util: (W*usedLen)?usedArea/(W*usedLen):0});
     remaining = next;
   }
   return out;
+}
+// 找最適合的空閒矩形（最佳短邊貼合，越貼合越優先 → 填滿空位）
+function bestFit(free, p, gap){
+  let best=null, score=Infinity, sec=Infinity;
+  for (const f of free){
+    if (p.w+gap<=f.w+1e-6 && p.h+gap<=f.h+1e-6){
+      const lw=f.w-(p.w+gap), lh=f.h-(p.h+gap), sc=Math.min(lw,lh), s2=Math.max(lw,lh);
+      if (sc<score-1e-9 || (Math.abs(sc-score)<1e-9 && s2<sec)){ score=sc; sec=s2; best={x:f.x,y:f.y,rot:false}; }
+    }
+    if (p.rotatable && p.h+gap<=f.w+1e-6 && p.w+gap<=f.h+1e-6){
+      const lw=f.w-(p.h+gap), lh=f.h-(p.w+gap), sc=Math.min(lw,lh), s2=Math.max(lw,lh);
+      if (sc<score-1e-9 || (Math.abs(sc-score)<1e-9 && s2<sec)){ score=sc; sec=s2; best={x:f.x,y:f.y,rot:true}; }
+    }
+  }
+  return best;
+}
+// 放入 used 後，把所有重疊的空閒矩形切成最大矩形，並刪除被包含者
+function splitFree(free, used){
+  const ux2=used.x+used.w, uy2=used.y+used.h;
+  for (let i=free.length-1;i>=0;i--){
+    const f=free[i];
+    if (used.x>=f.x+f.w-1e-9 || ux2<=f.x+1e-9 || used.y>=f.y+f.h-1e-9 || uy2<=f.y+1e-9) continue; // 無重疊
+    free.splice(i,1);
+    if (used.x>f.x+1e-9)        free.push({x:f.x, y:f.y, w:used.x-f.x, h:f.h});
+    if (ux2<f.x+f.w-1e-9)       free.push({x:ux2, y:f.y, w:f.x+f.w-ux2, h:f.h});
+    if (used.y>f.y+1e-9)        free.push({x:f.x, y:f.y, w:f.w, h:used.y-f.y});
+    if (uy2<f.y+f.h-1e-9)       free.push({x:f.x, y:uy2, w:f.w, h:f.y+f.h-uy2});
+  }
+  for (let i=free.length-1;i>=0;i--){
+    for (let j=0;j<free.length;j++){
+      if (i!==j && free[i].x>=free[j].x-1e-9 && free[i].y>=free[j].y-1e-9 &&
+          free[i].x+free[i].w<=free[j].x+free[j].w+1e-9 && free[i].y+free[i].h<=free[j].y+free[j].h+1e-9){ free.splice(i,1); break; }
+    }
+  }
 }
 
 // ── 畫布渲染（底部起跑、由下往上）+ 拖移 ───────────────
