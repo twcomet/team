@@ -189,11 +189,13 @@ async function init() {
   const ACTIVE = ['contracted','dispatched','constructing','payment'];
   const active = cases.filter(c => ACTIVE.includes(c.status));
 
-  const todayJobs   = active.filter(c => c.scheduled_date === todayStr);
-  const pendingWork = active.filter(c => c.status === 'dispatched' && c.scheduled_date !== todayStr);
-  const unscheduled = active.filter(c => c.status === 'contracted');
-  const constructing = active.filter(c => c.status === 'constructing' && c.scheduled_date !== todayStr);
-  const inPayment   = active.filter(c => c.status === 'payment');
+  // 今日施工＝今天有派工的案件（與統計卡/行事曆一致，非案件單一 scheduled_date）
+  const todayDispatchIds = new Set(stats.today_dispatch_case_ids || []);
+  const todayJobs   = active.filter(c => todayDispatchIds.has(c.id));
+  const pendingWork = active.filter(c => c.status === 'dispatched'   && !todayDispatchIds.has(c.id));
+  const unscheduled = active.filter(c => c.status === 'contracted'   && !todayDispatchIds.has(c.id));
+  const constructing = active.filter(c => c.status === 'constructing' && !todayDispatchIds.has(c.id));
+  const inPayment   = active.filter(c => c.status === 'payment'      && !todayDispatchIds.has(c.id));
 
   function caseRow(c) {
     const dateCell = c.scheduled_date

@@ -980,6 +980,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     in_payment:   db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='payment' ${orgCond}`).get(...orgPs2).n,
     unscheduled:  db.prepare(`SELECT COUNT(*) n FROM cases c WHERE status='contracted' ${orgCond}`).get(...orgPs2).n,
     today_jobs:   db.prepare(`SELECT COUNT(*) n FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? ${orgCond}`).get(today, ...orgPs2).n,
+    today_dispatch_case_ids: db.prepare(`SELECT DISTINCT d.case_id FROM dispatches d JOIN cases c ON d.case_id=c.id WHERE d.scheduled_date=? AND d.status!='cancelled' ${orgCond}`).all(today, ...orgPs2).map(r => r.case_id),
     unpaid:       db.prepare(`SELECT COALESCE(SUM(
                    COALESCE(final_price,quoted_price,0)
                    - COALESCE(survey_fee,0)
