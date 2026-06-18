@@ -89,6 +89,7 @@ async function loadUser() {
     'staff-performance': currentUser.role === 'owner',
     marketplace:      true,   // 市集所有人可見
     guide:            true,   // 系統使用說明所有人可見
+    layout:           currentUser.role === 'owner' || !!mu || !!currentUser.can_layout,  // 排版工具：管理者或被授權者
   };
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     const page = el.dataset.page;

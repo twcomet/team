@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排版工具 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .lay-input { padding:6px 9px; border:1px solid var(--gray-300); border-radius:7px; font-size:13px; }
+  .lay-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .area-block { border:1px solid #fbcfe8; border-radius:10px; padding:10px; margin-bottom:10px; background:#fdf4f8; }
+  .piece-row { display:grid; grid-template-columns:1fr 1fr 56px 40px 28px 28px; gap:6px; align-items:center; margin-bottom:6px; }
+  .piece-row input { padding:5px 7px; border:1px solid var(--gray-300); border-radius:6px; font-size:13px; width:100%; }
+  .icon-btn { background:none; border:none; cursor:pointer; font-size:14px; padding:2px; }
+  #layCanvasWrap { background:#fafafa; border:1px solid var(--gray-200); border-radius:10px; overflow:auto; position:relative; }
+  .proj-row { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--gray-100); }
+  .proj-row a { color:var(--primary); font-weight:600; text-decoration:none; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item active" data-page="layout" href="/layout"><span class="icon">📐</span>排版工具</a>
+      <a class="nav-item" data-page="materials" href="/materials"><span class="icon">🎞️</span>膜料管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">📐 排版工具</span>
+    </div>
+    <div class="page-body">
+
+      <!-- 專案清單 -->
+      <div id="projListView">
+        <div class="card">
+          <div class="card-header">
+            <h3>排版專案</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="projSearch" class="lay-input" placeholder="搜尋專案名稱…" oninput="renderProjList()">
+              <button class="btn btn-primary btn-sm" onclick="newProject()">＋ 新增專案</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div id="projList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 編輯器 -->
+      <div id="editorView" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="backToList()">← 返回</button>
+          <input id="ed_name" class="lay-input" style="font-size:16px;font-weight:600;min-width:200px" placeholder="專案名稱">
+          <button class="btn btn-primary btn-sm" onclick="saveProject()">💾 儲存</button>
+          <span id="ed_saved" style="font-size:12px;color:#059669"></span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;align-items:start">
+          <!-- 左：排版圖 -->
+          <div class="card" style="margin:0">
+            <div class="card-header">
+              <h3 id="sheetTitle">排版圖</h3>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button class="btn btn-ghost btn-sm" onclick="zoomBy(-0.15)">🔍－</button>
+                <span id="zoomLbl" style="font-size:12px;color:var(--gray-500)">100%</span>
+                <button class="btn btn-ghost btn-sm" onclick="zoomBy(0.15)">🔍＋</button>
+                <button class="btn btn-ghost btn-sm" onclick="exportPDF()">📄 匯出 PDF</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;color:var(--gray-600)">
+                <button class="btn btn-ghost btn-sm" onclick="prevSheet()">‹ 上一張</button>
+                <span id="sheetInfo">—</span>
+                <button class="btn btn-ghost btn-sm" onclick="nextSheet()">下一張 ›</button>
+              </div>
+              <div id="layCanvasWrap" style="height:560px">
+                <canvas id="layCanvas"></canvas>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--gray-600)">
+                <span id="sheetUtil">使用率：—</span>
+                <span id="sheetLen">使用長度：—</span>
+              </div>
+              <div id="oversizeWarn" style="display:none;margin-top:8px;font-size:12px;color:#dc2626"></div>
+            </div>
+          </div>
+
+          <!-- 右：材料 + 區域 + 尺寸 -->
+          <div>
+            <div class="card" style="margin:0 0 12px">
+              <div class="card-header"><h3>設定</h3></div>
+              <div class="card-body">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+                  <label style="font-size:13px">間隔(cm)</label>
+                  <input id="ed_gap" type="number" class="lay-input" style="width:70px" value="0" min="0" onchange="markDirty()">
+                  <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer">
+                    <input type="checkbox" id="ed_rot_all" checked onchange="toggleRotAll()"> 全部可轉向
+                  </label>
+                </div>
+                <div class="section-label" style="margin:6px 0">材料定義（型號 · 卷寬 · 卷長 cm）</div>
+                <div id="matList"></div>
+                <button class="btn btn-ghost btn-sm" onclick="addMaterial()">＋ 新增材料</button>
+              </div>
+            </div>
+
+            <div class="card" style="margin:0">
+              <div class="card-header">
+                <h3>區域與尺寸</h3>
+                <button class="btn btn-primary btn-sm" onclick="addArea()">＋ 新增區域</button>
+              </div>
+              <div class="card-body">
+                <div id="areaList"></div>
+                <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="calculate()">🧮 計算排版</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let projects = [];
+let proj = null;          // 目前編輯的專案 { id, name, gap, rotAll, materials:[], areas:[] }
+let sheets = [];          // 計算後的所有排版張 [{matName, rollIdx, placed, usedLen, util, rollW, rollLen}]
+let curSheet = 0;
+let zoom = 1;
+let dirty = false;
+let uid = 0;
+function nid(){ return 'x'+(++uid)+Date.now().toString(36); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ── 專案清單 ───────────────────────────────────────────
+async function loadProjects(){
+  const r = await fetch('/api/layout/projects');
+  projects = r.ok ? await r.json() : [];
+  renderProjList();
+}
+function renderProjList(){
+  const kw = (document.getElementById('projSearch').value||'').toLowerCase();
+  const list = projects.filter(p => p.name.toLowerCase().includes(kw));
+  const el = document.getElementById('projList');
+  if (!list.length){ el.innerHTML = '<p style="text-align:center;color:#6b7280;padding:30px">尚無專案，點「＋新增專案」開始</p>'; return; }
+  el.innerHTML = list.map(p => `
+    <div class="proj-row">
+      <div><a onclick="openProject(${p.id})">${esc(p.name)}</a>
+        <div style="font-size:11px;color:var(--gray-400)">建立：${(p.created_at||'').slice(0,16).replace('T',' ')} · ${esc(p.created_by_name||'')}</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="archiveProject(${p.id})">📥 歸檔</button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="delProject(${p.id})">刪除</button>
+      </div>
+    </div>`).join('');
+}
+async function newProject(){
+  const name = prompt('專案名稱（建議用案件名）：');
+  if (!name?.trim()) return;
+  const r = await fetch('/api/layout/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim(), data:blankData()})});
+  if (r.ok){ const d=await r.json(); await loadProjects(); openProject(d.id); }
+}
+function blankData(){ return { gap:0, rotAll:true, materials:[{id:nid(),name:'',width:122,length:5000}], areas:[] }; }
+async function archiveProject(id){ await fetch(`/api/layout/projects/${id}/archive`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:1})}); await loadProjects(); }
+async function delProject(id){ if(!confirm('確定刪除此專案？'))return; await fetch(`/api/layout/projects/${id}`,{method:'DELETE'}); await loadProjects(); }
+
+// ── 開啟 / 儲存 ───────────────────────────────────────
+async function openProject(id){
+  const r = await fetch(`/api/layout/projects/${id}`);
+  if (!r.ok) return;
+  const p = await r.json();
+  const d = p.data && p.data.materials ? p.data : blankData();
+  proj = { id:p.id, name:p.name, gap:d.gap??0, rotAll:d.rotAll!==false, materials:d.materials||[], areas:d.areas||[] };
+  if (!proj.materials.length) proj.materials=[{id:nid(),name:'',width:122,length:5000}];
+  document.getElementById('projListView').style.display='none';
+  document.getElementById('editorView').style.display='';
+  document.getElementById('ed_name').value = proj.name;
+  document.getElementById('ed_gap').value = proj.gap;
+  document.getElementById('ed_rot_all').checked = proj.rotAll;
+  renderMaterials(); renderAreas();
+  sheets=[]; curSheet=0; dirty=false; drawSheet();
+}
+function backToList(){ if(dirty && !confirm('尚未儲存，確定離開？'))return; proj=null; document.getElementById('editorView').style.display='none'; document.getElementById('projListView').style.display=''; loadProjects(); }
+function markDirty(){ dirty=true; document.getElementById('ed_saved').textContent=''; }
+async function saveProject(){
+  if (!proj) return;
+  collectInputs();
+  const body = { name: proj.name, data:{ gap:proj.gap, rotAll:proj.rotAll, materials:proj.materials, areas:proj.areas } };
+  const r = await fetch(`/api/layout/projects/${proj.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if (r.ok){ dirty=false; document.getElementById('ed_saved').textContent='✓ 已儲存'; }
+}
+function collectInputs(){
+  proj.name = document.getElementById('ed_name').value.trim() || '未命名';
+  proj.gap = parseFloat(document.getElementById('ed_gap').value)||0;
+  proj.rotAll = document.getElementById('ed_rot_all').checked;
+}
+
+// ── 材料定義 ───────────────────────────────────────
+function renderMaterials(){
+  document.getElementById('matList').innerHTML = proj.materials.map(m=>`
+    <div class="piece-row" style="grid-template-columns:1.4fr 70px 80px 28px;margin-bottom:6px" data-mid="${m.id}">
+      <input placeholder="型號 如 AA801" value="${esc(m.name)}" oninput="updMat('${m.id}','name',this.value)">
+      <input type="number" placeholder="卷寬" value="${m.width||''}" oninput="updMat('${m.id}','width',this.value)" title="卷寬cm">
+      <input type="number" placeholder="卷長" value="${m.length||''}" oninput="updMat('${m.id}','length',this.value)" title="卷長cm">
+      <button class="icon-btn" style="color:#e02424" onclick="delMat('${m.id}')">🗑️</button>
+    </div>`).join('');
+  // 同步區域的材料下拉
+  renderAreas();
+}
+function updMat(id,k,v){ const m=proj.materials.find(x=>x.id===id); if(m){ m[k]= (k==='name')?v:(parseFloat(v)||0); markDirty(); if(k==='name') renderAreaMatSelects(); } }
+function addMaterial(){ proj.materials.push({id:nid(),name:'',width:122,length:5000}); renderMaterials(); markDirty(); }
+function delMat(id){ proj.materials=proj.materials.filter(x=>x.id!==id); renderMaterials(); markDirty(); }
+
+// ── 區域與尺寸 ───────────────────────────────────────
+function renderAreas(){
+  const el = document.getElementById('areaList');
+  if (!el) return;
+  el.innerHTML = proj.areas.map(a=>`
+    <div class="area-block" data-aid="${a.id}">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <input class="lay-input" style="flex:1" placeholder="區域名 如 A區" value="${esc(a.name)}" oninput="updArea('${a.id}','name',this.value)">
+        <select class="lay-input" onchange="updArea('${a.id}','materialId',this.value)">${matOptions(a.materialId)}</select>
+        <button class="icon-btn" style="color:#e02424" onclick="delArea('${a.id}')">🗑️</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 56px 40px 28px 28px;gap:6px;font-size:11px;color:var(--gray-400);margin-bottom:4px">
+        <div>寬cm</div><div>高cm</div><div>數量</div><div>轉向</div><div></div><div></div>
+      </div>
+      <div id="pieces_${a.id}">${a.pieces.map((p,i)=>pieceRow(a.id,i,p)).join('')}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="addPiece('${a.id}')">＋ 尺寸</button>
+    </div>`).join('') || '<p style="font-size:13px;color:#9ca3af">尚無區域，點右上「＋新增區域」</p>';
+}
+function matOptions(sel){ return '<option value="">選材料</option>'+proj.materials.map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name||'未命名')}</option>`).join(''); }
+function renderAreaMatSelects(){ document.querySelectorAll('#areaList select').forEach((s,idx)=>{ const a=proj.areas[idx]; if(a) s.innerHTML=matOptions(a.materialId); }); }
+function pieceRow(aid,i,p){
+  return `<div class="piece-row">
+    <input type="number" placeholder="寬" value="${p.w||''}" oninput="updPiece('${aid}',${i},'w',this.value)">
+    <input type="number" placeholder="高" value="${p.h||''}" oninput="updPiece('${aid}',${i},'h',this.value)">
+    <input type="number" placeholder="數量" value="${p.qty||1}" min="1" oninput="updPiece('${aid}',${i},'qty',this.value)">
+    <input type="checkbox" ${p.rotatable!==false?'checked':''} onchange="updPiece('${aid}',${i},'rotatable',this.checked)" title="可轉向">
+    <button class="icon-btn" onclick="copyPiece('${aid}',${i})" title="複製">📄</button>
+    <button class="icon-btn" style="color:#e02424" onclick="delPiece('${aid}',${i})">✕</button>
+  </div>`;
+}
+function addArea(){ proj.areas.push({id:nid(),name:String.fromCharCode(65+proj.areas.length)+'區',materialId:proj.materials[0]?.id||'',pieces:[{w:0,h:0,qty:1,rotatable:true}]}); renderAreas(); markDirty(); }
+function delArea(id){ proj.areas=proj.areas.filter(x=>x.id!==id); renderAreas(); markDirty(); }
+function updArea(id,k,v){ const a=proj.areas.find(x=>x.id===id); if(a){ a[k]=v; markDirty(); } }
+function addPiece(aid){ const a=proj.areas.find(x=>x.id===aid); a.pieces.push({w:0,h:0,qty:1,rotatable:true}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
+function delPiece(aid,i){ const a=proj.areas.find(x=>x.id===aid); a.pieces.splice(i,1); if(!a.pieces.length)a.pieces.push({w:0,h:0,qty:1,rotatable:true}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
+function copyPiece(aid,i){ const a=proj.areas.find(x=>x.id===aid); a.pieces.splice(i+1,0,{...a.pieces[i]}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
+function updPiece(aid,i,k,v){ const a=proj.areas.find(x=>x.id===aid); const p=a.pieces[i]; if(k==='rotatable')p[k]=v; else if(k==='qty')p[k]=Math.max(1,parseInt(v)||1); else p[k]=parseFloat(v)||0; markDirty(); }
+function toggleRotAll(){ proj.rotAll=document.getElementById('ed_rot_all').checked; markDirty(); }
+
+// ── 排料引擎（guillotine best-area-fit）───────────────
+function calculate(){
+  collectInputs();
+  const gap = proj.gap||0;
+  sheets = [];
+  const oversize = [];
+  // 依材料分組（合併拼料：同材料的所有區域片一起排）
+  for (const m of proj.materials){
+    const W = m.width||122, L = m.length||5000;
+    let pieces = [];
+    for (const a of proj.areas){
+      if (a.materialId !== m.id) continue;
+      let n = 0;
+      for (const p of a.pieces){
+        if (!(p.w>0 && p.h>0)) continue;
+        const rot = proj.rotAll && (p.rotatable!==false);
+        for (let q=0;q<(p.qty||1);q++){ n++; pieces.push({w:p.w,h:p.h,label:(a.name?a.name.replace(/區$/,''):'')+'-'+n, rotatable:rot, area:a.name}); }
+      }
+    }
+    if (!pieces.length) continue;
+    // 過濾超尺寸
+    pieces = pieces.filter(p=>{
+      const fit = (p.w<=W && p.h<=L) || (p.rotatable && p.h<=W && p.w<=L);
+      if (!fit) oversize.push(`${p.label} (${p.w}×${p.h})`);
+      return fit;
+    });
+    const matSheets = packMaterial(pieces, W, L, gap);
+    matSheets.forEach((s,idx)=> sheets.push({...s, matName:m.name||'未命名', rollIdx:idx+1, rollCount:matSheets.length, rollW:W, rollLen:L}));
+  }
+  curSheet = 0;
+  const warn = document.getElementById('oversizeWarn');
+  if (oversize.length){ warn.style.display=''; warn.textContent='⚠️ 以下尺寸超過卷料、無法排入：'+oversize.join('、'); }
+  else warn.style.display='none';
+  drawSheet();
+}
+function packMaterial(pieces, W, L, gap){
+  const out = [];
+  let remaining = pieces.slice().sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+  let guard = 0;
+  while (remaining.length && guard++<100){
+    const placed = [];
+    let free = [{x:0,y:0,w:W,h:L}];
+    const next = [];
+    for (const p of remaining){
+      let best=null,bi=-1,rot=false,score=Infinity;
+      for (let i=0;i<free.length;i++){
+        const f=free[i];
+        if (p.w+gap<=f.w+1e-6 && p.h+gap<=f.h+1e-6){ const sc=f.w*f.h-(p.w+gap)*(p.h+gap); if(sc<score){score=sc;best=f;bi=i;rot=false;} }
+        if (p.rotatable && p.h+gap<=f.w+1e-6 && p.w+gap<=f.h+1e-6){ const sc=f.w*f.h-(p.h+gap)*(p.w+gap); if(sc<score){score=sc;best=f;bi=i;rot=true;} }
+      }
+      if (!best){ next.push(p); continue; }
+      const pw=rot?p.h:p.w, ph=rot?p.w:p.h;
+      placed.push({x:best.x,y:best.y,w:pw,h:ph,label:p.label,rot});
+      const uw=pw+gap, uh=ph+gap, f=best;
+      free.splice(bi,1);
+      if (f.w-uw>1e-6) free.push({x:f.x+uw,y:f.y,w:f.w-uw,h:uh});
+      if (f.h-uh>1e-6) free.push({x:f.x,y:f.y+uh,w:f.w,h:f.h-uh});
+    }
+    if (!placed.length) break;
+    const usedLen = Math.max(0,...placed.map(p=>p.y+p.h+gap));
+    const usedArea = placed.reduce((s,p)=>s+p.w*p.h,0);
+    out.push({placed, usedLen, util: (W*usedLen)?usedArea/(W*usedLen):0});
+    remaining = next;
+  }
+  return out;
+}
+
+// ── 畫布渲染（底部起跑、由下往上）+ 拖移 ───────────────
+function drawSheet(){
+  const cv = document.getElementById('layCanvas');
+  const ctx = cv.getContext('2d');
+  if (!sheets.length){ cv.width=10;cv.height=10;ctx.clearRect(0,0,10,10);
+    document.getElementById('sheetInfo').textContent='—'; document.getElementById('sheetTitle').textContent='排版圖（按「計算排版」產生）';
+    document.getElementById('sheetUtil').textContent='使用率：—'; document.getElementById('sheetLen').textContent='使用長度：—'; return; }
+  if (curSheet>=sheets.length) curSheet=0;
+  const s = sheets[curSheet];
+  document.getElementById('sheetTitle').textContent = `${s.matName}（第 ${s.rollIdx}/${s.rollCount} 卷）`;
+  document.getElementById('sheetInfo').textContent = `第 ${curSheet+1} / ${sheets.length} 張`;
+  document.getElementById('sheetUtil').textContent = `使用率：${(s.util*100).toFixed(1)}%`;
+  document.getElementById('sheetLen').textContent = `使用長度：${(s.usedLen/100).toFixed(2)} m（${Math.round(s.usedLen)} cm）`;
+  // 比例：寬度固定顯示，長度依使用長度
+  const dispW = s.rollW, dispH = Math.max(s.usedLen, 50);
+  const base = 460 / dispW * zoom;                 // px per cm
+  cv.width = Math.round(dispW*base)+2;
+  cv.height = Math.round(dispH*base)+2;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0.5,0.5,cv.width-1,cv.height-1);
+  // 底部起跑線
+  ctx.strokeStyle='#be185d'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,cv.height-1); ctx.lineTo(cv.width,cv.height-1); ctx.stroke();
+  s.placed.forEach(p=>{
+    const x = p.x*base, w = p.w*base, h = p.h*base;
+    const y = cv.height - (p.y*base) - h;          // 由下往上
+    ctx.fillStyle = '#fce7f3'; ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle='#ec4899'; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+    ctx.fillStyle='#9d174d'; ctx.font=`bold ${Math.min(14,Math.max(8,h/4))}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const cx=x+w/2, cy=y+h/2;
+    ctx.save();
+    if (h>w*1.4){ ctx.translate(cx,cy); ctx.rotate(-Math.PI/2); ctx.fillText(p.label,0,-7); ctx.font=`${Math.min(12,Math.max(7,w/4))}px sans-serif`; ctx.fillText(`${p.w}×${p.h}`,0,8); }
+    else { ctx.fillText(p.label,cx,cy-7); ctx.font=`${Math.min(12,Math.max(7,h/4))}px sans-serif`; ctx.fillText(`${p.w}×${p.h}`,cx,cy+8); }
+    ctx.restore();
+  });
+  document.getElementById('zoomLbl').textContent = Math.round(zoom*100)+'%';
+}
+function prevSheet(){ if(curSheet>0){curSheet--;drawSheet();} }
+function nextSheet(){ if(curSheet<sheets.length-1){curSheet++;drawSheet();} }
+function zoomBy(d){ zoom=Math.min(3,Math.max(0.3,zoom+d)); drawSheet(); }
+
+// 拖移：在畫布上拖動片到新位置（人工微調），重算使用長度
+(function(){
+  const cv = document.getElementById('layCanvas');
+  let drag=null;
+  cv.addEventListener('mousedown', e=>{
+    if (!sheets.length) return;
+    const s=sheets[curSheet], base=460/s.rollW*zoom;
+    const rect=cv.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    for (let i=s.placed.length-1;i>=0;i--){ const p=s.placed[i];
+      const x=p.x*base,w=p.w*base,h=p.h*base,y=cv.height-(p.y*base)-h;
+      if (mx>=x&&mx<=x+w&&my>=y&&my<=y+h){ drag={p,base,offx:mx-x,offy:my-y}; break; }
+    }
+  });
+  cv.addEventListener('mousemove', e=>{
+    if (!drag) return;
+    const s=sheets[curSheet]; const rect=cv.getBoundingClientRect();
+    const mx=e.clientX-rect.left-drag.offx, my=e.clientY-rect.top-drag.offy;
+    let nx=mx/drag.base; let ny=(cv.height-(my+drag.p.h*drag.base))/drag.base;
+    drag.p.x=Math.max(0,Math.min(s.rollW-drag.p.w, nx));
+    drag.p.y=Math.max(0, ny);
+    drawSheet();
+  });
+  window.addEventListener('mouseup', ()=>{ if(drag){ const s=sheets[curSheet]; s.usedLen=Math.max(0,...s.placed.map(p=>p.y+p.h+(proj.gap||0))); const ua=s.placed.reduce((a,p)=>a+p.w*p.h,0); s.util=(s.rollW*s.usedLen)?ua/(s.rollW*s.usedLen):0; drag=null; markDirty(); drawSheet(); } });
+})();
+
+// ── 匯出 PDF（列印視窗，self-host 無外部元件）───────────
+function exportPDF(){
+  if (!sheets.length){ alert('請先計算排版'); return; }
+  const w = window.open('','_blank');
+  let html = `<html><head><meta charset="utf-8"><title>${esc(proj.name)}</title>
+    <style>body{font-family:sans-serif;margin:20px}h1{font-size:20px}h2{font-size:14px;margin:18px 0 6px}img{border:1px solid #ddd;max-width:100%}.pg{page-break-after:always}</style></head><body>`;
+  html += `<h1>${esc(proj.name)} — 排版圖</h1>`;
+  const savedZoom=zoom, savedSheet=curSheet; zoom=1;
+  sheets.forEach((s,i)=>{ curSheet=i; drawSheet(); const dataUrl=document.getElementById('layCanvas').toDataURL('image/png');
+    html += `<div class="pg"><h2>${esc(s.matName)}（第 ${s.rollIdx}/${s.rollCount} 卷）· 使用長度 ${(s.usedLen/100).toFixed(2)}m · 使用率 ${(s.util*100).toFixed(1)}%</h2><img src="${dataUrl}"></div>`; });
+  zoom=savedZoom; curSheet=savedSheet; drawSheet();
+  html += `</body></html>`;
+  w.document.write(html); w.document.close();
+  setTimeout(()=>w.print(), 400);
+}
+
+// ── init ───────────────────────────────────────────
+(async function(){
+  currentUser = await loadUser();
+  highlightNav('layout');
+  await loadProjects();
+})();
+</script>
+</body>
+</html>

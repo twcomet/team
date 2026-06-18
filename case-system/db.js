@@ -2906,6 +2906,21 @@ db.exec(`
   )
 `);
 _addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
+_addCol('users', 'can_layout', 'INTEGER DEFAULT 0');   // 排版工具權限（可開給學員/經銷商）
+
+// ── 排版工具：專案（整包資料以 JSON 存）────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS layout_projects (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id      INTEGER REFERENCES orgs(id),
+    name        TEXT NOT NULL,
+    data        TEXT,                         -- JSON: { materials, areas, settings, layouts }
+    archived    INTEGER DEFAULT 0,
+    created_by  INTEGER REFERENCES users(id),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 _addCol('client_deposits', 'verify_signature',   'TEXT DEFAULT NULL');
 _addCol('client_deposits', 'owner_confirmed',    'INTEGER DEFAULT 0');
 _addCol('client_deposits', 'owner_confirmed_at', 'DATETIME DEFAULT NULL');

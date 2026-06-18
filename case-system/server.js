@@ -62,6 +62,7 @@ app.use('/api/vendors', require('./routes/vendors'));
 app.use('/api/assets',    require('./routes/assets'));
 app.use('/api/purchases', require('./routes/purchases'));
 app.use('/api/shipments',     require('./routes/shipments'));
+app.use('/api/layout',        require('./routes/layout'));
 app.use('/api/deficiencies', require('./routes/deficiencies'));
 app.use('/api/designer',  require('./routes/designer'));
 app.use('/api/tags',       require('./routes/tags'));
@@ -194,7 +195,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
