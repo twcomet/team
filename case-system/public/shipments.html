@@ -107,6 +107,7 @@
               <th>寄件內容</th>
               <th>物流條碼</th>
               <th>物流</th>
+              <th>操作人員</th>
               <th></th>
             </tr>
           </thead>
@@ -177,6 +178,7 @@ function render() {
       <td style="max-width:200px">${esc(s.content || '—')}</td>
       <td style="font-family:monospace;font-size:12px">${esc(s.tracking_no || '—')}</td>
       <td>${s.carrier ? `<span class="carrier-pill ${carrierClass}">${esc(s.carrier)}</span>` : '—'}</td>
+      <td style="white-space:nowrap;font-size:12px;color:var(--gray-600)">${esc(s.created_by_name || '—')}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="printLabel(${s.id})">🖨️ 標籤</button>
         <a href="/shipment-form?id=${s.id}" class="btn btn-ghost btn-sm">編輯</a>
