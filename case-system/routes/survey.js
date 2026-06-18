@@ -325,22 +325,28 @@ router.patch('/cases/:id/fee', requireAuth, (req, res) => {
       rep, absent,
       req.params.id
     );
-  // 若標記已收款，自動建立「待核銷」預收款（會計核銷後才寫入流水帳）
-  if (paid && parseFloat(survey_fee) > 0) {
+  // 客服標註「要收費」(required=1) → 這筆錢應入帳 → 建立「待核銷」預收款給會計追
+  // （核銷前不進流水帳）；師傅回報只決定備註狀態（已收現／待匯款／現場無人）
+  const reqVal = Number(survey_fee_required);   // 1=要收 / 0=不需收 / NaN=未設定
+  const fee = parseFloat(survey_fee) || 0;
+  const note = absent ? '場勘費·現場無人(待收)'
+    : paid ? '場勘費·師傅已收現'
+    : rep === 'unpaid' ? '場勘費·待收(師傅未收到／待匯款)'
+    : '場勘費·待收';
+  if (reqVal === 1 && fee > 0) {
     const c = db.prepare(`SELECT client_id FROM cases WHERE id=?`).get(req.params.id);
     if (c?.client_id) {
-      const existing = db.prepare(`SELECT id FROM client_deposits WHERE linked_case_id=? AND type='survey_fee'`).get(req.params.id);
+      const existing = db.prepare(`SELECT id, accounting_verified FROM client_deposits WHERE linked_case_id=? AND type='survey_fee'`).get(req.params.id);
       if (!existing) {
-        db.prepare(`INSERT INTO client_deposits (client_id, type, amount, collected_at, linked_case_id, created_by) VALUES (?,?,?,?,?,?)`)
-          .run(c.client_id, 'survey_fee', parseFloat(survey_fee), new Date().toISOString().slice(0,10), req.params.id, req.session.user.id);
-      } else {
-        // 若已有記錄但尚未核銷，更新金額
-        const dep = db.prepare(`SELECT id, accounting_verified FROM client_deposits WHERE id=?`).get(existing.id);
-        if (!dep.accounting_verified) {
-          db.prepare(`UPDATE client_deposits SET amount=? WHERE id=?`).run(parseFloat(survey_fee), existing.id);
-        }
+        db.prepare(`INSERT INTO client_deposits (client_id, type, amount, collected_at, note, linked_case_id, created_by) VALUES (?,?,?,?,?,?,?)`)
+          .run(c.client_id, 'survey_fee', fee, new Date().toISOString().slice(0,10), note, req.params.id, req.session.user.id);
+      } else if (!existing.accounting_verified) {
+        db.prepare(`UPDATE client_deposits SET amount=?, note=? WHERE id=?`).run(fee, note, existing.id);
       }
     }
+  } else if (reqVal === 0) {
+    // 不需收場勘費 → 移除尚未核銷的場勘費預收款（避免殘留）
+    db.prepare(`DELETE FROM client_deposits WHERE linked_case_id=? AND type='survey_fee' AND COALESCE(accounting_verified,0)=0`).run(req.params.id);
   }
   res.json({ ok: true });
 });
