@@ -225,7 +225,6 @@
       <!-- 轉換階段橫幅（所有 tab 可見） -->
       <div id="convertBanner" style="display:none;align-items:center;justify-content:space-between;padding:14px 18px;border-radius:10px;margin-top:8px;margin-bottom:16px;background:#eff6ff;border:1.5px solid #93c5fd;flex-wrap:wrap;gap:12px">
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <button class="btn btn-primary" id="saveBasicBtnBanner">儲存</button>
           <div>
             <div id="convertBannerTitle" style="font-weight:600;font-size:14px;color:#1e40af"></div>
             <div id="convertBannerDesc" style="font-size:12px;color:#3b82f6;margin-top:2px"></div>
@@ -1553,6 +1552,7 @@ async function init() {
   await loadUser();
   caseId = new URLSearchParams(location.search).get('id');
   if (!caseId) { location.href = '/cases'; return; }
+  setupInvoiceSync();   // 啟用基本頁/收款頁發票欄位雙向同步
   const calcBtn = document.getElementById('openCalcBtn');
   if (calcBtn) calcBtn.href = `/material-calc?case_id=${caseId}`;
 
@@ -2192,7 +2192,79 @@ function buildSaveBody() {
     status:             document.getElementById('statusSelect').value,
     payment_status:     caseData.payment_status || 'unpaid',
     payment_received:   caseData.payment_received || 0,
+    ...collectPaymentFields(),   // 收款/成本/發票(p_*)一併納入 → 整頁一起存
   };
+}
+
+// 收集收款／成本／發票（p_*）欄位；元素不存在則回 {} 不動這些欄位
+function collectPaymentFields() {
+  const g = id => document.getElementById(id);
+  // 僅成交階段收集收款/成本/發票（p_* 為這些欄位的編輯區）；其他階段不動，避免誤蓋
+  if ((caseData?.case_group || 'inquiry') !== 'deal' || !g('p_final_price')) return {};
+  const f = {
+    final_price:        parseFloat(g('p_final_price').value) || null,
+    needs_invoice:      g('p_needs_invoice')?.checked ? 1 : 0,
+    survey_fee:         parseFloat(g('p_survey_fee')?.value) || null,
+    survey_fee_date:    g('p_survey_fee_date')?.value || null,
+    survey_fee_note:    g('p_survey_fee_note')?.value || null,
+    survey_fee_method:  g('p_survey_fee_method')?.value || null,
+    survey_fee_category: g('p_survey_fee_category')?.value || null,
+    deposit_amount:     parseFloat(g('p_deposit_amount')?.value) || null,
+    deposit_date:       g('p_deposit_date')?.value || null,
+    deposit_note:       g('p_deposit_note')?.value || null,
+    deposit_method:     g('p_deposit_method')?.value || null,
+    deposit_category:   g('p_deposit_category')?.value || null,
+    balance_paid:       parseFloat(g('p_balance_paid')?.value) || null,
+    balance_paid_date:  g('p_balance_paid_date')?.value || null,
+    balance_paid_note:  g('p_balance_paid_note')?.value || null,
+    balance_paid_method: g('p_balance_paid_method')?.value || null,
+    balance_category:   g('p_balance_category')?.value || null,
+    retention_amount:   parseFloat(g('p_retention_amount')?.value) || null,
+    retention_due_date: g('p_retention_due_date')?.value || null,
+    retention_invoiced: parseFloat(g('p_retention_invoiced')?.value) || null,
+    payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
+    payment_notes:      g('p_payment_notes')?.value || null,
+    followup_date:      g('p_followup_date')?.value || null,
+    invoice_company:    g('p_invoice_company')?.value || null,
+    invoice_tax_id:     g('p_invoice_tax_id')?.value || null,
+    invoice_address:    g('p_invoice_address')?.value || null,
+    invoice_email:      g('p_invoice_email')?.value || null,
+    invoice_item_desc:  g('p_invoice_item_desc')?.value || null,
+    invoice_contact:    g('p_invoice_contact')?.value || null,
+    invoice_phone:      g('p_invoice_phone')?.value || null,
+    invoice_issued:     g('p_invoice_issued')?.checked ? 1 : 0,
+    invoice_issued_date: g('p_invoice_issued_date')?.value || null,
+    material_cost:      parseFloat(g('p_material_cost')?.value) || null,
+    outsource_cost:     parseFloat(g('p_outsource_cost')?.value) || null,
+    install_fee:        parseFloat(g('p_install_fee')?.value) || null,
+    shipping_cost:      parseFloat(g('p_shipping_cost')?.value) || null,
+    other_cost:         parseFloat(g('p_other_cost')?.value) || null,
+  };
+  if (g('cred_survey')?.checked && !caseCredits.survey_fee_credited) f.survey_fee_credited = 1;
+  return f;
+}
+
+// 雙向同步「基本頁(bi_*)」與「收款頁(p_*)」的發票欄位，避免整頁存檔時互相覆蓋遺失
+function setupInvoiceSync() {
+  const pairs = [['bi_invoice_tax_id','p_invoice_tax_id'],['bi_invoice_company','p_invoice_company'],
+                 ['bi_invoice_email','p_invoice_email'],['bi_invoice_address','p_invoice_address']];
+  pairs.forEach(([a,b]) => {
+    const ea=document.getElementById(a), eb=document.getElementById(b);
+    if (!ea || !eb) return;
+    ea.addEventListener('input', () => { eb.value = ea.value; });
+    eb.addEventListener('input', () => { ea.value = eb.value; });
+  });
+}
+
+// 套用使用者在收款頁勾選的「待套用」客戶預收款（pending → applied）
+async function applyPendingDeposits() {
+  const pending = (caseCredits.deposits || []).filter(d => d.status === 'pending');
+  for (const d of pending) {
+    if (document.getElementById(`cred_dep_${d.id}`)?.checked) {
+      await fetch(`/api/client-deposits/${d.id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status:'applied', applied_case_id: caseId }) });
+    }
+  }
 }
 
 function renderPipeline() {
@@ -2369,26 +2441,21 @@ function updatePoolBanner(isOn, type) {
   }
 }
 
+// 整頁儲存：基本資訊 + 狀態 + 收款 + 發票 + 成本 一次存（buildSaveBody 已全含）
 async function doSaveBasic() {
   try {
     const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildSaveBody()) });
-    if (res.ok) { showToast('已儲存'); await loadCase(); }
-    else { const e = await res.json().catch(() => ({})); showToast('儲存失敗：' + (e.error || res.status), 'error'); }
+    if (!res.ok) { const e = await res.json().catch(() => ({})); showToast('儲存失敗：' + (e.error || res.status), 'error'); return; }
+    await applyPendingDeposits();
+    showCenterToast('儲存成功');
+    await loadCase();
   } catch(err) {
     showToast('儲存失敗：' + err.message, 'error');
     console.error('[doSaveBasic]', err);
   }
 }
-document.getElementById('saveBasicBtn').addEventListener('click', doSaveBasic);
-document.getElementById('saveBasicBtnBanner')?.addEventListener('click', () => {
-  // 收款分頁時，banner 儲存改為觸發收款儲存
-  const activeTab = document.querySelector('.tab-btn.active')?.dataset?.tab;
-  if (activeTab === 'payment') {
-    document.getElementById('savePaymentBtn')?.click();
-  } else {
-    doSaveBasic();
-  }
-});
+const saveAll = doSaveBasic;   // 別名：所有儲存按鈕都存整頁
+document.getElementById('saveBasicBtn').addEventListener('click', saveAll);
 
 // ── 報價 v2 按鈕 ──────────────────────────────────────────
 document.getElementById('qCreateBtn')?.addEventListener('click', () => createQuoteVersion(false));
@@ -3650,71 +3717,8 @@ function updateCreditsSummary() {
   document.getElementById('creditsTotal').textContent = total ? `合計折抵 ${fmt(total)}` : '';
 }
 
-document.getElementById('savePaymentBtn').addEventListener('click', async () => {
-  const body = {
-    ...caseData,
-    final_price:        parseFloat(document.getElementById('p_final_price').value)        || null,
-    needs_invoice:      document.getElementById('p_needs_invoice').checked ? 1 : 0,
-    survey_fee:         parseFloat(document.getElementById('p_survey_fee').value)         || null,
-    survey_fee_date:    document.getElementById('p_survey_fee_date').value                || null,
-    survey_fee_note:    document.getElementById('p_survey_fee_note').value                || null,
-    survey_fee_method:  document.getElementById('p_survey_fee_method').value              || null,
-    deposit_amount:     parseFloat(document.getElementById('p_deposit_amount').value)     || null,
-    deposit_date:       document.getElementById('p_deposit_date').value                   || null,
-    deposit_note:       document.getElementById('p_deposit_note').value                   || null,
-    deposit_method:     document.getElementById('p_deposit_method').value                 || null,
-    deposit_category:     document.getElementById('p_deposit_category').value             || null,
-    survey_fee_category:  document.getElementById('p_survey_fee_category').value          || null,
-    balance_paid:         parseFloat(document.getElementById('p_balance_paid').value)     || null,
-    balance_paid_date:  document.getElementById('p_balance_paid_date').value              || null,
-    balance_paid_note:  document.getElementById('p_balance_paid_note').value              || null,
-    balance_paid_method: document.getElementById('p_balance_paid_method').value           || null,
-    balance_category:   document.getElementById('p_balance_category').value               || null,
-    retention_amount:   parseFloat(document.getElementById('p_retention_amount').value)   || null,
-    retention_due_date: document.getElementById('p_retention_due_date').value             || null,
-    payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
-    payment_notes:      document.getElementById('p_payment_notes').value                  || null,
-    followup_date:      document.getElementById('p_followup_date').value                   || null,
-    invoice_company:    document.getElementById('p_invoice_company').value                || null,
-    invoice_tax_id:     document.getElementById('p_invoice_tax_id').value                 || null,
-    invoice_address:    document.getElementById('p_invoice_address').value                || null,
-    invoice_email:      document.getElementById('p_invoice_email').value                  || null,
-    invoice_item_desc:  document.getElementById('p_invoice_item_desc').value              || null,
-    invoice_contact:    document.getElementById('p_invoice_contact').value                || null,
-    invoice_phone:      document.getElementById('p_invoice_phone').value                  || null,
-    invoice_issued:     document.getElementById('p_invoice_issued')?.checked ? 1 : 0,
-    invoice_issued_date: document.getElementById('p_invoice_issued_date')?.value          || null,
-    retention_invoiced: parseFloat(document.getElementById('p_retention_invoiced').value) || null,
-    material_cost:      parseFloat(document.getElementById('p_material_cost').value)      || null,
-    outsource_cost:     parseFloat(document.getElementById('p_outsource_cost').value)     || null,
-    install_fee:        parseFloat(document.getElementById('p_install_fee').value)        || null,
-    shipping_cost:      parseFloat(document.getElementById('p_shipping_cost').value)      || null,
-    other_cost:         parseFloat(document.getElementById('p_other_cost').value)         || null,
-  };
-  // 場勘費是否勾選折抵
-  const sfBox = document.getElementById('cred_survey');
-  if (sfBox?.checked && !caseCredits.survey_fee_credited) {
-    body.survey_fee_credited = 1;
-  }
-
-  const res = await fetch(`/api/cases/${caseId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (!res.ok) { showToast('儲存失敗', 'error'); return; }
-
-  // 套用勾選的客戶預收款（pending → applied）
-  const pendingDeposits = (caseCredits.deposits || []).filter(d => d.status === 'pending');
-  for (const d of pendingDeposits) {
-    const box = document.getElementById(`cred_dep_${d.id}`);
-    if (box?.checked) {
-      await fetch(`/api/client-deposits/${d.id}/status`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ status:'applied', applied_case_id: caseId })
-      });
-    }
-  }
-
-  showToast('收款 ／ 發票資訊已更新');
-  await loadCase();
-});
+// 「更新收款／發票資訊」按鈕 → 整頁儲存（收款/成本/發票已併入 buildSaveBody → collectPaymentFields）
+document.getElementById('savePaymentBtn').addEventListener('click', saveAll);
 
 function openClientForInvoice() {
   if (caseData.client_id) window.open(`/clients`, '_blank');
