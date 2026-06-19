@@ -64,6 +64,8 @@
 .pl-margin td { background:#fef3c7 !important; font-weight:600; font-style:italic; }
 .pl-asset-total td { background:#fed7aa !important; font-weight:700; }
 .pl-zero { color:#d1d5db; }
+.pl-drill { cursor:pointer; }
+.pl-drill:hover { text-decoration:underline; background:#eff6ff !important; color:var(--primary); }
 .pl-section-gap td { height:12px; background:#f9fafb !important; border:none; }
 </style>
 </head>
@@ -469,11 +471,22 @@ function renderPlMonthly(d) {
   const n   = (v) => v ? fmt(v) : `<span class="pl-zero">0</span>`;
   const mHdr = months.map(m => `<th>${m.slice(0,4)}/${m.slice(4)}</th>`).join('');
 
+  // 鑽取：點科目金額 → 開流水帳明細（帶月份/區間 + 科目 + 店別）
+  const ymDash = m => `${m.slice(0,4)}-${m.slice(4)}`;
+  const orgQS = (() => { const o = document.getElementById('filterOrgPl')?.value || ''; return o ? `&org=${encodeURIComponent(o)}` : ''; })();
+  const plFrom = document.getElementById('plFrom')?.value || (months[0] ? ymDash(months[0]) : '');
+  const plTo   = document.getElementById('plTo')?.value   || (months.length ? ymDash(months[months.length-1]) : '');
+  const drillCell = (catName, val, qs) => {
+    if (!val || !qs) return `<td>${n(val)}</td>`;
+    return `<td class="pl-drill" title="點擊查看明細" onclick="location.href='/ledger?${qs}&category=${encodeURIComponent(catName)}${orgQS}'">${fmt(val)}</td>`;
+  };
+
   const dataRow = (cat, isSection) => {
-    const cells = months.map(m => `<td>${n(cat.monthly[m])}</td>`).join('');
+    const cells = months.map(m => drillCell(cat.name, cat.monthly[m], `month=${ymDash(m)}`)).join('');
+    const totalQs = (plFrom && plTo) ? `from=${plFrom}&to=${plTo}` : '';
     return `<tr>
       <td>${cat.name}</td>
-      <td>${n(cat.total)}</td>
+      ${drillCell(cat.name, cat.total, totalQs)}
       <td style="color:var(--gray-500)">${pct(cat.total)}</td>
       ${cells}
     </tr>`;

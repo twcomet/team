@@ -141,6 +141,13 @@
             <option value="">全部</option>
           </select>
         </span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:13px;color:var(--gray-600)">科目</label>
+          <select id="filterCategory" onchange="applyFilter()" style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+            <option value="">全部科目</option>
+          </select>
+        </span>
+        <span id="rangeNote" style="display:none;font-size:12px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:4px 10px"></span>
         <button class="btn btn-ghost btn-sm" id="clearLedgerBtn">清除篩選</button>
       </div>
 
@@ -169,16 +176,17 @@
           <div class="table-wrap">
             <table style="table-layout:fixed">
               <colgroup>
-                <col style="width:105px">  <!-- 日期 -->
-                <col style="width:62px">   <!-- 類型 -->
-                <col style="width:130px">  <!-- 科目 -->
-                <col>                      <!-- 說明（自動填滿剩餘） -->
-                <col style="width:105px">  <!-- 關聯案件 -->
-                <col style="width:130px">  <!-- 店別 -->
-                <col style="width:90px">   <!-- 收入 -->
-                <col style="width:90px">   <!-- 支出 -->
-                <col style="width:70px">   <!-- 登記人 -->
-                <col style="width:120px">  <!-- 操作 -->
+                <col style="width:92px">   <!-- 日期 -->
+                <col style="width:54px">   <!-- 類型 -->
+                <col style="width:112px">  <!-- 科目 -->
+                <col>                      <!-- 說明（自動填滿剩餘，最寬） -->
+                <col style="width:104px">  <!-- 廠商/客戶 -->
+                <col style="width:86px">   <!-- 關聯案件 -->
+                <col style="width:56px">   <!-- 店別（縮寫） -->
+                <col style="width:84px">   <!-- 收入 -->
+                <col style="width:84px">   <!-- 支出 -->
+                <col style="width:60px">   <!-- 登記人 -->
+                <col style="width:90px">   <!-- 操作 -->
               </colgroup>
               <thead>
                 <tr>
@@ -537,6 +545,14 @@
 let allLedger = [], allCategories = [], allOrgs = [], allCases = [];
 let activeTab = 'all';
 let sortDateDir = 'desc';
+let dateRange = null;   // 由報表「合計」鑽取帶入的日期區間 {from:'YYYY-MM', to:'YYYY-MM'}
+
+// 店別縮寫：取括號內代號（繪新國際有限公司（總部）→ 總部），無括號則原樣
+function shortOrg(name) {
+  if (!name) return '—';
+  const m = name.match(/[（(]([^）)]+)[）)]/);
+  return m ? m[1] : name;
+}
 let currentCatSection = 'income';
 
 function toggleLedgerDateSort() {
@@ -558,14 +574,20 @@ async function init() {
   await Promise.all([loadOrgs(), loadCategories(), loadCasesForSearch(), loadVendors(), loadClientsForSearch()]);
   updateCategoryOptions();
   populateOrgSelects();
+  populateCategoryFilter();
+  applyUrlDrill();          // 讀 URL 由報表鑽取帶入的 month/from/to/category/org
   await loadLedger();
   loadPendingPayments();
 
-  document.getElementById('filterMonth').addEventListener('change', loadLedger);
+  document.getElementById('filterMonth').addEventListener('change', () => { dateRange = null; showRangeNote(); loadLedger(); });
   document.getElementById('filterOrg').addEventListener('change', loadLedger);
   document.getElementById('clearLedgerBtn').addEventListener('click', () => {
     document.getElementById('filterOrg').value = '';
     document.getElementById('ledgerSearch').value = '';
+    document.getElementById('filterCategory').value = '';
+    dateRange = null; showRangeNote();
+    const n = new Date();
+    document.getElementById('filterMonth').value = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
     setTab('all');
     loadLedger();
   });
@@ -611,7 +633,8 @@ async function loadLedger() {
   const orgId = document.getElementById('filterOrg')?.value || '';
   let url = '/api/ledger';
   const params = [];
-  if (month) params.push(`from=${month}-01`, `to=${month}-31`);
+  if (dateRange)   params.push(`from=${dateRange.from}-01`, `to=${dateRange.to}-31`);
+  else if (month)  params.push(`from=${month}-01`, `to=${month}-31`);
   if (orgId) params.push(`org_id=${orgId}`);
   if (params.length) url += '?' + params.join('&');
   const res = await fetch(url);
@@ -622,12 +645,54 @@ async function loadLedger() {
 
 function applyFilter() {
   let rows = activeTab !== 'all' ? allLedger.filter(r => r.type === activeTab) : allLedger;
+  const cat = document.getElementById('filterCategory')?.value || '';
+  if (cat) rows = rows.filter(r => r.category === cat);
   const kw = (document.getElementById('ledgerSearch')?.value || '').trim().toLowerCase();
   if (kw) {
     rows = rows.filter(r => `${r.description||''} ${r.client_name||''} ${r.vendor||''} ${r.case_number||''} ${r.category||''}`.toLowerCase().includes(kw));
   }
   renderStats(rows);
   renderTable(rows);
+}
+
+// 篩選列「科目」下拉：依收入／支出分組列出所有啟用科目
+function populateCategoryFilter() {
+  const sel = document.getElementById('filterCategory');
+  if (!sel) return;
+  const opts = arr => arr.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  const inc = allCategories.filter(c => c.type === 'income' && c.active);
+  const exp = allCategories.filter(c => c.type === 'expense' && c.active);
+  sel.innerHTML = `<option value="">全部科目</option>`
+    + (inc.length ? `<optgroup label="收入">${opts(inc)}</optgroup>` : '')
+    + (exp.length ? `<optgroup label="支出／成本／費用">${opts(exp)}</optgroup>` : '');
+}
+
+// 由報表鑽取：讀網址參數帶入月份/區間/科目/店別
+function applyUrlDrill() {
+  const p = new URLSearchParams(location.search);
+  const org = p.get('org');
+  const orgSel = document.getElementById('filterOrg');
+  if (org && orgSel && [...orgSel.options].some(o => o.value === org)) orgSel.value = org;
+
+  const from = p.get('from'), to = p.get('to'), month = p.get('month');
+  if (from && to) { dateRange = { from, to }; document.getElementById('filterMonth').value = ''; showRangeNote(); }
+  else if (month) { document.getElementById('filterMonth').value = month; }
+
+  const cat = p.get('category');
+  if (cat) {
+    const cs = document.getElementById('filterCategory');
+    if (![...cs.options].some(o => o.value === cat)) {
+      const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat + '（已停用）'; cs.appendChild(opt);
+    }
+    cs.value = cat;
+  }
+}
+
+function showRangeNote() {
+  const el = document.getElementById('rangeNote');
+  if (!el) return;
+  if (dateRange) { el.style.display = ''; el.textContent = `📅 區間 ${dateRange.from} ~ ${dateRange.to}（點月份可改回單月）`; }
+  else { el.style.display = 'none'; }
 }
 
 function setTab(tab) {
@@ -692,14 +757,14 @@ function renderTable(rows) {
       <td style="color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.description||'').replace(/"/g,'&quot;')}">${r.description||'—'}</td>
       <td style="font-size:12px;color:var(--gray-600);white-space:nowrap">${r.type==='expense'?(r.vendor||'—'):(r.client_name||'—')}</td>
       <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}&tab=payment" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
-      <td style="font-size:12px;color:var(--gray-500)">${r.org_name||'—'}</td>
+      <td style="font-size:12px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.org_name||'').replace(/"/g,'&quot;')}">${shortOrg(r.org_name)}</td>
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
       <td style="text-align:right" class="ledger-expense">${r.type==='expense'?fmt(r.amount):''}</td>
       <td style="font-size:12px;color:var(--gray-500)">${r.created_by_name||'—'}</td>
       <td style="white-space:nowrap">
         ${isPending && currentUser?.role === 'owner' ? `<button class="btn btn-sm" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer" onclick="markAsPaid(${r.id})">付款</button> ` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="editEntry(${r.id})">編輯</button>
-        ${(currentUser?.role==='owner'||currentUser?.role==='hq_accounting'||currentUser?.can_delete) ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteEntry(${r.id})">刪除</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="padding:3px 7px;font-size:12px" onclick="editEntry(${r.id})">編輯</button>
+        ${(currentUser?.role==='owner'||currentUser?.role==='hq_accounting'||currentUser?.can_delete) ? `<button class="btn btn-ghost btn-sm" style="color:#e02424;padding:3px 7px;font-size:12px" onclick="deleteEntry(${r.id})">刪除</button>` : ''}
       </td>
     </tr>`;
   }).join('');
