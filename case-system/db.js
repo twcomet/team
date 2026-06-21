@@ -2497,28 +2497,45 @@ if (_needCatV8) {
 
 // ── 停用科目永久刪除 migration（v9）──
 // 條件：還有任何 active=0 的科目就執行
-const _needCatV9 = !!db.prepare(`SELECT id FROM ledger_categories WHERE active=0 LIMIT 1`).get();
+// ⚠️ 必須保留「migration 判斷標記科目」：這些舊科目被當作 _needCatReset/V2/V3/V4/V6/Academy
+//    的 !exists 判斷依據，一旦被刪，對應舊 migration 會誤判「沒跑過」而重跑、把科目洗回舊版（惡性循環）。
+//    故排除這些標記名稱（保留為 active=0，讓判斷恆為「已跑過」）。
+const _catMarkers = [
+  '施工服務收入', '裝漠貼膜施工收入', '裝潢貼膜施工-Para',
+  '連工帶料收入', '實體銷售', '居家施工', '學院-課程費',
+];
+const _needCatV9 = !!db.prepare(`SELECT id FROM ledger_categories WHERE active=0 AND name NOT IN (${_catMarkers.map(()=>'?').join(',')}) LIMIT 1`).get(..._catMarkers);
 if (_needCatV9) {
-  const { changes } = db.prepare(`DELETE FROM ledger_categories WHERE active=0`).run();
-  console.log(`✅ 停用科目已刪除（v9，共 ${changes} 筆）`);
+  const { changes } = db.prepare(`DELETE FROM ledger_categories WHERE active=0 AND name NOT IN (${_catMarkers.map(()=>'?').join(',')})`).run(..._catMarkers);
+  console.log(`✅ 停用科目已刪除（v9，共 ${changes} 筆；保留標記科目）`);
 }
 
 // ── 收入科目補正（v11）──────────────────────────────────────────
 // 必須放在 v9「刪除 active=0」之後：先前部署曾發生新科目被某 migration 停用後被 v9 刪掉。
 // 此區塊在最後重新「確保存在＋啟用」並統一排序，後面已無刪除科目邏輯，保證存活。
 {
-  const ensureIncome = (name) => {
-    const ex = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`).get(name);
-    if (ex) db.prepare(`UPDATE ledger_categories SET active=1, section='income', type='income' WHERE id=?`).run(ex.id);
-    else    db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active,sensitive) VALUES ('income','income',?,0,1,0)`).run(name);
-  };
-  ['車體施工','飯店貼膜','學校','政府/醫療','建案/建設公司'].forEach(ensureIncome);
-
-  // 收入科目統一排序（施工/空間類排一起，較美觀）
+  // 正規收入科目（依顯示順序）：確保「存在＋啟用＋section/type 正確＋排序」
   const incomeOrder = ['居家施工','商空施工','建案/建設公司','飯店貼膜','學校','政府/醫療','電梯施工','玻璃施工','車體施工','輸出施工','外快案','外包施工','其他施工','實體銷售','電商銷售','貼膜學院-課程費','貼膜學院-材料銷售','貼膜學院-認證考試','場勘費','設計費','樣本費','膜料本','其他收入'];
-  const _soInc = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=? AND section='income'`);
-  incomeOrder.forEach((n, i) => _soInc.run(i + 1, n));
-  console.log('✅ 收入科目補正完成（v11：確保新科目存在＋啟用＋排序）');
+  const _find = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`);
+  const _updI = db.prepare(`UPDATE ledger_categories SET active=1, section='income', type='income', sort_order=? WHERE id=?`);
+  const _insI = db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active,sensitive) VALUES ('income','income',?,?,1,0)`);
+  incomeOrder.forEach((name, i) => { const ex = _find.get(name); if (ex) _updI.run(i + 1, ex.id); else _insI.run(name, i + 1); });
+
+  // 停用所有舊版/重複的收入科目（含 migration 標記科目）。標記科目由 v9 保留列存在、此處停用，
+  // 使 _needCatReset/V2/V3/V4/Academy 永遠判定「已跑過」，舊 migration 不再重跑、不再洗回舊科目。
+  const legacyIncome = [
+    '連工帶料收入','施工服務收入','裝漠貼膜施工收入','裝潢貼膜施工-Para',
+    '裝漠貼膜-bodaq','裝漠貼膜-LG','裝漠貼膜-3M','裝漠貼膜-PAROI','裝漠貼膜-保護膜','裝漠貼膜-其他',
+    '電梯貼膜-改色','電梯貼膜-保護膜','電梯貼膜-改色貼膜','電梯貼膜-保護貼膜',
+    '車體貼膜','車體貼膜施工收入','廣告輸出-自產','廣告輸出-外包','廣告輸出收入',
+    '玻璃膜施工','玻璃貼膜施工收入','隔熱紙施工','防爆膜','其他施工服務收入','施工代工',
+    '銷售膜料-bodaq','銷售膜料-LG','銷售膜料-3M','銷售膜料-翰可','銷售膜料-隔熱紙','銷售膜料-其他','膜料實體銷售',
+    'DS彩貼','穩得','調控薄膜','無框畫',
+    '學院-課程費','學院-材料銷售','學院-認證考試','學院-其他',
+  ];
+  const _deact = db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=? AND section='income'`);
+  legacyIncome.forEach(n => _deact.run(n));
+  console.log('✅ 收入科目補正完成（v11：啟用正規 23 科目＋排序、停用舊重複科目）');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
