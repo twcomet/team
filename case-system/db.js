@@ -646,6 +646,8 @@ _addCol('ledger_entries', 'paid_note',    "TEXT DEFAULT NULL");
 _addCol('ledger_entries', 'pay_due_date', "DATE DEFAULT NULL");
 _addCol('ledger_entries', 'vendor',       "TEXT DEFAULT NULL");
 _addCol('ledger_entries', 'client_id',    "INTEGER REFERENCES clients(id) DEFAULT NULL");
+_addCol('ledger_entries', 'sub_category', "TEXT DEFAULT NULL");  // 種類/部位（內部分析用）
+_addCol('ledger_entries', 'brand',        "TEXT DEFAULT NULL");  // 品牌（內部分析用）
 
 // 初始會計科目（只在空的時候 seed）
 const catExists = db.prepare(`SELECT id FROM ledger_categories LIMIT 1`).get();

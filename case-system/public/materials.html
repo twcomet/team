@@ -52,7 +52,10 @@
 .brand-BODAQ  { background:#e0e7ff; color:#3730a3; }
 .brand-LG     { background:#dcfce7; color:#14532d; }
 .brand-3M     { background:#dbeafe; color:#1e40af; }
+.brand-PAROI  { background:#fce7f3; color:#9d174d; }
 .brand-Paroi  { background:#fce7f3; color:#9d174d; }
+.brand-Protect{ background:#ccfbf1; color:#0f766e; }
+.brand-Belbien{ background:#ffedd5; color:#9a3412; }
 .brand-穩得   { background:#fef9c3; color:#713f12; }
 .brand-AICA   { background:#f3e8ff; color:#6b21a8; }
 .brand-other  { background:var(--gray-100); color:var(--gray-700); }
@@ -220,7 +223,7 @@
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>品牌 *</label>
-          <input type="text" id="m_brand" list="dl_brand" placeholder="3M、BODAQ、LG…" autocomplete="off">
+          <select id="m_brand"></select>
         </div>
         <div class="form-group"><label>型號 *</label>
           <input type="text" id="m_model" list="dl_model" autocomplete="off">
@@ -648,8 +651,28 @@ function applyFilters() {
   renderTable(list);
 }
 
+// 官網正式品牌清單（標準化用，下拉選單與分析報表都以此為準）
+const BRANDS = ['LG','BODAQ','3M','PAROI','Protect','Belbien','AICA','穩得','其他'];
+// 舊資料常見拼法 → 正式品牌（只影響色塊判斷與未來分析歸併，不改動原始資料）
+const BRAND_ALIASES = { 'Paroi':'PAROI', 'Para':'PAROI', 'Boda':'BODAQ', 'LX':'LG' };
+
+// 填入品牌下拉；編輯舊資料時若品牌不在正式清單，保留原值為一個選項，避免存檔時被誤改
+function fillBrandSelect(selected) {
+  const sel = document.getElementById('m_brand');
+  let opts = BRANDS.slice();
+  if (selected && !opts.includes(selected)) opts = [selected + '（舊資料）', ...opts];
+  const legacyLabel = selected && !BRANDS.includes(selected) ? selected + '（舊資料）' : selected;
+  sel.innerHTML = '<option value="">— 選擇品牌 —</option>' +
+    opts.map(b => {
+      const val = b.endsWith('（舊資料）') ? selected : b;
+      return `<option value="${val}"${val===selected?' selected':''}>${b}</option>`;
+    }).join('');
+  sel.value = selected || '';
+}
+
 function brandTag(brand) {
-  const key = ['BODAQ','LG','3M','Paroi','穩得','AICA'].includes(brand) ? brand : 'other';
+  const canon = BRAND_ALIASES[brand] || brand;
+  const key = ['BODAQ','LG','3M','PAROI','Protect','Belbien','穩得','AICA'].includes(canon) ? canon : 'other';
   return `<span class="brand-tag brand-${key}">${brand}</span>`;
 }
 function stockClass(v) { return v < 10 ? 'stock-low' : v < 30 ? 'stock-mid' : 'stock-ok'; }
@@ -936,8 +959,9 @@ async function saveSell() {
 function openMatModal() {
   editMatId = null;
   document.getElementById('matModalTitle').textContent = '新增膜料型號';
-  ['m_brand','m_model','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
+  ['m_model','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
   ['m_unit_cost','m_unit_price','m_stock_meters'].forEach(id => document.getElementById(id).value = '');
+  fillBrandSelect('');
   document.getElementById('m_spec').value = '';
   document.getElementById('m_category').value = 'film';
   document.getElementById('m_fire_retardant').value = '0';
@@ -957,7 +981,7 @@ function openMatEdit(id) {
   if (!m) return;
   editMatId = id;
   document.getElementById('matModalTitle').textContent = '編輯膜料型號';
-  document.getElementById('m_brand').value     = m.brand || '';
+  fillBrandSelect(m.brand || '');
   document.getElementById('m_model').value     = m.model || '';
   document.getElementById('m_spec').value      = m.spec  || '';
   document.getElementById('m_location').value  = m.location || '';

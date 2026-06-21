@@ -398,6 +398,46 @@
         <div id="ledgerClientSuggest" style="display:none;position:absolute;z-index:100;background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;font-size:13px;min-width:260px"></div>
       </div>
 
+      <!-- 種類 + 品牌（內部分析用，收入才顯示，選填） -->
+      <div id="analysisRow" style="display:none">
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label>種類（分析用·選填）</label>
+            <select id="ledgerSubCategory">
+              <option value="">— 不指定 —</option>
+              <option value="商辦">商辦</option>
+              <option value="居家全戶">居家全戶</option>
+              <option value="電視牆／牆面">電視牆／牆面</option>
+              <option value="系統櫃／櫥櫃">系統櫃／櫥櫃</option>
+              <option value="門片／門框">門片／門框</option>
+              <option value="防火門／消防門">防火門／消防門</option>
+              <option value="玻璃裝飾貼膜">玻璃裝飾貼膜</option>
+              <option value="玻璃防爆膜">玻璃防爆膜</option>
+              <option value="玻璃隔熱紙">玻璃隔熱紙</option>
+              <option value="保護貼膜">保護貼膜</option>
+              <option value="天花板">天花板</option>
+              <option value="工務機台">工務機台</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>品牌（分析用·選填）</label>
+            <select id="ledgerBrand">
+              <option value="">— 不指定 —</option>
+              <option value="LG">LG</option>
+              <option value="BODAQ">BODAQ</option>
+              <option value="3M">3M</option>
+              <option value="PAROI">PAROI</option>
+              <option value="Protect">Protect</option>
+              <option value="Belbien">Belbien</option>
+              <option value="AICA">AICA</option>
+              <option value="穩得">穩得</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- 付款狀態（支出才顯示） -->
       <div class="form-group" id="payStatusRow" style="display:none">
         <label>付款狀態</label>
@@ -827,6 +867,7 @@ function updateCategoryOptions() {
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   document.getElementById('vendorRow').style.display     = isExp ? '' : 'none';
   document.getElementById('clientRow').style.display     = isExp ? 'none' : '';
+  document.getElementById('analysisRow').style.display   = isExp ? 'none' : '';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
   document.getElementById('payDueDateRow').style.display  = isPending ? '' : 'none';
   document.getElementById('paidAccountRow').style.display = (isExp && !isPending) ? '' : 'none';
@@ -911,6 +952,9 @@ function openLedgerModal(arg=null) {
   document.getElementById('ledgerClientSearch').value = entry?.client_name || '';
   document.getElementById('ledgerClientId').value = entry?.client_id || '';
   document.getElementById('ledgerClientSuggest').style.display = 'none';
+  // 種類 + 品牌（內部分析）
+  document.getElementById('ledgerSubCategory').value = entry?.sub_category || '';
+  document.getElementById('ledgerBrand').value       = entry?.brand || '';
   // reset scan
   document.getElementById('scanStatus').textContent = '拍照或選取收據，自動辨識填入';
   document.getElementById('scanPreview').style.display = 'none';
@@ -978,6 +1022,8 @@ async function saveLedgerEntry() {
                      ? document.getElementById('ledgerPaidNote').value : null,
     vendor:        document.getElementById('ledgerVendor').value || null,
     client_id:     document.getElementById('ledgerClientId').value || null,
+    sub_category:  document.getElementById('ledgerSubCategory').value || null,
+    brand:         document.getElementById('ledgerBrand').value || null,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');
