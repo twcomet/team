@@ -2503,6 +2503,24 @@ if (_needCatV9) {
   console.log(`✅ 停用科目已刪除（v9，共 ${changes} 筆）`);
 }
 
+// ── 收入科目補正（v11）──────────────────────────────────────────
+// 必須放在 v9「刪除 active=0」之後：先前部署曾發生新科目被某 migration 停用後被 v9 刪掉。
+// 此區塊在最後重新「確保存在＋啟用」並統一排序，後面已無刪除科目邏輯，保證存活。
+{
+  const ensureIncome = (name) => {
+    const ex = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`).get(name);
+    if (ex) db.prepare(`UPDATE ledger_categories SET active=1, section='income', type='income' WHERE id=?`).run(ex.id);
+    else    db.prepare(`INSERT INTO ledger_categories (type,section,name,sort_order,active,sensitive) VALUES ('income','income',?,0,1,0)`).run(name);
+  };
+  ['車體施工','飯店貼膜','學校','政府/醫療','建案/建設公司'].forEach(ensureIncome);
+
+  // 收入科目統一排序（施工/空間類排一起，較美觀）
+  const incomeOrder = ['居家施工','商空施工','建案/建設公司','飯店貼膜','學校','政府/醫療','電梯施工','玻璃施工','車體施工','輸出施工','外快案','外包施工','其他施工','實體銷售','電商銷售','貼膜學院-課程費','貼膜學院-材料銷售','貼膜學院-認證考試','場勘費','設計費','樣本費','膜料本','其他收入'];
+  const _soInc = db.prepare(`UPDATE ledger_categories SET sort_order=? WHERE name=? AND section='income'`);
+  incomeOrder.forEach((n, i) => _soInc.run(i + 1, n));
+  console.log('✅ 收入科目補正完成（v11：確保新科目存在＋啟用＋排序）');
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 報價系統 v2：公規品目錄、貼膜須知模板、折扣規則、車馬費、品項明細
 // ══════════════════════════════════════════════════════════════════════════════
