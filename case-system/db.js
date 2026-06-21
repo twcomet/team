@@ -2455,6 +2455,23 @@ if (_needCatV7) {
   console.log('✅ 施工科目更新完成（v7：依案件類型 8 個）');
 }
 
+// ── 收入科目調整（v10：加「車體施工」、「外快施工」改名「外快案」）──────
+// 皆 idempotent：全新 DB 與既有正式站重複執行都安全
+{
+  // 1) 新增「車體施工」收入科目（車體包膜服務線；不存在才加）
+  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='車體施工' LIMIT 1`).get()) {
+    const _ord = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE section='income'`).get().m;
+    db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income','車體施工',?,1,0)`).run(_ord + 1);
+    console.log('✅ v10：新增收入科目「車體施工」');
+  }
+  // 2) 「外快施工」改名「外快案」；同步更新既有流水帳的分類字串（避免舊帳變孤兒）
+  if (db.prepare(`SELECT id FROM ledger_categories WHERE name='外快施工' LIMIT 1`).get()) {
+    db.exec(`UPDATE ledger_categories SET name='外快案' WHERE name='外快施工'`);
+    db.exec(`UPDATE ledger_entries    SET category='外快案' WHERE category='外快施工'`);
+    console.log('✅ v10：收入科目改名「外快施工」→「外快案」（含既有帳目）');
+  }
+}
+
 // ── 品牌科目強制清除 migration（v8：用 LIKE 一次清掉所有殘留品牌科目）──
 // 條件：任何含品牌名稱的科目還是 active=1 就執行
 const _needCatV8 = !!db.prepare(`

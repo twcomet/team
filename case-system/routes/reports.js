@@ -184,7 +184,8 @@ router.get('/income-analysis', requireAuth, (req, res) => {
   const toDate   = `${to}-${String(lastDay).padStart(2,'0')}`;
 
   const params = [];
-  let where = `WHERE le.type='income' AND le.date>=? AND le.date<=?`;
+  let where = `WHERE le.type='income' AND le.date>=? AND le.date<=?
+    AND le.category NOT IN (SELECT name FROM ledger_categories WHERE section='asset_liability')`;
   params.push(fromDate, toDate);
   if (orgRestrict.org_id) { where += ' AND le.org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND le.org_id=?'; params.push(req.query.org_id); }
