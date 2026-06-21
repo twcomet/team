@@ -223,6 +223,16 @@
             <div class="card-body" id="incCaseTypeList"></div>
           </div>
         </div>
+        <div class="section-2col" style="margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><h3>種類收入排行</h3><span id="incSubCatNote" style="font-size:12px;color:var(--gray-500)">記帳時標的「種類」分析標籤</span></div>
+            <div class="card-body" id="incSubCatList"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>品牌銷售排行</h3><span id="incFilmBrandNote" style="font-size:12px;color:var(--gray-500)">記帳時標的「品牌」分析標籤</span></div>
+            <div class="card-body" id="incFilmBrandList"></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-header"><h3>每月收入趨勢</h3></div>
           <div class="card-body" style="padding:0">
@@ -655,7 +665,7 @@ function renderCf(d) {
 
 // ─── 收入分析 ─────────────────────────────────────────────────
 function renderIncome(d) {
-  const { byBrand, byCaseType, noCase, totalIncome, months, monthlyRows } = d;
+  const { byBrand, byCaseType, noCase, totalIncome, months, monthlyRows, bySubCategory = [], byFilmBrand = [] } = d;
 
   // Stats
   const topBrand = byBrand[0];
@@ -698,6 +708,27 @@ function renderIncome(d) {
   document.getElementById('incCaseTypeList').innerHTML = byCaseType.length
     ? typeRows + noCaseHtml
     : '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">無關聯案件收入記錄</div>';
+
+  // 種類收入排行 + 品牌銷售排行（共用渲染）
+  const rankList = (rows, key, color) => {
+    const tot = rows.reduce((s,r)=>s+r.total,0);
+    const max = rows[0]?.total || 1;
+    return rows.length
+      ? rows.map(r => {
+          const name = r[key];
+          const pct = tot > 0 ? r.total/tot*100 : 0;
+          const muted = name === '未分類' ? 'opacity:.55' : '';
+          return `<div class="bar-row" style="margin-bottom:10px;${muted}">
+            <span class="bar-label" style="width:110px;font-size:12px" title="${name}">${name}</span>
+            <div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${(r.total/max*100).toFixed(1)}%;background:${color}"></div></div>
+            <span class="bar-val" style="width:90px;font-size:12px">${fmt(r.total)}</span>
+            <span style="width:46px;text-align:right;font-size:11px;color:var(--gray-500)">${pct.toFixed(1)}%</span>
+          </div>`;
+        }).join('')
+      : '<div style="color:var(--gray-400);font-size:13px;padding:8px 0">此期間尚無已標記資料</div>';
+  };
+  document.getElementById('incSubCatList').innerHTML    = rankList(bySubCategory, 'sub_category', '#8b5cf6');
+  document.getElementById('incFilmBrandList').innerHTML = rankList(byFilmBrand,   'brand',        '#f59e0b');
 
   // 月份趨勢表
   if (!months.length || !byBrand.length) {

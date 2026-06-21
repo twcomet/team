@@ -2458,12 +2458,18 @@ if (_needCatV7) {
 // ── 收入科目調整（v10：加「車體施工」、「外快施工」改名「外快案」）──────
 // 皆 idempotent：全新 DB 與既有正式站重複執行都安全
 {
-  // 1) 新增「車體施工」收入科目（車體包膜服務線；不存在才加）
-  if (!db.prepare(`SELECT id FROM ledger_categories WHERE name='車體施工' LIMIT 1`).get()) {
-    const _ord = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE section='income'`).get().m;
-    db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income','車體施工',?,1,0)`).run(_ord + 1);
-    console.log('✅ v10：新增收入科目「車體施工」');
-  }
+  // 1) 新增收入科目（不存在才加）：車體施工、飯店貼膜
+  const _addIncomeCat = (name) => {
+    if (!db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`).get(name)) {
+      const _ord = db.prepare(`SELECT COALESCE(MAX(sort_order),0) m FROM ledger_categories WHERE section='income'`).get().m;
+      db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active, sensitive) VALUES ('income','income',?,?,1,0)`).run(name, _ord + 1);
+      console.log(`✅ v10：新增收入科目「${name}」`);
+    }
+  };
+  _addIncomeCat('車體施工');
+  _addIncomeCat('飯店貼膜');
+  _addIncomeCat('學校');
+  _addIncomeCat('政府/醫療');
   // 2) 「外快施工」改名「外快案」；同步更新既有流水帳的分類字串（避免舊帳變孤兒）
   if (db.prepare(`SELECT id FROM ledger_categories WHERE name='外快施工' LIMIT 1`).get()) {
     db.exec(`UPDATE ledger_categories SET name='外快案' WHERE name='外快施工'`);

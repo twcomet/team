@@ -232,6 +232,24 @@ router.get('/income-analysis', requireAuth, (req, res) => {
     ${where} AND le.case_id IS NULL
   `).get(...params);
 
+  // 種類收入排行（內部分析標籤 sub_category；未標記者歸「未分類」）
+  const bySubCategory = db.prepare(`
+    SELECT COALESCE(NULLIF(le.sub_category,''), '未分類') as sub_category,
+           SUM(le.amount) as total, COUNT(*) as count
+    FROM ledger_entries le
+    ${where}
+    GROUP BY sub_category ORDER BY total DESC
+  `).all(...params);
+
+  // 品牌銷售排行（內部分析標籤 brand；未標記者歸「未分類」）
+  const byFilmBrand = db.prepare(`
+    SELECT COALESCE(NULLIF(le.brand,''), '未分類') as brand,
+           SUM(le.amount) as total, COUNT(*) as count
+    FROM ledger_entries le
+    ${where}
+    GROUP BY brand ORDER BY total DESC
+  `).all(...params);
+
   // 月份清單
   const months = [];
   let cy = fy, cm = fm;
@@ -240,7 +258,7 @@ router.get('/income-analysis', requireAuth, (req, res) => {
     cm++; if (cm > 12) { cm = 1; cy++; }
   }
 
-  res.json({ byBrand, byCaseType, noCase, totalIncome, months, monthlyRows });
+  res.json({ byBrand, byCaseType, noCase, totalIncome, months, monthlyRows, bySubCategory, byFilmBrand });
 });
 
 // ── 損益表（月份交叉表）GET /api/reports/pl-monthly?from=YYYY-MM&to=YYYY-MM ──
