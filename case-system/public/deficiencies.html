@@ -107,7 +107,8 @@
     <div class="page-body">
 
       <div class="view-tabs" id="viewTabs">
-        <button class="view-tab active" onclick="switchView('all')" id="tabAll" style="display:none">全部缺失</button>
+        <button class="view-tab active" onclick="switchView('penalty')" id="tabPenalty" style="display:none">⚠️ 缺失</button>
+        <button class="view-tab" onclick="switchView('reward')" id="tabReward" style="display:none">🏅 嘉獎</button>
         <button class="view-tab" onclick="switchView('mine')" id="tabMine">我的待確認</button>
       </div>
 
@@ -271,6 +272,7 @@ async function loadReasons(cat) {
 const DEF_STATUS_LABELS = { pending:'待確認', in_review:'改善中', resolved:'已結案' };
 let allDeficiencies = [], allUsers = [];
 let editId  = null, curView = 'mine', curYear = String(new Date().getFullYear());
+let curAllCat = 'penalty';  // 全部視圖目前顯示的類別：penalty=缺失 / reward=嘉獎
 let improveDefId = null, improvePid = null;
 let isManager = false;
 let selectedPersonIds = new Set();
@@ -282,8 +284,9 @@ async function init() {
 
   if (isManager) {
     document.getElementById('newBtn').style.display = '';
-    document.getElementById('tabAll').style.display = '';
-    switchView('all');
+    document.getElementById('tabPenalty').style.display = '';
+    document.getElementById('tabReward').style.display = '';
+    switchView('penalty');
     await loadUsers();
     await loadYears();
     await loadAll();
@@ -311,11 +314,15 @@ async function loadYears() {
 function switchYear(y) { curYear = y; loadYears(); loadAll(); }
 
 function switchView(v) {
+  const isAll = (v === 'penalty' || v === 'reward');
+  if (isAll) curAllCat = v;
   curView = v;
-  document.getElementById('tabAll').classList.toggle('active', v === 'all');
+  document.getElementById('tabPenalty').classList.toggle('active', v === 'penalty');
+  document.getElementById('tabReward').classList.toggle('active', v === 'reward');
   document.getElementById('tabMine').classList.toggle('active', v === 'mine');
-  document.getElementById('viewAll').style.display  = v === 'all'  ? '' : 'none';
+  document.getElementById('viewAll').style.display  = isAll ? '' : 'none';
   document.getElementById('viewMine').style.display = v === 'mine' ? '' : 'none';
+  if (isAll) renderAll();
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -330,11 +337,12 @@ async function loadAll() {
 
 function renderAll() {
   const el = document.getElementById('allList');
-  if (!allDeficiencies.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div>${curYear} 年尚無缺失記錄</div>`;
+  const list = allDeficiencies.filter(d => (d.category || 'penalty') === curAllCat);
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">✅</div>${curYear} 年尚無${curAllCat === 'reward' ? '嘉獎' : '缺失'}記錄</div>`;
     return;
   }
-  el.innerHTML = allDeficiencies.map(d => defCard(d, true)).join('');
+  el.innerHTML = list.map(d => defCard(d, true)).join('');
 }
 
 // ── 我的待確認 ────────────────────────────────────────────────
