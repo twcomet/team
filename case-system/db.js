@@ -421,6 +421,20 @@ db.exec(`CREATE TABLE IF NOT EXISTS material_change_logs (
   changed_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 
+// ── 庫存批次匯入紀錄（可整批還原）────────────────────────────
+db.exec(`CREATE TABLE IF NOT EXISTS material_import_batches (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id      INTEGER REFERENCES orgs(id),
+  filename    TEXT,
+  summary     TEXT,
+  affected    TEXT,
+  row_count   INTEGER DEFAULT 0,
+  status      TEXT DEFAULT 'applied',
+  created_by  INTEGER REFERENCES users(id),
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  reverted_at DATETIME
+);`);
+
 // ── 膜料使用紀錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS dispatch_materials (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,

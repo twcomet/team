@@ -154,6 +154,8 @@
     <div class="top-bar">
       <span class="page-title">膜料管理</span>
       <button class="btn btn-primary btn-sm" onclick="openMatModal()">＋ 新增膜料型號</button>
+      <button class="btn btn-sm" style="background:#0ea5e9;color:#fff;border:none" onclick="openImportModal()">📥 批次更新庫存</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInventory()">📤 匯出（含捲號）</button>
     </div>
     <div class="page-body">
       <div class="stats-grid" id="statsGrid"></div>
@@ -479,6 +481,46 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeRollEditModal()">取消</button>
       <button class="btn btn-primary" onclick="saveRollEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批次更新庫存 Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3>📥 批次更新庫存</h3>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="impStep1">
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;font-size:13px;color:#0369a1;line-height:1.7;margin-bottom:14px">
+          1. Excel 在「另存新檔」選 <b>CSV UTF-8（逗號分隔）</b><br>
+          2. 欄位需含：品牌、型號、庫存米數（貨架位置、每米含稅價、是否防焰、捲號 為選填）<br>
+          3. 上傳後會先<b>預覽比對</b>，確認沒問題再套用；<b>成本不會更動</b>
+        </div>
+        <input type="file" id="impFile" accept=".csv,text/csv" style="font-size:13px">
+        <div style="margin-top:16px;text-align:right">
+          <button class="btn btn-ghost" onclick="closeImportModal()">取消</button>
+          <button class="btn btn-primary" onclick="doImportPreview()">預覽比對</button>
+        </div>
+      </div>
+
+      <div id="impStep2" style="display:none">
+        <div id="impSummary"></div>
+        <div style="margin-top:16px;text-align:right">
+          <button class="btn btn-ghost" onclick="impBack()">重選檔案</button>
+          <button class="btn btn-primary" id="impApplyBtn" onclick="doImportApply()">確認套用</button>
+        </div>
+      </div>
+
+      <div id="impStep3" style="display:none">
+        <div id="impResult"></div>
+        <div style="margin-top:16px;text-align:right">
+          <button class="btn btn-ghost" style="color:#e02424" id="impRevertBtn" onclick="doImportRevert()">還原這批</button>
+          <button class="btn btn-primary" onclick="closeImportModal();loadMaterials()">完成</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1329,6 +1371,98 @@ function initMatDraft() {
 
 init();
 initMatDraft();
+
+// ═══ 批次更新庫存 ═══
+let impCsvText = '', impBatchId = null;
+function openImportModal() {
+  impCsvText = ''; impBatchId = null;
+  document.getElementById('impFile').value = '';
+  document.getElementById('impStep1').style.display = '';
+  document.getElementById('impStep2').style.display = 'none';
+  document.getElementById('impStep3').style.display = 'none';
+  document.getElementById('importModal').classList.add('open');
+}
+function closeImportModal() { document.getElementById('importModal').classList.remove('open'); }
+function impBack() {
+  document.getElementById('impStep1').style.display = '';
+  document.getElementById('impStep2').style.display = 'none';
+}
+function exportInventory() { window.location = '/api/materials/import/export'; }
+
+function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsText(file, 'utf-8');
+  });
+}
+
+async function doImportPreview() {
+  const f = document.getElementById('impFile').files[0];
+  if (!f) { showToast('請先選擇 CSV 檔', 'error'); return; }
+  impCsvText = await readFileText(f);
+  const res = await fetch('/api/materials/import/preview', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ csv: impCsvText, filename: f.name }),
+  });
+  const d = await res.json();
+  if (!res.ok) { showToast(d.error || '預覽失敗', 'error'); return; }
+  const s = d.summary;
+  let html = `<div style="font-size:14px;margin-bottom:10px">共讀到 <b>${d.total}</b> 筆資料列，比對結果：</div>`;
+  html += `<table style="width:100%;font-size:13px;border-collapse:collapse">
+    ${rowSum('🆕 新增型號', s.newMaterials)}
+    ${rowSum('🎞️ 新增捲料', s.newRolls)}
+    ${rowSum('🔄 更新既有捲料（憑捲號）', s.updRolls)}
+    ${rowSum('💲 更新售價', s.updMaterials)}
+    ${rowSum('📦 系統有、檔案沒有 → 將封存', s.orphanArchive)}
+    ${rowSum('🔒 受保護（有保留/歷史，只封存不動）', s.orphanProtected)}
+    ${rowSum('⚠️ 無法讀取（缺品牌/型號）', s.errors, s.errors > 0)}
+  </table>`;
+  if (d.errors && d.errors.length) {
+    html += `<div style="margin-top:10px;font-size:12px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px">⚠️ 這些列讀不到：` + d.errors.map(e => `第${e.idx}列「${e.model}」(${e.reason})`).join('、') + `</div>`;
+  }
+  html += `<div style="margin-top:10px;font-size:12px;color:var(--gray-500)">套用後可在這裡按「還原這批」整批回復。<b>成本不會被更動。</b></div>`;
+  document.getElementById('impSummary').innerHTML = html;
+  document.getElementById('impStep1').style.display = 'none';
+  document.getElementById('impStep2').style.display = '';
+}
+function rowSum(label, n, warn) {
+  const c = warn ? '#e02424' : (n ? '#057a55' : 'var(--gray-400)');
+  return `<tr><td style="padding:6px 0;border-bottom:1px solid var(--gray-100)">${label}</td><td style="padding:6px 0;border-bottom:1px solid var(--gray-100);text-align:right;font-weight:700;color:${c}">${n} 筆</td></tr>`;
+}
+
+async function doImportApply() {
+  const btn = document.getElementById('impApplyBtn');
+  btn.disabled = true; btn.textContent = '套用中…';
+  try {
+    const res = await fetch('/api/materials/import/apply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv: impCsvText, filename: document.getElementById('impFile').files[0]?.name }),
+    });
+    const d = await res.json();
+    if (!res.ok) { showToast(d.error || '套用失敗', 'error'); return; }
+    impBatchId = d.batchId;
+    const s = d.summary;
+    document.getElementById('impResult').innerHTML =
+      `<div style="text-align:center;padding:6px 0 14px"><div style="font-size:40px">✅</div><div style="font-size:16px;font-weight:700;margin-top:6px">庫存已更新</div></div>
+       <div style="font-size:13px;color:var(--gray-600);line-height:1.9">
+         新增型號 ${s.newMaterials}　新捲料 ${s.newRolls}　更新捲料 ${s.updRolls}<br>更新售價 ${s.priceChanges}　封存舊捲料 ${s.archived}</div>`;
+    document.getElementById('impStep2').style.display = 'none';
+    document.getElementById('impStep3').style.display = '';
+    showCenterToast('庫存更新成功');
+  } finally { btn.disabled = false; btn.textContent = '確認套用'; }
+}
+
+async function doImportRevert() {
+  if (!impBatchId) return;
+  if (!confirm('確定要把這批匯入整批還原嗎？會回復到匯入前的狀態。')) return;
+  const res = await fetch('/api/materials/import/revert/' + impBatchId, { method: 'POST' });
+  const d = await res.json();
+  if (!res.ok) { showToast(d.error || '還原失敗', 'error'); return; }
+  showCenterToast('已整批還原');
+  closeImportModal(); loadMaterials();
+}
 </script>
 </body>
 </html>
