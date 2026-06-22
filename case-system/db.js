@@ -2462,7 +2462,8 @@ if (_needCatV7 && !_catsFrozen) {
 
 // ── 收入科目調整（v10：加「車體施工」、「外快施工」改名「外快案」）──────
 // 皆 idempotent：全新 DB 與既有正式站重複執行都安全
-{
+// 凍結後跳過（使用者已自訂科目名稱，避免在此補建出無「收入」後綴的重複科目）
+if (!_catsFrozen) {
   // 1) 新增收入科目（不存在才加）：車體施工、飯店貼膜
   const _addIncomeCat = (name) => {
     if (!db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`).get(name)) {
