@@ -3649,7 +3649,9 @@ function renderCreditsBlock() {
   const { deposits = [], survey_fee, survey_fee_paid, survey_fee_actual, survey_fee_credited } = caseCredits;
   const sfAmt = survey_fee_actual || survey_fee || 0;
 
-  const hasSurveyCredit = sfAmt > 0 && survey_fee_paid;
+  // 若本案場勘費已轉為預收款（下方 deposits 內有 survey_fee 且關聯本案），就不重複顯示案件層級那筆
+  const hasSurveyFeeDeposit = deposits.some(d => d.type === 'survey_fee' && String(d.linked_case_id) === String(id));
+  const hasSurveyCredit = sfAmt > 0 && survey_fee_paid && !hasSurveyFeeDeposit;
   const hasDeposits     = deposits.length > 0;
 
   if (!hasSurveyCredit && !hasDeposits) {

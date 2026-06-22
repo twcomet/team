@@ -349,8 +349,9 @@ function renderLeaveList(containerId, list, showUser) {
       ? `${lr.leave_date} ~ ${lr.leave_end_date}` : lr.leave_date;
     const statusHtml = `<span class="leave-type-badge sb-${lr.status}">${LEAVE_STATUS_LABEL[lr.status] || lr.status}</span>`;
     const typeHtml   = `<span class="leave-type-badge lt-${lr.leave_type}">${lr.leave_type}</span>`;
-    const canCancel  = lr.status === 'pending' && (lr.user_id === currentUser.id || isHR);
-    const canReview  = isHR && lr.status === 'pending';
+    const canReview     = isHR && lr.status === 'pending';
+    const canSelfCancel = !isHR && lr.status === 'pending' && lr.user_id === currentUser.id;
+    const canHRDelete   = isHR;  // HR/老闆可刪任何狀態（含已核准，供清除測試資料）
 
     return `<div class="leave-card">
       <div class="leave-card-header">
@@ -369,10 +370,10 @@ function renderLeaveList(containerId, list, showUser) {
           <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
         </div>
       </div>
-      ${(canReview || canCancel) ? `<div class="review-actions">
+      ${(canReview || canSelfCancel || canHRDelete) ? `<div class="review-actions">
         ${canReview ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${lr.id},'${lr.user_name}','${lr.leave_type}','${dateRange}',${lr.hours})">審核</button>` : ''}
-        ${canCancel && !canReview ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">撤銷申請</button>` : ''}
-        ${canReview ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">刪除</button>` : ''}
+        ${canSelfCancel ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">撤銷申請</button>` : ''}
+        ${canHRDelete ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">刪除</button>` : ''}
       </div>` : ''}
     </div>`;
   }).join('');
