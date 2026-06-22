@@ -663,8 +663,13 @@ if (!catExists) {
 db.exec(`UPDATE ledger_categories SET section='income'  WHERE type='income'  AND section IS NULL`);
 db.exec(`UPDATE ledger_categories SET section='expense' WHERE type='expense' AND section IS NULL`);
 
+// 科目凍結旗標：使用者在 UI 自訂科目名稱/排序後會設 settings.ledger_cats_frozen='1'，
+// 凍結所有「科目 seed/重建」migration，避免部署把自訂內容洗掉（首次完整建立後自動設定）。
+db.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
+const _catsFrozen = !!db.prepare(`SELECT value FROM settings WHERE key='ledger_cats_frozen'`).get();
+
 // 新增損益表專用科目（來自業務分類；若已存在則跳過）
-{
+if (!_catsFrozen) {
   const getCat = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`);
   const insCat = db.prepare(`INSERT INTO ledger_categories (type, section, name, sort_order, active) VALUES (?, ?, ?, ?, 1)`);
   const plCats = [
@@ -2315,7 +2320,7 @@ if (_needCatV2) {
 const _needCatV3 =
   !db.prepare(`SELECT id FROM ledger_categories WHERE name='裝潢貼膜施工-Para' LIMIT 1`).get();
 
-if (_needCatV3) {
+if (_needCatV3 && !_catsFrozen) {
   // 停用 v2 中即將被細化的科目（保留歷史記帳資料）
   db.exec(`UPDATE ledger_categories SET active=0 WHERE name IN (
     '裝漠貼膜施工收入','施工服務收入',
@@ -2417,7 +2422,7 @@ if (_needCatV5) {
 const _needCatV6 =
   !db.prepare(`SELECT id FROM ledger_categories WHERE name='實體銷售' AND section='income' LIMIT 1`).get();
 
-if (_needCatV6) {
+if (_needCatV6 && !_catsFrozen) {
   const _brands6 = ['Paroi','Bodaq','LX','AICA','3M','穩得','Para','Boda','LG','iCar','Wunder磨料'];
   _brands6.forEach(b => {
     db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=?`).run(`實體銷售-${b}`);
@@ -2438,7 +2443,7 @@ if (_needCatV6) {
 const _needCatV7 =
   !db.prepare(`SELECT id FROM ledger_categories WHERE name='居家施工' LIMIT 1`).get();
 
-if (_needCatV7) {
+if (_needCatV7 && !_catsFrozen) {
   // 停用舊的施工科目
   [
     '連工帶料收入','玻璃貼膜施工收入',
@@ -2513,7 +2518,8 @@ if (_needCatV9) {
 // ── 收入科目補正（v11）──────────────────────────────────────────
 // 必須放在 v9「刪除 active=0」之後：先前部署曾發生新科目被某 migration 停用後被 v9 刪掉。
 // 此區塊在最後重新「確保存在＋啟用」並統一排序，後面已無刪除科目邏輯，保證存活。
-{
+// 凍結後（使用者已自訂科目）整段跳過，不覆蓋使用者的命名/排序。
+if (!_catsFrozen) {
   // 正規收入科目（依顯示順序）：確保「存在＋啟用＋section/type 正確＋排序」
   const incomeOrder = ['居家施工','商空施工','建案/建設公司','飯店貼膜','學校','政府/醫療','電梯施工','玻璃施工','車體施工','輸出施工','外快案','外包施工','其他施工','實體銷售','電商銷售','貼膜學院-課程費','貼膜學院-材料銷售','貼膜學院-認證考試','場勘費','設計費','樣本費','膜料本','其他收入'];
   const _find = db.prepare(`SELECT id FROM ledger_categories WHERE name=? LIMIT 1`);
@@ -2536,6 +2542,11 @@ if (_needCatV9) {
   const _deact = db.prepare(`UPDATE ledger_categories SET active=0 WHERE name=? AND section='income'`);
   legacyIncome.forEach(n => _deact.run(n));
   console.log('✅ 收入科目補正完成（v11：啟用正規 23 科目＋排序、停用舊重複科目）');
+}
+
+// 首次完整建立科目後，設定凍結旗標：之後部署不再 seed/重建科目，交由使用者於 UI 自訂。
+if (!_catsFrozen) {
+  db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('ledger_cats_frozen', '1')`).run();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

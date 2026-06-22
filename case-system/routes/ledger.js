@@ -30,8 +30,17 @@ router.post('/categories', requireOwner, (req, res) => {
 // PUT /api/ledger/categories/:id  (owner only)
 router.put('/categories/:id', requireOwner, (req, res) => {
   const { name, section, sort_order, active, sensitive, product_line } = req.body;
-  db.prepare(`UPDATE ledger_categories SET name=?, section=?, sort_order=?, active=?, sensitive=?, product_line=? WHERE id=?`)
-    .run(name, section, sort_order ?? 0, active ?? 1, sensitive ?? 0, product_line ?? null, req.params.id);
+  const prev = db.prepare(`SELECT name FROM ledger_categories WHERE id=?`).get(req.params.id);
+  db.exec('BEGIN');
+  try {
+    db.prepare(`UPDATE ledger_categories SET name=?, section=?, sort_order=?, active=?, sensitive=?, product_line=? WHERE id=?`)
+      .run(name, section, sort_order ?? 0, active ?? 1, sensitive ?? 0, product_line ?? null, req.params.id);
+    // 改名時同步搬移既有帳目，避免帳目指向舊名稱變成孤兒
+    if (prev && name && prev.name !== name) {
+      db.prepare(`UPDATE ledger_entries SET category=? WHERE category=?`).run(name, prev.name);
+    }
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); return res.status(500).json({ error: e.message }); }
   res.json({ ok: true });
 });
 
