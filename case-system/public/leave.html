@@ -356,7 +356,7 @@ function renderLeaveList(containerId, list, showUser) {
     return `<div class="leave-card">
       <div class="leave-card-header">
         <div>
-          ${showUser ? `<span style="font-weight:600;font-size:14px">${lr.user_name}</span> ` : ''}
+          <div style="font-size:15px;font-weight:700;color:#1a56db;margin-bottom:5px">👤 申請人：${lr.user_name || '—'}</div>
           ${typeHtml} ${statusHtml}
           <div class="leave-card-meta">
             📅 ${dateRange}｜${lr.hours} 小時
