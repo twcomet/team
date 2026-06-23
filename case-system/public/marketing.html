@@ -434,7 +434,7 @@ function renderFunnel(f, period, from, to) {
       const low  = rate !== null && Number(rate) < 50;
       return `<div class="funnel-step">
         <div class="step-label">${s.label}</div>
-        <div class="step-count">${s.val}</div>
+        <div class="step-count">${s.val ?? 0}</div>
         ${rate !== null ? `<div class="step-rate${low?' drop':''}">↑${rate}%</div>` : ''}
       </div>${i < steps.length-1 ? '<div class="funnel-arrow">›</div>' : ''}`;
     }).join('')}
