@@ -3638,7 +3638,7 @@ async function loadCaseCredits(id) {
       renderCreditsBlock();
       updatePayCalc();
     }
-  } catch {}
+  } catch (e) { console.error('[loadCaseCredits] 可折抵預收款載入/渲染失敗：', e); }
 }
 
 function renderCreditsBlock() {
