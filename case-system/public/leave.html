@@ -109,6 +109,7 @@
       <div class="tabs-bar">
         <div class="tab" data-tab="all" id="allTab" style="display:none" onclick="switchTab('all')">全部記錄</div>
         <div class="tab" data-tab="review" id="reviewTab" style="display:none" onclick="switchTab('review')">待審核 <span id="pendingBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></div>
+        <div class="tab" data-tab="reviewed" id="reviewedTab" style="display:none" onclick="switchTab('reviewed')">已審核</div>
         <div class="tab active" data-tab="my" onclick="switchTab('my')">我的請假</div>
       </div>
 
@@ -151,6 +152,24 @@
           </select>
         </div>
         <div id="allLeaveList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">載入中…</p></div>
+      </div>
+
+      <!-- 已審核 -->
+      <div id="pane-reviewed" style="display:none">
+        <div class="filter-bar">
+          <select id="reviewedUserFilter" onchange="loadReviewedLeaves()">
+            <option value="">全部人員</option>
+          </select>
+          <select id="reviewedStatusFilter" onchange="loadReviewedLeaves()">
+            <option value="">全部（已審核）</option>
+            <option value="approved">已核准</option>
+            <option value="rejected">已拒絕</option>
+          </select>
+          <select id="reviewedMonthFilter" onchange="loadReviewedLeaves()">
+            <option value="">全部月份</option>
+          </select>
+        </div>
+        <div id="reviewedLeaveList"><p style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">載入中…</p></div>
       </div>
 
     </div>
@@ -302,7 +321,7 @@ async function init() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const label = `${d.getFullYear()} 年 ${d.getMonth()+1} 月`;
-    ['myMonthFilter','allMonthFilter'].forEach(id => {
+    ['myMonthFilter','allMonthFilter','reviewedMonthFilter'].forEach(id => {
       const opt = document.createElement('option');
       opt.value = val; opt.textContent = label;
       document.getElementById(id).appendChild(opt);
@@ -310,13 +329,14 @@ async function init() {
   }
 
   if (isHR) {
-    document.getElementById('reviewTab').style.display = '';
-    document.getElementById('allTab').style.display    = '';
+    document.getElementById('reviewTab').style.display   = '';
+    document.getElementById('reviewedTab').style.display = '';
+    document.getElementById('allTab').style.display      = '';
     try {
       const ur = await fetch('/api/users');
       allUsers = ur.ok ? (await ur.json()).filter(u => u.active !== 0) : [];
-      const sel = document.getElementById('allUserFilter');
-      if (sel) sel.innerHTML = '<option value="">全部人員</option>' + allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      const opts = '<option value="">全部人員</option>' + allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      ['allUserFilter','reviewedUserFilter'].forEach(id => { const s = document.getElementById(id); if (s) s.innerHTML = opts; });
     } catch {}
   }
 
@@ -384,6 +404,20 @@ async function loadAllLeaves() {
   renderLeaveList('allLeaveList', list, true);
 }
 
+async function loadReviewedLeaves() {
+  const status = document.getElementById('reviewedStatusFilter').value;  // ''=全部已審核 / approved / rejected
+  const month  = document.getElementById('reviewedMonthFilter').value;
+  let url = '/api/hr/leave-requests?';
+  if (status) url += `status=${status}&`;
+  if (month)  url += `month=${month}&`;
+  const r = await fetch(url);
+  let list = r.ok ? await r.json() : [];
+  list = list.filter(l => l.status === 'approved' || l.status === 'rejected');  // 只留已審核
+  const uid = document.getElementById('reviewedUserFilter').value;
+  if (uid) list = list.filter(l => String(l.user_id) === String(uid));
+  renderLeaveList('reviewedLeaveList', list, true);
+}
+
 function renderLeaveList(containerId, list, showUser) {
   const el = document.getElementById(containerId);
   if (!list.length) {
@@ -449,9 +483,10 @@ function renderLeaveList(containerId, list, showUser) {
 function switchTab(tab) {
   curTab = tab;
   document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['my','review','all'].forEach(t => document.getElementById(`pane-${t}`).style.display = t === tab ? '' : 'none');
-  if (tab === 'review') loadReviewLeaves();
-  if (tab === 'all')    loadAllLeaves();
+  ['my','review','all','reviewed'].forEach(t => document.getElementById(`pane-${t}`).style.display = t === tab ? '' : 'none');
+  if (tab === 'review')   loadReviewLeaves();
+  if (tab === 'all')      loadAllLeaves();
+  if (tab === 'reviewed') loadReviewedLeaves();
 }
 
 function openNewModal() {
@@ -534,6 +569,7 @@ async function doReview(status) {
 function reloadCurrent() {
   if (curTab === 'review') loadReviewLeaves();
   else if (curTab === 'all') loadAllLeaves();
+  else if (curTab === 'reviewed') loadReviewedLeaves();
   else loadMyLeaves();
   if (isHR) loadPendingCount();
 }
