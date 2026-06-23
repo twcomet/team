@@ -107,9 +107,9 @@
     <div class="page-body">
 
       <div class="tabs-bar">
-        <div class="tab active" data-tab="my" onclick="switchTab('my')">我的請假</div>
-        <div class="tab" data-tab="review" id="reviewTab" style="display:none" onclick="switchTab('review')">待審核 <span id="pendingBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></div>
         <div class="tab" data-tab="all" id="allTab" style="display:none" onclick="switchTab('all')">全部記錄</div>
+        <div class="tab" data-tab="review" id="reviewTab" style="display:none" onclick="switchTab('review')">待審核 <span id="pendingBadge" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></div>
+        <div class="tab active" data-tab="my" onclick="switchTab('my')">我的請假</div>
       </div>
 
       <!-- 我的請假 -->
@@ -322,6 +322,8 @@ async function init() {
 
   await Promise.all([loadMyLeaves(), loadMyBalance()]);
   if (isHR) loadPendingCount();
+  // 預設分頁：HR/老闆進「全部記錄」，員工進「我的請假」
+  switchTab(isHR ? 'all' : 'my');
 }
 
 async function loadMyBalance() {
@@ -353,7 +355,8 @@ async function loadPendingCount() {
 async function loadMyLeaves() {
   const status = document.getElementById('myStatusFilter').value;
   const month  = document.getElementById('myMonthFilter').value;
-  let url = '/api/hr/leave-requests?';
+  // 「我的請假」一律只看自己（HR 也是）— 明確帶 user_id 修正先前顯示全部人的 bug
+  let url = `/api/hr/leave-requests?user_id=${currentUser.id}&`;
   if (status) url += `status=${status}&`;
   if (month)  url += `month=${month}&`;
 
@@ -399,31 +402,46 @@ function renderLeaveList(containerId, list, showUser) {
     const canSelfCancel = !isHR && lr.status === 'pending' && lr.user_id === currentUser.id;
     const canHRDelete   = isHR;  // HR/老闆可刪任何狀態（含已核准，供清除測試資料）
 
-    return `<div class="leave-card">
-      <div class="leave-card-header">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:#1a56db;margin-bottom:5px">👤 申請人：${lr.user_name || '—'}</div>
-          ${typeHtml} ${statusHtml}
-          <div class="leave-card-meta">
-            📅 ${dateRange}｜${lr.hours} 小時
-            ${lr.reason ? `｜${lr.reason}` : ''}
-          </div>
-          ${lr.status !== 'pending' ? `<div class="leave-card-meta">
-            ${lr.status === 'approved' ? '✅ 核准' : '❌ 拒絕'}：${lr.reviewed_by_name || '—'}
-            ${lr.reviewed_at ? ' / ' + lr.reviewed_at.slice(0,10) : ''}
-            ${lr.review_note ? `｜${lr.review_note}` : ''}
-          </div>` : ''}
-          <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
-        </div>
-      </div>
-      ${(canReview || canRevert || canEdit || canSelfCancel || canHRDelete) ? `<div class="review-actions">
+    const actionsHtml = (canReview || canRevert || canEdit || canSelfCancel || canHRDelete) ? `
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;min-width:88px;align-items:stretch">
         ${canReview ? `<button class="btn btn-primary btn-sm" onclick="doApprove(${lr.id})">核准</button>` : ''}
         ${canReview ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="doReject(${lr.id})">駁回</button>` : ''}
         ${canRevert ? `<button class="btn btn-ghost btn-sm" style="color:#d97706" onclick="doRevert(${lr.id})">撤回</button>` : ''}
         ${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="openEditLeave(${lr.id})">✏️ 編輯</button>` : ''}
         ${canSelfCancel ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">撤銷申請</button>` : ''}
         ${canHRDelete ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">刪除</button>` : ''}
-      </div>` : ''}
+      </div>` : '';
+
+    return `<div class="leave-card" style="display:flex;gap:16px;align-items:flex-start;justify-content:space-between">
+      <div style="flex:1;min-width:0">
+        <!-- 申請人 + 假別/狀態 -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <span style="font-size:18px;font-weight:800;color:#1a56db">👤 ${lr.user_name || '—'}</span>
+          ${typeHtml} ${statusHtml}
+        </div>
+        <!-- 關鍵資訊：時間 / 時數 / 事由（放大、各帶標籤）-->
+        <div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:8px">
+          <div>
+            <div style="font-size:11px;color:var(--gray-400);margin-bottom:2px">請假時間</div>
+            <div style="font-size:16px;font-weight:700;color:var(--gray-800)">📅 ${dateRange}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--gray-400);margin-bottom:2px">總時數</div>
+            <div style="font-size:16px;font-weight:700;color:var(--gray-800)">⏱ ${lr.hours} 小時</div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:11px;color:var(--gray-400);margin-bottom:2px">申請原因</div>
+            <div style="font-size:16px;font-weight:600;color:var(--gray-800)">📝 ${lr.reason || '—'}</div>
+          </div>
+        </div>
+        ${lr.status !== 'pending' ? `<div class="leave-card-meta">
+          ${lr.status === 'approved' ? '✅ 核准' : '❌ 拒絕'}：${lr.reviewed_by_name || '—'}
+          ${lr.reviewed_at ? ' / ' + lr.reviewed_at.slice(0,10) : ''}
+          ${lr.review_note ? `｜駁回原因：${lr.review_note}` : ''}
+        </div>` : ''}
+        <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
+      </div>
+      ${actionsHtml}
     </div>`;
   }).join('');
 }
