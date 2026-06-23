@@ -3731,7 +3731,7 @@ function openClientForInvoice() {
 function renderMatUsage(dispatchList, logList) {
   const el = document.getElementById('matUsageList');
   const DISPATCH_TYPE = { cut_material:'裁切材料', factory_survey:'場勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
-  const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留' };
+  const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留', store_sale:'材料販售' };
 
   // 統一格式
   const fromDispatch = dispatchList.map(m => ({
@@ -4858,9 +4858,10 @@ async function openMatLogModal() {
     const res = await fetch('/api/materials');
     _matList = res.ok ? await res.json() : [];
   }
-  const matSel = document.getElementById('ml_material');
-  matSel.innerHTML = '<option value="">— 選擇膜料型號 —</option>' +
-    _matList.map(m => `<option value="${m.id}" data-brand="${m.brand}" data-model="${m.model}">${m.brand} ${m.model}</option>`).join('');
+  document.getElementById('ml_material_dl').innerHTML =
+    _matList.map(m => `<option value="${m.brand} ${m.model}">`).join('');
+  document.getElementById('ml_material_search').value = '';
+  document.getElementById('ml_material').value = '';
   document.getElementById('ml_roll').innerHTML = '<option value="">— 先選膜料 —</option>';
   document.getElementById('ml_roll_hint').style.display = 'none';
   document.getElementById('ml_type').value = 'reserve';
@@ -4868,6 +4869,14 @@ async function openMatLogModal() {
   document.getElementById('ml_notes').value = '';
   document.getElementById('ml_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('matLogModal').classList.add('open');
+}
+
+// 手動輸入膜料型號 → 配對現有膜料(brand+model) → 設定 material_id 並載入捲料
+function onMatLogMaterialInput() {
+  const txt = document.getElementById('ml_material_search').value.trim();
+  const m = _matList.find(x => `${x.brand} ${x.model}` === txt);
+  document.getElementById('ml_material').value = m ? m.id : '';
+  onMatLogMaterialChange();
 }
 
 async function onMatLogMaterialChange() {
@@ -5200,7 +5209,9 @@ init().catch(err => {
     <div class="modal-body">
       <div class="form-group">
         <label>膜料型號 *</label>
-        <select id="ml_material" onchange="onMatLogMaterialChange()"></select>
+        <input id="ml_material_search" list="ml_material_dl" placeholder="輸入品牌／型號自動配對…" autocomplete="off" oninput="onMatLogMaterialInput()">
+        <datalist id="ml_material_dl"></datalist>
+        <input type="hidden" id="ml_material">
       </div>
       <div class="form-group">
         <label>捲料 *</label>
@@ -5216,6 +5227,7 @@ init().catch(err => {
             <option value="reserve">保留</option>
             <option value="case_cut">施工</option>
             <option value="case_loss">損失重貼</option>
+            <option value="store_sale">材料販售</option>
           </select>
         </div>
         <div class="form-group">
