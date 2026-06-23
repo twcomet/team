@@ -81,7 +81,7 @@ db.exec(`
     case_number     TEXT UNIQUE NOT NULL,
     org_id          INTEGER REFERENCES orgs(id),
     case_type       TEXT DEFAULT 'other'
-                    CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
+                    CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other')),
     client_id       INTEGER REFERENCES clients(id),
     title           TEXT NOT NULL,
     description     TEXT,
@@ -460,7 +460,7 @@ if (_casesSchema && _casesSchema.sql.includes('survey_scheduled')) {
   db.exec(`CREATE TABLE _cases_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
@@ -479,7 +479,7 @@ if (_casesSchema && _casesSchema.sql.includes('survey_scheduled')) {
   )`);
   db.exec(`INSERT INTO _cases_new
     SELECT id, case_number, org_id,
-           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','other')
+           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other')
                 THEN case_type ELSE 'other' END,
            client_id, title, description, location,
            quoted_price, final_price, material_cost, survey_fee, install_fee,
@@ -524,7 +524,7 @@ if (_casesSchema2 && _casesSchema2.sql.includes("'inquiry','survey','contract','
   db.exec(`CREATE TABLE _cases_new2 (
     id INTEGER PRIMARY KEY AUTOINCREMENT, case_number TEXT UNIQUE NOT NULL,
     org_id INTEGER REFERENCES orgs(id),
-    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other')),
+    case_type TEXT DEFAULT 'other' CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other')),
     client_id INTEGER REFERENCES clients(id), title TEXT NOT NULL,
     description TEXT, location TEXT, quoted_price REAL, final_price REAL,
     material_cost REAL, survey_fee REAL, install_fee REAL,
@@ -543,7 +543,7 @@ if (_casesSchema2 && _casesSchema2.sql.includes("'inquiry','survey','contract','
   )`);
   db.exec(`INSERT INTO _cases_new2
     SELECT id, case_number, org_id,
-           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','other')
+           CASE WHEN case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other')
                 THEN case_type ELSE 'other' END,
            client_id, title, description, location,
            quoted_price, final_price, material_cost, survey_fee, install_fee,
@@ -1009,7 +1009,7 @@ db.exec(`
 `);
 
 _addCol('cases', 'outsource_open',  'INTEGER DEFAULT 0');
-_addCol('cases', 'outsource_types', 'TEXT DEFAULT "[]"');
+_addCol('cases', 'outsource_types', "TEXT DEFAULT '[]'");
 
 // ── 系統設定 ────────────────────────────────────────────────
 db.exec(`
@@ -1933,14 +1933,17 @@ _addCol('cases', 'deal_intent', 'TEXT'); // hot | warm | cool | cold
 // ── 修復 case_type CHECK 約束：補上 'output' ────────────────────────────────
 try {
   const _csFix = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='cases'`).get();
-  if (_csFix && /CHECK\s*\(case_type\s+IN\s*\(/.test(_csFix.sql) && !_csFix.sql.includes("'output'")) {
+  if (_csFix && /CHECK\s*\(case_type\s+IN\s*\(/.test(_csFix.sql) && !_csFix.sql.includes("'material_sale'")) {
     db.exec(`PRAGMA foreign_keys=OFF`);
     db.exec(`DROP TABLE IF EXISTS _cases_output_fix`);
     const _allCols = db.prepare(`PRAGMA table_info(cases)`).all();
     const _newDef = _csFix.sql
-      .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?cases"?\b/i, 'CREATE TABLE _cases_output_fix')
+      // 連同開頭括號一起換掉表名（含可能的引號），避免殘留 stray 引號
+      .replace(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["'`]?cases["'`]?\s*\(/i, 'CREATE TABLE _cases_output_fix (')
+      // 把雙引號字串預設（如 DEFAULT "[]"）轉成單引號，否則重建 CREATE 會被當識別字→語法錯誤
+      .replace(/DEFAULT\s+"([^"]*)"/g, "DEFAULT '$1'")
       .replace(/CHECK\s*\(case_type\s+IN\s*\([^)]+\)\)/,
-               `CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','other'))`);
+               `CHECK(case_type IN ('home','commercial','elevator','glass','extra','outsource','output','material_sale','other'))`);
     db.exec(_newDef);
     // 補上後來 _addCol 加入的欄位（原 CREATE TABLE 不含這些）
     const _newFixCols = new Set(db.prepare(`PRAGMA table_info(_cases_output_fix)`).all().map(c => c.name));
@@ -1955,7 +1958,7 @@ try {
     db.exec(`DROP TABLE cases`);
     db.exec(`ALTER TABLE _cases_output_fix RENAME TO cases`);
     db.exec(`PRAGMA foreign_keys=ON`);
-    console.log('✅ case_type CHECK 約束已修復（新增 output）');
+    console.log('✅ case_type CHECK 約束已修復（補上 material_sale）');
   }
 } catch(e) {
   db.exec(`PRAGMA foreign_keys=ON`);
