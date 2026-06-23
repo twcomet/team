@@ -532,7 +532,10 @@ const IMP_HEADER = {
   '品牌': 'brand',
   '型號': 'model',
   '是否防焰': 'fire', '防焰': 'fire',
-  '每米含稅價': 'price', '售價': 'price', '每米售價': 'price', '價格': 'price',
+  // 牌價（售價，公開）
+  '牌價': 'list', '牌價/米': 'list', '每米牌價': 'list', '牌價(含稅)': 'list', '售價': 'list', '售價/米': 'list', '每米牌價(含稅)': 'list',
+  // 成本價（機密，僅 can_see_cost 寫入/看得到）
+  '成本價': 'cost', '成本價/米': 'cost', '每米成本價': 'cost', '成本價(含稅)': 'cost', '成本': 'cost', '成本/米': 'cost', '每米成本價(含稅)': 'cost',
   '庫存米數': 'meters', '米數': 'meters', '庫存': 'meters',
   '捲號': 'roll_no', '編號': 'roll_no',
 };
@@ -547,10 +550,12 @@ function readImportRows(csv) {
     const r = grid[i]; const o = {};
     keys.forEach((k, j) => { if (k) o[k] = (r[j] ?? '').toString().trim(); });
     if (!o.model) continue;
+    const num = v => (v === '' || v == null) ? null : (isNaN(parseFloat(v)) ? null : parseFloat(v));
     out.push({
       brand: (o.brand || '').trim(), model: (o.model || '').trim(),
       location: o.location || '', material: o.material || '', fire: o.fire || '',
-      price: (o.price === '' || o.price == null) ? null : parseFloat(o.price),
+      list: num(o.list),   // 牌價（售價）
+      cost: num(o.cost),   // 成本價（機密）
       meters: parseFloat(o.meters) || 0,
       roll_no: (o.roll_no || '').trim(),
     });
@@ -577,8 +582,8 @@ function buildPlan(orgId, rows) {
     const key = row.brand.toUpperCase() + '|' + normKey(row.model);
     const mat = matByKey[key];
     if (mat) {
-      const changed = (row.price != null && Number(row.price) !== Number(mat.unit_price));
-      plan.updMaterials.push({ matId: mat.id, row, oldPrice: mat.unit_price, priceChanged: changed });
+      const changed = (row.list != null && Number(row.list) !== Number(mat.unit_price));
+      plan.updMaterials.push({ matId: mat.id, row, oldPrice: mat.unit_price, oldCost: mat.unit_cost, priceChanged: changed });
     } else if (!seenNewMat[key]) {
       seenNewMat[key] = true; plan.newMaterials.push({ key, row });
     }
@@ -626,7 +631,9 @@ router.post('/import/apply', requireAuth, requireMaterials, (req, res) => {
   const orgName = db.prepare(`SELECT name FROM orgs WHERE id=?`).get(orgId)?.name || '總部';
   const today = new Date().toISOString().slice(0, 10);
   const plan = buildPlan(orgId, rows);
-  const affected = { createdMats: [], createdRolls: [], updRolls: [], archived: [], priceChanges: [] };
+  const canCost = !!me.can_see_cost;   // 只有成本可見者，匯入才會寫入/更動成本
+  const fireOf = r => /防焰/.test(r.fire) && !/非/.test(r.fire) ? 1 : 0;
+  const affected = { createdMats: [], createdRolls: [], updRolls: [], archived: [], priceChanges: [], costChanges: [] };
 
   // 每型號捲號流水：以現有總捲料數為起點
   const rollNoSet = new Set(db.prepare(`SELECT roll_no FROM material_rolls WHERE org_id=? AND roll_no IS NOT NULL`).all(orgId).map(r => r.roll_no));
@@ -644,20 +651,19 @@ router.post('/import/apply', requireAuth, requireMaterials, (req, res) => {
 
   try {
     db.exec('BEGIN');
-    // 1) 新增品項
+    // 1) 新增品項（牌價→售價公開；成本價→僅 can_see_cost 才寫）
     for (const nm of plan.newMaterials) {
       const r = nm.row;
-      const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm) VALUES (?,?,?,?,0,?,0,'film',?,122)`)
-        .run(orgId, r.brand, r.model, r.material || null, r.price || 0, /防焰/.test(r.fire) && !/非/.test(r.fire) ? 1 : 0);
+      const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm) VALUES (?,?,?,?,?,?,0,'film',?,122)`)
+        .run(orgId, r.brand, r.model, r.material || null, canCost ? (r.cost || 0) : 0, r.list || 0, fireOf(r));
       matIdByKey[nm.key] = ins.lastInsertRowid; affected.createdMats.push(ins.lastInsertRowid);
     }
-    // 2) 既有品項：更新售價 / 材質 / 防焰（不碰成本）
+    // 2) 既有品項：牌價(有提供才更新) / 材質 / 防焰；成本價僅 can_see_cost 且有提供才更新
     for (const um of plan.updMaterials) {
-      if (um.priceChanged) affected.priceChanges.push({ matId: um.matId, old: um.oldPrice });
       const r = um.row;
-      db.prepare(`UPDATE materials SET unit_price=?, color=COALESCE(NULLIF(?,''),color), fire_retardant=? WHERE id=?`)
-        .run(r.price != null ? r.price : (db.prepare(`SELECT unit_price FROM materials WHERE id=?`).get(um.matId)?.unit_price || 0),
-             r.material || '', /防焰/.test(r.fire) && !/非/.test(r.fire) ? 1 : 0, um.matId);
+      if (r.list != null) { affected.priceChanges.push({ matId: um.matId, old: um.oldPrice }); db.prepare(`UPDATE materials SET unit_price=? WHERE id=?`).run(r.list, um.matId); }
+      db.prepare(`UPDATE materials SET color=COALESCE(NULLIF(?,''),color), fire_retardant=? WHERE id=?`).run(r.material || '', fireOf(r), um.matId);
+      if (canCost && r.cost != null) { affected.costChanges.push({ matId: um.matId, old: um.oldCost }); db.prepare(`UPDATE materials SET unit_cost=? WHERE id=?`).run(r.cost, um.matId); }
     }
     // 3) 既有捲料（憑捲號）更新庫存/位置
     for (const ur of plan.updRolls) {
@@ -671,8 +677,8 @@ router.post('/import/apply', requireAuth, requireMaterials, (req, res) => {
       const r = nr.row;
       let matId = matIdByKey[nr.key];
       if (!matId) { // 後援：理論上 newMaterials/既有品項已涵蓋
-        const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm) VALUES (?,?,?,?,0,?,0,'film',?,122)`)
-          .run(orgId, r.brand, r.model, r.material || null, r.price || 0, /防焰/.test(r.fire) && !/非/.test(r.fire) ? 1 : 0);
+        const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm) VALUES (?,?,?,?,?,?,0,'film',?,122)`)
+          .run(orgId, r.brand, r.model, r.material || null, canCost ? (r.cost || 0) : 0, r.list || 0, fireOf(r));
         matId = ins.lastInsertRowid; matIdByKey[nr.key] = matId; affected.createdMats.push(matId);
       }
       const m = Math.max(0, r.meters);
@@ -697,7 +703,7 @@ router.post('/import/apply', requireAuth, requireMaterials, (req, res) => {
     const summary = {
       newMaterials: affected.createdMats.length, updRolls: plan.updRolls.length,
       newRolls: plan.newRolls.length, archived: affected.archived.length,
-      priceChanges: affected.priceChanges.length, errors: plan.errors.length,
+      priceChanges: affected.priceChanges.length, costChanges: affected.costChanges.length, errors: plan.errors.length,
     };
     const batch = db.prepare(`INSERT INTO material_import_batches (org_id, filename, summary, affected, row_count, created_by) VALUES (?,?,?,?,?,?)`)
       .run(orgId, (req.body.filename || '庫存匯入').slice(0, 120), JSON.stringify(summary), JSON.stringify(affected), rows.length, uid);
@@ -725,6 +731,7 @@ router.post('/import/revert/:id', requireAuth, requireMaterials, (req, res) => {
     for (const u of (a.updRolls || [])) db.prepare(`UPDATE material_rolls SET remaining_meters=?, location=?, status=? WHERE id=?`).run(u.oldRemaining || 0, u.oldLocation || null, (u.oldRemaining || 0) > 0 ? 'active' : 'finished', u.id);
     for (const ar of (a.archived || [])) db.prepare(`UPDATE material_rolls SET status=? WHERE id=?`).run(ar.prev || 'active', ar.id);
     for (const p of (a.priceChanges || [])) db.prepare(`UPDATE materials SET unit_price=? WHERE id=?`).run(p.old || 0, p.matId);
+    for (const c of (a.costChanges || [])) db.prepare(`UPDATE materials SET unit_cost=? WHERE id=?`).run(c.old || 0, c.matId);
     for (const id of (a.createdMats || [])) {
       const hasRoll = db.prepare(`SELECT 1 FROM material_rolls WHERE material_id=? LIMIT 1`).get(id);
       const hasRes  = db.prepare(`SELECT 1 FROM material_reservations WHERE material_id=? LIMIT 1`).get(id);
@@ -742,21 +749,40 @@ router.post('/import/revert/:id', requireAuth, requireMaterials, (req, res) => {
   }
 });
 
-// 匯出目前庫存（含捲號）→ Tanya 拿來當母檔
+// 匯出目前庫存（含捲號）→ Tanya 拿來當母檔。牌價公開；成本價僅 can_see_cost 才有該欄
 router.get('/import/export', requireAuth, requireMaterials, (req, res) => {
   const orgId = req.session.user.org_id;
+  const canCost = !!req.session.user.can_see_cost;
   const rolls = db.prepare(`
-    SELECT mr.roll_no, m.brand, m.model, m.color AS material, m.fire_retardant, mr.location, m.unit_price, mr.remaining_meters
+    SELECT mr.roll_no, m.brand, m.model, m.color AS material, m.fire_retardant, mr.location, m.unit_price, m.unit_cost, mr.remaining_meters
     FROM material_rolls mr JOIN materials m ON m.id=mr.material_id
     WHERE mr.org_id=? AND mr.status='active' ORDER BY m.brand, m.model, mr.roll_no
   `).all(orgId);
   const esc = v => { const s = (v == null ? '' : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const head = ['捲號', '品牌', '型號', '材質', '是否防焰', '貨架位置', '每米含稅價', '庫存米數'];
+  const head = ['捲號', '品牌', '型號', '材質', '是否防焰', '貨架位置', '牌價/米(含稅)'];
+  if (canCost) head.push('成本價/米(含稅)');
+  head.push('庫存米數');
   const lines = [head.join(',')];
-  rolls.forEach(r => lines.push([r.roll_no, r.brand, r.model, r.material, r.fire_retardant ? '防焰' : '非防焰', r.location, r.unit_price, r.remaining_meters].map(esc).join(',')));
+  rolls.forEach(r => {
+    const row = [r.roll_no, r.brand, r.model, r.material, r.fire_retardant ? '防焰' : '非防焰', r.location, r.unit_price];
+    if (canCost) row.push(r.unit_cost);
+    row.push(r.remaining_meters);
+    lines.push(row.map(esc).join(','));
+  });
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="inventory_export.csv"');
   res.send('﻿' + lines.join('\n'));   // BOM 讓 Excel 正確顯示中文
+});
+
+// 匯入紀錄（讓人可還原過去的批次）
+router.get('/import/batches', requireAuth, requireMaterials, (req, res) => {
+  const orgId = req.session.user.org_id;
+  const rows = db.prepare(`
+    SELECT b.id, b.filename, b.summary, b.row_count, b.status, b.created_at, b.reverted_at, u.name AS by_name
+    FROM material_import_batches b LEFT JOIN users u ON u.id=b.created_by
+    WHERE b.org_id=? ORDER BY b.id DESC LIMIT 20
+  `).all(orgId);
+  res.json(rows.map(r => ({ ...r, summary: (() => { try { return JSON.parse(r.summary); } catch { return {}; } })() })));
 });
 
 module.exports = router;
