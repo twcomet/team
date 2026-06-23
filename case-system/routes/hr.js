@@ -225,7 +225,12 @@ router.delete('/leave-requests/:id', requireAuth, (req, res) => {
 // PUT /api/hr/leave-requests/:id/review
 router.put('/leave-requests/:id/review', requireAuth, requireHR, (req, res) => {
   const { status, review_note } = req.body;
-  if (!['approved','rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  if (!['approved','rejected','pending'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  // 撤回：改回審核中，清除審核結果（不推播）
+  if (status === 'pending') {
+    db.prepare(`UPDATE leave_requests SET status='pending', review_note=NULL, reviewed_by=NULL, reviewed_at=NULL WHERE id=?`).run(req.params.id);
+    return res.json({ ok: true });
+  }
   db.prepare(`UPDATE leave_requests SET status=?, review_note=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(status, review_note||null, req.session.user.id, req.params.id);
 
@@ -236,6 +241,17 @@ router.put('/leave-requests/:id/review', requireAuth, requireHR, (req, res) => {
     const msg = `【請假審核結果】${label}\n${lr.leave_type}｜${lr.leave_date}｜${lr.hours}小時${review_note ? '\n備註：'+review_note : ''}`;
     pushMessage(lr.line_user_id, msg).catch(() => {});
   }
+  res.json({ ok: true });
+});
+
+// PUT /api/hr/leave-requests/:id — HR 編輯請假內容（員工填錯時代為修正）
+router.put('/leave-requests/:id', requireAuth, requireHR, (req, res) => {
+  const { leave_type, leave_date, leave_end_date, hours, reason } = req.body;
+  if (!leave_type || !leave_date || !hours) return res.status(400).json({ error: '假別、日期、時數為必填' });
+  const exists = db.prepare(`SELECT id FROM leave_requests WHERE id=?`).get(req.params.id);
+  if (!exists) return res.status(404).json({ error: '找不到請假申請' });
+  db.prepare(`UPDATE leave_requests SET leave_type=?, leave_date=?, leave_end_date=?, hours=?, reason=? WHERE id=?`)
+    .run(leave_type, leave_date, leave_end_date || null, Number(hours), reason || null, req.params.id);
   res.json({ ok: true });
 });
 

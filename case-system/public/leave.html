@@ -137,6 +137,9 @@
       <!-- 全部記錄 -->
       <div id="pane-all" style="display:none">
         <div class="filter-bar">
+          <select id="allUserFilter" onchange="loadAllLeaves()">
+            <option value="">全部人員</option>
+          </select>
           <select id="allStatusFilter" onchange="loadAllLeaves()">
             <option value="">全部狀態</option>
             <option value="pending">審核中</option>
@@ -238,6 +241,36 @@
   </div>
 </div>
 
+<!-- 編輯請假 Modal（HR 代為修正） -->
+<div class="modal-overlay" id="editLeaveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="editLeaveTitle">編輯請假</h3>
+      <button class="modal-close" onclick="document.getElementById('editLeaveModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit_id">
+      <div class="form-group" style="margin-bottom:10px"><label>假別</label>
+        <select id="edit_type" style="width:100%"></select>
+      </div>
+      <div class="form-row" style="display:flex;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="flex:1"><label>開始日期</label>
+          <input type="date" id="edit_date" style="width:100%"></div>
+        <div class="form-group" style="flex:1"><label>結束日期（選填）</label>
+          <input type="date" id="edit_end" style="width:100%"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label>時數（小時）</label>
+        <input type="number" id="edit_hours" min="0.5" step="0.5" style="width:100%"></div>
+      <div class="form-group"><label>事由</label>
+        <input type="text" id="edit_reason" placeholder="選填" style="width:100%"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('editLeaveModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveEditLeave()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script src="/js/common.js"></script>
@@ -247,6 +280,8 @@ const LEAVE_TYPES = ['特休','病假','事假','生理假','家庭照顧假','�
 
 let isHR = false;
 let curTab = 'my';
+let allUsers = [];
+let _leaveCache = {};
 
 function showToast(msg, type='success') {
   const el = document.createElement('div');
@@ -277,6 +312,12 @@ async function init() {
   if (isHR) {
     document.getElementById('reviewTab').style.display = '';
     document.getElementById('allTab').style.display    = '';
+    try {
+      const ur = await fetch('/api/users');
+      allUsers = ur.ok ? (await ur.json()).filter(u => u.active !== 0) : [];
+      const sel = document.getElementById('allUserFilter');
+      if (sel) sel.innerHTML = '<option value="">全部人員</option>' + allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+    } catch {}
   }
 
   await Promise.all([loadMyLeaves(), loadMyBalance()]);
@@ -334,7 +375,9 @@ async function loadAllLeaves() {
   if (status) url += `status=${status}&`;
   if (month)  url += `month=${month}&`;
   const r = await fetch(url);
-  const list = r.ok ? await r.json() : [];
+  let list = r.ok ? await r.json() : [];
+  const uid = document.getElementById('allUserFilter').value;
+  if (uid) list = list.filter(l => String(l.user_id) === String(uid));
   renderLeaveList('allLeaveList', list, true);
 }
 
@@ -349,7 +392,10 @@ function renderLeaveList(containerId, list, showUser) {
       ? `${lr.leave_date} ~ ${lr.leave_end_date}` : lr.leave_date;
     const statusHtml = `<span class="leave-type-badge sb-${lr.status}">${LEAVE_STATUS_LABEL[lr.status] || lr.status}</span>`;
     const typeHtml   = `<span class="leave-type-badge lt-${lr.leave_type}">${lr.leave_type}</span>`;
-    const canReview     = isHR && lr.status === 'pending';
+    _leaveCache[lr.id] = lr;  // 快取供編輯用
+    const canReview     = isHR && lr.status === 'pending';   // 核准/駁回
+    const canRevert     = isHR && lr.status !== 'pending';   // 撤回（改回審核中）
+    const canEdit       = isHR;                              // HR 可代為編輯
     const canSelfCancel = !isHR && lr.status === 'pending' && lr.user_id === currentUser.id;
     const canHRDelete   = isHR;  // HR/老闆可刪任何狀態（含已核准，供清除測試資料）
 
@@ -370,8 +416,11 @@ function renderLeaveList(containerId, list, showUser) {
           <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
         </div>
       </div>
-      ${(canReview || canSelfCancel || canHRDelete) ? `<div class="review-actions">
-        ${canReview ? `<button class="btn btn-primary btn-sm" onclick="openReviewModal(${lr.id},'${lr.user_name}','${lr.leave_type}','${dateRange}',${lr.hours})">審核</button>` : ''}
+      ${(canReview || canRevert || canEdit || canSelfCancel || canHRDelete) ? `<div class="review-actions">
+        ${canReview ? `<button class="btn btn-primary btn-sm" onclick="doApprove(${lr.id})">核准</button>` : ''}
+        ${canReview ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="doReject(${lr.id})">駁回</button>` : ''}
+        ${canRevert ? `<button class="btn btn-ghost btn-sm" style="color:#d97706" onclick="doRevert(${lr.id})">撤回</button>` : ''}
+        ${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="openEditLeave(${lr.id})">✏️ 編輯</button>` : ''}
         ${canSelfCancel ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">撤銷申請</button>` : ''}
         ${canHRDelete ? `<button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="cancelLeave(${lr.id})">刪除</button>` : ''}
       </div>` : ''}
@@ -462,6 +511,62 @@ async function doReview(status) {
   } else {
     const e = await r.json(); showToast(e.error || '操作失敗', 'error');
   }
+}
+
+function reloadCurrent() {
+  if (curTab === 'review') loadReviewLeaves();
+  else if (curTab === 'all') loadAllLeaves();
+  else loadMyLeaves();
+  if (isHR) loadPendingCount();
+}
+
+async function reviewLeave(id, status, review_note) {
+  const r = await fetch(`/api/hr/leave-requests/${id}/review`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status, review_note: review_note || null })
+  });
+  if (r.ok) {
+    showToast(status === 'approved' ? '已核准' : status === 'rejected' ? '已駁回' : '已撤回，改回審核中');
+    reloadCurrent();
+  } else { const e = await r.json().catch(()=>({})); showToast(e.error || '操作失敗', 'error'); }
+}
+function doApprove(id) { if (confirm('確定「核准」這筆請假？')) reviewLeave(id, 'approved'); }
+function doReject(id)  {
+  const reason = prompt('請輸入「駁回原因」（必填）：');
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('駁回必須填寫原因', 'error'); return; }
+  reviewLeave(id, 'rejected', reason.trim());
+}
+function doRevert(id)  { if (confirm('「撤回」會把這筆改回「審核中」，確定？')) reviewLeave(id, 'pending'); }
+
+function openEditLeave(id) {
+  const lr = _leaveCache[id];
+  if (!lr) return;
+  document.getElementById('edit_id').value    = id;
+  const tsel = document.getElementById('edit_type');
+  tsel.innerHTML = LEAVE_TYPES.map(t => `<option ${t===lr.leave_type?'selected':''}>${t}</option>`).join('');
+  document.getElementById('edit_date').value   = lr.leave_date || '';
+  document.getElementById('edit_end').value    = lr.leave_end_date || '';
+  document.getElementById('edit_hours').value  = lr.hours ?? '';
+  document.getElementById('edit_reason').value = lr.reason || '';
+  document.getElementById('editLeaveTitle').textContent = `編輯請假 — ${lr.user_name || ''}`;
+  document.getElementById('editLeaveModal').classList.add('open');
+}
+async function saveEditLeave() {
+  const id = document.getElementById('edit_id').value;
+  const body = {
+    leave_type:     document.getElementById('edit_type').value,
+    leave_date:     document.getElementById('edit_date').value,
+    leave_end_date: document.getElementById('edit_end').value || null,
+    hours:          parseFloat(document.getElementById('edit_hours').value),
+    reason:         document.getElementById('edit_reason').value.trim() || null,
+  };
+  if (!body.leave_date || !body.hours) { showToast('日期和時數必填', 'error'); return; }
+  const r = await fetch(`/api/hr/leave-requests/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (r.ok) { showToast('已更新'); document.getElementById('editLeaveModal').classList.remove('open'); reloadCurrent(); }
+  else { const e = await r.json().catch(()=>({})); showToast(e.error || '更新失敗', 'error'); }
 }
 
 init();
