@@ -23,6 +23,7 @@ const STATUS_LABELS = {
   closed:            '結案保存',
   invalid:           '無效保存',
   tech_accepted:     '技師已接案',
+  aftersales:        '售後服務',
 };
 const PAYMENT_LABELS = { unpaid:'未收款', partial:'部分收款', paid:'已收款', overdue:'逾期' };
 const CASE_TYPE_LABELS = { home:'居家', commercial:'商空', elevator:'電梯', glass:'玻璃', extra:'外快', outsource:'外包', output:'輸出', material_sale:'賣膜料', other:'其他' };

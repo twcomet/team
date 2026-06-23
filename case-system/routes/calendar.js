@@ -27,6 +27,7 @@ router.get('/', requireAuth, (req, res) => {
       d.status        AS dispatch_status,
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
+      d.service_fee, d.warranty_covered,
       cl.name         AS client_name,
       GROUP_CONCAT(u.name, '、') AS installer_name,
       COUNT(DISTINCT du.user_id) AS worker_count,
