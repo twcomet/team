@@ -22,8 +22,12 @@ router.get('/', requireAuth, (req, res) => {
            c.case_number as case_number, c.title as case_title,
            COALESCE(SUM(pr.quantity_meters),0) as received_meters,
            COALESCE(SUM(pr.tax),0) as total_tax,
+           COALESCE(SUM(pr.shipping_fee),0) as total_shipping_fee,
            (SELECT u2.name FROM purchase_receipts pr2 LEFT JOIN users u2 ON u2.id=pr2.created_by
-            WHERE pr2.purchase_order_id=po.id ORDER BY pr2.received_date DESC, pr2.id DESC LIMIT 1) as receiver_name
+            WHERE pr2.purchase_order_id=po.id ORDER BY pr2.received_date DESC, pr2.id DESC LIMIT 1) as receiver_name,
+           (SELECT pr3.carrier FROM purchase_receipts pr3 WHERE pr3.purchase_order_id=po.id AND pr3.carrier IS NOT NULL ORDER BY pr3.received_date DESC, pr3.id DESC LIMIT 1) as carrier,
+           (SELECT pr4.payment_method FROM purchase_receipts pr4 WHERE pr4.purchase_order_id=po.id AND pr4.payment_method IS NOT NULL ORDER BY pr4.received_date DESC, pr4.id DESC LIMIT 1) as payment_method,
+           (SELECT MAX(pr5.received_date) FROM purchase_receipts pr5 WHERE pr5.purchase_order_id=po.id) as last_received_date
     FROM purchase_orders po
     LEFT JOIN materials m ON m.id=po.material_id
     LEFT JOIN vendors v ON v.id=po.vendor_id
@@ -191,7 +195,7 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (['received','cancelled'].includes(po.status)) return res.status(400).json({ error: '此採購單無法新增收貨' });
 
-  const { received_date, quantity_meters, batch_note, carrier, tax, shipping_fee } = req.body;
+  const { received_date, quantity_meters, batch_note, carrier, tax, shipping_fee, payment_method } = req.body;
   if (!received_date || !quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入收貨日期與米數' });
 
   // 建立新膜料卷
@@ -210,9 +214,9 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   }
 
   // 建立收貨紀錄
-  db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,carrier,tax,shipping_fee,created_by) VALUES (?,?,?,?,?,?,?,?,?)`)
+  db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,carrier,tax,shipping_fee,payment_method,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)`)
     .run(po.id, rollId, received_date, parseFloat(quantity_meters), batch_note||null,
-         carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, me.id);
+         carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, payment_method||null, me.id);
 
   // 更新採購單狀態
   const totalReceived = db.prepare(`SELECT COALESCE(SUM(quantity_meters),0) as total FROM purchase_receipts WHERE purchase_order_id=?`).get(po.id).total;

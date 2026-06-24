@@ -232,9 +232,24 @@
           <input class="form-input" id="r_shipping_fee" type="number" min="0" placeholder="0">
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">稅金（元）<span style="font-size:11px;color:var(--gray-400);font-weight:400">（純備註，不進會計帳）</span></label>
-        <input class="form-input" id="r_tax" type="number" min="0" placeholder="0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">稅金（元）<span style="font-size:11px;color:var(--gray-400);font-weight:400">（純備註）</span></label>
+          <input class="form-input" id="r_tax" type="number" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">付款方式</label>
+          <select class="form-input" id="r_payment_method">
+            <option value="">—</option>
+            <option value="零用金">零用金</option>
+            <option value="匯款">匯款</option>
+            <option value="信用卡">信用卡</option>
+            <option value="佳樺代墊">佳樺代墊</option>
+            <option value="恰吉代墊">恰吉代墊</option>
+            <option value="Dan代墊">Dan代墊</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
       </div>
       <div id="r_material_note" style="font-size:12px;color:#1d4ed8;margin-top:8px;display:none">
         ✓ 將自動新增一筆膜料卷並記入庫存
@@ -346,63 +361,61 @@ function renderOrders() {
     el.innerHTML = '<p style="text-align:center;color:#6b7280;padding:40px">尚無採購紀錄</p>';
     return;
   }
-  el.innerHTML = orders.map(po => {
-    const pct = Math.min(100, Math.round((po.received_meters / po.quantity_meters) * 100));
-    const matLabel = po.mat_brand ? `${esc(po.mat_brand)} ${esc(po.mat_model||'')}` : '';
-    const brandLabel = po.brand || matLabel || '—';
-    const overdue = po.expected_date && po.expected_date < new Date().toISOString().slice(0,10) && po.status === 'pending';
-    return `
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="flex:1">
-            <div style="font-weight:600;font-size:15px;margin-bottom:2px">
-              ${esc(brandLabel)}${po.series_code ? ' · '+esc(po.series_code) : ''}
-            </div>
-            <div style="font-size:12px;color:var(--gray-500)">
-              ${po.org_name ? esc(po.org_name)+' · ' : ''}${po.vendor_name ? esc(po.vendor_name)+' · ' : ''}採購 ${po.quantity_meters}米
-              ${currentUser.can_see_cost && po.total_cost ? ' · NT$'+Number(po.total_cost).toLocaleString() : ''}
-            </div>
-            <div style="font-size:12px;color:${overdue?'#dc2626':'var(--gray-500)'};margin-top:2px">
-              預計到貨：${po.expected_date || '未設定'}${overdue?' ⚠️ 逾期':''}
-            </div>
-            ${(po.receiver_name || po.total_tax > 0) ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px">
-              ${po.receiver_name ? '✍️ 簽收：'+esc(po.receiver_name) : ''}${(po.receiver_name && po.total_tax>0)?' · ':''}${po.total_tax>0 ? '稅金 NT$'+Number(po.total_tax).toLocaleString() : ''}
-            </div>` : ''}
-            ${po.ordered_by ? `<div style="font-size:12px;margin-top:2px">
-              ${po.order_status === 'ordered'
-                ? `<span style="color:#059669;font-weight:600">✅ 已訂貨</span>${po.ordered_by_name ? ' · '+esc(po.ordered_by_name) : ''}${po.ordered_at ? ' · '+po.ordered_at.slice(0,10) : ''}`
-                : `<span style="color:#b45309;font-weight:600">🛒 待訂貨</span>${po.ordered_by_name ? ' · 訂貨人：'+esc(po.ordered_by_name) : ''}`}
-            </div>` : ''}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-            <span class="status-badge sb-${po.status}">${STATUS_LABEL[po.status]||po.status}</span>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-              ${po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager) ? `
-                <button class="btn btn-sm" style="background:#d1fae5;color:#065f46" onclick="confirmOrder(${po.id})">✅ 已訂貨</button>
-              ` : ''}
-              ${isManager && po.status !== 'received' && po.status !== 'cancelled' ? `
-                <button class="btn btn-primary btn-sm" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters})">登記到貨</button>
-              ` : ''}
-              ${isManager && po.status !== 'cancelled' ? `
-                <button class="btn btn-secondary btn-sm" onclick="openEdit(${po.id})">編輯</button>
-                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="cancelPo(${po.id})">刪除</button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:10px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-500);margin-bottom:4px">
-            <span>已到貨 ${po.received_meters}米 / ${po.quantity_meters}米</span>
-            <span>${pct}%</span>
-          </div>
-          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
-        </div>
-        ${po.case_number ? `<div style="font-size:12px;color:#2563eb;margin-top:6px">🔗 案件：<a href="/case-detail?id=${po.case_id}" style="color:#2563eb;text-decoration:none">${esc(po.case_number)}${po.case_title?' · '+esc(po.case_title):''}</a></div>` : ''}
-        ${po.notes ? `<div style="font-size:12px;color:var(--gray-500);margin-top:4px">${esc(po.notes)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  const today = new Date().toISOString().slice(0,10);
+  const monthLabel = d => d ? `${d.slice(0,4)} 年 ${parseInt(d.slice(5,7),10)} 月` : '未分類';
+  const SB = { pending:['#fef9c3','#854d0e','待到貨'], partial:['#ffedd5','#9a3412','部分到貨'], received:['#d1fae5','#065f46','已到齊'], cancelled:['#e5e7eb','#6b7280','已取消'] };
+  const headers = ['狀態','下單日','品牌','型號','採購米數','案件','訂貨人','供應商','預計到貨','到貨日/進度','送貨公司','運費','付款方式','稅金','操作'];
+  let html = `<div style="overflow-x:auto;background:#fff;border:1px solid var(--gray-200);border-radius:10px">
+    <table style="border-collapse:collapse;width:100%;min-width:1320px;font-size:13px">
+    <thead><tr>${headers.map(h=>`<th style="padding:9px 10px;text-align:left;white-space:nowrap;background:#fce7f3;color:#9d174d;border-bottom:2px solid #f9a8d4;position:sticky;top:0">${h}</th>`).join('')}</tr></thead><tbody>`;
+  let curMonth = null;
+  orders.forEach(po => {
+    const m = (po.created_at||'').slice(0,7);
+    if (m !== curMonth) {
+      curMonth = m;
+      html += `<tr><td colspan="${headers.length}" style="background:#374151;color:#fff;font-weight:700;padding:6px 12px;letter-spacing:1px">▍${monthLabel(po.created_at)}</td></tr>`;
+    }
+    const brandLabel = po.brand || po.mat_brand || '—';
+    const modelLabel = po.series_code || po.mat_model || '—';
+    const overdue = po.expected_date && po.expected_date < today && po.status === 'pending';
+    const sb = SB[po.status] || ['#eee','#555',po.status];
+    const orderCell = po.ordered_by
+      ? (po.order_status === 'ordered'
+          ? `<span style="color:#059669;font-weight:600">✅ ${esc(po.ordered_by_name||'')} 已訂</span>`
+          : `<span style="color:#b45309;font-weight:600">🛒 待 ${esc(po.ordered_by_name||'')} 訂</span>`)
+      : '<span style="color:#9ca3af">—</span>';
+    const recvCell = (po.received_meters > 0 || po.last_received_date)
+      ? `${po.last_received_date||''} <span style="color:#9ca3af">(${po.received_meters}/${po.quantity_meters}米)</span>`
+      : '<span style="color:#9ca3af">未到貨</span>';
+    const canConfirm = po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager);
+    const canReceive = isManager && po.status !== 'received' && po.status !== 'cancelled';
+    const canEditDel = isManager && po.status !== 'cancelled';
+    let acts = '';
+    if (canConfirm) acts += `<a href="#" onclick="confirmOrder(${po.id});return false" style="color:#065f46;font-weight:700;margin-right:10px;text-decoration:none">已訂貨</a>`;
+    if (canReceive) acts += `<a href="#" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters});return false" style="color:#d6006e;font-weight:700;margin-right:10px;text-decoration:none">登記到貨</a>`;
+    if (canEditDel) acts += `<a href="#" onclick="openEdit(${po.id});return false" style="color:#6b7280;margin-right:10px;text-decoration:none">編輯</a><a href="#" onclick="cancelPo(${po.id});return false" style="color:#dc2626;text-decoration:none">刪除</a>`;
+    const td = (c, style='') => `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;${style}">${c}</td>`;
+    html += `<tr style="vertical-align:middle">
+      ${td(`<span style="background:${sb[0]};color:${sb[1]};padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">${sb[2]}</span>`)}
+      ${td((po.created_at||'').slice(0,10))}
+      ${td(esc(brandLabel),'font-weight:600')}
+      ${td(esc(modelLabel))}
+      ${td(po.quantity_meters+' 米')}
+      ${td(po.case_number?`<a href="/case-detail?id=${po.case_id}" style="color:#1a56db;text-decoration:none" title="${esc(po.case_title||'')}">${esc(po.case_number)}</a>`:'<span style="color:#9ca3af">—</span>','max-width:170px;overflow:hidden;text-overflow:ellipsis')}
+      ${td(orderCell)}
+      ${td(esc(po.vendor_name)||'<span style="color:#9ca3af">—</span>')}
+      ${td((po.expected_date||'未設定')+(overdue?' ⚠️':''), overdue?'color:#dc2626':'')}
+      ${td(recvCell)}
+      ${td(esc(po.carrier)||'<span style="color:#9ca3af">—</span>')}
+      ${td(po.total_shipping_fee>0?'$'+Number(po.total_shipping_fee).toLocaleString():'<span style="color:#9ca3af">—</span>')}
+      ${td(esc(po.payment_method)||'<span style="color:#9ca3af">—</span>')}
+      ${td(po.total_tax>0?'$'+Number(po.total_tax).toLocaleString():'<span style="color:#9ca3af">—</span>')}
+      ${td(acts||'<span style="color:#9ca3af">—</span>')}
+    </tr>`;
+    if (po.notes) html += `<tr><td colspan="${headers.length}" style="padding:0 10px 8px 10px;font-size:12px;color:var(--gray-500);border-bottom:1px solid #f0f0f0">📝 ${esc(po.notes)}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
 }
 
 function updateTotalDisplay() {
@@ -489,6 +502,7 @@ function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) 
   document.getElementById('r_carrier').value = '';
   document.getElementById('r_shipping_fee').value = '';
   document.getElementById('r_tax').value = '';
+  document.getElementById('r_payment_method').value = '';
   document.getElementById('r_material_note').style.display = materialId ? '' : 'none';
   document.getElementById('receiptModal').style.display = 'flex';
 }
@@ -503,6 +517,7 @@ async function saveReceipt() {
     carrier:         document.getElementById('r_carrier').value || null,
     shipping_fee:    document.getElementById('r_shipping_fee').value || null,
     tax:             document.getElementById('r_tax').value || null,
+    payment_method:  document.getElementById('r_payment_method').value || null,
   };
   const btn = document.getElementById('saveReceiptBtn');
   btn.disabled = true;

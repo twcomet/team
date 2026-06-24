@@ -2922,9 +2922,10 @@ _addCol('cases', 'marketing_discount', 'INTEGER DEFAULT 0');
 _addCol('purchase_orders', 'case_id', 'INTEGER REFERENCES cases(id)');
 
 // ── 到貨登記：貨運公司 / 稅金(純備註不進帳) / 運費 ───────────────────────────
-_addCol('purchase_receipts', 'carrier',      'TEXT');
-_addCol('purchase_receipts', 'tax',          'REAL');
-_addCol('purchase_receipts', 'shipping_fee', 'REAL');
+_addCol('purchase_receipts', 'carrier',        'TEXT');
+_addCol('purchase_receipts', 'tax',            'REAL');
+_addCol('purchase_receipts', 'shipping_fee',   'REAL');
+_addCol('purchase_receipts', 'payment_method', 'TEXT');  // 運費/貨款付款方式（到貨時填）
 
 // ── 採購單：通知訂貨人 + 訂貨狀態（與到貨狀態獨立）───────────────────────────
 _addCol('purchase_orders', 'ordered_by',   'INTEGER REFERENCES users(id)');  // 指派的訂貨人
