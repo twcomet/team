@@ -24,7 +24,7 @@ function calcAnnualLeave(hireDateStr, year) {
     // 入職當年：從入職月到12月共幾個月
     const monthsWorked = 12 - hireMonth;
     if (monthsWorked < 6) return 0;
-    return Math.ceil(monthsWorked / 12 * 3);
+    return Math.round(monthsWorked / 12 * 3 * 10) / 10; // 保留1位小數，不進位
   }
 
   // 之後年度：計算截至 1/1 的年資
@@ -39,7 +39,7 @@ function calcAnnualLeave(hireDateStr, year) {
   if (yrs < 3) return 10;
   if (yrs < 5) return 14;
   if (yrs < 10) return 15;
-  return Math.min(15 + (yrs - 10), 30);
+  return Math.min(16 + (yrs - 10), 30); // 滿10年16天起，每滿1年+1，最高30天
 }
 
 // GET /api/hr/employees
