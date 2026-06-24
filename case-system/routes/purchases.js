@@ -19,7 +19,7 @@ router.get('/', requireAuth, (req, res) => {
     SELECT po.*, m.brand as mat_brand, m.model as mat_model, m.color as mat_color,
            v.name as vendor_name, u.name as created_by_name, o.name as org_name,
            uo.name as ordered_by_name,
-           c.case_number as case_number, c.title as case_title,
+           c.case_number as case_number, c.title as case_title, cl.name as client_name,
            COALESCE(SUM(pr.quantity_meters),0) as received_meters,
            COALESCE(SUM(pr.tax),0) as total_tax,
            COALESCE(SUM(pr.shipping_fee),0) as total_shipping_fee,
@@ -35,6 +35,7 @@ router.get('/', requireAuth, (req, res) => {
     LEFT JOIN users uo ON uo.id=po.ordered_by
     LEFT JOIN orgs o ON o.id=po.org_id
     LEFT JOIN cases c ON c.id=po.case_id
+    LEFT JOIN clients cl ON cl.id=c.client_id
     LEFT JOIN purchase_receipts pr ON pr.purchase_order_id=po.id
     WHERE 1=1
   `;
