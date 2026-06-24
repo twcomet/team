@@ -364,7 +364,7 @@ function renderOrders() {
   const today = new Date().toISOString().slice(0,10);
   const monthLabel = d => d ? `${d.slice(0,4)} 年 ${parseInt(d.slice(5,7),10)} 月` : '未分類';
   const SB = { pending:['#fef9c3','#854d0e','待到貨'], partial:['#ffedd5','#9a3412','部分到貨'], received:['#d1fae5','#065f46','已到齊'], cancelled:['#e5e7eb','#6b7280','已取消'] };
-  const headers = ['狀態','下單日','品牌','型號','採購米數','案件','訂貨人','供應商','預計到貨','到貨日/進度','送貨公司','運費','付款方式','稅金','操作'];
+  const headers = ['狀態','下單日','品牌','型號','採購米數','案件（編號／名稱）','訂貨人','預計到貨','到貨日/進度','送貨公司','運費','付款方式','稅金','操作'];
   let html = `<div style="overflow-x:auto;background:#fff;border:1px solid var(--gray-200);border-radius:10px">
     <table style="border-collapse:collapse;width:100%;min-width:1320px;font-size:13px">
     <thead><tr>${headers.map(h=>`<th style="padding:9px 10px;text-align:left;white-space:nowrap;background:#fce7f3;color:#9d174d;border-bottom:2px solid #f9a8d4;position:sticky;top:0">${h}</th>`).join('')}</tr></thead><tbody>`;
@@ -401,9 +401,10 @@ function renderOrders() {
       ${td(esc(brandLabel),'font-weight:600')}
       ${td(esc(modelLabel))}
       ${td(po.quantity_meters+' 米')}
-      ${td(po.case_number?`<a href="/case-detail?id=${po.case_id}" style="color:#1a56db;text-decoration:none" title="${esc(po.case_title||'')}">${esc(po.case_number)}</a>`:'<span style="color:#9ca3af">—</span>','max-width:170px;overflow:hidden;text-overflow:ellipsis')}
+      ${td(po.case_number
+            ? `<a href="/case-detail?id=${po.case_id}" style="color:#1a56db;text-decoration:none;font-weight:600">${esc(po.case_number)}</a>${po.case_title?`<div style="font-size:11px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">${esc(po.case_title)}</div>`:''}`
+            : '<span style="color:#9ca3af">—</span>','max-width:240px')}
       ${td(orderCell)}
-      ${td(esc(po.vendor_name)||'<span style="color:#9ca3af">—</span>')}
       ${td((po.expected_date||'未設定')+(overdue?' ⚠️':''), overdue?'color:#dc2626':'')}
       ${td(recvCell)}
       ${td(esc(po.carrier)||'<span style="color:#9ca3af">—</span>')}
