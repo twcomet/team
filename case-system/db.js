@@ -309,6 +309,12 @@ _addCol('cases',     'actual_entry_date',    'DATE');
 _addCol('cases',     'retention_amount',     'REAL');
 _addCol('cases',     'retention_due_date',   'TEXT');
 _addCol('cases',     'retention_invoiced',   'REAL');
+_addCol('cases',     'retention_paid',         'REAL');              // 已收到保留款金額
+_addCol('cases',     'retention_paid_date',    'DATE');              // 保留款已收日期
+_addCol('cases',     'retention_paid_method',  'TEXT');              // 保留款收款方式
+_addCol('cases',     'retention_verified',     'INTEGER DEFAULT 0'); // 會計是否已核銷（核銷後才入流水帳）
+_addCol('cases',     'retention_verified_at',  'TEXT');
+_addCol('cases',     'retention_verified_by',  'INTEGER');
 _addCol('cases',     'needs_invoice',        'INTEGER DEFAULT 0');
 _addCol('cases',     'invoice_contact',      'TEXT');
 _addCol('cases',     'invoice_phone',        'TEXT');

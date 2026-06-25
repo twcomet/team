@@ -1107,8 +1107,28 @@
                   <div class="pf pf-note"><label>已請保留款</label>
                     <input type="number" id="p_retention_invoiced" placeholder="（尚未請款）" min="0" oninput="updatePayCalc()">
                   </div>
+                  <div class="pf pf-amount"><label>✅ 已收到保留款</label>
+                    <input type="number" id="p_retention_paid" placeholder="（尚未收到）" min="0" oninput="updatePayCalc()">
+                  </div>
+                  <div class="pf pf-date"><label>已收日期</label>
+                    <input type="date" id="p_retention_paid_date">
+                  </div>
+                  <div class="pf pf-method"><label>收款方式</label>
+                    <select id="p_retention_paid_method">
+                      <option value="">（未選）</option>
+                      <option value="匯款至臺灣企銀">匯款至臺灣企銀</option>
+                      <option value="匯款至合作金庫">匯款至合作金庫</option>
+                      <option value="匯款至華南銀行">匯款至華南銀行</option>
+                      <option value="現金">現金</option>
+                      <option value="支票">支票</option>
+                      <option value="自訂其他">自訂其他</option>
+                    </select>
+                  </div>
                 </div>
-                <div style="padding:0 14px 10px;font-size:11px;color:var(--gray-400)">到期自動通知會計請款</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 14px 12px;flex-wrap:wrap">
+                  <span style="font-size:11px;color:var(--gray-400)">會計核銷後才會記入收支流水帳（掛在已收日期）</span>
+                  <span id="retention_verify_status"></span>
+                </div>
               </div>
               <hr style="border:none;border-top:1px solid var(--gray-100);margin:4px 0 14px">
               <!-- 行銷優惠折抵 -->
@@ -1128,6 +1148,7 @@
                   <div>
                     <div style="font-size:12px;color:var(--gray-500);margin-bottom:2px">應付餘額（不含保留款）</div>
                     <div id="p_outstanding_display" style="font-size:22px;font-weight:700">—</div>
+                    <div style="font-size:12px;color:var(--gray-500);margin-top:6px">已收入金額（訂金＋尾款＋已收保留款）：<span id="p_received_display" style="font-weight:700;color:#166534">—</span></div>
                   </div>
                   <div id="p_status_badge" style="font-size:12px;padding:6px 14px;border-radius:20px;font-weight:600;text-align:center"></div>
                 </div>
@@ -2222,6 +2243,9 @@ function collectPaymentFields() {
     retention_amount:   parseFloat(g('p_retention_amount')?.value) || null,
     retention_due_date: g('p_retention_due_date')?.value || null,
     retention_invoiced: parseFloat(g('p_retention_invoiced')?.value) || null,
+    retention_paid:        parseFloat(g('p_retention_paid')?.value) || null,
+    retention_paid_date:   g('p_retention_paid_date')?.value || null,
+    retention_paid_method: g('p_retention_paid_method')?.value || null,
     payment_status:     window._autoPayStatus || caseData.payment_status || 'unpaid',
     payment_notes:      g('p_payment_notes')?.value || null,
     followup_date:      g('p_followup_date')?.value || null,
@@ -3531,6 +3555,38 @@ function togglePayBlock(bodyId, iconId) {
   if (icon) icon.style.transform = isOpen ? 'rotate(-90deg)' : '';
 }
 
+// 保留款會計核銷狀態與按鈕（僅 owner / 會計可核銷）
+function renderRetentionVerify(c) {
+  const el = document.getElementById('retention_verify_status');
+  if (!el) return;
+  const canVerify = currentUser && ['owner','hq_accounting'].includes(currentUser.role);
+  if (c.retention_verified) {
+    const when = (c.retention_verified_at || '').slice(0, 10);
+    el.innerHTML = `<span style="color:#166534;font-weight:600;font-size:12px">✓ 已核銷入帳${when ? '（' + when + '）' : ''}</span>`
+      + (canVerify ? ` <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;color:#b91c1c" onclick="unverifyRetention()">取消核銷</button>` : '');
+  } else if (canVerify) {
+    el.innerHTML = `<button type="button" class="btn btn-primary btn-sm" style="font-size:12px" onclick="verifyRetention()">會計核銷（入流水帳）</button>`;
+  } else {
+    el.innerHTML = `<span style="color:var(--gray-400);font-size:12px">尚未核銷</span>`;
+  }
+}
+async function verifyRetention() {
+  if (!confirm('確認已收到此筆保留款，並記入收支流水帳（掛在已收日期）？\n\n核銷前請先「儲存」案件，確保已收金額/日期已存檔。')) return;
+  const res = await fetch(`/api/cases/${caseId}/retention-verify`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { showToast(data.error || '核銷失敗', 'error'); return; }
+  showToast('✅ 已核銷，已記入收支流水帳');
+  await loadCase();
+}
+async function unverifyRetention() {
+  if (!confirm('取消核銷會把這筆保留款從收支流水帳移除，確定？')) return;
+  const res = await fetch(`/api/cases/${caseId}/retention-unverify`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { showToast(data.error || '取消失敗', 'error'); return; }
+  showToast('已取消核銷');
+  await loadCase();
+}
+
 function updatePayCalc() {
   const final    = parseFloat(document.getElementById('p_final_price').value) || 0;
   const needsVAT = document.getElementById('p_needs_invoice').checked;
@@ -3547,12 +3603,18 @@ function updatePayCalc() {
   const balance      = parseFloat(document.getElementById('p_balance_paid').value)        || 0;
   const retention    = parseFloat(document.getElementById('p_retention_amount').value)    || 0;
   const retInvoiced  = parseFloat(document.getElementById('p_retention_invoiced').value)  || 0;
+  const retPaid      = parseFloat(document.getElementById('p_retention_paid')?.value)     || 0;
   const creditAmt    = getCreditAmount();
   const marketing    = parseFloat(document.getElementById('p_marketing_discount').value) || 0;
   const totalPaid    = survey + deposit + balance;
   const outstanding  = final ? Math.max(0, totalInc - totalPaid - retention - creditAmt - marketing) : 0;
 
   document.getElementById('p_outstanding_display').textContent = (final || totalPaid) ? fmt(outstanding) : '—';
+  const receivedEl = document.getElementById('p_received_display');
+  if (receivedEl) {
+    const received = deposit + balance + retPaid;
+    receivedEl.textContent = received > 0 ? fmt(received) : '—';
+  }
 
   const creditsSummary = document.getElementById('p_credits_summary');
   if (creditsSummary) {
@@ -3624,6 +3686,10 @@ function fillPaymentForm() {
   document.getElementById('p_retention_amount').value   = c.retention_amount != null ? c.retention_amount : '';
   document.getElementById('p_retention_due_date').value = c.retention_due_date || '';
   document.getElementById('p_retention_invoiced').value = c.retention_invoiced != null ? c.retention_invoiced : '';
+  document.getElementById('p_retention_paid').value        = c.retention_paid != null ? c.retention_paid : '';
+  document.getElementById('p_retention_paid_date').value   = c.retention_paid_date || '';
+  document.getElementById('p_retention_paid_method').value = c.retention_paid_method || '';
+  renderRetentionVerify(c);
   document.getElementById('p_payment_notes').value      = c.payment_notes    || '';
   document.getElementById('p_followup_date').value      = c.followup_date    || '';
   // 發票欄位：案件層級有值優先，否則從客戶資料帶入

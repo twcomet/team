@@ -332,7 +332,8 @@ router.put('/:id', requireAuth, (req, res) => { try {
     payment_status, payment_received,
     deposit_amount, deposit_date, deposit_note, deposit_method, deposit_category,
     balance_paid, balance_paid_date, balance_paid_note, balance_paid_method, balance_category,
-    retention_amount, retention_due_date, retention_invoiced, needs_invoice,
+    retention_amount, retention_due_date, retention_invoiced,
+    retention_paid, retention_paid_date, retention_paid_method, needs_invoice,
     payment_due_date, payment_notes,
     status, priority, deal_intent, is_outsourced, outsource_type, notes,
     line_source, line_display_name, line_official_name, keyword, client_category, material_ordered,
@@ -358,7 +359,8 @@ router.put('/:id', requireAuth, (req, res) => { try {
       payment_status=?, payment_received=?,
       deposit_amount=?, deposit_date=?, deposit_note=?, deposit_method=?, deposit_category=?,
       balance_paid=?, balance_paid_date=?, balance_paid_note=?, balance_paid_method=?, balance_category=?,
-      retention_amount=?, retention_due_date=?, retention_invoiced=?, needs_invoice=?,
+      retention_amount=?, retention_due_date=?, retention_invoiced=?,
+      retention_paid=?, retention_paid_date=?, retention_paid_method=?, needs_invoice=?,
       payment_due_date=?, payment_notes=?, status=?, priority=?, deal_intent=?,
       is_outsourced=?, outsource_type=?, notes=?,
       line_source=?, line_display_name=?, line_official_name=?, keyword=?, client_category=?, material_ordered=?,
@@ -383,7 +385,9 @@ router.put('/:id', requireAuth, (req, res) => { try {
     deposit_amount ?? null, deposit_date ?? null, deposit_note ?? null, deposit_method ?? null, deposit_category ?? null,
     balance_paid ?? null, balance_paid_date ?? null, balance_paid_note ?? null, balance_paid_method ?? null, balance_category ?? null,
     retention_amount ?? null, retention_due_date ?? null,
-    retention_invoiced ?? null, needs_invoice ? 1 : 0,
+    retention_invoiced ?? null,
+    retention_paid ?? null, retention_paid_date ?? null, retention_paid_method ?? null,
+    needs_invoice ? 1 : 0,
     payment_due_date ?? null, payment_notes ?? null,
     status, priority || 'normal', deal_intent ?? null,
     is_outsourced ? 1 : 0, outsource_type ?? null, notes ?? null,
@@ -475,6 +479,53 @@ router.put('/:id', requireAuth, (req, res) => { try {
     console.error('[PUT /api/cases/:id]', err.message);
     res.status(500).json({ error: '儲存失敗：' + err.message });
   }
+});
+
+// ── 保留款會計核銷：核銷後才寫入流水帳（掛在已收日期）──────────────
+const RETENTION_VERIFY_ROLES = ['owner', 'hq_accounting'];
+router.patch('/:id/retention-verify', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!RETENTION_VERIFY_ROLES.includes(me.role))
+    return res.status(403).json({ error: '僅會計或管理者可核銷保留款' });
+  const caseId = Number(req.params.id);
+  const c = db.prepare(`SELECT id, case_number, title, org_id, retention_paid, retention_paid_date,
+                               retention_verified, balance_category, deposit_category
+                        FROM cases WHERE id=?`).get(caseId);
+  if (!c) return res.status(404).json({ error: '找不到案件' });
+  if (c.retention_verified) return res.status(400).json({ error: '此案保留款已核銷' });
+  if (!c.retention_paid || c.retention_paid <= 0)
+    return res.status(400).json({ error: '尚未填寫「已收到保留款」金額，無法核銷' });
+
+  const dateVal = c.retention_paid_date || new Date().toISOString().slice(0, 10);
+  db.prepare(`UPDATE cases SET retention_verified=1, retention_verified_at=?, retention_verified_by=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(new Date().toISOString(), me.id, caseId);
+
+  try {
+    const category = c.balance_category || c.deposit_category || '其他收入';
+    const desc = `保留款｜${c.case_number || ''} ${c.title || ''}`.trim();
+    const ref  = `case_${caseId}_retention`;
+    const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
+    if (existing) {
+      db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=? WHERE id=?`)
+        .run(dateVal, c.retention_paid, category, desc, c.org_id || null, me.id, existing.id);
+    } else {
+      db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+        .run(dateVal, category, c.retention_paid, caseId, desc, c.org_id || null, me.id, ref);
+    }
+  } catch (e) { console.error('[retention-verify ledger]', e.message); }
+
+  res.json({ ok: true });
+});
+
+// 取消核銷（誤核銷時）：抽回流水帳那筆，恢復未核銷
+router.patch('/:id/retention-unverify', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!RETENTION_VERIFY_ROLES.includes(me.role))
+    return res.status(403).json({ error: '僅會計或管理者可取消核銷' });
+  const caseId = Number(req.params.id);
+  db.prepare(`UPDATE cases SET retention_verified=0, retention_verified_at=NULL, retention_verified_by=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(caseId);
+  db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(`case_${caseId}_retention`);
+  res.json({ ok: true });
 });
 
 // ── 負責人快速指派（列表 inline 批次儲存用）────────────────────
