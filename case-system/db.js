@@ -1585,6 +1585,7 @@ if (_dispSql && !_dispSql.sql.includes("'cut_material'")) {
 // 派工：售後維修費用（必須在 migration 之後，避免 migration 重建 table 時欄位遺失）
 _addCol('dispatches', 'warranty_covered', 'INTEGER DEFAULT 1'); // 1=保固免費, 0=收費
 _addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
+_addCol('dispatches', 'day_index',        'INTEGER DEFAULT NULL'); // 多日施工第幾天(1=第1天)；NULL=未標記/單日
 
 // 場勘備註模板庫
 db.exec(`

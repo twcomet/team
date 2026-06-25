@@ -24,6 +24,7 @@ router.get('/', requireAuth, (req, res) => {
       d.scheduled_date,
       d.scheduled_time,
       d.dispatch_type,
+      d.day_index,
       d.status        AS dispatch_status,
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,

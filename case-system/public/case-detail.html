@@ -2585,6 +2585,7 @@ function renderDispatches(dispatches) {
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span class="dispatch-type-tag ${tagClass}">${tag}</span>
           ${warrantyBadge}
+          ${(d.dispatch_type === 'install' && d.day_index) ? `<span style="padding:2px 7px;border-radius:6px;background:#16a34a;color:#fff;font-size:11px;font-weight:700">第 ${d.day_index} 天</span>` : ''}
           <strong>${d.scheduled_date}</strong>
           ${d.scheduled_time ? `<span style="color:#6b7280;font-size:13px">${d.scheduled_time}</span>` : ''}
           ${d.actual_hours ? `<span style="color:#374151;font-size:13px;font-weight:600">${d.actual_hours}hr</span>` : (d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">預${d.estimated_hours}hr</span>` : '')}
@@ -3435,8 +3436,12 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
     const url    = did ? `/api/cases/${caseId}/dispatches/${did}` : `/api/cases/${caseId}/dispatches`;
     const method = did ? 'PUT' : 'POST';
     const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if (res.ok) { document.getElementById('dispatchModal').classList.remove('open'); await loadCase(); showToast('派工已儲存'); }
-    else showToast('儲存失敗', 'error');
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.needConfirm) {
+      const created = await handleDispatchConfirm(data, body);
+      if (!created) return; // 使用者取消
+    } else if (!res.ok) { showToast('儲存失敗', 'error'); return; }
+    document.getElementById('dispatchModal').classList.remove('open'); await loadCase(); showToast('派工已儲存');
 
   } else {
     // 區間派工：批次建立
@@ -3452,6 +3457,8 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
         scheduled_date:  days[i],
         scheduled_time:  getTimeStr(`dr_h_${i}`, `dr_m_${i}`),
         estimated_hours: parseFloat(document.getElementById(`dr_hrs_${i}`)?.value) || null,
+        confirm:   1,        // 區間派工本來就是刻意多日，免重複偵測
+        day_index: i + 1,    // 自動標記第 1、2、3… 天
       };
       const res = await fetch(`/api/cases/${caseId}/dispatches`, {
         method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -3465,6 +3472,25 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
     else showToast(`已新增 ${days.length} 筆派工`);
   }
 });
+
+// 派工重複/多日偵測：跳出確認，使用者選後以 confirm=1 重送。回傳是否已建立
+async function handleDispatchConfirm(data, body) {
+  let dayIndex, proceed;
+  if (data.conflict === 'multi_day') {
+    const dates = (data.existing || []).map(e => e.scheduled_date).join('、');
+    proceed = window.confirm(`此案件已排過施工（${dates}）。\n這次是「第 ${data.suggestedDay} 天施工」嗎？\n\n確定＝是，建立第 ${data.suggestedDay} 天；取消＝放棄。`);
+    dayIndex = data.suggestedDay;
+  } else { // same_day
+    proceed = window.confirm(`⚠️ 此案件當天已經有一筆施工派工！\n這是「同一天第二組人馬」嗎？\n\n確定＝是，兩筆都保留；取消＝放棄（避免重複計算獎金/成本）。`);
+    dayIndex = data.sameDayIndex || 1;
+  }
+  if (!proceed) return false;
+  const res = await fetch(`/api/cases/${caseId}/dispatches`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ...body, confirm:1, day_index:dayIndex }) });
+  if (!res.ok) { showToast('儲存失敗', 'error'); return false; }
+  return true;
+}
 
 function recalcLaborFromDispatch() {
   if (caseData?.labor_cost != null) {

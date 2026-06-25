@@ -117,6 +117,65 @@
   </div>
 </div>
 
+<!-- 新增派工 Modal -->
+<style>
+  .ad-fld{display:block;font-size:13px;font-weight:600;color:#55606f;margin:14px 0 6px}
+  .ad-fld:first-child{margin-top:0}
+  .ad-input{width:100%;padding:9px 12px;border:1px solid #d8dce3;border-radius:8px;font-size:14px;outline:none}
+  .ad-input:focus{border-color:#5b8def}
+  .ad-caselist{border:1px solid #eef0f3;border-radius:8px;max-height:150px;overflow-y:auto;margin-top:6px}
+  .ad-caseitem{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f3f4f7;display:flex;justify-content:space-between;gap:8px}
+  .ad-caseitem:hover{background:#f5f8ff}
+  .ad-caseitem small{color:#9aa0aa;white-space:nowrap}
+  .ad-picked{margin-top:6px;padding:9px 12px;background:#eef4ff;border:1px solid #c9ddff;border-radius:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .ad-picked a{color:#5b8def;cursor:pointer;font-size:12px}
+  .ad-workerbox{border:1px solid #eef0f3;border-radius:8px;padding:8px;margin-top:6px;max-height:180px;overflow-y:auto}
+  .ad-wgroup{font-size:11px;font-weight:700;color:#8a909a;margin:8px 4px 4px}
+  .ad-wgroup.partner{color:#b8860b}
+  .ad-wrow{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:13px}
+  .ad-wrow:hover{background:#f5f8ff}
+  .ad-wtag{font-size:10px;border-radius:4px;padding:0 5px;margin-left:auto;font-weight:700}
+  .ad-wtag.in{background:#e3f0ff;color:#2c5a9e}
+  .ad-wtag.out{background:#fdf0d5;color:#9a6b00}
+  .ad-wsel{font-size:12px;color:#5b8def;margin-top:8px;min-height:18px}
+  .ad-confirm{margin-top:14px}
+  .ad-warn{border-radius:10px;padding:13px;font-size:14px;margin-bottom:12px}
+  .ad-warn.danger{background:#fff4f4;border:1px solid #ffd0d0;color:#a23b3b}
+  .ad-warn.info{background:#eef6ff;border:1px solid #c9ddff;color:#2c5a9e}
+  .ad-opt{border:1px solid #e0e4ea;border-radius:10px;padding:11px 13px;margin-bottom:9px;cursor:pointer}
+  .ad-opt:hover{border-color:#5b8def;background:#f7faff}
+  .ad-opt .t{font-weight:700;font-size:14px}
+  .ad-opt .d{font-size:12px;color:#79808c;margin-top:2px}
+  .daybadge{display:inline-block;background:#16a34a;color:#fff;border-radius:4px;padding:0 5px;font-weight:700;font-size:10px;margin-right:3px}
+</style>
+<div class="modal-overlay" id="addDispModal">
+  <div class="modal" style="max-width:470px">
+    <div class="modal-header">
+      <h3 id="addDispTitle">新增派工</h3>
+      <button class="modal-close" onclick="closeAddDisp()">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="ad-fld">🔍 選擇案件</label>
+      <input id="adCaseSearch" class="ad-input" placeholder="搜尋案號 / 客戶 / 電話…" autocomplete="off" oninput="adSearchCases()">
+      <div id="adCaseList" class="ad-caselist"></div>
+      <div id="adPicked" class="ad-picked" style="display:none"></div>
+
+      <label class="ad-fld">🏢 分店 / 區域</label>
+      <select id="adBranch" class="ad-input" onchange="adRenderWorkers()"></select>
+
+      <label class="ad-fld">👷 施工人員（可多選，分內部員工／外包夥伴）</label>
+      <div id="adWorkerBox" class="ad-workerbox"></div>
+      <div id="adWorkerSel" class="ad-wsel">尚未選擇人員</div>
+
+      <div id="adConfirm" class="ad-confirm" style="display:none"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #eef0f3">
+      <button class="btn btn-ghost" onclick="closeAddDisp()">取消</button>
+      <button class="btn btn-primary" id="adSubmitBtn" onclick="adSubmit(false)">建立派工</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let curYear = new Date().getFullYear();
@@ -250,7 +309,9 @@ function renderCalendar() {
     }).join('');
     const pillsHtml = cases.slice(0, Math.max(0, 3 - surveys.length)).map(c => {
       const parts = [c.title, c.client_name, c.installer_name].filter(Boolean);
-      return `<div class="cal-case-pill" style="${getPillStyle(c)}" title="${parts.join('｜')}">${parts.join('｜')}</div>`;
+      const dayB = (c.source === 'dispatch' && c.dispatch_type === 'install' && c.day_index >= 2)
+        ? `<span class="daybadge">D${c.day_index}</span>` : '';
+      return `<div class="cal-case-pill" style="${getPillStyle(c)}" title="${parts.join('｜')}">${dayB}${parts.join('｜')}</div>`;
     }).join('') + (totalPills > 3 ? `<div style="font-size:11px;color:#6b7280">+${totalPills - 3} 件</div>` : '');
 
     const dayLeaves = leavesByDate[dateStr] || [];
@@ -301,6 +362,9 @@ function openDayModal(dateStr) {
   document.getElementById('dayModalTitle').textContent = `${dateStr} 當日記錄`;
 
   let html = '';
+  if (canDispatchFE()) {
+    html += `<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="openAddDisp('${dateStr}')">＋ 在這天新增派工</button>`;
+  }
   if (surveys.length) {
     html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#6d28d9;margin-bottom:6px">🔍 場勘</div>`;
     html += surveys.map(s => `
@@ -330,7 +394,7 @@ function openDayModal(dateStr) {
           <code style="font-size:12px;color:#6b7280">${c.case_number}</code>
           ${statusBadge(c.status)}
         </div>
-        <div style="font-weight:600;margin-bottom:4px">${c.client_name || ''} — ${c.title}</div>
+        <div style="font-weight:600;margin-bottom:4px">${(c.source==='dispatch' && c.dispatch_type==='install' && c.day_index) ? `<span class="daybadge">施工第 ${c.day_index} 天</span>` : ''}${c.client_name || ''} — ${c.title}</div>
         <div style="font-size:13px;color:#6b7280">負責：${c.installer_name || '未指定'} ｜ 時間：${c.scheduled_time || '未定'}</div>
         ${c.dispatch_type === 'aftersales'
           ? `<div style="font-size:13px;color:#be185d">售後維修費：${c.warranty_covered ? '保固免費' : fmt(c.service_fee)}<span style="color:#9ca3af">（不計營業額）</span></div>`
@@ -360,6 +424,144 @@ document.getElementById('setTargetBtn')?.addEventListener('click', async () => {
 
 document.getElementById('prevMonth').addEventListener('click', () => { curMonth--; if (curMonth < 1) { curMonth = 12; curYear--; } loadCalendar(); });
 document.getElementById('nextMonth').addEventListener('click', () => { curMonth++; if (curMonth > 12) { curMonth = 1; curYear++; } loadCalendar(); });
+// ── 新增派工（分店篩選＋內部/外包多選＋重複/多日偵測）──────────────
+const AD_OUTSOURCED = ['contractor_install','contractor_sales','dealer'];
+const AD_NON_DISPATCHER = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'];
+let adUsers = [];
+let adState = { date:null, caseId:null, caseObj:null, workers:new Set() };
+let adSearchResults = [];
+
+function canDispatchFE() {
+  const u = currentUser || {};
+  if (u.role === 'owner') return true;
+  if (u.permissions && u.permissions.page_dispatch_pool) return true;
+  return !AD_NON_DISPATCHER.includes(u.role);
+}
+
+async function ensureAdUsers() {
+  if (adUsers.length) return;
+  try {
+    const res = await fetch('/api/users?dispatch=1');
+    if (res.ok) adUsers = await res.json();
+  } catch(e) { console.error('載入派工人員失敗', e); }
+}
+
+async function openAddDisp(dateStr) {
+  adState = { date:dateStr, caseId:null, caseObj:null, workers:new Set() };
+  document.getElementById('addDispTitle').textContent = `在 ${dateStr} 新增派工`;
+  document.getElementById('adCaseSearch').value = '';
+  document.getElementById('adCaseList').innerHTML = '';
+  document.getElementById('adPicked').style.display = 'none';
+  document.getElementById('adConfirm').style.display = 'none';
+  document.getElementById('adConfirm').innerHTML = '';
+  document.getElementById('adWorkerSel').textContent = '尚未選擇人員';
+  document.getElementById('adSubmitBtn').style.display = '';
+  document.getElementById('dayModal').classList.remove('open');
+  await ensureAdUsers();
+  buildBranchOptions();
+  adRenderWorkers();
+  document.getElementById('addDispModal').classList.add('open');
+}
+function closeAddDisp() { document.getElementById('addDispModal').classList.remove('open'); }
+
+function buildBranchOptions() {
+  const map = {};
+  adUsers.filter(u => !AD_OUTSOURCED.includes(u.role)).forEach(u => {
+    if (u.org_id) map[u.org_id] = u.org_name || `分店 ${u.org_id}`;
+  });
+  const sel = document.getElementById('adBranch');
+  const def = currentUser.org_id;
+  const ids = Object.keys(map);
+  sel.innerHTML = ids.length
+    ? ids.map(id => `<option value="${id}" ${Number(id)===Number(def)?'selected':''}>${map[id]}</option>`).join('')
+    : `<option value="${def||''}">總部</option>`;
+}
+
+let adSearchTimer = null;
+function adSearchCases() {
+  const q = document.getElementById('adCaseSearch').value.trim();
+  clearTimeout(adSearchTimer);
+  if (q.length < 1) { document.getElementById('adCaseList').innerHTML=''; return; }
+  adSearchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/search/quick?q=' + encodeURIComponent(q));
+      if (!res.ok) return;
+      const data = await res.json();
+      adSearchResults = (data.results||[]).filter(r => r.type === 'case');
+      document.getElementById('adCaseList').innerHTML = adSearchResults.map((c,i) =>
+        `<div class="ad-caseitem" onclick="adPickCase(${i})">
+           <span>${c.title||''}</span><small>${c.case_number||''} · ${c.client_name||''}</small></div>`).join('')
+        || '<div class="ad-caseitem">查無案件</div>';
+    } catch(e) { console.error('搜尋案件失敗', e); }
+  }, 250);
+}
+function adPickCase(i) {
+  const c = adSearchResults[i];
+  if (!c) return;
+  adState.caseId = c.id; adState.caseObj = c;
+  document.getElementById('adCaseList').innerHTML = '';
+  document.getElementById('adCaseSearch').value = '';
+  const p = document.getElementById('adPicked');
+  p.style.display = 'flex';
+  p.innerHTML = `<span><strong>${c.case_number||''}</strong> ${c.title||''}（${c.client_name||''}）</span><a onclick="adClearCase()">更換</a>`;
+}
+function adClearCase(){ adState.caseId=null; adState.caseObj=null; document.getElementById('adPicked').style.display='none'; }
+
+function adRenderWorkers() {
+  const branch = document.getElementById('adBranch').value;
+  const ins  = adUsers.filter(u => !AD_OUTSOURCED.includes(u.role) && String(u.org_id) === String(branch));
+  const outs = adUsers.filter(u => AD_OUTSOURCED.includes(u.role));
+  const row = u => {
+    const out = AD_OUTSOURCED.includes(u.role);
+    return `<label class="ad-wrow"><input type="checkbox" ${adState.workers.has(u.id)?'checked':''} onchange="adToggleWorker(${u.id})">${u.name}<span class="ad-wtag ${out?'out':'in'}">${out?'外包':'內部'}</span></label>`;
+  };
+  document.getElementById('adWorkerBox').innerHTML =
+    `<div class="ad-wgroup">👤 內部員工</div>${ins.map(row).join('')||'<div class="ad-wrow" style="color:#aab">此分店暫無可派工的內部員工</div>'}`+
+    `<div class="ad-wgroup partner">🤝 外包夥伴</div>${outs.map(row).join('')||'<div class="ad-wrow" style="color:#aab">無外包夥伴</div>'}`;
+}
+function adToggleWorker(id) {
+  adState.workers.has(id) ? adState.workers.delete(id) : adState.workers.add(id);
+  const names = adUsers.filter(u => adState.workers.has(u.id)).map(u=>u.name);
+  document.getElementById('adWorkerSel').textContent = names.length ? `已選 ${names.length} 人：${names.join('、')}` : '尚未選擇人員';
+}
+
+async function adSubmit(confirmed, dayIndex) {
+  if (!adState.caseId) { showToast('請先選擇案件', 'error'); return; }
+  const body = { dispatch_type:'install', scheduled_date:adState.date,
+                 user_ids:[...adState.workers], confirm: confirmed ? 1 : 0 };
+  if (dayIndex != null) body.day_index = dayIndex;
+  try {
+    const res = await fetch(`/api/cases/${adState.caseId}/dispatches`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || '建立失敗', 'error'); return; }
+    if (data.needConfirm) { adShowConfirm(data); return; }
+    closeAddDisp();
+    await loadCalendar();
+    showToast('✅ 已建立派工');
+  } catch(e) { console.error('建立派工失敗', e); showToast('建立派工失敗', 'error'); }
+}
+
+function adShowConfirm(data) {
+  const box = document.getElementById('adConfirm');
+  box.style.display = 'block';
+  document.getElementById('adSubmitBtn').style.display = 'none';
+  const caseName = adState.caseObj ? adState.caseObj.title : '此案件';
+  if (data.conflict === 'multi_day') {
+    const dates = (data.existing||[]).map(e => `${e.scheduled_date}${e.day_index?`(第${e.day_index}天)`:''}`).join('、');
+    box.innerHTML = `
+      <div class="ad-warn info">「<b>${caseName}</b>」已排過施工：<b>${dates}</b>。<br>這次 <b>${adState.date}</b> 是 <b>第 ${data.suggestedDay} 天施工</b> 嗎？</div>
+      <div class="ad-opt" onclick="adSubmit(true, ${data.suggestedDay})"><div class="t">✅ 是，這是第 ${data.suggestedDay} 天施工</div><div class="d">正確建立多日派工，業績/成本依人數加權攤分，不會重複算。</div></div>
+      <div class="ad-opt" onclick="adCancelConfirm()"><div class="t">↩︎ 不是，我選錯案件了</div><div class="d">取消，重新選。</div></div>`;
+  } else {
+    box.innerHTML = `
+      <div class="ad-warn danger">「<b>${caseName}</b>」在 <b>${adState.date}</b> <b>已經有一筆施工派工</b>！為避免獎金/成本算錯，請確認：</div>
+      <div class="ad-opt" onclick="adCancelConfirm(); closeAddDisp();"><div class="t">① 我按錯了 — 重複建立</div><div class="d">取消這次，沿用原本那筆。</div></div>
+      <div class="ad-opt" onclick="adSubmit(true, ${data.sameDayIndex || 1})"><div class="t">② 同一天第二組人馬</div><div class="d">兩筆都保留，系統會把兩組人數一起加權攤分。</div></div>`;
+  }
+}
+function adCancelConfirm(){ const b=document.getElementById('adConfirm'); b.style.display='none'; b.innerHTML=''; document.getElementById('adSubmitBtn').style.display=''; }
+
 document.getElementById('dayModalClose').addEventListener('click', () => document.getElementById('dayModal').classList.remove('open'));
 
 init();

@@ -124,6 +124,14 @@ const STATUS_GROUP_MAP = {
 };
 const HQ_ROLES = ['owner','vp','hq_cs','hq_sales','hq_accounting','hq_hr'];
 
+// 派工權限：辦公室角色可派工；現場技師/外包/經銷是「被派」的對象，不可建立派工
+const DISPATCH_RECIPIENT_ROLES = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'];
+function canDispatch(me) {
+  return me.role === 'owner'
+      || !!me.permissions?.page_dispatch_pool
+      || !DISPATCH_RECIPIENT_ROLES.includes(me.role);
+}
+
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, case_type, date_from, date_to, search, group, client_id } = req.query;
@@ -610,22 +618,60 @@ router.get('/:id/dispatches', requireAuth, (req, res) => {
 });
 
 router.post('/:id/dispatches', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!canDispatch(me)) return res.status(403).json({ error: '無派工權限' });
   const case_id = Number(req.params.id);
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, user_ids,
           unloading_location, has_parking, work_until, access_code,
-          warranty_covered, service_fee } = req.body;
+          warranty_covered, service_fee, confirm } = req.body;
+  let { day_index } = req.body;
   if (!scheduled_date) return res.status(400).json({ error: '請選擇派工日期' });
+
+  const dtype = dispatch_type || 'install';
+
+  // ── 重複 / 多日施工偵測（僅 install，且尚未確認時才攔截）──────────
+  // 系統無法自動分辨「重複誤建」與「第2/3天施工」，故偵測到既有施工就回 needConfirm 讓前端問人
+  if (dtype === 'install' && !confirm) {
+    const prior = db.prepare(`
+      SELECT d.id, d.scheduled_date, d.day_index,
+             (SELECT COUNT(DISTINCT du.user_id) FROM dispatch_users du WHERE du.dispatch_id = d.id) AS worker_count
+      FROM dispatches d
+      WHERE d.case_id = ? AND d.dispatch_type = 'install' AND d.status != 'cancelled'
+      ORDER BY d.scheduled_date
+    `).all(case_id);
+    if (prior.length) {
+      const sameDay = prior.find(p => p.scheduled_date === scheduled_date);
+      if (sameDay) {
+        return res.json({ needConfirm: true, conflict: 'same_day', existing: prior,
+          sameDayIndex: sameDay.day_index || 1,
+          message: `此案件 ${scheduled_date} 已經有一筆施工派工` });
+      }
+      const maxDay = Math.max(0, ...prior.map(p => Number(p.day_index) || 0));
+      const suggestedDay = (maxDay || prior.length) + 1;
+      return res.json({ needConfirm: true, conflict: 'multi_day', existing: prior,
+        suggestedDay, message: `此案件已排過施工` });
+    }
+  }
+
+  // day_index 決定：confirm 時用前端傳的；install 首筆預設第1天；非 install 不標記
+  if (dtype === 'install') {
+    if (day_index == null) day_index = 1;
+    day_index = Number(day_index) || 1;
+  } else {
+    day_index = null;
+  }
 
   const result = db.prepare(`
     INSERT INTO dispatches (case_id, dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes,
-      unloading_location, has_parking, work_until, access_code, warranty_covered, service_fee, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(case_id, dispatch_type || 'install', scheduled_date,
+      unloading_location, has_parking, work_until, access_code, warranty_covered, service_fee, day_index, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(case_id, dtype, scheduled_date,
          scheduled_time ?? null, estimated_hours ?? null,
          material ?? null, notes ?? null,
          unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
          warranty_covered != null ? Number(warranty_covered) : 1,
          service_fee != null ? Number(service_fee) : null,
+         day_index,
          req.session.user.id);
 
   const did = result.lastInsertRowid;
@@ -658,7 +704,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
 
   recalcLaborCost(case_id);
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
-  res.json({ ok: true, id: did });
+  res.json({ ok: true, id: did, day_index });
 });
 
 router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
