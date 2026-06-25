@@ -147,6 +147,74 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); })
     );
 
+    // ── 萬用搜尋（跨 5 階段找案件）──────────────────────────
+    const gWrap = document.createElement('div');
+    gWrap.className = 'gsearch-wrap';
+    gWrap.innerHTML = `
+      <span class="gsearch-icon">🔍</span>
+      <input type="text" id="gsearchInput" class="gsearch-input"
+             placeholder="搜尋案號 / 客戶 / 電話 / 業務 / 分店…" autocomplete="off">
+      <div class="gsearch-dropdown" id="gsearchDropdown" style="display:none"></div>`;
+    topBar.appendChild(gWrap);
+
+    const gInput = gWrap.querySelector('#gsearchInput');
+    const gDrop  = gWrap.querySelector('#gsearchDropdown');
+    const STAGE_CLS = { line:'gs-line', inq:'gs-inq', survey:'gs-survey', quote:'gs-quote', deal:'gs-deal' };
+    let gTimer = null, gOpen = false;
+
+    const gClose = () => { gOpen = false; gDrop.style.display = 'none'; };
+
+    function gRender(data) {
+      const rows = data.results || [];
+      if (!rows.length) {
+        gDrop.innerHTML = '<div class="gs-empty">查無資料</div>';
+        gDrop.style.display = ''; gOpen = true; return;
+      }
+      gDrop.innerHTML = rows.map(r => {
+        const cls = STAGE_CLS[r.stage] || 'gs-deal';
+        const cno = r.case_number ? `<span class="gs-cno">${esc(r.case_number)}</span>` : '';
+        const statusTxt = STATUS_LABELS[r.status] || (r.stage === 'line' ? '待處理' : '');
+        let costTxt = '';
+        if (r.cost != null) {
+          const margin = r.gross_margin_pct != null ? ` · 毛利 ${r.gross_margin_pct}%` : '';
+          costTxt = `<span class="gs-sep">·</span><span class="gs-cost">成本 ${fmt(r.cost)}${margin}</span>`;
+        }
+        const line2 = [esc(r.client_name || '—'), esc(r.phone || ''), esc(statusTxt)].filter(Boolean).join(' · ');
+        const line3 = `🏢 ${esc(r.org_name || '—')} · 👤 業務：${esc(r.sales_name || '未指派')}`;
+        return `<div class="gs-item" data-link="${esc(r.link)}">
+          <span class="gs-badge ${cls}">${esc(r.stage_label)}</span>
+          <span class="gs-info">
+            <span class="gs-row1">${cno}${esc(r.title || '')}</span>
+            <span class="gs-row2">${line2}${costTxt}</span>
+            <span class="gs-row3">${line3}</span>
+          </span>
+        </div>`;
+      }).join('');
+      gDrop.style.display = ''; gOpen = true;
+      gDrop.querySelectorAll('.gs-item').forEach(el =>
+        el.addEventListener('click', () => { location.href = el.dataset.link; }));
+    }
+
+    async function gSearch(q) {
+      try {
+        const res = await fetch('/api/search/quick?q=' + encodeURIComponent(q));
+        if (!res.ok) return;
+        gRender(await res.json());
+      } catch (e) { console.error('萬用搜尋失敗', e); }
+    }
+
+    gInput.addEventListener('input', () => {
+      const q = gInput.value.trim();
+      clearTimeout(gTimer);
+      if (q.length < 1) { gClose(); return; }
+      gTimer = setTimeout(() => gSearch(q), 250);
+    });
+    gInput.addEventListener('focus', () => {
+      if (gInput.value.trim() && gDrop.innerHTML) { gDrop.style.display = ''; gOpen = true; }
+    });
+    gInput.addEventListener('keydown', e => { if (e.key === 'Escape') { gClose(); gInput.blur(); } });
+    document.addEventListener('click', e => { if (gOpen && !gWrap.contains(e.target)) gClose(); });
+
     // ── 通知鈴鐺 ────────────────────────────────────────────
     const notifWrap = document.createElement('div');
     notifWrap.className = 'notif-wrap';
