@@ -72,13 +72,20 @@
       </div>
     </div>
     <div class="page-body">
-      <div class="cal-nav">
-        <button class="btn btn-ghost btn-sm" id="prevMonth">‹ 上月</button>
-        <h2 id="calTitle"></h2>
-        <button class="btn btn-ghost btn-sm" id="nextMonth">下月 ›</button>
+      <div class="gcal-toolbar">
+        <button class="gcal-navbtn" id="prevMonth">‹</button>
+        <button class="gcal-navbtn" id="nextMonth">›</button>
+        <button class="gcal-today" id="todayBtn" onclick="goToday()">今天</button>
+        <h2 id="calTitle" style="font-size:20px;font-weight:500;margin:0"></h2>
+        <div class="gcal-switch" id="calSwitch">
+          <button data-v="month" class="on" onclick="setCalView('month')">月</button>
+          <button data-v="week" onclick="setCalView('week')">週</button>
+          <button data-v="day" onclick="setCalView('day')">天</button>
+        </div>
       </div>
+      <div class="gcal-filterbar" id="calFilterBar"></div>
 
-      <div class="cal-grid" id="calGrid"></div>
+      <div id="calView"></div>
 
       <!-- 圖例 -->
       <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#6b7280;flex-wrap:wrap">
@@ -147,6 +154,49 @@
   .ad-opt .t{font-weight:700;font-size:14px}
   .ad-opt .d{font-size:12px;color:#79808c;margin-top:2px}
   .daybadge{display:inline-block;background:#16a34a;color:#fff;border-radius:4px;padding:0 5px;font-weight:700;font-size:10px;margin-right:3px}
+  /* ── Google 風格月曆改版 ── */
+  .gcal-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .gcal-navbtn{width:32px;height:32px;border:none;background:none;border-radius:50%;cursor:pointer;font-size:16px;color:#5f6368}
+  .gcal-navbtn:hover{background:#f1f3f4}
+  .gcal-today{height:32px;padding:0 14px;border:1px solid #dadce0;background:#fff;border-radius:6px;cursor:pointer;font-size:13px}
+  .gcal-switch{margin-left:auto;display:flex;border:1px solid #dadce0;border-radius:8px;overflow:hidden}
+  .gcal-switch button{border:none;background:#fff;padding:7px 16px;cursor:pointer;font-size:13px;border-left:1px solid #eee}
+  .gcal-switch button:first-child{border-left:none}
+  .gcal-switch button.on{background:#e8f0fe;color:#1967d2;font-weight:600}
+  .gcal-filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+  .ftag{padding:5px 14px;border:1px solid #dadce0;border-radius:20px;font-size:12.5px;cursor:pointer;background:#fff;color:#5f6368}
+  .ftag.on{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:600}
+  .idle-toggle{margin-left:auto;font-size:12.5px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#3c4043}
+  .gcal-dow{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #e0e0e0}
+  .gcal-dow div{text-align:center;padding:8px 0 6px;font-size:11px;font-weight:600;color:#70757a}
+  .gcal-dow .sun{color:#d93025}.gcal-dow .sat{color:#1a73e8}
+  .gcal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr}
+  .gcal-cell{min-height:116px;border-right:1px solid #e8eaed;border-bottom:1px solid #e8eaed;padding:4px 5px 6px;position:relative;cursor:pointer;overflow:hidden}
+  .gcal-cell:nth-child(7n){border-right:none}
+  .gcal-cell:hover{background:#f8f9fa}
+  .gcal-cell.other{background:#fafafa}.gcal-cell.other .gcal-dnum{color:#bdc1c6}.gcal-cell.other .gcal-rev{opacity:.4}
+  .gcal-dnum{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:50%;font-size:12px;margin:2px 0 3px}
+  .gcal-cell.today .gcal-dnum{background:#1a73e8;color:#fff;font-weight:600}
+  .gcal-rev{position:absolute;top:7px;right:7px;font-size:10.5px;font-weight:600;color:#188038}.gcal-rev.under{color:#c5221f}
+  .gcal-addbtn{position:absolute;top:5px;right:7px;width:20px;height:20px;border-radius:50%;border:none;background:#1a73e8;color:#fff;font-size:14px;line-height:1;cursor:pointer;display:none}
+  .gcal-cell:hover .gcal-addbtn{display:block}.gcal-cell:hover .gcal-rev{display:none}
+  .gcal-ev{font-size:11.5px;line-height:1.45;padding:1px 6px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gcal-more{font-size:11px;color:#5f6368;padding:0 6px}
+  .gcal-idle{position:absolute;bottom:4px;left:5px;font-size:10px;color:#137333;background:#e6f4ea;border-radius:4px;padding:1px 6px;font-weight:600}
+  .gcal-idle.zero{color:#c5221f;background:#fce8e6}
+  .gcols{display:grid;border:1px solid #e8eaed;border-radius:10px;overflow:hidden}
+  .gcol{border-right:1px solid #e8eaed}.gcol:last-child{border-right:none}
+  .gcol-head{text-align:center;padding:8px 4px;border-bottom:1px solid #e8eaed;background:#fafafa;cursor:pointer}
+  .gcol-head .dw{font-size:11px;color:#70757a}.gcol-head .dn{font-size:18px;font-weight:500;margin-top:2px}
+  .gcol-head.today .dn{background:#1a73e8;color:#fff;border-radius:50%;width:30px;height:30px;line-height:30px;display:inline-block}
+  .gidle{font-size:10.5px;color:#137333;background:#eafaf0;padding:5px 7px;border-bottom:1px solid #e8eaed;line-height:1.4}
+  .gidle.zero{color:#c5221f;background:#fdecea}
+  .gbody{padding:6px;min-height:120px}
+  .gsec{margin-bottom:8px}
+  .gsec-h{font-size:10.5px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:5px}
+  .gsec-h .dot{width:8px;height:8px;border-radius:2px}
+  .gchip{font-size:11px;line-height:1.35;padding:3px 7px;border-radius:5px;margin-bottom:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gchip .tm{font-weight:700;margin-right:4px}
 </style>
 <div class="modal-overlay" id="addDispModal">
   <div class="modal" style="max-width:470px">
@@ -155,10 +205,21 @@
       <button class="modal-close" onclick="closeAddDisp()">×</button>
     </div>
     <div class="modal-body">
+      <label class="ad-fld">🏷️ 派工類型</label>
+      <select id="adType" class="ad-input" onchange="adTypeChanged()">
+        <option value="install">施工</option>
+        <option value="survey">場勘</option>
+        <option value="aftersales">維修</option>
+        <option value="cut_material">裁料</option>
+      </select>
+
       <label class="ad-fld">🔍 選擇案件</label>
       <input id="adCaseSearch" class="ad-input" placeholder="搜尋案號 / 客戶 / 電話…" autocomplete="off" oninput="adSearchCases()">
       <div id="adCaseList" class="ad-caselist"></div>
       <div id="adPicked" class="ad-picked" style="display:none"></div>
+
+      <label class="ad-fld">📅 日期</label>
+      <input type="date" id="adDate" class="ad-input">
 
       <label class="ad-fld">🏢 分店 / 區域</label>
       <select id="adBranch" class="ad-input" onchange="adRenderWorkers()"></select>
@@ -228,7 +289,134 @@ const WORKER_CARD = {
 function getPillStyle(c) { return WORKER_PILL[getWorkerKey(c)]; }
 function getCardStyle(c)  { return WORKER_CARD[getWorkerKey(c)]; }
 
-function renderCalendar() {
+// ── 類型對應 ──────────────────────────────────────────────
+const CAT_OF = (c) => {
+  if (c.source === 'survey') return '場勘';
+  if (c.source === 'case')   return '施工';
+  const t = c.dispatch_type;
+  if (t === 'survey' || t === 'factory_survey') return '場勘';
+  if (t === 'install')      return '施工';
+  if (t === 'aftersales')   return '維修';
+  if (t === 'cut_material') return '裁料';
+  return '其他';
+};
+const CAT_COLOR = { 場勘:'#8430ce', 施工:'#1a73e8', 維修:'#e8710a', 裁料:'#188038', 其他:'#5f6368', 請假:'#b06000' };
+const CAT_ORDER = ['場勘','施工','維修','裁料','其他'];
+const CATS = ['全部', ...CAT_ORDER];
+let calView = 'month', calFilter = '全部', showIdle = true;
+
+function fmtD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayStr(){ return fmtD(new Date()); }
+
+function buildMaps(){
+  const byDate = {};
+  const push = (date, ev) => { if(!date) return; (byDate[date]=byDate[date]||[]).push(ev); };
+  (calData.cases||[]).forEach(c => push(c.scheduled_date, { kind:'case', cat:CAT_OF(c), c,
+    title:[c.title, c.client_name, c.installer_name].filter(Boolean).join('｜'),
+    dayNo:(c.source==='dispatch' && c.dispatch_type==='install') ? (c.day_no||null) : null }));
+  (calData.surveys||[]).forEach(s => push(s.survey_date, { kind:'survey', cat:'場勘', c:s,
+    title:'🔍 '+[s.title, s.client_name, s.surveyor_name].filter(Boolean).join('｜'), dayNo:null }));
+  return byDate;
+}
+function filtEv(arr){ return calFilter==='全部' ? (arr||[]) : (arr||[]).filter(e=>e.cat===calFilter); }
+function leavesByDate(){
+  const m={};
+  (calData.leaves||[]).forEach(lv=>{
+    const cur=new Date((lv.leave_date)+'T00:00:00'), end=new Date((lv.leave_end_date||lv.leave_date)+'T00:00:00');
+    while(cur<=end){ const k=fmtD(cur); (m[k]=m[k]||[]).push(lv); cur.setDate(cur.getDate()+1); }
+  });
+  return m;
+}
+function idleByDate(dateStr, leaveMap){
+  const roster=calData.roster||[];
+  if(!roster.length) return null;
+  const assigned=new Set((calData.assignments||[]).filter(a=>a.date===dateStr).map(a=>a.user_id));
+  const onLeave =new Set((leaveMap[dateStr]||[]).map(l=>l.user_id));
+  return roster.filter(u=>!assigned.has(u.id) && !onLeave.has(u.id));
+}
+function dayRevenue(cases){
+  const w=calData.caseInstallWeight||{};
+  return (cases||[]).reduce((s,e)=>{
+    const c=e.c;
+    if(e.kind==='case' && c.source==='dispatch' && c.dispatch_type==='install'){
+      const price=c.final_price||c.quoted_price||0, wk=Math.max(c.worker_count||0,1);
+      return s + price*wk/(w[c.id]||wk);
+    } return s;
+  },0);
+}
+function renderFilterBar(){
+  document.getElementById('calFilterBar').innerHTML =
+    CATS.map(c=>`<span class="ftag ${calFilter===c?'on':''}" onclick="setCalFilter('${c}')">${c}</span>`).join('')
+    + `<label class="idle-toggle"><input type="checkbox" ${showIdle?'checked':''} onchange="toggleIdle()"> 顯示人力空檔</label>`;
+}
+function setCalFilter(c){ calFilter=c; renderCalendar(); }
+function toggleIdle(){ showIdle=!showIdle; renderCalendar(); }
+function setCalView(v){ calView=v; document.querySelectorAll('#calSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); renderCalendar(); }
+function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getMonth()+1; loadCalendar(); }
+
+function renderCalendar(){
+  renderFilterBar();
+  document.getElementById('calTitle').textContent = `${curYear} 年 ${curMonth} 月`;
+  if(calView==='month') renderMonth();
+  else renderGrouped(calView==='day');
+}
+
+function renderMonth(){
+  const byDate=buildMaps(), leaveMap=leavesByDate(), targetMap={};
+  (calData.targets||[]).forEach(t=>targetMap[t.date]=t.target_amount);
+  const today=todayStr();
+  const startDow=new Date(curYear,curMonth-1,1).getDay();
+  const gridStart=new Date(curYear,curMonth-1,1-startDow);
+  let html='<div class="gcal-dow"><div class="sun">日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="sat">六</div></div><div class="gcal-grid">';
+  for(let i=0;i<42;i++){
+    const d=new Date(gridStart); d.setDate(gridStart.getDate()+i);
+    const ds=fmtD(d), other=(d.getMonth()+1)!==curMonth;
+    const ev=filtEv(byDate[ds]);
+    let revHtml='';
+    if(currentUser.can_see_amounts){
+      const tgt=targetMap[ds]||defaultTarget, rev=dayRevenue(byDate[ds]||[]);
+      if(rev>0||targetMap[ds]){ const cls=rev/tgt<0.5?'under':''; revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`; }
+    }
+    const shown=ev.slice(0,3).map(e=>{const col=CAT_COLOR[e.cat]||'#5f6368';const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';return `<div class="gcal-ev" style="background:${col}1f;color:${col}" title="${e.title}">${dayB}${e.title}</div>`;}).join('');
+    const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
+    const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
+    let idleB='';
+    if(showIdle && !other){ const il=idleByDate(ds,leaveMap); if(il) idleB=`<div class="gcal-idle ${il.length?'':'zero'}">🟢 空 ${il.length} 人</div>`; }
+    const addB=canDispatchFE()?`<button class="gcal-addbtn" onclick="event.stopPropagation();openAddDisp('${ds}')">＋</button>`:'';
+    html+=`<div class="gcal-cell ${other?'other':''} ${ds===today?'today':''}" onclick="openDayModal('${ds}')">${revHtml}${addB}<div class="gcal-dnum">${d.getDate()}</div>${shown}${lv}${more}${idleB}</div>`;
+  }
+  document.getElementById('calView').innerHTML=html+'</div>';
+}
+
+function renderGrouped(isDay){
+  const byDate=buildMaps(), leaveMap=leavesByDate(), today=todayStr();
+  const nowInMonth=(new Date().getFullYear()===curYear && new Date().getMonth()+1===curMonth);
+  let days=[];
+  if(isDay){ days=[ nowInMonth?new Date():new Date(curYear,curMonth-1,1) ]; }
+  else { const base=nowInMonth?new Date():new Date(curYear,curMonth-1,1); const s=new Date(base); s.setDate(base.getDate()-base.getDay()); for(let i=0;i<7;i++){const x=new Date(s);x.setDate(s.getDate()+i);days.push(x);} }
+  const W=['日','一','二','三','四','五','六'];
+  let html=`<div class="gcols" style="grid-template-columns:repeat(${days.length},1fr)">`;
+  html+=days.map(d=>{
+    const ds=fmtD(d), ev=filtEv(byDate[ds]);
+    let body='';
+    CAT_ORDER.forEach(cat=>{
+      const items=ev.filter(e=>e.cat===cat); if(!items.length)return;
+      body+=`<div class="gsec"><div class="gsec-h" style="color:${CAT_COLOR[cat]}"><span class="dot" style="background:${CAT_COLOR[cat]}"></span>${cat}(${items.length})</div>`+
+        items.map(e=>{const dayB=e.dayNo?`<span class="tm">D${e.dayNo}</span>`:'';return `<div class="gchip" style="background:${CAT_COLOR[cat]}18;color:${CAT_COLOR[cat]}" title="${e.title}">${dayB}${e.title}</div>`;}).join('')+`</div>`;
+    });
+    const lvs=(leaveMap[ds]||[]);
+    if((calFilter==='全部'||calFilter==='請假')&&lvs.length){
+      body+=`<div class="gsec"><div class="gsec-h" style="color:#b06000"><span class="dot" style="background:#b06000"></span>請假(${lvs.length})</div>`+lvs.map(l=>`<div class="gchip" style="background:#b0600018;color:#b06000">${l.user_name} ${l.leave_type}</div>`).join('')+`</div>`;
+    }
+    if(!body)body='<div style="color:#bdc1c6;text-align:center;padding:14px;font-size:11px">無</div>';
+    let idle='';
+    if(showIdle){ const il=idleByDate(ds,leaveMap); if(il) idle=`<div class="gidle ${il.length?'':'zero'}">${il.length?'🟢 有空：'+il.map(x=>x.name).join('、'):'⚠️ 全員已排'}</div>`; }
+    return `<div class="gcol"><div class="gcol-head ${ds===today?'today':''}" onclick="openDayModal('${ds}')"><div class="dw">週${W[d.getDay()]}</div><div class="dn">${d.getMonth()+1}/${d.getDate()}</div></div>${idle}<div class="gbody">${body}</div></div>`;
+  }).join('');
+  document.getElementById('calView').innerHTML=html+'</div>';
+}
+
+function _legacyRender() {
   const grid = document.getElementById('calGrid');
   const days = ['日','一','二','三','四','五','六'];
   let html = days.map(d => `<div class="cal-header-cell">${d}</div>`).join('');
@@ -341,15 +529,22 @@ function renderUnscheduled() {
       list.innerHTML = '<p style="color:#6b7280;font-size:14px">目前沒有待排工案件</p>';
       return;
     }
-    list.innerHTML = unscheduled.map(c => `
-      <div class="unscheduled-item">
+    window._unsched = unscheduled;
+    const canAdd = canDispatchFE();
+    list.innerHTML = unscheduled.map((c, i) => `
+      <div class="unscheduled-item" ${canAdd ? `style="cursor:pointer" onclick="openAddDispForUnsched(${i})"` : ''}>
         <span class="case-num">${c.case_number}</span>
         <span style="flex:1;font-size:14px">${c.client_name || ''} ${c.title}</span>
         <span style="font-size:13px;color:#6b7280">${c.sales_name || '未指定'}</span>
-        <a href="/case-detail.html?id=${c.id}" class="btn btn-ghost btn-sm">填施工日期</a>
+        ${canAdd ? '<span class="btn btn-primary btn-sm">排定派工</span>'
+                 : `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm">填施工日期</a>`}
       </div>
     `).join('');
   });
+}
+function openAddDispForUnsched(i){
+  const c = (window._unsched||[])[i];
+  if (c) openAddDispForCase({ id:c.id, case_number:c.case_number, title:c.title, client_name:c.client_name });
 }
 
 function openDayModal(dateStr) {
@@ -446,9 +641,10 @@ async function ensureAdUsers() {
   } catch(e) { console.error('載入派工人員失敗', e); }
 }
 
-async function openAddDisp(dateStr) {
-  adState = { date:dateStr, caseId:null, caseObj:null, workers:new Set() };
-  document.getElementById('addDispTitle').textContent = `在 ${dateStr} 新增派工`;
+async function openAddDispBase(title) {
+  adState = { caseId:null, caseObj:null, workers:new Set() };
+  document.getElementById('addDispTitle').textContent = title;
+  document.getElementById('adType').value = 'install';
   document.getElementById('adCaseSearch').value = '';
   document.getElementById('adCaseList').innerHTML = '';
   document.getElementById('adPicked').style.display = 'none';
@@ -460,7 +656,25 @@ async function openAddDisp(dateStr) {
   await ensureAdUsers();
   buildBranchOptions();
   adRenderWorkers();
+  adTypeChanged();
   document.getElementById('addDispModal').classList.add('open');
+}
+// 從日曆某天進入：日期預填（可改），案件用搜尋
+async function openAddDisp(dateStr) {
+  await openAddDispBase('新增派工');
+  document.getElementById('adDate').value = dateStr || '';
+}
+// 從「待排工案件」進入：案件預選、日期待填（搜尋框仍可改選別案，含已排過要重排的）
+async function openAddDispForCase(c) {
+  await openAddDispBase('排定派工');
+  document.getElementById('adDate').value = '';
+  adPickCaseObj(c);
+}
+function adTypeChanged() {
+  // 場勘/裁料通常無特定分店人員需求，但仍可選；僅調整人員區標題提示
+  const t = document.getElementById('adType').value;
+  document.getElementById('adWorkerSel').textContent =
+    adState.workers.size ? document.getElementById('adWorkerSel').textContent : (t==='survey'?'選擇場勘人員（可多選）':'尚未選擇人員');
 }
 function closeAddDisp() { document.getElementById('addDispModal').classList.remove('open'); }
 
@@ -495,9 +709,8 @@ function adSearchCases() {
     } catch(e) { console.error('搜尋案件失敗', e); }
   }, 250);
 }
-function adPickCase(i) {
-  const c = adSearchResults[i];
-  if (!c) return;
+function adPickCase(i) { const c = adSearchResults[i]; if (c) adPickCaseObj(c); }
+function adPickCaseObj(c) {
   adState.caseId = c.id; adState.caseObj = c;
   document.getElementById('adCaseList').innerHTML = '';
   document.getElementById('adCaseSearch').value = '';
@@ -527,7 +740,11 @@ function adToggleWorker(id) {
 
 async function adSubmit(confirmed, dayIndex) {
   if (!adState.caseId) { showToast('請先選擇案件', 'error'); return; }
-  const body = { dispatch_type:'install', scheduled_date:adState.date,
+  const dtype = document.getElementById('adType').value;
+  const date  = document.getElementById('adDate').value;
+  if (!date) { showToast('請選擇日期', 'error'); return; }
+  adState.date = date;
+  const body = { dispatch_type:dtype, scheduled_date:date,
                  user_ids:[...adState.workers], confirm: confirmed ? 1 : 0 };
   if (dayIndex != null) body.day_index = dayIndex;
   try {
