@@ -170,7 +170,7 @@
   .gcal-dow{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #e0e0e0}
   .gcal-dow div{text-align:center;padding:8px 0 6px;font-size:11px;font-weight:600;color:#70757a}
   .gcal-dow .sun{color:#d93025}.gcal-dow .sat{color:#1a73e8}
-  .gcal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr}
+  .gcal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:1fr}
   .gcal-cell{min-height:116px;border-right:1px solid #e8eaed;border-bottom:1px solid #e8eaed;padding:4px 5px 6px;position:relative;cursor:pointer;overflow:hidden}
   .gcal-cell:nth-child(7n){border-right:none}
   .gcal-cell:hover{background:#f8f9fa}
@@ -381,7 +381,7 @@ function renderMonth(){
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
     const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
     let idleB='';
-    if(showIdle && !other){ const il=idleByDate(ds,leaveMap); if(il) idleB=`<div class="gcal-idle ${il.length?'':'zero'}">🟢 空 ${il.length} 人</div>`; }
+    if(showIdle && !other && d.getDay()!==0){ const il=idleByDate(ds,leaveMap); if(il) idleB=`<div class="gcal-idle ${il.length?'':'zero'}">🟢 空 ${il.length} 人</div>`; }
     const addB=canDispatchFE()?`<button class="gcal-addbtn" onclick="event.stopPropagation();openAddDisp('${ds}')">＋</button>`:'';
     html+=`<div class="gcal-cell ${other?'other':''} ${ds===today?'today':''}" onclick="openDayModal('${ds}')">${revHtml}${addB}<div class="gcal-dnum">${d.getDate()}</div>${shown}${lv}${more}${idleB}</div>`;
   }
@@ -395,7 +395,7 @@ function renderGrouped(isDay){
   if(isDay){ days=[ nowInMonth?new Date():new Date(curYear,curMonth-1,1) ]; }
   else { const base=nowInMonth?new Date():new Date(curYear,curMonth-1,1); const s=new Date(base); s.setDate(base.getDate()-base.getDay()); for(let i=0;i<7;i++){const x=new Date(s);x.setDate(s.getDate()+i);days.push(x);} }
   const W=['日','一','二','三','四','五','六'];
-  let html=`<div class="gcols" style="grid-template-columns:repeat(${days.length},1fr)">`;
+  let html=`<div class="gcols" style="grid-template-columns:repeat(${days.length},minmax(0,1fr))">`;
   html+=days.map(d=>{
     const ds=fmtD(d), ev=filtEv(byDate[ds]);
     let body='';
@@ -410,7 +410,7 @@ function renderGrouped(isDay){
     }
     if(!body)body='<div style="color:#bdc1c6;text-align:center;padding:14px;font-size:11px">無</div>';
     let idle='';
-    if(showIdle){ const il=idleByDate(ds,leaveMap); if(il) idle=`<div class="gidle ${il.length?'':'zero'}">${il.length?'🟢 有空：'+il.map(x=>x.name).join('、'):'⚠️ 全員已排'}</div>`; }
+    if(showIdle && d.getDay()!==0){ const il=idleByDate(ds,leaveMap); if(il) idle=`<div class="gidle ${il.length?'':'zero'}">${il.length?'🟢 有空：'+il.map(x=>x.name).join('、'):'⚠️ 全員已排'}</div>`; }
     return `<div class="gcol"><div class="gcol-head ${ds===today?'today':''}" onclick="openDayModal('${ds}')"><div class="dw">週${W[d.getDay()]}</div><div class="dn">${d.getMonth()+1}/${d.getDate()}</div></div>${idle}<div class="gbody">${body}</div></div>`;
   }).join('');
   document.getElementById('calView').innerHTML=html+'</div>';
@@ -559,6 +559,11 @@ function openDayModal(dateStr) {
   let html = '';
   if (canDispatchFE()) {
     html += `<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="openAddDisp('${dateStr}')">＋ 在這天新增派工</button>`;
+  }
+  // 人力空檔（禮拜日不顯示）
+  if (new Date(dateStr+'T00:00:00').getDay() !== 0 && (calData.roster||[]).length) {
+    const il = idleByDate(dateStr, leavesByDate());
+    if (il) html += `<div style="background:${il.length?'#e6f4ea':'#fce8e6'};border:1px solid ${il.length?'#b7e1c5':'#f3c2bd'};border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:${il.length?'#137333':'#c5221f'}">${il.length?`🟢 今日有空人力（${il.length} 人）：${il.map(x=>x.name).join('、')}`:'⚠️ 今日施工人力全數已排，無空檔'}</div>`;
   }
   if (surveys.length) {
     html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#6d28d9;margin-bottom:6px">🔍 場勘</div>`;

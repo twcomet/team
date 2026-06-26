@@ -15,9 +15,10 @@ router.get('/', requireAuth, (req, res) => {
   // 範圍涵蓋整個「月曆 grid」：含上月底、下月初的補格，這樣跨月案件也載得到
   const _fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const _first = new Date(year, month - 1, 1);
-  const _last  = new Date(year, month, 0);
-  const dateFrom = _fmt(new Date(year, month - 1, 1 - _first.getDay()));        // 該週週日
-  const dateTo   = _fmt(new Date(year, month - 1, _last.getDate() + (6 - _last.getDay()))); // 該週週六
+  const _gridStart = new Date(year, month - 1, 1 - _first.getDay()); // grid 第一格(週日)
+  const _gridEnd   = new Date(_gridStart); _gridEnd.setDate(_gridStart.getDate() + 41); // 固定 6 列 42 格
+  const dateFrom = _fmt(_gridStart);
+  const dateTo   = _fmt(_gridEnd); // 涵蓋畫面上全部 42 格，跨月日期的資料也都載得到
 
   const orgCond = orgSql ? `AND ${orgSql}` : '';
 
