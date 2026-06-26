@@ -12,8 +12,12 @@ router.get('/', requireAuth, (req, res) => {
   const { sql: orgSqlT, params: orgPsT } = orgFilterSQL(me, 'org_id');
   const year  = parseInt(req.query.year)  || new Date().getFullYear();
   const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-  const dateFrom = `${year}-${String(month).padStart(2,'0')}-01`;
-  const dateTo   = `${year}-${String(month).padStart(2,'0')}-31`;
+  // 範圍涵蓋整個「月曆 grid」：含上月底、下月初的補格，這樣跨月案件也載得到
+  const _fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const _first = new Date(year, month - 1, 1);
+  const _last  = new Date(year, month, 0);
+  const dateFrom = _fmt(new Date(year, month - 1, 1 - _first.getDay()));        // 該週週日
+  const dateTo   = _fmt(new Date(year, month - 1, _last.getDate() + (6 - _last.getDay()))); // 該週週六
 
   const orgCond = orgSql ? `AND ${orgSql}` : '';
 
@@ -25,6 +29,10 @@ router.get('/', requireAuth, (req, res) => {
       d.scheduled_time,
       d.dispatch_type,
       d.day_index,
+      (SELECT COUNT(*) FROM dispatches d2
+         WHERE d2.case_id = d.case_id AND d2.dispatch_type='install' AND d2.status != 'cancelled'
+           AND (d2.scheduled_date < d.scheduled_date OR (d2.scheduled_date = d.scheduled_date AND d2.id <= d.id))
+      ) AS day_no,  -- 同案施工依日期排序的第幾天（最早=1）
       d.status        AS dispatch_status,
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
@@ -127,7 +135,22 @@ router.get('/', requireAuth, (req, res) => {
     GROUP BY d.case_id
   `).all().forEach(r => { caseInstallWeight[r.case_id] = r.w; });
 
-  res.json({ cases, surveys, targets, leaves, caseInstallWeight });
+  // ── 人力空檔（管理端用）：施工名冊 + 各日 install 派工指派 ──────────
+  const orgUserCond = orgSqlT ? `AND ${orgSqlT}` : '';
+  const roster = db.prepare(`
+    SELECT id, name FROM users
+    WHERE accept_dispatch=1 AND active=1 ${orgUserCond}
+    ORDER BY sort_order, name
+  `).all(...orgPsT);
+  const assignments = db.prepare(`
+    SELECT d.scheduled_date AS date, du.user_id
+    FROM dispatches d
+    JOIN dispatch_users du ON du.dispatch_id = d.id
+    WHERE d.dispatch_type='install' AND d.status != 'cancelled'
+      AND d.scheduled_date BETWEEN ? AND ?
+  `).all(dateFrom, dateTo);
+
+  res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments });
 });
 
 // POST /api/daily-target  { date, target_amount }
