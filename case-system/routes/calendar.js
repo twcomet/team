@@ -68,6 +68,8 @@ router.get('/', requireAuth, (req, res) => {
     LEFT JOIN users sv ON c.surveyor_id = sv.id
     WHERE c.scheduled_date BETWEEN ? AND ?
       AND c.status NOT IN ('closed','invalid')
+      -- 只要案件已有施工派工，就以派工日期為準，不再用可能過期的 scheduled_date 備援顯示
+      AND c.id NOT IN (SELECT case_id FROM dispatches WHERE dispatch_type='install' AND status != 'cancelled')
       ${orgCond}
       ${excludeClause}
     ORDER BY c.scheduled_date
