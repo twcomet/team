@@ -2933,6 +2933,8 @@ _addCol('purchase_receipts', 'carrier',        'TEXT');
 _addCol('purchase_receipts', 'tax',            'REAL');
 _addCol('purchase_receipts', 'shipping_fee',   'REAL');
 _addCol('purchase_receipts', 'payment_method', 'TEXT');  // 運費/貨款付款方式（到貨時填）
+_addCol('purchase_receipts', 'payer_id',       'INTEGER'); // 付款人（零用金墊付者，到貨時填）
+_addCol('cases',             'purchase_tax_cost', 'REAL DEFAULT NULL'); // 該案採購到貨稅金加總（計入成本/毛利）
 
 // ── 採購單：通知訂貨人 + 訂貨狀態（與到貨狀態獨立）───────────────────────────
 _addCol('purchase_orders', 'ordered_by',   'INTEGER REFERENCES users(id)');  // 指派的訂貨人

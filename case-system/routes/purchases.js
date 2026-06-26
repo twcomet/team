@@ -7,6 +7,52 @@ function canManage(user) {
   return user.role === 'owner' || !!user.can_manage_assets;
 }
 
+// 同步該案「採購到貨稅金」加總 → cases.purchase_tax_cost（計入案件成本/毛利）
+function syncCasePurchaseTax(caseId) {
+  if (!caseId) return;
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(pr.tax),0) AS tax
+    FROM purchase_receipts pr
+    JOIN purchase_orders po ON po.id = pr.purchase_order_id
+    WHERE po.case_id = ?
+  `).get(caseId);
+  const total = row.tax || 0;
+  db.prepare(`UPDATE cases SET purchase_tax_cost=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(total > 0 ? total : null, caseId);
+}
+
+// 單筆到貨稅金 → 收支流水帳（費用·稅費，零用金/付款人）；稅金為0或無則移除該筆
+function syncReceiptTaxLedger(receiptId) {
+  const r = db.prepare(`
+    SELECT pr.id, pr.tax, pr.received_date, pr.payment_method, pr.created_by, pr.payer_id,
+           po.case_id, po.org_id, c.case_number, c.title, pu.name AS payer_name
+    FROM purchase_receipts pr
+    JOIN purchase_orders po ON po.id = pr.purchase_order_id
+    LEFT JOIN cases c  ON c.id  = po.case_id
+    LEFT JOIN users pu ON pu.id = pr.payer_id
+    WHERE pr.id = ?
+  `).get(receiptId);
+  if (!r) return;
+  const ref = `receipt_${receiptId}_tax`;
+  if (!r.tax || r.tax <= 0) {
+    db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(ref);
+    return;
+  }
+  const date = r.received_date || new Date().toISOString().slice(0, 10);
+  const payVia = r.payment_method || '零用金';
+  const who = r.payer_name ? `／${r.payer_name}` : '';
+  const caseLabel = r.case_number ? `｜${r.case_number} ${r.title || ''}`.trim() : '';
+  const desc = `材料到貨稅金${caseLabel}（${payVia}${who}）`;
+  const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
+  if (existing) {
+    db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category='稅費', description=?, case_id=?, org_id=?, created_by=? WHERE id=?`)
+      .run(date, r.tax, desc, r.case_id || null, r.org_id || null, r.created_by || null, existing.id);
+  } else {
+    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'expense', '稅費', ?, ?, ?, ?, ?, ?)`)
+      .run(date, r.tax, r.case_id || null, desc, r.org_id || null, r.created_by || null, ref);
+  }
+}
+
 const SHIPPING_LABEL = { air:'空運', express:'快遞', sea:'海運', domestic:'國內' };
 const STATUS_LABEL   = { pending:'待到貨', partial:'部分到貨', received:'已到齊', cancelled:'已取消' };
 
@@ -122,6 +168,14 @@ router.put('/:id', requireAuth, (req, res) => {
   if (newOrderedBy && String(newOrderedBy) !== String(po.ordered_by || '') && po.order_status !== 'ordered') {
     notifyOrderer(po.id, newOrderedBy, me.name, brand, series_code, quantity_meters || po.quantity_meters);
   }
+  // 若改了關聯案件，重算稅金成本並更新到貨稅金流水帳的案件歸屬
+  const newCaseId = case_id !== undefined ? (case_id || null) : po.case_id;
+  if (String(newCaseId || '') !== String(po.case_id || '')) {
+    db.prepare(`SELECT id FROM purchase_receipts WHERE purchase_order_id=?`).all(po.id)
+      .forEach(r => syncReceiptTaxLedger(r.id));
+    syncCasePurchaseTax(po.case_id);
+    syncCasePurchaseTax(newCaseId);
+  }
   res.json({ ok: true });
 });
 
@@ -175,6 +229,10 @@ router.delete('/:id', requireAuth, (req, res) => {
         db.prepare(`DELETE FROM material_rolls WHERE id=?`).run(rid);
       }
     }
+    // 移除這些到貨稅金在流水帳的對應紀錄
+    for (const r of receipts) {
+      db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(`receipt_${r.id}_tax`);
+    }
     db.prepare(`DELETE FROM purchase_receipts WHERE purchase_order_id=?`).run(po.id);
     db.prepare(`DELETE FROM purchase_orders WHERE id=?`).run(po.id);
     db.exec('COMMIT');
@@ -184,6 +242,7 @@ router.delete('/:id', requireAuth, (req, res) => {
   } finally {
     db.exec('PRAGMA foreign_keys=ON');
   }
+  syncCasePurchaseTax(po.case_id);  // 重算該案稅金成本
   res.json({ ok: true });
 });
 
@@ -196,7 +255,7 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (['received','cancelled'].includes(po.status)) return res.status(400).json({ error: '此採購單無法新增收貨' });
 
-  const { received_date, quantity_meters, batch_note, carrier, tax, shipping_fee, payment_method } = req.body;
+  const { received_date, quantity_meters, batch_note, carrier, tax, shipping_fee, payment_method, payer_id } = req.body;
   if (!received_date || !quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入收貨日期與米數' });
 
   // 建立新膜料卷
@@ -215,9 +274,14 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   }
 
   // 建立收貨紀錄
-  db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,carrier,tax,shipping_fee,payment_method,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+  const recRes = db.prepare(`INSERT INTO purchase_receipts (purchase_order_id,material_roll_id,received_date,quantity_meters,batch_note,carrier,tax,shipping_fee,payment_method,payer_id,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
     .run(po.id, rollId, received_date, parseFloat(quantity_meters), batch_note||null,
-         carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, payment_method||null, me.id);
+         carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, payment_method||null,
+         payer_id!=null&&payer_id!==''?Number(payer_id):null, me.id);
+
+  // 到貨稅金 → 自動入流水帳(費用·稅費)＋計入案件成本（會計獨立核帳，免重複手key）
+  syncReceiptTaxLedger(recRes.lastInsertRowid);
+  syncCasePurchaseTax(po.case_id);
 
   // 更新採購單狀態
   const totalReceived = db.prepare(`SELECT COALESCE(SUM(quantity_meters),0) as total FROM purchase_receipts WHERE purchase_order_id=?`).get(po.id).total;

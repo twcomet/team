@@ -234,7 +234,7 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
-          <label class="form-label">稅金（元）<span style="font-size:11px;color:var(--gray-400);font-weight:400">（純備註）</span></label>
+          <label class="form-label">稅金（元）<span style="font-size:11px;color:#059669;font-weight:400">（計入案件成本＋自動入流水帳）</span></label>
           <input class="form-input" id="r_tax" type="number" min="0" placeholder="0">
         </div>
         <div class="form-group">
@@ -250,6 +250,10 @@
             <option value="其他">其他</option>
           </select>
         </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label">付款人（零用金/代墊者，選填）</label>
+        <select class="form-input" id="r_payer"><option value="">— 不指定 —</option></select>
       </div>
       <div id="r_material_note" style="font-size:12px;color:#1d4ed8;margin-top:8px;display:none">
         ✓ 將自動新增一筆膜料卷並記入庫存
@@ -325,9 +329,13 @@ async function init() {
       { label:'Tina',   m: u => u.name==='Tina'   || (u.username||'').toLowerCase()==='tina' },
     ];
     const sel = document.getElementById('po_ordered_by');
+    const payerSel = document.getElementById('r_payer');
     want.forEach(w => {
       const u = (us||[]).filter(x => x.active !== 0).find(w.m);
-      if (u) sel.innerHTML += `<option value="${u.id}">${esc(u.name)}</option>`;
+      if (u) {
+        sel.innerHTML += `<option value="${u.id}">${esc(u.name)}</option>`;
+        if (payerSel) payerSel.innerHTML += `<option value="${u.id}">${esc(u.name)}</option>`;
+      }
     });
   } catch(_) {}
 
@@ -504,6 +512,7 @@ function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) 
   document.getElementById('r_shipping_fee').value = '';
   document.getElementById('r_tax').value = '';
   document.getElementById('r_payment_method').value = '';
+  const rp = document.getElementById('r_payer'); if (rp) rp.value = '';
   document.getElementById('r_material_note').style.display = materialId ? '' : 'none';
   document.getElementById('receiptModal').style.display = 'flex';
 }
@@ -519,6 +528,7 @@ async function saveReceipt() {
     shipping_fee:    document.getElementById('r_shipping_fee').value || null,
     tax:             document.getElementById('r_tax').value || null,
     payment_method:  document.getElementById('r_payment_method').value || null,
+    payer_id:        document.getElementById('r_payer')?.value || null,
   };
   const btn = document.getElementById('saveReceiptBtn');
   btn.disabled = true;

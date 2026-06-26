@@ -168,7 +168,7 @@ router.get('/', requireAuth, (req, res) => {
            inv.name as invalided_name,
            o.name   as org_name,
            ub.name  as updated_by_name,
-           ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
+           ROUND((c.final_price - c.material_cost - COALESCE(c.purchase_tax_cost,0)) * 100.0 / NULLIF(c.final_price, 0), 1) as gross_margin_pct
     FROM cases c
     LEFT JOIN clients cl  ON c.client_id        = cl.id
     LEFT JOIN users   s   ON c.sales_id         = s.id
@@ -225,7 +225,7 @@ router.get('/:id', requireAuth, (req, res) => {
     SELECT c.*,
            cl.name as client_name, cl.phone as client_phone, cl.address as client_address, cl.email as client_email,
            s.name  as sales_name,  sv.name as surveyor_name, o.name as org_name,
-           ROUND((COALESCE(c.final_price, c.quoted_price) - c.material_cost) * 100.0
+           ROUND((COALESCE(c.final_price, c.quoted_price) - c.material_cost - COALESCE(c.purchase_tax_cost,0)) * 100.0
                  / NULLIF(COALESCE(c.final_price, c.quoted_price), 0), 1) as gross_margin_pct
     FROM cases c
     LEFT JOIN clients cl ON c.client_id   = cl.id

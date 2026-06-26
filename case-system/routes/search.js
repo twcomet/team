@@ -43,7 +43,7 @@ router.get('/quick', requireAuth, (req, res) => {
            cl.name AS client_name, cl.phone AS client_phone,
            s.name  AS sales_name,  o.name AS org_name,
            c.final_price, c.material_cost,
-           ROUND((c.final_price - c.material_cost) * 100.0 / NULLIF(c.final_price, 0), 1) AS gross_margin_pct
+           ROUND((c.final_price - c.material_cost - COALESCE(c.purchase_tax_cost,0)) * 100.0 / NULLIF(c.final_price, 0), 1) AS gross_margin_pct
     FROM cases c
     LEFT JOIN clients cl ON c.client_id = cl.id
     LEFT JOIN users   s  ON c.sales_id  = s.id
