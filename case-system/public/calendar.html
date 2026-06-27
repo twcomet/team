@@ -177,7 +177,10 @@
   .gcal-cell.other{background:#fafafa}.gcal-cell.other .gcal-dnum{color:#bdc1c6}.gcal-cell.other .gcal-rev{opacity:.4}
   .gcal-dnum{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:50%;font-size:12px;margin:2px 0 3px}
   .gcal-cell.today .gcal-dnum{background:#1a73e8;color:#fff;font-weight:600}
-  .gcal-rev{position:absolute;top:7px;right:7px;font-size:10.5px;font-weight:600;color:#188038}.gcal-rev.under{color:#c5221f}
+  .gcal-rev{position:absolute;top:7px;right:7px;font-size:10.5px;font-weight:600;color:#057a55}
+  .gcal-rev.ok{color:#057a55}      /* 達標 綠 */
+  .gcal-rev.over{color:#e02424}    /* 超過目標/過載 紅 */
+  .gcal-rev.under{color:#c27803}   /* 低於目標/偏空 琥珀 */
   .gcal-addbtn{position:absolute;top:5px;right:7px;width:20px;height:20px;border-radius:50%;border:none;background:#1a73e8;color:#fff;font-size:14px;line-height:1;cursor:pointer;display:none}
   .gcal-cell:hover .gcal-addbtn{display:block}.gcal-cell:hover .gcal-rev{display:none}
   .gcal-ev{font-size:11.5px;line-height:1.45;padding:1px 6px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -429,7 +432,11 @@ function renderMonth(){
     let revHtml='';
     if(currentUser.can_see_amounts){
       const tgt=targetMap[ds]||defaultTarget, rev=dayRevenue(byDate[ds]||[]);
-      if(rev>0||targetMap[ds]){ const cls=rev/tgt<0.5?'under':''; revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`; }
+      if(rev>0||targetMap[ds]){
+        const ratio = tgt ? rev/tgt : 0;
+        const cls = ratio>=1.1 ? 'over' : (ratio<0.5 ? 'under' : 'ok'); // 超標紅/偏空琥珀/達標綠
+        revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`;
+      }
     }
     const shown=ev.slice(0,3).map(e=>{const col=CAT_COLOR[e.cat]||'#5f6368';const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gcal-ev" style="background:${col}1f;color:${col}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
