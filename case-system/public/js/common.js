@@ -114,7 +114,13 @@ function highlightNav(page) {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    // 不論登出請求成功/失敗/逾時，都一定要導向（手機網路不穩時也能登出）
+    try {
+      await Promise.race([
+        fetch('/api/auth/logout', { method: 'POST', keepalive: true }),
+        new Promise(resolve => setTimeout(resolve, 2000)),
+      ]);
+    } catch (e) { /* 忽略，仍導向登出 */ }
     location.href = '/';
   });
 
