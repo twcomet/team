@@ -277,6 +277,14 @@
               </select>
             </div>
           </div>
+          <div class="form-group" style="margin-bottom:14px;background:#eef6ff;border:1px solid #bcd9ff;border-radius:10px;padding:12px 14px">
+            <label style="color:#1a56db;font-weight:700">📁 案件雲端儲存資料夾</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="url" id="b_photo_upload_url" placeholder="貼上 Google 雲端硬碟資料夾連結" style="flex:1;background:#fff">
+              <a id="b_photo_upload_link" href="#" target="_blank"
+                 style="display:none;padding:9px 16px;background:#1a56db;border:1px solid #1a56db;border-radius:8px;font-size:13px;color:#fff;text-decoration:none;white-space:nowrap;font-weight:600">開啟 ↗</a>
+            </div>
+          </div>
           <div class="form-group" style="margin-bottom:12px"><label>案件名稱</label><input type="text" id="b_title"></div>
           <div class="form-group" style="margin-bottom:12px">
             <label style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -375,14 +383,6 @@
         <div class="form-group"><label>需求說明</label><textarea id="b_desc" rows="4"></textarea></div>
         <div class="form-group"><label>備註</label><textarea id="b_notes" rows="2"></textarea></div>
         <div class="form-group" id="b_entry_info_wrap" style="display:none"><label>進場資訊</label><textarea id="b_entry_info" rows="2" placeholder="門禁密碼、停車位置、進場注意事項…"></textarea></div>
-        <div class="form-group">
-          <label>完工資料夾</label>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="url" id="b_photo_upload_url" placeholder="貼上 Google 雲端硬碟資料夾連結" style="flex:1">
-            <a id="b_photo_upload_link" href="#" target="_blank"
-               style="display:none;padding:9px 14px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-700);text-decoration:none;white-space:nowrap">開啟 ↗</a>
-          </div>
-        </div>
         <div class="form-group" id="b_external_quote_wrap" style="display:none">
           <label>外部報價單連結（Google 雲端）</label>
           <div style="display:flex;gap:8px;align-items:center">

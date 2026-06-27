@@ -97,6 +97,14 @@ function recalcCase(case_id) {
     .run(quoted_price || null, material_cost || null, case_id);
 }
 
+// 同步「案件施工日期」= 最早一筆未取消的施工派工日期。
+// 派工新增/改日期/刪除後都要呼叫，避免 cases.scheduled_date 過期（行事曆幽靈日期、案件列表日期篩選、儀表板、報表都讀它）。
+function syncCaseScheduledDate(case_id) {
+  const r = db.prepare(`SELECT MIN(scheduled_date) AS d FROM dispatches
+                        WHERE case_id=? AND dispatch_type='install' AND status != 'cancelled'`).get(case_id);
+  if (r && r.d) db.prepare(`UPDATE cases SET scheduled_date=? WHERE id=?`).run(r.d, case_id);
+}
+
 function calcItem(item) {
   let area = item.area;
   if (!area && item.width_cm && item.height_cm) {
@@ -754,6 +762,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   }
 
   recalcLaborCost(case_id);
+  syncCaseScheduledDate(case_id); // 新增派工後同步施工日期=最早施工派工
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
   res.json({ ok: true, id: did, day_index });
 });
@@ -799,6 +808,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   if (newUserIds.length) {
     notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, newUserIds, req.session.user.id);
   }
+  syncCaseScheduledDate(Number(req.params.id)); // 改派工日期後同步案件施工日期，避免過期
   res.json({ ok: true });
 });
 
@@ -820,6 +830,7 @@ router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
       }
     }
   }
+  syncCaseScheduledDate(caseId); // 刪派工後同步施工日期=剩餘最早施工派工（若還有）
 
   if (d) {
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?,?,?,?,?)`)

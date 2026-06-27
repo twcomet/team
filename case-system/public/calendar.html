@@ -397,7 +397,7 @@ function openEvCard(idx){
   const timeStr = c.scheduled_time ? (c.scheduled_time + (c.work_until ? '–'+c.work_until : '')) : '';
   const row = (icon,label,val)=> val ? `<div style="display:flex;gap:8px;margin-bottom:5px"><span style="width:74px;color:#70757a;flex-shrink:0">${icon}${label}</span><span style="flex:1">${val}</span></div>` : '';
   const mapLink = c.location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.location)}" target="_blank" style="color:#1a73e8;text-decoration:none">${esc(c.location)} ↗</a>` : '';
-  const folder = c.photo_upload_url ? `<a href="${esc(c.photo_upload_url)}" target="_blank" style="color:#1a73e8;word-break:break-all">開啟完工夾 ↗</a>` : '';
+  const folder = c.photo_upload_url ? `<a href="${esc(c.photo_upload_url)}" target="_blank" style="color:#1a73e8;word-break:break-all">開啟雲端資料夾 ↗</a>` : '';
   const dayB = (e.dayNo && c.dispatch_type==='install') ? ` <span class="daybadge">D${e.dayNo}</span>` : '';
   document.getElementById('evCardTitle').innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col};margin-right:6px"></span>${esc(c.case_number||'')} ${esc(c.title||'')}${dayB}`;
   let html = `<div style="color:#70757a;margin-bottom:10px">${e.cat}　${dateLine}${timeStr?'　🕘 '+timeStr:''}</div>`;
@@ -406,7 +406,7 @@ function openEvCard(idx){
   html += row('🔍','場勘人', c.surveyor_name ? esc(c.surveyor_name) : '');
   html += row('📞','客戶電話', c.client_phone ? esc(c.client_phone) : '');
   html += row('📝','進場資訊', c.entry_info ? linkify(c.entry_info) : '');
-  html += row('🔗','完工夾', folder);
+  html += row('🔗','雲端資料夾', folder);
   if (currentUser.can_see_amounts && c.final_price) html += row('💰','完工價', '$'+Math.round(c.final_price).toLocaleString());
   if (c.dispatch_notes) html += row('🗒️','派工備註', linkify(c.dispatch_notes));
   if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm" style="margin-top:12px">→ 開啟完整案件</a>`;
