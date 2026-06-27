@@ -221,6 +221,13 @@
       <label class="ad-fld">📅 日期</label>
       <input type="date" id="adDate" class="ad-input">
 
+      <label class="ad-fld">🕘 到場時間（選填）</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="time" id="adTime" class="ad-input" style="flex:1">
+        <span style="color:#999">～</span>
+        <input type="time" id="adTimeEnd" class="ad-input" style="flex:1">
+      </div>
+
       <label class="ad-fld">🏢 分店 / 區域</label>
       <select id="adBranch" class="ad-input" onchange="adRenderWorkers()"></select>
 
@@ -234,6 +241,14 @@
       <button class="btn btn-ghost" onclick="closeAddDisp()">取消</button>
       <button class="btn btn-primary" id="adSubmitBtn" onclick="adSubmit(false)">建立派工</button>
     </div>
+  </div>
+</div>
+
+<!-- 事件資訊卡（點事件跳出）-->
+<div class="modal-overlay" id="evCard">
+  <div class="modal" style="max-width:430px">
+    <div class="modal-header"><h3 id="evCardTitle" style="font-size:15px;line-height:1.4">案件資訊</h3><button class="modal-close" onclick="closeEvCard()">×</button></div>
+    <div class="modal-body" id="evCardBody" style="font-size:13.5px;line-height:1.7"></div>
   </div>
 </div>
 
@@ -354,12 +369,45 @@ function toggleIdle(){ showIdle=!showIdle; renderCalendar(); }
 function setCalView(v){ calView=v; document.querySelectorAll('#calSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); renderCalendar(); }
 function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getMonth()+1; loadCalendar(); }
 
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+window._calEv = [];
+function regEv(e){ window._calEv.push(e); return window._calEv.length - 1; }
 function renderCalendar(){
   renderFilterBar();
+  window._calEv = [];
   document.getElementById('calTitle').textContent = `${curYear} 年 ${curMonth} 月`;
   if(calView==='month') renderMonth();
   else renderGrouped(calView==='day');
 }
+
+// ── 事件資訊卡（Google 風格，自動帶案件基本資料）──────────────
+const WEEKD = ['日','一','二','三','四','五','六'];
+function openEvCard(idx){
+  const e = window._calEv[idx]; if(!e) return;
+  const c = e.c;
+  const col = CAT_COLOR[e.cat] || '#5f6368';
+  const dObj = c.scheduled_date || c.survey_date;
+  const dateLine = dObj ? `${dObj}（週${WEEKD[new Date(dObj+'T00:00:00').getDay()]}）` : '';
+  const timeStr = c.scheduled_time ? (c.scheduled_time + (c.work_until ? '–'+c.work_until : '')) : '';
+  const row = (icon,label,val)=> val ? `<div style="display:flex;gap:8px;margin-bottom:5px"><span style="width:74px;color:#70757a;flex-shrink:0">${icon}${label}</span><span style="flex:1">${val}</span></div>` : '';
+  const mapLink = c.location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.location)}" target="_blank" style="color:#1a73e8;text-decoration:none">${esc(c.location)} ↗</a>` : '';
+  const folder = c.photo_upload_url ? `<a href="${esc(c.photo_upload_url)}" target="_blank" style="color:#1a73e8;word-break:break-all">開啟完工夾 ↗</a>` : '';
+  const dayB = (e.dayNo && c.dispatch_type==='install') ? ` <span class="daybadge">D${e.dayNo}</span>` : '';
+  document.getElementById('evCardTitle').innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${col};margin-right:6px"></span>${esc(c.case_number||'')} ${esc(c.title||'')}${dayB}`;
+  let html = `<div style="color:#70757a;margin-bottom:10px">${e.cat}　${dateLine}${timeStr?'　🕘 '+timeStr:''}</div>`;
+  html += row('📍','地點', mapLink);
+  html += row('👷','施工人員', c.installer_name ? esc(c.installer_name) : '');
+  html += row('🔍','場勘人', c.surveyor_name ? esc(c.surveyor_name) : '');
+  html += row('📞','客戶電話', c.client_phone ? esc(c.client_phone) : '');
+  html += row('📝','進場資訊', c.entry_info ? esc(c.entry_info).replace(/\n/g,'<br>') : '');
+  html += row('🔗','完工夾', folder);
+  if (currentUser.can_see_amounts && c.final_price) html += row('💰','完工價', '$'+Math.round(c.final_price).toLocaleString());
+  if (c.dispatch_notes) html += row('🗒️','派工備註', esc(c.dispatch_notes).replace(/\n/g,'<br>'));
+  if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm" style="margin-top:12px">→ 開啟完整案件</a>`;
+  document.getElementById('evCardBody').innerHTML = html;
+  document.getElementById('evCard').classList.add('open');
+}
+function closeEvCard(){ document.getElementById('evCard').classList.remove('open'); }
 
 function renderMonth(){
   const byDate=buildMaps(), leaveMap=leavesByDate(), targetMap={};
@@ -377,7 +425,7 @@ function renderMonth(){
       const tgt=targetMap[ds]||defaultTarget, rev=dayRevenue(byDate[ds]||[]);
       if(rev>0||targetMap[ds]){ const cls=rev/tgt<0.5?'under':''; revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`; }
     }
-    const shown=ev.slice(0,3).map(e=>{const col=CAT_COLOR[e.cat]||'#5f6368';const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';return `<div class="gcal-ev" style="background:${col}1f;color:${col}" title="${e.title}">${dayB}${e.title}</div>`;}).join('');
+    const shown=ev.slice(0,3).map(e=>{const col=CAT_COLOR[e.cat]||'#5f6368';const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gcal-ev" style="background:${col}1f;color:${col}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
     const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
     let idleB='';
@@ -402,7 +450,7 @@ function renderGrouped(isDay){
     CAT_ORDER.forEach(cat=>{
       const items=ev.filter(e=>e.cat===cat); if(!items.length)return;
       body+=`<div class="gsec"><div class="gsec-h" style="color:${CAT_COLOR[cat]}"><span class="dot" style="background:${CAT_COLOR[cat]}"></span>${cat}(${items.length})</div>`+
-        items.map(e=>{const dayB=e.dayNo?`<span class="tm">D${e.dayNo}</span>`:'';return `<div class="gchip" style="background:${CAT_COLOR[cat]}18;color:${CAT_COLOR[cat]}" title="${e.title}">${dayB}${e.title}</div>`;}).join('')+`</div>`;
+        items.map(e=>{const dayB=e.dayNo?`<span class="tm">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gchip" style="background:${CAT_COLOR[cat]}18;color:${CAT_COLOR[cat]}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('')+`</div>`;
     });
     const lvs=(leaveMap[ds]||[]);
     if((calFilter==='全部'||calFilter==='請假')&&lvs.length){
@@ -650,6 +698,8 @@ async function openAddDispBase(title) {
   adState = { caseId:null, caseObj:null, workers:new Set() };
   document.getElementById('addDispTitle').textContent = title;
   document.getElementById('adType').value = 'install';
+  document.getElementById('adTime').value = '';
+  document.getElementById('adTimeEnd').value = '';
   document.getElementById('adCaseSearch').value = '';
   document.getElementById('adCaseList').innerHTML = '';
   document.getElementById('adPicked').style.display = 'none';
@@ -750,6 +800,8 @@ async function adSubmit(confirmed, dayIndex) {
   if (!date) { showToast('請選擇日期', 'error'); return; }
   adState.date = date;
   const body = { dispatch_type:dtype, scheduled_date:date,
+                 scheduled_time: document.getElementById('adTime').value || null,
+                 work_until: document.getElementById('adTimeEnd').value || null,
                  user_ids:[...adState.workers], confirm: confirmed ? 1 : 0 };
   if (dayIndex != null) body.day_index = dayIndex;
   try {

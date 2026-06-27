@@ -37,6 +37,10 @@ router.get('/', requireAuth, (req, res) => {
       d.status        AS dispatch_status,
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
+      c.location, c.entry_info, c.photo_upload_url,
+      d.work_until, d.notes AS dispatch_notes,
+      cl.phone        AS client_phone,
+      sv.name         AS surveyor_name,
       d.service_fee, d.warranty_covered,
       cl.name         AS client_name,
       GROUP_CONCAT(u.name, '、') AS installer_name,
@@ -45,6 +49,7 @@ router.get('/', requireAuth, (req, res) => {
     FROM dispatches d
     JOIN cases c ON d.case_id = c.id
     LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN users sv ON c.surveyor_id = sv.id
     LEFT JOIN dispatch_users du ON du.dispatch_id = d.id
     LEFT JOIN users u ON u.id = du.user_id
     WHERE d.scheduled_date BETWEEN ? AND ?
