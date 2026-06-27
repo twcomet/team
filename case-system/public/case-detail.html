@@ -1358,26 +1358,16 @@
     <div class="modal-body">
       <input type="hidden" id="d_dispatch_id">
 
-      <!-- 類型 + 狀態 -->
-      <div class="form-row">
-        <div class="form-group"><label>派工類型</label>
-          <select id="d_type" onchange="onDispatchTypeChange()">
-            <option value="cut_material">裁切材料</option>
-            <option value="factory_survey">場勘</option>
-            <option value="install" selected>施工</option>
-            <option value="aftersales">售後維修</option>
-            <option value="material_sale">賣膜料</option>
-            <option value="other">其他</option>
-          </select>
-        </div>
-        <div class="form-group"><label>狀態</label>
-          <select id="d_status">
-            <option value="pending">待確認</option>
-            <option value="confirmed">已確認</option>
-            <option value="done">完成</option>
-            <option value="cancelled">取消</option>
-          </select>
-        </div>
+      <!-- 類型（狀態已取消，改由施工日期自動判斷完成；要排除某筆用「刪除」）-->
+      <div class="form-group"><label>派工類型</label>
+        <select id="d_type" onchange="onDispatchTypeChange()">
+          <option value="cut_material">裁切材料</option>
+          <option value="factory_survey">場勘</option>
+          <option value="install" selected>施工</option>
+          <option value="aftersales">售後維修</option>
+          <option value="material_sale">賣膜料</option>
+          <option value="other">其他</option>
+        </select>
       </div>
 
       <!-- 日期模式（新增時顯示，編輯時隱藏） -->
@@ -2588,7 +2578,7 @@ function renderDispatches(dispatches) {
     </div>`;
   }
 
-  const statusMap = { pending:'待確認', confirmed:'已確認', done:'✅完成', cancelled:'❌取消' };
+  const _today = new Date().toISOString().slice(0,10);
   el.innerHTML = summaryHtml + dispatches.map(d => {
     const [tag, tagClass] = (DISPATCH_TAGS[d.dispatch_type] || '派工 tag-install').split(' ');
     const wCount = d.installer_ids ? d.installer_ids.split(',').filter(Boolean).length : 0;
@@ -2615,7 +2605,7 @@ function renderDispatches(dispatches) {
           ${d.actual_hours ? `<span style="color:#374151;font-size:13px;font-weight:600">${d.actual_hours}hr</span>` : (d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">預${d.estimated_hours}hr</span>` : '')}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:13px;color:#6b7280">${statusMap[d.status] || d.status}</span>
+          <span style="font-size:13px;color:#6b7280">${(d.scheduled_date && d.scheduled_date < _today) ? '✅ 已完成' : '待施工'}</span>
           ${pushMode === 'manual' ? `<button class="btn btn-ghost btn-sm" style="color:#0EA5E9" onclick="pushDispatchNotify(${d.id},this)" title="發送 LINE 派工通知給指派人員">LINE 通知</button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="editDispatch(${d.id})">編輯</button>
           <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteDispatch(${d.id})">刪除</button>
@@ -3368,7 +3358,6 @@ document.getElementById('addDispatchBtn').addEventListener('click', () => {
   document.getElementById('d_dispatch_id').value = '';
   const defaultType = caseData.status === 'aftersales' ? 'aftersales' : 'install';
   document.getElementById('d_type').value   = defaultType;
-  document.getElementById('d_status').value = 'pending';
   document.getElementById('d_warranty_covered').value = '1';
   document.getElementById('d_service_fee').value = '';
   document.getElementById('d_service_fee_row').style.display = 'none';
@@ -3399,7 +3388,6 @@ function editDispatch(did) {
   document.getElementById('dispatchModalTitle').textContent = '編輯派工';
   document.getElementById('d_dispatch_id').value = did;
   document.getElementById('d_type').value   = d.dispatch_type;
-  document.getElementById('d_status').value = d.status;
   document.getElementById('d_date').value   = d.scheduled_date;
   setTimeStr('d_time_h','d_time_m', d.scheduled_time || null);
   document.getElementById('d_hours').value  = d.estimated_hours || '';
@@ -3435,7 +3423,6 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
     : null;
   const common = {
     dispatch_type:      dType,
-    status:             document.getElementById('d_status').value,
     notes:              document.getElementById('d_notes').value || null,
     unloading_location: document.getElementById('d_unloading_location').value || null,
     has_parking:        document.getElementById('d_has_parking').value || null,

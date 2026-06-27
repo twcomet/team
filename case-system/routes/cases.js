@@ -774,13 +774,13 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   try {
     db.prepare(`
       UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
-        actual_hours=?, material=?, material_used=?, status=?, notes=?,
+        actual_hours=?, material=?, material_used=?, status=COALESCE(?, status), notes=?,
         unloading_location=?, has_parking=?, work_until=?, access_code=?,
         warranty_covered=?, service_fee=?
       WHERE id=? AND case_id=?
     `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
            actual_hours ?? null, material ?? null, material_used ?? null,
-           status || 'pending', notes ?? null,
+           status ?? null, notes ?? null,
            unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
            warranty_covered != null ? Number(warranty_covered) : 1,
            service_fee != null ? Number(service_fee) : null,
@@ -883,13 +883,14 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
   if (c.status === 'payment' && c.payment_status !== 'paid')
     return res.status(400).json({ error: '尚未完成收款，無法結案' });
 
-  // 完工請款前警示：有未完成派工
+  // 完工請款前警示：尚有「施工日期在今天(含)之後、還沒發生」的施工派工（依日期自動判斷，不再靠手動狀態）
   if (c.status === 'constructing' && !req.body.force) {
     const inc = db.prepare(
-      `SELECT COUNT(*) cnt FROM dispatches WHERE case_id=? AND status NOT IN ('done','cancelled')`
+      `SELECT COUNT(*) cnt FROM dispatches
+       WHERE case_id=? AND dispatch_type='install' AND scheduled_date >= date('now','localtime')`
     ).get(req.params.id);
     if (inc.cnt > 0)
-      return res.status(200).json({ warning: `此案件尚有 ${inc.cnt} 筆未完成派工，確定要繼續？`, needConfirm: true });
+      return res.status(200).json({ warning: `此案件尚有 ${inc.cnt} 筆施工派工日期在今天或之後（尚未施工），確定要繼續？`, needConfirm: true });
   }
 
   const newGroup = STATUS_GROUP_MAP[t.next] || null;
