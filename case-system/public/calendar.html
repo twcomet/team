@@ -370,6 +370,12 @@ function setCalView(v){ calView=v; document.querySelectorAll('#calSwitch button'
 function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getMonth()+1; loadCalendar(); }
 
 function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// 把自由文字裡的網址變成可點連結（先 esc 再 linkify，最後換行）
+function linkify(s){
+  return esc(s)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#1a73e8;word-break:break-all">$1</a>')
+    .replace(/\n/g, '<br>');
+}
 window._calEv = [];
 function regEv(e){ window._calEv.push(e); return window._calEv.length - 1; }
 function renderCalendar(){
@@ -399,10 +405,10 @@ function openEvCard(idx){
   html += row('👷','施工人員', c.installer_name ? esc(c.installer_name) : '');
   html += row('🔍','場勘人', c.surveyor_name ? esc(c.surveyor_name) : '');
   html += row('📞','客戶電話', c.client_phone ? esc(c.client_phone) : '');
-  html += row('📝','進場資訊', c.entry_info ? esc(c.entry_info).replace(/\n/g,'<br>') : '');
+  html += row('📝','進場資訊', c.entry_info ? linkify(c.entry_info) : '');
   html += row('🔗','完工夾', folder);
   if (currentUser.can_see_amounts && c.final_price) html += row('💰','完工價', '$'+Math.round(c.final_price).toLocaleString());
-  if (c.dispatch_notes) html += row('🗒️','派工備註', esc(c.dispatch_notes).replace(/\n/g,'<br>'));
+  if (c.dispatch_notes) html += row('🗒️','派工備註', linkify(c.dispatch_notes));
   if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm" style="margin-top:12px">→ 開啟完整案件</a>`;
   document.getElementById('evCardBody').innerHTML = html;
   document.getElementById('evCard').classList.add('open');
