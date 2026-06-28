@@ -94,4 +94,26 @@ router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 重設計版牌價（est_film_catalog / est_door_catalog）──────────────
+// 讀全部（估價頁與設定頁共用）
+router.get('/catalog', requireAuth, (req, res) => {
+  const films = db.prepare(`SELECT * FROM est_film_catalog ORDER BY sort_order, id`).all();
+  const doors = db.prepare(`SELECT * FROM est_door_catalog ORDER BY sort_order, id`).all();
+  res.json({ films, doors });
+});
+// 改單筆裝潢膜（每米＋三種連工帶料價）
+router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
+  const { model_note, plane, cabinet, shape, active } = req.body;
+  db.prepare(`UPDATE est_film_catalog SET model_note=?,plane=?,cabinet=?,shape=?,active=? WHERE id=?`)
+    .run(model_note || '', Number(plane)||0, Number(cabinet)||0, Number(shape)||0, active?1:0, req.params.id);
+  res.json({ ok: true });
+});
+// 改單筆門固定價
+router.put('/door-catalog/:id', requireAuth, requireEdit, (req, res) => {
+  const { price, active } = req.body;
+  db.prepare(`UPDATE est_door_catalog SET price=?,active=? WHERE id=?`)
+    .run(Number(price)||0, active?1:0, req.params.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

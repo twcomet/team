@@ -3197,4 +3197,48 @@ try {
   console.log('✅ 估價價目表就緒（est_films/glass/doors/freight；空表才 seed 預設值，使用者改動不覆蓋）');
 } catch (e) { console.warn('[est pricing seed]', e.message); }
 
+// ── 估價「重設計版」真實牌價（新表，不動舊 est_films；CREATE TABLE IF NOT EXISTS 最安全）──
+// est_film_catalog：裝潢膜 品牌×防焰×膜款，三種連工帶料每才價（plane牆面/cabinet系統櫃/shape造型）
+// est_door_catalog：門 大門/房門/防火門 三類固定價
+db.exec(`
+  CREATE TABLE IF NOT EXISTS est_film_catalog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand TEXT, asia_code TEXT, kr_code TEXT, color TEXT, model_note TEXT,
+    plane REAL, cabinet REAL, shape REAL, width INTEGER DEFAULT 122,
+    sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS est_door_catalog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cat TEXT, size TEXT, origin TEXT, side TEXT, frame TEXT, price REAL,
+    sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
+  );
+`);
+try {
+  const _cat = require('./lib/estimator-catalog');
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [brand, b] of Object.entries(_cat.FILMS))
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.plane, it.cabinet, it.shape, it.width || 122, so++));
+  }
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_door_catalog`).get().n) {
+    const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [c, d] of Object.entries(_cat.DOORS)) {
+      if (d.sized) {
+        for (const size of ['small', 'large', 'double'])
+          for (const origin of ['kr', 'jp'])
+            for (const side of ['single', 'double'])
+              ins.run('fire', size, origin, side, null, d[size][origin][side], so++);
+      } else {
+        for (const origin of ['kr', 'jp'])
+          for (const side of ['single', 'double'])
+            for (const frame of ['no', 'yes'])
+              ins.run(c, null, origin, side, frame, d[origin][side][frame], so++);
+      }
+    }
+  }
+  console.log('✅ 估價重設計版牌價表就緒（est_film_catalog/est_door_catalog；空表才 seed）');
+} catch (e) { console.warn('[est catalog seed]', e.message); }
+
 module.exports = db;

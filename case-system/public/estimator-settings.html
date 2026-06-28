@@ -59,7 +59,7 @@
     </div>
 
     <div class="es-tabs">
-      <button class="es-tab active" onclick="switchTab('films')">膜料（牆面/電梯）</button>
+      <button class="es-tab active" onclick="switchTab('films')">裝潢膜</button>
       <button class="es-tab" onclick="switchTab('glass')">玻璃</button>
       <button class="es-tab" onclick="switchTab('doors')">門（固定價）</button>
       <button class="es-tab" onclick="switchTab('freight')">車馬費</button>
@@ -67,8 +67,8 @@
     </div>
 
     <div id="panel-films" class="es-panel active">
-      <div class="es-card"><h3>膜料每才單價</h3><p class="es-hint">perM＝一米價；全平面/系統櫃/造型＝各工法每才單價。</p>
-        <div class="es-scroll"><table class="es-table"><thead><tr><th>群組</th><th>系列</th><th>一米價</th><th>平面/才</th><th>系統櫃/才</th><th>造型/才</th><th>啟用</th><th></th></tr></thead><tbody id="tb-films"></tbody></table></div>
+      <div class="es-card"><h3>裝潢膜每才單價（依繪新真實牌價）</h3><p class="es-hint">牆面/系統櫃/造型＝三種連工帶料每才單價。依品牌分組；同系列價格相同，防焰不分。型號為非必填備註。</p>
+        <div class="es-scroll"><table class="es-table"><thead><tr><th></th><th>型號（備註）</th><th>代碼(亞洲/韓國)</th><th>花色</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th><th>啟用</th><th></th></tr></thead><tbody id="tb-films"></tbody></table></div>
       </div>
     </div>
     <div id="panel-glass" class="es-panel">
@@ -77,8 +77,8 @@
       </div>
     </div>
     <div id="panel-doors" class="es-panel">
-      <div class="es-card"><h3>門固定價（每座）</h3><p class="es-hint">依品牌(韓/日)、層數、選項；單貼門框只看品牌價。</p>
-        <div class="es-scroll"><table class="es-table"><thead><tr><th>門別</th><th>品牌</th><th>層數</th><th>選項</th><th>價格</th><th>啟用</th><th></th></tr></thead><tbody id="tb-doors"></tbody></table></div>
+      <div class="es-card"><h3>門固定價（每座）</h3><p class="es-hint">大門現貨／房門現貨／防火門三類；依膜料(韓/日)×面×門框。防火門一律含框。</p>
+        <div class="es-scroll"><table class="es-table"><thead><tr><th></th><th>座別</th><th>膜料</th><th>面</th><th>門框</th><th>價格</th><th>啟用</th><th></th></tr></thead><tbody id="tb-doors"></tbody></table></div>
       </div>
     </div>
     <div id="panel-freight" class="es-panel">
@@ -109,25 +109,37 @@ let DATA = {};
 
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI' };
+const DCAT = { main:'大門現貨', room:'房門現貨', fire:'防火門' };
+const DSIZE = { small:'小座', large:'大座', double:'雙開' };
+const DSIDE = { single:'單面', double:'雙面' };
+const DFRAME = { no:'不含框', yes:'含框' };
+const DORIGIN = { kr:'韓國膜', jp:'日本膜' };
+
 async function load() {
   DATA = await fetch(API + '/prices').then(r => r.json());
+  const c = await fetch(API + '/catalog').then(r => r.json());
+  DATA.filmCat = c.films; DATA.doorCat = c.doors;
   renderFilms(); renderGlass(); renderDoors(); renderFreight();
   document.getElementById('lm-owner').value = DATA.lowmin.owner;
   document.getElementById('lm-designer').value = DATA.lowmin.designer;
 }
 
 function renderFilms() {
-  let lastGrp = '', h = '';
-  DATA.films.forEach(f => {
-    if (f.grp_label !== lastGrp) { lastGrp = f.grp_label; h += `<tr class="es-grp"><td colspan="8">${esc(f.grp_label)}（${ORIGIN[f.origin]||f.origin}・膜寬${f.width}）</td></tr>`; }
+  let lastBrand = '', h = '';
+  DATA.filmCat.forEach(f => {
+    if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="9">${esc(BRAND[f.brand]||f.brand)}（膜寬 ${f.width}cm）</td></tr>`; }
+    const code = f.kr_code ? `${esc(f.asia_code)} / ${esc(f.kr_code)}` : esc(f.asia_code);
     h += `<tr data-id="${f.id}">
-      <td></td><td style="white-space:normal;min-width:200px">${esc(f.sys)}</td>
-      <td><input type="number" value="${f.per_m}" data-k="per_m"></td>
+      <td></td>
+      <td><input type="text" value="${esc(f.model_note)}" data-k="model_note" placeholder="型號(選填)" style="min-width:90px"></td>
+      <td style="white-space:normal;min-width:140px">${code}</td>
+      <td style="white-space:normal">${esc(f.color)}</td>
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
-      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('films',this)">儲存</button><span class="es-saved"></span></td>
+      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><span class="es-saved"></span></td>
     </tr>`;
   });
   document.getElementById('tb-films').innerHTML = h;
@@ -147,16 +159,17 @@ function renderGlass() {
   document.getElementById('tb-glass').innerHTML = h;
 }
 function renderDoors() {
-  let lastKey = '', h = '';
-  DATA.doors.forEach(d => {
-    if (d.door_key !== lastKey) { lastKey = d.door_key; h += `<tr class="es-grp"><td colspan="7">${esc(d.label)}</td></tr>`; }
+  let lastCat = '', h = '';
+  DATA.doorCat.forEach(d => {
+    if (d.cat !== lastCat) { lastCat = d.cat; h += `<tr class="es-grp"><td colspan="8">${esc(DCAT[d.cat]||d.cat)}</td></tr>`; }
     h += `<tr data-id="${d.id}">
-      <td></td><td>${ORIGIN[d.origin]||d.origin}</td>
-      <td>${d.frame_only ? '—' : (d.layers + '層')}</td>
-      <td>${d.frame_only ? '單貼框' : ('選項' + d.opt)}</td>
+      <td></td><td>${d.size ? DSIZE[d.size] : '—'}</td>
+      <td>${DORIGIN[d.origin]||d.origin}</td>
+      <td>${DSIDE[d.side]||d.side}</td>
+      <td>${d.frame ? DFRAME[d.frame] : (d.cat==='fire' ? '含框' : '—')}</td>
       <td><input type="number" value="${d.price}" data-k="price"></td>
       <td><input type="checkbox" ${d.active?'checked':''} data-k="active" style="width:auto"></td>
-      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('doors',this)">儲存</button><span class="es-saved"></span></td>
+      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('door-catalog',this)">儲存</button><span class="es-saved"></span></td>
     </tr>`;
   });
   document.getElementById('tb-doors').innerHTML = h;
