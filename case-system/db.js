@@ -3143,9 +3143,15 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS est_freight (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    region TEXT UNIQUE, amount REAL, sort_order INTEGER DEFAULT 0
+    region TEXT UNIQUE, amount REAL,
+    survey_fee REAL DEFAULT 0, overnight_fee REAL DEFAULT 0, night_surcharge REAL DEFAULT 0,
+    sort_order INTEGER DEFAULT 0
   );
 `);
+// 既有 DB 補車馬費 4 欄（_addCol 須在 CREATE TABLE 之後；同步寫進上方 CREATE TABLE 定義，全新 DB 才不缺欄）
+_addCol('est_freight', 'survey_fee',      'REAL DEFAULT 0');
+_addCol('est_freight', 'overnight_fee',   'REAL DEFAULT 0');
+_addCol('est_freight', 'night_surcharge', 'REAL DEFAULT 0');
 try {
   const _estSeed = require('./lib/estimator-seed');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_films`).get().n) {
@@ -3176,9 +3182,15 @@ try {
     }
   }
   if (!db.prepare(`SELECT COUNT(*) n FROM est_freight`).get().n) {
-    const ins = db.prepare(`INSERT OR IGNORE INTO est_freight (region,amount,sort_order) VALUES (?,?,?)`);
+    const ins = db.prepare(`INSERT OR IGNORE INTO est_freight (region,survey_fee,amount,overnight_fee,night_surcharge,sort_order) VALUES (?,?,?,?,?,?)`);
     let so = 0;
-    for (const [region, amount] of Object.entries(_estSeed.FREIGHT)) ins.run(region, amount, so++);
+    for (const [region, f] of Object.entries(_estSeed.FREIGHT)) ins.run(region, f.survey_fee, f.amount, f.overnight_fee, f.night_surcharge, so++);
+  }
+  // 一次性把車馬費 3 新欄真實牌價填進既有資料（旗標只跑一次；amount 既有值不動，不覆蓋使用者後續改動）
+  if (!db.prepare(`SELECT 1 FROM settings WHERE key='est_freight_v2'`).get()) {
+    const updFr = db.prepare(`UPDATE est_freight SET survey_fee=?, overnight_fee=?, night_surcharge=? WHERE region=?`);
+    for (const [region, f] of Object.entries(_estSeed.FREIGHT)) updFr.run(f.survey_fee, f.overnight_fee, f.night_surcharge, region);
+    db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_freight_v2','1')`).run();
   }
   db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_owner',?)`).run(String(_estSeed.LOWMIN.owner));
   db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_designer',?)`).run(String(_estSeed.LOWMIN.designer));

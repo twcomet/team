@@ -83,7 +83,10 @@
     </div>
     <div id="panel-freight" class="es-panel">
       <div class="es-card"><h3>車馬費（依區域）</h3>
-        <table class="es-table"><thead><tr><th>區域</th><th>車馬費</th><th></th></tr></thead><tbody id="tb-freight"></tbody></table>
+        <p style="margin:0 0 10px;color:#6b7280;font-size:13px;line-height:1.6">
+          場勘車馬費＝案件成交可折抵；超過案件金額此項可免收。過夜住宿以「一組工每晚」計，夜間施工另加價（無則填 0）。
+        </p>
+        <table class="es-table"><thead><tr><th>區域</th><th>場勘車馬費</th><th>施工車馬費</th><th>過夜住宿/組·晚</th><th>夜間施工加價</th><th></th></tr></thead><tbody id="tb-freight"></tbody></table>
       </div>
     </div>
     <div id="panel-lowmin" class="es-panel">
@@ -161,7 +164,10 @@ function renderDoors() {
 function renderFreight() {
   document.getElementById('tb-freight').innerHTML = DATA.freight.map(f => `
     <tr data-id="${f.id}"><td>${esc(f.region)}</td>
-      <td><input type="number" value="${f.amount}" data-k="amount"></td>
+      <td><input type="number" value="${f.survey_fee ?? 0}" data-k="survey_fee"></td>
+      <td><input type="number" value="${f.amount ?? 0}" data-k="amount"></td>
+      <td><input type="number" value="${f.overnight_fee ?? 0}" data-k="overnight_fee"></td>
+      <td><input type="number" value="${f.night_surcharge ?? 0}" data-k="night_surcharge"></td>
       <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('freight',this)">儲存</button><span class="es-saved"></span></td>
     </tr>`).join('');
 }

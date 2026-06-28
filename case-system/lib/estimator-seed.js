@@ -83,7 +83,19 @@ const DOOR = {
   'frame-cx':  { label: '單貼門框-複雜框', frameOnly: 1, kr: 12000, jp: 14000 }
 };
 
-const FREIGHT = { '北北桃': 0, '竹基': 1500, '苗中彰': 4000, '宜蘭': 4000, '雲嘉投': 6000, '花蓮': 7000, '南高': 8000, '屏東台東': 10000 };
+// 車馬費 4 欄（真實牌價 2026.03~04，權威來源 ~/Desktop/價目表/）：
+//   survey_fee=場勘車馬費（案件成交可折抵；超過案件金額此項可免收）、amount=施工車馬費、
+//   overnight_fee=過夜住宿/一組工每晚、night_surcharge=夜間施工加價（X 以 0 記）
+const FREIGHT = {
+  '北北桃':   { survey_fee: 1000, amount: 0,     overnight_fee: 0,     night_surcharge: 10000 },
+  '竹基':     { survey_fee: 1500, amount: 1500,  overnight_fee: 0,     night_surcharge: 10000 },
+  '苗中彰':   { survey_fee: 2000, amount: 4000,  overnight_fee: 10000, night_surcharge: 0 },
+  '宜蘭':     { survey_fee: 2000, amount: 4000,  overnight_fee: 10000, night_surcharge: 0 },
+  '雲嘉投':   { survey_fee: 4000, amount: 6000,  overnight_fee: 12000, night_surcharge: 0 },
+  '花蓮':     { survey_fee: 5000, amount: 7000,  overnight_fee: 13000, night_surcharge: 0 },
+  '南高':     { survey_fee: 6000, amount: 8000,  overnight_fee: 14000, night_surcharge: 0 },
+  '屏東台東': { survey_fee: 8000, amount: 10000, overnight_fee: 16000, night_surcharge: 0 },
+};
 const LOWMIN = { owner: 10000, designer: 9000 };
 
 module.exports = { FILMS, GLASS, DOOR, FREIGHT, LOWMIN };

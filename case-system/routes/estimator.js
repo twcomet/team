@@ -52,7 +52,9 @@ router.put('/doors/:id', requireAuth, requireEdit, (req, res) => {
 });
 
 router.put('/freight/:id', requireAuth, requireEdit, (req, res) => {
-  db.prepare(`UPDATE est_freight SET amount=? WHERE id=?`).run(Number(req.body.amount)||0, req.params.id);
+  const { survey_fee, amount, overnight_fee, night_surcharge } = req.body;
+  db.prepare(`UPDATE est_freight SET survey_fee=?, amount=?, overnight_fee=?, night_surcharge=? WHERE id=?`)
+    .run(Number(survey_fee)||0, Number(amount)||0, Number(overnight_fee)||0, Number(night_surcharge)||0, req.params.id);
   res.json({ ok: true });
 });
 
@@ -82,9 +84,9 @@ router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
       if (d.frameOnly) { insD.run(dk, d.label, 1, 'kr', null, null, d.kr, so++); insD.run(dk, d.label, 1, 'jp', null, null, d.jp, so++); }
       else for (const origin of ['kr', 'jp']) for (const layers of ['1', '2']) for (const opt of [0, 1]) insD.run(dk, d.label, 0, origin, layers, opt, d[origin][layers][opt], so++);
     }
-    const insFr = db.prepare(`INSERT INTO est_freight (region,amount,sort_order) VALUES (?,?,?)`);
+    const insFr = db.prepare(`INSERT INTO est_freight (region,survey_fee,amount,overnight_fee,night_surcharge,sort_order) VALUES (?,?,?,?,?,?)`);
     so = 0;
-    for (const [region, amount] of Object.entries(seed.FREIGHT)) insFr.run(region, amount, so++);
+    for (const [region, f] of Object.entries(seed.FREIGHT)) insFr.run(region, f.survey_fee, f.amount, f.overnight_fee, f.night_surcharge, so++);
     db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_owner',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.owner));
     db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_designer',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.designer));
   });
