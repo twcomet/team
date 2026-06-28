@@ -46,13 +46,49 @@
   <aside class="sidebar">
     <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
     <nav class="sidebar-nav">
-      <span class="nav-group-label">業務</span>
-      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
-      <a class="nav-item" data-page="quote-list" href="/quote-list"><span class="icon">📋</span>報價管理</a>
-      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
-      <span class="nav-group-label">系統設定</span>
-      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
-      <a class="nav-item" data-page="admin" href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="estimator"      href="/estimator">       <span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+  <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
     </nav>
     <div class="sidebar-user">
       <div class="user-name" id="sidebarUserName"></div>
@@ -67,7 +103,9 @@
       <!-- 基本資料 -->
       <div class="ec-card">
         <div class="ec-g3">
-          <div class="ec-fld"><label>專案名稱</label><input id="b-project" placeholder="例：佳樺案 · 客廳電視牆"></div>
+          <div class="ec-fld" style="position:relative"><label>案件名稱（可搜尋關聯案件）</label><input id="b-project" placeholder="輸入關鍵字搜尋案件，或自行輸入名稱" autocomplete="off">
+            <div id="caseDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.14);z-index:30;max-height:240px;overflow:auto"></div>
+          </div>
           <div class="ec-fld"><label>客戶類型（影響玻璃價/低消）</label><select id="b-cust" onchange="render()"><option value="owner">業主</option><option value="designer">設計師</option></select></div>
           <div class="ec-fld"><label>區域（車馬費·施工）</label><select id="b-region" onchange="render()"></select></div>
         </div>
@@ -86,6 +124,7 @@
         <!-- 左：輸入 -->
         <div class="ec-card">
           <div class="ec-itabs">
+            <div class="ec-itab" data-tab="object">物件</div>
             <div class="ec-itab on" data-tab="w">牆面</div>
             <div class="ec-itab" data-tab="c">系統櫃</div>
             <div class="ec-itab" data-tab="s">造型</div>
@@ -94,6 +133,12 @@
             <div class="ec-itab" data-tab="door">門</div>
             <div class="ec-itab" data-tab="other">其他</div>
             <div class="ec-itab" data-tab="fut">期貨</div>
+          </div>
+          <div class="ec-pane" id="pane-object">
+            <div class="ec-fld"><label>項目名稱</label><input id="ob-name" placeholder="例：造型物件、特殊項目…"></div>
+            <div class="ec-g2"><div class="ec-fld"><label>數量</label><input id="ob-q" type="number" value="1"></div><div class="ec-fld"><label>單價（元）</label><input id="ob-price" type="number"></div></div>
+            <button class="ec-add" onclick="addObject()">＋ 加入物件</button>
+            <div class="ec-hint">籠統彈性項目；金額＝單價×數量（不需報價設定、不算才數）。給造型/特殊物件用。</div>
           </div>
           <div class="ec-pane on" id="pane-w"></div>
           <div class="ec-pane" id="pane-c"></div>
@@ -221,6 +266,7 @@ function addGlass(){var c=v('g-cat'),idx=+v('g-series'),h=val('g-h'),w=val('g-w'
 function addElev(){var b=v('e-brand'),idx=+v('e-item'),part=v('e-part'),q=val('e-q')||1;for(var i=0;i<q;i++){if(part==='box')CART.push({kind:'elev-box',brand:b,idx:idx,side:val('e-side'),backw:val('e-backw'),h:val('e-h')});else if(part==='ceil')CART.push({kind:'elev-ceil',brand:b,idx:idx,cl:val('e-cl'),cw:val('e-cw')});else CART.push({kind:'elev-floor',ftype:part==='floor-one'?'one':'plastic'});}render();}
 function addDoor(){var cat=v('d-cat'),o=v('d-origin'),side=v('d-side'),q=val('d-q')||1,sz=cat==='fire'?v('d-size'):null,frame=cat==='fire'?null:v('d-frame');for(var i=0;i<q;i++)CART.push({kind:'door',cat:cat,origin:o,side:side,size:sz,frame:frame});render();}
 function addOther(){var name=v('o-name').trim()||'其他項目',h=val('o-h'),w=val('o-w'),unit=val('o-unit'),q=val('o-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'other',name:name,h:h,w:w,unit:unit});render();}
+function addObject(){var name=v('ob-name').trim()||'物件',price=val('ob-price'),q=val('ob-q')||1;if(!price){alert('請填單價');return;}for(var i=0;i<q;i++)CART.push({kind:'object',name:name,price:price});render();}
 function addFut(){var o=v('f-origin'),vv=v('f-method'),q=val('f-q')||1;for(var i=0;i<q;i++)CART.push({kind:'fut',origin:o,method:vv});render();}
 function clearAll(){if(CART.length&&!confirm('清空全部品項？'))return;CART=[];render();}
 function rmGroup(csv){var idxs=csv.split(',').map(Number).sort(function(a,b){return b-a;});idxs.forEach(function(i){CART.splice(i,1);});render();}
@@ -230,6 +276,7 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
  return Object.keys(g).map(function(k){var x=g[k],W=x.W,Fb=W*100/900,unit=x.item[x.work];var pcs=x.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});var packM=strips.reduce(function(a,s){return a+s.host/100;},0),m=x.full+packM,cai=m*Fb,amt=ceil100(cai*unit);var comb=strips.filter(function(s){return s.mem>1;}).length;return {type:'film',work:x.work,label:workName[x.work]+'｜'+FILMS[x.brand].label,series:x.item.asia+' '+x.item.color,n:x.n,cai:cai,unit:unit,amount:amt,comb:comb,idxs:x.idxs};});}
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,k=it.cat+'|'+it.idx+'|'+unit;var cai=it.w*it.h/900,amt=ceil100(cai*unit);g[k]=g[k]||{label:GLASS[it.cat].label,series:item.sys,unit:unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'glass',label:'玻璃｜'+x.label,series:x.series+'（'+x.unit+'/才）',n:x.n,amount:x.amount,idxs:x.idxs};});}
 function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:it.w+'×'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function elevUnit(it){return it.shape;}
 function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;if(c.side)m+=Math.ceil(c.side/W)*(H/100);if(c.backw)m+=Math.ceil(c.backw/W)*(H/100);return ceil100(m*Fb*u);}
 function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
@@ -237,6 +284,7 @@ function buildLines(){var lines=[];
  lines=lines.concat(computeFilms(CART.filter(function(c){return c.kind==='film';})));
  lines=lines.concat(computeGlass(CART.filter(function(c){return c.kind==='glass';})));
  lines=lines.concat(computeOther(CART.filter(function(c){return c.kind==='other';})));
+ lines=lines.concat(computeObject(CART.filter(function(c){return c.kind==='object';})));
  var fixed={};CART.forEach(function(it,ci){var sig,label,series,amt,ftype='fixed';
   if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h;label='電梯內箱';series=fItem(it.brand,it.idx).asia;}
   else if(it.kind==='elev-ceil'){amt=elevCeil(it);sig='EC|'+it.brand+'|'+it.idx+'|'+it.cl+'|'+it.cw;label='電梯天花板';series=fItem(it.brand,it.idx).asia;}
@@ -285,6 +333,32 @@ async function saveQuote(status){
 
 document.querySelectorAll('.ec-itab').forEach(function(t){t.onclick=function(){document.querySelectorAll('.ec-itab').forEach(function(x){x.classList.remove('on');});t.classList.add('on');document.querySelectorAll('.ec-pane').forEach(function(p){p.classList.remove('on');});document.getElementById('pane-'+t.dataset.tab).classList.add('on');};});
 
+function setupCaseSearch(){
+  var inp=document.getElementById('b-project'), drop=document.getElementById('caseDrop'); if(!inp||!drop)return;
+  var t;
+  inp.addEventListener('input', function(){
+    ECASE=null; document.getElementById('ec-status').textContent='';
+    clearTimeout(t); var q=inp.value.trim();
+    if(q.length<1){drop.style.display='none';return;}
+    t=setTimeout(function(){ doCaseSearch(q); }, 250);
+  });
+  document.addEventListener('click', function(e){ if(!drop.contains(e.target)&&e.target!==inp) drop.style.display='none'; });
+}
+async function doCaseSearch(q){
+  var drop=document.getElementById('caseDrop');
+  try{
+    var rows=await fetch('/api/search/quick?q='+encodeURIComponent(q)).then(function(r){return r.ok?r.json():[];});
+    var cases=(rows||[]).filter(function(r){return r.link&&r.link.indexOf('case-detail')>=0;});
+    if(!cases.length){drop.innerHTML='<div style="padding:8px 12px;font-size:13px;color:#9ca3af">查無案件（可自行輸入名稱）</div>';drop.style.display='';return;}
+    drop.innerHTML=cases.slice(0,8).map(function(r){
+      var id=((r.link.match(/id=(\d+)/))||[])[1]||'';
+      var txt=(r.case_number?r.case_number+' ':'')+(r.title||'')+(r.client_name?' · '+r.client_name:'');
+      return '<div class="case-opt" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" data-id="'+id+'" data-t="'+txt.replace(/"/g,'&quot;')+'">'+txt+'</div>';
+    }).join('');
+    drop.querySelectorAll('.case-opt').forEach(function(el){ el.onclick=function(){ ECASE=el.dataset.id||null; document.getElementById('b-project').value=el.dataset.t; drop.style.display='none'; document.getElementById('ec-status').textContent=ECASE?('🔗 已關聯案件 #'+ECASE+'（儲存時會同步存回此案件）'):''; }; });
+    drop.style.display='';
+  }catch(e){ console.error('case search',e); drop.style.display='none'; }
+}
 async function prefillFromCase(id){
   try{
     var c = await fetch('/api/cases/'+id).then(function(r){return r.ok?r.json():null;});
@@ -305,6 +379,10 @@ async function prefillFromCase(id){
     var tb=document.querySelector('.top-bar'); if(tb)tb.style.display='none';
     var mc=document.querySelector('.main-content'); if(mc)mc.style.marginLeft='0';
     document.body.style.background='#fff';
+    // 案件內：案件基本資料是多餘的，隱藏專案名稱＋更多基本資料（保留客戶類型/區域計價用）
+    var pj=document.getElementById('b-project'); if(pj){var pf=pj.closest('.ec-fld'); if(pf)pf.style.display='none';}
+    var col=document.querySelector('.ec-collapse'); if(col)col.style.display='none';
+    var bm=document.getElementById('b-more'); if(bm)bm.style.display='none';
   }
   if(window.loadUser)await loadUser();
   if(window.highlightNav)highlightNav('estimator');
@@ -316,6 +394,7 @@ async function prefillFromCase(id){
   fillDoor();
   fillSel('f-origin',Object.keys(FUT).map(function(k){return {v:k,t:FUT[k].label};}));fillFutM();
   render();
+  if(!embed) setupCaseSearch();
   if(ECASE) await prefillFromCase(ECASE);
 })();
 </script>

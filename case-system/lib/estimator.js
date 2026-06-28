@@ -64,6 +64,16 @@ function computeOther(arr) {
   });
   return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'other', label: g.label, series: g.series, cai: g.cai, unit: g.unit, n: g.n, amount: g.amount, idxs: g.idxs }; });
 }
+// 物件（籠統項目）：項目名稱＋單價＋數量；金額＝單價×數量（無才數）
+function computeObject(arr) {
+  const groups = {};
+  arr.forEach((it, ci) => {
+    const price = Number(it.price) || 0, key = it.name + '|' + price;
+    groups[key] = groups[key] || { label: '物件｜' + it.name, series: '單價 $' + price.toLocaleString(), unit: price, n: 0, amount: 0, idxs: [] };
+    const g = groups[key]; g.n++; g.amount += price; g.idxs.push(ci);
+  });
+  return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'object', label: g.label, series: g.series, n: g.n, amount: g.amount, idxs: g.idxs }; });
+}
 function elevBoxAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), H = roundElev(c.h); let m = 0; if (c.side) m += Math.ceil(c.side / W) * (H / 100); if (c.backw) m += Math.ceil(c.backw / W) * (H / 100); return ceil100(m * Fb * unit); }
 function elevCeilAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), ch = roundElev(c.cl), m = Math.ceil(c.cw / W) * (ch / 100); return ceil100(m * Fb * unit); }
 
@@ -73,6 +83,7 @@ function buildLines(cart, opts, cat) {
   lines = lines.concat(computeFilms(cart.filter(c => c.kind === 'film'), cat));
   lines = lines.concat(computeGlass(cart.filter(c => c.kind === 'glass'), cat, cust));
   lines = lines.concat(computeOther(cart.filter(c => c.kind === 'other')));
+  lines = lines.concat(computeObject(cart.filter(c => c.kind === 'object')));
   const fixed = {};
   cart.forEach((it, ci) => {
     let sig, label, series, amt, ftype = 'fixed';
