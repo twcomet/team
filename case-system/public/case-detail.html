@@ -123,6 +123,7 @@
   <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
   <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
   <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">📐</span>估價計算機</a>
   <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
   <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
   <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
@@ -156,7 +157,6 @@
   <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
   <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
   <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
-  <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">🧮</span>估價計算機</a>
       <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
 </nav>
     <div class="sidebar-user">
@@ -397,6 +397,21 @@
 
       <!-- 初步估價紀錄 -->
       <div class="tab-pane" id="tab-estimate">
+        <!-- 估價計算機（嵌入，選膜料即時算錢＋可儲存）-->
+        <div class="sf-tab-section" style="padding:0;overflow:hidden">
+          <div style="padding:10px 14px;font-size:13px;font-weight:700;color:#1d4ed8;background:#eff6ff;border-bottom:1px solid #bfdbfe">🧮 估價計算機（選膜料即時算錢、可直接儲存估價單）</div>
+          <iframe id="estCalcFrame" style="width:100%;height:1180px;border:none;display:block"></iframe>
+        </div>
+        <script>
+        (function(){
+          var tab=document.querySelector('.tab[data-tab="estimate"]'), fr=document.getElementById('estCalcFrame');
+          if(!tab||!fr) return;
+          var id=new URLSearchParams(location.search).get('id')||'';
+          var loaded=false; function L(){ if(loaded)return; loaded=true; fr.src='/estimator?embed=1&case_id='+encodeURIComponent(id); }
+          tab.addEventListener('click', L);
+          if(tab.classList.contains('active')) L();
+        })();
+        </script>
         <div class="sf-tab-section" style="background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
           <div>
             <div style="font-size:13px;font-weight:600;color:#1d4ed8">🧮 快速報價工具</div>
