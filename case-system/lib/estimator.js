@@ -109,8 +109,45 @@ function quote(cart, opts, catalog) {
   return { lines, cust, region, sub, afterDisc, discAmt, lowmin, lowApplied, itemsFinal, freight, fut, total };
 }
 
+// 從 DB 組出計價用的價目（讓「報價設定」的修改即時生效）。
+// 順序用 sort_order,id（與 GET /catalog 一致）→ 膜款 idx 對齊；含未啟用列(active=0仍佔位)，避免 idx 位移。
+function buildCatalogFromDb(db) {
+  const FILMS = {};
+  db.prepare(`SELECT * FROM est_film_catalog ORDER BY sort_order, id`).all().forEach(r => {
+    if (!FILMS[r.brand]) FILMS[r.brand] = { label: (DEFAULT.FILMS[r.brand] || {}).label || r.brand, items: [] };
+    FILMS[r.brand].items.push({ asia: r.asia_code, kr: r.kr_code, color: r.color, model: r.model_note, plane: r.plane, cabinet: r.cabinet, shape: r.shape, width: r.width });
+  });
+  const DOORS = {};
+  db.prepare(`SELECT * FROM est_door_catalog ORDER BY sort_order, id`).all().forEach(r => {
+    DOORS[r.cat] = DOORS[r.cat] || { label: (DEFAULT.DOORS[r.cat] || {}).label || r.cat };
+    if (r.cat === 'fire') {
+      DOORS.fire.sized = 1;
+      DOORS.fire[r.size] = DOORS.fire[r.size] || { label: ((DEFAULT.DOORS.fire || {})[r.size] || {}).label || r.size };
+      DOORS.fire[r.size][r.origin] = DOORS.fire[r.size][r.origin] || {};
+      DOORS.fire[r.size][r.origin][r.side] = r.price;
+    } else {
+      DOORS[r.cat][r.origin] = DOORS[r.cat][r.origin] || {};
+      DOORS[r.cat][r.origin][r.side] = DOORS[r.cat][r.origin][r.side] || {};
+      DOORS[r.cat][r.origin][r.side][r.frame] = r.price;
+    }
+  });
+  const GLASS = {};
+  db.prepare(`SELECT * FROM est_glass ORDER BY sort_order, id`).all().forEach(r => {
+    if (!GLASS[r.cat_key]) GLASS[r.cat_key] = { label: r.cat_label, items: [] };
+    GLASS[r.cat_key].items.push({ sys: r.sys, owner: r.owner_price, designer: r.designer_price });
+  });
+  const FREIGHT = {};
+  db.prepare(`SELECT region, amount FROM est_freight`).all().forEach(r => { FREIGHT[r.region] = r.amount || 0; });
+  const lo = db.prepare(`SELECT key,value FROM settings WHERE key IN ('est_lowmin_owner','est_lowmin_designer')`).all();
+  const LOWMIN = {
+    owner: Number((lo.find(x => x.key === 'est_lowmin_owner') || {}).value || 10000),
+    designer: Number((lo.find(x => x.key === 'est_lowmin_designer') || {}).value || 9000),
+  };
+  return { FILMS, GLASS, DOORS, FREIGHT, LOWMIN, FUT: DEFAULT.FUT };
+}
+
 module.exports = {
   ceil100, roundWall, roundElev, filmW, elevUnit, doorPrice, workName,
   computeFilms, computeGlass, computeOther, elevBoxAmt, elevCeilAmt, buildLines, quote,
-  catalog: DEFAULT,
+  buildCatalogFromDb, catalog: DEFAULT,
 };

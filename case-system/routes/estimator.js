@@ -1,7 +1,30 @@
 const express = require('express');
 const db = require('../db');
+const eng = require('../lib/estimator');
+const _catData = require('../lib/estimator-catalog');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
+
+// 把整張真實牌價匯入 est_film_catalog / est_door_catalog（force=清空重灌；否則只在空表時帶入）。
+// 兼作「啟動 seed 沒跑成功」的保險：GET /catalog 會 lazy 呼叫，確保頁面一定有資料。
+function seedCatalogDefaults(force) {
+  // 注意：本專案用 node:sqlite(DatabaseSync)，無 .transaction()；直接逐筆 insert（seed 量小、可接受）
+  if (force) db.exec('DELETE FROM est_film_catalog; DELETE FROM est_door_catalog;');
+  if (!db.prepare('SELECT COUNT(*) n FROM est_film_catalog').get().n) {
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [brand, b] of Object.entries(_catData.FILMS))
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.plane, it.cabinet, it.shape, it.width || 122, so++));
+  }
+  if (!db.prepare('SELECT COUNT(*) n FROM est_door_catalog').get().n) {
+    const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [c, d] of Object.entries(_catData.DOORS)) {
+      if (d.sized) { for (const size of ['small', 'large', 'double']) for (const origin of ['kr', 'jp']) for (const side of ['single', 'double']) ins.run('fire', size, origin, side, null, d[size][origin][side], so++); }
+      else { for (const origin of ['kr', 'jp']) for (const side of ['single', 'double']) for (const frame of ['no', 'yes']) ins.run(c, null, origin, side, frame, d[origin][side][frame], so++); }
+    }
+  }
+}
 
 // 只有老闆 / 管理員 / 有報價設定權限者可改價目
 function canEditPrices(u) {
@@ -68,7 +91,7 @@ router.put('/lowmin', requireAuth, requireEdit, (req, res) => {
 // ── 回復預設值（清空後重新 seed）────────────────────────────────
 router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
   const seed = require('../lib/estimator-seed');
-  const tx = db.transaction(() => {
+  { // node:sqlite 無 .transaction()，直接執行
     db.exec(`DELETE FROM est_films; DELETE FROM est_glass; DELETE FROM est_doors; DELETE FROM est_freight;`);
     const insF = db.prepare(`INSERT INTO est_films (grp_key,grp_label,origin,width,flat_price,sys,per_m,plane,cabinet,shape,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
     let so = 0;
@@ -89,17 +112,69 @@ router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
     for (const [region, f] of Object.entries(seed.FREIGHT)) insFr.run(region, f.survey_fee, f.amount, f.overnight_fee, f.night_surcharge, so++);
     db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_owner',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.owner));
     db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_designer',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.designer));
-  });
-  tx();
+  }
   res.json({ ok: true });
+});
+
+// ── 估價單儲存（est_quotes）─────────────────────────────────────────
+// 金額一律由引擎讀 DB 牌價重算後存（不信前端金額）；items/photos 存 JSON
+function computeAndPersistFields(b) {
+  const items = Array.isArray(b.items) ? b.items : [];
+  const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc: b.disc }, eng.buildCatalogFromDb(db));
+  return { items, r };
+}
+router.post('/quotes', requireAuth, (req, res) => {
+  const b = req.body || {};
+  const { items, r } = computeAndPersistFields(b);
+  const info = db.prepare(`INSERT INTO est_quotes
+    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
+      b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
+      JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
+      Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
+      b.status || 'draft', req.session.user.id);
+  res.json({ ok: true, id: info.lastInsertRowid, total: r.total });
+});
+router.put('/quotes/:id', requireAuth, (req, res) => {
+  const b = req.body || {};
+  const { items, r } = computeAndPersistFields(b);
+  const info = db.prepare(`UPDATE est_quotes SET
+    case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
+    items_json=?,photos_json=?,customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,updated_at=datetime('now','localtime')
+    WHERE id=?`).run(
+      b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
+      b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
+      JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
+      Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
+      b.status || 'draft', req.params.id);
+  if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
+  res.json({ ok: true, total: r.total });
+});
+router.get('/quotes', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT id,case_id,project_name,customer_name,customer_type,region,total,status,created_at FROM est_quotes ORDER BY id DESC LIMIT 200`).all();
+  res.json(rows);
+});
+router.get('/quotes/:id', requireAuth, (req, res) => {
+  const q = db.prepare(`SELECT * FROM est_quotes WHERE id=?`).get(req.params.id);
+  if (!q) return res.status(404).json({ error: '找不到估價單' });
+  q.items = JSON.parse(q.items_json || '[]');
+  q.photos = JSON.parse(q.photos_json || '[]');
+  res.json(q);
 });
 
 // ── 重設計版牌價（est_film_catalog / est_door_catalog）──────────────
 // 讀全部（估價頁與設定頁共用）
 router.get('/catalog', requireAuth, (req, res) => {
+  try { seedCatalogDefaults(false); } catch (e) { console.warn('[catalog lazy seed]', e.message); } // 保險：空表自動帶入
   const films = db.prepare(`SELECT * FROM est_film_catalog ORDER BY sort_order, id`).all();
   const doors = db.prepare(`SELECT * FROM est_door_catalog ORDER BY sort_order, id`).all();
   res.json({ films, doors });
+});
+// 匯入/回復 裝潢膜+門 預設牌價（整張重灌）
+router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
+  seedCatalogDefaults(true);
+  res.json({ ok: true });
 });
 // 改單筆裝潢膜（每米＋三種連工帶料價）
 router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {

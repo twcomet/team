@@ -3241,4 +3241,25 @@ try {
   console.log('✅ 估價重設計版牌價表就緒（est_film_catalog/est_door_catalog；空表才 seed）');
 } catch (e) { console.warn('[est catalog seed]', e.message); }
 
+// ── 估價單儲存（新表，獨立模組；items/photos 存 JSON，金額由引擎重算後存）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS est_quotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER,
+    project_name TEXT,
+    customer_type TEXT DEFAULT 'owner',
+    region TEXT,
+    customer_name TEXT, phone TEXT, address TEXT, community TEXT,
+    line_replied INTEGER DEFAULT 0,
+    items_json TEXT DEFAULT '[]',
+    photos_json TEXT DEFAULT '[]',
+    customer_note TEXT,
+    disc REAL DEFAULT 1,
+    subtotal REAL DEFAULT 0, discount REAL DEFAULT 0, items_final REAL DEFAULT 0,
+    freight REAL DEFAULT 0, fut REAL DEFAULT 0, total REAL DEFAULT 0,
+    status TEXT DEFAULT 'draft',
+    created_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME
+  );
+`);
+
 module.exports = db;

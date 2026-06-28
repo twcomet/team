@@ -55,7 +55,8 @@
 
     <div class="es-toolbar">
       <div class="es-hint" style="margin:0">系統已帶入預設價目；在這裡改了會立即存檔、估價時自動帶入。改了不會被部署覆蓋。</div>
-      <button class="es-btn es-btn-danger" onclick="resetDefaults()">↺ 回復預設值</button>
+      <button class="es-btn es-btn-primary" onclick="resetCatalog()">↻ 匯入/回復 裝潢膜＋門 預設牌價</button>
+      <button class="es-btn es-btn-danger" onclick="resetDefaults()">↺ 回復玻璃/車馬費/低消</button>
     </div>
 
     <div class="es-tabs">
@@ -202,6 +203,12 @@ async function saveLowmin() {
     body: JSON.stringify({ owner: document.getElementById('lm-owner').value, designer: document.getElementById('lm-designer').value }) });
   const span = document.getElementById('lm-saved');
   span.textContent = r.ok ? '✓ 已存' : '✗ 失敗'; setTimeout(()=>span.textContent='', 1500);
+}
+async function resetCatalog() {
+  if (!confirm('將「裝潢膜」與「門」的牌價整張匯入/回復為系統預設？\n（會覆蓋你目前對這兩項的修改，玻璃/車馬費/低消不受影響）')) return;
+  const r = await fetch(`${API}/reset-catalog-defaults`, { method:'POST' });
+  if (r.ok) { alert('已匯入預設牌價'); load(); }
+  else { alert('失敗：' + ((await r.json().catch(()=>({}))).error || '')); }
 }
 async function resetDefaults() {
   if (!confirm('確定回復所有估價價目為系統預設值？你目前的修改會被覆蓋。')) return;
