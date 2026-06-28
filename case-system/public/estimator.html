@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>估價計算機</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ec-wrap{display:grid;grid-template-columns:360px 1fr;gap:16px}
+  @media(max-width:980px){.ec-wrap{grid-template-columns:1fr}}
+  .ec-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:16px}
+  .ec-card h3{font-size:14.5px;font-weight:600;margin:0 0 4px}
+  .ec-hint{font-size:12px;color:#9ca3af;margin:0 0 12px;line-height:1.6}
+  .ec-fld label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}
+  .ec-fld{margin-bottom:10px}
+  .ec-fld input,.ec-fld select,.ec-row input,.ec-row select{width:100%;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13.5px;box-sizing:border-box;font-family:inherit}
+  .ec-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ec-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .ec-itabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+  .ec-itab{padding:7px 11px;font-size:13px;border-radius:7px;background:#f3f4f6;border:1px solid #e5e7eb;cursor:pointer;color:#6b7280}
+  .ec-itab.on{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:600}
+  .ec-pane{display:none}.ec-pane.on{display:block}
+  .ec-add{width:100%;margin-top:10px;padding:11px;background:#1f2937;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+  .ec-perm{font-size:12px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 10px;margin-top:10px;font-weight:600}
+  .ec-qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .ec-rm{color:#dc2626;font-size:12px;cursor:pointer}
+  .ec-grp{border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px;margin-bottom:8px}
+  .ec-gh{display:flex;justify-content:space-between;align-items:center}
+  .ec-gh b{font-size:13.5px}.ec-gp{font-weight:700;color:#1d4ed8}
+  .ec-gl{display:flex;justify-content:space-between;color:#6b7280;font-size:12.5px;margin-top:4px}
+  .ec-badge{font-size:10.5px;background:#ecfeff;color:#0891b2;border-radius:20px;padding:1px 7px;margin-left:6px}
+  .ec-empty{color:#9ca3af;text-align:center;padding:24px;font-size:13px}
+  .ec-tot{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-top:12px}
+  .ec-tr{display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px;border-bottom:1px dashed #eee}
+  .ec-tr:last-child{border-bottom:none}
+  .ec-tr.big{font-size:17px;font-weight:800;color:#1d4ed8;padding-top:10px}
+  .ec-low{color:#d97706}
+  .ec-save{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  .ec-btn{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600}
+  .ec-btn-p{background:#2563eb;color:#fff}.ec-btn-g{background:#f3f4f6;color:#374151}
+  .ec-collapse{cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label">業務</span>
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="quote-list" href="/quote-list"><span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">🧮</span>估價計算機</a>
+      <span class="nav-group-label">系統設定</span>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+      <a class="nav-item" data-page="admin" href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span></div>
+
+    <div style="padding:18px;max-width:1180px">
+      <!-- 基本資料 -->
+      <div class="ec-card">
+        <div class="ec-g3">
+          <div class="ec-fld"><label>專案名稱</label><input id="b-project" placeholder="例：佳樺案 · 客廳電視牆"></div>
+          <div class="ec-fld"><label>客戶類型（影響玻璃價/低消）</label><select id="b-cust" onchange="render()"><option value="owner">業主</option><option value="designer">設計師</option></select></div>
+          <div class="ec-fld"><label>區域（車馬費·施工）</label><select id="b-region" onchange="render()"></select></div>
+        </div>
+        <div class="ec-collapse" onclick="var x=document.getElementById('b-more');x.style.display=x.style.display==='none'?'block':'none'">▸ 更多基本資料（客戶/電話/地址·皆非必填，可不填）</div>
+        <div id="b-more" style="display:none;margin-top:12px">
+          <div class="ec-g2">
+            <div class="ec-fld"><label>客戶名稱</label><input id="b-name"></div>
+            <div class="ec-fld"><label>聯絡電話</label><input id="b-phone"></div>
+            <div class="ec-fld"><label>社區/建案</label><input id="b-community"></div>
+            <div class="ec-fld"><label>案場地址</label><input id="b-address"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ec-wrap">
+        <!-- 左：輸入 -->
+        <div class="ec-card">
+          <div class="ec-itabs">
+            <div class="ec-itab on" data-tab="w">牆面</div>
+            <div class="ec-itab" data-tab="c">系統櫃</div>
+            <div class="ec-itab" data-tab="s">造型</div>
+            <div class="ec-itab" data-tab="glass">玻璃</div>
+            <div class="ec-itab" data-tab="elev">電梯</div>
+            <div class="ec-itab" data-tab="door">門</div>
+            <div class="ec-itab" data-tab="other">其他</div>
+            <div class="ec-itab" data-tab="fut">期貨</div>
+          </div>
+          <div class="ec-pane on" id="pane-w"></div>
+          <div class="ec-pane" id="pane-c"></div>
+          <div class="ec-pane" id="pane-s"></div>
+          <div class="ec-pane" id="pane-glass">
+            <div class="ec-fld"><label>玻璃膜種類</label><select id="g-cat" onchange="fillGlassSeries()"></select></div>
+            <div class="ec-fld"><label>型號</label><select id="g-series"></select></div>
+            <div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="g-h" type="number" value="180"></div><div class="ec-fld"><label>寬 cm</label><input id="g-w" type="number" value="90"></div><div class="ec-fld"><label>數量</label><input id="g-q" type="number" value="1"></div></div>
+            <button class="ec-add" onclick="addGlass()">＋ 加入玻璃</button>
+            <div class="ec-hint">逐片計算、不併料；單價依客戶類型。</div>
+          </div>
+          <div class="ec-pane" id="pane-elev">
+            <div class="ec-fld"><label>品牌</label><select id="e-brand" onchange="fillElevItem()"></select></div>
+            <div class="ec-fld"><label>膜款</label><select id="e-item"></select></div>
+            <div class="ec-fld"><label>部位</label><select id="e-part" onchange="elevToggle()"><option value="box">內箱（左右牆＋後牆）</option><option value="ceil">天花板</option><option value="floor-plastic">地板·塑膠地磚(8,000)</option><option value="floor-one">地板·一片式(12,000)</option></select></div>
+            <div id="e-box"><div class="ec-g3"><div class="ec-fld"><label>左右牆寬</label><input id="e-side" type="number" value="240"></div><div class="ec-fld"><label>後牆寬</label><input id="e-backw" type="number" value="120"></div><div class="ec-fld"><label>高</label><input id="e-h" type="number" value="230"></div></div></div>
+            <div id="e-ceil" style="display:none"><div class="ec-g2"><div class="ec-fld"><label>天花長</label><input id="e-cl" type="number" value="150"></div><div class="ec-fld"><label>天花寬</label><input id="e-cw" type="number" value="150"></div></div></div>
+            <div class="ec-fld"><label>數量（座/處）</label><input id="e-q" type="number" value="1"></div>
+            <button class="ec-add" onclick="addElev()">＋ 加入電梯</button>
+            <div class="ec-hint">內箱/天花高 +20cm 損耗；每才單價依膜款造型價。</div>
+          </div>
+          <div class="ec-pane" id="pane-door">
+            <div class="ec-fld"><label>門類</label><select id="d-cat" onchange="fillDoor()"><option value="main">大門現貨</option><option value="room">房門現貨</option><option value="fire">防火門</option></select></div>
+            <div class="ec-g2"><div class="ec-fld"><label>膜料</label><select id="d-origin" onchange="updDoor()"><option value="kr">韓國膜(BODAQ/LG)</option><option value="jp">日本膜(PAROI)</option></select></div><div class="ec-fld" id="d-size-fld" style="display:none"><label>座別</label><select id="d-size" onchange="updDoor()"><option value="small">單開小座</option><option value="large">單開大座</option><option value="double">雙開</option></select></div></div>
+            <div class="ec-g2"><div class="ec-fld"><label>面</label><select id="d-side" onchange="updDoor()"><option value="single">單面</option><option value="double">雙面</option></select></div><div class="ec-fld" id="d-frame-fld"><label>門框</label><select id="d-frame" onchange="updDoor()"><option value="no">不含框</option><option value="yes">含框</option></select></div></div>
+            <div class="ec-fld"><label>數量（座）</label><input id="d-q" type="number" value="1"></div>
+            <div class="ec-perm" id="d-perm">單價 —</div>
+            <button class="ec-add" onclick="addDoor()">＋ 加入門</button>
+          </div>
+          <div class="ec-pane" id="pane-other">
+            <div class="ec-fld"><label>項目名稱</label><input id="o-name" placeholder="例：天花造型、樑柱包覆…"></div>
+            <div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="o-h" type="number" value="240"></div><div class="ec-fld"><label>寬 cm</label><input id="o-w" type="number" value="120"></div><div class="ec-fld"><label>數量</label><input id="o-q" type="number" value="1"></div></div>
+            <div class="ec-fld"><label>單才連工帶料單價（元/才）</label><input id="o-unit" type="number" value="200"></div>
+            <button class="ec-add" onclick="addOther()">＋ 加入其他項目</button>
+            <div class="ec-hint">才數＝寬×高÷900；金額＝才數×單價（進位百元）。</div>
+          </div>
+          <div class="ec-pane" id="pane-fut">
+            <div class="ec-fld"><label>膜料產地</label><select id="f-origin" onchange="fillFutM()"></select></div>
+            <div class="ec-fld"><label>運送方式</label><select id="f-method" onchange="futHint()"></select></div>
+            <div class="ec-fld"><label>款數（支）</label><input id="f-q" type="number" value="1"></div>
+            <button class="ec-add" onclick="addFut()">＋ 加入期貨運費</button>
+            <div class="ec-hint" id="f-hint"></div>
+          </div>
+        </div>
+
+        <!-- 右：明細＋總計 -->
+        <div>
+          <div class="ec-card">
+            <div class="ec-qhead"><b>估價明細</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
+            <div id="lines"><div class="ec-empty">從左邊加入品項，這裡即時出估價明細。</div></div>
+          </div>
+          <div class="ec-tot">
+            <div class="ec-tr"><span>連工帶料小計（未稅）</span><b id="t-sub">$0</b></div>
+            <div class="ec-tr"><span>整體折扣 <select id="q-disc" onchange="render()" style="border:1px solid #d1d5db;border-radius:6px;padding:2px 6px;font-size:12px"><option value="1">無折扣</option><option value="0.97">97折</option><option value="0.95">95折</option><option value="0.9">9折</option><option value="0.85">85折</option></select></span><b id="t-disc">$0</b></div>
+            <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
+            <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
+            <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
+            <div class="ec-tr big"><span>估價總額（未稅）</span><b id="t-total">$0</b></div>
+          </div>
+          <div class="ec-save">
+            <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const API = '/api/estimator';
+const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI' };
+const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統櫃'}, s:{work:'shape',label:'造型'} };
+const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型' };
+const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
+let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
+let CART=[], cust='owner', editId=null;
+
+const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
+const filmW=it=>it.width||122, NT=n=>'$'+(n||0).toLocaleString();
+const v=id=>document.getElementById(id).value, val=id=>+document.getElementById(id).value||0;
+const fItem=(b,i)=>FILMS[b].items[i];
+function fmtItem(it){var c=it.kr?(it.asia+' / '+it.kr):it.asia;return c+'　'+it.color;}
+function fillSel(id,arr){var s=document.getElementById(id);s.innerHTML='';arr.forEach(function(o){var e=document.createElement('option');e.value=o.v;e.textContent=o.t;s.appendChild(e);});}
+
+async function loadCatalog(){
+  const cat = await fetch(API+'/catalog').then(r=>r.json());
+  const pr = await fetch(API+'/prices').then(r=>r.json());
+  FILMS={}; (cat.films||[]).forEach(function(r){ if(!FILMS[r.brand])FILMS[r.brand]={label:BRAND[r.brand]||r.brand,items:[]}; FILMS[r.brand].items.push({id:r.id,asia:r.asia_code,kr:r.kr_code,color:r.color,plane:r.plane,cabinet:r.cabinet,shape:r.shape,width:r.width||122}); });
+  DOORS={}; (cat.doors||[]).forEach(function(r){ DOORS[r.cat]=DOORS[r.cat]||{}; if(r.cat==='fire'){DOORS.fire.sized=1;DOORS.fire[r.size]=DOORS.fire[r.size]||{};DOORS.fire[r.size][r.origin]=DOORS.fire[r.size][r.origin]||{};DOORS.fire[r.size][r.origin][r.side]=r.price;}else{DOORS[r.cat][r.origin]=DOORS[r.cat][r.origin]||{};DOORS[r.cat][r.origin][r.side]=DOORS[r.cat][r.origin][r.side]||{};DOORS[r.cat][r.origin][r.side][r.frame]=r.price;} });
+  GLASS={}; (pr.glass||[]).forEach(function(r){ if(!GLASS[r.cat_key])GLASS[r.cat_key]={label:r.cat_label,items:[]}; GLASS[r.cat_key].items.push({sys:r.sys,owner:r.owner_price,designer:r.designer_price}); });
+  FREIGHT={}; (pr.freight||[]).forEach(function(r){ FREIGHT[r.region]=r.amount||0; });
+  LOWMIN = pr.lowmin || {owner:10000,designer:9000};
+}
+
+/* 三裝潢膜分頁（動態建立）*/
+function buildFilmPane(pfx){
+  var t=FTAB[pfx];
+  document.getElementById('pane-'+pfx).innerHTML=
+   '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
+   '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
+   '<div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="'+pfx+'-h" type="number" value="250"></div><div class="ec-fld"><label>寬 cm</label><input id="'+pfx+'-w" type="number" value="220"></div><div class="ec-fld"><label>數量</label><input id="'+pfx+'-q" type="number" value="1"></div></div>'+
+   '<div class="ec-perm" id="'+pfx+'-perm"></div>'+
+   '<button class="ec-add" onclick="addFilm(\''+pfx+'\')">＋ 加入'+t.label+'</button>'+
+   '<div class="ec-hint">'+(pfx==='w'?'全平面牆自動<b>併料</b>省料。':'逐片計算。')+'</div>';
+  fillSel(pfx+'-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));
+  fillFilmP(pfx);
+}
+function fillFilmP(pfx){var b=v(pfx+'-brand');fillSel(pfx+'-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));priceHint(pfx);}
+function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(it[t.work])+'／才　·　膜寬 '+filmW(it)+'cm';}
+function addFilm(pfx){var t=FTAB[pfx],b=v(pfx+'-brand'),idx=+v(pfx+'-item'),h=val(pfx+'-h'),w=val(pfx+'-w'),q=val(pfx+'-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'film',brand:b,idx:idx,work:t.work,h:h,w:w});render();}
+
+function fillElevItem(){var b=v('e-brand');fillSel('e-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));}
+function elevToggle(){var p=v('e-part');document.getElementById('e-box').style.display=p==='box'?'block':'none';document.getElementById('e-ceil').style.display=p==='ceil'?'block':'none';}
+function fillGlassSeries(){var c=v('g-cat');fillSel('g-series',GLASS[c].items.map(function(it,i){var p=cust==='owner'?it.owner:it.designer;return {v:i,t:it.sys+'（'+p+'/才）'};}));}
+function fillDoor(){var fire=v('d-cat')==='fire';document.getElementById('d-size-fld').style.display=fire?'block':'none';document.getElementById('d-frame-fld').style.display=fire?'none':'block';updDoor();}
+function doorPrice(){var cat=v('d-cat'),o=v('d-origin'),side=v('d-side');if(cat==='fire')return DOORS.fire[v('d-size')][o][side];return DOORS[cat][o][side][v('d-frame')];}
+function updDoor(){document.getElementById('d-perm').textContent='單價 '+NT(doorPrice());}
+function fillFutM(){var o=v('f-origin');fillSel('f-method',FUT[o].methods.map(function(m){return {v:m.v,t:m.name+'　$'+m.price.toLocaleString()+'／款'};}));futHint();}
+function futM(o,vv){return FUT[o].methods.filter(function(m){return m.v===vv;})[0]||FUT[o].methods[0];}
+function futHint(){var o=v('f-origin'),m=futM(o,v('f-method'));document.getElementById('f-hint').innerHTML='固定：'+FUT[o].label+'｜'+m.name+' $'+m.price.toLocaleString()+'／款 · 出貨 '+m.lead+'（不含假日）';}
+
+function addGlass(){var c=v('g-cat'),idx=+v('g-series'),h=val('g-h'),w=val('g-w'),q=val('g-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'glass',cat:c,idx:idx,h:h,w:w});render();}
+function addElev(){var b=v('e-brand'),idx=+v('e-item'),part=v('e-part'),q=val('e-q')||1;for(var i=0;i<q;i++){if(part==='box')CART.push({kind:'elev-box',brand:b,idx:idx,side:val('e-side'),backw:val('e-backw'),h:val('e-h')});else if(part==='ceil')CART.push({kind:'elev-ceil',brand:b,idx:idx,cl:val('e-cl'),cw:val('e-cw')});else CART.push({kind:'elev-floor',ftype:part==='floor-one'?'one':'plastic'});}render();}
+function addDoor(){var cat=v('d-cat'),o=v('d-origin'),side=v('d-side'),q=val('d-q')||1,sz=cat==='fire'?v('d-size'):null,frame=cat==='fire'?null:v('d-frame');for(var i=0;i<q;i++)CART.push({kind:'door',cat:cat,origin:o,side:side,size:sz,frame:frame});render();}
+function addOther(){var name=v('o-name').trim()||'其他項目',h=val('o-h'),w=val('o-w'),unit=val('o-unit'),q=val('o-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'other',name:name,h:h,w:w,unit:unit});render();}
+function addFut(){var o=v('f-origin'),vv=v('f-method'),q=val('f-q')||1;for(var i=0;i<q;i++)CART.push({kind:'fut',origin:o,method:vv});render();}
+function clearAll(){if(CART.length&&!confirm('清空全部品項？'))return;CART=[];render();}
+function rmGroup(csv){var idxs=csv.split(',').map(Number).sort(function(a,b){return b-a;});idxs.forEach(function(i){CART.splice(i,1);});render();}
+
+/* 計價（鏡像 lib/estimator.js）*/
+function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item),k=it.brand+'|'+it.idx+'|'+it.work;g[k]=g[k]||{item:item,brand:it.brand,W:W,work:it.work,full:0,pieces:[],n:0,idxs:[]};var x=g[k];x.n++;x.idxs.push(ci);var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:(it.work==='plane'&&rem<(W-2))});});
+ return Object.keys(g).map(function(k){var x=g[k],W=x.W,Fb=W*100/900,unit=x.item[x.work];var pcs=x.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});var packM=strips.reduce(function(a,s){return a+s.host/100;},0),m=x.full+packM,cai=m*Fb,amt=ceil100(cai*unit);var comb=strips.filter(function(s){return s.mem>1;}).length;return {type:'film',work:x.work,label:workName[x.work]+'｜'+FILMS[x.brand].label,series:x.item.asia+' '+x.item.color,n:x.n,cai:cai,unit:unit,amount:amt,comb:comb,idxs:x.idxs};});}
+function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,k=it.cat+'|'+it.idx+'|'+unit;var cai=it.w*it.h/900,amt=ceil100(cai*unit);g[k]=g[k]||{label:GLASS[it.cat].label,series:item.sys,unit:unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'glass',label:'玻璃｜'+x.label,series:x.series+'（'+x.unit+'/才）',n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:it.w+'×'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function elevUnit(it){return it.shape;}
+function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;if(c.side)m+=Math.ceil(c.side/W)*(H/100);if(c.backw)m+=Math.ceil(c.backw/W)*(H/100);return ceil100(m*Fb*u);}
+function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
+function buildLines(){var lines=[];
+ lines=lines.concat(computeFilms(CART.filter(function(c){return c.kind==='film';})));
+ lines=lines.concat(computeGlass(CART.filter(function(c){return c.kind==='glass';})));
+ lines=lines.concat(computeOther(CART.filter(function(c){return c.kind==='other';})));
+ var fixed={};CART.forEach(function(it,ci){var sig,label,series,amt,ftype='fixed';
+  if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h;label='電梯內箱';series=fItem(it.brand,it.idx).asia;}
+  else if(it.kind==='elev-ceil'){amt=elevCeil(it);sig='EC|'+it.brand+'|'+it.idx+'|'+it.cl+'|'+it.cw;label='電梯天花板';series=fItem(it.brand,it.idx).asia;}
+  else if(it.kind==='elev-floor'){amt=it.ftype==='one'?12000:8000;sig='EL|'+it.ftype;label='電梯地板'+(it.ftype==='one'?'·一片式':'·塑膠地磚');series='固定價';}
+  else if(it.kind==='door'){amt=doorPriceOf(it);var dl={main:'大門現貨',room:'房門現貨',fire:'防火門'}[it.cat],st=(it.side==='single'?'單面':'雙面'),ft=it.cat==='fire'?'含框':(it.frame==='yes'?'含框':'不含框'),sz=it.cat==='fire'?('·'+{small:'小座',large:'大座',double:'雙開'}[it.size]):'';sig='D|'+it.cat+'|'+it.origin+'|'+it.side+'|'+it.size+'|'+it.frame;label='門｜'+dl;series=(it.origin==='kr'?'韓國膜':'日本膜')+sz+'·'+st+'·'+ft;}
+  else if(it.kind==='fut'){var fm=futM(it.origin,it.method);amt=fm.price;sig='FUT|'+it.origin+'|'+it.method;label='期貨運費｜'+FUT[it.origin].label+'·'+fm.name;series='出貨 '+fm.lead;ftype='fut';}
+  else return;
+  if(fixed[sig]){fixed[sig].n++;fixed[sig].amount+=amt;fixed[sig].idxs.push(ci);}else{fixed[sig]={type:ftype,label:label,series:series,n:1,amount:amt,idxs:[ci]};lines.push(fixed[sig]);}});
+ var r=parseFloat(v('q-disc'))||1;if(r<1)lines.forEach(function(L){if(L.type==='fut')return;L.base=L.amount;L.amount=Math.round(L.amount*r);});
+ return lines;}
+function doorPriceOf(it){if(it.cat==='fire')return DOORS.fire[it.size][it.origin][it.side];return DOORS[it.cat][it.origin][it.side][it.frame];}
+
+function render(){
+ cust=v('b-cust');document.getElementById('t-region').textContent=v('b-region');
+ if(v('g-cat'))fillGlassSeries();
+ var lines=buildLines();var box=document.getElementById('lines');
+ if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊加入品項，這裡即時出估價明細。</div>';}
+ else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':' 件'));
+   h+='<div class="ec-grp"><div class="ec-gh"><b>'+L.label+'（'+L.n+u+'）'+(L.comb?'<span class="ec-badge">已併料</span>':'')+(L.base?'<span class="ec-badge">折後</span>':'')+(L.type==='fut'?'<span class="ec-badge">運費·不折</span>':'')+'</b><span class="ec-gp">'+NT(L.amount)+'</span></div><div class="ec-gl"><span>'+L.series+(L.cai?'　·　'+L.cai.toFixed(1)+' 才 × '+L.unit:'')+'</span><span>×'+L.n+'　<span class="ec-rm" onclick="rmGroup(\''+L.idxs.join(',')+'\')">移除</span></span></div></div>';});box.innerHTML=h;}
+ var priced=lines.filter(function(L){return L.type!=='fut';}),futL=lines.filter(function(L){return L.type==='fut';});
+ var sub=priced.reduce(function(a,L){return a+(L.base||L.amount);},0),afterDisc=priced.reduce(function(a,L){return a+L.amount;},0),discAmt=sub-afterDisc;
+ var lowmin=LOWMIN[cust],lowApplied=afterDisc>0&&afterDisc<lowmin,itemsFinal=lowApplied?lowmin:afterDisc;
+ var freight=FREIGHT[v('b-region')]||0,fut=futL.reduce(function(a,L){return a+L.amount;},0),total=itemsFinal+freight+fut;
+ document.getElementById('t-sub').textContent=NT(sub);
+ document.getElementById('t-disc').textContent=discAmt>0?'-'+NT(discAmt):'$0';
+ document.getElementById('t-low').textContent=lowApplied?('補到低消 '+NT(lowmin)):'✓ 達低消';
+ document.getElementById('t-low').className=lowApplied?'ec-low':'';
+ document.getElementById('t-freight').textContent=NT(freight);
+ document.getElementById('t-fut').textContent=NT(fut);
+ document.getElementById('t-total').textContent=NT(total);
+}
+
+async function saveQuote(status){
+ if(!CART.length){alert('還沒有任何品項');return;}
+ var body={ project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
+   customer_name:v('b-name'), phone:v('b-phone'), address:v('b-address'), community:v('b-community'),
+   items:CART, disc:parseFloat(v('q-disc'))||1, status:status||'draft' };
+ var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
+ try{
+   var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+   var j=await r.json();
+   if(r.ok){ editId=editId||j.id; document.getElementById('ec-status').textContent='✓ 已儲存（估價單 #'+editId+'，總額 '+NT(j.total)+'）'; }
+   else alert('儲存失敗：'+(j.error||''));
+ }catch(e){ alert('儲存失敗：'+e.message); }
+}
+
+document.querySelectorAll('.ec-itab').forEach(function(t){t.onclick=function(){document.querySelectorAll('.ec-itab').forEach(function(x){x.classList.remove('on');});t.classList.add('on');document.querySelectorAll('.ec-pane').forEach(function(p){p.classList.remove('on');});document.getElementById('pane-'+t.dataset.tab).classList.add('on');};});
+
+(async function(){
+  if(window.loadUser)await loadUser();
+  if(window.highlightNav)highlightNav('estimator');
+  await loadCatalog();
+  fillSel('b-region',Object.keys(FREIGHT).map(function(k){return {v:k,t:k};}));
+  buildFilmPane('w');buildFilmPane('c');buildFilmPane('s');
+  fillSel('e-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));fillElevItem();
+  fillSel('g-cat',Object.keys(GLASS).map(function(k){return {v:k,t:GLASS[k].label};}));fillGlassSeries();
+  fillDoor();
+  fillSel('f-origin',Object.keys(FUT).map(function(k){return {v:k,t:FUT[k].label};}));fillFutM();
+  render();
+})();
+</script>
+</body>
+</html>
