@@ -3121,4 +3121,68 @@ try {
   });
 } catch(e) { console.warn('[dispatch_material_cost backfill]', e.message); }
 
+// ── 估價價目表（預設值可由「價目設定後台」手動修改；空表才 seed，不覆蓋使用者改動）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS est_films (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grp_key TEXT, grp_label TEXT, origin TEXT, width INTEGER, flat_price INTEGER DEFAULT 0,
+    sys TEXT, per_m REAL, plane REAL, cabinet REAL, shape REAL,
+    sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS est_glass (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cat_key TEXT, cat_label TEXT, sys TEXT,
+    owner_price REAL, designer_price REAL,
+    sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS est_doors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    door_key TEXT, label TEXT, frame_only INTEGER DEFAULT 0,
+    origin TEXT, layers TEXT, opt INTEGER, price REAL,
+    sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS est_freight (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    region TEXT UNIQUE, amount REAL, sort_order INTEGER DEFAULT 0
+  );
+`);
+try {
+  const _estSeed = require('./lib/estimator-seed');
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_films`).get().n) {
+    const ins = db.prepare(`INSERT INTO est_films (grp_key,grp_label,origin,width,flat_price,sys,per_m,plane,cabinet,shape,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [gk, g] of Object.entries(_estSeed.FILMS))
+      g.items.forEach(it => ins.run(gk, g.label, g.origin, g.width, g.flatPrice ? 1 : 0, it.sys, it.perM, it.plane, it.cabinet, it.shape, so++));
+  }
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_glass`).get().n) {
+    const ins = db.prepare(`INSERT INTO est_glass (cat_key,cat_label,sys,owner_price,designer_price,sort_order) VALUES (?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [ck, c] of Object.entries(_estSeed.GLASS))
+      c.items.forEach(it => ins.run(ck, c.label, it.sys, it.owner, it.designer, so++));
+  }
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_doors`).get().n) {
+    const ins = db.prepare(`INSERT INTO est_doors (door_key,label,frame_only,origin,layers,opt,price,sort_order) VALUES (?,?,?,?,?,?,?,?)`);
+    let so = 0;
+    for (const [dk, d] of Object.entries(_estSeed.DOOR)) {
+      if (d.frameOnly) {
+        ins.run(dk, d.label, 1, 'kr', null, null, d.kr, so++);
+        ins.run(dk, d.label, 1, 'jp', null, null, d.jp, so++);
+      } else {
+        for (const origin of ['kr', 'jp'])
+          for (const layers of ['1', '2'])
+            for (const opt of [0, 1])
+              ins.run(dk, d.label, 0, origin, layers, opt, d[origin][layers][opt], so++);
+      }
+    }
+  }
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_freight`).get().n) {
+    const ins = db.prepare(`INSERT OR IGNORE INTO est_freight (region,amount,sort_order) VALUES (?,?,?)`);
+    let so = 0;
+    for (const [region, amount] of Object.entries(_estSeed.FREIGHT)) ins.run(region, amount, so++);
+  }
+  db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_owner',?)`).run(String(_estSeed.LOWMIN.owner));
+  db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_designer',?)`).run(String(_estSeed.LOWMIN.designer));
+  console.log('✅ 估價價目表就緒（est_films/glass/doors/freight；空表才 seed 預設值，使用者改動不覆蓋）');
+} catch (e) { console.warn('[est pricing seed]', e.message); }
+
 module.exports = db;
