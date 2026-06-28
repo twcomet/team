@@ -70,10 +70,35 @@
       <div class="es-card"><h3>裝潢膜每才單價（依繪新真實牌價）</h3><p class="es-hint">牆面/系統櫃/造型＝三種連工帶料每才單價。材料價格＝每米牌價。<span style="color:#b45309">成本/米為機密欄，只有老闆看得到、可填寫。</span></p>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-films"></tr></thead><tbody id="tb-films"></tbody></table></div>
       </div>
+      <div class="es-card"><h3>＋ 新增膜款</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+          <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">亞洲碼</label><br><input id="nf-asia" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">韓國碼</label><br><input id="nf-kr" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:90px"></div>
+          <div><label style="font-size:11px;color:#6b7280">寬cm</label><br><input id="nf-width" type="number" value="122" style="width:60px"></div>
+          <div><label style="font-size:11px;color:#6b7280">長度米</label><br><input id="nf-len" type="number" value="50" style="width:60px"></div>
+          <div><label style="font-size:11px;color:#6b7280">材料/米</label><br><input id="nf-perm" type="number" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">牆面/才</label><br><input id="nf-plane" type="number" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">系統櫃/才</label><br><input id="nf-cab" type="number" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">造型/才</label><br><input id="nf-shape" type="number" style="width:70px"></div>
+          <div id="nf-cost-wrap" style="display:none"><label style="font-size:11px;color:#b45309">成本/米🔒</label><br><input id="nf-cost" type="number" style="width:70px;background:#fff7ed"></div>
+          <button class="es-btn es-btn-primary" onclick="addFilm()">＋ 新增</button>
+        </div>
+      </div>
     </div>
     <div id="panel-glass" class="es-panel">
       <div class="es-card"><h3>玻璃每才單價</h3><p class="es-hint">分業主 / 設計師兩價。</p>
         <div class="es-scroll"><table class="es-table"><thead><tr><th>類別</th><th>型號</th><th>業主/才</th><th>設計師/才</th><th>啟用</th><th></th></tr></thead><tbody id="tb-glass"></tbody></table></div>
+      </div>
+      <div class="es-card"><h3>＋ 新增玻璃型號</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+          <div><label style="font-size:11px;color:#6b7280">類別</label><br><select id="ng-cat" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"></select></div>
+          <div><label style="font-size:11px;color:#6b7280">型號</label><br><input id="ng-sys" style="width:160px"></div>
+          <div><label style="font-size:11px;color:#6b7280">業主/才</label><br><input id="ng-owner" type="number" style="width:80px"></div>
+          <div><label style="font-size:11px;color:#6b7280">設計師/才</label><br><input id="ng-designer" type="number" style="width:80px"></div>
+          <button class="es-btn es-btn-primary" onclick="addGlass()">＋ 新增</button>
+        </div>
       </div>
     </div>
     <div id="panel-doors" class="es-panel">
@@ -127,42 +152,80 @@ async function load() {
 
 function renderFilms() {
   const owner = !!DATA.isOwner;
+  var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
-    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>材料價格/米</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
+    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>寬度cm</th><th>長度米</th><th>材料價格/米</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
     + (owner ? '<th style="color:#b45309">成本/米 🔒</th>' : '') + '<th>啟用</th><th></th>';
-  const colspan = owner ? 10 : 9;
+  const colspan = owner ? 12 : 11;
   let lastBrand = '', h = '';
   DATA.filmCat.forEach(f => {
-    if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}（膜寬 ${f.width}cm）</td></tr>`; }
+    if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}</td></tr>`; }
     const code = f.kr_code ? `${esc(f.asia_code)} / ${esc(f.kr_code)}` : esc(f.asia_code);
     h += `<tr data-id="${f.id}">
       <td></td>
-      <td style="white-space:normal;min-width:140px">${code}</td>
+      <td style="white-space:normal;min-width:130px">${code}</td>
       <td style="white-space:normal">${esc(f.color)}</td>
+      <td><input type="number" value="${f.width ?? 122}" data-k="width"></td>
+      <td><input type="number" value="${f.roll_len ?? 50}" data-k="roll_len"></td>
       <td><input type="number" value="${f.per_m ?? 0}" data-k="per_m"></td>
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
       ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed"></td>` : ''}
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
-      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><span class="es-saved"></span></td>
+      <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved"></span></td>
     </tr>`;
   });
   document.getElementById('tb-films').innerHTML = h;
 }
+async function delFilm(id){
+  if(!confirm('確定刪除這個膜款？')) return;
+  await fetch(`${API}/film-catalog/${id}`, { method:'DELETE' });
+  load();
+}
+async function addFilm(){
+  var body = {
+    brand: document.getElementById('nf-brand').value,
+    asia_code: document.getElementById('nf-asia').value,
+    kr_code: document.getElementById('nf-kr').value,
+    color: document.getElementById('nf-color').value,
+    width: document.getElementById('nf-width').value,
+    roll_len: document.getElementById('nf-len').value,
+    per_m: document.getElementById('nf-perm').value,
+    plane: document.getElementById('nf-plane').value,
+    cabinet: document.getElementById('nf-cab').value,
+    shape: document.getElementById('nf-shape').value,
+  };
+  var ce = document.getElementById('nf-cost'); if(ce) body.cost_per_m = ce.value;
+  if(!body.asia_code && !body.color){ alert('請至少填代碼或花色'); return; }
+  var r = await fetch(`${API}/film-catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if(r.ok){ ['nf-asia','nf-kr','nf-color','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){document.getElementById(id).value='';}); load(); }
+  else alert('新增失敗');
+}
 function renderGlass() {
   let lastCat = '', h = '';
+  var cats = {};
   DATA.glass.forEach(g => {
+    cats[g.cat_key] = g.cat_label;
     if (g.cat_label !== lastCat) { lastCat = g.cat_label; h += `<tr class="es-grp"><td colspan="6">${esc(g.cat_label)}</td></tr>`; }
     h += `<tr data-id="${g.id}">
       <td></td><td style="white-space:normal;min-width:200px">${esc(g.sys)}</td>
       <td><input type="number" value="${g.owner_price}" data-k="owner_price"></td>
       <td><input type="number" value="${g.designer_price}" data-k="designer_price"></td>
       <td><input type="checkbox" ${g.active?'checked':''} data-k="active" style="width:auto"></td>
-      <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('glass',this)">儲存</button><span class="es-saved"></span></td>
+      <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('glass',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delGlass(${g.id})">刪</button><span class="es-saved"></span></td>
     </tr>`;
   });
   document.getElementById('tb-glass').innerHTML = h;
+  var sel = document.getElementById('ng-cat'); if (sel) { sel.innerHTML = Object.keys(cats).map(function(k){return '<option value="'+k+'">'+esc(cats[k])+'</option>';}).join(''); }
+}
+async function delGlass(id){ if(!confirm('確定刪除這個玻璃型號？'))return; await fetch(`${API}/glass/${id}`,{method:'DELETE'}); load(); }
+async function addGlass(){
+  var sel=document.getElementById('ng-cat'), catKey=sel.value, catLabel=sel.options[sel.selectedIndex].textContent;
+  var body={ cat_key:catKey, cat_label:catLabel, sys:document.getElementById('ng-sys').value, owner_price:document.getElementById('ng-owner').value, designer_price:document.getElementById('ng-designer').value };
+  if(!body.sys){ alert('請填型號'); return; }
+  var r=await fetch(`${API}/glass`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){ ['ng-sys','ng-owner','ng-designer'].forEach(function(id){document.getElementById(id).value='';}); load(); } else alert('新增失敗');
 }
 function renderDoors() {
   let lastCat = '', h = '';

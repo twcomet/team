@@ -11,10 +11,10 @@ function seedCatalogDefaults(force) {
   // 注意：本專案用 node:sqlite(DatabaseSync)，無 .transaction()；直接逐筆 insert（seed 量小、可接受）
   if (force) db.exec('DELETE FROM est_film_catalog; DELETE FROM est_door_catalog;');
   if (!db.prepare('SELECT COUNT(*) n FROM est_film_catalog').get().n) {
-    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
     let so = 0;
     for (const [brand, b] of Object.entries(_catData.FILMS))
-      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, so++));
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, it.rollLen || 50, so++));
   }
   if (!db.prepare('SELECT COUNT(*) n FROM est_door_catalog').get().n) {
     const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
@@ -64,6 +64,17 @@ router.put('/glass/:id', requireAuth, requireEdit, (req, res) => {
   const { owner_price, designer_price, active } = req.body;
   db.prepare(`UPDATE est_glass SET owner_price=?,designer_price=?,active=? WHERE id=?`)
     .run(Number(owner_price)||0, Number(designer_price)||0, active?1:0, req.params.id);
+  res.json({ ok: true });
+});
+router.post('/glass', requireAuth, requireEdit, (req, res) => {
+  const b = req.body || {};
+  const maxSo = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_glass`).get().n;
+  const info = db.prepare(`INSERT INTO est_glass (cat_key,cat_label,sys,owner_price,designer_price,sort_order) VALUES (?,?,?,?,?,?)`)
+    .run(b.cat_key || '', b.cat_label || '', b.sys || '', Number(b.owner_price)||0, Number(b.designer_price)||0, maxSo);
+  res.json({ ok: true, id: info.lastInsertRowid });
+});
+router.delete('/glass/:id', requireAuth, requireEdit, (req, res) => {
+  db.prepare(`DELETE FROM est_glass WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -181,11 +192,25 @@ router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
 // 改單筆裝潢膜（每米＋三種連工帶料價）
 router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
   const isOwner = req.session.user.role === 'owner';
-  const { per_m, plane, cabinet, shape, active, cost_per_m } = req.body;
-  db.prepare(`UPDATE est_film_catalog SET per_m=?,plane=?,cabinet=?,shape=?,active=? WHERE id=?`)
-    .run(Number(per_m)||0, Number(plane)||0, Number(cabinet)||0, Number(shape)||0, active?1:0, req.params.id);
+  const { per_m, plane, cabinet, shape, active, cost_per_m, width, roll_len } = req.body;
+  db.prepare(`UPDATE est_film_catalog SET per_m=?,plane=?,cabinet=?,shape=?,width=?,roll_len=?,active=? WHERE id=?`)
+    .run(Number(per_m)||0, Number(plane)||0, Number(cabinet)||0, Number(shape)||0, Number(width)||122, Number(roll_len)||50, active?1:0, req.params.id);
   if (isOwner && cost_per_m !== undefined) // 成本只有老闆能改；非老闆送來的 cost 一律忽略、不覆蓋
     db.prepare(`UPDATE est_film_catalog SET cost_per_m=? WHERE id=?`).run(Number(cost_per_m)||0, req.params.id);
+  res.json({ ok: true });
+});
+// 新增膜款
+router.post('/film-catalog', requireAuth, requireEdit, (req, res) => {
+  const isOwner = req.session.user.role === 'owner';
+  const b = req.body || {};
+  const maxSo = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_film_catalog`).get().n;
+  const info = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,per_m,plane,cabinet,shape,width,roll_len,cost_per_m,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(b.brand || 'bodaq', b.asia_code || '', b.kr_code || '', b.color || '', Number(b.per_m)||0, Number(b.plane)||0, Number(b.cabinet)||0, Number(b.shape)||0, Number(b.width)||122, Number(b.roll_len)||50, isOwner ? (Number(b.cost_per_m)||0) : 0, maxSo);
+  res.json({ ok: true, id: info.lastInsertRowid });
+});
+// 刪除膜款
+router.delete('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
+  db.prepare(`DELETE FROM est_film_catalog WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 // 改單筆門固定價

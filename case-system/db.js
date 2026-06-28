@@ -3205,7 +3205,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     brand TEXT, asia_code TEXT, kr_code TEXT, color TEXT, model_note TEXT,
     per_m REAL DEFAULT 0, cost_per_m REAL DEFAULT 0,
-    plane REAL, cabinet REAL, shape REAL, width INTEGER DEFAULT 122,
+    plane REAL, cabinet REAL, shape REAL, width INTEGER DEFAULT 122, roll_len REAL DEFAULT 50,
     sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
   );
   CREATE TABLE IF NOT EXISTS est_door_catalog (
@@ -3217,13 +3217,14 @@ db.exec(`
 // 既有 DB 補欄（_addCol 須在 CREATE TABLE 之後；同步寫進上方 CREATE TABLE 定義）
 _addCol('est_film_catalog', 'per_m',      'REAL DEFAULT 0');   // 材料價格/米（牌價）
 _addCol('est_film_catalog', 'cost_per_m', 'REAL DEFAULT 0');   // 成本/米（機密，只老闆）
+_addCol('est_film_catalog', 'roll_len',   'REAL DEFAULT 50');  // 長度（米，1米=100cm）
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
-    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
     let so = 0;
     for (const [brand, b] of Object.entries(_cat.FILMS))
-      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, so++));
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, it.rollLen || 50, so++));
   }
   // 補 per_m（既有列 seed 時還沒這欄；只補空值，不覆蓋老闆改動；cost 不補、由老闆自填）
   { const updPm = db.prepare(`UPDATE est_film_catalog SET per_m=? WHERE brand=? AND asia_code=? AND (per_m IS NULL OR per_m=0)`);
