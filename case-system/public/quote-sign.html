@@ -338,13 +338,15 @@ function buildItemCard(it) {
       const surfLabel = SURFACE_LABEL[it.surface_type] || it.surface_type || '—';
       const sqChi    = it.area_sqchi != null ? Number(it.area_sqchi).toFixed(2) + ' 才' : '—';
       const unitPriceStr = it.unit_price ? fmt(it.unit_price) + ' / 才' : '—';
+      const hideChi = quoteData && quoteData.hide_chi;  // 業主版：隱藏才數/尺寸/單價，只給項目與金額
       specHtml = `
         <div class="item-spec">
           ${brandLine ? `<div class="item-spec-cell"><div class="lbl">膜料</div><div class="val">${esc(brandLine)}</div></div>` : ''}
+          ${hideChi ? '' : `
           <div class="item-spec-cell"><div class="lbl">面材類型</div><div class="val">${esc(surfLabel)}</div></div>
           <div class="item-spec-cell"><div class="lbl">尺寸</div><div class="val">${dimLine}</div></div>
           <div class="item-spec-cell"><div class="lbl">才數</div><div class="val" style="font-weight:700;color:var(--blue)">${sqChi}</div></div>
-          <div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${unitPriceStr}</div></div>
+          <div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${unitPriceStr}</div></div>`}
         </div>`;
     }
   } else if (it.item_type === 'catalog' || it.item_type === 'service') {
@@ -357,11 +359,12 @@ function buildItemCard(it) {
         </div>`;
     } else {
       const priceStr = it.unit_price ? `${fmt(it.unit_price)} / ${it.unit||'件'}` : '—';
+      const hideChi2 = quoteData && quoteData.hide_chi;  // 業主版：隱藏單價
       specHtml = `
         <div class="item-spec">
           ${it.description ? `<div class="item-spec-cell" style="grid-column:1/-1"><div class="lbl">說明</div><div class="val">${esc(it.description)}</div></div>` : ''}
           <div class="item-spec-cell"><div class="lbl">數量</div><div class="val">${qtyLine}</div></div>
-          <div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${priceStr}</div></div>
+          ${hideChi2 ? '' : `<div class="item-spec-cell"><div class="lbl">單價</div><div class="val">${priceStr}</div></div>`}
         </div>`;
     }
   }

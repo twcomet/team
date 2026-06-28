@@ -443,7 +443,20 @@ router.get('/sign/:token', (req, res) => {
     `).all(q.case_id);
   }
 
-  res.json({ ...q, items });
+  // 🔒 客戶端機密過濾：成本欄位「永遠」不送到客戶頁（防外洩）；
+  //    業主版（client_type='owner'）另外隱藏才數/尺寸/單價，只給項目與金額。
+  //    ⚠️ 日後新增任何成本類欄位，務必加進 COST_FIELDS。
+  const hideChi = (q.client_type === 'owner');
+  const COST_FIELDS = ['cost_per_meter', 'material_cost', 'estimated_meters', 'material_id'];
+  const CHI_FIELDS  = ['area_sqchi', 'length_cm', 'width_cm', 'height_cm', 'film_width_cm', 'unit_price', 'surface_type'];
+  items = items.map(it => {
+    const o = { ...it };
+    for (const f of COST_FIELDS) delete o[f];
+    if (hideChi) for (const f of CHI_FIELDS) delete o[f];
+    return o;
+  });
+
+  res.json({ ...q, hide_chi: hideChi ? 1 : 0, items });
 });
 
 router.post('/sign/:token', (req, res) => {
