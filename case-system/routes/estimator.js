@@ -11,10 +11,10 @@ function seedCatalogDefaults(force) {
   // 注意：本專案用 node:sqlite(DatabaseSync)，無 .transaction()；直接逐筆 insert（seed 量小、可接受）
   if (force) db.exec('DELETE FROM est_film_catalog; DELETE FROM est_door_catalog;');
   if (!db.prepare('SELECT COUNT(*) n FROM est_film_catalog').get().n) {
-    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)`);
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
     let so = 0;
     for (const [brand, b] of Object.entries(_catData.FILMS))
-      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.plane, it.cabinet, it.shape, it.width || 122, so++));
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, so++));
   }
   if (!db.prepare('SELECT COUNT(*) n FROM est_door_catalog').get().n) {
     const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
@@ -167,9 +167,11 @@ router.get('/quotes/:id', requireAuth, (req, res) => {
 // 讀全部（估價頁與設定頁共用）
 router.get('/catalog', requireAuth, (req, res) => {
   try { seedCatalogDefaults(false); } catch (e) { console.warn('[catalog lazy seed]', e.message); } // 保險：空表自動帶入
+  const isOwner = req.session.user.role === 'owner';
   const films = db.prepare(`SELECT * FROM est_film_catalog ORDER BY sort_order, id`).all();
+  if (!isOwner) films.forEach(f => { delete f.cost_per_m; }); // 成本機密：非老闆一律不外送（含估價計算機）
   const doors = db.prepare(`SELECT * FROM est_door_catalog ORDER BY sort_order, id`).all();
-  res.json({ films, doors });
+  res.json({ films, doors, isOwner });
 });
 // 匯入/回復 裝潢膜+門 預設牌價（整張重灌）
 router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
@@ -178,9 +180,12 @@ router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
 });
 // 改單筆裝潢膜（每米＋三種連工帶料價）
 router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
-  const { model_note, plane, cabinet, shape, active } = req.body;
-  db.prepare(`UPDATE est_film_catalog SET model_note=?,plane=?,cabinet=?,shape=?,active=? WHERE id=?`)
-    .run(model_note || '', Number(plane)||0, Number(cabinet)||0, Number(shape)||0, active?1:0, req.params.id);
+  const isOwner = req.session.user.role === 'owner';
+  const { per_m, plane, cabinet, shape, active, cost_per_m } = req.body;
+  db.prepare(`UPDATE est_film_catalog SET per_m=?,plane=?,cabinet=?,shape=?,active=? WHERE id=?`)
+    .run(Number(per_m)||0, Number(plane)||0, Number(cabinet)||0, Number(shape)||0, active?1:0, req.params.id);
+  if (isOwner && cost_per_m !== undefined) // 成本只有老闆能改；非老闆送來的 cost 一律忽略、不覆蓋
+    db.prepare(`UPDATE est_film_catalog SET cost_per_m=? WHERE id=?`).run(Number(cost_per_m)||0, req.params.id);
   res.json({ ok: true });
 });
 // 改單筆門固定價
