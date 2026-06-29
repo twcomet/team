@@ -102,6 +102,12 @@
         <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;display:none">
           <option value="">全部分店</option>
         </select>
+        <div style="position:relative;flex:1;min-width:220px;max-width:360px">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none">🔍</span>
+          <input id="kwSearch" type="text" autocomplete="off" placeholder="搜尋型號、案號、客戶、品牌、訂貨人…"
+                 style="width:100%;padding:6px 28px 6px 30px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+          <span id="kwClear" onclick="clearSearch()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:15px;cursor:pointer">✕</span>
+        </div>
       </div>
       <div id="poList"></div>
     </div>
@@ -343,6 +349,7 @@ async function init() {
 
   document.getElementById('statusFilter').addEventListener('change', loadOrders);
   document.getElementById('orgFilter').addEventListener('change', loadOrders);
+  document.getElementById('kwSearch').addEventListener('input', renderOrders);
   ['po_quantity_meters','po_unit_cost'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateTotalDisplay);
   });
@@ -365,10 +372,35 @@ async function loadOrders() {
   renderOrders();
 }
 
+function clearSearch() {
+  const box = document.getElementById('kwSearch');
+  box.value = '';
+  box.focus();
+  renderOrders();
+}
+
+function poMatches(po, q) {
+  const fields = [
+    po.brand, po.mat_brand, po.series_code, po.mat_model,
+    po.case_number, po.client_name, po.case_title,
+    po.ordered_by_name, po.carrier, po.payment_method, po.notes,
+    po.quantity_meters != null ? String(po.quantity_meters) : ''
+  ];
+  const hay = fields.filter(Boolean).join(' ').toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every(t => hay.includes(t));
+}
+
 function renderOrders() {
   const el = document.getElementById('poList');
   if (!orders.length) {
     el.innerHTML = '<p style="text-align:center;color:#6b7280;padding:40px">尚無採購紀錄</p>';
+    return;
+  }
+  const q = (document.getElementById('kwSearch').value || '').trim().toLowerCase();
+  document.getElementById('kwClear').style.display = q ? 'block' : 'none';
+  const list = q ? orders.filter(po => poMatches(po, q)) : orders;
+  if (!list.length) {
+    el.innerHTML = `<p style="text-align:center;color:#6b7280;padding:40px">找不到符合「${esc(q)}」的採購紀錄</p>`;
     return;
   }
   const today = new Date().toISOString().slice(0,10);
@@ -379,7 +411,7 @@ function renderOrders() {
     <table style="border-collapse:collapse;width:100%;min-width:1320px;font-size:13px">
     <thead><tr>${headers.map(h=>`<th style="padding:9px 10px;text-align:left;white-space:nowrap;background:#fce7f3;color:#9d174d;border-bottom:2px solid #f9a8d4;position:sticky;top:0">${h}</th>`).join('')}</tr></thead><tbody>`;
   let curMonth = null;
-  orders.forEach(po => {
+  list.forEach(po => {
     const m = (po.created_at||'').slice(0,7);
     if (m !== curMonth) {
       curMonth = m;
