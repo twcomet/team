@@ -64,6 +64,7 @@ async function loadUser() {
     payments:         p.page_payments,
     ledger:           p.page_ledger !== undefined ? p.page_ledger : p.page_payments,
     expenses:         p.page_expenses !== undefined ? p.page_expenses : ['owner','hq_accounting'].includes(currentUser.role),
+    subcontract:      p.page_subcontract !== undefined ? p.page_subcontract : ['owner','branch_manager','hq_accounting','hq_cs'].includes(currentUser.role),
     vendors:          ['owner','hq_accounting'].includes(currentUser.role),
     assets:           true,
     purchases:        p.page_materials !== undefined ? p.page_materials : mu,

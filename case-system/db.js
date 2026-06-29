@@ -2166,6 +2166,46 @@ _addCol('vendors', 'email',             'TEXT DEFAULT NULL');
 _addCol('vendors', 'address',           'TEXT DEFAULT NULL');
 _addCol('vendors', 'category',          "TEXT DEFAULT 'other'");
 
+// ── 協力外包（非簽約外包人力）────────────────────────────────────
+// 狀態不存欄位，由 work_date vs 今天 + paid_at 動態判斷（待施工/已完工待付款/已完工已付款）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS subcontract_jobs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id        INTEGER REFERENCES orgs(id),
+    case_id       INTEGER REFERENCES cases(id),
+    category      TEXT,
+    worker        TEXT,
+    vendor        TEXT,
+    work_date     DATE,
+    hours         REAL,
+    staff_amount  REAL,
+    owner_cost    REAL,
+    paid_at       DATE,
+    paid_by       INTEGER REFERENCES users(id),
+    note          TEXT,
+    created_by    INTEGER REFERENCES users(id),
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS subcontract_categories (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    active     INTEGER DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS subcontract_workers (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    sort_order INTEGER DEFAULT 0,
+    active     INTEGER DEFAULT 1
+  );
+`);
+// 預設外包類別（只在空的時候 seed）
+if (!db.prepare(`SELECT id FROM subcontract_categories LIMIT 1`).get()) {
+  const insSc = db.prepare(`INSERT INTO subcontract_categories (name, sort_order) VALUES (?, ?)`);
+  ['貼膜','油漆','矽利康','拆除','清潔'].forEach((n, i) => insSc.run(n, i));
+}
+
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
 try {
   db.prepare(`UPDATE vendors SET category='logistics'  WHERE (category IS NULL OR category='other') AND (name LIKE '%物流%' OR name LIKE '%快遞%' OR name LIKE '%便利袋%' OR name LIKE '%大榮%' OR name LIKE '%順豐%' OR name LIKE '%郵寄%' OR name LIKE '%Lalamove%' OR name LIKE '%i郵箱%')`).run();

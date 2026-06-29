@@ -84,6 +84,7 @@ app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
+app.use('/api/subcontract',           require('./routes/subcontract'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
 app.use('/api/staff-performance',     require('./routes/staff-performance'));
@@ -130,6 +131,7 @@ const PAGE_PERMS = {
   hr:               'page_hr',
   contracts:        'manage_users',
   expenses:         'page_expenses',
+  subcontract:      'page_subcontract',
   'expense-liff':   null,
   deposits:         'page_clients',
   leave:            null,
@@ -171,6 +173,9 @@ function requirePagePerm(page) {
       allowed = p.page_marketing !== undefined ? p.page_marketing === true : !!u.manage_users;
     } else if (key === 'page_hr') {
       allowed = p.page_hr !== undefined ? p.page_hr === true : ['owner','hq_hr'].includes(u.role);
+    } else if (key === 'page_subcontract') {
+      // 協力外包：老闆 + 店長 + 會計 + 客服
+      allowed = p.page_subcontract !== undefined ? p.page_subcontract === true : ['owner','branch_manager','hq_accounting','hq_cs'].includes(u.role);
     } else {
       allowed = p[key] === true;
     }
@@ -197,7 +202,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
@@ -207,11 +212,6 @@ pages.forEach(page => {
 });
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
-
-// 協力外包【預覽頁・未接資料】— 僅登入可看，不放選單、不碰正式流程，供 Flora 檢視真畫面
-app.get('/subcontract', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'subcontract.html'));
-});
 
 // 員工績效報表（僅 owner）
 app.get('/staff-performance', requireAuth, requireContract, (req, res) => {

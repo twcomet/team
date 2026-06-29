@@ -104,7 +104,6 @@ table td, table th { font-size:13px; }
     <div class="top-bar">
       <span class="page-title">協力外包</span>
       <div style="display:flex;gap:8px;align-items:center">
-        <span class="preview-flag">預覽模式・未接資料（畫面用假資料示意）</span>
         <button class="btn btn-primary btn-sm" onclick="openNew()">＋ 新增外包</button>
       </div>
     </div>
@@ -130,7 +129,6 @@ table td, table th { font-size:13px; }
           <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
           <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
             <option value="">全部分店</option>
-            <option>總部</option><option>鶯歌</option><option>新竹</option>
           </select>
           <select id="catFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
             <option value="">全部類別</option>
@@ -193,7 +191,7 @@ table td, table th { font-size:13px; }
       <div class="form-group">
         <label class="form-label">分店 *</label>
         <input class="form-input" id="f_org" list="dlOrg" placeholder="輸入或選擇分店">
-        <datalist id="dlOrg"><option>總部</option><option>鶯歌</option><option>新竹</option></datalist>
+        <datalist id="dlOrg"></datalist>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
@@ -231,7 +229,11 @@ table td, table th { font-size:13px; }
       </div>
       <div class="form-group">
         <label class="form-label">關聯案件（可不綁，留空＝歸分店外包成本）</label>
-        <input class="form-input" id="f_case" placeholder="輸入案號或客戶搜尋…（示意，可留空）">
+        <div class="ac-wrap">
+          <input class="form-input" id="f_case" autocomplete="off" placeholder="輸入案號或客戶搜尋…" oninput="onCaseSearch(this.value)">
+          <input type="hidden" id="f_case_id">
+          <div class="ac-drop" id="caseDrop"></div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">備註</label>
@@ -247,48 +249,60 @@ table td, table th { font-size:13px; }
 
 <script src="/js/common.js"></script>
 <script>
-// ───── 假資料（純示意，未接 API）─────
-let catTags    = ['貼膜','油漆','矽利康','拆除','清潔'];
-let workerTags = ['阿明','大雄','點工-阿德'];                 // 個人/點工（領現）→ 標籤清單在本頁維護
-let vendorList = ['阿源工班','小林貼膜','順發油漆行'];          // 正式廠商（轉帳）→ 來自「供應商管理」vendors（示意）
-// 模擬目前登入者身分（示意先全給 true）
-let canPay  = true;   // owner 或 accountant 才為 true → 能確認付款
-let isOwner = true;   // 只有 owner 看得到/填得了「確定成本」(機密)
-
-// staffAmount=員工填寫金額(有頁面權限者皆可見)；ownerCost=老闆確定成本(機密，只老闆可填可見，入帳/算毛利用這個)
 // 狀態自動判斷：已付款→已完工已付款；否則 施工日<=今天→已完工待付款、施工日>今天→待施工
 const TODAY = new Date().toISOString().slice(0,10);
-function effStatus(r){ return r.paid_at ? 'paid' : ((r.date && r.date <= TODAY) ? 'unpaid' : 'todo'); }
+function effStatus(r){ return r.paid_at ? 'paid' : ((r.work_date && r.work_date <= TODAY) ? 'unpaid' : 'todo'); }
 
-let rows = [
-  { id:1, date:'2026-07-02', cat:'油漆',  worker:'阿明',     hours:6, staffAmount:4500, ownerCost:4200, case:'HX2606-236', client:'歐銳室內設計', vendor:null,       org:'總部', paid_at:null },
-  { id:2, date:'2026-06-30', cat:'拆除',  worker:'阿源工班', hours:4, staffAmount:3200, ownerCost:null, case:'HX2606-278', client:'群鼎裝潢',     vendor:'阿源工班', org:'鶯歌', paid_at:null },
-  { id:3, date:'2026-06-20', cat:'矽利康',worker:'大雄',     hours:3, staffAmount:2800, ownerCost:2800, case:'HX2606-199', client:'序幸藝術',     vendor:null,       org:'總部', paid_at:null },
-  { id:4, date:'2026-06-22', cat:'貼膜',  worker:'小林貼膜', hours:8, staffAmount:9000, ownerCost:null, case:null,          client:null,           vendor:'小林貼膜', org:'新竹', paid_at:null },
-  { id:5, date:'2026-06-10', cat:'油漆',  worker:'點工-阿德',hours:5, staffAmount:3500, ownerCost:3500, case:'HX2606-076', client:'泛設計',       vendor:null,       org:'總部', paid_at:'2026-06-18' },
-  { id:6, date:'2026-05-28', cat:'清潔',  worker:'大雄',     hours:2, staffAmount:1500, ownerCost:1400, case:'HX2605-199', client:'序幸藝術',     vendor:null,       org:'鶯歌', paid_at:'2026-06-05' },
-];
-
-let curTab = 'todo';
+let rows = [], cats = [], workers = [], vendors = [], orgs = [];
+let isOwner = false, canPay = false;          // 由後端回傳：確定成本只老闆可見、付款限老闆+會計
+let curTab = 'todo', editId = null;
 const SB = { todo:['sb-todo','待施工'], unpaid:['sb-unpaid','已完工待付款'], paid:['sb-paid','已完工已付款'] };
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const V = id => document.getElementById(id).value.trim();
 
 document.addEventListener('DOMContentLoaded', async () => {
   try { if (window.loadUser) await loadUser(); } catch(e){}
   try { if (window.highlightNav) highlightNav('subcontract'); } catch(e){}
   document.querySelectorAll('.tabs-bar .tab').forEach(t =>
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
-  fillCatOptions();
-  renderTags();
-  render();
+  await loadLists();
+  await loadJobs();
 });
 
-function fillCatOptions() {
-  document.getElementById('catFilter').innerHTML =
-    ['<option value="">全部類別</option>'].concat(catTags.map(c=>`<option>${c}</option>`)).join('');
-  // 自動媒合建議清單（可打字、輸入關鍵字跳建議）
-  document.getElementById('dlCat').innerHTML    = catTags.map(c=>`<option>${c}</option>`).join('');
-  document.getElementById('dlWorker').innerHTML = workerTags.map(w=>`<option>${w}</option>`).join('');
-  document.getElementById('dlVendor').innerHTML = vendorList.map(v=>`<option>${v}</option>`).join('');
+async function loadLists(){
+  try {
+    const [o,c,w,v] = await Promise.all([
+      fetch('/api/orgs').then(r=>r.ok?r.json():[]),
+      fetch('/api/subcontract/categories').then(r=>r.ok?r.json():[]),
+      fetch('/api/subcontract/workers').then(r=>r.ok?r.json():[]),
+      fetch('/api/subcontract/vendors').then(r=>r.ok?r.json():[]),
+    ]);
+    orgs=o||[]; cats=c||[]; workers=w||[]; vendors=v||[];
+  } catch(e){ console.error('loadLists', e); }
+  fillOptions();
+  renderTags();
+}
+
+function fillOptions(){
+  const orgOpts = orgs.map(o=>`<option>${esc(o.name)}</option>`).join('');
+  document.getElementById('orgFilter').innerHTML = '<option value="">全部分店</option>' + orgOpts;
+  document.getElementById('dlOrg').innerHTML = orgOpts;
+  document.getElementById('catFilter').innerHTML = '<option value="">全部類別</option>' + cats.map(c=>`<option>${esc(c.name)}</option>`).join('');
+  document.getElementById('dlCat').innerHTML    = cats.map(c=>`<option>${esc(c.name)}</option>`).join('');
+  document.getElementById('dlWorker').innerHTML = workers.map(w=>`<option>${esc(w.name)}</option>`).join('');
+  document.getElementById('dlVendor').innerHTML = vendors.map(v=>`<option>${esc(v.name)}</option>`).join('');
+}
+
+async function loadJobs(){
+  try {
+    const r = await fetch('/api/subcontract');
+    if (!r.ok) { document.getElementById('listBody').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#dc2626;padding:36px">載入失敗（${r.status}），請重新整理</td></tr>`; return; }
+    const data = await r.json();
+    rows = data.rows || [];
+    isOwner = !!(data.me && data.me.isOwner);
+    canPay  = !!(data.me && data.me.canPay);
+  } catch(e){ console.error('loadJobs', e); }
+  render();
 }
 
 function switchTab(tab) {
@@ -309,10 +323,10 @@ function render() {
   const org   = document.getElementById('orgFilter').value;
   const cat   = document.getElementById('catFilter').value;
   let list = rows.filter(r => effStatus(r)===curTab)
-    .filter(r => !month || (effStatus(r)==='paid' ? (r.paid_at||'').startsWith(month) : (r.date||'').startsWith(month)))
-    .filter(r => !org || r.org===org)
-    .filter(r => !cat || r.cat===cat)
-    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+    .filter(r => !month || (effStatus(r)==='paid' ? (r.paid_at||'').startsWith(month) : (r.work_date||'').startsWith(month)))
+    .filter(r => !org || r.org_name===org)
+    .filter(r => !cat || r.category===cat)
+    .sort((a,b)=> (b.work_date||'').localeCompare(a.work_date||''));
 
   // 非老闆隱藏「確定成本」整欄
   document.getElementById('thOwnerCost').style.display = isOwner ? '' : 'none';
@@ -324,9 +338,9 @@ function render() {
     document.getElementById('sumLine').textContent = '';
     return;
   }
-  const dateField = curTab==='paid' ? 'paid_at' : 'date';
+  const dateField = curTab==='paid' ? 'paid_at' : 'work_date';
   // 合計：老闆看「確定成本」總額（真成本）、其他人看員工填寫總額
-  const total = list.reduce((s,r)=> s + (isOwner ? (r.ownerCost ?? r.staffAmount) : r.staffAmount), 0);
+  const total = list.reduce((s,r)=> s + (isOwner ? (r.owner_cost ?? r.staff_amount) : r.staff_amount), 0);
   document.getElementById('sumLine').textContent =
     `${list.length} 筆・${isOwner?'確定成本':'員工填寫'}合計 NT$${total.toLocaleString()}${curTab==='unpaid'?'（待付款）':curTab==='paid'?'（已入帳）':''}`;
 
@@ -336,13 +350,13 @@ function render() {
     const m = (r[dateField]||'').slice(0,7);
     if (m !== curMonth) { curMonth = m; html += `<tr class="month-row"><td colspan="${COLS}">▍${m ? m.replace('-',' 年 ')+' 月' : '未排日期'}</td></tr>`; }
     const sb = SB[st];
-    const caseCell = r.case
-      ? `<a href="#" class="act-link" style="color:#1a56db">${r.case}</a>${r.client?`<div class="muted" style="font-size:11px">👤 ${r.client}</div>`:''}`
+    const caseCell = r.case_number
+      ? `<a href="/case-detail?id=${r.case_id}" class="act-link" style="color:#1a56db">${esc(r.case_number)}</a>${r.client_name?`<div class="muted" style="font-size:11px">👤 ${esc(r.client_name)}</div>`:''}`
       : `<span class="status-badge" style="background:#f3f4f6;color:#6b7280">分店外包</span>`;
     // 確定成本欄（只有老闆看得到；未填顯示提示，老闆可點填）
     const ownerCostCell = !isOwner ? '' : (
-      r.ownerCost != null
-        ? `<td><span class="amt ${st==='paid'?'amt-paid':''}">NT$${r.ownerCost.toLocaleString()}</span></td>`
+      r.owner_cost != null
+        ? `<td><span class="amt ${st==='paid'?'amt-paid':''}">NT$${Number(r.owner_cost).toLocaleString()}</span></td>`
         : (st==='paid'
             ? `<td><span class="muted">—</span></td>`
             : `<td><a href="#" class="act-link" style="color:#dc2626" onclick="openEdit(${r.id});return false">＋設定成本</a></td>`)
@@ -350,26 +364,28 @@ function render() {
     let acts = '';
     if (st==='todo')   acts = `<a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a><a href="#" class="act-link" style="color:#dc2626" onclick="del(${r.id});return false">刪除</a>`;
     if (st==='unpaid') {
-      const needCost = r.ownerCost == null;
+      const needCost = r.owner_cost == null;
       acts = canPay
         ? (needCost
             ? `<span class="lock-note">⚠️ 老闆先設定成本才可付款</span><a href="#" class="act-link" style="color:#6b7280;margin-left:8px" onclick="openEdit(${r.id});return false">編輯</a>`
             : `<a href="#" class="act-link" style="color:#b45309" onclick="confirmPay(${r.id});return false">✓ 確認付款</a><a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a>`)
         : `<span class="lock-note">🔒 待會計／老闆付款</span>`;
     }
-    if (st==='paid')   acts = `<span class="lock-note">🔒 已入帳鎖定</span> <a href="/ledger" class="act-link" style="color:#1a56db">查流水帳</a>`;
+    if (st==='paid')   acts = canPay
+        ? `<span class="lock-note">已付款</span> <a href="#" class="act-link" style="color:#dc2626;margin-left:6px" onclick="unpay(${r.id});return false">取消付款</a>`
+        : `<span class="lock-note">🔒 已付款鎖定</span>`;
 
     html += `<tr>
       <td><span class="status-badge ${sb[0]}">${sb[1]}</span></td>
-      <td>${r.date||'<span class="muted">—</span>'}</td>
-      <td><span class="cat-pill">${r.cat}</span></td>
-      <td>${r.worker}</td>
+      <td>${r.work_date||'<span class="muted">—</span>'}</td>
+      <td><span class="cat-pill">${esc(r.category||'—')}</span></td>
+      <td>${esc(r.worker||'—')}</td>
       <td>${r.hours?r.hours+' hr':'<span class="muted">—</span>'}</td>
-      <td><span class="amt">NT$${r.staffAmount.toLocaleString()}</span></td>
+      <td><span class="amt">NT$${Number(r.staff_amount||0).toLocaleString()}</span></td>
       ${ownerCostCell}
       <td style="max-width:200px">${caseCell}</td>
-      <td>${r.vendor||'<span class="muted">—</span>'}</td>
-      <td>${r.org}</td>
+      <td>${esc(r.vendor)||'<span class="muted">—</span>'}</td>
+      <td>${esc(r.org_name||'—')}</td>
       <td>${r.paid_at||'<span class="muted">—</span>'}</td>
       <td style="white-space:nowrap">${acts}</td>
     </tr>`;
@@ -377,26 +393,36 @@ function render() {
   body.innerHTML = html;
 }
 
-// ───── 互動（純前端示意，改記憶體不存後端）─────
-function confirmPay(id){
+// ───── 互動（接後端 API）─────
+async function confirmPay(id){
   const r=rows.find(x=>x.id===id); if(!r) return;
-  if(r.ownerCost==null){ alert('老闆尚未設定「確定成本」，無法確認付款。'); return; }
-  const d = prompt('輸入付款日期（系統會用這天入流水帳）', TODAY);
+  if(r.owner_cost==null){ alert('老闆尚未設定「確定成本」，無法確認付款。'); return; }
+  const d = prompt('輸入付款日期（系統會用這天認列）', TODAY);
   if(!d) return;
-  r.paid_at=d;
-  alert(`已確認付款 ✓\n\n系統將以「老闆確定成本」寫入流水帳：\n・日期：${d}（付款日）\n・科目：成本-人力外包\n・金額：NT$${r.ownerCost.toLocaleString()}（確定成本，非員工填寫的 ${r.staffAmount.toLocaleString()}）\n・廠商：${r.vendor||'—'}\n・案件：${r.case||'（分店外包）'}\n\n（示意，未真的寫入）`);
-  render();
+  const res = await fetch(`/api/subcontract/${id}/pay`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({paid_at:d})});
+  if(!res.ok){ alert('確認付款失敗：'+((await res.json().catch(()=>({}))).error||res.status)); return; }
+  await loadJobs();
 }
-function del(id){ if(confirm('刪除這筆外包？')){ rows=rows.filter(x=>x.id!==id); render(); } }
+async function unpay(id){
+  if(!confirm('取消這筆付款？（會回到待付款）')) return;
+  const res = await fetch(`/api/subcontract/${id}/unpay`, {method:'PATCH'});
+  if(!res.ok){ alert('取消失敗：'+((await res.json().catch(()=>({}))).error||res.status)); return; }
+  await loadJobs();
+}
+async function del(id){
+  if(!confirm('刪除這筆外包？')) return;
+  const res = await fetch(`/api/subcontract/${id}`, {method:'DELETE'});
+  if(!res.ok){ alert('刪除失敗：'+((await res.json().catch(()=>({}))).error||res.status)); return; }
+  await loadJobs();
+}
 
-let editId = null;
-const V = id => document.getElementById(id).value.trim();
 function openNew(){
   editId = null;
   document.getElementById('scModalTitle').textContent='新增協力外包';
-  ['f_cat','f_worker','f_hours','f_amount','f_vendor','f_case','f_note','f_ownercost'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('f_org').value='總部';
-  document.getElementById('f_date').value='2026-06-29';
+  ['f_cat','f_worker','f_hours','f_amount','f_vendor','f_note','f_ownercost'].forEach(i=>document.getElementById(i).value='');
+  clearCase();
+  document.getElementById('f_org').value = orgs[0] ? orgs[0].name : '';
+  document.getElementById('f_date').value = TODAY;
   document.getElementById('ownerCostGroup').style.display = isOwner ? '' : 'none';
   document.getElementById('scModal').style.display='flex';
 }
@@ -404,55 +430,92 @@ function openEdit(id){
   const r=rows.find(x=>x.id===id); if(!r) return;
   editId = id;
   document.getElementById('scModalTitle').textContent='編輯協力外包';
-  document.getElementById('f_org').value=r.org;
-  document.getElementById('f_cat').value=r.cat;
+  document.getElementById('f_org').value=r.org_name||'';
+  document.getElementById('f_cat').value=r.category||'';
   document.getElementById('f_vendor').value=r.vendor||'';
   document.getElementById('f_worker').value = r.vendor ? '' : (r.worker||'');  // 廠商列：個人欄留空
-  document.getElementById('f_date').value=r.date; document.getElementById('f_hours').value=r.hours||'';
-  document.getElementById('f_amount').value=r.staffAmount;
-  document.getElementById('f_case').value=r.case||'';
-  document.getElementById('f_ownercost').value = r.ownerCost ?? '';
+  document.getElementById('f_date').value=r.work_date||''; document.getElementById('f_hours').value=r.hours||'';
+  document.getElementById('f_amount').value=r.staff_amount;
+  document.getElementById('f_case').value = r.case_number ? `${r.case_number} ${r.client_name||''}`.trim() : '';
+  document.getElementById('f_case_id').value = r.case_id||'';
+  document.getElementById('f_ownercost').value = (r.owner_cost ?? '');
   document.getElementById('ownerCostGroup').style.display = isOwner ? '' : 'none';
   document.getElementById('scModal').style.display='flex';
 }
-function closeModal(){ document.getElementById('scModal').style.display='none'; }
-function saveNew(){
-  const staffAmount=parseFloat(V('f_amount'));
-  if(!staffAmount){ alert('請輸入員工填寫金額'); return; }
+function closeModal(){ document.getElementById('scModal').style.display='none'; document.getElementById('caseDrop').classList.remove('open'); }
+async function saveNew(){
+  const staff_amount=parseFloat(V('f_amount'));
+  if(!staff_amount){ alert('請輸入員工填寫金額'); return; }
   const vendor = V('f_vendor') || null;            // 要轉帳的廠商（入帳對象）
   const person = V('f_worker');                    // 領現的個人/點工
-  const worker = person || vendor || '—';          // 誰支援＝個人優先，否則廠商
+  const worker = person || vendor || '';           // 誰支援＝個人優先，否則廠商
+  const orgObj = orgs.find(o=>o.name===V('f_org'));
   const ownerCostVal = V('f_ownercost');
-  const ownerCost = (isOwner && ownerCostVal!=='') ? parseFloat(ownerCostVal) : null;
-  const common = {
-    org:V('f_org'), cat:V('f_cat'), worker, vendor,
-    date:V('f_date'), hours:parseFloat(V('f_hours'))||0,
-    staffAmount, case:V('f_case')||null,
+  const payload = {
+    org_id: orgObj ? orgObj.id : null,
+    case_id: document.getElementById('f_case_id').value || null,
+    category: V('f_cat') || null,
+    worker: worker || null,
+    vendor,
+    work_date: V('f_date') || null,
+    hours: parseFloat(V('f_hours'))||null,
+    staff_amount,
+    note: V('f_note') || null,
   };
-  if(editId){
-    const r=rows.find(x=>x.id===editId);
-    Object.assign(r, common);
-    if(isOwner) r.ownerCost = ownerCost;   // 只有老闆能改成本
-    closeModal(); render(); return;
-  }
-  rows.unshift({ id:Date.now(), status:'todo', client:null, ownerCost, paid_at:null, ...common });
-  closeModal(); curTab='todo'; switchTab('todo');
+  if (isOwner) payload.owner_cost = ownerCostVal!=='' ? parseFloat(ownerCostVal) : null;
+  const url = editId ? `/api/subcontract/${editId}` : '/api/subcontract';
+  const res = await fetch(url, {method: editId?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  if(!res.ok){ alert('儲存失敗：'+((await res.json().catch(()=>({}))).error||res.status)); return; }
+  const wasNew = !editId;
+  closeModal();
+  await loadJobs();
+  if(wasNew) switchTab('todo');
 }
 
-// ───── 標籤設定 ─────
-function renderTags(){
-  document.getElementById('catTags').innerHTML = catTags.map((c,i)=>
-    `<span class="tag-pill">${c} <span class="x" onclick="delTag('cat',${i})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
-  document.getElementById('workerTags').innerHTML = workerTags.map((w,i)=>
-    `<span class="tag-pill">${w} <span class="x" onclick="delTag('worker',${i})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
+// 案件搜尋（接 /api/cases）
+let _caseTimer;
+function onCaseSearch(q){
+  document.getElementById('f_case_id').value='';
+  clearTimeout(_caseTimer);
+  const drop = document.getElementById('caseDrop');
+  if(!q){ drop.classList.remove('open'); return; }
+  _caseTimer = setTimeout(async ()=>{
+    const r = await fetch('/api/cases?search='+encodeURIComponent(q)+'&limit=20');
+    if(!r.ok) return;
+    const list = await r.json();
+    if(!list.length){ drop.innerHTML='<div class="ac-item muted">找不到符合案件</div>'; drop.classList.add('open'); return; }
+    drop.innerHTML = list.map(c=>`<div class="ac-item" onclick="pickCase(${c.id},'${esc(c.case_number)}','${esc(c.client_name||'')}')"><strong>${esc(c.case_number)}</strong> <small>${esc(c.client_name||'')} ${esc(c.title||'')}</small></div>`).join('');
+    drop.classList.add('open');
+  }, 200);
 }
-function addTag(kind){
+function pickCase(id, num, client){
+  document.getElementById('f_case_id').value=id;
+  document.getElementById('f_case').value=`${num} ${client}`.trim();
+  document.getElementById('caseDrop').classList.remove('open');
+}
+function clearCase(){ document.getElementById('f_case').value=''; document.getElementById('f_case_id').value=''; document.getElementById('caseDrop').classList.remove('open'); }
+
+// ───── 標籤設定（接 API）─────
+function renderTags(){
+  document.getElementById('catTags').innerHTML = cats.map(c=>
+    `<span class="tag-pill">${esc(c.name)} <span class="x" onclick="delTag('categories',${c.id})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
+  document.getElementById('workerTags').innerHTML = workers.map(w=>
+    `<span class="tag-pill">${esc(w.name)} <span class="x" onclick="delTag('workers',${w.id})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
+}
+async function addTag(kind){
+  const which = kind==='cat' ? 'categories' : 'workers';
   const inp = document.getElementById(kind==='cat'?'newCat':'newWorker');
   const v = inp.value.trim(); if(!v) return;
-  (kind==='cat'?catTags:workerTags).push(v); inp.value='';
-  fillCatOptions(); renderTags();
+  const res = await fetch(`/api/subcontract/${which}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:v})});
+  if(!res.ok){ alert('新增失敗'); return; }
+  inp.value='';
+  await loadLists();
 }
-function delTag(kind,i){ (kind==='cat'?catTags:workerTags).splice(i,1); fillCatOptions(); renderTags(); }
+async function delTag(which, id){
+  const res = await fetch(`/api/subcontract/${which}/${id}`, {method:'DELETE'});
+  if(!res.ok){ alert('刪除失敗'); return; }
+  await loadLists();
+}
 </script>
 </body>
 </html>

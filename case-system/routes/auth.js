@@ -69,6 +69,7 @@ router.post('/login', (req, res) => {
       page_payments:       perm('page_payments'),
       page_ledger:         perm('page_ledger',      user.role === 'hq_accounting'),
       page_expenses:       perm('page_expenses',    user.role === 'hq_accounting'),
+      page_subcontract:    perm('page_subcontract', ['owner','branch_manager','hq_accounting','hq_cs'].includes(user.role)),
       page_dispatch_pool:  perm('page_dispatch_pool', def.manageUsers),
       page_cases_deal:     perm('page_cases_deal',  ['vp','hq_cs','hq_sales','hq_accounting','hq_hr'].includes(user.role)),
       page_materials:      perm('page_materials',   def.manageUsers),
