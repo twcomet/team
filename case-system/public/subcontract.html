@@ -114,6 +114,7 @@ table td, table th { font-size:13px; }
         💡 協力外包＝派外包/點工執行案件產生的應付款（油漆、矽利康、貼膜…）。
         <b>員工填寫金額</b>＝有頁面權限者皆可見；<b>🔒老闆確定成本</b>＝只有老闆可填可看（機密），<b>這個金額才計入案件毛利並入流水帳</b>。
         老闆/會計於「已完工待付款」勾 <b>確認付款</b> 後，系統以<b>付款日</b>＋老闆確定成本寫入當月流水帳（科目：成本-人力外包，註明廠商）。
+        <br>📅 <b>待施工／已完工自動判斷</b>：施工日<b>還沒到</b>＝待施工；施工日<b>已過</b>＝已完工（事後補登過去日期會直接進「已完工待付款」）。
       </div>
 
       <div class="tabs-bar">
@@ -255,13 +256,17 @@ let canPay  = true;   // owner 或 accountant 才為 true → 能確認付款
 let isOwner = true;   // 只有 owner 看得到/填得了「確定成本」(機密)
 
 // staffAmount=員工填寫金額(有頁面權限者皆可見)；ownerCost=老闆確定成本(機密，只老闆可填可見，入帳/算毛利用這個)
+// 狀態自動判斷：已付款→已完工已付款；否則 施工日<=今天→已完工待付款、施工日>今天→待施工
+const TODAY = new Date().toISOString().slice(0,10);
+function effStatus(r){ return r.paid_at ? 'paid' : ((r.date && r.date <= TODAY) ? 'unpaid' : 'todo'); }
+
 let rows = [
-  { id:1, status:'todo',   date:'2026-06-28', cat:'油漆',  worker:'阿明',     hours:6, staffAmount:4500, ownerCost:4200, case:'HX2606-236', client:'歐銳室內設計', vendor:'阿明油漆', org:'總部', paid_at:null },
-  { id:2, status:'todo',   date:'2026-06-30', cat:'拆除',  worker:'阿源工班', hours:4, staffAmount:3200, ownerCost:null, case:'HX2606-278', client:'群鼎裝潢',     vendor:'阿源工班', org:'鶯歌', paid_at:null },
-  { id:3, status:'unpaid', date:'2026-06-20', cat:'矽利康',worker:'大雄',     hours:3, staffAmount:2800, ownerCost:2800, case:'HX2606-199', client:'序幸藝術',     vendor:'大雄', org:'總部', paid_at:null },
-  { id:4, status:'unpaid', date:'2026-06-22', cat:'貼膜',  worker:'協力-小林',hours:8, staffAmount:9000, ownerCost:null, case:null,          client:null,           vendor:'小林貼膜', org:'新竹', paid_at:null },
-  { id:5, status:'paid',   date:'2026-06-10', cat:'油漆',  worker:'點工-阿德',hours:5, staffAmount:3500, ownerCost:3500, case:'HX2606-076', client:'泛設計',       vendor:'阿德', org:'總部', paid_at:'2026-06-18' },
-  { id:6, status:'paid',   date:'2026-05-28', cat:'清潔',  worker:'大雄',     hours:2, staffAmount:1500, ownerCost:1400, case:'HX2605-199', client:'序幸藝術',     vendor:'大雄', org:'鶯歌', paid_at:'2026-06-05' },
+  { id:1, date:'2026-07-02', cat:'油漆',  worker:'阿明',     hours:6, staffAmount:4500, ownerCost:4200, case:'HX2606-236', client:'歐銳室內設計', vendor:null,       org:'總部', paid_at:null },
+  { id:2, date:'2026-06-30', cat:'拆除',  worker:'阿源工班', hours:4, staffAmount:3200, ownerCost:null, case:'HX2606-278', client:'群鼎裝潢',     vendor:'阿源工班', org:'鶯歌', paid_at:null },
+  { id:3, date:'2026-06-20', cat:'矽利康',worker:'大雄',     hours:3, staffAmount:2800, ownerCost:2800, case:'HX2606-199', client:'序幸藝術',     vendor:null,       org:'總部', paid_at:null },
+  { id:4, date:'2026-06-22', cat:'貼膜',  worker:'小林貼膜', hours:8, staffAmount:9000, ownerCost:null, case:null,          client:null,           vendor:'小林貼膜', org:'新竹', paid_at:null },
+  { id:5, date:'2026-06-10', cat:'油漆',  worker:'點工-阿德',hours:5, staffAmount:3500, ownerCost:3500, case:'HX2606-076', client:'泛設計',       vendor:null,       org:'總部', paid_at:'2026-06-18' },
+  { id:6, date:'2026-05-28', cat:'清潔',  worker:'大雄',     hours:2, staffAmount:1500, ownerCost:1400, case:'HX2605-199', client:'序幸藝術',     vendor:null,       org:'鶯歌', paid_at:'2026-06-05' },
 ];
 
 let curTab = 'todo';
@@ -296,15 +301,15 @@ function switchTab(tab) {
 }
 
 function render() {
-  // 計數
+  // 計數（狀態依施工日自動判斷）
   ['todo','unpaid','paid'].forEach(s =>
-    document.getElementById('cnt-'+s).textContent = rows.filter(r=>r.status===s).length);
+    document.getElementById('cnt-'+s).textContent = rows.filter(r=>effStatus(r)===s).length);
 
   const month = document.getElementById('monthFilter').value;
   const org   = document.getElementById('orgFilter').value;
   const cat   = document.getElementById('catFilter').value;
-  let list = rows.filter(r => r.status===curTab)
-    .filter(r => !month || (r.status==='paid' ? (r.paid_at||'').startsWith(month) : (r.date||'').startsWith(month)))
+  let list = rows.filter(r => effStatus(r)===curTab)
+    .filter(r => !month || (effStatus(r)==='paid' ? (r.paid_at||'').startsWith(month) : (r.date||'').startsWith(month)))
     .filter(r => !org || r.org===org)
     .filter(r => !cat || r.cat===cat)
     .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
@@ -327,23 +332,24 @@ function render() {
 
   let html = '', curMonth = null;
   list.forEach(r => {
+    const st = effStatus(r);
     const m = (r[dateField]||'').slice(0,7);
     if (m !== curMonth) { curMonth = m; html += `<tr class="month-row"><td colspan="${COLS}">▍${m ? m.replace('-',' 年 ')+' 月' : '未排日期'}</td></tr>`; }
-    const sb = SB[r.status];
+    const sb = SB[st];
     const caseCell = r.case
       ? `<a href="#" class="act-link" style="color:#1a56db">${r.case}</a>${r.client?`<div class="muted" style="font-size:11px">👤 ${r.client}</div>`:''}`
       : `<span class="status-badge" style="background:#f3f4f6;color:#6b7280">分店外包</span>`;
     // 確定成本欄（只有老闆看得到；未填顯示提示，老闆可點填）
     const ownerCostCell = !isOwner ? '' : (
       r.ownerCost != null
-        ? `<td><span class="amt ${r.status==='paid'?'amt-paid':''}">NT$${r.ownerCost.toLocaleString()}</span></td>`
-        : (r.status==='paid'
+        ? `<td><span class="amt ${st==='paid'?'amt-paid':''}">NT$${r.ownerCost.toLocaleString()}</span></td>`
+        : (st==='paid'
             ? `<td><span class="muted">—</span></td>`
             : `<td><a href="#" class="act-link" style="color:#dc2626" onclick="openEdit(${r.id});return false">＋設定成本</a></td>`)
     );
     let acts = '';
-    if (r.status==='todo')   acts = `<a href="#" class="act-link" style="color:#065f46" onclick="markDone(${r.id});return false">標記完工</a><a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a><a href="#" class="act-link" style="color:#dc2626" onclick="del(${r.id});return false">刪除</a>`;
-    if (r.status==='unpaid') {
+    if (st==='todo')   acts = `<a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a><a href="#" class="act-link" style="color:#dc2626" onclick="del(${r.id});return false">刪除</a>`;
+    if (st==='unpaid') {
       const needCost = r.ownerCost == null;
       acts = canPay
         ? (needCost
@@ -351,7 +357,7 @@ function render() {
             : `<a href="#" class="act-link" style="color:#b45309" onclick="confirmPay(${r.id});return false">✓ 確認付款</a><a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a>`)
         : `<span class="lock-note">🔒 待會計／老闆付款</span>`;
     }
-    if (r.status==='paid')   acts = `<span class="lock-note">🔒 已入帳鎖定</span> <a href="/ledger" class="act-link" style="color:#1a56db">查流水帳</a>`;
+    if (st==='paid')   acts = `<span class="lock-note">🔒 已入帳鎖定</span> <a href="/ledger" class="act-link" style="color:#1a56db">查流水帳</a>`;
 
     html += `<tr>
       <td><span class="status-badge ${sb[0]}">${sb[1]}</span></td>
@@ -372,13 +378,12 @@ function render() {
 }
 
 // ───── 互動（純前端示意，改記憶體不存後端）─────
-function markDone(id){ const r=rows.find(x=>x.id===id); if(r){r.status='unpaid';} render(); }
 function confirmPay(id){
   const r=rows.find(x=>x.id===id); if(!r) return;
   if(r.ownerCost==null){ alert('老闆尚未設定「確定成本」，無法確認付款。'); return; }
-  const d = prompt('輸入付款日期（系統會用這天入流水帳）', '2026-06-29');
+  const d = prompt('輸入付款日期（系統會用這天入流水帳）', TODAY);
   if(!d) return;
-  r.status='paid'; r.paid_at=d;
+  r.paid_at=d;
   alert(`已確認付款 ✓\n\n系統將以「老闆確定成本」寫入流水帳：\n・日期：${d}（付款日）\n・科目：成本-人力外包\n・金額：NT$${r.ownerCost.toLocaleString()}（確定成本，非員工填寫的 ${r.staffAmount.toLocaleString()}）\n・廠商：${r.vendor||'—'}\n・案件：${r.case||'（分店外包）'}\n\n（示意，未真的寫入）`);
   render();
 }
