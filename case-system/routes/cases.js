@@ -1220,13 +1220,37 @@ router.delete('/:id/documents/:docId', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// 下載文件：經伺服器代理，強制附件下載 + 還原中文檔名（避免 Cloudinary raw/PDF 直連被擋或被瀏覽器內嵌開啟）
+// 下載文件：經伺服器代理，強制附件下載 + 還原中文檔名
+// Cloudinary 帳號限制 raw/PDF 直連會回 401，必須用「簽章網址」抓檔才能繞過
 router.get('/:id/documents/:docId/download', requireAuth, async (req, res) => {
   const doc = db.prepare(`SELECT * FROM case_documents WHERE id=? AND case_id=?`).get(req.params.docId, req.params.id);
   if (!doc || !doc.file_url) return res.status(404).send('找不到此文件');
   try {
-    const upstream = await fetch(doc.file_url);
-    if (!upstream.ok) return res.status(502).send(`來源檔案無法取得（${upstream.status}）`);
+    const cloudinary = require('cloudinary').v2;
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+    const isRaw = !doc.file_url.includes('/image/upload/');
+    // 候選網址：先試簽章網址（繞過 raw/PDF 限制），再退回原始網址
+    const candidates = [];
+    if (doc.public_id) {
+      candidates.push(cloudinary.url(doc.public_id, {
+        resource_type: isRaw ? 'raw' : 'image', type: 'upload', sign_url: true, secure: true,
+      }));
+    }
+    candidates.push(doc.file_url);
+
+    let upstream = null;
+    for (const url of candidates) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) { upstream = r; break; }
+      } catch (e) { /* 換下一個候選 */ }
+    }
+    if (!upstream) return res.status(502).send('來源檔案無法取得（可能 Cloudinary 權限限制），請聯絡系統管理員');
+
     const buf = Buffer.from(await upstream.arrayBuffer());
     const fn = encodeURIComponent(doc.filename || `document-${doc.id}`);
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/octet-stream');
