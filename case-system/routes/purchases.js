@@ -53,6 +53,52 @@ function syncReceiptTaxLedger(receiptId) {
   }
 }
 
+// 同步該案「採購到貨運費」加總 → cases.purchase_shipping_cost（計入案件成本/毛利，比照稅金）
+function syncCasePurchaseShipping(caseId) {
+  if (!caseId) return;
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(pr.shipping_fee),0) AS fee
+    FROM purchase_receipts pr
+    JOIN purchase_orders po ON po.id = pr.purchase_order_id
+    WHERE po.case_id = ?
+  `).get(caseId);
+  const total = row.fee || 0;
+  db.prepare(`UPDATE cases SET purchase_shipping_cost=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(total > 0 ? total : null, caseId);
+}
+
+// 單筆到貨運費 → 收支流水帳（費用·運費）；運費為0或無則移除該筆（比照稅金）
+function syncReceiptShippingLedger(receiptId) {
+  const r = db.prepare(`
+    SELECT pr.id, pr.shipping_fee, pr.received_date, pr.payment_method, pr.created_by, pr.payer_id,
+           po.case_id, po.org_id, c.case_number, c.title, pu.name AS payer_name
+    FROM purchase_receipts pr
+    JOIN purchase_orders po ON po.id = pr.purchase_order_id
+    LEFT JOIN cases c  ON c.id  = po.case_id
+    LEFT JOIN users pu ON pu.id = pr.payer_id
+    WHERE pr.id = ?
+  `).get(receiptId);
+  if (!r) return;
+  const ref = `receipt_${receiptId}_shipping`;
+  if (!r.shipping_fee || r.shipping_fee <= 0) {
+    db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(ref);
+    return;
+  }
+  const date = r.received_date || new Date().toISOString().slice(0, 10);
+  const payVia = r.payment_method || '零用金';
+  const who = r.payer_name ? `／${r.payer_name}` : '';
+  const caseLabel = r.case_number ? `｜${r.case_number} ${r.title || ''}`.trim() : '';
+  const desc = `材料到貨運費${caseLabel}（${payVia}${who}）`;
+  const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
+  if (existing) {
+    db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category='費用-運費', description=?, case_id=?, org_id=?, created_by=? WHERE id=?`)
+      .run(date, r.shipping_fee, desc, r.case_id || null, r.org_id || null, r.created_by || null, existing.id);
+  } else {
+    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'expense', '費用-運費', ?, ?, ?, ?, ?, ?)`)
+      .run(date, r.shipping_fee, r.case_id || null, desc, r.org_id || null, r.created_by || null, ref);
+  }
+}
+
 const SHIPPING_LABEL = { air:'空運', express:'快遞', sea:'海運', domestic:'國內' };
 const STATUS_LABEL   = { pending:'待到貨', partial:'部分到貨', received:'已到齊', cancelled:'已取消' };
 
@@ -172,9 +218,11 @@ router.put('/:id', requireAuth, (req, res) => {
   const newCaseId = case_id !== undefined ? (case_id || null) : po.case_id;
   if (String(newCaseId || '') !== String(po.case_id || '')) {
     db.prepare(`SELECT id FROM purchase_receipts WHERE purchase_order_id=?`).all(po.id)
-      .forEach(r => syncReceiptTaxLedger(r.id));
+      .forEach(r => { syncReceiptTaxLedger(r.id); syncReceiptShippingLedger(r.id); });
     syncCasePurchaseTax(po.case_id);
     syncCasePurchaseTax(newCaseId);
+    syncCasePurchaseShipping(po.case_id);
+    syncCasePurchaseShipping(newCaseId);
   }
   res.json({ ok: true });
 });
@@ -229,9 +277,10 @@ router.delete('/:id', requireAuth, (req, res) => {
         db.prepare(`DELETE FROM material_rolls WHERE id=?`).run(rid);
       }
     }
-    // 移除這些到貨稅金在流水帳的對應紀錄
+    // 移除這些到貨稅金/運費在流水帳的對應紀錄
     for (const r of receipts) {
       db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(`receipt_${r.id}_tax`);
+      db.prepare(`DELETE FROM ledger_entries WHERE source_ref=?`).run(`receipt_${r.id}_shipping`);
     }
     db.prepare(`DELETE FROM purchase_receipts WHERE purchase_order_id=?`).run(po.id);
     db.prepare(`DELETE FROM purchase_orders WHERE id=?`).run(po.id);
@@ -242,7 +291,8 @@ router.delete('/:id', requireAuth, (req, res) => {
   } finally {
     db.exec('PRAGMA foreign_keys=ON');
   }
-  syncCasePurchaseTax(po.case_id);  // 重算該案稅金成本
+  syncCasePurchaseTax(po.case_id);       // 重算該案稅金成本
+  syncCasePurchaseShipping(po.case_id);  // 重算該案運費成本
   res.json({ ok: true });
 });
 
@@ -279,9 +329,11 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
          carrier||null, tax!=null&&tax!==''?parseFloat(tax):null, shipping_fee!=null&&shipping_fee!==''?parseFloat(shipping_fee):null, payment_method||null,
          payer_id!=null&&payer_id!==''?Number(payer_id):null, me.id);
 
-  // 到貨稅金 → 自動入流水帳(費用·稅費)＋計入案件成本（會計獨立核帳，免重複手key）
+  // 到貨稅金/運費 → 自動入流水帳＋計入案件成本（會計獨立核帳，免重複手key）
   syncReceiptTaxLedger(recRes.lastInsertRowid);
+  syncReceiptShippingLedger(recRes.lastInsertRowid);
   syncCasePurchaseTax(po.case_id);
+  syncCasePurchaseShipping(po.case_id);
 
   // 更新採購單狀態
   const totalReceived = db.prepare(`SELECT COALESCE(SUM(quantity_meters),0) as total FROM purchase_receipts WHERE purchase_order_id=?`).get(po.id).total;
@@ -289,6 +341,35 @@ router.post('/:id/receipts', requireAuth, (req, res) => {
   db.prepare(`UPDATE purchase_orders SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(newStatus, po.id);
 
   res.json({ ok: true, roll_id: rollId, new_status: newStatus, total_received: totalReceived });
+});
+
+// 編輯到貨紀錄（修正運費/稅金/送貨/付款等；不改米數，避免動到庫存）→ 重新同步流水帳與案件成本
+// 🔒 已入帳資料，僅老闆+會計可編輯（避免他人改動已入帳內容卻未經會計審核）
+router.put('/:id/receipts/:receiptId', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!['owner', 'hq_accounting'].includes(me.role)) return res.status(403).json({ error: '已入帳資料僅限老闆或會計編輯' });
+  const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
+  if (!po) return res.status(404).json({ error: '找不到採購單' });
+  const rec = db.prepare(`SELECT * FROM purchase_receipts WHERE id=? AND purchase_order_id=?`).get(req.params.receiptId, po.id);
+  if (!rec) return res.status(404).json({ error: '找不到到貨紀錄' });
+
+  const { received_date, batch_note, carrier, tax, shipping_fee, payment_method, payer_id } = req.body;
+  db.prepare(`
+    UPDATE purchase_receipts
+    SET received_date=?, batch_note=?, carrier=?, tax=?, shipping_fee=?, payment_method=?, payer_id=?
+    WHERE id=?`)
+    .run(received_date || rec.received_date, batch_note ?? rec.batch_note, carrier || null,
+         tax != null && tax !== '' ? parseFloat(tax) : null,
+         shipping_fee != null && shipping_fee !== '' ? parseFloat(shipping_fee) : null,
+         payment_method || null, payer_id != null && payer_id !== '' ? Number(payer_id) : null,
+         rec.id);
+
+  // 同步更新流水帳（稅金/運費）與案件成本
+  syncReceiptTaxLedger(rec.id);
+  syncReceiptShippingLedger(rec.id);
+  syncCasePurchaseTax(po.case_id);
+  syncCasePurchaseShipping(po.case_id);
+  res.json({ ok: true });
 });
 
 module.exports = router;

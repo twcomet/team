@@ -212,7 +212,7 @@
 <!-- 收貨 Modal -->
 <div class="modal-overlay" id="receiptModal" style="display:none">
   <div class="modal" style="max-width:440px;width:100%">
-    <div class="modal-header"><h3>登記到貨</h3><button class="modal-close" onclick="closeModal('receiptModal')">✕</button></div>
+    <div class="modal-header"><h3 id="receiptModalTitle">登記到貨</h3><button class="modal-close" onclick="closeModal('receiptModal')">✕</button></div>
     <div class="modal-body">
       <p id="receiptPoInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:16px"></p>
       <div class="form-group">
@@ -237,7 +237,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">運費（元）</label>
+          <label class="form-label">運費（元）<span style="font-size:11px;color:#059669;font-weight:400">（計入案件成本＋自動入流水帳）</span></label>
           <input class="form-input" id="r_shipping_fee" type="number" min="0" placeholder="0">
         </div>
       </div>
@@ -275,6 +275,14 @@
   </div>
 </div>
 
+<!-- 選擇要編輯的到貨紀錄（多筆時）-->
+<div class="modal-overlay" id="receiptPickerModal" style="display:none">
+  <div class="modal" style="max-width:480px;width:100%">
+    <div class="modal-header"><h3>選擇要編輯的到貨紀錄</h3><button class="modal-close" onclick="closeModal('receiptPickerModal')">✕</button></div>
+    <div class="modal-body"><div id="receiptPickerList"></div></div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let isManager = false;
@@ -285,6 +293,7 @@ let orgs = [];
 let editPoId = null;
 let receiptPoId = null;
 let receiptPoMaterialId = null;
+let editReceiptId = null;   // 非 null＝編輯既有到貨紀錄
 
 const STATUS_LABEL    = { pending:'待到貨', partial:'部分到貨', received:'已到齊', cancelled:'已取消' };
 const SHIPPING_LABEL  = { air:'空運', express:'快遞', sea:'海運', domestic:'國內' };
@@ -433,9 +442,13 @@ function renderOrders() {
     const canConfirm = po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager);
     const canReceive = isManager && po.status !== 'received' && po.status !== 'cancelled';
     const canEditDel = isManager && po.status !== 'cancelled';
+    // 🔒 編輯到貨會改到已入帳資料 → 僅老闆+會計可見可按
+    const canEditReceipt = ['owner','hq_accounting'].includes(currentUser.role);
+    const hasReceipts = canEditReceipt && (po.received_meters > 0 || po.last_received_date);
     let acts = '';
     if (canConfirm) acts += `<a href="#" onclick="confirmOrder(${po.id});return false" style="color:#065f46;font-weight:700;margin-right:10px;text-decoration:none">已訂貨</a>`;
     if (canReceive) acts += `<a href="#" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters});return false" style="color:#d6006e;font-weight:700;margin-right:10px;text-decoration:none">登記到貨</a>`;
+    if (hasReceipts) acts += `<a href="#" onclick="openReceiptEdit(${po.id});return false" style="color:#0369a1;font-weight:700;margin-right:10px;text-decoration:none">編輯到貨</a>`;
     if (canEditDel) acts += `<a href="#" onclick="openEdit(${po.id});return false" style="color:#6b7280;margin-right:10px;text-decoration:none">編輯</a><a href="#" onclick="cancelPo(${po.id});return false" style="color:#dc2626;text-decoration:none">刪除</a>`;
     const td = (c, style='') => `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;${style}">${c}</td>`;
     html += `<tr style="vertical-align:middle">
@@ -536,12 +549,16 @@ async function savePo() {
 }
 
 function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) {
+  editReceiptId = null;
   receiptPoId = poId;
   receiptPoMaterialId = materialId;
   const remaining = totalMeters - receivedMeters;
+  document.getElementById('receiptModalTitle').textContent = '登記到貨';
+  document.getElementById('saveReceiptBtn').textContent = '確認到貨';
   document.getElementById('receiptPoInfo').textContent = `${brandLabel} — 尚餘 ${remaining.toFixed(1)}米未到貨`;
   document.getElementById('r_received_date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('r_quantity_meters').value = '';
+  const qtyEl = document.getElementById('r_quantity_meters');
+  qtyEl.value = ''; qtyEl.readOnly = false; qtyEl.style.background = '';
   document.getElementById('r_batch_note').value = '';
   document.getElementById('r_carrier').value = '';
   document.getElementById('r_shipping_fee').value = '';
@@ -552,7 +569,69 @@ function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) 
   document.getElementById('receiptModal').style.display = 'flex';
 }
 
+// 編輯既有到貨：先抓該採購單的到貨紀錄，1 筆直接編、多筆先選
+async function openReceiptEdit(poId) {
+  const r = await fetch(`/api/purchases/${poId}`);
+  if (!r.ok) { alert('讀取到貨紀錄失敗'); return; }
+  const po = await r.json();
+  const receipts = po.receipts || [];
+  if (!receipts.length) { alert('此採購單尚無到貨紀錄'); return; }
+  if (receipts.length === 1) { openReceiptEditForm(poId, receipts[0]); return; }
+  // 多筆 → 選擇
+  document.getElementById('receiptPickerList').innerHTML = receipts.map(rc => `
+    <div onclick='openReceiptEditForm(${poId}, ${JSON.stringify(rc)})' style="cursor:pointer;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="font-weight:600">${rc.received_date||''}　${rc.quantity_meters}米　${rc.batch_note?'·'+esc(rc.batch_note):''}</div>
+      <div style="font-size:12px;color:var(--gray-500)">運費 ${rc.shipping_fee!=null?'$'+rc.shipping_fee:'—'}　稅金 ${rc.tax!=null?'$'+rc.tax:'—'}　${rc.carrier||''} ${rc.payment_method||''}</div>
+    </div>`).join('');
+  document.getElementById('receiptPickerModal').style.display = 'flex';
+}
+
+function openReceiptEditForm(poId, rc) {
+  closeModal('receiptPickerModal');
+  editReceiptId = rc.id;
+  receiptPoId = poId;
+  receiptPoMaterialId = null;
+  document.getElementById('receiptModalTitle').textContent = '編輯到貨';
+  document.getElementById('saveReceiptBtn').textContent = '儲存修改';
+  document.getElementById('receiptPoInfo').textContent = '編輯既有到貨紀錄（米數不可改；如需更改米數請刪除採購單重建）';
+  document.getElementById('r_received_date').value = rc.received_date || '';
+  const qtyEl = document.getElementById('r_quantity_meters');
+  qtyEl.value = rc.quantity_meters; qtyEl.readOnly = true; qtyEl.style.background = '#f3f4f6';
+  document.getElementById('r_batch_note').value = rc.batch_note || '';
+  document.getElementById('r_carrier').value = rc.carrier || '';
+  document.getElementById('r_shipping_fee').value = rc.shipping_fee ?? '';
+  document.getElementById('r_tax').value = rc.tax ?? '';
+  document.getElementById('r_payment_method').value = rc.payment_method || '';
+  const rp = document.getElementById('r_payer'); if (rp) rp.value = rc.payer_id || '';
+  document.getElementById('r_material_note').style.display = 'none';
+  document.getElementById('receiptModal').style.display = 'flex';
+}
+
 async function saveReceipt() {
+  const btn = document.getElementById('saveReceiptBtn');
+  // ── 編輯既有到貨 ──
+  if (editReceiptId) {
+    const payload = {
+      received_date:   document.getElementById('r_received_date').value,
+      batch_note:      document.getElementById('r_batch_note').value.trim() || null,
+      carrier:         document.getElementById('r_carrier').value || null,
+      shipping_fee:    document.getElementById('r_shipping_fee').value || null,
+      tax:             document.getElementById('r_tax').value || null,
+      payment_method:  document.getElementById('r_payment_method').value || null,
+      payer_id:        document.getElementById('r_payer')?.value || null,
+    };
+    btn.disabled = true;
+    try {
+      const r = await fetch(`/api/purchases/${receiptPoId}/receipts/${editReceiptId}`, {
+        method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      if (!r.ok) { const e = await r.json().catch(()=>({})); alert(e.error||'儲存失敗'); return; }
+      closeModal('receiptModal');
+      await loadOrders();
+    } finally { btn.disabled = false; }
+    return;
+  }
+  // ── 新增到貨 ──
   const qty = parseFloat(document.getElementById('r_quantity_meters').value);
   if (!qty || qty <= 0) { alert('請填入到貨米數'); return; }
   const payload = {
@@ -565,7 +644,6 @@ async function saveReceipt() {
     payment_method:  document.getElementById('r_payment_method').value || null,
     payer_id:        document.getElementById('r_payer')?.value || null,
   };
-  const btn = document.getElementById('saveReceiptBtn');
   btn.disabled = true;
   try {
     const r = await fetch(`/api/purchases/${receiptPoId}/receipts`, {
