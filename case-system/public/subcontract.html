@@ -29,6 +29,15 @@
 .help-bar { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.6; }
 table td, table th { font-size:13px; }
 .muted { color:#9ca3af; }
+.ac-wrap { position:relative; }
+.ac-drop { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--gray-300); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.12); z-index:300; max-height:200px; overflow-y:auto; display:none; }
+.ac-drop.open { display:block; }
+.ac-item { padding:8px 12px; cursor:pointer; font-size:13px; }
+.ac-item:hover { background:var(--gray-50); }
+.ac-item small { color:#9ca3af; }
+.seg { display:flex; gap:6px; }
+.seg-btn { flex:1; padding:8px 6px; border:1px solid var(--gray-300); border-radius:8px; background:#fff; font-size:13px; cursor:pointer; text-align:center; }
+.seg-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:600; }
 </style>
 </head>
 <body>
@@ -179,30 +188,39 @@ table td, table th { font-size:13px; }
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
+      <!-- 分店：層級最大，置頂 -->
+      <div class="form-group">
+        <label class="form-label">分店 *</label>
+        <input class="form-input" id="f_org" list="dlOrg" placeholder="輸入或選擇分店">
+        <datalist id="dlOrg"><option>總部</option><option>鶯歌</option><option>新竹</option></datalist>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
           <label class="form-label">外包類別 *</label>
-          <select class="form-input" id="f_cat"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">誰支援 *</label>
-          <select class="form-input" id="f_worker"></select>
+          <input class="form-input" id="f_cat" list="dlCat" autocomplete="off" placeholder="輸入關鍵字自動媒合">
+          <datalist id="dlCat"></datalist>
         </div>
         <div class="form-group">
           <label class="form-label">施工日 *</label>
           <input class="form-input" id="f_date" type="date">
         </div>
         <div class="form-group">
-          <label class="form-label">工時（小時）</label>
-          <input class="form-input" id="f_hours" type="number" min="0" step="0.5" placeholder="選填">
+          <label class="form-label">支援廠商（關鍵字媒合・要轉帳的廠商）</label>
+          <input class="form-input" id="f_vendor" list="dlVendor" autocomplete="off" placeholder="輸入廠商名稱自動媒合…可不填">
+          <datalist id="dlVendor"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">誰支援／個人點工</label>
+          <input class="form-input" id="f_worker" list="dlWorker" autocomplete="off" placeholder="領現的個人/點工…可不填">
+          <datalist id="dlWorker"></datalist>
         </div>
         <div class="form-group">
           <label class="form-label">員工填寫金額 *</label>
           <input class="form-input" id="f_amount" type="number" min="0" placeholder="員工自行輸入">
         </div>
         <div class="form-group">
-          <label class="form-label">廠商（入帳對象・來自供應商管理）</label>
-          <select class="form-input" id="f_vendor"></select>
+          <label class="form-label">工時（小時）</label>
+          <input class="form-input" id="f_hours" type="number" min="0" step="0.5" placeholder="選填">
         </div>
       </div>
       <div class="form-group" id="ownerCostGroup" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px">
@@ -213,10 +231,6 @@ table td, table th { font-size:13px; }
       <div class="form-group">
         <label class="form-label">關聯案件（可不綁，留空＝歸分店外包成本）</label>
         <input class="form-input" id="f_case" placeholder="輸入案號或客戶搜尋…（示意，可留空）">
-      </div>
-      <div class="form-group">
-        <label class="form-label">分店</label>
-        <select class="form-input" id="f_org"><option>總部</option><option>鶯歌</option><option>新竹</option></select>
       </div>
       <div class="form-group">
         <label class="form-label">備註</label>
@@ -264,12 +278,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function fillCatOptions() {
-  const opt = ['<option value="">全部類別</option>'].concat(catTags.map(c=>`<option>${c}</option>`)).join('');
-  document.getElementById('catFilter').innerHTML = opt;
-  document.getElementById('f_cat').innerHTML = catTags.map(c=>`<option>${c}</option>`).join('');
-  document.getElementById('f_worker').innerHTML = workerTags.map(w=>`<option>${w}</option>`).join('');
-  document.getElementById('f_vendor').innerHTML =
-    `<option value="">—（個人領現可留空）—</option>` + vendorList.map(v=>`<option>${v}</option>`).join('');
+  document.getElementById('catFilter').innerHTML =
+    ['<option value="">全部類別</option>'].concat(catTags.map(c=>`<option>${c}</option>`)).join('');
+  // 自動媒合建議清單（可打字、輸入關鍵字跳建議）
+  document.getElementById('dlCat').innerHTML    = catTags.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('dlWorker').innerHTML = workerTags.map(w=>`<option>${w}</option>`).join('');
+  document.getElementById('dlVendor').innerHTML = vendorList.map(v=>`<option>${v}</option>`).join('');
 }
 
 function switchTab(tab) {
@@ -371,10 +385,12 @@ function confirmPay(id){
 function del(id){ if(confirm('刪除這筆外包？')){ rows=rows.filter(x=>x.id!==id); render(); } }
 
 let editId = null;
+const V = id => document.getElementById(id).value.trim();
 function openNew(){
   editId = null;
   document.getElementById('scModalTitle').textContent='新增協力外包';
-  ['f_hours','f_amount','f_vendor','f_case','f_note','f_ownercost'].forEach(i=>document.getElementById(i).value='');
+  ['f_cat','f_worker','f_hours','f_amount','f_vendor','f_case','f_note','f_ownercost'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('f_org').value='總部';
   document.getElementById('f_date').value='2026-06-29';
   document.getElementById('ownerCostGroup').style.display = isOwner ? '' : 'none';
   document.getElementById('scModal').style.display='flex';
@@ -383,42 +399,38 @@ function openEdit(id){
   const r=rows.find(x=>x.id===id); if(!r) return;
   editId = id;
   document.getElementById('scModalTitle').textContent='編輯協力外包';
-  document.getElementById('f_cat').value=r.cat; document.getElementById('f_worker').value=r.worker;
+  document.getElementById('f_org').value=r.org;
+  document.getElementById('f_cat').value=r.cat;
+  document.getElementById('f_vendor').value=r.vendor||'';
+  document.getElementById('f_worker').value = r.vendor ? '' : (r.worker||'');  // 廠商列：個人欄留空
   document.getElementById('f_date').value=r.date; document.getElementById('f_hours').value=r.hours||'';
-  document.getElementById('f_amount').value=r.staffAmount; document.getElementById('f_vendor').value=r.vendor||'';
-  document.getElementById('f_case').value=r.case||''; document.getElementById('f_org').value=r.org;
+  document.getElementById('f_amount').value=r.staffAmount;
+  document.getElementById('f_case').value=r.case||'';
   document.getElementById('f_ownercost').value = r.ownerCost ?? '';
   document.getElementById('ownerCostGroup').style.display = isOwner ? '' : 'none';
   document.getElementById('scModal').style.display='flex';
 }
 function closeModal(){ document.getElementById('scModal').style.display='none'; }
 function saveNew(){
-  const staffAmount=parseFloat(document.getElementById('f_amount').value);
+  const staffAmount=parseFloat(V('f_amount'));
   if(!staffAmount){ alert('請輸入員工填寫金額'); return; }
-  const ownerCostVal = document.getElementById('f_ownercost').value;
+  const vendor = V('f_vendor') || null;            // 要轉帳的廠商（入帳對象）
+  const person = V('f_worker');                    // 領現的個人/點工
+  const worker = person || vendor || '—';          // 誰支援＝個人優先，否則廠商
+  const ownerCostVal = V('f_ownercost');
   const ownerCost = (isOwner && ownerCostVal!=='') ? parseFloat(ownerCostVal) : null;
+  const common = {
+    org:V('f_org'), cat:V('f_cat'), worker, vendor,
+    date:V('f_date'), hours:parseFloat(V('f_hours'))||0,
+    staffAmount, case:V('f_case')||null,
+  };
   if(editId){
     const r=rows.find(x=>x.id===editId);
-    Object.assign(r, {
-      date:document.getElementById('f_date').value,
-      cat:document.getElementById('f_cat').value,
-      worker:document.getElementById('f_worker').value,
-      hours:parseFloat(document.getElementById('f_hours').value)||0,
-      staffAmount, vendor:document.getElementById('f_vendor').value||null,
-      case:document.getElementById('f_case').value||null,
-      org:document.getElementById('f_org').value,
-    });
+    Object.assign(r, common);
     if(isOwner) r.ownerCost = ownerCost;   // 只有老闆能改成本
     closeModal(); render(); return;
   }
-  rows.unshift({ id:Date.now(), status:'todo',
-    date:document.getElementById('f_date').value,
-    cat:document.getElementById('f_cat').value,
-    worker:document.getElementById('f_worker').value,
-    hours:parseFloat(document.getElementById('f_hours').value)||0,
-    staffAmount, ownerCost, case:document.getElementById('f_case').value||null,
-    client:null, vendor:document.getElementById('f_vendor').value||null,
-    org:document.getElementById('f_org').value, paid_at:null });
+  rows.unshift({ id:Date.now(), status:'todo', client:null, ownerCost, paid_at:null, ...common });
   closeModal(); curTab='todo'; switchTab('todo');
 }
 
