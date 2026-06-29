@@ -45,6 +45,7 @@ router.get('/', requireAuth, (req, res) => {
   const p = [];
   if (!me.view_all_branches && me.role !== 'owner') { sql += ` AND r.org_id = ?`; p.push(me.org_id); }
   if (req.query.org_id) { sql += ` AND r.org_id = ?`; p.push(req.query.org_id); }
+  if (req.query.case_id) { sql += ` AND r.case_id = ?`; p.push(req.query.case_id); }  // 案件詳情頁連動查詢
   if (req.query.status) { sql += ` AND r.status = ?`; p.push(req.query.status); }
   sql += ` ORDER BY r.applied_at DESC, r.id DESC`;
   res.json({ rows: db.prepare(sql).all(...p), me: { isWarehouse: isWarehouse(me), id: me.id } });
