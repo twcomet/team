@@ -338,7 +338,7 @@ function render(){
 }
 
 async function saveQuote(status){
- if(!CART.length){alert('還沒有任何品項');return;}
+ if(!CART.length){alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return;}
  var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
    customer_name:v('b-name'), phone:v('b-phone'), address:v('b-address'), community:v('b-community'),
    items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
