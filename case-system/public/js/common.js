@@ -68,6 +68,7 @@ async function loadUser() {
     vendors:          ['owner','hq_accounting'].includes(currentUser.role),
     assets:           true,
     purchases:        p.page_materials !== undefined ? p.page_materials : mu,
+    'material-usage': true,
     shipments:        ['owner','vp','hq_cs','hq_cs_manager'].includes(currentUser.role) || !!currentUser.can_ship,
     deficiencies:     true,   // 所有人可見（manager 看全部，員工看自己）
     leave:            true,

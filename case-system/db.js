@@ -2207,6 +2207,40 @@ if (!db.prepare(`SELECT id FROM subcontract_categories LIMIT 1`).get()) {
   ['貼膜','油漆','矽利康','拆除','清潔'].forEach((n, i) => insSc.run(n, i));
 }
 
+// ── 膜料使用紀錄（領用→歸檔；倉管審核）────────────────────────────
+// 狀態：pending_pickup待領用審核 / picked已領用 / pending_return待歸檔審核 / archived已歸檔 / rejected已駁回
+// 第一階段純紀錄，不動 material_rolls 庫存（歸檔實扣為第二階段）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS material_requisitions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id          INTEGER REFERENCES orgs(id),
+    material_label  TEXT,
+    material_id     INTEGER REFERENCES materials(id),
+    roll_id         INTEGER REFERENCES material_rolls(id),
+    case_id         INTEGER REFERENCES cases(id),
+    purpose         TEXT,
+    est_meters      REAL,
+    actual_meters   REAL,
+    remaining_meters REAL,
+    archive_location TEXT,
+    cat_add         REAL,
+    cat_loss        REAL,
+    cat_recut       REAL,
+    status          TEXT NOT NULL DEFAULT 'pending_pickup',
+    note            TEXT,
+    applicant_id        INTEGER REFERENCES users(id),
+    applied_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    pickup_approver_id  INTEGER REFERENCES users(id),
+    pickup_approved_at  DATETIME,
+    returned_at         DATETIME,
+    archive_approver_id INTEGER REFERENCES users(id),
+    archived_at         DATETIME,
+    reject_note     TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
 try {
   db.prepare(`UPDATE vendors SET category='logistics'  WHERE (category IS NULL OR category='other') AND (name LIKE '%物流%' OR name LIKE '%快遞%' OR name LIKE '%便利袋%' OR name LIKE '%大榮%' OR name LIKE '%順豐%' OR name LIKE '%郵寄%' OR name LIKE '%Lalamove%' OR name LIKE '%i郵箱%')`).run();

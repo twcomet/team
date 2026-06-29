@@ -85,6 +85,7 @@ app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
 app.use('/api/subcontract',           require('./routes/subcontract'));
+app.use('/api/material-usage',        require('./routes/material-usage'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
 app.use('/api/staff-performance',     require('./routes/staff-performance'));
@@ -202,7 +203,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
@@ -212,11 +213,6 @@ pages.forEach(page => {
 });
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
-
-// 膜料使用紀錄【預覽頁・未接資料】— 僅登入可看，不放選單，供 Flora 檢視真畫面
-app.get('/material-usage', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'material-usage.html'));
-});
 
 // 員工績效報表（僅 owner）
 app.get('/staff-performance', requireAuth, requireContract, (req, res) => {
