@@ -22,38 +22,54 @@ function futMethod(cat, origin, v) {
 }
 
 // ── 裝潢膜：同品牌+防焰+膜款+貼法 併料（plane 才併）────────────────
-function computeFilms(arr, cat) {
+function _sizeStr(sizes) { return Object.keys(sizes).map(s => sizes[s] > 1 ? s + '×' + sizes[s] : s).join('、'); }
+function _combCai(g) { // 拼料：g.full(整條米) + 畸零拼條 → 才
+  const W = g.W, Fb = W * 100 / 900, pcs = g.pieces.slice().sort((a, b) => b.h - a.h), strips = [];
+  pcs.forEach(pc => { let placed = false; if (pc.comb) for (let i = 0; i < strips.length; i++) { const s = strips[i]; if (s.used + pc.w <= W && pc.h <= s.host) { s.used += pc.w; s.mem++; placed = true; break; } } if (!placed) strips.push({ used: pc.w, host: pc.h, mem: 1 }); });
+  return { cai: (g.full + strips.reduce((a, s) => a + s.host / 100, 0)) * Fb, comb: strips.filter(s => s.mem > 1).length };
+}
+// 牆面/系統櫃/造型：combine=true 時 牆面/系統櫃 拼料省料；其餘(含造型、寬鬆)＝膜寬×高(每片整條膜寬·多報)
+function computeFilms(arr, cat, combine) {
   const groups = {};
   arr.forEach((it, ci) => {
-    const item = filmItem(cat, it.brand, it.idx), W = filmW(item), key = it.brand + '|' + it.idx + '|' + it.work;
-    groups[key] = groups[key] || { item, brand: it.brand, W, work: it.work, full: 0, pieces: [], n: 0, idxs: [] };
+    const item = filmItem(cat, it.brand, it.idx), W = filmW(item);
+    const isComb = combine && (it.work === 'plane' || it.work === 'cabinet');
+    const key = isComb ? (it.brand + '|' + it.idx + '|' + it.work) : (it.brand + '|' + it.idx + '|' + it.work + '|' + it.h + '|' + it.w);
+    groups[key] = groups[key] || { item, brand: it.brand, W, work: it.work, isComb, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
-    const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
-    g.full += full * (H / 100);
-    if (rem > 0) g.pieces.push({ h: H, w: rem, comb: (it.work === 'plane' && rem < (W - 2)) });
+    g.sizes[it.w + '×' + it.h] = (g.sizes[it.w + '×' + it.h] || 0) + 1;
+    if (isComb) {
+      const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
+      g.full += full * (H / 100);
+      if (rem > 0) g.pieces.push({ h: H, w: rem, comb: rem < (W - 2) });
+    } else { g.looseCai += Math.ceil(it.w / W) * W * it.h / 900; } // 寬鬆：需要幾條×膜寬×高(每條整條膜寬·多報)
   });
   return Object.keys(groups).map(k => {
-    const g = groups[k], W = g.W, Fb = W * 100 / 900, unit = g.item[g.work];
-    const pcs = g.pieces.slice().sort((a, b) => b.h - a.h), strips = [];
-    pcs.forEach(pc => {
-      let placed = false;
-      if (pc.comb) for (let i = 0; i < strips.length; i++) { const s = strips[i]; if (s.used + pc.w <= W && pc.h <= s.host) { s.used += pc.w; s.mem++; placed = true; break; } }
-      if (!placed) strips.push({ used: pc.w, host: pc.h, mem: 1 });
-    });
-    const packM = strips.reduce((a, s) => a + s.host / 100, 0), m = g.full + packM, cai = m * Fb, amt = ceil100(cai * unit);
-    const comb = strips.filter(s => s.mem > 1).length;
-    return { type: 'film', work: g.work, brand: g.brand, label: workName[g.work] + '｜' + cat.FILMS[g.brand].label, series: g.item.asia + ' ' + g.item.color, n: g.n, cai, unit, amount: amt, comb, idxs: g.idxs };
+    const g = groups[k], unit = g.item[g.work];
+    const r = g.isComb ? _combCai(g) : { cai: g.looseCai, comb: 0 };
+    return { type: 'film', work: g.work, brand: g.brand, label: workName[g.work] + '｜' + cat.FILMS[g.brand].label, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, idxs: g.idxs };
   });
 }
-function computeGlass(arr, cat, cust) {
+// 玻璃：combine=true 拼料省料(用該玻璃膜寬)；否則 寬鬆＝膜寬×高
+function computeGlass(arr, cat, cust, combine) {
   const groups = {};
   arr.forEach((it, ci) => {
-    const item = cat.GLASS[it.cat].items[it.idx], unit = cust === 'owner' ? item.owner : item.designer, key = it.cat + '|' + it.idx + '|' + unit;
-    const cai = it.w * it.h / 900, amt = ceil100(cai * unit);
-    groups[key] = groups[key] || { label: cat.GLASS[it.cat].label, series: item.sys, unit, n: 0, amount: 0, idxs: [] };
-    const g = groups[key]; g.n++; g.amount += amt; g.idxs.push(ci);
+    const item = cat.GLASS[it.cat].items[it.idx], unit = cust === 'owner' ? item.owner : item.designer, W = item.width || 122;
+    const key = combine ? (it.cat + '|' + it.idx + '|' + unit) : (it.cat + '|' + it.idx + '|' + unit + '|' + it.h + '|' + it.w);
+    groups[key] = groups[key] || { catLabel: cat.GLASS[it.cat].label, sys: item.sys, unit, W, isComb: !!combine, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
+    const g = groups[key]; g.n++; g.idxs.push(ci);
+    g.sizes[it.w + '×' + it.h] = (g.sizes[it.w + '×' + it.h] || 0) + 1;
+    if (combine) {
+      const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
+      g.full += full * (H / 100);
+      if (rem > 0) g.pieces.push({ h: H, w: rem, comb: rem < (W - 2) });
+    } else { g.looseCai += Math.ceil(it.w / W) * W * it.h / 900; } // 寬鬆：需要幾條×膜寬×高
   });
-  return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'glass', label: '玻璃｜' + g.label, series: g.series + '（' + g.unit + '/才）', n: g.n, amount: g.amount, idxs: g.idxs }; });
+  return Object.keys(groups).map(k => {
+    const g = groups[k];
+    const r = g.isComb ? _combCai(g) : { cai: g.looseCai };
+    return { type: 'glass', label: '玻璃｜' + g.catLabel, series: g.sys + '　' + _sizeStr(g.sizes) + '（' + g.unit + '/才）', n: g.n, cai: r.cai, unit: g.unit, amount: ceil100(r.cai * g.unit), idxs: g.idxs };
+  });
 }
 function computeOther(arr) {
   const groups = {};
@@ -80,8 +96,9 @@ function elevCeilAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = fil
 function buildLines(cart, opts, cat) {
   const cust = opts.cust || 'owner';
   let lines = [];
-  lines = lines.concat(computeFilms(cart.filter(c => c.kind === 'film'), cat));
-  lines = lines.concat(computeGlass(cart.filter(c => c.kind === 'glass'), cat, cust));
+  const combine = !!opts.combine; // 預設 false＝寬鬆(膜寬×高)；true＝拼料省料
+  lines = lines.concat(computeFilms(cart.filter(c => c.kind === 'film'), cat, combine));
+  lines = lines.concat(computeGlass(cart.filter(c => c.kind === 'glass'), cat, cust, combine));
   lines = lines.concat(computeOther(cart.filter(c => c.kind === 'other')));
   lines = lines.concat(computeObject(cart.filter(c => c.kind === 'object')));
   const fixed = {};
@@ -145,7 +162,7 @@ function buildCatalogFromDb(db) {
   const GLASS = {};
   db.prepare(`SELECT * FROM est_glass ORDER BY sort_order, id`).all().forEach(r => {
     if (!GLASS[r.cat_key]) GLASS[r.cat_key] = { label: r.cat_label, items: [] };
-    GLASS[r.cat_key].items.push({ sys: r.sys, owner: r.owner_price, designer: r.designer_price });
+    GLASS[r.cat_key].items.push({ sys: r.sys, owner: r.owner_price, designer: r.designer_price, width: r.width || 122 });
   });
   const FREIGHT = {};
   db.prepare(`SELECT region, amount FROM est_freight`).all().forEach(r => { FREIGHT[r.region] = r.amount || 0; });

@@ -3132,7 +3132,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS est_glass (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cat_key TEXT, cat_label TEXT, sys TEXT,
-    owner_price REAL, designer_price REAL,
+    owner_price REAL, designer_price REAL, width INTEGER DEFAULT 122, roll_len REAL DEFAULT 50,
     sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
   );
   CREATE TABLE IF NOT EXISTS est_doors (
@@ -3152,6 +3152,8 @@ db.exec(`
 _addCol('est_freight', 'survey_fee',      'REAL DEFAULT 0');
 _addCol('est_freight', 'overnight_fee',   'REAL DEFAULT 0');
 _addCol('est_freight', 'night_surcharge', 'REAL DEFAULT 0');
+_addCol('est_glass',   'width',           'INTEGER DEFAULT 122'); // 玻璃膜寬（拼料用）
+_addCol('est_glass',   'roll_len',        'REAL DEFAULT 50');     // 長度（米）
 try {
   const _estSeed = require('./lib/estimator-seed');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_films`).get().n) {

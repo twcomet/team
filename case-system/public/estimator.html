@@ -120,6 +120,15 @@
         </div>
       </div>
 
+      <div class="ec-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px">
+        <b style="font-size:13.5px">計料方式（牆面/系統櫃/玻璃）：</b>
+        <div style="display:inline-flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden">
+          <button id="cb-loose" onclick="setCombine(false)" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;background:#2563eb;color:#fff;font-weight:600">寬鬆（多報）</button>
+          <button id="cb-comb" onclick="setCombine(true)" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;background:#fff;color:#374151">拼料省料</button>
+        </div>
+        <span style="font-size:12px;color:#9ca3af">寬鬆＝每片整條膜寬(多報、有彈性)；拼料＝畸零拼料省料。可切換比較。</span>
+      </div>
+
       <div class="ec-wrap">
         <!-- 左：輸入 -->
         <div class="ec-card">
@@ -215,7 +224,7 @@ const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統�
 const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型' };
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
-let CART=[], cust='owner', editId=null, ECASE=null;
+let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false;
 const EPARAMS = new URLSearchParams(location.search);
 
 const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
@@ -230,7 +239,7 @@ async function loadCatalog(){
   const pr = await fetch(API+'/prices').then(r=>r.json());
   FILMS={}; (cat.films||[]).forEach(function(r){ if(!FILMS[r.brand])FILMS[r.brand]={label:BRAND[r.brand]||r.brand,items:[]}; FILMS[r.brand].items.push({id:r.id,asia:r.asia_code,kr:r.kr_code,color:r.color,plane:r.plane,cabinet:r.cabinet,shape:r.shape,width:r.width||122}); });
   DOORS={}; (cat.doors||[]).forEach(function(r){ DOORS[r.cat]=DOORS[r.cat]||{}; if(r.cat==='fire'){DOORS.fire.sized=1;DOORS.fire[r.size]=DOORS.fire[r.size]||{};DOORS.fire[r.size][r.origin]=DOORS.fire[r.size][r.origin]||{};DOORS.fire[r.size][r.origin][r.side]=r.price;}else{DOORS[r.cat][r.origin]=DOORS[r.cat][r.origin]||{};DOORS[r.cat][r.origin][r.side]=DOORS[r.cat][r.origin][r.side]||{};DOORS[r.cat][r.origin][r.side][r.frame]=r.price;} });
-  GLASS={}; (pr.glass||[]).forEach(function(r){ if(!GLASS[r.cat_key])GLASS[r.cat_key]={label:r.cat_label,items:[]}; GLASS[r.cat_key].items.push({sys:r.sys,owner:r.owner_price,designer:r.designer_price}); });
+  GLASS={}; (pr.glass||[]).forEach(function(r){ if(!GLASS[r.cat_key])GLASS[r.cat_key]={label:r.cat_label,items:[]}; GLASS[r.cat_key].items.push({sys:r.sys,owner:r.owner_price,designer:r.designer_price,width:r.width||122}); });
   FREIGHT={}; (pr.freight||[]).forEach(function(r){ FREIGHT[r.region]=r.amount||0; });
   LOWMIN = pr.lowmin || {owner:10000,designer:9000};
 }
@@ -272,9 +281,11 @@ function clearAll(){if(CART.length&&!confirm('清空全部品項？'))return;CAR
 function rmGroup(csv){var idxs=csv.split(',').map(Number).sort(function(a,b){return b-a;});idxs.forEach(function(i){CART.splice(i,1);});render();}
 
 /* 計價（鏡像 lib/estimator.js）*/
-function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item),k=it.brand+'|'+it.idx+'|'+it.work;g[k]=g[k]||{item:item,brand:it.brand,W:W,work:it.work,full:0,pieces:[],n:0,idxs:[]};var x=g[k];x.n++;x.idxs.push(ci);var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:(it.work==='plane'&&rem<(W-2))});});
- return Object.keys(g).map(function(k){var x=g[k],W=x.W,Fb=W*100/900,unit=x.item[x.work];var pcs=x.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});var packM=strips.reduce(function(a,s){return a+s.host/100;},0),m=x.full+packM,cai=m*Fb,amt=ceil100(cai*unit);var comb=strips.filter(function(s){return s.mem>1;}).length;return {type:'film',work:x.work,label:workName[x.work]+'｜'+FILMS[x.brand].label,series:x.item.asia+' '+x.item.color,n:x.n,cai:cai,unit:unit,amount:amt,comb:comb,idxs:x.idxs};});}
-function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,k=it.cat+'|'+it.idx+'|'+unit;var cai=it.w*it.h/900,amt=ceil100(cai*unit);g[k]=g[k]||{label:GLASS[it.cat].label,series:item.sys,unit:unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'glass',label:'玻璃｜'+x.label,series:x.series+'（'+x.unit+'/才）',n:x.n,amount:x.amount,idxs:x.idxs};});}
+function _sizeStr(sz){return Object.keys(sz).map(function(s){return sz[s]>1?s+'×'+sz[s]:s;}).join('、');}
+function _combCai(g){var W=g.W,Fb=W*100/900,pcs=g.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});return {cai:(g.full+strips.reduce(function(a,s){return a+s.host/100;},0))*Fb,comb:strips.filter(function(s){return s.mem>1;}).length};}
+function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item);var isComb=COMBINE&&(it.work==='plane'||it.work==='cabinet');var k=isComb?(it.brand+'|'+it.idx+'|'+it.work):(it.brand+'|'+it.idx+'|'+it.work+'|'+it.h+'|'+it.w);g[k]=g[k]||{item:item,brand:it.brand,W:W,work:it.work,isComb:isComb,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes[it.w+'×'+it.h]=(x.sizes[it.w+'×'+it.h]||0)+1;if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});
+ return Object.keys(g).map(function(k){var x=g[k],unit=x.item[x.work];var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};return {type:'film',work:x.work,label:workName[x.work]+'｜'+FILMS[x.brand].label,series:x.item.asia+' '+x.item.color+'　'+_sizeStr(x.sizes),n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs};});}
+function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,W=item.width||122;var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes[it.w+'×'+it.h]=(x.sizes[it.w+'×'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs};});}
 function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:it.w+'×'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function elevUnit(it){return it.shape;}
@@ -297,6 +308,12 @@ function buildLines(){var lines=[];
  return lines;}
 function doorPriceOf(it){if(it.cat==='fire')return DOORS.fire[it.size][it.origin][it.side];return DOORS[it.cat][it.origin][it.side][it.frame];}
 
+function setCombine(b){ COMBINE=b;
+  var lo=document.getElementById('cb-loose'), cb=document.getElementById('cb-comb');
+  lo.style.background=b?'#fff':'#2563eb'; lo.style.color=b?'#374151':'#fff'; lo.style.fontWeight=b?'400':'600';
+  cb.style.background=b?'#2563eb':'#fff'; cb.style.color=b?'#fff':'#374151'; cb.style.fontWeight=b?'600':'400';
+  render();
+}
 function render(){
  cust=v('b-cust');document.getElementById('t-region').textContent=v('b-region');
  if(v('g-cat'))fillGlassSeries();
@@ -321,7 +338,7 @@ async function saveQuote(status){
  if(!CART.length){alert('還沒有任何品項');return;}
  var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
    customer_name:v('b-name'), phone:v('b-phone'), address:v('b-address'), community:v('b-community'),
-   items:CART, disc:parseFloat(v('q-disc'))||1, status:status||'draft' };
+   items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
  var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
  try{
    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
