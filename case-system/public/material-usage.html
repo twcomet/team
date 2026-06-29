@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>膜料使用紀錄 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:18px; border-bottom:2px solid var(--gray-200); flex-wrap:wrap; }
+.tabs-bar .tab { padding:8px 16px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); display:flex; align-items:center; gap:6px; }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-count { background:var(--gray-200); color:var(--gray-600); font-size:11px; font-weight:700; border-radius:10px; padding:1px 7px; }
+.tab.active .tab-count { background:var(--primary); color:#fff; }
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.sbadge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.s-pp { background:#fef3c7; color:#92400e; }   /* 待領用審核 */
+.s-pk { background:#dbeafe; color:#1e40af; }   /* 已領用 */
+.s-pr { background:#fae8ff; color:#86198f; }   /* 待歸檔審核 */
+.s-ar { background:#d1fae5; color:#065f46; }   /* 已歸檔 */
+.s-rj { background:#fee2e2; color:#991b1b; }   /* 已駁回 */
+.cat-pill { display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px }
+.c-add { background:#dbeafe;color:#1e40af } .c-loss{ background:#fee2e2;color:#991b1b } .c-recut{ background:#fef3c7;color:#92400e }
+.preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; padding:3px 10px; border-radius:8px; }
+.help-bar { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.7; }
+.act-link { text-decoration:none; font-weight:600; margin-right:10px; white-space:nowrap; cursor:pointer; }
+.muted { color:#9ca3af; }
+table td, table th { font-size:13px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+  <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">膜料使用紀錄</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="preview-flag">預覽模式・未接資料（畫面用假資料示意）</span>
+        <button class="btn btn-primary btn-sm" onclick="openNew()">＋ 新增領用</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="help-bar">
+        💡 動用膜料都要寫紀錄。<b>案件施工</b>師傅憑成交保留<b>直接帶料</b>用、用完按「確認使用完畢」回報（含加貼／損耗／重裁＋剩餘）；
+        <b>非案件／其他用途</b>取料才需「領用申請→倉管核准→才可拿」。流程：領用申請→<b>倉管核准</b>→確認使用完畢→<b>倉管核准歸檔</b>（實扣用量、更新貨架）。駁回＝退回修改重送。
+      </div>
+
+      <div class="tabs-bar">
+        <div class="tab active" data-tab="pp">待領用審核 <span class="tab-count" id="cnt-pp">0</span></div>
+        <div class="tab" data-tab="pk">已領用（待回報） <span class="tab-count" id="cnt-pk">0</span></div>
+        <div class="tab" data-tab="pr">待歸檔審核 <span class="tab-count" id="cnt-pr">0</span></div>
+        <div class="tab" data-tab="ar">已歸檔 <span class="tab-count" id="cnt-ar">0</span></div>
+      </div>
+
+      <div class="filter-bar">
+        <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+        <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+          <option value="">全部分店</option><option>總部</option><option>鶯歌</option><option>新竹</option>
+        </select>
+        <div style="flex:1"></div>
+        <span id="sumLine" style="font-size:13px;color:var(--gray-600)"></span>
+      </div>
+
+      <div class="card"><div class="card-body" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th>狀態</th><th>申請日</th><th>膜料</th><th>案件（客戶）</th><th>用途</th>
+            <th>預估</th><th>實際用量</th><th>剩餘</th><th>貨架</th><th>申請人</th><th>倉管</th><th></th>
+          </tr></thead>
+          <tbody id="listBody"></tbody>
+        </table></div>
+      </div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增領用 -->
+<div class="modal-overlay" id="newModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><h3>新增領用申請</h3><button class="modal-close" onclick="close_('newModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">膜料（捲料）*</label>
+        <input class="form-input" id="n_mat" list="dlMat" placeholder="輸入品牌/型號搜尋…"><datalist id="dlMat"></datalist></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">用途 *</label>
+          <select class="form-input" id="n_purpose"><option value="case">案件施工</option><option value="other">非案件／其他用途</option><option value="sample">打樣／樣品</option></select></div>
+        <div class="form-group"><label class="form-label">預估米數（可空）</label>
+          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="選填"></div>
+      </div>
+      <div class="form-group"><label class="form-label">關聯案件（可空，案件施工建議填）</label>
+        <input class="form-input" id="n_case" placeholder="輸入案號或客戶搜尋…（示意）"></div>
+      <div class="form-group"><label class="form-label">分店</label>
+        <select class="form-input" id="n_org"><option>總部</option><option>鶯歌</option><option>新竹</option></select></div>
+      <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="n_note" placeholder="選填"></div>
+      <div class="muted" style="font-size:12px">送出後 → 通知倉管審核；倉管核准後才可拿料。</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="close_('newModal')">取消</button><button class="btn btn-primary" onclick="saveNew()">送出領用申請</button></div>
+  </div>
+</div>
+
+<!-- 確認使用完畢（回報）-->
+<div class="modal-overlay" id="returnModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3>確認使用完畢・回報</h3><button class="modal-close" onclick="close_('returnModal')">×</button></div>
+    <div class="modal-body">
+      <p id="r_info" style="font-size:13px;color:var(--gray-600);margin:0 0 14px"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">實際用量(米)*</label><input class="form-input" id="r_actual" type="number" min="0" step="0.1"></div>
+        <div class="form-group"><label class="form-label">剩餘(米)</label><input class="form-input" id="r_remain" type="number" min="0" step="0.1"></div>
+        <div class="form-group"><label class="form-label">暫定位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
+      </div>
+      <div style="background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">現場情境分類（用幾米，可不填）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">加貼</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">損耗</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">重裁</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="r_note" placeholder="選填"></div>
+      <div class="muted" style="font-size:12px">送出後 → 通知倉管核准歸檔（倉管會確認剩餘米數、更新貨架）。</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="close_('returnModal')">取消</button><button class="btn btn-primary" onclick="saveReturn()">送出回報</button></div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let isWarehouse = true;   // 倉管(can_manage_assets) 才看得到核准/駁回；示意先 true
+let matList = ['3M PA-320 素面','LG WC046 木紋','BODAQ AB003 石紋','LX SG020 金屬'];
+const SB = { pp:['s-pp','待領用審核'], pk:['s-pk','已領用'], pr:['s-pr','待歸檔審核'], ar:['s-ar','已歸檔'], rj:['s-rj','已駁回'] };
+let curTab='pp', returnId=null;
+
+let rows=[
+  { id:1, status:'pp', date:'2026-06-29', mat:'LG WC046 木紋', case:'HX2606-278', client:'群鼎裝潢', purpose:'非案件／其他用途', est:5, actual:null, remain:null, shelf:'A2', org:'總部', applicant:'阿傑', approver:null, cats:null },
+  { id:2, status:'pk', date:'2026-06-28', mat:'3M PA-320 素面', case:'HX2606-199', client:'序幸藝術', purpose:'案件施工', est:12, actual:null, remain:null, shelf:'B1', org:'總部', applicant:'阿明', approver:'佳樺', cats:null },
+  { id:3, status:'pr', date:'2026-06-26', mat:'BODAQ AB003 石紋', case:'HX2606-236', client:'歐銳設計', purpose:'案件施工', est:20, actual:18.5, remain:1.5, shelf:'散料區', org:'鶯歌', applicant:'大雄', approver:'佳樺', cats:{add:2,loss:1.5,recut:0} },
+  { id:4, status:'ar', date:'2026-06-20', mat:'LX SG020 金屬', case:'HX2606-076', client:'泛設計', purpose:'案件施工', est:8, actual:7, remain:1, shelf:'A1', org:'總部', applicant:'阿德', approver:'佳樺', cats:{add:0,loss:1,recut:0} },
+];
+
+document.addEventListener('DOMContentLoaded', async()=>{
+  try{ if(window.loadUser) await loadUser(); }catch(e){}
+  try{ if(window.highlightNav) highlightNav('material-usage'); }catch(e){}
+  document.querySelectorAll('.tabs-bar .tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+  document.getElementById('dlMat').innerHTML = matList.map(m=>`<option>${m}</option>`).join('');
+  render();
+});
+function switchTab(t){ curTab=t; document.querySelectorAll('.tabs-bar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); render(); }
+
+function render(){
+  ['pp','pk','pr','ar'].forEach(s=>document.getElementById('cnt-'+s).textContent=rows.filter(r=>r.status===s).length);
+  const month=document.getElementById('monthFilter').value, org=document.getElementById('orgFilter').value;
+  let list=rows.filter(r=>r.status===curTab).filter(r=>!month||(r.date||'').startsWith(month)).filter(r=>!org||r.org===org);
+  const body=document.getElementById('listBody');
+  document.getElementById('sumLine').textContent = list.length?`${list.length} 筆`:'';
+  if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
+  body.innerHTML=list.map(r=>{
+    const sb=SB[r.status];
+    const catStr = r.cats ? [r.cats.add?`<span class="cat-pill c-add">加貼${r.cats.add}</span>`:'', r.cats.loss?`<span class="cat-pill c-loss">損耗${r.cats.loss}</span>`:'', r.cats.recut?`<span class="cat-pill c-recut">重裁${r.cats.recut}</span>`:''].join('') : '';
+    let acts='';
+    if(r.status==='pp') acts = isWarehouse
+      ? `<a class="act-link" style="color:#065f46" onclick="approve(${r.id})">核准領用</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
+      : `<span class="muted" style="font-size:12px">🔒 待倉管核准</span>`;
+    if(r.status==='pk') acts = `<a class="act-link" style="color:#1e40af" onclick="openReturn(${r.id})">確認使用完畢</a>`;
+    if(r.status==='pr') acts = isWarehouse
+      ? `<a class="act-link" style="color:#065f46" onclick="archive(${r.id})">核准歸檔</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
+      : `<span class="muted" style="font-size:12px">🔒 待倉管核准歸檔</span>`;
+    if(r.status==='ar') acts = `<span class="muted" style="font-size:12px">🔒 已歸檔</span>`;
+    return `<tr>
+      <td><span class="sbadge ${sb[0]}">${sb[1]}</span></td>
+      <td>${r.date}</td>
+      <td>${r.mat}</td>
+      <td>${r.case?`${r.case}<div class="muted" style="font-size:11px">👤 ${r.client||''}</div>`:'<span class="muted">無案件</span>'}</td>
+      <td>${r.purpose}</td>
+      <td>${r.est!=null?r.est+'米':'<span class="muted">—</span>'}</td>
+      <td>${r.actual!=null?`${r.actual}米 ${catStr}`:'<span class="muted">—</span>'}</td>
+      <td>${r.remain!=null?r.remain+'米':'<span class="muted">—</span>'}</td>
+      <td>${r.shelf||'<span class="muted">—</span>'}</td>
+      <td>${r.applicant}</td>
+      <td>${r.approver||'<span class="muted">—</span>'}</td>
+      <td style="white-space:nowrap">${acts}</td>
+    </tr>`;
+  }).join('');
+}
+
+// 倉管動作（示意）
+function approve(id){ const r=rows.find(x=>x.id===id); r.status='pk'; r.approver='佳樺'; alert('已核准領用 ✓（通知申請人可拿料；此捲鎖定使用中）'); render(); }
+function archive(id){ const r=rows.find(x=>x.id===id); r.status='ar'; alert(`已核准歸檔 ✓\n實扣用量 ${r.actual}米、剩餘 ${r.remain}米歸位（${r.shelf}）。\n（示意，未真的動庫存）`); render(); }
+function reject(id){ const r=rows.find(x=>x.id===id); if(confirm('駁回並退回申請人修改重送？')){ r.status='rj'; alert('已退回申請人'); render(); } }
+
+const V=id=>document.getElementById(id).value.trim();
+function close_(m){ document.getElementById(m).style.display='none'; }
+function openNew(){ ['n_mat','n_est','n_case','n_note'].forEach(i=>document.getElementById(i).value=''); document.getElementById('n_org').value='總部'; document.getElementById('newModal').style.display='flex'; }
+function saveNew(){
+  if(!V('n_mat')){ alert('請選膜料'); return; }
+  const purposeTxt = document.getElementById('n_purpose').selectedOptions[0].text;
+  rows.unshift({ id:Date.now(), status:'pp', date:'2026-06-29', mat:V('n_mat'), case:V('n_case')||null, client:null, purpose:purposeTxt, est:parseFloat(V('n_est'))||null, actual:null, remain:null, shelf:null, org:V('n_org'), applicant:'我', approver:null, cats:null });
+  close_('newModal'); switchTab('pp');
+}
+function openReturn(id){
+  returnId=id; const r=rows.find(x=>x.id===id);
+  document.getElementById('r_info').textContent=`${r.mat}｜${r.case||'無案件'} ${r.client||''}（預估 ${r.est!=null?r.est+'米':'—'}）`;
+  ['r_actual','r_remain','r_loc','r_add','r_loss','r_recut','r_note'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('returnModal').style.display='flex';
+}
+function saveReturn(){
+  const r=rows.find(x=>x.id===returnId); if(!r) return;
+  const actual=parseFloat(V('r_actual')); if(!actual){ alert('請填實際用量'); return; }
+  r.actual=actual; r.remain=parseFloat(V('r_remain'))||0; r.shelf=V('r_loc')||r.shelf;
+  r.cats={ add:parseFloat(V('r_add'))||0, loss:parseFloat(V('r_loss'))||0, recut:parseFloat(V('r_recut'))||0 };
+  r.status='pr';
+  close_('returnModal'); switchTab('pr');
+}
+</script>
+</body>
+</html>
