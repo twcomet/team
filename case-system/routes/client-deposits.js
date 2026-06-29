@@ -90,8 +90,8 @@ router.post('/', requireAuth, (req, res) => {
     if (amt > 0 && type !== 'survey_fee') {
       const org = db.prepare(`SELECT org_id FROM clients WHERE id=?`).get(client_id);
       db.prepare(`
-        INSERT INTO ledger_entries (date, type, category, amount, description, org_id, created_by, source_ref)
-        VALUES (?, 'income', ?, ?, ?, ?, ?, ?)
+        INSERT INTO ledger_entries (date, type, category, amount, description, org_id, created_by, source_ref, review_status)
+        VALUES (?, 'income', ?, ?, ?, ?, ?, ?, 'pending')
       `).run(
         dateVal,
         typeLabel,
@@ -173,7 +173,7 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
         db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
           .run(dateVal, dep.amount, typeLabel, desc, existing.id);
       } else {
-        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?, 'pending')`)
           .run(dateVal, typeLabel, dep.amount, caseIdForLedger, desc, org?.org_id || null, req.session.user.id, sourceRef);
       }
     } catch (e) {

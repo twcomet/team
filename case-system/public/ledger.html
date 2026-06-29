@@ -171,6 +171,7 @@
         <button class="ledger-tab tab-all active" data-tab="all"     onclick="setTab('all')">總覽</button>
         <button class="ledger-tab tab-income"      data-tab="income"  onclick="setTab('income')">收入</button>
         <button class="ledger-tab tab-expense"     data-tab="expense" onclick="setTab('expense')">支出</button>
+        <button class="ledger-tab" data-tab="review" onclick="setTab('review')" style="color:#b45309;border-bottom-color:transparent;display:none" id="reviewTab">⏳ 待審核 <span id="reviewBadge" style="background:#f59e0b;color:#fff;border-radius:10px;padding:0 7px;font-size:11px;font-weight:700;display:none"></span></button>
         <button class="ledger-tab" data-tab="vendor-analysis" onclick="setTab('vendor-analysis')" style="color:#6d28d9;border-bottom-color:transparent" id="vendorAnalysisTab">廠商分析</button>
       </div>
 
@@ -203,6 +204,27 @@
               <tbody id="ledgerBody"></tbody>
               <tfoot id="ledgerFoot"></tfoot>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 收付款待審核面板 -->
+      <div id="reviewPanel" style="display:none;margin-top:-2px">
+        <div class="card" style="border-top-left-radius:0;border-top-right-radius:0">
+          <div class="card-body" style="padding:0">
+            <div style="padding:10px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;font-size:13px;color:#92400e">
+              ⏳ 以下是系統自動產生、<b>尚未入帳</b>的收支（採購稅金／運費、案件收款、預收款…）。<b>審核通過</b>才會正式計入當月流水帳與報表；<b>退回</b>則不列入。（限老闆／會計）
+            </div>
+            <div class="table-wrap">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr style="background:#f9fafb;text-align:left">
+                  <th style="padding:8px 12px">日期</th><th style="padding:8px 12px">類型</th><th style="padding:8px 12px">科目</th>
+                  <th style="padding:8px 12px">說明</th><th style="padding:8px 12px">關聯案件</th>
+                  <th style="padding:8px 12px;text-align:right">金額</th><th style="padding:8px 12px;text-align:center">操作</th>
+                </tr></thead>
+                <tbody id="reviewBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -621,6 +643,7 @@ async function init() {
   applyUrlDrill();          // 讀 URL 由報表鑽取帶入的 month/from/to/category/org
   await loadLedger();
   loadPendingPayments();
+  refreshReviewBadge();
 
   document.getElementById('filterMonth').addEventListener('change', () => { dateRange = null; showRangeNote(); loadLedger(); });
   document.getElementById('filterOrg').addEventListener('change', loadLedger);
@@ -745,10 +768,63 @@ function setTab(tab) {
     t.classList.toggle('active', isActive);
   });
   const isVendor = tab === 'vendor-analysis';
-  document.getElementById('ledgerTableCard').style.display    = isVendor ? 'none' : '';
+  const isReview = tab === 'review';
+  document.getElementById('ledgerTableCard').style.display    = (isVendor||isReview) ? 'none' : '';
   document.getElementById('vendorAnalysisPanel').style.display = isVendor ? '' : 'none';
+  document.getElementById('reviewPanel').style.display = isReview ? '' : 'none';
   if (isVendor) { loadVendorAnalysis(); return; }
+  if (isReview) { loadReview(); return; }
   applyFilter();
+}
+
+// ── 收付款待審核 ──
+function reviewCanAct() { return ['owner','hq_accounting'].includes(currentUser?.role); }
+async function refreshReviewBadge() {
+  if (!reviewCanAct()) return;
+  document.getElementById('reviewTab').style.display = '';
+  try {
+    const { count } = await fetch('/api/ledger/pending-count').then(r=>r.json());
+    const b = document.getElementById('reviewBadge');
+    if (count > 0) { b.textContent = count; b.style.display = ''; }
+    else b.style.display = 'none';
+  } catch(e){}
+}
+async function loadReview() {
+  const escH = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const month = document.getElementById('filterMonth').value;
+  const orgId = document.getElementById('filterOrg')?.value || '';
+  let url = '/api/ledger?review=pending';
+  if (dateRange) url += `&from=${dateRange.from}-01&to=${dateRange.to}-31`;
+  else if (month) url += `&from=${month}-01&to=${month}-31`;
+  if (orgId) url += `&org_id=${orgId}`;
+  const rows = await fetch(url).then(r=>r.ok?r.json():[]);
+  const tb = document.getElementById('reviewBody');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px">目前沒有待審核項目 ✅</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => `<tr style="border-bottom:1px solid #f3f4f6">
+    <td style="padding:8px 12px">${r.date||''}</td>
+    <td style="padding:8px 12px">${r.type==='income'?'<span style="color:#057a55">收入</span>':'<span style="color:#e02424">支出</span>'}</td>
+    <td style="padding:8px 12px">${escH(r.category)}</td>
+    <td style="padding:8px 12px">${escH(r.description)}</td>
+    <td style="padding:8px 12px">${r.case_number?escH(r.case_number):'<span style="color:#9ca3af">—</span>'}</td>
+    <td style="padding:8px 12px;text-align:right;font-weight:700;color:${r.type==='income'?'#057a55':'#e02424'}">${fmt(r.amount)}</td>
+    <td style="padding:8px 12px;text-align:center;white-space:nowrap">
+      <button class="btn btn-sm" style="background:#057a55;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;margin-right:4px" onclick="approveReview(${r.id})">✓ 通過</button>
+      <button class="btn btn-sm" style="background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:4px 10px;cursor:pointer" onclick="rejectReview(${r.id})">退回</button>
+    </td>
+  </tr>`).join('');
+}
+async function approveReview(id) {
+  const r = await fetch(`/api/ledger/${id}/approve`, { method:'PATCH' });
+  if (!r.ok) { showToast((await r.json().catch(()=>({}))).error||'操作失敗','error'); return; }
+  showToast('已審核通過，正式入帳','success');
+  await loadReview(); await refreshReviewBadge(); await loadLedger();
+}
+async function rejectReview(id) {
+  if (!confirm('退回這筆？退回後不會計入流水帳。')) return;
+  const r = await fetch(`/api/ledger/${id}/reject`, { method:'PATCH' });
+  if (!r.ok) { showToast((await r.json().catch(()=>({}))).error||'操作失敗','error'); return; }
+  showToast('已退回','success');
+  await loadReview(); await refreshReviewBadge();
 }
 
 function renderStats(rows) {

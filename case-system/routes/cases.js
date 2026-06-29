@@ -469,7 +469,7 @@ router.put('/:id', requireAuth, (req, res) => { try {
         db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=? WHERE id=?`)
           .run(date, amount, category, desc, orgId, me.id, existing.id);
       } else {
-        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+        db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?, 'pending')`)
           .run(date, category, amount, caseId, desc, orgId, me.id, ref);
       }
     };
@@ -517,7 +517,7 @@ router.patch('/:id/retention-verify', requireAuth, (req, res) => {
       db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=? WHERE id=?`)
         .run(dateVal, c.retention_paid, category, desc, c.org_id || null, me.id, existing.id);
     } else {
-      db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?)`)
+      db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?, 'pending')`)
         .run(dateVal, category, c.retention_paid, caseId, desc, c.org_id || null, me.id, ref);
     }
   } catch (e) { console.error('[retention-verify ledger]', e.message); }

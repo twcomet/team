@@ -10,7 +10,7 @@ router.get('/pl', requireAuth, (req, res) => {
   const orgRestrict = orgFilter(user);
 
   const params = [];
-  let where = 'WHERE 1=1';
+  let where = "WHERE 1=1 AND (review_status IS NULL OR review_status<>'pending')";
   if (orgRestrict.org_id) { where += ' AND org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND org_id=?'; params.push(req.query.org_id); }
   if (from) { where += ' AND date>=?'; params.push(from); }
@@ -130,7 +130,7 @@ router.get('/cashflow', requireAuth, (req, res) => {
   const orgRestrict = orgFilter(user);
 
   const params = [];
-  let where = 'WHERE 1=1';
+  let where = "WHERE 1=1 AND (review_status IS NULL OR review_status<>'pending')";
   if (orgRestrict.org_id) { where += ' AND org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND org_id=?'; params.push(req.query.org_id); }
   if (from) { where += ' AND date>=?'; params.push(from); }
@@ -185,6 +185,7 @@ router.get('/income-analysis', requireAuth, (req, res) => {
 
   const params = [];
   let where = `WHERE le.type='income' AND le.date>=? AND le.date<=?
+    AND (le.review_status IS NULL OR le.review_status<>'pending')
     AND le.category NOT IN (SELECT name FROM ledger_categories WHERE section='asset_liability')`;
   params.push(fromDate, toDate);
   if (orgRestrict.org_id) { where += ' AND le.org_id=?'; params.push(orgRestrict.org_id); }
@@ -287,7 +288,7 @@ router.get('/pl-monthly', requireAuth, (req, res) => {
   }
 
   const params = [];
-  let where = 'WHERE le.date>=? AND le.date<=?';
+  let where = "WHERE le.date>=? AND le.date<=? AND (le.review_status IS NULL OR le.review_status<>'pending')";
   params.push(fromDate, toDate);
   if (orgRestrict.org_id) { where += ' AND le.org_id=?'; params.push(orgRestrict.org_id); }
   else if (req.query.org_id) { where += ' AND le.org_id=?'; params.push(req.query.org_id); }

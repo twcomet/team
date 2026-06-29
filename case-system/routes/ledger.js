@@ -114,6 +114,13 @@ router.get('/', requireAuth, (req, res) => {
   if (type)                  { sql += ' AND l.type = ?';        params.push(type); }
   if (req.query.pay_status)  { sql += ' AND l.pay_status = ?'; params.push(req.query.pay_status); }
 
+  // 收付款待審核：預設只顯示已審核(approved/legacy)；?review=pending 顯示待審核清單
+  if (req.query.review === 'pending') {
+    sql += ` AND l.review_status = 'pending'`;
+  } else {
+    sql += ` AND (l.review_status IS NULL OR l.review_status <> 'pending')`;
+  }
+
   sql += ' ORDER BY l.date DESC, l.id DESC';
   res.json(db.prepare(sql).all(...params));
 });
@@ -124,7 +131,7 @@ router.get('/vendor-analysis', requireAuth, (req, res) => {
   const { from, to } = req.query;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(user, 'l.org_id');
 
-  let where = [`l.type = 'expense'`, `l.vendor IS NOT NULL`, `l.vendor != ''`];
+  let where = [`l.type = 'expense'`, `l.vendor IS NOT NULL`, `l.vendor != ''`, `(l.review_status IS NULL OR l.review_status <> 'pending')`];
   const params = [...orgPs];
   if (orgSql) where.push(orgSql);
   if (from) { where.push('l.date >= ?'); params.push(from); }
@@ -187,6 +194,36 @@ router.patch('/:id/pay', requireOwner, (req, res) => {
   db.prepare(`UPDATE ledger_entries SET date=?, pay_status='paid', paid_at=?, paid_note=? WHERE id=?`)
     .run(actualDate, actualDate, paid_note || null, req.params.id);
   res.json({ ok: true });
+});
+
+// 收付款待審核：審核通過 / 退回（限老闆+會計）
+function canReview(req, res) {
+  const role = req.session.user.role;
+  if (role !== 'owner' && role !== 'hq_accounting') { res.status(403).json({ error: '僅老闆或會計可審核' }); return false; }
+  return true;
+}
+// PATCH /api/ledger/:id/approve — 審核通過，正式入帳
+router.patch('/:id/approve', requireAuth, (req, res) => {
+  if (!canReview(req, res)) return;
+  const e = db.prepare(`SELECT id,date,category,amount FROM ledger_entries WHERE id=?`).get(req.params.id);
+  if (!e) return res.status(404).json({ error: '找不到' });
+  db.prepare(`UPDATE ledger_entries SET review_status='approved' WHERE id=?`).run(req.params.id);
+  log(req.session.user.id, 'approve', 'ledger', req.params.id, `${e.date} ${e.category} $${e.amount}`);
+  res.json({ ok: true });
+});
+// PATCH /api/ledger/:id/reject — 退回，不計入帳
+router.patch('/:id/reject', requireAuth, (req, res) => {
+  if (!canReview(req, res)) return;
+  const e = db.prepare(`SELECT id,date,category,amount FROM ledger_entries WHERE id=?`).get(req.params.id);
+  if (!e) return res.status(404).json({ error: '找不到' });
+  db.prepare(`UPDATE ledger_entries SET review_status='rejected' WHERE id=?`).run(req.params.id);
+  log(req.session.user.id, 'reject', 'ledger', req.params.id, `${e.date} ${e.category} $${e.amount}`);
+  res.json({ ok: true });
+});
+// 待審核筆數（給分頁徽章）
+router.get('/pending-count', requireAuth, (req, res) => {
+  const n = db.prepare(`SELECT COUNT(*) c FROM ledger_entries WHERE review_status='pending'`).get().c;
+  res.json({ count: n });
 });
 
 // DELETE /api/ledger/:id

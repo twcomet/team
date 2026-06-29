@@ -65,7 +65,7 @@ function syncReceiptTaxLedger(receiptId) {
     db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category='稅費', description=?, case_id=?, org_id=?, created_by=? WHERE id=?`)
       .run(date, r.tax, desc, r.case_id || null, r.org_id || null, r.created_by || null, existing.id);
   } else {
-    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'expense', '稅費', ?, ?, ?, ?, ?, ?)`)
+    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'expense', '稅費', ?, ?, ?, ?, ?, ?, 'pending')`)
       .run(date, r.tax, r.case_id || null, desc, r.org_id || null, r.created_by || null, ref);
   }
 }
@@ -111,7 +111,7 @@ function syncReceiptShippingLedger(receiptId) {
     db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category='費用-運費', description=?, case_id=?, org_id=?, created_by=? WHERE id=?`)
       .run(date, r.shipping_fee, desc, r.case_id || null, r.org_id || null, r.created_by || null, existing.id);
   } else {
-    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref) VALUES (?, 'expense', '費用-運費', ?, ?, ?, ?, ?, ?)`)
+    db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'expense', '費用-運費', ?, ?, ?, ?, ?, ?, 'pending')`)
       .run(date, r.shipping_fee, r.case_id || null, desc, r.org_id || null, r.created_by || null, ref);
   }
 }
