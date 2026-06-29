@@ -2223,10 +2223,14 @@ db.exec(`
     actual_meters   REAL,
     remaining_meters REAL,
     archive_location TEXT,
+    purpose_code    TEXT,
+    needs_return    INTEGER DEFAULT 0,
     cat_add         REAL,
     cat_loss        REAL,
     cat_recut       REAL,
     cat_redo        REAL,
+    cat_wrongmat    REAL,
+    cat_other_note  TEXT,
     status          TEXT NOT NULL DEFAULT 'pending_pickup',
     note            TEXT,
     applicant_id        INTEGER REFERENCES users(id),
@@ -2241,7 +2245,11 @@ db.exec(`
     updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
-_addCol('material_requisitions', 'cat_redo', 'REAL');  // 損失重貼（料差原因之一，既有DB補欄）
+_addCol('material_requisitions', 'cat_redo', 'REAL');  // 料差原因（既有DB補欄）
+_addCol('material_requisitions', 'purpose_code',   'TEXT');
+_addCol('material_requisitions', 'needs_return',   'INTEGER DEFAULT 0');
+_addCol('material_requisitions', 'cat_wrongmat',   'REAL');
+_addCol('material_requisitions', 'cat_other_note', 'TEXT');
 
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
 try {

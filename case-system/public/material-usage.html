@@ -21,7 +21,7 @@
 .s-ar { background:#d1fae5; color:#065f46; }   /* 已歸檔 */
 .s-rj { background:#fee2e2; color:#991b1b; }   /* 已駁回 */
 .cat-pill { display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px }
-.c-add { background:#dbeafe;color:#1e40af } .c-loss{ background:#fee2e2;color:#991b1b } .c-recut{ background:#fef3c7;color:#92400e } .c-redo{ background:#fce7f3;color:#9d174d }
+.c-add { background:#dbeafe;color:#1e40af } .c-loss{ background:#fee2e2;color:#991b1b } .c-recut{ background:#fef3c7;color:#92400e } .c-redo{ background:#fce7f3;color:#9d174d } .c-wrong{ background:#ffedd5;color:#9a3412 }
 .preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; padding:3px 10px; border-radius:8px; }
 .help-bar { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.7; }
 .act-link { text-decoration:none; font-weight:600; margin-right:10px; white-space:nowrap; cursor:pointer; }
@@ -99,16 +99,17 @@ table td, table th { font-size:13px; }
     <div class="page-body">
 
       <div class="help-bar">
-        💡 動用膜料都要寫紀錄。<b>案件施工</b>師傅憑成交保留<b>直接帶料</b>用、用完按「確認使用完畢」回報（含加貼／損耗／重裁＋剩餘）；
-        <b>非案件／其他用途</b>取料才需「領用申請→倉管核准→才可拿」。流程：領用申請→<b>倉管核准</b>→確認使用完畢→<b>倉管核准歸檔</b>（實扣用量、更新貨架）。駁回＝退回修改重送。
+        💡 動用膜料都要寫紀錄，分兩種流程：<br>
+        🔄 <b>出借歸還型（案件帶出整捲）</b>：領用申請(米數免填)→<b>倉管核准</b>→帶走→用完填<b>膜料歸還單</b>(歸還米數＋料差6原因)→<b>倉管核准歸還</b>＝核銷。<br>
+        ✂️ <b>直接裁切型（裁小樣/案件裁料/學院/門市/電商/庫存調整/非案件）</b>：申請<b>填使用米數</b>→<b>倉管核准即結案</b>。　駁回＝退回修改重送。
       </div>
 
       <div class="tabs-bar">
-        <div class="tab active" data-tab="pk">已領用（待回報） <span class="tab-count" id="cnt-pk">0</span></div>
-        <div class="tab" data-tab="pp">待領用審核 <span class="tab-count" id="cnt-pp">0</span></div>
+        <div class="tab active" data-tab="pp">待核准 <span class="tab-count" id="cnt-pp">0</span></div>
+        <div class="tab" data-tab="pk">已帶出待歸還 <span class="tab-count" id="cnt-pk">0</span></div>
+        <div class="tab" data-tab="pr">待歸還核准 <span class="tab-count" id="cnt-pr">0</span></div>
+        <div class="tab" data-tab="ar">已完成 <span class="tab-count" id="cnt-ar">0</span></div>
         <div class="tab" data-tab="rsv">🔒 保留材料 <span class="tab-count" id="cnt-rsv">0</span></div>
-        <div class="tab" data-tab="pr">待歸檔審核 <span class="tab-count" id="cnt-pr">0</span></div>
-        <div class="tab" data-tab="ar">已歸檔 <span class="tab-count" id="cnt-ar">0</span></div>
       </div>
 
       <div class="filter-bar">
@@ -148,22 +149,20 @@ table td, table th { font-size:13px; }
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">用途 *</label>
           <select class="form-input" id="n_purpose" onchange="onPurposeChange()">
-            <optgroup label="案件前（公司內）">
-              <option value="case_material">案件裁料</option>
-              <option value="sample">小樣裁切</option>
-              <option value="case_reserve">案件材料保留</option>
-            </optgroup>
-            <optgroup label="案場（帶出施工）">
+            <optgroup label="出借歸還（要填歸還單）">
               <option value="case_takeout">案件帶出（整捲）</option>
-              <option value="case_cut">案場追加</option>
-              <option value="case_loss">案場損失重貼</option>
             </optgroup>
-            <optgroup label="通路／其他">
-              <option value="store_sale">實體門市通路銷售</option>
-              <option value="ecommerce">電商通路銷售</option>
+            <optgroup label="直接裁切（核准即結案）">
+              <option value="sample">裁小樣</option>
+              <option value="case_material">案件裁料</option>
               <option value="academy">學院使用</option>
+              <option value="store_sale">實體門市銷售</option>
+              <option value="ecommerce">電商銷售</option>
               <option value="adjust">庫存調整</option>
-              <option value="other">非案件／其他用途</option>
+              <option value="other">非案件其他</option>
+            </optgroup>
+            <optgroup label="保留">
+              <option value="case_reserve">案件材料保留</option>
             </optgroup>
           </select></div>
         <div class="form-group"><label class="form-label" id="n_est_label">使用米數 *</label>
@@ -188,25 +187,27 @@ table td, table th { font-size:13px; }
 <!-- 確認使用完畢（回報）-->
 <div class="modal-overlay" id="returnModal">
   <div class="modal" style="max-width:520px">
-    <div class="modal-header"><h3>確認使用完畢・回報</h3><button class="modal-close" onclick="close_('returnModal')">×</button></div>
+    <div class="modal-header"><h3>膜料歸還單</h3><button class="modal-close" onclick="close_('returnModal')">×</button></div>
     <div class="modal-body">
       <p id="r_info" style="font-size:13px;color:var(--gray-600);margin:0 0 14px"></p>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">實際用量(米)*</label><input class="form-input" id="r_actual" type="number" min="0" step="0.1"></div>
-        <div class="form-group"><label class="form-label">剩餘(米)</label><input class="form-input" id="r_remain" type="number" min="0" step="0.1"></div>
-        <div class="form-group"><label class="form-label">暫定位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
+        <div class="form-group"><label class="form-label">歸還剩餘(米)</label><input class="form-input" id="r_remain" type="number" min="0" step="0.1"></div>
+        <div class="form-group"><label class="form-label">歸還位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
       </div>
-      <div style="background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">料差原因分類（帶出−帶回的用料差，各填幾米，可不填）</div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#9a3412">料差原因分類（帶出−歸還的用料差，各填幾米；之後連動獎懲扣點）</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-redo">損失重貼</span></label><input class="form-input" id="r_redo" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">案場材料損耗</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">非施工重切（排錯/用錯料）</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">案場追加使用</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">案場追加</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-redo">重貼損失</span></label><input class="form-input" id="r_redo" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-wrong">帶錯材料</span></label><input class="form-input" id="r_wrongmat" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">尺寸裁錯</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">膜料遺失</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill" style="background:#e5e7eb;color:#374151">其他（手寫）</span></label><input class="form-input" id="r_other" placeholder="手寫原因"></div>
         </div>
       </div>
       <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="r_note" placeholder="選填"></div>
-      <div class="muted" style="font-size:12px">送出後 → 通知倉管核准歸檔（倉管會確認剩餘米數、更新貨架）。</div>
+      <div class="muted" style="font-size:12px">送出後 → 通知倉管核准歸還（倉管會確認剩餘米數、更新貨架）。</div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="close_('returnModal')">取消</button><button class="btn btn-primary" onclick="saveReturn()">送出回報</button></div>
   </div>
@@ -216,9 +217,9 @@ table td, table th { font-size:13px; }
 <script>
 let isWarehouse=false, meId=null;
 let rows=[], reserves=[];
-const SB = { pending_pickup:['s-pp','待領用審核'], picked:['s-pk','已領用'], pending_return:['s-pr','待歸檔審核'], archived:['s-ar','已歸檔'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
+const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
-let curTab='pk', returnId=null, editId=null, _caseTimer=null;
+let curTab='pp', returnId=null, editId=null, _caseTimer=null;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const V=id=>document.getElementById(id).value.trim();
 
@@ -266,18 +267,18 @@ function render(){
   if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
   body.innerHTML=list.map(r=>{
     const sb=SB[r.status]||['s-pp',r.status];
-    const cats=(r.cat_redo||r.cat_loss||r.cat_recut||r.cat_add)?[r.cat_redo?`<span class="cat-pill c-redo">損失重貼${r.cat_redo}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">損耗${r.cat_loss}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">非施工重切${r.cat_recut}</span>`:'',r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:''].join(''):'';
+    const cats=[r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:'',r.cat_redo?`<span class="cat-pill c-redo">重貼損失${r.cat_redo}</span>`:'',r.cat_wrongmat?`<span class="cat-pill c-wrong">帶錯${r.cat_wrongmat}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">裁錯${r.cat_recut}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">遺失${r.cat_loss}</span>`:'',r.cat_other_note?`<span class="cat-pill" style="background:#e5e7eb;color:#374151">其他</span>`:''].join('');
     const mine = r.applicant_id===meId;
     let acts='';
     if(r.status==='pending_pickup') acts = isWarehouse
-      ? `<a class="act-link" style="color:#065f46" onclick="approvePickup(${r.id})">核准領用</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
+      ? `<a class="act-link" style="color:#065f46" onclick="approvePickup(${r.id})">${r.needs_return?'核准領用':'核准（結案）'}</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
       : (mine?`<a class="act-link" style="color:#6b7280" onclick="openEdit(${r.id})">編輯</a><a class="act-link" style="color:#dc2626" onclick="del(${r.id})">刪除</a>`:`<span class="muted" style="font-size:12px">🔒 待倉管核准</span>`);
     if(r.status==='rejected') acts = `<a class="act-link" style="color:#6b7280" onclick="openEdit(${r.id})">編輯重送</a><a class="act-link" style="color:#dc2626" onclick="del(${r.id})">刪除</a>`;
-    if(r.status==='picked') acts = `<a class="act-link" style="color:#1e40af" onclick="openReturn(${r.id})">確認使用完畢</a>`;
+    if(r.status==='picked') acts = `<a class="act-link" style="color:#1e40af" onclick="openReturn(${r.id})">填歸還單</a>`;
     if(r.status==='pending_return') acts = isWarehouse
-      ? `<a class="act-link" style="color:#065f46" onclick="archive(${r.id})">核准歸檔</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
-      : `<span class="muted" style="font-size:12px">🔒 待倉管核准歸檔</span>`;
-    if(r.status==='archived') acts = `<span class="muted" style="font-size:12px">🔒 已歸檔</span>`;
+      ? `<a class="act-link" style="color:#065f46" onclick="archive(${r.id})">核准歸還</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
+      : `<span class="muted" style="font-size:12px">🔒 待倉管核准歸還</span>`;
+    if(r.status==='archived') acts = `<span class="muted" style="font-size:12px">🔒 已完成</span>`;
     const rejNote = r.status==='rejected'&&r.reject_note?`<div style="font-size:11px;color:#b91c1c">退回：${esc(r.reject_note)}</div>`:'';
     return `<tr>
       <td><span class="sbadge ${sb[0]}">${sb[1]}</span>${rejNote}</td>
@@ -359,6 +360,7 @@ async function saveNew(){
   const purposeVal=document.getElementById('n_purpose').value;
   if(purposeVal!=='case_takeout' && !V('n_est')){ alert('請填使用米數（只有「案件帶出（整捲）」可免填，歸還時再填）'); return; }
   const payload={ material_label:V('n_mat'), purpose:document.getElementById('n_purpose').selectedOptions[0].text,
+    purpose_code:purposeVal,
     est_meters:parseFloat(V('n_est'))||null, case_id:document.getElementById('n_case_id').value||null,
     org_id:null, note:V('n_note')||null };
   const url=editId?`/api/material-usage/${editId}`:'/api/material-usage';
@@ -368,12 +370,12 @@ async function saveNew(){
 }
 function openReturn(id){ returnId=id; const r=rows.find(x=>x.id===id); if(!r) return;
   document.getElementById('r_info').textContent=`${r.material_label}｜${r.case_number||'無案件'} ${r.client_name||''}（領用 ${r.est_meters!=null?r.est_meters+'米':'整捲帶出'}）`;
-  ['r_actual','r_remain','r_loc','r_redo','r_loss','r_recut','r_add','r_note'].forEach(i=>document.getElementById(i).value='');
+  ['r_actual','r_remain','r_loc','r_add','r_redo','r_wrongmat','r_recut','r_loss','r_other','r_note'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('returnModal').style.display='flex'; }
 async function saveReturn(){
   const actual=parseFloat(V('r_actual')); if(!actual){ alert('請填實際用量'); return; }
   const payload={ actual_meters:actual, remaining_meters:V('r_remain')||null, archive_location:V('r_loc')||null,
-    cat_redo:V('r_redo')||null, cat_loss:V('r_loss')||null, cat_recut:V('r_recut')||null, cat_add:V('r_add')||null, note:V('r_note')||null };
+    cat_add:V('r_add')||null, cat_redo:V('r_redo')||null, cat_wrongmat:V('r_wrongmat')||null, cat_recut:V('r_recut')||null, cat_loss:V('r_loss')||null, cat_other_note:V('r_other')||null, note:V('r_note')||null };
   const r=await fetch(`/api/material-usage/${returnId}/report`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'回報失敗'); return; }
   close_('returnModal'); await loadData(); switchTab('pr');

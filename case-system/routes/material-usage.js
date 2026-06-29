@@ -72,12 +72,13 @@ router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const b = req.body;
   if (!b.material_label) return res.status(400).json({ error: '請填膜料' });
+  const needsReturn = b.purpose_code === 'case_takeout' ? 1 : 0;  // 只有整捲帶出要歸還
   const r = db.prepare(`
     INSERT INTO material_requisitions
-      (org_id, material_label, material_id, roll_id, case_id, purpose, est_meters, note, applicant_id, status)
-    VALUES (?,?,?,?,?,?,?,?,?, 'pending_pickup')`)
+      (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, note, applicant_id, status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?, 'pending_pickup')`)
     .run(b.org_id || me.org_id || null, b.material_label, b.material_id || null, b.roll_id || null,
-         b.case_id || null, b.purpose || null, b.est_meters || null, b.note || null, me.id);
+         b.case_id || null, b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, me.id);
   log(me.id, 'create', r.lastInsertRowid, b.material_label);
   notifyManagers(b.org_id || me.org_id, `【膜料領用申請】\n${me.name} 申請領用「${b.material_label}」${b.est_meters ? '預估'+b.est_meters+'米' : ''}\n請至系統審核。`);
   res.json({ id: r.lastInsertRowid });
@@ -91,21 +92,30 @@ router.put('/:id', requireAuth, (req, res) => {
   if (r.applicant_id !== me.id && !isWarehouse(me)) return res.status(403).json({ error: '僅申請人可編輯' });
   if (!['pending_pickup', 'rejected'].includes(r.status)) return res.status(400).json({ error: '此狀態無法編輯' });
   const b = req.body;
-  db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, est_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+  const needsReturn = b.purpose_code === 'case_takeout' ? 1 : 0;
+  db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, purpose_code=?, needs_return=?, est_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(b.material_label || r.material_label, b.material_id || null, b.roll_id || null, b.case_id || null,
-         b.purpose || null, b.est_meters || null, b.note || null, b.org_id || r.org_id, r.id);
+         b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, b.org_id || r.org_id, r.id);
   res.json({ ok: true });
 });
 
-// 倉管核准領用
+// 倉管核准：帶出型→已帶出待歸還；裁切型→直接結案(已完成)
 router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!isWarehouse(me)) return res.status(403).json({ error: '僅倉管可審核' });
   const r = db.prepare(`SELECT * FROM material_requisitions WHERE id=?`).get(req.params.id);
-  if (!r || r.status !== 'pending_pickup') return res.status(400).json({ error: '此狀態無法核准領用' });
-  db.prepare(`UPDATE material_requisitions SET status='picked', pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, r.id);
-  log(me.id, 'approve_pickup', r.id, null);
-  notifyUser(r.applicant_id, `【膜料領用已核准】\n你申請的「${r.material_label}」已核准，可前往拿料。`);
+  if (!r || r.status !== 'pending_pickup') return res.status(400).json({ error: '此狀態無法核准' });
+  if (r.needs_return) {
+    // 帶出型：核准後帶走，等歸還
+    db.prepare(`UPDATE material_requisitions SET status='picked', pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, r.id);
+    notifyUser(r.applicant_id, `【膜料領用已核准】\n你申請的「${r.material_label}」已核准，可前往拿料；用完請填歸還單。`);
+  } else {
+    // 裁切型：核准即結案（無歸還）
+    db.prepare(`UPDATE material_requisitions SET status='archived', pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, me.id, r.id);
+    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准，可裁切使用。`);
+  }
+  log(me.id, 'approve_pickup', r.id, r.needs_return ? 'picked' : 'archived');
+  // ⚠️ 第二階段：裁切型在此實扣庫存；案件裁料另需消除該案保留、改實際用量
   res.json({ ok: true });
 });
 
@@ -117,9 +127,10 @@ router.patch('/:id/report', requireAuth, (req, res) => {
   if (!['picked', 'reserved'].includes(r.status)) return res.status(400).json({ error: '此狀態無法回報' });
   const b = req.body;
   if (b.actual_meters == null || b.actual_meters === '') return res.status(400).json({ error: '請填實際用量' });
-  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_redo=?, cat_loss=?, cat_recut=?, cat_add=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_add=?, cat_redo=?, cat_wrongmat=?, cat_recut=?, cat_loss=?, cat_other_note=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(Number(b.actual_meters), b.remaining_meters != null && b.remaining_meters !== '' ? Number(b.remaining_meters) : null,
-         b.archive_location || null, Number(b.cat_redo) || null, Number(b.cat_loss) || null, Number(b.cat_recut) || null, Number(b.cat_add) || null,
+         b.archive_location || null,
+         Number(b.cat_add) || null, Number(b.cat_redo) || null, Number(b.cat_wrongmat) || null, Number(b.cat_recut) || null, Number(b.cat_loss) || null, b.cat_other_note || null,
          b.note || null, r.id);
   log(me.id, 'report', r.id, `actual ${b.actual_meters}`);
   notifyManagers(r.org_id, `【膜料歸檔申請】\n${me.name} 回報「${r.material_label}」實際用 ${b.actual_meters}米、剩餘 ${b.remaining_meters||0}米\n請至系統核准歸檔。`);
