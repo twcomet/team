@@ -127,11 +127,14 @@ router.patch('/:id/report', requireAuth, (req, res) => {
   if (!r) return res.status(404).json({ error: '找不到' });
   if (!['picked', 'reserved'].includes(r.status)) return res.status(400).json({ error: '此狀態無法回報' });
   const b = req.body;
-  if (b.actual_meters == null || b.actual_meters === '') return res.status(400).json({ error: '請填實際用量' });
-  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_add=?, cat_redo=?, cat_wrongmat=?, cat_recut=?, cat_loss=?, cat_other_note=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(Number(b.actual_meters), b.remaining_meters != null && b.remaining_meters !== '' ? Number(b.remaining_meters) : null,
-         b.archive_location || null,
-         Number(b.cat_add) || null, Number(b.cat_redo) || null, Number(b.cat_wrongmat) || null, Number(b.cat_recut) || null, Number(b.cat_loss) || null, b.cat_other_note || null,
+  if (b.remaining_meters == null || b.remaining_meters === '') return res.status(400).json({ error: '請填歸還剩餘米數' });
+  const remaining = Number(b.remaining_meters);
+  // 實際用量＝領出米數(est)−歸還剩餘，系統自動算，不信前端手算
+  const actual = (r.est_meters != null) ? Math.max(0, Number(r.est_meters) - remaining)
+               : (b.actual_meters != null && b.actual_meters !== '' ? Number(b.actual_meters) : null);
+  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_add=?, cat_redo=?, cat_wrongmat=?, cat_recut=?, cat_loss=?, cat_other=?, cat_other_note=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(actual, remaining, b.archive_location || null,
+         Number(b.cat_add) || null, Number(b.cat_redo) || null, Number(b.cat_wrongmat) || null, Number(b.cat_recut) || null, Number(b.cat_loss) || null, Number(b.cat_other) || null, b.cat_other_note || null,
          b.note || null, r.id);
   log(me.id, 'report', r.id, `actual ${b.actual_meters}`);
   notifyManagers(r.org_id, `【膜料歸檔申請】\n${me.name} 回報「${r.material_label}」實際用 ${b.actual_meters}米、剩餘 ${b.remaining_meters||0}米\n請至系統核准歸檔。`);

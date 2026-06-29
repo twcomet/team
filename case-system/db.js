@@ -2249,6 +2249,7 @@ _addCol('material_requisitions', 'cat_redo', 'REAL');  // 料差原因（既有D
 _addCol('material_requisitions', 'purpose_code',   'TEXT');
 _addCol('material_requisitions', 'needs_return',   'INTEGER DEFAULT 0');
 _addCol('material_requisitions', 'cat_wrongmat',   'REAL');
+_addCol('material_requisitions', 'cat_other',      'REAL');
 _addCol('material_requisitions', 'cat_other_note', 'TEXT');
 
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）

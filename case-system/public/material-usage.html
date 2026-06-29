@@ -32,6 +32,15 @@ table td, table th { font-size:13px; }
 .ac-drop.open { display:block; }
 .ac-item { padding:8px 12px; cursor:pointer; font-size:13px; }
 .ac-item:hover { background:var(--gray-50); }
+.ro-val{ font-weight:700; font-size:16px; padding:6px 0; color:#1f2937 }
+.rsn-row{ display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid #f1e7d6 }
+.rsn-row input[type=checkbox]{ width:22px; height:22px; flex-shrink:0; cursor:pointer }
+.rsn-row .cat-pill{ flex:1; font-size:13px }
+.rsn-row .rsn-m{ width:96px; padding:9px; border:1px solid var(--gray-300); border-radius:8px; font-size:16px }
+.rsn-row .rsn-m:disabled{ background:#f3f4f6 }
+.recon{ margin-top:10px; padding:9px 12px; border-radius:8px; font-size:13px; font-weight:600; background:#eef2ff; color:#3730a3 }
+.recon.bad{ background:#fee2e2; color:#991b1b }
+@media(max-width:600px){ .modal{ max-width:100%!important } .rgrid{ grid-template-columns:1fr 1fr!important } }
 </style>
 </head>
 <body>
@@ -167,7 +176,7 @@ table td, table th { font-size:13px; }
           </select></div>
         <div class="form-group"><label class="form-label" id="n_est_label">使用米數 *</label>
           <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="使用幾米">
-          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">整捲帶出時不必填，等歸還回報時再填實際用量</div></div>
+          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">填整捲標籤上的米數；歸還時填剩餘，系統自動算用量</div></div>
       </div>
       <div class="form-group"><label class="form-label">關聯案件（可空，案件施工建議填）</label>
         <div class="ac-wrap">
@@ -190,21 +199,22 @@ table td, table th { font-size:13px; }
     <div class="modal-header"><h3>膜料歸還單</h3><button class="modal-close" onclick="close_('returnModal')">×</button></div>
     <div class="modal-body">
       <p id="r_info" style="font-size:13px;color:var(--gray-600);margin:0 0 14px"></p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">實際用量(米)*</label><input class="form-input" id="r_actual" type="number" min="0" step="0.1"></div>
-        <div class="form-group"><label class="form-label">歸還剩餘(米)</label><input class="form-input" id="r_remain" type="number" min="0" step="0.1"></div>
-        <div class="form-group"><label class="form-label">歸還位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
+      <div class="rgrid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end">
+        <div class="form-group" style="margin:0"><label class="form-label">領出米數</label><div id="r_takeout" class="ro-val">—</div></div>
+        <div class="form-group" style="margin:0"><label class="form-label">歸還剩餘(米)*</label><input class="form-input" id="r_remain" type="number" min="0" step="0.1" inputmode="decimal" oninput="calcReturn()" placeholder="剩幾米"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">實際用量(自動)</label><div id="r_useauto" class="ro-val" style="color:#1d4ed8">—</div></div>
+        <div class="form-group" style="margin:0"><label class="form-label">歸還位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
       </div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#9a3412">料差原因分類（帶出−歸還的用料差，各填幾米；之後連動獎懲扣點）</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">案場追加</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-redo">重貼損失</span></label><input class="form-input" id="r_redo" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-wrong">帶錯材料</span></label><input class="form-input" id="r_wrongmat" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">尺寸裁錯</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">膜料遺失</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill" style="background:#e5e7eb;color:#374151">其他（手寫）</span></label><input class="form-input" id="r_other" placeholder="手寫原因"></div>
-        </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin:12px 0">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:#9a3412">料差原因（勾選要算的原因，再填米數；之後連動獎懲扣點）</div>
+        <label class="rsn-row"><input type="checkbox" data-m="r_add" onchange="toggleRsn(this)"><span class="cat-pill c-add">案場追加</span><input id="r_add" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <label class="rsn-row"><input type="checkbox" data-m="r_redo" onchange="toggleRsn(this)"><span class="cat-pill c-redo">重貼損失</span><input id="r_redo" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <label class="rsn-row"><input type="checkbox" data-m="r_wrongmat" onchange="toggleRsn(this)"><span class="cat-pill c-wrong">帶錯材料</span><input id="r_wrongmat" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <label class="rsn-row"><input type="checkbox" data-m="r_recut" onchange="toggleRsn(this)"><span class="cat-pill c-recut">尺寸裁錯</span><input id="r_recut" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <label class="rsn-row"><input type="checkbox" data-m="r_loss" onchange="toggleRsn(this)"><span class="cat-pill c-loss">膜料遺失</span><input id="r_loss" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <label class="rsn-row"><input type="checkbox" data-m="r_other" onchange="toggleRsn(this)"><span class="cat-pill" style="background:#e5e7eb;color:#374151">其他</span><input id="r_other" type="number" min="0" step="0.1" inputmode="decimal" class="rsn-m" oninput="calcReturn()" disabled placeholder="米"></label>
+        <input class="form-input" id="r_other_note" placeholder="其他原因（手寫）" style="margin-top:8px;display:none">
+        <div id="r_recon" class="recon">尚未填寫</div>
       </div>
       <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="r_note" placeholder="選填"></div>
       <div class="muted" style="font-size:12px">送出後 → 通知倉管核准歸還（倉管會確認剩餘米數、更新貨架）。</div>
@@ -267,7 +277,7 @@ function render(){
   if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
   body.innerHTML=list.map(r=>{
     const sb=SB[r.status]||['s-pp',r.status];
-    const cats=[r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:'',r.cat_redo?`<span class="cat-pill c-redo">重貼損失${r.cat_redo}</span>`:'',r.cat_wrongmat?`<span class="cat-pill c-wrong">帶錯${r.cat_wrongmat}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">裁錯${r.cat_recut}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">遺失${r.cat_loss}</span>`:'',r.cat_other_note?`<span class="cat-pill" style="background:#e5e7eb;color:#374151">其他</span>`:''].join('');
+    const cats=[r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:'',r.cat_redo?`<span class="cat-pill c-redo">重貼損失${r.cat_redo}</span>`:'',r.cat_wrongmat?`<span class="cat-pill c-wrong">帶錯${r.cat_wrongmat}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">裁錯${r.cat_recut}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">遺失${r.cat_loss}</span>`:'',(r.cat_other||r.cat_other_note)?`<span class="cat-pill" style="background:#e5e7eb;color:#374151">其他${r.cat_other||''}</span>`:''].join('');
     const mine = r.applicant_id===meId;
     let acts='';
     if(r.status==='pending_pickup') acts = isWarehouse
@@ -335,7 +345,8 @@ function close_(m){ document.getElementById(m).style.display='none'; document.ge
 function onPurposeChange(){
   const isTakeout = document.getElementById('n_purpose').value==='case_takeout';
   document.getElementById('n_est_hint').style.display = isTakeout?'':'none';
-  document.getElementById('n_est_label').textContent = isTakeout?'使用米數（帶出免填，歸還再填）':'使用米數 *';
+  document.getElementById('n_est_label').textContent = isTakeout?'帶出米數（標籤米數）*':'使用米數 *';
+  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤上幾米，如 17':'使用幾米';
 }
 function setPurposeByText(txt){
   const sel=document.getElementById('n_purpose');
@@ -358,7 +369,7 @@ function openEdit(id){ const r=rows.find(x=>x.id===id); if(!r) return; editId=id
 async function saveNew(){
   if(!V('n_mat')){ alert('請選膜料'); return; }
   const purposeVal=document.getElementById('n_purpose').value;
-  if(purposeVal!=='case_takeout' && !V('n_est')){ alert('請填使用米數（只有「案件帶出（整捲）」可免填，歸還時再填）'); return; }
+  if(!V('n_est')){ alert(purposeVal==='case_takeout'?'請填帶出米數（捲料標籤上的米數）':'請填使用米數'); return; }
   const payload={ material_label:V('n_mat'), purpose:document.getElementById('n_purpose').selectedOptions[0].text,
     purpose_code:purposeVal,
     est_meters:parseFloat(V('n_est'))||null, case_id:document.getElementById('n_case_id').value||null,
@@ -368,14 +379,43 @@ async function saveNew(){
   if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'儲存失敗'); return; }
   close_('newModal'); await loadData(); if(!editId) switchTab('pp');
 }
+let returnTakeout=0;
+const round=n=>Math.round(n*100)/100;
+const RSN_IDS=['r_add','r_redo','r_wrongmat','r_recut','r_loss','r_other'];
 function openReturn(id){ returnId=id; const r=rows.find(x=>x.id===id); if(!r) return;
-  document.getElementById('r_info').textContent=`${r.material_label}｜${r.case_number||'無案件'} ${r.client_name||''}（領用 ${r.est_meters!=null?r.est_meters+'米':'整捲帶出'}）`;
-  ['r_actual','r_remain','r_loc','r_add','r_redo','r_wrongmat','r_recut','r_loss','r_other','r_note'].forEach(i=>document.getElementById(i).value='');
+  returnTakeout = r.est_meters!=null ? Number(r.est_meters) : 0;
+  document.getElementById('r_info').textContent=`${r.material_label}｜${r.case_number||'無案件'} ${r.client_name||''}（領出整捲帶出）`;
+  document.getElementById('r_takeout').textContent = r.est_meters!=null ? r.est_meters+' 米' : '—';
+  ['r_remain','r_loc','r_note','r_other_note',...RSN_IDS].forEach(i=>document.getElementById(i).value='');
+  document.querySelectorAll('#returnModal .rsn-row input[type=checkbox]').forEach(cb=>{ cb.checked=false; const inp=document.getElementById(cb.dataset.m); inp.disabled=true; });
+  document.getElementById('r_other_note').style.display='none';
+  document.getElementById('r_useauto').textContent='—';
+  const rec=document.getElementById('r_recon'); rec.className='recon'; rec.textContent='尚未填寫';
   document.getElementById('returnModal').style.display='flex'; }
+function toggleRsn(cb){
+  const inp=document.getElementById(cb.dataset.m); inp.disabled=!cb.checked;
+  if(!cb.checked) inp.value=''; else inp.focus();
+  if(cb.dataset.m==='r_other') document.getElementById('r_other_note').style.display=cb.checked?'':'none';
+  calcReturn();
+}
+function reasonSum(){ let s=0; RSN_IDS.forEach(id=>{ const el=document.getElementById(id); if(el&&!el.disabled) s+=parseFloat(el.value)||0; }); return s; }
+function calcReturn(){
+  const remain=parseFloat(V('r_remain'))||0;
+  const used=Math.max(0, returnTakeout - remain);
+  document.getElementById('r_useauto').textContent = returnTakeout ? round(used)+' 米' : '—';
+  const sum=reasonSum(); const normal=Math.max(0, used-sum);
+  const rec=document.getElementById('r_recon');
+  if(sum>used+0.001){ rec.className='recon bad'; rec.textContent=`⚠️ 料差合計 ${round(sum)} 米 超過實際用量 ${round(used)} 米，請修正`; }
+  else { rec.className='recon'; rec.textContent=`料差合計 ${round(sum)} 米　|　正常用料 ${round(normal)} 米　|　實際用量 ${round(used)} 米`; }
+}
 async function saveReturn(){
-  const actual=parseFloat(V('r_actual')); if(!actual){ alert('請填實際用量'); return; }
-  const payload={ actual_meters:actual, remaining_meters:V('r_remain')||null, archive_location:V('r_loc')||null,
-    cat_add:V('r_add')||null, cat_redo:V('r_redo')||null, cat_wrongmat:V('r_wrongmat')||null, cat_recut:V('r_recut')||null, cat_loss:V('r_loss')||null, cat_other_note:V('r_other')||null, note:V('r_note')||null };
+  if(!V('r_remain')){ alert('請填歸還剩餘米數'); return; }
+  const used=Math.max(0, returnTakeout-(parseFloat(V('r_remain'))||0));
+  if(reasonSum()>used+0.001){ alert('料差原因合計超過實際用量，請修正'); return; }
+  const en=id=>{ const el=document.getElementById(id); return (el&&!el.disabled&&el.value!=='')?el.value:null; };
+  const payload={ remaining_meters:V('r_remain'), archive_location:V('r_loc')||null,
+    cat_add:en('r_add'), cat_redo:en('r_redo'), cat_wrongmat:en('r_wrongmat'), cat_recut:en('r_recut'), cat_loss:en('r_loss'), cat_other:en('r_other'),
+    cat_other_note:V('r_other_note')||null, note:V('r_note')||null };
   const r=await fetch(`/api/material-usage/${returnId}/report`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'回報失敗'); return; }
   close_('returnModal'); await loadData(); switchTab('pr');
