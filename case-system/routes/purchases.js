@@ -7,6 +7,23 @@ function canManage(user) {
   return user.role === 'owner' || !!user.can_manage_assets;
 }
 
+// 已入流水帳（到貨稅金/運費已產生 ledger 紀錄）
+function poInLedger(poId) {
+  const refs = db.prepare(`SELECT id FROM purchase_receipts WHERE purchase_order_id=?`).all(poId)
+    .flatMap(r => [`receipt_${r.id}_tax`, `receipt_${r.id}_shipping`]);
+  if (!refs.length) return false;
+  const ph = refs.map(() => '?').join(',');
+  return !!db.prepare(`SELECT 1 FROM ledger_entries WHERE source_ref IN (${ph}) LIMIT 1`).get(...refs);
+}
+// 已入流水帳者，編輯/刪除限老闆+會計
+function ledgerLocked(req, res, po) {
+  if (poInLedger(po.id) && !['owner', 'hq_accounting'].includes(req.session.user.role)) {
+    res.status(403).json({ error: '此採購單已入流水帳，僅老闆或會計可編輯／刪除' });
+    return true;
+  }
+  return false;
+}
+
 // 同步該案「採購到貨稅金」加總 → cases.purchase_tax_cost（計入案件成本/毛利）
 function syncCasePurchaseTax(caseId) {
   if (!caseId) return;
@@ -200,6 +217,7 @@ router.put('/:id', requireAuth, (req, res) => {
   const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
+  if (ledgerLocked(req, res, po)) return;
   const { material_id, vendor_id, brand, series_code, quantity_meters,
           unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id, ordered_by } = req.body;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters||po.quantity_meters) + (parseFloat(shipping_cost)||0);
@@ -247,6 +265,7 @@ router.delete('/:id', requireAuth, (req, res) => {
   const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
   if (!po) return res.status(404).json({ error: '找不到採購單' });
   if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
+  if (ledgerLocked(req, res, po)) return;
   if (po.status === 'cancelled') return res.status(400).json({ error: '採購單已取消' });
 
   // 待到貨：無到貨、無庫存 → 直接軟取消

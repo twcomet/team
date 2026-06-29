@@ -441,15 +441,17 @@ function renderOrders() {
       : '<span style="color:#9ca3af">未到貨</span>';
     const canConfirm = po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager);
     const canReceive = isManager && po.status !== 'received' && po.status !== 'cancelled';
-    const canEditDel = isManager && po.status !== 'cancelled';
-    // 🔒 編輯到貨會改到已入帳資料 → 僅老闆+會計可見可按
+    // 🔒 已入流水帳(稅金/運費)的單，編輯/刪除/編輯到貨 都僅老闆+會計
     const canEditReceipt = ['owner','hq_accounting'].includes(currentUser.role);
+    const inLedger = (po.total_tax > 0 || po.total_shipping_fee > 0);
+    const canEditDel = isManager && po.status !== 'cancelled' && (!inLedger || canEditReceipt);
     const hasReceipts = canEditReceipt && (po.received_meters > 0 || po.last_received_date);
     let acts = '';
     if (canConfirm) acts += `<a href="#" onclick="confirmOrder(${po.id});return false" style="color:#065f46;font-weight:700;margin-right:10px;text-decoration:none">已訂貨</a>`;
     if (canReceive) acts += `<a href="#" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters});return false" style="color:#d6006e;font-weight:700;margin-right:10px;text-decoration:none">登記到貨</a>`;
     if (hasReceipts) acts += `<a href="#" onclick="openReceiptEdit(${po.id});return false" style="color:#0369a1;font-weight:700;margin-right:10px;text-decoration:none">編輯到貨</a>`;
     if (canEditDel) acts += `<a href="#" onclick="openEdit(${po.id});return false" style="color:#6b7280;margin-right:10px;text-decoration:none">編輯</a><a href="#" onclick="cancelPo(${po.id});return false" style="color:#dc2626;text-decoration:none">刪除</a>`;
+    if (inLedger && !canEditReceipt && isManager) acts += `<span style="color:#9ca3af;font-size:11px">🔒 已入帳</span>`;
     const td = (c, style='') => `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;${style}">${c}</td>`;
     html += `<tr style="vertical-align:middle">
       ${td(`<span style="background:${sb[0]};color:${sb[1]};padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">${sb[2]}</span>`)}
