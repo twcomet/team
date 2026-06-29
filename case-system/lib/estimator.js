@@ -37,7 +37,7 @@ function computeFilms(arr, cat, combine) {
     const key = isComb ? (it.brand + '|' + it.idx + '|' + it.work) : (it.brand + '|' + it.idx + '|' + it.work + '|' + it.h + '|' + it.w);
     groups[key] = groups[key] || { item, brand: it.brand, W, work: it.work, isComb, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
-    g.sizes[it.w + '×' + it.h] = (g.sizes[it.w + '×' + it.h] || 0) + 1;
+    g.sizes['寬' + it.w + '×高' + it.h] = (g.sizes['寬' + it.w + '×高' + it.h] || 0) + 1;
     if (isComb) {
       const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
       g.full += full * (H / 100);
@@ -58,7 +58,7 @@ function computeGlass(arr, cat, cust, combine) {
     const key = combine ? (it.cat + '|' + it.idx + '|' + unit) : (it.cat + '|' + it.idx + '|' + unit + '|' + it.h + '|' + it.w);
     groups[key] = groups[key] || { catLabel: cat.GLASS[it.cat].label, sys: item.sys, unit, W, isComb: !!combine, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
-    g.sizes[it.w + '×' + it.h] = (g.sizes[it.w + '×' + it.h] || 0) + 1;
+    g.sizes['寬' + it.w + '×高' + it.h] = (g.sizes['寬' + it.w + '×高' + it.h] || 0) + 1;
     if (combine) {
       const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
       g.full += full * (H / 100);
@@ -75,7 +75,7 @@ function computeOther(arr) {
   const groups = {};
   arr.forEach((it, ci) => {
     const cai = it.w * it.h / 900, amt = ceil100(cai * it.unit), key = it.name + '|' + it.w + '|' + it.h + '|' + it.unit;
-    groups[key] = groups[key] || { label: '其他｜' + it.name, series: it.w + '×' + it.h + ' cm', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
+    groups[key] = groups[key] || { label: '其他｜' + it.name, series: '寬' + it.w + '×高' + it.h + ' cm', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
     const g = groups[key]; g.n++; g.amount += amt; g.idxs.push(ci);
   });
   return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'other', label: g.label, series: g.series, cai: g.cai, unit: g.unit, n: g.n, amount: g.amount, idxs: g.idxs }; });
