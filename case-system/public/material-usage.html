@@ -114,7 +114,8 @@ table td, table th { font-size:13px; }
       </div>
 
       <div class="tabs-bar">
-        <div class="tab active" data-tab="pp">待核准 <span class="tab-count" id="cnt-pp">0</span></div>
+        <div class="tab active" data-tab="all">📜 列表 <span class="tab-count" id="cnt-all">0</span></div>
+        <div class="tab" data-tab="pp">待核准 <span class="tab-count" id="cnt-pp">0</span></div>
         <div class="tab" data-tab="pk">已帶出待歸還 <span class="tab-count" id="cnt-pk">0</span></div>
         <div class="tab" data-tab="pr">待歸還核准 <span class="tab-count" id="cnt-pr">0</span></div>
         <div class="tab" data-tab="ar">已完成 <span class="tab-count" id="cnt-ar">0</span></div>
@@ -122,13 +123,13 @@ table td, table th { font-size:13px; }
       </div>
 
       <div class="filter-bar">
-        <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
-        <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+        <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="resetPage()">
+        <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="resetPage()">
           <option value="">全部分店</option><option>總部</option><option>鶯歌</option><option>新竹</option>
         </select>
         <div style="position:relative;flex:1;min-width:200px;max-width:340px">
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none">🔍</span>
-          <input id="kwSearch" type="text" autocomplete="off" placeholder="搜尋膜料、案件、客戶、用途、申請人…" oninput="render()"
+          <input id="kwSearch" type="text" autocomplete="off" placeholder="搜尋膜料、案件、客戶、用途、申請人…" oninput="resetPage()"
                  style="width:100%;padding:6px 10px 6px 30px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
         </div>
         <span id="sumLine" style="font-size:13px;color:var(--gray-600)"></span>
@@ -143,6 +144,7 @@ table td, table th { font-size:13px; }
           <tbody id="listBody"></tbody>
         </table></div>
       </div></div>
+      <div id="pageBar" style="display:none;justify-content:center;align-items:center;gap:12px;margin-top:14px"></div>
 
     </div>
   </div>
@@ -229,7 +231,8 @@ let isWarehouse=false, meId=null;
 let rows=[], reserves=[];
 const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
-let curTab='pp', returnId=null, editId=null, _caseTimer=null;
+let curTab='all', returnId=null, editId=null, _caseTimer=null, allPage=1;
+const PAGE_SIZE=50;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const V=id=>document.getElementById(id).value.trim();
 
@@ -240,7 +243,9 @@ document.addEventListener('DOMContentLoaded', async()=>{
   loadMats();
   await loadData();
 });
-function switchTab(t){ curTab=t; document.querySelectorAll('.tabs-bar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); render(); }
+function switchTab(t){ curTab=t; allPage=1; document.querySelectorAll('.tabs-bar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); render(); }
+function goPage(p){ allPage=p; render(); window.scrollTo(0,0); }
+function resetPage(){ allPage=1; render(); }
 
 async function loadMats(){
   try{
@@ -259,22 +264,37 @@ async function loadData(){
 }
 
 function render(){
+  document.getElementById('cnt-all').textContent = rows.length;
   document.getElementById('cnt-pp').textContent  = rows.filter(r=>['pending_pickup','rejected'].includes(r.status)).length;
   document.getElementById('cnt-pk').textContent  = rows.filter(r=>r.status==='picked').length;
   document.getElementById('cnt-rsv').textContent = reserves.length;
   document.getElementById('cnt-pr').textContent  = rows.filter(r=>r.status==='pending_return').length;
   document.getElementById('cnt-ar').textContent  = rows.filter(r=>r.status==='archived').length;
   const body=document.getElementById('listBody');
+  document.getElementById('pageBar').style.display='none';
   if(curTab==='rsv'){ renderReserves(body); return; }
 
   const month=document.getElementById('monthFilter').value, org=document.getElementById('orgFilter').value;
   const kw=(document.getElementById('kwSearch').value||'').trim().toLowerCase();
-  let list=rows.filter(r=>TAB_STATUS[curTab].includes(r.status))
+  let list=rows.filter(r=> curTab==='all' ? true : TAB_STATUS[curTab].includes(r.status))
     .filter(r=>!month||(r.applied_at||'').startsWith(month))
     .filter(r=>!org||r.org_name===org)
     .filter(r=>!kw||`${r.material_label||''} ${r.case_number||''} ${r.client_name||''} ${r.purpose||''} ${r.applicant_name||''}`.toLowerCase().includes(kw));
-  document.getElementById('sumLine').textContent = list.length?`${list.length} 筆`:'';
-  if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
+  // 列表：最新到最舊（依最近活動時間）
+  if(curTab==='all') list.sort((a,b)=> String(b.updated_at||b.applied_at||'').localeCompare(String(a.updated_at||a.applied_at||'')));
+  const total=list.length;
+  document.getElementById('sumLine').textContent = total?`${total} 筆`:'';
+  if(!total){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
+  // 列表分頁
+  if(curTab==='all' && total>PAGE_SIZE){
+    const pages=Math.ceil(total/PAGE_SIZE);
+    if(allPage>pages) allPage=pages; if(allPage<1) allPage=1;
+    list=list.slice((allPage-1)*PAGE_SIZE, allPage*PAGE_SIZE);
+    const pb=document.getElementById('pageBar'); pb.style.display='';
+    pb.innerHTML=`<button class="btn btn-secondary btn-sm" ${allPage<=1?'disabled':''} onclick="goPage(${allPage-1})">‹ 上一頁</button>
+      <span style="font-size:13px;color:var(--gray-600)">第 ${allPage} / ${pages} 頁（共 ${total} 筆）</span>
+      <button class="btn btn-secondary btn-sm" ${allPage>=pages?'disabled':''} onclick="goPage(${allPage+1})">下一頁 ›</button>`;
+  }
   body.innerHTML=list.map(r=>{
     const sb=SB[r.status]||['s-pp',r.status];
     const cats=[r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:'',r.cat_redo?`<span class="cat-pill c-redo">重貼損失${r.cat_redo}</span>`:'',r.cat_wrongmat?`<span class="cat-pill c-wrong">帶錯${r.cat_wrongmat}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">裁錯${r.cat_recut}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">遺失${r.cat_loss}</span>`:'',(r.cat_other||r.cat_other_note)?`<span class="cat-pill" style="background:#e5e7eb;color:#374151">其他${r.cat_other||''}</span>`:''].join('');
