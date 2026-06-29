@@ -208,6 +208,11 @@ pages.forEach(page => {
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
 
+// 協力外包【預覽頁・未接資料】— 僅登入可看，不放選單、不碰正式流程，供 Flora 檢視真畫面
+app.get('/subcontract', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'subcontract.html'));
+});
+
 // 員工績效報表（僅 owner）
 app.get('/staff-performance', requireAuth, requireContract, (req, res) => {
   if (req.session.user?.role !== 'owner') return res.redirect('/my-tasks');

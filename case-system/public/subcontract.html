@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>協力外包 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.tabs-bar { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--gray-200); flex-wrap:wrap; }
+.tabs-bar .tab { padding:8px 18px; font-size:14px; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; color:var(--gray-500); display:flex; align-items:center; gap:6px; }
+.tabs-bar .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+.tab-count { background:var(--gray-200); color:var(--gray-600); font-size:11px; font-weight:700; border-radius:10px; padding:1px 7px; }
+.tab.active .tab-count { background:var(--primary); color:#fff; }
+.filter-bar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.status-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.sb-todo   { background:#fef3c7; color:#92400e; }
+.sb-unpaid { background:#dbeafe; color:#1e40af; }
+.sb-paid   { background:#d1fae5; color:#065f46; }
+.month-row td { background:#374151; color:#fff; font-weight:700; letter-spacing:1px; padding:6px 12px; }
+.amt { font-weight:700; color:#b45309; white-space:nowrap; }
+.amt-paid { color:#065f46; }
+.cat-pill { display:inline-block; padding:2px 10px; border-radius:14px; background:#fce7f3; color:#9d174d; font-size:12px; font-weight:600; }
+.tag-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:16px; border:1px solid var(--gray-300); background:#fff; font-size:13px; }
+.tag-pill .x { color:#b91c1c; cursor:pointer; font-weight:700; }
+.preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; padding:3px 10px; border-radius:8px; }
+.lock-note { font-size:11px; color:#9ca3af; }
+.act-link { text-decoration:none; font-weight:600; margin-right:10px; white-space:nowrap; }
+.help-bar { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.6; }
+table td, table th { font-size:13px; }
+.muted { color:#9ca3af; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="/profile" style="font-size:12px;color:var(--gray-400);text-decoration:none">個人資料</a> ·
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">協力外包</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="preview-flag">預覽模式・未接資料（畫面用假資料示意）</span>
+        <button class="btn btn-primary btn-sm" onclick="openNew()">＋ 新增外包</button>
+      </div>
+    </div>
+    <div class="page-body">
+
+      <div class="help-bar">
+        💡 協力外包＝派外包/點工執行案件產生的應付款（油漆、矽利康、貼膜…），<b>金額本身即為成本</b>，會自動計入該案件成本與毛利。
+        會計或老闆於「已完工待付款」勾選 <b>確認付款</b> 後，系統以<b>付款日</b>寫入當月流水帳（科目：成本-人力外包，註明廠商）。
+      </div>
+
+      <div class="tabs-bar">
+        <div class="tab active" data-tab="todo">待施工 <span class="tab-count" id="cnt-todo">0</span></div>
+        <div class="tab" data-tab="unpaid">已完工待付款 <span class="tab-count" id="cnt-unpaid">0</span></div>
+        <div class="tab" data-tab="paid">已完工已付款 <span class="tab-count" id="cnt-paid">0</span></div>
+        <div class="tab" data-tab="tags">標籤設定</div>
+      </div>
+
+      <!-- 列表分頁（待施工 / 待付款 / 已付款 共用渲染）-->
+      <div id="pane-list">
+        <div class="filter-bar">
+          <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+          <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+            <option value="">全部分店</option>
+            <option>總部</option><option>鶯歌</option><option>新竹</option>
+          </select>
+          <select id="catFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="render()">
+            <option value="">全部類別</option>
+          </select>
+          <div style="flex:1"></div>
+          <span id="sumLine" style="font-size:13px;color:var(--gray-600);font-weight:600"></span>
+        </div>
+        <div class="card"><div class="card-body" style="padding:0">
+          <div class="table-wrap"><table>
+            <thead><tr>
+              <th>狀態</th><th>施工日</th><th>類別</th><th>誰支援</th><th>工時</th>
+              <th>金額</th><th>案件（編號／客戶）</th><th>廠商</th><th>分店</th><th>付款日</th><th></th>
+            </tr></thead>
+            <tbody id="listBody"></tbody>
+          </table></div>
+        </div></div>
+      </div>
+
+      <!-- 標籤設定 -->
+      <div id="pane-tags" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:860px">
+          <div class="card"><div class="card-body">
+            <h3 style="margin:0 0 4px">外包類別</h3>
+            <p class="muted" style="font-size:12px;margin:0 0 14px">新增即可在「新增外包」下拉選擇，不用每次改欄位</p>
+            <div id="catTags" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+            <div style="display:flex;gap:8px">
+              <input id="newCat" class="form-input" placeholder="例：防水、拆除…" style="flex:1">
+              <button class="btn btn-secondary btn-sm" onclick="addTag('cat')">＋ 新增</button>
+            </div>
+          </div></div>
+          <div class="card"><div class="card-body">
+            <h3 style="margin:0 0 4px">外包人員／廠商名單</h3>
+            <p class="muted" style="font-size:12px;margin:0 0 14px">固定名單，建立外包時直接挑選</p>
+            <div id="workerTags" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+            <div style="display:flex;gap:8px">
+              <input id="newWorker" class="form-input" placeholder="例：阿明、某某工班…" style="flex:1">
+              <button class="btn btn-secondary btn-sm" onclick="addTag('worker')">＋ 新增</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯 外包 Modal -->
+<div class="modal-overlay" id="scModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="scModalTitle">新增協力外包</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">外包類別 *</label>
+          <select class="form-input" id="f_cat"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">誰支援 *</label>
+          <select class="form-input" id="f_worker"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">施工日 *</label>
+          <input class="form-input" id="f_date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">工時（小時）</label>
+          <input class="form-input" id="f_hours" type="number" min="0" step="0.5" placeholder="選填">
+        </div>
+        <div class="form-group">
+          <label class="form-label">應付金額 *</label>
+          <input class="form-input" id="f_amount" type="number" min="0" placeholder="直接輸入金額">
+        </div>
+        <div class="form-group">
+          <label class="form-label">廠商（入帳註明）</label>
+          <input class="form-input" id="f_vendor" placeholder="廠商/外包名稱">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">關聯案件（可不綁，留空＝歸分店外包成本）</label>
+        <input class="form-input" id="f_case" placeholder="輸入案號或客戶搜尋…（示意，可留空）">
+      </div>
+      <div class="form-group">
+        <label class="form-label">分店</label>
+        <select class="form-input" id="f_org"><option>總部</option><option>鶯歌</option><option>新竹</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <input class="form-input" id="f_note" placeholder="選填">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveNew()">儲存（進入待施工）</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+// ───── 假資料（純示意，未接 API）─────
+let catTags    = ['貼膜','油漆','矽利康','拆除','清潔'];
+let workerTags = ['阿明','阿源工班','大雄','協力-小林','點工-阿德'];
+// 模擬目前登入者是否為老闆/會計（決定能否確認付款）
+let canPay = true;   // owner 或 accountant 才為 true（示意先給 true）
+
+let rows = [
+  { id:1, status:'todo',   date:'2026-06-28', cat:'油漆',  worker:'阿明',     hours:6, amount:4500, case:'HX2606-236', client:'歐銳室內設計', vendor:'阿明油漆', org:'總部', paid_at:null },
+  { id:2, status:'todo',   date:'2026-06-30', cat:'拆除',  worker:'阿源工班', hours:4, amount:3200, case:'HX2606-278', client:'群鼎裝潢',     vendor:'阿源工班', org:'鶯歌', paid_at:null },
+  { id:3, status:'unpaid', date:'2026-06-20', cat:'矽利康',worker:'大雄',     hours:3, amount:2800, case:'HX2606-199', client:'序幸藝術',     vendor:'大雄', org:'總部', paid_at:null },
+  { id:4, status:'unpaid', date:'2026-06-22', cat:'貼膜',  worker:'協力-小林',hours:8, amount:9000, case:null,          client:null,           vendor:'小林貼膜', org:'新竹', paid_at:null },
+  { id:5, status:'paid',   date:'2026-06-10', cat:'油漆',  worker:'點工-阿德',hours:5, amount:3500, case:'HX2606-076', client:'泛設計',       vendor:'阿德', org:'總部', paid_at:'2026-06-18' },
+  { id:6, status:'paid',   date:'2026-05-28', cat:'清潔',  worker:'大雄',     hours:2, amount:1500, case:'HX2605-199', client:'序幸藝術',     vendor:'大雄', org:'鶯歌', paid_at:'2026-06-05' },
+];
+
+let curTab = 'todo';
+const SB = { todo:['sb-todo','待施工'], unpaid:['sb-unpaid','已完工待付款'], paid:['sb-paid','已完工已付款'] };
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try { if (window.loadUser) await loadUser(); } catch(e){}
+  try { if (window.highlightNav) highlightNav('subcontract'); } catch(e){}
+  document.querySelectorAll('.tabs-bar .tab').forEach(t =>
+    t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  fillCatOptions();
+  renderTags();
+  render();
+});
+
+function fillCatOptions() {
+  const opt = ['<option value="">全部類別</option>'].concat(catTags.map(c=>`<option>${c}</option>`)).join('');
+  document.getElementById('catFilter').innerHTML = opt;
+  document.getElementById('f_cat').innerHTML = catTags.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('f_worker').innerHTML = workerTags.map(w=>`<option>${w}</option>`).join('');
+}
+
+function switchTab(tab) {
+  curTab = tab;
+  document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  const isTags = tab==='tags';
+  document.getElementById('pane-list').style.display = isTags ? 'none' : '';
+  document.getElementById('pane-tags').style.display = isTags ? '' : 'none';
+  if (!isTags) render();
+}
+
+function render() {
+  // 計數
+  ['todo','unpaid','paid'].forEach(s =>
+    document.getElementById('cnt-'+s).textContent = rows.filter(r=>r.status===s).length);
+
+  const month = document.getElementById('monthFilter').value;
+  const org   = document.getElementById('orgFilter').value;
+  const cat   = document.getElementById('catFilter').value;
+  let list = rows.filter(r => r.status===curTab)
+    .filter(r => !month || (r.status==='paid' ? (r.paid_at||'').startsWith(month) : (r.date||'').startsWith(month)))
+    .filter(r => !org || r.org===org)
+    .filter(r => !cat || r.cat===cat)
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  const body = document.getElementById('listBody');
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>`;
+    document.getElementById('sumLine').textContent = '';
+    return;
+  }
+  const total = list.reduce((s,r)=>s+r.amount,0);
+  const dateField = curTab==='paid' ? 'paid_at' : 'date';
+  document.getElementById('sumLine').textContent =
+    `${list.length} 筆・合計 NT$${total.toLocaleString()}${curTab==='unpaid'?'（待付款）':curTab==='paid'?'（已入帳）':''}`;
+
+  let html = '', curMonth = null;
+  list.forEach(r => {
+    const m = (r[dateField]||'').slice(0,7);
+    if (m !== curMonth) { curMonth = m; html += `<tr class="month-row"><td colspan="11">▍${m ? m.replace('-',' 年 ')+' 月' : '未排日期'}</td></tr>`; }
+    const sb = SB[r.status];
+    const caseCell = r.case
+      ? `<a href="#" class="act-link" style="color:#1a56db">${r.case}</a>${r.client?`<div class="muted" style="font-size:11px">👤 ${r.client}</div>`:''}`
+      : `<span class="status-badge" style="background:#f3f4f6;color:#6b7280">分店外包</span>`;
+    let acts = '';
+    if (r.status==='todo')   acts = `<a href="#" class="act-link" style="color:#065f46" onclick="markDone(${r.id});return false">標記完工</a><a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a><a href="#" class="act-link" style="color:#dc2626" onclick="del(${r.id});return false">刪除</a>`;
+    if (r.status==='unpaid') acts = canPay
+        ? `<a href="#" class="act-link" style="color:#b45309" onclick="confirmPay(${r.id});return false">✓ 確認付款</a><a href="#" class="act-link" style="color:#6b7280" onclick="openEdit(${r.id});return false">編輯</a>`
+        : `<span class="lock-note">🔒 待會計／老闆付款</span>`;
+    if (r.status==='paid')   acts = `<span class="lock-note">🔒 已入帳鎖定</span> <a href="/ledger" class="act-link" style="color:#1a56db">查流水帳</a>`;
+
+    html += `<tr>
+      <td><span class="status-badge ${sb[0]}">${sb[1]}</span></td>
+      <td>${r.date||'<span class="muted">—</span>'}</td>
+      <td><span class="cat-pill">${r.cat}</span></td>
+      <td>${r.worker}</td>
+      <td>${r.hours?r.hours+' hr':'<span class="muted">—</span>'}</td>
+      <td><span class="amt ${r.status==='paid'?'amt-paid':''}">NT$${r.amount.toLocaleString()}</span></td>
+      <td style="max-width:200px">${caseCell}</td>
+      <td>${r.vendor||'<span class="muted">—</span>'}</td>
+      <td>${r.org}</td>
+      <td>${r.paid_at||'<span class="muted">—</span>'}</td>
+      <td style="white-space:nowrap">${acts}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+}
+
+// ───── 互動（純前端示意，改記憶體不存後端）─────
+function markDone(id){ const r=rows.find(x=>x.id===id); if(r){r.status='unpaid';} render(); }
+function confirmPay(id){
+  const r=rows.find(x=>x.id===id); if(!r) return;
+  const d = prompt('輸入付款日期（系統會用這天入流水帳）', new Date(r.date) ? '2026-06-29' : '');
+  if(!d) return;
+  r.status='paid'; r.paid_at=d;
+  alert(`已確認付款 ✓\n\n系統將寫入流水帳：\n・日期：${d}\n・科目：成本-人力外包\n・金額：NT$${r.amount.toLocaleString()}\n・廠商：${r.vendor||'—'}\n・案件：${r.case||'（分店外包）'}\n\n（示意，未真的寫入）`);
+  render();
+}
+function del(id){ if(confirm('刪除這筆外包？')){ rows=rows.filter(x=>x.id!==id); render(); } }
+
+function openNew(){
+  document.getElementById('scModalTitle').textContent='新增協力外包';
+  ['f_hours','f_amount','f_vendor','f_case','f_note'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('f_date').value='2026-06-29';
+  document.getElementById('scModal').classList.add('open');
+  document.getElementById('scModal').style.display='flex';
+}
+function openEdit(id){
+  const r=rows.find(x=>x.id===id); if(!r) return;
+  document.getElementById('scModalTitle').textContent='編輯協力外包';
+  document.getElementById('f_cat').value=r.cat; document.getElementById('f_worker').value=r.worker;
+  document.getElementById('f_date').value=r.date; document.getElementById('f_hours').value=r.hours||'';
+  document.getElementById('f_amount').value=r.amount; document.getElementById('f_vendor').value=r.vendor||'';
+  document.getElementById('f_case').value=r.case||''; document.getElementById('f_org').value=r.org;
+  document.getElementById('scModal').style.display='flex';
+}
+function closeModal(){ document.getElementById('scModal').style.display='none'; }
+function saveNew(){
+  const amount=parseFloat(document.getElementById('f_amount').value);
+  if(!amount){ alert('請輸入應付金額'); return; }
+  rows.unshift({ id:Date.now(), status:'todo',
+    date:document.getElementById('f_date').value,
+    cat:document.getElementById('f_cat').value,
+    worker:document.getElementById('f_worker').value,
+    hours:parseFloat(document.getElementById('f_hours').value)||0,
+    amount, case:document.getElementById('f_case').value||null,
+    client:null, vendor:document.getElementById('f_vendor').value||null,
+    org:document.getElementById('f_org').value, paid_at:null });
+  closeModal(); curTab='todo'; switchTab('todo');
+}
+
+// ───── 標籤設定 ─────
+function renderTags(){
+  document.getElementById('catTags').innerHTML = catTags.map((c,i)=>
+    `<span class="tag-pill">${c} <span class="x" onclick="delTag('cat',${i})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
+  document.getElementById('workerTags').innerHTML = workerTags.map((w,i)=>
+    `<span class="tag-pill">${w} <span class="x" onclick="delTag('worker',${i})">×</span></span>`).join('') || '<span class="muted">尚無</span>';
+}
+function addTag(kind){
+  const inp = document.getElementById(kind==='cat'?'newCat':'newWorker');
+  const v = inp.value.trim(); if(!v) return;
+  (kind==='cat'?catTags:workerTags).push(v); inp.value='';
+  fillCatOptions(); renderTags();
+}
+function delTag(kind,i){ (kind==='cat'?catTags:workerTags).splice(i,1); fillCatOptions(); renderTags(); }
+</script>
+</body>
+</html>
