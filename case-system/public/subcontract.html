@@ -152,14 +152,18 @@ table td, table th { font-size:13px; }
             </div>
           </div></div>
           <div class="card"><div class="card-body">
-            <h3 style="margin:0 0 4px">外包人員／廠商名單</h3>
-            <p class="muted" style="font-size:12px;margin:0 0 14px">固定名單，建立外包時直接挑選</p>
+            <h3 style="margin:0 0 4px">外包個人／點工（標籤）</h3>
+            <p class="muted" style="font-size:12px;margin:0 0 14px">領現的個人/點工，在這裡建立即可挑選，不用開帳號</p>
             <div id="workerTags" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
             <div style="display:flex;gap:8px">
-              <input id="newWorker" class="form-input" placeholder="例：阿明、某某工班…" style="flex:1">
+              <input id="newWorker" class="form-input" placeholder="例：阿明、點工-阿德…" style="flex:1">
               <button class="btn btn-secondary btn-sm" onclick="addTag('worker')">＋ 新增</button>
             </div>
           </div></div>
+        </div>
+        <div class="help-bar" style="margin-top:16px;max-width:860px">
+          🏭 <b>正式廠商／工班（要轉帳、有銀行帳戶或統編）</b>請到「<a href="/vendors" style="color:#1e40af;font-weight:600">供應商管理</a>」建檔——
+          新增外包時「廠商」欄會自動帶出名單，入帳付款也能直接看到銀行帳戶與付款條件，一處維護不重複打。
         </div>
       </div>
 
@@ -197,8 +201,8 @@ table td, table th { font-size:13px; }
           <input class="form-input" id="f_amount" type="number" min="0" placeholder="員工自行輸入">
         </div>
         <div class="form-group">
-          <label class="form-label">廠商（入帳註明）</label>
-          <input class="form-input" id="f_vendor" placeholder="廠商/外包名稱">
+          <label class="form-label">廠商（入帳對象・來自供應商管理）</label>
+          <select class="form-input" id="f_vendor"></select>
         </div>
       </div>
       <div class="form-group" id="ownerCostGroup" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px">
@@ -230,7 +234,8 @@ table td, table th { font-size:13px; }
 <script>
 // ───── 假資料（純示意，未接 API）─────
 let catTags    = ['貼膜','油漆','矽利康','拆除','清潔'];
-let workerTags = ['阿明','阿源工班','大雄','協力-小林','點工-阿德'];
+let workerTags = ['阿明','大雄','點工-阿德'];                 // 個人/點工（領現）→ 標籤清單在本頁維護
+let vendorList = ['阿源工班','小林貼膜','順發油漆行'];          // 正式廠商（轉帳）→ 來自「供應商管理」vendors（示意）
 // 模擬目前登入者身分（示意先全給 true）
 let canPay  = true;   // owner 或 accountant 才為 true → 能確認付款
 let isOwner = true;   // 只有 owner 看得到/填得了「確定成本」(機密)
@@ -263,6 +268,8 @@ function fillCatOptions() {
   document.getElementById('catFilter').innerHTML = opt;
   document.getElementById('f_cat').innerHTML = catTags.map(c=>`<option>${c}</option>`).join('');
   document.getElementById('f_worker').innerHTML = workerTags.map(w=>`<option>${w}</option>`).join('');
+  document.getElementById('f_vendor').innerHTML =
+    `<option value="">—（個人領現可留空）—</option>` + vendorList.map(v=>`<option>${v}</option>`).join('');
 }
 
 function switchTab(tab) {
