@@ -147,7 +147,15 @@ table td, table th { font-size:13px; }
         <input class="form-input" id="n_mat" list="dlMat" placeholder="輸入品牌/型號搜尋…"><datalist id="dlMat"></datalist></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">用途 *</label>
-          <select class="form-input" id="n_purpose"><option value="case">案件施工</option><option value="other">非案件／其他用途</option><option value="sample">打樣／樣品</option></select></div>
+          <select class="form-input" id="n_purpose">
+            <option value="case">案件施工</option>
+            <option value="case_reserve">案件材料保留</option>
+            <option value="store_sale">實體門市通路銷售</option>
+            <option value="ecommerce">電商通路銷售</option>
+            <option value="academy">學院使用</option>
+            <option value="other">非案件／其他用途</option>
+            <option value="sample">打樣／樣品</option>
+          </select></div>
         <div class="form-group"><label class="form-label">預估米數（可空）</label>
           <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="選填"></div>
       </div>
