@@ -21,7 +21,7 @@
 .s-ar { background:#d1fae5; color:#065f46; }   /* 已歸檔 */
 .s-rj { background:#fee2e2; color:#991b1b; }   /* 已駁回 */
 .cat-pill { display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px }
-.c-add { background:#dbeafe;color:#1e40af } .c-loss{ background:#fee2e2;color:#991b1b } .c-recut{ background:#fef3c7;color:#92400e }
+.c-add { background:#dbeafe;color:#1e40af } .c-loss{ background:#fee2e2;color:#991b1b } .c-recut{ background:#fef3c7;color:#92400e } .c-redo{ background:#fce7f3;color:#9d174d }
 .preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; padding:3px 10px; border-radius:8px; }
 .help-bar { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.7; }
 .act-link { text-decoration:none; font-weight:600; margin-right:10px; white-space:nowrap; cursor:pointer; }
@@ -147,21 +147,28 @@ table td, table th { font-size:13px; }
         <input class="form-input" id="n_mat" list="dlMat" placeholder="輸入品牌/型號搜尋…"><datalist id="dlMat"></datalist></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">用途 *</label>
-          <select class="form-input" id="n_purpose">
-            <option value="case_material">案件裁料</option>
-            <option value="case_cut">案場切料</option>
-            <option value="case_takeout">案件帶出（整捲）</option>
-            <option value="case_loss">案場損失重貼</option>
-            <option value="case_reserve">案件材料保留</option>
-            <option value="store_sale">實體門市通路銷售</option>
-            <option value="ecommerce">電商通路銷售</option>
-            <option value="academy">學院使用</option>
-            <option value="adjust">庫存調整</option>
-            <option value="other">非案件／其他用途</option>
-            <option value="sample">打樣／樣品</option>
+          <select class="form-input" id="n_purpose" onchange="onPurposeChange()">
+            <optgroup label="案件前（公司內）">
+              <option value="case_material">案件裁料</option>
+              <option value="sample">小樣裁切</option>
+              <option value="case_reserve">案件材料保留</option>
+            </optgroup>
+            <optgroup label="案場（帶出施工）">
+              <option value="case_takeout">案件帶出（整捲）</option>
+              <option value="case_cut">案場切料</option>
+              <option value="case_loss">案場損失重貼</option>
+            </optgroup>
+            <optgroup label="通路／其他">
+              <option value="store_sale">實體門市通路銷售</option>
+              <option value="ecommerce">電商通路銷售</option>
+              <option value="academy">學院使用</option>
+              <option value="adjust">庫存調整</option>
+              <option value="other">非案件／其他用途</option>
+            </optgroup>
           </select></div>
-        <div class="form-group"><label class="form-label">預估米數（可空）</label>
-          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="選填"></div>
+        <div class="form-group"><label class="form-label" id="n_est_label">使用米數 *</label>
+          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="使用幾米">
+          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">整捲帶出時不必填，等歸還回報時再填實際用量</div></div>
       </div>
       <div class="form-group"><label class="form-label">關聯案件（可空，案件施工建議填）</label>
         <div class="ac-wrap">
@@ -190,11 +197,12 @@ table td, table th { font-size:13px; }
         <div class="form-group"><label class="form-label">暫定位置</label><input class="form-input" id="r_loc" placeholder="例：散料區"></div>
       </div>
       <div style="background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">現場情境分類（用幾米，可不填）</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">加貼</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">損耗</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
-          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">重裁</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">料差原因分類（帶出−帶回的用料差，各填幾米，可不填）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-redo">損失重貼</span></label><input class="form-input" id="r_redo" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-loss">案場材料損耗</span></label><input class="form-input" id="r_loss" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-recut">非施工重切（排錯/用錯料）</span></label><input class="form-input" id="r_recut" type="number" min="0" step="0.1" placeholder="米"></div>
+          <div class="form-group" style="margin:0"><label class="form-label"><span class="cat-pill c-add">案場追加使用</span></label><input class="form-input" id="r_add" type="number" min="0" step="0.1" placeholder="米"></div>
         </div>
       </div>
       <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="r_note" placeholder="選填"></div>
@@ -258,7 +266,7 @@ function render(){
   if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">此分頁目前沒有資料</td></tr>'; return; }
   body.innerHTML=list.map(r=>{
     const sb=SB[r.status]||['s-pp',r.status];
-    const cats=(r.cat_add||r.cat_loss||r.cat_recut)?[r.cat_add?`<span class="cat-pill c-add">加貼${r.cat_add}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">損耗${r.cat_loss}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">重裁${r.cat_recut}</span>`:''].join(''):'';
+    const cats=(r.cat_redo||r.cat_loss||r.cat_recut||r.cat_add)?[r.cat_redo?`<span class="cat-pill c-redo">損失重貼${r.cat_redo}</span>`:'',r.cat_loss?`<span class="cat-pill c-loss">損耗${r.cat_loss}</span>`:'',r.cat_recut?`<span class="cat-pill c-recut">非施工重切${r.cat_recut}</span>`:'',r.cat_add?`<span class="cat-pill c-add">追加${r.cat_add}</span>`:''].join(''):'';
     const mine = r.applicant_id===meId;
     let acts='';
     if(r.status==='pending_pickup') acts = isWarehouse
@@ -323,18 +331,33 @@ async function act(url,method,body){
 }
 
 function close_(m){ document.getElementById(m).style.display='none'; document.getElementById('caseDrop').classList.remove('open'); }
+function onPurposeChange(){
+  const isTakeout = document.getElementById('n_purpose').value==='case_takeout';
+  document.getElementById('n_est_hint').style.display = isTakeout?'':'none';
+  document.getElementById('n_est_label').textContent = isTakeout?'使用米數（帶出免填，歸還再填）':'使用米數 *';
+}
+function setPurposeByText(txt){
+  const sel=document.getElementById('n_purpose');
+  const opt=[...sel.options].find(o=>o.text===txt);
+  if(opt) sel.value=opt.value; else sel.selectedIndex=0;
+  onPurposeChange();
+}
 function openNew(){ editId=null; document.querySelector('#newModal h3').textContent='新增領用申請';
   ['n_mat','n_est','n_note'].forEach(i=>document.getElementById(i).value=''); clearCase();
-  document.getElementById('n_purpose').value='case'; document.getElementById('n_org').value='總部';
+  document.getElementById('n_purpose').value='case_material'; document.getElementById('n_org').value='總部';
+  onPurposeChange();
   document.getElementById('newModal').style.display='flex'; }
 function openEdit(id){ const r=rows.find(x=>x.id===id); if(!r) return; editId=id;
   document.querySelector('#newModal h3').textContent='編輯領用申請';
   document.getElementById('n_mat').value=r.material_label||''; document.getElementById('n_est').value=r.est_meters??'';
   document.getElementById('n_note').value=r.note||''; document.getElementById('n_org').value=r.org_name||'總部';
+  setPurposeByText(r.purpose||'');
   document.getElementById('n_case').value=r.case_number?`${r.case_number} ${r.client_name||''}`.trim():''; document.getElementById('n_case_id').value=r.case_id||'';
   document.getElementById('newModal').style.display='flex'; }
 async function saveNew(){
   if(!V('n_mat')){ alert('請選膜料'); return; }
+  const purposeVal=document.getElementById('n_purpose').value;
+  if(purposeVal!=='case_takeout' && !V('n_est')){ alert('請填使用米數（只有「案件帶出（整捲）」可免填，歸還時再填）'); return; }
   const payload={ material_label:V('n_mat'), purpose:document.getElementById('n_purpose').selectedOptions[0].text,
     est_meters:parseFloat(V('n_est'))||null, case_id:document.getElementById('n_case_id').value||null,
     org_id:null, note:V('n_note')||null };
@@ -344,13 +367,13 @@ async function saveNew(){
   close_('newModal'); await loadData(); if(!editId) switchTab('pp');
 }
 function openReturn(id){ returnId=id; const r=rows.find(x=>x.id===id); if(!r) return;
-  document.getElementById('r_info').textContent=`${r.material_label}｜${r.case_number||'無案件'} ${r.client_name||''}（預估 ${r.est_meters!=null?r.est_meters+'米':'—'}）`;
-  ['r_actual','r_remain','r_loc','r_add','r_loss','r_recut','r_note'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('r_info').textContent=`${r.material_label}｜${r.case_number||'無案件'} ${r.client_name||''}（領用 ${r.est_meters!=null?r.est_meters+'米':'整捲帶出'}）`;
+  ['r_actual','r_remain','r_loc','r_redo','r_loss','r_recut','r_add','r_note'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('returnModal').style.display='flex'; }
 async function saveReturn(){
   const actual=parseFloat(V('r_actual')); if(!actual){ alert('請填實際用量'); return; }
   const payload={ actual_meters:actual, remaining_meters:V('r_remain')||null, archive_location:V('r_loc')||null,
-    cat_add:V('r_add')||null, cat_loss:V('r_loss')||null, cat_recut:V('r_recut')||null, note:V('r_note')||null };
+    cat_redo:V('r_redo')||null, cat_loss:V('r_loss')||null, cat_recut:V('r_recut')||null, cat_add:V('r_add')||null, note:V('r_note')||null };
   const r=await fetch(`/api/material-usage/${returnId}/report`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'回報失敗'); return; }
   close_('returnModal'); await loadData(); switchTab('pr');

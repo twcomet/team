@@ -2226,6 +2226,7 @@ db.exec(`
     cat_add         REAL,
     cat_loss        REAL,
     cat_recut       REAL,
+    cat_redo        REAL,
     status          TEXT NOT NULL DEFAULT 'pending_pickup',
     note            TEXT,
     applicant_id        INTEGER REFERENCES users(id),
@@ -2240,6 +2241,7 @@ db.exec(`
     updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+_addCol('material_requisitions', 'cat_redo', 'REAL');  // 損失重貼（料差原因之一，既有DB補欄）
 
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
 try {

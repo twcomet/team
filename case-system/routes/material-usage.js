@@ -117,9 +117,9 @@ router.patch('/:id/report', requireAuth, (req, res) => {
   if (!['picked', 'reserved'].includes(r.status)) return res.status(400).json({ error: '此狀態無法回報' });
   const b = req.body;
   if (b.actual_meters == null || b.actual_meters === '') return res.status(400).json({ error: '請填實際用量' });
-  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_add=?, cat_loss=?, cat_recut=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+  db.prepare(`UPDATE material_requisitions SET actual_meters=?, remaining_meters=?, archive_location=?, cat_redo=?, cat_loss=?, cat_recut=?, cat_add=?, note=COALESCE(?,note), status='pending_return', returned_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(Number(b.actual_meters), b.remaining_meters != null && b.remaining_meters !== '' ? Number(b.remaining_meters) : null,
-         b.archive_location || null, Number(b.cat_add) || null, Number(b.cat_loss) || null, Number(b.cat_recut) || null,
+         b.archive_location || null, Number(b.cat_redo) || null, Number(b.cat_loss) || null, Number(b.cat_recut) || null, Number(b.cat_add) || null,
          b.note || null, r.id);
   log(me.id, 'report', r.id, `actual ${b.actual_meters}`);
   notifyManagers(r.org_id, `【膜料歸檔申請】\n${me.name} 回報「${r.material_label}」實際用 ${b.actual_meters}米、剩餘 ${b.remaining_meters||0}米\n請至系統核准歸檔。`);
