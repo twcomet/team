@@ -5871,7 +5871,7 @@ function renderDocList(docs) {
         <div style="font-size:12px;color:var(--gray-400)">${date}　${esc(d.uploader_name || '')}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">下載</a>
+        <a href="/api/cases/${caseId}/documents/${d.id}/download" class="btn btn-ghost btn-sm" style="text-decoration:none" download>下載</a>
         <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCaseDocument(${d.id})">刪除</button>
       </div>
     </div>`;

@@ -1220,6 +1220,24 @@ router.delete('/:id/documents/:docId', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// 下載文件：經伺服器代理，強制附件下載 + 還原中文檔名（避免 Cloudinary raw/PDF 直連被擋或被瀏覽器內嵌開啟）
+router.get('/:id/documents/:docId/download', requireAuth, async (req, res) => {
+  const doc = db.prepare(`SELECT * FROM case_documents WHERE id=? AND case_id=?`).get(req.params.docId, req.params.id);
+  if (!doc || !doc.file_url) return res.status(404).send('找不到此文件');
+  try {
+    const upstream = await fetch(doc.file_url);
+    if (!upstream.ok) return res.status(502).send(`來源檔案無法取得（${upstream.status}）`);
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    const fn = encodeURIComponent(doc.filename || `document-${doc.id}`);
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fn}`);
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
+  } catch (e) {
+    res.status(500).send('下載失敗：' + e.message);
+  }
+});
+
 // ── 客服關懷紀錄 ──────────────────────────────────────────────
 router.get('/:id/care-logs', requireAuth, (req, res) => {
   const rows = db.prepare(`
