@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/css/style.css">
 <style>
   :root{ --ec-accent:#FF0080; --ec-accent-dark:#D40069; --ec-accent-bg:#FFF0F7; --ec-border:#eceef2; }
-  .ec-shell{padding:22px 26px;max-width:1380px;margin:0 auto}
+  .ec-shell{padding:22px 28px;max-width:1700px;margin:0 auto}
   .ec-card{background:#fff;border:1px solid var(--ec-border);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.05)}
   .ec-card h3{font-size:14.5px;font-weight:700;margin:0 0 4px}
   .ec-hint{font-size:12px;color:#9ca3af;margin:10px 0 0;line-height:1.6}
@@ -21,11 +21,15 @@
   @media(max-width:760px){.ec-basic{grid-template-columns:1fr}}
   /* 第一區：基本資料（淡藍底區隔）*/
   .ec-basic-card{background:#F3F7FE;border-color:#D7E3F6}
-  /* 主版面：左品項輸入 | 右(估價明細大 + 金額計算在底) */
-  .ec-wrap{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
-  @media(max-width:860px){.ec-wrap{grid-template-columns:1fr}}
-  .ec-result{display:flex;flex-direction:column;gap:16px}
-  .ec-detail{margin-bottom:0;min-height:180px}
+  /* 主版面填滿寬度：品項輸入 | 估價明細(放大) | 金額計算(靠右sticky) */
+  .ec-wrap{display:grid;grid-template-columns:336px 1fr;gap:18px;align-items:start}
+  @media(max-width:820px){.ec-wrap{grid-template-columns:1fr}}
+  .ec-result{display:grid;grid-template-columns:minmax(0,1fr) 326px;gap:18px;align-items:start}
+  @media(max-width:1180px){.ec-result{grid-template-columns:1fr}}
+  .ec-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+  .ec-detail{margin-bottom:0;min-height:280px}
+  /* 計料方式：小獨立區塊 */
+  .ec-modecard{padding:14px 16px;margin-bottom:0}
   /* 品項分頁 */
   .ec-itabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .ec-itab{padding:7px 14px;font-size:13px;border-radius:999px;background:#f4f5f7;border:1px solid transparent;cursor:pointer;color:#6b7280;font-weight:500;transition:all .12s}
@@ -49,7 +53,7 @@
   .ec-empty{color:#9ca3af;text-align:center;padding:40px 24px;font-size:13px;line-height:1.7}
   .ec-after{color:#059669;font-weight:600}
   /* 金額計算（在右側最底，發票式右對齊）*/
-  .ec-tot{border:1px solid var(--ec-border);border-radius:14px;padding:8px 18px 18px;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.05);max-width:580px;margin-left:auto;width:100%;box-sizing:border-box}
+  .ec-tot{border:1px solid var(--ec-border);border-radius:14px;padding:8px 16px 16px;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.05)}
   .ec-tot-h{font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:.04em;padding:12px 0 6px;border-bottom:1px solid var(--ec-border);margin-bottom:6px}
   .ec-tr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13.5px;border-bottom:1px dashed #eef0f3}
   .ec-tr:last-child{border-bottom:none}
@@ -224,25 +228,30 @@
           </div>
         </div>
 
-        <!-- 第三區：估價明細(放大) ＋ 金額計算(在最底下) -->
+        <!-- 第三區：估價明細(放大) | 金額計算(靠右) -->
         <div class="ec-result">
           <div class="ec-card ec-detail">
             <div class="ec-qhead"><b>📋 估價明細（顯示原價）</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
             <div id="lines"><div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div></div>
           </div>
-          <div class="ec-tot">
-            <div class="ec-tot-h">金額計算</div>
-            <div class="ec-tr"><span>連工帶料小計（原價·未稅）</span><b id="t-sub">$0</b></div>
-            <div class="ec-tr"><span>整體折扣 <input id="q-disc" class="ec-discin" type="number" value="1" min="0.8" max="1" step="0.05" onchange="clampDisc()" oninput="render()"> <small style="color:#9ca3af">0.8～1（最多 8 折）</small></span><b id="t-disc">$0</b></div>
-            <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
-            <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
-            <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
-            <div class="ec-grand"><span>估價總額（原價·未稅）</span><b id="t-total">$0</b></div>
-            <div class="ec-discbar" id="t-discbar"><div class="dl"><span>折扣後應付（未稅）</span><small id="t-saved">省 $0</small></div><b id="t-disctotal">$0</b></div>
-            <div class="ec-modes">
-              <div class="ec-modeh">計料方式（點選切換·比較金額）</div>
-              <div class="ec-mode on" id="mode-loose" onclick="setCombine(false)"><div class="ml"><b>寬鬆（多報）</b><small>每片整條膜寬·多報有彈性</small></div><span id="mode-loose-amt">$0</span></div>
-              <div class="ec-mode" id="mode-comb" onclick="setCombine(true)"><div class="ml"><b>拼料省料</b><small>畸零拼料·省料</small></div><span id="mode-comb-amt">$0</span></div>
+          <div class="ec-side">
+            <!-- 計料方式：小獨立區塊 -->
+            <div class="ec-card ec-modecard">
+              <div class="ec-modeh">計料方式（點選切換）</div>
+              <div class="ec-mode on" id="mode-loose" onclick="setCombine(false)"><div class="ml"><b>寬鬆（多報）</b></div><span id="mode-loose-amt">$0</span></div>
+              <div class="ec-mode" id="mode-comb" onclick="setCombine(true)"><div class="ml"><b>拼料省料</b></div><span id="mode-comb-amt">$0</span></div>
+            </div>
+            <!-- 金額計算 -->
+            <div class="ec-tot">
+              <div class="ec-tot-h">金額計算</div>
+              <div class="ec-tr"><span>連工帶料小計（原價·未稅）</span><b id="t-sub">$0</b></div>
+              <div class="ec-tr"><span>整體折扣 <input id="q-disc" class="ec-discin" type="number" value="1" min="0.8" max="1" step="0.05" onchange="clampDisc()" oninput="render()"></span><b id="t-disc">$0</b></div>
+              <div class="ec-tr" style="border:none;padding-top:0"><span style="font-size:11px;color:#9ca3af">折扣 0.8～1（最多 8 折）</span><span></span></div>
+              <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
+              <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
+              <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
+              <div class="ec-grand"><span>估價總額（原價·未稅）</span><b id="t-total">$0</b></div>
+              <div class="ec-discbar" id="t-discbar"><div class="dl"><span>折扣後應付（未稅）</span><small id="t-saved">省 $0</small></div><b id="t-disctotal">$0</b></div>
             </div>
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>

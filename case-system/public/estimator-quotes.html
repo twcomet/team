@@ -122,12 +122,13 @@ function renderList(){
     <td class="eq-total">${NT(r.total)}</td>
     <td>${stBadge(r.status)}</td>
     <td>${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
-    <td style="white-space:nowrap"><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span><span class="eq-del" onclick="deleteQuote(${r.id},${JSON.stringify(esc(r.project_name)||('#'+r.id))})">刪除</span></td>
+    <td style="white-space:nowrap"><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span><span class="eq-del" onclick="deleteQuote(${r.id})">刪除</span></td>
   </tr>`).join('');
 }
 const ST={draft:['草稿','eq-st-draft'],sent:['已送出','eq-st-sent'],done:['已成交','eq-st-done'],accepted:['已成交','eq-st-done']};
 function stBadge(s){const m=ST[s]||[s||'draft','eq-st-draft'];return '<span class="eq-st '+m[1]+'">'+esc(m[0])+'</span>';}
-async function deleteQuote(id,name){
+async function deleteQuote(id){
+  const row=ROWS.find(x=>x.id===id); const name=(row&&row.project_name)||('#'+id);
   if(!confirm('確定刪除估價單「'+name+'」（#'+id+'）？\n此動作無法復原。')) return;
   try{
     const r=await fetch(API+'/quotes/'+id,{method:'DELETE'});
