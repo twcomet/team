@@ -131,7 +131,10 @@ router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
 // 金額一律由引擎讀 DB 牌價重算後存（不信前端金額）；items/photos 存 JSON
 function computeAndPersistFields(b) {
   const items = Array.isArray(b.items) ? b.items : [];
-  const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc: b.disc }, eng.buildCatalogFromDb(db));
+  // 整體折扣硬性限制：最多 8 折（0.8 ~ 1），防前端被繞過
+  let disc = parseFloat(b.disc); if (isNaN(disc) || disc > 1) disc = 1; if (disc < 0.8) disc = 0.8;
+  b.disc = disc;
+  const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc }, eng.buildCatalogFromDb(db));
   return { items, r };
 }
 router.post('/quotes', requireAuth, (req, res) => {
@@ -172,6 +175,11 @@ router.get('/quotes/:id', requireAuth, (req, res) => {
   q.items = JSON.parse(q.items_json || '[]');
   q.photos = JSON.parse(q.photos_json || '[]');
   res.json(q);
+});
+router.delete('/quotes/:id', requireAuth, (req, res) => {
+  const info = db.prepare(`DELETE FROM est_quotes WHERE id=?`).run(req.params.id);
+  if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
+  res.json({ ok: true });
 });
 
 // ── 重設計版牌價（est_film_catalog / est_door_catalog）──────────────

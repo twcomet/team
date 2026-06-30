@@ -19,12 +19,13 @@
   .ec-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   .ec-basic{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px}
   @media(max-width:760px){.ec-basic{grid-template-columns:1fr}}
-  /* 主版面：輸入 | (明細 + 總計sticky) */
-  .ec-wrap{display:grid;grid-template-columns:392px 1fr;gap:18px;align-items:start}
+  /* 第一區：基本資料（淡藍底區隔）*/
+  .ec-basic-card{background:#F3F7FE;border-color:#D7E3F6}
+  /* 主版面：左品項輸入 | 右(估價明細大 + 金額計算在底) */
+  .ec-wrap{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
   @media(max-width:860px){.ec-wrap{grid-template-columns:1fr}}
-  .ec-result{display:grid;grid-template-columns:minmax(0,1fr) 332px;gap:18px;align-items:start}
-  @media(max-width:1200px){.ec-result{grid-template-columns:1fr}}
-  .ec-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:12px}
+  .ec-result{display:flex;flex-direction:column;gap:16px}
+  .ec-detail{margin-bottom:0;min-height:180px}
   /* 品項分頁 */
   .ec-itabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .ec-itab{padding:7px 14px;font-size:13px;border-radius:999px;background:#f4f5f7;border:1px solid transparent;cursor:pointer;color:#6b7280;font-weight:500;transition:all .12s}
@@ -46,22 +47,43 @@
   .ec-gl{display:flex;justify-content:space-between;color:#6b7280;font-size:12.5px;margin-top:5px}
   .ec-badge{font-size:10.5px;background:var(--ec-accent-bg);color:var(--ec-accent-dark);border-radius:20px;padding:1px 8px;margin-left:6px;font-weight:600}
   .ec-empty{color:#9ca3af;text-align:center;padding:40px 24px;font-size:13px;line-height:1.7}
-  .ec-tot{border:1px solid var(--ec-border);border-radius:14px;padding:8px 16px 16px;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .ec-after{color:#059669;font-weight:600}
+  /* 金額計算（在右側最底，發票式右對齊）*/
+  .ec-tot{border:1px solid var(--ec-border);border-radius:14px;padding:8px 18px 18px;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.05);max-width:580px;margin-left:auto;width:100%;box-sizing:border-box}
   .ec-tot-h{font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:.04em;padding:12px 0 6px;border-bottom:1px solid var(--ec-border);margin-bottom:6px}
   .ec-tr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13.5px;border-bottom:1px dashed #eef0f3}
   .ec-tr:last-child{border-bottom:none}
   .ec-tr b{font-weight:600}
+  .ec-discin{width:62px;border:1px solid #d8dce2;border-radius:7px;padding:4px 7px;font-size:13px;text-align:center;font-family:inherit}
+  .ec-discin:focus{outline:none;border-color:var(--ec-accent);box-shadow:0 0 0 3px rgba(255,0,128,.12)}
+  /* 估價總額（原價·粉紅）*/
   .ec-grand{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:14px 16px;background:var(--ec-accent-bg);border:1px solid #FBCFE2;border-radius:11px}
   .ec-grand span{font-size:13.5px;font-weight:700;color:var(--ec-accent-dark)}
   .ec-grand b{font-size:23px;font-weight:800;color:var(--ec-accent)}
+  /* 折扣後應付（綠色大bar）*/
+  .ec-discbar{display:none;justify-content:space-between;align-items:center;margin-top:10px;padding:14px 16px;background:#ECFDF5;border:1.5px solid #A7F3D0;border-radius:11px}
+  .ec-discbar.on{display:flex}
+  .ec-discbar .dl{display:flex;flex-direction:column;gap:2px}
+  .ec-discbar .dl span{font-size:13px;font-weight:700;color:#047857}
+  .ec-discbar .dl small{font-size:11.5px;color:#059669}
+  .ec-discbar b{font-size:23px;font-weight:800;color:#059669}
   .ec-low{color:#d97706;font-weight:600}
-  .ec-save{display:flex;gap:10px}
+  /* 計料方式（兩列點選）*/
+  .ec-modes{margin-top:14px;border-top:1px solid var(--ec-border);padding-top:12px}
+  .ec-modeh{font-size:11.5px;font-weight:700;color:#9ca3af;letter-spacing:.04em;margin-bottom:8px}
+  .ec-mode{display:flex;justify-content:space-between;align-items:center;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;margin-bottom:8px;cursor:pointer;transition:all .12s;background:#fff}
+  .ec-mode:hover{border-color:#FBCFE2}
+  .ec-mode.on{border-color:var(--ec-accent);background:var(--ec-accent-bg)}
+  .ec-mode .ml{display:flex;flex-direction:column;gap:2px}
+  .ec-mode .ml b{font-size:13.5px;color:#374151}
+  .ec-mode.on .ml b{color:var(--ec-accent-dark)}
+  .ec-mode .ml small{font-size:11px;color:#9ca3af}
+  .ec-mode>span{font-size:15px;font-weight:800;color:#6b7280}
+  .ec-mode.on>span{color:var(--ec-accent)}
+  .ec-savebtns{display:flex;gap:10px;margin-top:14px}
   .ec-btn{flex:1;padding:13px 16px;border-radius:11px;border:none;cursor:pointer;font-size:14.5px;font-weight:700;transition:filter .12s}
   .ec-btn:hover{filter:brightness(.96)}
   .ec-btn-g{background:#1f2937;color:#fff}
-  .ec-toggle{display:inline-flex;border:1px solid #d8dce2;border-radius:9px;overflow:hidden}
-  .ec-toggle button{padding:8px 16px;border:none;cursor:pointer;font-size:13px;background:#fff;color:#374151;font-weight:500;transition:all .12s}
-  .ec-toggle button.on{background:var(--ec-accent);color:#fff;font-weight:600}
 </style>
 </head>
 <body>
@@ -124,11 +146,11 @@
     </div>
   </aside>
   <div class="main-content">
-    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><a href="/estimator-quotes" style="margin-left:auto;font-size:13px;color:#2563eb;text-decoration:none">🗂️ 估價單查詢</a></div>
+    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><a href="/estimator-quotes" style="margin-left:auto;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">🗂️ 估價單查詢</a></div>
 
     <div class="ec-shell">
-      <!-- 基本資料 -->
-      <div class="ec-card">
+      <!-- 第一區：基本資料 -->
+      <div class="ec-card ec-basic-card">
         <div class="ec-basic">
           <div class="ec-fld" style="position:relative;margin-bottom:0"><label>案件名稱（可搜尋關聯案件）</label><input id="b-project" placeholder="輸入關鍵字搜尋案件，或自行輸入名稱" autocomplete="off">
             <div id="caseDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.14);z-index:30;max-height:240px;overflow:auto"></div>
@@ -138,17 +160,8 @@
         </div>
       </div>
 
-      <div class="ec-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 18px">
-        <b style="font-size:13.5px">計料方式（牆面/系統櫃/玻璃）：</b>
-        <div class="ec-toggle">
-          <button id="cb-loose" class="on" onclick="setCombine(false)">寬鬆（多報）</button>
-          <button id="cb-comb" onclick="setCombine(true)">拼料省料</button>
-        </div>
-        <span style="font-size:12px;color:#9ca3af">寬鬆＝每片整條膜寬(多報、有彈性)；拼料＝畸零拼料省料。可切換比較。</span>
-      </div>
-
       <div class="ec-wrap">
-        <!-- 左：輸入 -->
+        <!-- 第二區：品項輸入 -->
         <div class="ec-card">
           <div class="ec-itabs">
             <div class="ec-itab" data-tab="object">物件</div>
@@ -211,23 +224,27 @@
           </div>
         </div>
 
-        <!-- 右：明細(可成長) ＋ 總計(sticky) -->
+        <!-- 第三區：估價明細(放大) ＋ 金額計算(在最底下) -->
         <div class="ec-result">
-          <div class="ec-card" style="margin-bottom:0">
-            <div class="ec-qhead"><b>📋 估價明細</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
+          <div class="ec-card ec-detail">
+            <div class="ec-qhead"><b>📋 估價明細（顯示原價）</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
             <div id="lines"><div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div></div>
           </div>
-          <div class="ec-side">
-            <div class="ec-tot">
-              <div class="ec-tot-h">金額計算</div>
-              <div class="ec-tr"><span>連工帶料小計（未稅）</span><b id="t-sub">$0</b></div>
-              <div class="ec-tr"><span>整體折扣 <select id="q-disc" onchange="render()" style="border:1px solid #d1d5db;border-radius:6px;padding:3px 6px;font-size:12px"><option value="1">無折扣</option><option value="0.97">97折</option><option value="0.95">95折</option><option value="0.9">9折</option><option value="0.85">85折</option></select></span><b id="t-disc">$0</b></div>
-              <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
-              <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
-              <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
-              <div class="ec-grand"><span>估價總額（未稅）</span><b id="t-total">$0</b></div>
+          <div class="ec-tot">
+            <div class="ec-tot-h">金額計算</div>
+            <div class="ec-tr"><span>連工帶料小計（原價·未稅）</span><b id="t-sub">$0</b></div>
+            <div class="ec-tr"><span>整體折扣 <input id="q-disc" class="ec-discin" type="number" value="1" min="0.8" max="1" step="0.05" onchange="clampDisc()" oninput="render()"> <small style="color:#9ca3af">0.8～1（最多 8 折）</small></span><b id="t-disc">$0</b></div>
+            <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
+            <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
+            <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
+            <div class="ec-grand"><span>估價總額（原價·未稅）</span><b id="t-total">$0</b></div>
+            <div class="ec-discbar" id="t-discbar"><div class="dl"><span>折扣後應付（未稅）</span><small id="t-saved">省 $0</small></div><b id="t-disctotal">$0</b></div>
+            <div class="ec-modes">
+              <div class="ec-modeh">計料方式（點選切換·比較金額）</div>
+              <div class="ec-mode on" id="mode-loose" onclick="setCombine(false)"><div class="ml"><b>寬鬆（多報）</b><small>每片整條膜寬·多報有彈性</small></div><span id="mode-loose-amt">$0</span></div>
+              <div class="ec-mode" id="mode-comb" onclick="setCombine(true)"><div class="ml"><b>拼料省料</b><small>畸零拼料·省料</small></div><span id="mode-comb-amt">$0</span></div>
             </div>
-            <div class="ec-save">
+            <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
             </div>
           </div>
@@ -325,33 +342,52 @@ function buildLines(){var lines=[];
   else if(it.kind==='fut'){var fm=futM(it.origin,it.method);amt=fm.price;sig='FUT|'+it.origin+'|'+it.method;label='期貨運費｜'+FUT[it.origin].label+'·'+fm.name;series='出貨 '+fm.lead;ftype='fut';}
   else return;
   if(fixed[sig]){fixed[sig].n++;fixed[sig].amount+=amt;fixed[sig].idxs.push(ci);}else{fixed[sig]={type:ftype,label:label,series:series,n:1,amount:amt,idxs:[ci]};lines.push(fixed[sig]);}});
- var r=parseFloat(v('q-disc'))||1;if(r<1)lines.forEach(function(L){if(L.type==='fut')return;L.base=L.amount;L.amount=Math.round(L.amount*r);});
+ var r=parseFloat(v('q-disc'));if(isNaN(r)||r>1)r=1;if(r<0.8)r=0.8;if(r<1)lines.forEach(function(L){if(L.type==='fut')return;L.base=L.amount;L.amount=Math.round(L.amount*r);});
  return lines;}
 function doorPriceOf(it){if(it.cat==='fire')return DOORS.fire[it.size][it.origin][it.side];return DOORS[it.cat][it.origin][it.side][it.frame];}
 
-function setCombine(b){ COMBINE=b;
-  document.getElementById('cb-loose').classList.toggle('on',!b);
-  document.getElementById('cb-comb').classList.toggle('on',b);
-  render();
+function setCombine(b){ COMBINE=b; render(); }
+function clampDisc(){var el=document.getElementById('q-disc');var n=parseFloat(el.value);if(isNaN(n)){el.value='1';}else{if(n>1)n=1;if(n<0.8)n=0.8;el.value=n;}render();}
+/* 某計料模式的「原價」估價總額（給寬鬆/拼料兩列即時比較）*/
+function modeOrigTotal(combine){
+  var save=COMBINE; COMBINE=combine; var lines;
+  try{ lines=buildLines(); } finally { COMBINE=save; }
+  var priced=lines.filter(function(L){return L.type!=='fut';}),futL=lines.filter(function(L){return L.type==='fut';});
+  var origItems=priced.reduce(function(a,L){return a+(L.base||L.amount);},0);
+  var lowmin=LOWMIN[cust],origFinal=(origItems>0&&origItems<lowmin)?lowmin:origItems;
+  var freight=FREIGHT[v('b-region')]||0,fut=futL.reduce(function(a,L){return a+L.amount;},0);
+  return origFinal+freight+fut;
 }
 function render(){
  cust=v('b-cust');document.getElementById('t-region').textContent=v('b-region');
  if(v('g-cat'))fillGlassSeries();
  var lines=buildLines();var box=document.getElementById('lines');
- if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊加入品項，這裡即時出估價明細。</div>';}
+ if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
  else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':' 件'));
-   h+='<div class="ec-grp"><div class="ec-gh"><b>'+L.label+'（'+L.n+u+'）'+(L.comb?'<span class="ec-badge">已併料</span>':'')+(L.base?'<span class="ec-badge">折後</span>':'')+(L.type==='fut'?'<span class="ec-badge">運費·不折</span>':'')+'</b><span class="ec-gp">'+NT(L.amount)+'</span></div><div class="ec-gl"><span>'+L.series+(L.cai?'　·　'+L.cai.toFixed(1)+' 才 × '+L.unit:'')+'</span><span>×'+L.n+'　<span class="ec-rm" onclick="rmGroup(\''+L.idxs.join(',')+'\')">移除</span></span></div></div>';});box.innerHTML=h;}
+   var orig=L.base||L.amount;
+   h+='<div class="ec-grp"><div class="ec-gh"><b>'+L.label+'（'+L.n+u+'）'+(L.comb?'<span class="ec-badge">已併料</span>':'')+(L.type==='fut'?'<span class="ec-badge">運費·不折</span>':'')+'</b><span class="ec-gp">'+NT(orig)+'</span></div><div class="ec-gl"><span>'+L.series+(L.cai?'　·　'+L.cai.toFixed(1)+' 才 × '+L.unit:'')+'</span><span>'+(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>　':'')+'×'+L.n+'　<span class="ec-rm" onclick="rmGroup(\''+L.idxs.join(',')+'\')">移除</span></span></div></div>';});box.innerHTML=h;}
  var priced=lines.filter(function(L){return L.type!=='fut';}),futL=lines.filter(function(L){return L.type==='fut';});
- var sub=priced.reduce(function(a,L){return a+(L.base||L.amount);},0),afterDisc=priced.reduce(function(a,L){return a+L.amount;},0),discAmt=sub-afterDisc;
- var lowmin=LOWMIN[cust],lowApplied=afterDisc>0&&afterDisc<lowmin,itemsFinal=lowApplied?lowmin:afterDisc;
- var freight=FREIGHT[v('b-region')]||0,fut=futL.reduce(function(a,L){return a+L.amount;},0),total=itemsFinal+freight+fut;
- document.getElementById('t-sub').textContent=NT(sub);
- document.getElementById('t-disc').textContent=discAmt>0?'-'+NT(discAmt):'$0';
+ var origItems=priced.reduce(function(a,L){return a+(L.base||L.amount);},0),discItems=priced.reduce(function(a,L){return a+L.amount;},0),discAmt=origItems-discItems;
+ var lowmin=LOWMIN[cust];
+ var origFinal=(origItems>0&&origItems<lowmin)?lowmin:origItems;
+ var lowApplied=discItems>0&&discItems<lowmin,discFinal=lowApplied?lowmin:discItems;
+ var freight=FREIGHT[v('b-region')]||0,fut=futL.reduce(function(a,L){return a+L.amount;},0);
+ var origTotal=origFinal+freight+fut,discTotal=discFinal+freight+fut,hasDisc=discAmt>0;
+ document.getElementById('t-sub').textContent=NT(origItems);
+ document.getElementById('t-disc').textContent=hasDisc?'-'+NT(discAmt):'$0';
+ document.getElementById('t-disc').className=hasDisc?'ec-after':'';
  document.getElementById('t-low').textContent=lowApplied?('補到低消 '+NT(lowmin)):'✓ 達低消';
  document.getElementById('t-low').className=lowApplied?'ec-low':'';
  document.getElementById('t-freight').textContent=NT(freight);
  document.getElementById('t-fut').textContent=NT(fut);
- document.getElementById('t-total').textContent=NT(total);
+ document.getElementById('t-total').textContent=NT(origTotal);
+ document.getElementById('t-discbar').classList.toggle('on',hasDisc);
+ document.getElementById('t-disctotal').textContent=NT(discTotal);
+ document.getElementById('t-saved').textContent='省 '+NT(origTotal-discTotal);
+ document.getElementById('mode-loose-amt').textContent=NT(modeOrigTotal(false));
+ document.getElementById('mode-comb-amt').textContent=NT(modeOrigTotal(true));
+ document.getElementById('mode-loose').classList.toggle('on',!COMBINE);
+ document.getElementById('mode-comb').classList.toggle('on',COMBINE);
 }
 
 async function saveQuote(status){

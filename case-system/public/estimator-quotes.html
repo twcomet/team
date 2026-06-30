@@ -6,20 +6,29 @@
 <title>估價單查詢</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
-  .eq-wrap{padding:18px;max-width:1100px}
-  .eq-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0;overflow:hidden}
-  .eq-bar{display:flex;gap:10px;align-items:center;padding:12px 16px;flex-wrap:wrap}
-  .eq-bar input{flex:1;min-width:200px;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:13.5px}
-  table.eq{width:100%;border-collapse:collapse;font-size:13px}
-  table.eq th{background:#f8fafc;color:#374151;font-weight:600;padding:9px 12px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap}
-  table.eq td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
-  table.eq tr:hover td{background:#f9fafb}
-  .eq-total{font-weight:700;color:#1d4ed8;text-align:right}
-  .eq-link{color:#2563eb;cursor:pointer;text-decoration:none}
-  .eq-empty{text-align:center;color:#9ca3af;padding:30px;font-size:13px}
-  .eq-detail{background:#f9fafb}
+  .eq-wrap{padding:22px 26px;max-width:1500px;margin:0 auto}
+  .eq-card{background:#fff;border:1px solid #eceef2;border-radius:14px;padding:0;overflow:hidden;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .eq-bar{display:flex;gap:10px;align-items:center;padding:14px 18px;flex-wrap:wrap;border-bottom:1px solid #f1f2f4}
+  .eq-bar input{flex:1;min-width:220px;border:1px solid #d8dce2;border-radius:9px;padding:10px 13px;font-size:13.5px}
+  .eq-bar input:focus{outline:none;border-color:#FF0080;box-shadow:0 0 0 3px rgba(255,0,128,.12)}
+  table.eq{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.eq th{background:#fafafb;color:#6b7280;font-weight:600;padding:11px 14px;text-align:left;border-bottom:1px solid #eceef2;white-space:nowrap;font-size:12.5px}
+  table.eq td{padding:12px 14px;border-bottom:1px solid #f3f4f6;vertical-align:middle;white-space:nowrap}
+  table.eq td.eq-name{white-space:normal;min-width:240px;font-weight:600;color:#1f2937}
+  table.eq tr:hover td{background:#fff7fb}
+  .eq-total{font-weight:700;color:#D40069;text-align:right}
+  .eq-link{color:#2563eb;cursor:pointer;text-decoration:none;font-weight:600}
+  .eq-link:hover{text-decoration:underline}
+  .eq-del{color:#dc2626;cursor:pointer;font-weight:600;margin-left:12px}
+  .eq-del:hover{text-decoration:underline}
+  .eq-empty{text-align:center;color:#9ca3af;padding:40px;font-size:13px}
+  .eq-detail{background:#fcfcfd}
   .eq-detail .di{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:#374151}
-  .eq-badge{font-size:11px;border-radius:20px;padding:1px 8px;background:#eef2ff;color:#4f46e5}
+  .eq-badge{font-size:11px;border-radius:20px;padding:1px 8px;background:#FFF0F7;color:#D40069;font-weight:600;white-space:nowrap}
+  .eq-st{font-size:11.5px;border-radius:20px;padding:2px 10px;font-weight:600;white-space:nowrap}
+  .eq-st-draft{background:#f1f5f9;color:#475569}
+  .eq-st-sent{background:#fef3c7;color:#b45309}
+  .eq-st-done{background:#dcfce7;color:#15803d}
 </style>
 </head>
 <body>
@@ -82,7 +91,7 @@
     </div>
   </aside>
   <div class="main-content">
-    <div class="top-bar"><span class="page-title">估價單查詢</span><a href="/estimator" style="margin-left:auto;font-size:13px;color:#2563eb;text-decoration:none">＋ 新增估價</a></div>
+    <div class="top-bar"><span class="page-title">估價單查詢</span><a href="/estimator" style="margin-left:auto;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">＋ 新增估價</a></div>
     <div class="eq-wrap">
       <div class="eq-card">
         <div class="eq-bar"><input id="eq-q" placeholder="🔍 搜尋 專案名稱／客戶" oninput="renderList()"></div>
@@ -106,15 +115,25 @@ function renderList(){
   if(!rows.length){ b.innerHTML='<tr><td colspan="9" class="eq-empty">尚無估價單</td></tr>'; return; }
   b.innerHTML=rows.map(r=>`<tr>
     <td>#${r.id}</td>
-    <td>${esc(r.project_name)||'—'}${r.case_id?` <span class="eq-badge">案件#${r.case_id}</span>`:''}</td>
+    <td class="eq-name">${esc(r.project_name)||'—'}${r.case_id?` <span class="eq-badge">案件#${r.case_id}</span>`:''}</td>
     <td>${esc(r.customer_name)||'—'}</td>
     <td>${CUST[r.customer_type]||r.customer_type||''}</td>
     <td>${esc(r.region)||'—'}</td>
     <td class="eq-total">${NT(r.total)}</td>
-    <td>${esc(r.status)||'draft'}</td>
+    <td>${stBadge(r.status)}</td>
     <td>${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
-    <td><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span></td>
+    <td style="white-space:nowrap"><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span><span class="eq-del" onclick="deleteQuote(${r.id},${JSON.stringify(esc(r.project_name)||('#'+r.id))})">刪除</span></td>
   </tr>`).join('');
+}
+const ST={draft:['草稿','eq-st-draft'],sent:['已送出','eq-st-sent'],done:['已成交','eq-st-done'],accepted:['已成交','eq-st-done']};
+function stBadge(s){const m=ST[s]||[s||'draft','eq-st-draft'];return '<span class="eq-st '+m[1]+'">'+esc(m[0])+'</span>';}
+async function deleteQuote(id,name){
+  if(!confirm('確定刪除估價單「'+name+'」（#'+id+'）？\n此動作無法復原。')) return;
+  try{
+    const r=await fetch(API+'/quotes/'+id,{method:'DELETE'});
+    if(r.ok){ ROWS=ROWS.filter(x=>x.id!==id); renderList(); }
+    else { const j=await r.json().catch(()=>({})); alert('刪除失敗：'+(j.error||r.status)); }
+  }catch(e){ alert('刪除失敗：'+e.message); }
 }
 async function toggleDetail(id,el){
   const tr=el.closest('tr'); const next=tr.nextElementSibling;
@@ -138,7 +157,7 @@ async function toggleDetail(id,el){
     +'<div class="di" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px"><span>小計</span><span>'+NT(q.subtotal)+'</span></div>'
     +'<div class="di"><span>車馬費</span><span>'+NT(q.freight)+'</span></div>'
     +'<div class="di"><span>期貨運費</span><span>'+NT(q.fut)+'</span></div>'
-    +'<div class="di" style="font-weight:700;color:#1d4ed8"><span>估價總額</span><span>'+NT(q.total)+'</span></div>'
+    +'<div class="di" style="font-weight:700;color:#D40069"><span>估價總額</span><span>'+NT(q.total)+'</span></div>'
     +(q.customer_note?'<div class="di" style="margin-top:6px"><span>給客戶說明：'+esc(q.customer_note)+'</span></div>':'')
     +'</div></td>';
   tr.after(d);
