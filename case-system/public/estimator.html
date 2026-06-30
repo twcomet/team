@@ -368,8 +368,8 @@ function setupCaseSearch(){
 async function doCaseSearch(q){
   var drop=document.getElementById('caseDrop');
   try{
-    var rows=await fetch('/api/search/quick?q='+encodeURIComponent(q)).then(function(r){return r.ok?r.json():[];});
-    var cases=(rows||[]).filter(function(r){return r.link&&r.link.indexOf('case-detail')>=0;});
+    var data=await fetch('/api/search/quick?q='+encodeURIComponent(q)).then(function(r){return r.ok?r.json():{results:[]};});
+    var cases=((data&&data.results)||[]).filter(function(r){return r.link&&r.link.indexOf('case-detail')>=0;});
     if(!cases.length){drop.innerHTML='<div style="padding:8px 12px;font-size:13px;color:#9ca3af">查無案件（可自行輸入名稱）</div>';drop.style.display='';return;}
     drop.innerHTML=cases.slice(0,8).map(function(r){
       var id=((r.link.match(/id=(\d+)/))||[])[1]||'';
