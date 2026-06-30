@@ -225,6 +225,7 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
   if (!isWarehouse(me)) return res.status(403).json({ error: '僅倉管可審核' });
   const r = db.prepare(`SELECT * FROM material_requisitions WHERE id=?`).get(req.params.id);
   if (!r || r.status !== 'pending_pickup') return res.status(400).json({ error: '此狀態無法核准' });
+  let caseReserves = null;   // 裁切型實扣後，回報該案是否還有保留可沖銷（前端跳提示）
   if (r.needs_return) {
     // 帶出型：核准後帶走，等歸還（實扣留到歸檔核准）
     db.prepare(`UPDATE material_requisitions SET status='picked', material_id=COALESCE(material_id,?), pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(resolveMaterialId(r) || null, me.id, r.id);
@@ -248,10 +249,11 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
       return res.status(400).json({ error: e.message });
     }
     if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
+    if (willConsume) caseReserves = activeCaseReserves(r.case_id, matId);
     notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${willConsume ? `，庫存已扣 ${Math.abs(Number(r.est_meters))} 米` : ''}。`);
   }
   log(me.id, 'approve_pickup', r.id, r.needs_return ? 'picked' : 'archived');
-  res.json({ ok: true });
+  res.json({ ok: true, caseReserves });
 });
 
 // 申請人確認使用完畢（回報實際用量+三情境）
@@ -307,7 +309,9 @@ router.patch('/:id/approve-archive', requireAuth, (req, res) => {
   if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
   log(me.id, 'approve_archive', r.id, null);
   notifyUser(r.applicant_id, `【膜料已歸檔】\n你回報的「${r.material_label}」已完成歸檔${willConsume ? `，庫存已扣 ${used} 米` : ''}。`);
-  res.json({ ok: true });
+  // 已實扣案件用料 → 回報該案是否還有保留可沖銷（前端跳提示問倉管）
+  const caseReserves = willConsume ? activeCaseReserves(r.case_id, matId) : null;
+  res.json({ ok: true, caseReserves });
 });
 
 // 倉管駁回（退回申請人修改重送，非作廢）
@@ -341,6 +345,33 @@ router.delete('/:id', requireAuth, (req, res) => {
   if (r.case_id) syncCaseMaterialCost(r.case_id);
   log(me.id, 'delete', r.id, null);
   res.json({ ok: true });
+});
+
+// 倉管手動沖銷一筆案件保留（保留分頁的「沖銷」鈕）
+router.patch('/reserves/:logId/release', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!isWarehouse(me)) return res.status(403).json({ error: '僅倉管或老闆可沖銷保留' });
+  const l = db.prepare(`SELECT * FROM material_logs WHERE id=? AND log_type='reserve' AND status='active'`).get(req.params.logId);
+  if (!l) return res.status(404).json({ error: '找不到有效的保留紀錄' });
+  try { db.exec('BEGIN'); releaseReserveLog(l); db.exec('COMMIT'); }
+  catch (e) { try { db.exec('ROLLBACK'); } catch (_) {} return res.status(500).json({ error: '沖銷失敗：' + e.message }); }
+  log(me.id, 'release_reserve', l.id, `case ${l.case_id}`);
+  res.json({ ok: true });
+});
+
+// 倉管沖銷某案(可限型號)的所有有效保留（核准實扣後跳提示用）
+router.patch('/reserves/release-by-case', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!isWarehouse(me)) return res.status(403).json({ error: '僅倉管或老闆可沖銷保留' });
+  const { case_id, material_id } = req.body;
+  if (!case_id) return res.status(400).json({ error: '缺少案件' });
+  const logs = material_id
+    ? db.prepare(`SELECT * FROM material_logs WHERE log_type='reserve' AND status='active' AND case_id=? AND material_id=?`).all(case_id, material_id)
+    : db.prepare(`SELECT * FROM material_logs WHERE log_type='reserve' AND status='active' AND case_id=?`).all(case_id);
+  try { db.exec('BEGIN'); for (const l of logs) releaseReserveLog(l); db.exec('COMMIT'); }
+  catch (e) { try { db.exec('ROLLBACK'); } catch (_) {} return res.status(500).json({ error: '沖銷失敗：' + e.message }); }
+  log(me.id, 'release_reserve_case', case_id, `${logs.length} reserves`);
+  res.json({ ok: true, released: logs.length });
 });
 
 module.exports = router;

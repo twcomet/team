@@ -362,18 +362,36 @@ function renderReserves(body){
     <td><span class="muted">—</span></td><td><span class="muted">—</span></td><td><span class="muted">—</span></td>
     <td>${esc(r.logged_by_name||'系統')}</td>
     <td><span class="muted">—</span></td>
-    <td><span class="muted" style="font-size:12px">成交時自動預扣</span></td>
+    <td>${isWarehouse?`<a class="act-link" style="color:#dc2626" onclick="releaseReserve(${r.id})">沖銷</a>`:'<span class="muted" style="font-size:12px">成交時自動預扣</span>'}</td>
   </tr>`).join('');
 }
 
 // ── 倉管/申請人動作（接 API）──
-async function approvePickup(id){ await act(`/api/material-usage/${id}/approve-pickup`,'PATCH'); }
-async function archive(id){ if(!confirm('核准歸檔？（確認剩餘米數與貨架，正式歸檔）')) return; await act(`/api/material-usage/${id}/approve-archive`,'PATCH'); }
+async function approvePickup(id){ const d=await act(`/api/material-usage/${id}/approve-pickup`,'PATCH'); await promptReleaseReserves(d); }
+async function archive(id){ if(!confirm('核准歸檔？（確認剩餘米數與貨架，正式歸檔）')) return; const d=await act(`/api/material-usage/${id}/approve-archive`,'PATCH'); await promptReleaseReserves(d); }
 async function reject(id){ const note=prompt('駁回原因（退回申請人修改重送）',''); if(note===null) return; await act(`/api/material-usage/${id}/reject`,'PATCH',{reject_note:note}); }
 async function del(id){ if(!confirm('刪除這筆？')) return; await act(`/api/material-usage/${id}`,'DELETE'); }
 async function act(url,method,body){
   const r=await fetch(url,{method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});
-  if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'操作失敗'); return; }
+  if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'操作失敗'); return null; }
+  const data=await r.json().catch(()=>({}));
+  await loadData();
+  return data;
+}
+// 核准實扣後，若該案還有保留 → 問倉管是否一併沖銷
+async function promptReleaseReserves(d){
+  if(!d || !d.caseReserves || !d.caseReserves.count) return;
+  const cr=d.caseReserves;
+  if(!confirm(`此案件還有先前保留 ${cr.meters} 米（${cr.count} 筆）尚未沖銷。\n已實際扣料，要一併沖銷這些保留嗎？`)) return;
+  const r=await fetch('/api/material-usage/reserves/release-by-case',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({case_id:cr.case_id, material_id:cr.material_id})});
+  if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'沖銷失敗'); return; }
+  await loadData();
+}
+// 保留分頁：倉管手動沖銷一筆保留
+async function releaseReserve(id){
+  if(!confirm('沖銷這筆保留？（軟性保留沖銷只取消預扣標記、不影響實際庫存數字）')) return;
+  const r=await fetch(`/api/material-usage/reserves/${id}/release`,{method:'PATCH'});
+  if(!r.ok){ alert((await r.json().catch(()=>({}))).error||'沖銷失敗'); return; }
   await loadData();
 }
 
