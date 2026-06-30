@@ -242,6 +242,15 @@ document.addEventListener('DOMContentLoaded', async()=>{
   document.querySelectorAll('.tabs-bar .tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
   loadMats();
   await loadData();
+  // 從案件詳情「新增膜料使用」帶過來：自動開新增、預填案件
+  const p=new URLSearchParams(location.search);
+  if(p.get('new')){
+    openNew();
+    const cid=p.get('case_id'), clabel=p.get('case_label');
+    if(cid){ document.getElementById('n_case_id').value=cid; document.getElementById('n_case').value=clabel||('案件#'+cid); }
+  } else if(p.get('case_id')){
+    document.getElementById('kwSearch').value='';
+  }
 });
 function switchTab(t){ curTab=t; allPage=1; document.querySelectorAll('.tabs-bar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); render(); }
 function goPage(p){ allPage=p; render(); window.scrollTo(0,0); }

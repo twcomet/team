@@ -932,9 +932,10 @@
       <div class="tab-pane" id="tab-material">
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
           <button class="btn btn-secondary btn-sm" onclick="openCasePurchaseModal()">＋ 採購進貨</button>
-          <button class="btn btn-primary btn-sm" onclick="openMatLogModal()">＋ 新增使用紀錄</button>
+          <button class="btn btn-primary btn-sm" onclick="goNewRequisition()">＋ 新增膜料使用</button>
         </div>
         <div id="matUsageList"></div>
+        <div id="caseReqList" style="margin-top:22px"></div>
       </div>
 
       <!-- 收款 -->
@@ -3825,8 +3826,44 @@ function openClientForInvoice() {
   else showToast('請先設定客戶', 'error');
 }
 
+// ── 新膜料使用紀錄（領用/歸還）連動顯示 ───────────────────────
+function goNewRequisition() {
+  const label = `${caseData.case_number || ''} ${caseData.client_name || caseData.title || ''}`.trim();
+  location.href = `/material-usage?new=1&case_id=${caseId}&case_label=${encodeURIComponent(label)}`;
+}
+async function loadCaseRequisitions() {
+  const el = document.getElementById('caseReqList');
+  if (!el) return;
+  let rows = [];
+  try { const d = await fetch(`/api/material-usage?case_id=${caseId}`).then(r => r.ok ? r.json() : { rows: [] }); rows = d.rows || []; } catch (e) {}
+  const SB = { pending_pickup:['#fef3c7','#92400e','待核准'], picked:['#dbeafe','#1e40af','已帶出待歸還'], pending_return:['#fae8ff','#86198f','待歸還核准'], archived:['#d1fae5','#065f46','已完成'], rejected:['#fee2e2','#991b1b','已駁回'] };
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let body = rows.length ? rows.map(r => {
+    const s = SB[r.status] || ['#eee','#555',r.status];
+    return `<tr>
+      <td style="padding:7px 10px">${(r.applied_at||'').slice(0,10)}</td>
+      <td style="padding:7px 10px">${esc(r.material_label||'—')}</td>
+      <td style="padding:7px 10px">${esc(r.purpose||'—')}</td>
+      <td style="padding:7px 10px">${r.est_meters!=null?r.est_meters+'米':'—'}</td>
+      <td style="padding:7px 10px">${r.actual_meters!=null?r.actual_meters+'米':'—'}</td>
+      <td style="padding:7px 10px">${esc(r.applicant_name||'')}</td>
+      <td style="padding:7px 10px"><span style="background:${s[0]};color:${s[1]};padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600">${s[2]}</span></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">尚無領用／歸還紀錄</td></tr>`;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h4 style="font-size:14px;font-weight:600;color:var(--gray-700)">📋 膜料領用／歸還紀錄（本案）</h4>
+      <a href="/material-usage?case_id=${caseId}" style="font-size:12px;color:#2563eb;text-decoration:none">前往膜料使用紀錄 ›</a>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>申請日</th><th>膜料</th><th>用途</th><th>領出/預估</th><th>實際用量</th><th>申請人</th><th>狀態</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>`;
+}
+
 // ── 歷程 ───────────────────────────────────────────────────
 function renderMatUsage(dispatchList, logList) {
+  loadCaseRequisitions();
   const el = document.getElementById('matUsageList');
   const DISPATCH_TYPE = { cut_material:'裁切材料', factory_survey:'場勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
   const LOG_TYPE = { case_cut:'施工', case_loss:'損失重貼', reserve:'保留', store_sale:'材料販售' };
