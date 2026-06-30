@@ -6,39 +6,62 @@
 <title>估價計算機</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
-  .ec-wrap{display:grid;grid-template-columns:360px 1fr;gap:16px}
-  @media(max-width:980px){.ec-wrap{grid-template-columns:1fr}}
-  .ec-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:16px}
-  .ec-card h3{font-size:14.5px;font-weight:600;margin:0 0 4px}
-  .ec-hint{font-size:12px;color:#9ca3af;margin:0 0 12px;line-height:1.6}
-  .ec-fld label{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}
-  .ec-fld{margin-bottom:10px}
-  .ec-fld input,.ec-fld select,.ec-row input,.ec-row select{width:100%;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13.5px;box-sizing:border-box;font-family:inherit}
-  .ec-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .ec-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .ec-itabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
-  .ec-itab{padding:7px 11px;font-size:13px;border-radius:7px;background:#f3f4f6;border:1px solid #e5e7eb;cursor:pointer;color:#6b7280}
-  .ec-itab.on{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:600}
+  :root{ --ec-accent:#FF0080; --ec-accent-dark:#D40069; --ec-accent-bg:#FFF0F7; --ec-border:#eceef2; }
+  .ec-shell{padding:22px 26px;max-width:1380px;margin:0 auto}
+  .ec-card{background:#fff;border:1px solid var(--ec-border);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .ec-card h3{font-size:14.5px;font-weight:700;margin:0 0 4px}
+  .ec-hint{font-size:12px;color:#9ca3af;margin:10px 0 0;line-height:1.6}
+  .ec-fld label{display:block;font-size:12px;color:#6b7280;margin-bottom:6px;font-weight:500}
+  .ec-fld{margin-bottom:12px}
+  .ec-fld input,.ec-fld select,.ec-row input,.ec-row select{width:100%;border:1px solid #d8dce2;border-radius:9px;padding:10px 12px;font-size:13.5px;box-sizing:border-box;font-family:inherit;background:#fff;transition:border-color .15s,box-shadow .15s}
+  .ec-fld input:focus,.ec-fld select:focus,.ec-row input:focus,.ec-row select:focus{outline:none;border-color:var(--ec-accent);box-shadow:0 0 0 3px rgba(255,0,128,.12)}
+  .ec-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ec-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .ec-basic{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px}
+  @media(max-width:760px){.ec-basic{grid-template-columns:1fr}}
+  /* 主版面：輸入 | (明細 + 總計sticky) */
+  .ec-wrap{display:grid;grid-template-columns:392px 1fr;gap:18px;align-items:start}
+  @media(max-width:860px){.ec-wrap{grid-template-columns:1fr}}
+  .ec-result{display:grid;grid-template-columns:minmax(0,1fr) 332px;gap:18px;align-items:start}
+  @media(max-width:1200px){.ec-result{grid-template-columns:1fr}}
+  .ec-side{position:sticky;top:16px;display:flex;flex-direction:column;gap:12px}
+  /* 品項分頁 */
+  .ec-itabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .ec-itab{padding:7px 14px;font-size:13px;border-radius:999px;background:#f4f5f7;border:1px solid transparent;cursor:pointer;color:#6b7280;font-weight:500;transition:all .12s}
+  .ec-itab:hover{background:#eceef2;color:#374151}
+  .ec-itab.on{background:var(--ec-accent);color:#fff;font-weight:600;box-shadow:0 2px 7px rgba(255,0,128,.32)}
   .ec-pane{display:none}.ec-pane.on{display:block}
-  .ec-add{width:100%;margin-top:10px;padding:11px;background:#1f2937;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
-  .ec-perm{font-size:12px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 10px;margin-top:10px;font-weight:600}
-  .ec-qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .ec-add{width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#FF0080,#D40069);color:#fff;border:none;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(255,0,128,.25);transition:transform .08s,box-shadow .15s}
+  .ec-add:hover{box-shadow:0 5px 14px rgba(255,0,128,.36)}
+  .ec-add:active{transform:translateY(1px)}
+  .ec-perm{font-size:12.5px;color:var(--ec-accent-dark);background:var(--ec-accent-bg);border:1px solid #FBCFE2;border-radius:9px;padding:9px 12px;margin-top:12px;font-weight:600;text-align:center}
+  .ec-qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .ec-qhead b{font-size:15px}
   .ec-rm{color:#dc2626;font-size:12px;cursor:pointer}
-  .ec-grp{border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px;margin-bottom:8px}
+  .ec-rm:hover{text-decoration:underline}
+  .ec-grp{border:1px solid var(--ec-border);border-radius:11px;padding:11px 13px;margin-bottom:9px;background:#fcfcfd;transition:border-color .12s}
+  .ec-grp:hover{border-color:#FBCFE2}
   .ec-gh{display:flex;justify-content:space-between;align-items:center}
-  .ec-gh b{font-size:13.5px}.ec-gp{font-weight:700;color:#1d4ed8}
-  .ec-gl{display:flex;justify-content:space-between;color:#6b7280;font-size:12.5px;margin-top:4px}
-  .ec-badge{font-size:10.5px;background:#ecfeff;color:#0891b2;border-radius:20px;padding:1px 7px;margin-left:6px}
-  .ec-empty{color:#9ca3af;text-align:center;padding:24px;font-size:13px}
-  .ec-tot{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-top:12px}
-  .ec-tr{display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px;border-bottom:1px dashed #eee}
+  .ec-gh b{font-size:13.5px}.ec-gp{font-weight:700;color:var(--ec-accent-dark);font-size:14.5px}
+  .ec-gl{display:flex;justify-content:space-between;color:#6b7280;font-size:12.5px;margin-top:5px}
+  .ec-badge{font-size:10.5px;background:var(--ec-accent-bg);color:var(--ec-accent-dark);border-radius:20px;padding:1px 8px;margin-left:6px;font-weight:600}
+  .ec-empty{color:#9ca3af;text-align:center;padding:40px 24px;font-size:13px;line-height:1.7}
+  .ec-tot{border:1px solid var(--ec-border);border-radius:14px;padding:8px 16px 16px;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .ec-tot-h{font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:.04em;padding:12px 0 6px;border-bottom:1px solid var(--ec-border);margin-bottom:6px}
+  .ec-tr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13.5px;border-bottom:1px dashed #eef0f3}
   .ec-tr:last-child{border-bottom:none}
-  .ec-tr.big{font-size:17px;font-weight:800;color:#1d4ed8;padding-top:10px}
-  .ec-low{color:#d97706}
-  .ec-save{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
-  .ec-btn{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600}
-  .ec-btn-p{background:#2563eb;color:#fff}.ec-btn-g{background:#f3f4f6;color:#374151}
-  .ec-collapse{cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+  .ec-tr b{font-weight:600}
+  .ec-grand{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:14px 16px;background:var(--ec-accent-bg);border:1px solid #FBCFE2;border-radius:11px}
+  .ec-grand span{font-size:13.5px;font-weight:700;color:var(--ec-accent-dark)}
+  .ec-grand b{font-size:23px;font-weight:800;color:var(--ec-accent)}
+  .ec-low{color:#d97706;font-weight:600}
+  .ec-save{display:flex;gap:10px}
+  .ec-btn{flex:1;padding:13px 16px;border-radius:11px;border:none;cursor:pointer;font-size:14.5px;font-weight:700;transition:filter .12s}
+  .ec-btn:hover{filter:brightness(.96)}
+  .ec-btn-g{background:#1f2937;color:#fff}
+  .ec-toggle{display:inline-flex;border:1px solid #d8dce2;border-radius:9px;overflow:hidden}
+  .ec-toggle button{padding:8px 16px;border:none;cursor:pointer;font-size:13px;background:#fff;color:#374151;font-weight:500;transition:all .12s}
+  .ec-toggle button.on{background:var(--ec-accent);color:#fff;font-weight:600}
 </style>
 </head>
 <body>
@@ -103,32 +126,23 @@
   <div class="main-content">
     <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><a href="/estimator-quotes" style="margin-left:auto;font-size:13px;color:#2563eb;text-decoration:none">🗂️ 估價單查詢</a></div>
 
-    <div style="padding:18px;max-width:1180px">
+    <div class="ec-shell">
       <!-- 基本資料 -->
       <div class="ec-card">
-        <div class="ec-g3">
-          <div class="ec-fld" style="position:relative"><label>案件名稱（可搜尋關聯案件）</label><input id="b-project" placeholder="輸入關鍵字搜尋案件，或自行輸入名稱" autocomplete="off">
+        <div class="ec-basic">
+          <div class="ec-fld" style="position:relative;margin-bottom:0"><label>案件名稱（可搜尋關聯案件）</label><input id="b-project" placeholder="輸入關鍵字搜尋案件，或自行輸入名稱" autocomplete="off">
             <div id="caseDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.14);z-index:30;max-height:240px;overflow:auto"></div>
           </div>
-          <div class="ec-fld"><label>客戶類型（影響玻璃價/低消）</label><select id="b-cust" onchange="render()"><option value="owner">業主</option><option value="designer">設計師</option></select></div>
-          <div class="ec-fld"><label>區域（車馬費·施工）</label><select id="b-region" onchange="render()"></select></div>
-        </div>
-        <div class="ec-collapse" onclick="var x=document.getElementById('b-more');x.style.display=x.style.display==='none'?'block':'none'">▸ 更多基本資料（客戶/電話/地址·皆非必填，可不填）</div>
-        <div id="b-more" style="display:none;margin-top:12px">
-          <div class="ec-g2">
-            <div class="ec-fld"><label>客戶名稱</label><input id="b-name"></div>
-            <div class="ec-fld"><label>聯絡電話</label><input id="b-phone"></div>
-            <div class="ec-fld"><label>社區/建案</label><input id="b-community"></div>
-            <div class="ec-fld"><label>案場地址</label><input id="b-address"></div>
-          </div>
+          <div class="ec-fld" style="margin-bottom:0"><label>客戶類型（影響玻璃價/低消）</label><select id="b-cust" onchange="render()"><option value="owner">業主</option><option value="designer">設計師</option></select></div>
+          <div class="ec-fld" style="margin-bottom:0"><label>區域（車馬費·施工）</label><select id="b-region" onchange="render()"></select></div>
         </div>
       </div>
 
-      <div class="ec-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px">
+      <div class="ec-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 18px">
         <b style="font-size:13.5px">計料方式（牆面/系統櫃/玻璃）：</b>
-        <div style="display:inline-flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden">
-          <button id="cb-loose" onclick="setCombine(false)" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;background:#2563eb;color:#fff;font-weight:600">寬鬆（多報）</button>
-          <button id="cb-comb" onclick="setCombine(true)" style="padding:7px 14px;border:none;cursor:pointer;font-size:13px;background:#fff;color:#374151">拼料省料</button>
+        <div class="ec-toggle">
+          <button id="cb-loose" class="on" onclick="setCombine(false)">寬鬆（多報）</button>
+          <button id="cb-comb" onclick="setCombine(true)">拼料省料</button>
         </div>
         <span style="font-size:12px;color:#9ca3af">寬鬆＝每片整條膜寬(多報、有彈性)；拼料＝畸零拼料省料。可切換比較。</span>
       </div>
@@ -197,22 +211,25 @@
           </div>
         </div>
 
-        <!-- 右：明細＋總計 -->
-        <div>
-          <div class="ec-card">
-            <div class="ec-qhead"><b>估價明細</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
-            <div id="lines"><div class="ec-empty">從左邊加入品項，這裡即時出估價明細。</div></div>
+        <!-- 右：明細(可成長) ＋ 總計(sticky) -->
+        <div class="ec-result">
+          <div class="ec-card" style="margin-bottom:0">
+            <div class="ec-qhead"><b>📋 估價明細</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
+            <div id="lines"><div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div></div>
           </div>
-          <div class="ec-tot">
-            <div class="ec-tr"><span>連工帶料小計（未稅）</span><b id="t-sub">$0</b></div>
-            <div class="ec-tr"><span>整體折扣 <select id="q-disc" onchange="render()" style="border:1px solid #d1d5db;border-radius:6px;padding:2px 6px;font-size:12px"><option value="1">無折扣</option><option value="0.97">97折</option><option value="0.95">95折</option><option value="0.9">9折</option><option value="0.85">85折</option></select></span><b id="t-disc">$0</b></div>
-            <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
-            <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
-            <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
-            <div class="ec-tr big"><span>估價總額（未稅）</span><b id="t-total">$0</b></div>
-          </div>
-          <div class="ec-save">
-            <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
+          <div class="ec-side">
+            <div class="ec-tot">
+              <div class="ec-tot-h">金額計算</div>
+              <div class="ec-tr"><span>連工帶料小計（未稅）</span><b id="t-sub">$0</b></div>
+              <div class="ec-tr"><span>整體折扣 <select id="q-disc" onchange="render()" style="border:1px solid #d1d5db;border-radius:6px;padding:3px 6px;font-size:12px"><option value="1">無折扣</option><option value="0.97">97折</option><option value="0.95">95折</option><option value="0.9">9折</option><option value="0.85">85折</option></select></span><b id="t-disc">$0</b></div>
+              <div class="ec-tr"><span id="t-low-l">低消檢查</span><b id="t-low">—</b></div>
+              <div class="ec-tr"><span>車馬費（<span id="t-region">—</span>·施工）</span><b id="t-freight">$0</b></div>
+              <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
+              <div class="ec-grand"><span>估價總額（未稅）</span><b id="t-total">$0</b></div>
+            </div>
+            <div class="ec-save">
+              <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
+            </div>
           </div>
         </div>
       </div>
@@ -313,9 +330,8 @@ function buildLines(){var lines=[];
 function doorPriceOf(it){if(it.cat==='fire')return DOORS.fire[it.size][it.origin][it.side];return DOORS[it.cat][it.origin][it.side][it.frame];}
 
 function setCombine(b){ COMBINE=b;
-  var lo=document.getElementById('cb-loose'), cb=document.getElementById('cb-comb');
-  lo.style.background=b?'#fff':'#2563eb'; lo.style.color=b?'#374151':'#fff'; lo.style.fontWeight=b?'400':'600';
-  cb.style.background=b?'#2563eb':'#fff'; cb.style.color=b?'#fff':'#374151'; cb.style.fontWeight=b?'600':'400';
+  document.getElementById('cb-loose').classList.toggle('on',!b);
+  document.getElementById('cb-comb').classList.toggle('on',b);
   render();
 }
 function render(){
@@ -340,8 +356,9 @@ function render(){
 
 async function saveQuote(status){
  if(!CART.length){alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return;}
+ var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
  var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
-   customer_name:v('b-name'), phone:v('b-phone'), address:v('b-address'), community:v('b-community'),
+   customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
    items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
  var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
  try{
@@ -384,11 +401,12 @@ async function prefillFromCase(id){
   try{
     var c = await fetch('/api/cases/'+id).then(function(r){return r.ok?r.json():null;});
     if(!c) return;
+    var setIf=function(id,val){var e=document.getElementById(id);if(e&&val)e.value=val;};
     if(!v('b-project')) document.getElementById('b-project').value = c.case_name || c.community || c.address || ('案件 '+id);
-    if(c.client_name) document.getElementById('b-name').value = c.client_name;
-    if(c.client_phone || c.phone) document.getElementById('b-phone').value = c.client_phone || c.phone;
-    if(c.address) document.getElementById('b-address').value = c.address;
-    if(c.community) document.getElementById('b-community').value = c.community;
+    setIf('b-name', c.client_name);
+    setIf('b-phone', c.client_phone || c.phone);
+    setIf('b-address', c.address);
+    setIf('b-community', c.community);
   }catch(e){ console.error('prefill case', e); }
 }
 (async function(){
