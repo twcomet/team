@@ -513,11 +513,12 @@ router.patch('/:id/retention-verify', requireAuth, (req, res) => {
     const desc = `保留款｜${c.case_number || ''} ${c.title || ''}`.trim();
     const ref  = `case_${caseId}_retention`;
     const existing = db.prepare(`SELECT id FROM ledger_entries WHERE source_ref=?`).get(ref);
+    // 保留款核銷是「會計親自確認」的動作，本身就是審核 → 直接 approved，不再排進待審核
     if (existing) {
-      db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=? WHERE id=?`)
+      db.prepare(`UPDATE ledger_entries SET date=?, amount=?, category=?, description=?, org_id=?, created_by=?, review_status='approved' WHERE id=?`)
         .run(dateVal, c.retention_paid, category, desc, c.org_id || null, me.id, existing.id);
     } else {
-      db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?, 'pending')`)
+      db.prepare(`INSERT INTO ledger_entries (date, type, category, amount, case_id, description, org_id, created_by, source_ref, review_status) VALUES (?, 'income', ?, ?, ?, ?, ?, ?, ?, 'approved')`)
         .run(dateVal, category, c.retention_paid, caseId, desc, c.org_id || null, me.id, ref);
     }
   } catch (e) { console.error('[retention-verify ledger]', e.message); }

@@ -261,7 +261,7 @@ function caseTotal(c) {
   return base + vat;
 }
 function caseReceived(c) {
-  return (c.survey_fee || 0) + (c.deposit_amount || 0) + (c.balance_paid || 0);
+  return (c.survey_fee || 0) + (c.deposit_amount || 0) + (c.balance_paid || 0) + (c.retention_paid || 0);
 }
 function caseOutstanding(c) {
   return Math.max(0, caseTotal(c) - caseReceived(c) - (c.retention_amount || 0));
