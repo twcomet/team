@@ -795,6 +795,27 @@ function toggleFinished(matId) {
   loadRolls(matId);
 }
 
+// 編輯/刪除使用紀錄（限倉管/老闆；後端亦擋）
+async function editLog(id, absMeters, matId) {
+  const m = prompt('修改用量（米）', absMeters);
+  if (m === null) return;
+  const val = parseFloat(m);
+  if (!val || val <= 0) { showToast('請輸入正確米數', 'error'); return; }
+  const nt = prompt('修改備註（可留空）', '');
+  if (nt === null) return;
+  const r = await fetch(`/api/materials/logs/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ meters: val, notes: nt }) });
+  if (!r.ok) { showToast((await r.json().catch(()=>({}))).error || '修改失敗', 'error'); return; }
+  showToast('已修改', 'success');
+  await loadMaterials();
+}
+async function deleteLog(id, matId) {
+  if (!confirm('刪除這筆使用紀錄？庫存會自動還原。')) return;
+  const r = await fetch(`/api/materials/logs/${id}`, { method:'DELETE' });
+  if (!r.ok) { showToast((await r.json().catch(()=>({}))).error || '刪除失敗', 'error'); return; }
+  showToast('已刪除，庫存已還原', 'success');
+  await loadMaterials();
+}
+
 async function loadRolls(matId) {
   const el = document.getElementById(`rolls-content-${matId}`);
   if (!el) return;
@@ -853,10 +874,11 @@ async function loadRolls(matId) {
           <button class="btn btn-ghost btn-sm" onclick="openRollEditModal(${matId},${r.id})" title="修改捲料資料">✏️</button>
         </div>`;
 
+      const canMngLog = currentUser && (currentUser.role === 'owner' || currentUser.can_manage_assets);
       if (rLogs.length) {
         html += `<div style="overflow-x:auto">
           <table class="roll-table">
-            <thead><tr><th>時間</th><th>用途</th><th>米數</th><th>案件</th><th>記錄人</th><th>備注</th></tr></thead>
+            <thead><tr><th>時間</th><th>用途</th><th>米數</th><th>案件</th><th>記錄人</th><th>備注</th>${canMngLog?'<th></th>':''}</tr></thead>
             <tbody>`;
         rLogs.forEach(l => {
           const isIn = l.meters > 0;
@@ -880,6 +902,7 @@ async function loadRolls(matId) {
             <td style="font-size:12px;line-height:1.5">${caseLabel}</td>
             <td style="font-size:12px">${l.logger_name||'—'}</td>
             <td style="font-size:12px;color:var(--gray-500)">${l.notes||''}</td>
+            ${canMngLog ? `<td style="white-space:nowrap">${isCancelled?'':`<a href="#" onclick="editLog(${l.id},${Math.abs(l.meters)},${matId});return false" style="color:#0369a1;margin-right:8px;text-decoration:none">編輯</a>`}<a href="#" onclick="deleteLog(${l.id},${matId});return false" style="color:#dc2626;text-decoration:none">刪除</a></td>` : ''}
           </tr>`;
         });
         html += `</tbody></table></div>`;

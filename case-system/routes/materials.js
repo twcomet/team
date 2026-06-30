@@ -420,9 +420,11 @@ router.post('/rolls/:rid/logs', requireAuth, (req, res) => {
   res.json({ ok: true, remaining: newRemaining });
 });
 
-// DELETE /logs/:id — 刪除流水帳並還原庫存
+// DELETE /logs/:id — 刪除流水帳並還原庫存（限倉管/老闆）
 router.delete('/logs/:id', requireAuth, (req, res) => {
-  const org_id = req.session.user.org_id;
+  const me = req.session.user;
+  if (!(me.role === 'owner' || me.can_manage_assets)) return res.status(403).json({ error: '僅倉管或老闆可刪除使用紀錄' });
+  const org_id = me.org_id;
   const log = db.prepare(`SELECT * FROM material_logs WHERE id = ? AND org_id = ?`).get(req.params.id, org_id);
   if (!log) return res.status(404).json({ error: '找不到記錄' });
 
@@ -443,9 +445,11 @@ router.delete('/logs/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// PUT /logs/:id — 編輯使用紀錄（改米數/備註，連動還原並重套庫存）
+// PUT /logs/:id — 編輯使用紀錄（改米數/備註，連動還原並重套庫存）（限倉管/老闆）
 router.put('/logs/:id', requireAuth, (req, res) => {
-  const org_id = req.session.user.org_id;
+  const me = req.session.user;
+  if (!(me.role === 'owner' || me.can_manage_assets)) return res.status(403).json({ error: '僅倉管或老闆可編輯使用紀錄' });
+  const org_id = me.org_id;
   const log = db.prepare(`SELECT * FROM material_logs WHERE id=? AND org_id=?`).get(req.params.id, org_id);
   if (!log) return res.status(404).json({ error: '找不到記錄' });
   if (log.status === 'cancelled') return res.status(400).json({ error: '已取消的紀錄無法編輯' });

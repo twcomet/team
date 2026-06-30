@@ -111,6 +111,28 @@ function restoreRequisitionStock(reqId) {
   }
 }
 
+// 沖銷一筆案件保留：軟保留(roll_id NULL，建立時未扣庫存)只標記取消；硬保留(roll_id 有值)才加回庫存
+function releaseReserveLog(l) {
+  if (l.roll_id) {
+    const roll = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id=?`).get(l.roll_id);
+    if (roll) {
+      const restored = (roll.remaining_meters || 0) - l.meters;   // l.meters 為負 → 加回
+      db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`).run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', l.roll_id);
+    }
+    db.prepare(`UPDATE materials SET stock_meters = stock_meters - ? WHERE id=?`).run(l.meters, l.material_id);
+  }
+  db.prepare(`UPDATE material_logs SET status='cancelled' WHERE id=?`).run(l.id);
+}
+
+// 某案(可限型號)目前有效保留的彙總，供核准扣庫存後提示倉管沖銷
+function activeCaseReserves(caseId, materialId) {
+  if (!caseId) return null;
+  const r = materialId
+    ? db.prepare(`SELECT COALESCE(SUM(-meters),0) AS m, COUNT(*) AS c FROM material_logs WHERE log_type='reserve' AND status='active' AND case_id=? AND material_id=?`).get(caseId, materialId)
+    : db.prepare(`SELECT COALESCE(SUM(-meters),0) AS m, COUNT(*) AS c FROM material_logs WHERE log_type='reserve' AND status='active' AND case_id=?`).get(caseId);
+  return r.c > 0 ? { case_id: caseId, material_id: materialId || null, meters: Math.round(r.m * 100) / 100, count: r.c } : null;
+}
+
 const SEL = `
   SELECT r.*, o.name AS org_name, c.case_number, c.title AS case_title, cl.name AS client_name,
          ua.name AS applicant_name, up.name AS pickup_approver_name, uar.name AS archive_approver_name
@@ -169,18 +191,31 @@ router.post('/', requireAuth, (req, res) => {
   res.json({ id: r.lastInsertRowid });
 });
 
-// 編輯（僅申請人，且待領用審核或已駁回）
+// 編輯：申請人限「待核准/已駁回」；倉管/老闆可編輯任何狀態
+// （已扣過庫存的紀錄編輯時自動還原庫存、退回「待核准」重審，倉管重新核准時再重新扣，確保庫存正確）
 router.put('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   const r = db.prepare(`SELECT * FROM material_requisitions WHERE id=?`).get(req.params.id);
   if (!r) return res.status(404).json({ error: '找不到' });
-  if (r.applicant_id !== me.id && !isWarehouse(me)) return res.status(403).json({ error: '僅申請人可編輯' });
-  if (!['pending_pickup', 'rejected'].includes(r.status)) return res.status(400).json({ error: '此狀態無法編輯' });
+  const isWh = isWarehouse(me);
+  if (r.applicant_id !== me.id && !isWh) return res.status(403).json({ error: '僅申請人或倉管可編輯' });
+  const editable = ['pending_pickup', 'rejected'].includes(r.status);
+  if (!editable && !isWh) return res.status(400).json({ error: '此狀態僅倉管或老闆可編輯' });
   const b = req.body;
   const needsReturn = b.purpose_code === 'case_takeout' ? 1 : 0;
-  db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, purpose_code=?, needs_return=?, est_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(b.material_label || r.material_label, b.material_id || null, b.roll_id || null, b.case_id || null,
-         b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, b.org_id || r.org_id, r.id);
+  const needsRestore = !editable;   // 非待核准/已駁回 → 曾扣過庫存，需還原並退回重審
+  try {
+    db.exec('BEGIN');
+    if (needsRestore) restoreRequisitionStock(r.id);
+    db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, purpose_code=?, needs_return=?, est_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, actual_meters=NULL, remaining_meters=NULL, pickup_approver_id=NULL, pickup_approved_at=NULL, archive_approver_id=NULL, archived_at=NULL, returned_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .run(b.material_label || r.material_label, b.material_id || null, b.roll_id || null, b.case_id || null,
+           b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, b.org_id || r.org_id, r.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
+    return res.status(500).json({ error: '編輯失敗：' + e.message });
+  }
+  if (r.case_id) syncCaseMaterialCost(r.case_id);
   res.json({ ok: true });
 });
 

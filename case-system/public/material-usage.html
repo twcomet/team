@@ -321,6 +321,10 @@ function render(){
       ? `<a class="act-link" style="color:#065f46" onclick="archive(${r.id})">核准歸還</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
       : `<span class="muted" style="font-size:12px">🔒 待倉管核准歸還</span>`;
     if(r.status==='archived') acts = `<span class="muted" style="font-size:12px">🔒 已完成</span>`;
+    // 倉管/老闆：每列都可編輯/刪除（已扣庫存者編輯會還原並退回重審、刪除會還原庫存）
+    if(isWarehouse && ['pending_pickup','picked','pending_return','archived'].includes(r.status)){
+      acts += `<a class="act-link" style="color:#0369a1" onclick="openEdit(${r.id})">編輯</a><a class="act-link" style="color:#dc2626" onclick="del(${r.id})">刪除</a>`;
+    }
     const rejNote = r.status==='rejected'&&r.reject_note?`<div style="font-size:11px;color:#b91c1c">退回：${esc(r.reject_note)}</div>`:'';
     return `<tr>
       <td><span class="sbadge ${sb[0]}">${sb[1]}</span>${rejNote}</td>

@@ -121,44 +121,36 @@
   <div class="modal" style="max-width:560px;width:100%">
     <div class="modal-header"><h3 id="poModalTitle">新增採購單</h3><button class="modal-close" onclick="closeModal('poModal')">✕</button></div>
     <div class="modal-body">
+      <!-- 區塊1：分店 -->
       <div class="form-group" id="poOrgGroup" style="display:none">
         <label class="form-label">分店</label>
         <select class="form-input" id="po_org_id"></select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group">
-          <label class="form-label">品牌</label>
-          <input class="form-input" id="po_brand" list="brandList" placeholder="例：3M、Para">
-          <datalist id="brandList"></datalist>
+
+      <!-- 區塊2：品牌 / 型號 / 膜料寬度 -->
+      <div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">品牌</label>
+            <input class="form-input" id="po_brand" list="brandList" placeholder="例：3M、Para">
+            <datalist id="brandList"></datalist>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">型號 / 系列</label>
+            <input class="form-input" id="po_series_code" placeholder="例：SH2CLAR">
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">型號 / 系列</label>
-          <input class="form-input" id="po_series_code" placeholder="例：SH2CLAR">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">膜料寬度（公分）</label>
+          <input class="form-input" id="po_width_cm" type="number" min="0" step="1" placeholder="例：122">
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">對應膜料（選填）</label>
-        <select class="form-input" id="po_material_id">
-          <option value="">— 不指定 —</option>
-        </select>
-      </div>
+
+      <!-- 供應商：直接輸入關鍵字 -->
       <div class="form-group">
         <label class="form-label">供應商（選填）</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px" id="vendorCatPills">
-          <button type="button" class="vendor-cat-pill active" data-cat="" onclick="filterVendorCat('')">全部</button>
-          <button type="button" class="vendor-cat-pill" data-cat="film"       onclick="filterVendorCat('film')">🎞️ 膜料</button>
-          <button type="button" class="vendor-cat-pill" data-cat="logistics"  onclick="filterVendorCat('logistics')">🚚 物流</button>
-          <button type="button" class="vendor-cat-pill" data-cat="expense"    onclick="filterVendorCat('expense')">🧾 費用</button>
-          <button type="button" class="vendor-cat-pill" data-cat="government"   onclick="filterVendorCat('government')">🏛️ 政府</button>
-          <button type="button" class="vendor-cat-pill" data-cat="construction"  onclick="filterVendorCat('construction')">🔧 工程</button>
-          <button type="button" class="vendor-cat-pill" data-cat="print"         onclick="filterVendorCat('print')">🖨️ 大圖</button>
-          <button type="button" class="vendor-cat-pill" data-cat="professional"  onclick="filterVendorCat('professional')">💼 專業</button>
-          <button type="button" class="vendor-cat-pill" data-cat="auto"          onclick="filterVendorCat('auto')">🚗 汽修</button>
-          <button type="button" class="vendor-cat-pill" data-cat="tools"         onclick="filterVendorCat('tools')">🔨 工具</button>
-          <button type="button" class="vendor-cat-pill" data-cat="other"         onclick="filterVendorCat('other')">📦 其他</button>
-        </div>
         <div class="case-ac-wrap" id="vendorAcWrap">
-          <input class="form-input" id="po_vendor_search" autocomplete="off" placeholder="輸入供應商名稱搜尋…" oninput="onVendorSearch(this.value)">
+          <input class="form-input" id="po_vendor_search" autocomplete="off" placeholder="輸入供應商名稱關鍵字…" oninput="onVendorSearch(this.value)">
           <div class="case-ac-dropdown" id="vendorAcDrop"></div>
         </div>
         <input type="hidden" id="po_vendor_id">
@@ -167,41 +159,45 @@
           <button type="button" onclick="clearVendor()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;line-height:1">×</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+      <!-- 區塊3：採購數量 + 到貨日期 + 關聯案件 -->
+      <div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">採購米數 <span style="color:red">*</span></label>
+            <input class="form-input" id="po_quantity_meters" type="number" min="0.1" step="0.1" placeholder="0.0">
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">預計到貨日</label>
+            <input class="form-input" id="po_expected_date" type="date">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">關聯案件（選填）</label>
+          <div class="case-ac-wrap">
+            <input class="form-input" id="po_case_search" autocomplete="off" placeholder="輸入案號或客戶名稱搜尋…" oninput="onCaseSearch(this.value)">
+            <div class="case-ac-dropdown" id="caseAcDrop"></div>
+          </div>
+          <input type="hidden" id="po_case_id">
+          <div id="po_case_display" style="display:none;margin-top:6px;font-size:12px;color:var(--gray-600);background:var(--gray-50);padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between">
+            <span id="po_case_label"></span>
+            <button type="button" onclick="clearCaseLink()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;line-height:1">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 區塊4：訂貨人 + 備註（明顯）-->
+      <div style="border:2px solid var(--primary);border-radius:10px;padding:12px;background:#fff5fa">
+        <div style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:10px">📌 訂貨指派 / 備註</div>
         <div class="form-group">
-          <label class="form-label">採購米數 <span style="color:red">*</span></label>
-          <input class="form-input" id="po_quantity_meters" type="number" min="0.1" step="0.1" placeholder="0.0">
+          <label class="form-label">通知訂貨人（選填）</label>
+          <select class="form-input" id="po_ordered_by"><option value="">— 不指派 —</option></select>
         </div>
-        <div class="form-group">
-          <label class="form-label">單價（元/米）</label>
-          <input class="form-input" id="po_unit_cost" type="number" min="0" step="0.01" placeholder="0">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">預計到貨日</label>
-        <input class="form-input" id="po_expected_date" type="date">
-      </div>
-      <div class="form-group">
-        <label class="form-label">通知訂貨人（選填）</label>
-        <select class="form-input" id="po_ordered_by"><option value="">— 不指派 —</option></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">關聯案件（選填）</label>
-        <div class="case-ac-wrap">
-          <input class="form-input" id="po_case_search" autocomplete="off" placeholder="輸入案號或客戶名稱搜尋…" oninput="onCaseSearch(this.value)">
-          <div class="case-ac-dropdown" id="caseAcDrop"></div>
-        </div>
-        <input type="hidden" id="po_case_id">
-        <div id="po_case_display" style="display:none;margin-top:6px;font-size:12px;color:var(--gray-600);background:var(--gray-50);padding:5px 10px;border-radius:6px;align-items:center;justify-content:space-between">
-          <span id="po_case_label"></span>
-          <button type="button" onclick="clearCaseLink()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;line-height:1">×</button>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">備註</label>
+          <textarea class="form-input" id="po_notes" rows="2" style="resize:vertical"></textarea>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">備註</label>
-        <textarea class="form-input" id="po_notes" rows="2" style="resize:vertical"></textarea>
-      </div>
-      <div id="totalCostDisplay" style="text-align:right;font-size:14px;color:var(--gray-600);margin-top:4px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('poModal')">取消</button>
@@ -290,14 +286,8 @@
     <div class="modal-header"><h3>轉入物料庫存</h3><button class="modal-close" onclick="closeModal('convertModal')">✕</button></div>
     <div class="modal-body">
       <p id="convertInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:14px"></p>
-      <div class="form-group">
-        <label class="form-label">綁定既有型號</label>
-        <select class="form-input" id="cv_material_id" onchange="onConvertMatChange()">
-          <option value="">— 不選，改新建型號 —</option>
-        </select>
-      </div>
       <div id="cv_new_box" style="border:1px solid var(--gray-200);border-radius:8px;padding:12px;background:#fafafa">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151">新建型號</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151">建立料（系統會自動給這支料一個獨立捲號）</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group" style="margin:0"><label class="form-label">品牌 *</label><input class="form-input" id="cv_brand" list="brandList"></div>
           <div class="form-group" style="margin:0"><label class="form-label">型號 *</label><input class="form-input" id="cv_model"></div>
@@ -367,8 +357,6 @@ async function init() {
   const [mr, vr] = await Promise.all([fetch('/api/materials'), fetch('/api/vendors')]);
   if (mr.ok) {
     materials = await mr.json();
-    const sel = document.getElementById('po_material_id');
-    materials.forEach(m => { sel.innerHTML += `<option value="${m.id}">${esc(m.brand)} ${esc(m.model)}${m.color?' '+esc(m.color):''}</option>`; });
     const dl = document.getElementById('brandList');
     const brands = [...new Set(materials.map(m => m.brand))];
     brands.forEach(b => { dl.innerHTML += `<option value="${esc(b)}">`; });
@@ -402,10 +390,6 @@ async function init() {
   document.getElementById('statusFilter').addEventListener('change', loadOrders);
   document.getElementById('orgFilter').addEventListener('change', loadOrders);
   document.getElementById('kwSearch').addEventListener('input', renderOrders);
-  ['po_quantity_meters','po_unit_cost'].forEach(id => {
-    document.getElementById(id).addEventListener('input', updateTotalDisplay);
-  });
-
   await loadOrders();
 }
 
@@ -522,23 +506,13 @@ function renderOrders() {
   el.innerHTML = html;
 }
 
-function updateTotalDisplay() {
-  const qty  = parseFloat(document.getElementById('po_quantity_meters').value) || 0;
-  const unit = parseFloat(document.getElementById('po_unit_cost').value) || 0;
-  const total = qty * unit;
-  document.getElementById('totalCostDisplay').textContent = total > 0 ? `合計金額：NT$${total.toLocaleString()}` : '';
-}
-
 function openNew() {
   editPoId = null;
   document.getElementById('poModalTitle').textContent = '新增採購單';
-  ['po_brand','po_series_code','po_notes','po_expected_date'].forEach(id => document.getElementById(id).value = '');
+  ['po_brand','po_series_code','po_notes','po_expected_date','po_width_cm'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('po_quantity_meters').value = '';
-  document.getElementById('po_unit_cost').value = '';
-  document.getElementById('po_material_id').value = '';
   document.getElementById('po_ordered_by').value = '';
   clearVendor();
-  document.getElementById('totalCostDisplay').textContent = '';
   clearCaseLink();
   document.getElementById('poModal').style.display = 'flex';
 }
@@ -551,10 +525,9 @@ async function openEdit(id) {
   document.getElementById('poModalTitle').textContent = '編輯採購單';
   document.getElementById('po_brand').value           = po.brand || '';
   document.getElementById('po_series_code').value     = po.series_code || '';
-  document.getElementById('po_material_id').value     = po.material_id || '';
+  document.getElementById('po_width_cm').value        = po.width_cm || '';
   if (po.vendor_id && po.vendor_name) { setVendor(po.vendor_id, po.vendor_name); } else { clearVendor(); }
   document.getElementById('po_quantity_meters').value = po.quantity_meters || '';
-  document.getElementById('po_unit_cost').value       = po.unit_cost || '';
   document.getElementById('po_ordered_by').value      = po.ordered_by || '';
   document.getElementById('po_expected_date').value   = po.expected_date || '';
   document.getElementById('po_notes').value           = po.notes || '';
@@ -563,7 +536,6 @@ async function openEdit(id) {
   } else {
     clearCaseLink();
   }
-  updateTotalDisplay();
   document.getElementById('poModal').style.display = 'flex';
 }
 
@@ -573,10 +545,9 @@ async function savePo() {
   const payload = {
     brand:           document.getElementById('po_brand').value.trim() || null,
     series_code:     document.getElementById('po_series_code').value.trim() || null,
-    material_id:     document.getElementById('po_material_id').value || null,
+    width_cm:        parseFloat(document.getElementById('po_width_cm').value) || null,
     vendor_id:       document.getElementById('po_vendor_id').value || null,
     quantity_meters: qty,
-    unit_cost:       parseFloat(document.getElementById('po_unit_cost').value) || 0,
     ordered_by:      document.getElementById('po_ordered_by').value || null,
     expected_date:   document.getElementById('po_expected_date').value || null,
     notes:           document.getElementById('po_notes').value.trim() || null,
@@ -602,33 +573,21 @@ function openConvert(poId) {
   convertPoId = poId;
   const brandLabel = po.brand || po.mat_brand || '';
   const modelLabel = po.series_code || po.mat_model || '';
-  document.getElementById('convertInfo').innerHTML = `採購單 <b>${esc((brandLabel+' '+modelLabel).trim()||'—')}</b>，已到貨 <b>${po.received_meters||0}</b> 米將轉入物料庫存（生成捲料、寫進貨流水）。`;
-  const sel = document.getElementById('cv_material_id');
-  sel.innerHTML = '<option value="">— 不選，改新建型號 —</option>';
-  materials.forEach(m => { sel.innerHTML += `<option value="${m.id}">${esc(m.brand)} ${esc(m.model)}${m.color?' '+esc(m.color):''}</option>`; });
-  sel.value = '';
+  document.getElementById('convertInfo').innerHTML = `採購單 <b>${esc((brandLabel+' '+modelLabel).trim()||'—')}</b>，已到貨 <b>${po.received_meters||0}</b> 米將轉入物料庫存（建立一支獨立的料、自動給捲號、寫進貨流水）。`;
   ['cv_brand','cv_model','cv_color','cv_location','cv_unit_price','cv_unit_cost'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   document.getElementById('cv_brand').value = brandLabel || '';
   document.getElementById('cv_model').value = modelLabel || '';
   document.getElementById('cv_on_ecommerce').value = '0';
   document.getElementById('cv_fire_retardant').value = '0';
   document.getElementById('cv_cost_box').style.display = (currentUser && currentUser.can_see_cost) ? '' : 'none';
-  onConvertMatChange();
   document.getElementById('convertModal').style.display = 'flex';
 }
-function onConvertMatChange() {
-  const picked = document.getElementById('cv_material_id').value;
-  document.getElementById('cv_new_box').style.display = picked ? 'none' : '';
-}
 async function saveConvert() {
-  const matId = document.getElementById('cv_material_id').value;
   const body = {};
-  if (matId) {
-    body.material_id = matId;
-  } else {
+  {
     const brand = document.getElementById('cv_brand').value.trim();
     const model = document.getElementById('cv_model').value.trim();
-    if (!brand || !model) { alert('請選擇既有型號，或填寫新型號的品牌與型號'); return; }
+    if (!brand || !model) { alert('請填寫品牌與型號'); return; }
     body.new_material = {
       brand, model,
       color: document.getElementById('cv_color').value.trim() || null,

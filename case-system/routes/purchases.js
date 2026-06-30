@@ -184,15 +184,15 @@ router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canManage(me)) return res.status(403).json({ error: '無權限' });
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id, case_id, ordered_by } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, org_id, case_id, ordered_by, width_cm } = req.body;
   if (!quantity_meters || quantity_meters <= 0) return res.status(400).json({ error: '請填入採購米數' });
   const targetOrg = me.role === 'owner' ? (org_id || me.org_id) : me.org_id;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters) + (parseFloat(shipping_cost)||0);
   const r = db.prepare(`
-    INSERT INTO purchase_orders (org_id,material_id,vendor_id,brand,series_code,quantity_meters,
+    INSERT INTO purchase_orders (org_id,material_id,vendor_id,brand,series_code,width_cm,quantity_meters,
       unit_cost,total_cost,shipping_type,shipping_cost,expected_date,notes,created_by,case_id,ordered_by,order_status)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')
-  `).run(targetOrg, material_id||null, vendor_id||null, brand||null, series_code||null,
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending')
+  `).run(targetOrg, material_id||null, vendor_id||null, brand||null, series_code||null, width_cm!=null&&width_cm!==''?parseFloat(width_cm):null,
          parseFloat(quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
          expected_date||null, notes||null, me.id, case_id||null, ordered_by||null);
@@ -219,12 +219,13 @@ router.put('/:id', requireAuth, (req, res) => {
   if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
   if (ledgerLocked(req, res, po)) return;
   const { material_id, vendor_id, brand, series_code, quantity_meters,
-          unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id, ordered_by } = req.body;
+          unit_cost, shipping_type, shipping_cost, expected_date, notes, status, case_id, ordered_by, width_cm } = req.body;
   const total_cost = (parseFloat(unit_cost)||0) * parseFloat(quantity_meters||po.quantity_meters) + (parseFloat(shipping_cost)||0);
   const newOrderedBy = ordered_by !== undefined ? (ordered_by || null) : po.ordered_by;
-  db.prepare(`UPDATE purchase_orders SET material_id=?,vendor_id=?,brand=?,series_code=?,quantity_meters=?,
+  const newWidth = width_cm !== undefined ? (width_cm!=null&&width_cm!==''?parseFloat(width_cm):null) : po.width_cm;
+  db.prepare(`UPDATE purchase_orders SET material_id=?,vendor_id=?,brand=?,series_code=?,width_cm=?,quantity_meters=?,
     unit_cost=?,total_cost=?,shipping_type=?,shipping_cost=?,expected_date=?,notes=?,status=?,case_id=?,ordered_by=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(material_id||null, vendor_id||null, brand||null, series_code||null,
+    .run(material_id||null, vendor_id||null, brand||null, series_code||null, newWidth,
          parseFloat(quantity_meters||po.quantity_meters), parseFloat(unit_cost)||0, total_cost,
          shipping_type||'domestic', parseFloat(shipping_cost)||0,
          expected_date||null, notes||null, status||po.status, case_id !== undefined ? (case_id||null) : po.case_id, newOrderedBy, po.id);
@@ -417,7 +418,7 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
       const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, location, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm, on_ecommerce) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)`)
         .run(po.org_id, String(nm.brand).trim(), String(nm.model).trim(), nm.color || null, nm.location || null,
              safeCost, parseFloat(nm.unit_price) || 0, nm.category || 'film',
-             Number(nm.fire_retardant) ? 1 : 0, parseFloat(nm.width_cm) || 122, Number(nm.on_ecommerce) ? 1 : 0);
+             Number(nm.fire_retardant) ? 1 : 0, parseFloat(nm.width_cm) || po.width_cm || 122, Number(nm.on_ecommerce) ? 1 : 0);
       matId = ins.lastInsertRowid;
       db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'create', ?, ?)`)
         .run(matId, po.org_id, `採購單#${po.id} 轉庫存新增型號：${nm.brand} ${nm.model}`, me.id);
@@ -426,11 +427,17 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
     if (po.material_id !== matId) db.prepare(`UPDATE purchase_orders SET material_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId, po.id);
     // 為每筆尚未入庫的到貨建捲料 + 進貨流水 + 加庫存
     const orgName = db.prepare(`SELECT name FROM orgs WHERE id=?`).get(po.org_id)?.name || '總部';
+    const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=?`).get(matId) || {};
+    const cleanModel = s => String(s || '').replace(/[（(][^）)]*[)）]/g, '').trim();
+    let seq = db.prepare(`SELECT COUNT(*) c FROM material_rolls WHERE material_id=?`).get(matId).c;
     let totalMeters = 0; const rollIds = [];
     for (const rc of pending) {
       const m = parseFloat(rc.quantity_meters) || 0;
-      const roll = db.prepare(`INSERT INTO material_rolls (material_id, org_id, initial_meters, remaining_meters, purchase_date, unit_cost, branch, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?)`)
-        .run(matId, po.org_id, m, m, rc.received_date, po.unit_cost || 0, orgName, `採購單#${po.id} 轉庫存`, me.id);
+      // 每支料自動給獨立捲號：品牌-型號-到貨日-序號
+      const dateCode = String(rc.received_date || '').replace(/-/g, '') || 'NA';
+      const rollNo = `${mat.brand || ''}-${cleanModel(mat.model)}-${dateCode}-${String(++seq).padStart(2, '0')}`;
+      const roll = db.prepare(`INSERT INTO material_rolls (material_id, org_id, roll_no, initial_meters, remaining_meters, purchase_date, unit_cost, branch, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .run(matId, po.org_id, rollNo, m, m, rc.received_date, po.unit_cost || 0, orgName, `採購單#${po.id} 轉庫存`, me.id);
       db.prepare(`UPDATE purchase_receipts SET material_roll_id=? WHERE id=?`).run(roll.lastInsertRowid, rc.id);
       db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by) VALUES (?,?,?,'purchase',?,?,?)`)
         .run(roll.lastInsertRowid, matId, po.org_id, m, `採購單#${po.id} 轉庫存`, me.id);

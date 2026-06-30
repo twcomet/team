@@ -2306,6 +2306,8 @@ db.exec(`
     created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
+// 採購單膜料寬度（公分）
+_addCol('purchase_orders', 'width_cm', 'REAL');
 
 // ── 資產借用系統 ─────────────────────────────────────────────────────────
 db.exec(`
