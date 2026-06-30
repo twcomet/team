@@ -391,6 +391,60 @@ router.put('/:id/receipts/:receiptId', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /:id/convert-to-stock — 轉庫存：把未綁型號的採購單已到貨數量，轉成物料庫存
+router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!canManage(me)) return res.status(403).json({ error: '無權限' });
+  const po = db.prepare(`SELECT * FROM purchase_orders WHERE id=?`).get(req.params.id);
+  if (!po) return res.status(404).json({ error: '找不到採購單' });
+  if (me.role !== 'owner' && po.org_id !== me.org_id) return res.status(403).json({ error: '無權限' });
+
+  const receipts = db.prepare(`SELECT * FROM purchase_receipts WHERE purchase_order_id=?`).all(po.id);
+  if (!receipts.length) return res.status(400).json({ error: '此採購單尚無到貨紀錄，無法轉庫存' });
+  const pending = receipts.filter(r => !r.material_roll_id);
+  if (!pending.length) return res.status(400).json({ error: '此採購單到貨已全部入庫，無需轉庫存' });
+
+  const { material_id, new_material } = req.body;
+  let matId = material_id ? Number(material_id) : (po.material_id || null);
+
+  try {
+    db.exec('BEGIN');
+    // 需要新建型號
+    if (!matId) {
+      const nm = new_material || {};
+      if (!nm.brand || !nm.model) throw new Error('請選擇既有型號，或填寫新型號的品牌與型號');
+      const safeCost = me.can_see_cost ? (parseFloat(nm.unit_cost) || parseFloat(po.unit_cost) || 0) : 0;
+      const ins = db.prepare(`INSERT INTO materials (org_id, brand, model, color, location, unit_cost, unit_price, stock_meters, category, fire_retardant, width_cm, on_ecommerce) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)`)
+        .run(po.org_id, String(nm.brand).trim(), String(nm.model).trim(), nm.color || null, nm.location || null,
+             safeCost, parseFloat(nm.unit_price) || 0, nm.category || 'film',
+             Number(nm.fire_retardant) ? 1 : 0, parseFloat(nm.width_cm) || 122, Number(nm.on_ecommerce) ? 1 : 0);
+      matId = ins.lastInsertRowid;
+      db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'create', ?, ?)`)
+        .run(matId, po.org_id, `採購單#${po.id} 轉庫存新增型號：${nm.brand} ${nm.model}`, me.id);
+    }
+    // 回綁採購單到該型號
+    if (po.material_id !== matId) db.prepare(`UPDATE purchase_orders SET material_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId, po.id);
+    // 為每筆尚未入庫的到貨建捲料 + 進貨流水 + 加庫存
+    const orgName = db.prepare(`SELECT name FROM orgs WHERE id=?`).get(po.org_id)?.name || '總部';
+    let totalMeters = 0; const rollIds = [];
+    for (const rc of pending) {
+      const m = parseFloat(rc.quantity_meters) || 0;
+      const roll = db.prepare(`INSERT INTO material_rolls (material_id, org_id, initial_meters, remaining_meters, purchase_date, unit_cost, branch, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?)`)
+        .run(matId, po.org_id, m, m, rc.received_date, po.unit_cost || 0, orgName, `採購單#${po.id} 轉庫存`, me.id);
+      db.prepare(`UPDATE purchase_receipts SET material_roll_id=? WHERE id=?`).run(roll.lastInsertRowid, rc.id);
+      db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by) VALUES (?,?,?,'purchase',?,?,?)`)
+        .run(roll.lastInsertRowid, matId, po.org_id, m, `採購單#${po.id} 轉庫存`, me.id);
+      db.prepare(`UPDATE materials SET stock_meters = stock_meters + ? WHERE id=?`).run(m, matId);
+      totalMeters += m; rollIds.push(roll.lastInsertRowid);
+    }
+    db.exec('COMMIT');
+    res.json({ ok: true, material_id: matId, rolls: rollIds.length, meters: Math.round(totalMeters * 100) / 100 });
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
+    res.status(500).json({ error: '轉庫存失敗：' + e.message });
+  }
+});
+
 module.exports = router;
 module.exports.SHIPPING_LABEL = SHIPPING_LABEL;
 module.exports.STATUS_LABEL   = STATUS_LABEL;

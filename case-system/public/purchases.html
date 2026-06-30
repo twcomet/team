@@ -284,11 +284,52 @@
   </div>
 </div>
 
+<!-- 轉庫存 Modal：把未綁型號的到貨轉成物料庫存 -->
+<div class="modal-overlay" id="convertModal" style="display:none">
+  <div class="modal" style="max-width:520px;width:100%">
+    <div class="modal-header"><h3>轉入物料庫存</h3><button class="modal-close" onclick="closeModal('convertModal')">✕</button></div>
+    <div class="modal-body">
+      <p id="convertInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:14px"></p>
+      <div class="form-group">
+        <label class="form-label">綁定既有型號</label>
+        <select class="form-input" id="cv_material_id" onchange="onConvertMatChange()">
+          <option value="">— 不選，改新建型號 —</option>
+        </select>
+      </div>
+      <div id="cv_new_box" style="border:1px solid var(--gray-200);border-radius:8px;padding:12px;background:#fafafa">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151">新建型號</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group" style="margin:0"><label class="form-label">品牌 *</label><input class="form-input" id="cv_brand" list="brandList"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">型號 *</label><input class="form-input" id="cv_model"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">材質/顏色</label><input class="form-input" id="cv_color" placeholder="選填"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">貨架位置</label><input class="form-input" id="cv_location" placeholder="選填"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">售價/米</label><input class="form-input" id="cv_unit_price" type="number" min="0" step="1" placeholder="0"></div>
+          <div class="form-group" style="margin:0" id="cv_cost_box"><label class="form-label">成本/米</label><input class="form-input" id="cv_unit_cost" type="number" min="0" step="1" placeholder="帶採購成本"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">是否上電商</label>
+            <select class="form-input" id="cv_on_ecommerce">
+              <option value="0">不上電商（純內部庫存）</option>
+              <option value="1">上電商（與電商連動）</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0"><label class="form-label">是否防焰</label>
+            <select class="form-input" id="cv_fire_retardant"><option value="0">不防焰</option><option value="1">防焰</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('convertModal')">取消</button>
+      <button class="btn btn-primary" id="saveConvertBtn" onclick="saveConvert()">確認轉庫存</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 let isManager = false;
 let orders = [];
 let materials = [];
+let convertPoId = null;
 let vendors = [];
 let orgs = [];
 let editPoId = null;
@@ -451,6 +492,9 @@ function renderOrders() {
     if (canConfirm) acts += `<a href="#" onclick="confirmOrder(${po.id});return false" style="color:#065f46;font-weight:700;margin-right:10px;text-decoration:none">已訂貨</a>`;
     if (canReceive) acts += `<a href="#" onclick="openReceipt(${po.id},'${esc(brandLabel)}',${po.material_id||'null'},${po.quantity_meters},${po.received_meters});return false" style="color:#d6006e;font-weight:700;margin-right:10px;text-decoration:none">登記到貨</a>`;
     if (hasReceipts) acts += `<a href="#" onclick="openReceiptEdit(${po.id});return false" style="color:#0369a1;font-weight:700;margin-right:10px;text-decoration:none">編輯到貨</a>`;
+    // 已到貨但未綁型號 → 提供「轉庫存」把到貨數量轉成物料庫存
+    const canConvert = isManager && !po.material_id && (po.received_meters > 0 || po.last_received_date) && po.status !== 'cancelled';
+    if (canConvert) acts += `<a href="#" onclick="openConvert(${po.id});return false" style="color:#7c3aed;font-weight:700;margin-right:10px;text-decoration:none">轉庫存</a>`;
     if (canEditDel) acts += `<a href="#" onclick="openEdit(${po.id});return false" style="color:#6b7280;margin-right:10px;text-decoration:none">編輯</a><a href="#" onclick="cancelPo(${po.id});return false" style="color:#dc2626;text-decoration:none">刪除</a>`;
     if (inLedger && !canEditReceipt && isManager) acts += `<span style="color:#9ca3af;font-size:11px">🔒 已入帳</span>`;
     const td = (c, style='') => `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;${style}">${c}</td>`;
@@ -549,6 +593,65 @@ async function savePo() {
     closeModal('poModal');
     await loadOrders();
   } finally { btn.disabled = false; }
+}
+
+// ── 轉庫存 ───────────────────────────────────────────────────
+function openConvert(poId) {
+  const po = orders.find(o => o.id === poId);
+  if (!po) return;
+  convertPoId = poId;
+  const brandLabel = po.brand || po.mat_brand || '';
+  const modelLabel = po.series_code || po.mat_model || '';
+  document.getElementById('convertInfo').innerHTML = `採購單 <b>${esc((brandLabel+' '+modelLabel).trim()||'—')}</b>，已到貨 <b>${po.received_meters||0}</b> 米將轉入物料庫存（生成捲料、寫進貨流水）。`;
+  const sel = document.getElementById('cv_material_id');
+  sel.innerHTML = '<option value="">— 不選，改新建型號 —</option>';
+  materials.forEach(m => { sel.innerHTML += `<option value="${m.id}">${esc(m.brand)} ${esc(m.model)}${m.color?' '+esc(m.color):''}</option>`; });
+  sel.value = '';
+  ['cv_brand','cv_model','cv_color','cv_location','cv_unit_price','cv_unit_cost'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  document.getElementById('cv_brand').value = brandLabel || '';
+  document.getElementById('cv_model').value = modelLabel || '';
+  document.getElementById('cv_on_ecommerce').value = '0';
+  document.getElementById('cv_fire_retardant').value = '0';
+  document.getElementById('cv_cost_box').style.display = (currentUser && currentUser.can_see_cost) ? '' : 'none';
+  onConvertMatChange();
+  document.getElementById('convertModal').style.display = 'flex';
+}
+function onConvertMatChange() {
+  const picked = document.getElementById('cv_material_id').value;
+  document.getElementById('cv_new_box').style.display = picked ? 'none' : '';
+}
+async function saveConvert() {
+  const matId = document.getElementById('cv_material_id').value;
+  const body = {};
+  if (matId) {
+    body.material_id = matId;
+  } else {
+    const brand = document.getElementById('cv_brand').value.trim();
+    const model = document.getElementById('cv_model').value.trim();
+    if (!brand || !model) { alert('請選擇既有型號，或填寫新型號的品牌與型號'); return; }
+    body.new_material = {
+      brand, model,
+      color: document.getElementById('cv_color').value.trim() || null,
+      location: document.getElementById('cv_location').value.trim() || null,
+      unit_price: parseFloat(document.getElementById('cv_unit_price').value) || 0,
+      unit_cost: parseFloat(document.getElementById('cv_unit_cost').value) || 0,
+      on_ecommerce: Number(document.getElementById('cv_on_ecommerce').value) ? 1 : 0,
+      fire_retardant: Number(document.getElementById('cv_fire_retardant').value) ? 1 : 0,
+    };
+  }
+  const btn = document.getElementById('saveConvertBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/purchases/${convertPoId}/convert-to-stock`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(j.error || '轉庫存失敗'); return; }
+    closeModal('convertModal');
+    alert(`已轉入物料庫存：${j.rolls||0} 支捲料、共 ${j.meters||0} 米`);
+    await loadOrders();
+  } catch (e) { alert('轉庫存失敗：' + e.message); }
+  finally { btn.disabled = false; }
 }
 
 function openReceipt(poId, brandLabel, materialId, totalMeters, receivedMeters) {

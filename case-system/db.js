@@ -398,6 +398,8 @@ if (_matLogsSchema && !_matLogsSchema.sql.includes("'reserve'")) {
   db.exec(`ALTER TABLE material_logs_new RENAME TO material_logs`);
   db.exec(`PRAGMA foreign_keys=ON`);
 }
+// 申領核銷實扣庫存時，記下這筆異動屬於哪張申領單（供刪除時還原庫存）
+_addCol('material_logs', 'requisition_id', 'INTEGER');
 
 // ── 膜料庫存目錄 ─────────────────────────────────────────────
 db.exec(`CREATE TABLE IF NOT EXISTS materials (
@@ -2868,6 +2870,9 @@ _addCol('materials', 'fire_retardant','INTEGER DEFAULT 0');
 _addCol('materials', 'width_cm',      'REAL DEFAULT 122');
 _addCol('materials', 'image_url',     'TEXT');
 _addCol('materials', 'image_public_id','TEXT');
+// 是否上電商（要不要跟電商平台連動數字）；既有用 ec_key 對接過的型號自動回填為 1
+_addCol('materials', 'on_ecommerce',  'INTEGER DEFAULT 0');
+try { db.prepare(`UPDATE materials SET on_ecommerce=1 WHERE ec_key IS NOT NULL AND TRIM(ec_key)!='' AND (on_ecommerce IS NULL OR on_ecommerce=0)`).run(); } catch (e) {}
 
 // ── P1 膜料價格矩陣 FK ─────────────────────────────────────────────────────
 _addCol('film_price_matrix', 'material_id', 'INTEGER REFERENCES materials(id)');

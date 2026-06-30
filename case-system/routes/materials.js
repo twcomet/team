@@ -61,18 +61,18 @@ router.post('/', requireAuth, (req, res) => {
   const me     = req.session.user;
   const org_id = me.org_id;
   const uid    = me.id;
-  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id } = req.body;
+  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
   // 只有 can_see_cost 才能寫入成本
   const safeCost = me.can_see_cost ? (unit_cost || 0) : 0;
 
   const r = db.prepare(`
-    INSERT INTO materials (org_id, brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO materials (org_id, brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(org_id, brand, model, color || null, spec || null, location || null,
          safeCost, unit_price || 0, stock_meters || 0, notes || null,
          category || 'film', ec_key || null, Number(fire_retardant) ? 1 : 0, width_cm || 122,
-         image_url || null, image_public_id || null);
+         image_url || null, image_public_id || null, Number(on_ecommerce) ? 1 : 0);
 
   const matId = r.lastInsertRowid;
 
@@ -103,7 +103,7 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   const { org_id, id: uid } = me;
-  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id } = req.body;
+  const { brand, model, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
   // 只有 can_see_cost 才能更新成本，否則保留舊值
   const existing = db.prepare(`SELECT unit_cost, image_url, image_public_id FROM materials WHERE id=?`).get(req.params.id);
@@ -112,12 +112,12 @@ router.put('/:id', requireAuth, (req, res) => {
   const safePublicId = image_public_id !== undefined ? (image_public_id || null) : (existing?.image_public_id ?? null);
 
   db.prepare(`
-    UPDATE materials SET brand=?, model=?, color=?, spec=?, location=?, unit_cost=?, unit_price=?, stock_meters=?, notes=?, category=?, ec_key=?, fire_retardant=?, width_cm=?, image_url=?, image_public_id=?
+    UPDATE materials SET brand=?, model=?, color=?, spec=?, location=?, unit_cost=?, unit_price=?, stock_meters=?, notes=?, category=?, ec_key=?, fire_retardant=?, width_cm=?, image_url=?, image_public_id=?, on_ecommerce=?
     WHERE id=? AND org_id=?
   `).run(brand, model, color || null, spec || null, location || null,
          safeCost, unit_price || 0, stock_meters || 0, notes || null,
          category || 'film', ec_key || null, Number(fire_retardant) ? 1 : 0, width_cm || 122,
-         safeImageUrl, safePublicId,
+         safeImageUrl, safePublicId, Number(on_ecommerce) ? 1 : 0,
          req.params.id, org_id);
 
   // 編輯庫存米數：同步捲料剩餘，避免 stock_meters 與捲料脫鉤（否則之後扣庫會帶到舊的捲料剩餘）

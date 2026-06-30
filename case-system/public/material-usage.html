@@ -232,6 +232,7 @@ let rows=[], reserves=[];
 const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
 let curTab='all', returnId=null, editId=null, _caseTimer=null, allPage=1;
+let matList=[], matLabelMap={};   // 膜料清單＋「顯示文字→material_id」對照，供送出時帶上 material_id
 const PAGE_SIZE=50;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const V=id=>document.getElementById(id).value.trim();
@@ -260,8 +261,10 @@ async function loadMats(){
   try{
     const ms=await fetch('/api/materials').then(r=>r.ok?r.json():[]);
     const arr=Array.isArray(ms)?ms:(ms.rows||ms.materials||[]);
+    matList=arr; matLabelMap={};
+    arr.forEach(m=>{ const label=[m.brand,m.model,m.color].filter(Boolean).join(' '); if(label) matLabelMap[label]=m.id; });
     document.getElementById('dlMat').innerHTML = arr.slice(0,500).map(m=>`<option>${esc([m.brand,m.model,m.color].filter(Boolean).join(' '))}</option>`).join('');
-  }catch(e){}
+  }catch(e){ console.error('loadMats failed', e); }
 }
 async function loadData(){
   try{
@@ -399,7 +402,11 @@ async function saveNew(){
   if(!V('n_mat')){ alert('請選膜料'); return; }
   const purposeVal=document.getElementById('n_purpose').value;
   if(!V('n_est')){ alert(purposeVal==='case_takeout'?'請填帶出米數（捲料標籤上的米數）':'請填使用米數'); return; }
-  const payload={ material_label:V('n_mat'), purpose:document.getElementById('n_purpose').selectedOptions[0].text,
+  const label=V('n_mat');
+  // 把選到的膜料對回 material_id（先精準比對，再退而求其次用品牌+型號包含比對），供第二階段扣庫存定位型號
+  let matId=matLabelMap[label]||null;
+  if(!matId){ const hit=matList.find(m=>{ const k=[m.brand,m.model].filter(Boolean).join(' '); return k && label.indexOf(k)>=0; }); if(hit) matId=hit.id; }
+  const payload={ material_label:label, material_id:matId, purpose:document.getElementById('n_purpose').selectedOptions[0].text,
     purpose_code:purposeVal,
     est_meters:parseFloat(V('n_est'))||null, case_id:document.getElementById('n_case_id').value||null,
     org_id:null, note:V('n_note')||null };

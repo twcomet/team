@@ -27,6 +27,90 @@ function notifyUser(userId, msg) {
     if (u?.line_user_id) pushMessage(u.line_user_id, msg).catch(() => {}); } catch (e) {}
 }
 
+// ── 第二階段：倉管審核＝實扣庫存 helpers ──────────────────────────────
+// 同步案件膜料成本（與 materials.js 同邏輯，避免跨檔相依）
+function syncCaseMaterialCost(caseId) {
+  if (!caseId) return;
+  const fromDispatch = db.prepare(`SELECT COALESCE(SUM(meters_used * unit_cost), 0) AS t FROM dispatch_materials WHERE case_id=?`).get(caseId).t || 0;
+  const fromLogs = db.prepare(`
+    SELECT COALESCE(SUM(ABS(ml.meters) * mr.unit_cost), 0) AS t
+    FROM material_logs ml LEFT JOIN material_rolls mr ON mr.id = ml.roll_id
+    WHERE ml.case_id=? AND ml.log_type IN ('case_cut','case_loss')
+      AND ml.status != 'cancelled' AND mr.unit_cost IS NOT NULL
+  `).get(caseId).t || 0;
+  const total = fromDispatch + fromLogs;
+  db.prepare(`UPDATE cases SET dispatch_material_cost=? WHERE id=?`).run(total || null, caseId);
+}
+
+// 用途代碼 → material_logs.log_type（沒對應的歸 adjust，不動 CHECK 約束）
+function purposeToLogType(code) {
+  switch (code) {
+    case 'case_takeout':
+    case 'case_material': return 'case_cut';
+    case 'academy':       return 'academy';
+    case 'store_sale':    return 'store_sale';
+    case 'ecommerce':     return 'ecommerce';
+    default:              return 'adjust';   // sample / other / adjust / 其他
+  }
+}
+// 哪些用途會真的扣庫存（case_reserve 為保留、不扣）
+const CONSUME_PURPOSES = new Set(['case_takeout','case_material','sample','academy','store_sale','ecommerce','adjust','other']);
+
+// 申領單沒存 material_id 時，盡力用 material_label 回推（品牌+型號包含比對）
+function resolveMaterialId(reqRow) {
+  if (reqRow.material_id) return reqRow.material_id;
+  const label = (reqRow.material_label || '').trim();
+  if (!label) return null;
+  let best = null;
+  for (const m of db.prepare(`SELECT id, brand, model FROM materials`).all()) {
+    const k = [m.brand, m.model].filter(Boolean).join(' ');
+    if (k && label.indexOf(k) >= 0 && (!best || k.length > best.k)) best = { id: m.id, k: k.length };
+  }
+  return best ? best.id : null;
+}
+
+// FIFO 實扣庫存：指定捲料則扣該捲，否則同型號最舊可用捲依序扣；每扣一支寫一筆 material_logs；回傳 logIds。庫存不足則 throw。
+function consumeStock({ materialId, rollId, meters, log_type, case_id, notes, logged_by, org_id, requisition_id }) {
+  meters = Math.abs(Number(meters) || 0);
+  if (!materialId) throw new Error('此申領單未綁定膜料型號，無法扣庫存，請編輯申領單重新選擇膜料');
+  if (meters <= 0) return [];
+  const rolls = rollId
+    ? db.prepare(`SELECT * FROM material_rolls WHERE id=? AND material_id=?`).all(rollId, materialId)
+    : db.prepare(`SELECT * FROM material_rolls WHERE material_id=? AND status='active' AND remaining_meters>0 ORDER BY purchase_date, id`).all(materialId);
+  const avail = rolls.reduce((s, r) => s + (r.remaining_meters || 0), 0);
+  if (meters > avail + 1e-6) throw new Error(`庫存不足：需 ${meters} 米，可用僅 ${Math.round(avail * 100) / 100} 米`);
+  let need = meters; const logIds = [];
+  for (const r of rolls) {
+    if (need <= 1e-9) break;
+    const take = Math.min(need, r.remaining_meters || 0);
+    if (take <= 0) continue;
+    const newRem = Math.max(0, (r.remaining_meters || 0) - take);
+    db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`).run(newRem, newRem > 0 ? 'active' : 'finished', r.id);
+    db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id=?`).run(take, materialId);
+    const ins = db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, case_id, meters, notes, logged_by, requisition_id) VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(r.id, materialId, org_id || null, log_type, case_id || null, -take, notes || null, logged_by, requisition_id || null);
+    logIds.push(ins.lastInsertRowid);
+    need -= take;
+  }
+  return logIds;
+}
+
+// 還原某申領單實扣的庫存（刪除已歸檔申領單時用；沒扣過就 no-op）
+function restoreRequisitionStock(reqId) {
+  const logs = db.prepare(`SELECT * FROM material_logs WHERE requisition_id=? AND status!='cancelled'`).all(reqId);
+  for (const l of logs) {
+    if (l.roll_id) {
+      const roll = db.prepare(`SELECT remaining_meters FROM material_rolls WHERE id=?`).get(l.roll_id);
+      if (roll) {
+        const restored = (roll.remaining_meters || 0) - l.meters;   // l.meters 為負 → 加回
+        db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`).run(Math.max(0, restored), restored > 0 ? 'active' : 'finished', l.roll_id);
+      }
+    }
+    db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters - ?) WHERE id=?`).run(l.meters, l.material_id);
+    db.prepare(`DELETE FROM material_logs WHERE id=?`).run(l.id);
+  }
+}
+
 const SEL = `
   SELECT r.*, o.name AS org_name, c.case_number, c.title AS case_title, cl.name AS client_name,
          ua.name AS applicant_name, up.name AS pickup_approver_name, uar.name AS archive_approver_name
@@ -107,16 +191,31 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
   const r = db.prepare(`SELECT * FROM material_requisitions WHERE id=?`).get(req.params.id);
   if (!r || r.status !== 'pending_pickup') return res.status(400).json({ error: '此狀態無法核准' });
   if (r.needs_return) {
-    // 帶出型：核准後帶走，等歸還
-    db.prepare(`UPDATE material_requisitions SET status='picked', pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, r.id);
+    // 帶出型：核准後帶走，等歸還（實扣留到歸檔核准）
+    db.prepare(`UPDATE material_requisitions SET status='picked', material_id=COALESCE(material_id,?), pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(resolveMaterialId(r) || null, me.id, r.id);
     notifyUser(r.applicant_id, `【膜料領用已核准】\n你申請的「${r.material_label}」已核准，可前往拿料；用完請填歸還單。`);
   } else {
-    // 裁切型：核准即結案（無歸還）
-    db.prepare(`UPDATE material_requisitions SET status='archived', pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, me.id, r.id);
-    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准，可裁切使用。`);
+    // 裁切型：核准即結案 → 倉管審核＝實扣庫存
+    const matId = resolveMaterialId(r);
+    const willConsume = CONSUME_PURPOSES.has(r.purpose_code) && Number(r.est_meters) > 0;
+    if (willConsume && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
+    try {
+      db.exec('BEGIN');
+      if (willConsume) {
+        consumeStock({ materialId: matId, rollId: r.roll_id, meters: r.est_meters,
+          log_type: purposeToLogType(r.purpose_code), case_id: r.case_id,
+          notes: `申領核銷#${r.id} ${r.purpose || ''}`.trim(), logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
+      }
+      db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, me.id, me.id, r.id);
+      db.exec('COMMIT');
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch (_) {}
+      return res.status(400).json({ error: e.message });
+    }
+    if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
+    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${willConsume ? `，庫存已扣 ${Math.abs(Number(r.est_meters))} 米` : ''}。`);
   }
   log(me.id, 'approve_pickup', r.id, r.needs_return ? 'picked' : 'archived');
-  // ⚠️ 第二階段：裁切型在此實扣庫存；案件裁料另需消除該案保留、改實際用量
   res.json({ ok: true });
 });
 
@@ -148,11 +247,31 @@ router.patch('/:id/approve-archive', requireAuth, (req, res) => {
   const r = db.prepare(`SELECT * FROM material_requisitions WHERE id=?`).get(req.params.id);
   if (!r || r.status !== 'pending_return') return res.status(400).json({ error: '此狀態無法核准歸檔' });
   const b = req.body;
-  db.prepare(`UPDATE material_requisitions SET status='archived', archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, remaining_meters=COALESCE(?,remaining_meters), archive_location=COALESCE(?,archive_location), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(me.id, b.remaining_meters != null && b.remaining_meters !== '' ? Number(b.remaining_meters) : null, b.archive_location || null, r.id);
+  // 倉管可在歸檔時修正剩餘 → 重算實際用量（領出 est − 剩餘）
+  const finalRemaining = (b.remaining_meters != null && b.remaining_meters !== '') ? Number(b.remaining_meters) : r.remaining_meters;
+  const used = (r.est_meters != null)
+    ? Math.max(0, Number(r.est_meters) - (Number(finalRemaining) || 0))
+    : (r.actual_meters != null ? Number(r.actual_meters) : 0);
+  const matId = resolveMaterialId(r);
+  const willConsume = used > 0;
+  if (willConsume && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
+  try {
+    db.exec('BEGIN');
+    if (willConsume) {
+      consumeStock({ materialId: matId, rollId: r.roll_id, meters: used,
+        log_type: purposeToLogType(r.purpose_code), case_id: r.case_id,
+        notes: `膜料歸還核銷#${r.id} 實際用 ${used} 米`, logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
+    }
+    db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), actual_meters=?, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, remaining_meters=COALESCE(?,remaining_meters), archive_location=COALESCE(?,archive_location), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .run(matId || null, used, me.id, finalRemaining != null && finalRemaining !== '' ? Number(finalRemaining) : null, b.archive_location || null, r.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
+    return res.status(400).json({ error: e.message });
+  }
+  if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
   log(me.id, 'approve_archive', r.id, null);
-  notifyUser(r.applicant_id, `【膜料已歸檔】\n你回報的「${r.material_label}」已完成歸檔。`);
-  // ⚠️ 第二階段：在此實扣 material_rolls.remaining_meters + 寫 material_logs（需處理 CHECK 約束新增 log_type）
+  notifyUser(r.applicant_id, `【膜料已歸檔】\n你回報的「${r.material_label}」已完成歸檔${willConsume ? `，庫存已扣 ${used} 米` : ''}。`);
   res.json({ ok: true });
 });
 
@@ -175,7 +294,16 @@ router.delete('/:id', requireAuth, (req, res) => {
   if (!r) return res.status(404).json({ error: '找不到' });
   if (r.applicant_id !== me.id && !isWarehouse(me)) return res.status(403).json({ error: '無權限' });
   if (r.status === 'archived' && !isWarehouse(me)) return res.status(400).json({ error: '已歸檔，僅倉管可刪' });
-  db.prepare(`DELETE FROM material_requisitions WHERE id=?`).run(r.id);
+  try {
+    db.exec('BEGIN');
+    restoreRequisitionStock(r.id);   // 還原曾實扣的庫存（沒扣過則 no-op）
+    db.prepare(`DELETE FROM material_requisitions WHERE id=?`).run(r.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
+    return res.status(500).json({ error: '刪除失敗：' + e.message });
+  }
+  if (r.case_id) syncCaseMaterialCost(r.case_id);
   log(me.id, 'delete', r.id, null);
   res.json({ ok: true });
 });
