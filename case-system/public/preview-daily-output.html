@@ -66,9 +66,9 @@
   <div class="nav">
     <button class="on" onclick="go(1)">①任務</button>
     <button onclick="go(2)">②施工前</button>
-    <button onclick="go(3)">③施工中</button>
-    <button onclick="go(4)">④完工</button>
-    <button onclick="go(5)">⑤驗收</button>
+    <button onclick="go(3)" style="display:none">③施工中</button>
+    <button onclick="go(4)">③完工</button>
+    <button onclick="go(5)">④驗收</button>
   </div>
 
   <!-- ① 我的任務 -->
@@ -124,10 +124,11 @@
     <div class="box"><div class="h">✅ 材料準備狀況</div>
       <div class="toggle"><div class="t" onclick="tg(this)">已備妥</div><div class="t" onclick="tg(this)">尚缺</div></div></div>
 
-    <button class="btn green" onclick="go(3)">行前完成 → 開始施工</button>
+    <button class="btn green" onclick="go(4)">行前完成 → 完工回報</button>
+    <div class="hint" style="text-align:center;margin-top:6px">（「施工中」待報價單完成後開放）</div>
   </div>
 
-  <!-- ③ 施工中 -->
+  <!-- ③ 施工中（暫時隱藏，待報價單完成後開放） -->
   <div id="vmid" style="display:none">
     <h1>施工中</h1><div class="sub">邊做邊看：項目／區塊／材料／負責人＋展開圖。點展開圖上的區塊＝已領/已貼那支料</div>
     <div id="midCards"></div>
