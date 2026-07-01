@@ -80,7 +80,8 @@
         <div class="stat-card"><div class="label">待排工</div><div class="value warning" id="s-unscheduled">—</div></div>
         <div class="stat-card"><div class="label">完工請款</div><div class="value danger" id="s-payment">—</div></div>
         <div class="stat-card"><div class="label">本月已收</div><div class="value success" id="s-revenue">—</div></div>
-        <div class="stat-card"><div class="label">待收款總額</div><div class="value danger" id="s-unpaid">—</div></div>
+        <div class="stat-card"><div class="label">已完工待收</div><div class="value danger" id="s-unpaid-done">—</div></div>
+        <div class="stat-card"><div class="label">未完工待收</div><div class="value warning" id="s-unpaid-pending">—</div></div>
         <div class="stat-card" id="s-leave-card" style="display:none"><div class="label">今日請假</div><div class="value" id="s-leave">—</div></div>
       </div>
       <!-- 今日請假名單：HR/老闆可見 -->
@@ -161,7 +162,8 @@ async function init() {
   document.getElementById('s-unscheduled').textContent = stats.unscheduled ?? 0;
   document.getElementById('s-payment').textContent = stats.in_payment ?? 0;
   document.getElementById('s-revenue').textContent = fmt(stats.month_income ?? 0);
-  document.getElementById('s-unpaid').textContent = fmt(stats.unpaid ?? 0);
+  document.getElementById('s-unpaid-done').textContent    = fmt(stats.unpaid_done ?? 0);
+  document.getElementById('s-unpaid-pending').textContent = fmt(stats.unpaid_pending ?? 0);
 
   const todayStr = (() => {
     const d = new Date();

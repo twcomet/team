@@ -1102,6 +1102,25 @@ router.get('/stats/summary', requireAuth, (req, res) => {
                  AND status IN ('contracted','dispatched','constructing','payment','closed','tech_accepted')
                  AND COALESCE(final_price,quoted_price,0) > 0
                  ${orgCond}`).get(...orgPs2).n,
+    // 待收款拆兩塊：依「最後一筆施工派工日」是否已過 → 已完工/未完工
+    unpaid_done: db.prepare(`SELECT COALESCE(SUM(
+                   COALESCE(final_price,quoted_price,0) - COALESCE(survey_fee,0) - COALESCE(deposit_amount,0)
+                   - COALESCE(balance_paid,0) - COALESCE(retention_amount,0)
+                 ),0) n FROM cases c
+                 WHERE payment_status!='paid'
+                 AND status IN ('contracted','dispatched','constructing','payment','closed','tech_accepted')
+                 AND COALESCE(final_price,quoted_price,0) > 0
+                 AND (SELECT MAX(d.scheduled_date) FROM dispatches d WHERE d.case_id=c.id AND d.dispatch_type='install' AND d.status!='cancelled') < date('now','localtime')
+                 ${orgCond}`).get(...orgPs2).n,
+    unpaid_pending: db.prepare(`SELECT COALESCE(SUM(
+                   COALESCE(final_price,quoted_price,0) - COALESCE(survey_fee,0) - COALESCE(deposit_amount,0)
+                   - COALESCE(balance_paid,0) - COALESCE(retention_amount,0)
+                 ),0) n FROM cases c
+                 WHERE payment_status!='paid'
+                 AND status IN ('contracted','dispatched','constructing','payment','closed','tech_accepted')
+                 AND COALESCE(final_price,quoted_price,0) > 0
+                 AND COALESCE((SELECT MAX(d.scheduled_date) FROM dispatches d WHERE d.case_id=c.id AND d.dispatch_type='install' AND d.status!='cancelled'), '9999-12-31') >= date('now','localtime')
+                 ${orgCond}`).get(...orgPs2).n,
     month_income: db.prepare(`SELECT COALESCE(SUM(COALESCE(survey_fee,0)+COALESCE(deposit_amount,0)+COALESCE(balance_paid,0)),0) n FROM cases c WHERE scheduled_date>=? AND scheduled_date<=? ${orgCond}`).get(monthStart, monthEnd, ...orgPs2).n,
   });
 });
