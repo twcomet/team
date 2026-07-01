@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>完工滿意度評分（客人端示意）</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#eef2f7;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:#1f2937}
+  .wrap{max-width:460px;margin:0 auto;padding:16px 14px 50px}
+  .banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.5;margin-bottom:14px}
+  .card{background:#fff;border-radius:18px;padding:22px 18px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  .brand{text-align:center;margin-bottom:6px;font-size:15px;font-weight:800;color:#7c3aed}
+  h1{font-size:20px;text-align:center;margin:6px 0 2px}
+  .sub{text-align:center;color:#6b7280;font-size:13px;margin-bottom:18px}
+  .case{background:#f8fafc;border-radius:10px;padding:10px 12px;font-size:13px;color:#475569;text-align:center;margin-bottom:20px}
+  .big{text-align:center;margin-bottom:6px;font-size:15px;font-weight:700}
+  .stars{display:flex;justify-content:center;gap:8px;margin-bottom:6px}
+  .stars .s{font-size:40px;color:#d1d5db;cursor:pointer;line-height:1;transition:transform .05s}
+  .stars .s.on{color:#f59e0b}.stars .s:active{transform:scale(1.15)}
+  .scoreword{text-align:center;font-size:13px;color:#b45309;font-weight:700;height:18px;margin-bottom:18px}
+  .sub-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #f1f5f9}
+  .sub-item .n{font-size:14px;font-weight:600}
+  .ministars{display:flex;gap:4px}.ministars .s{font-size:24px;color:#d1d5db;cursor:pointer}.ministars .s.on{color:#f59e0b}
+  label.lb{display:block;font-size:13px;font-weight:700;margin:18px 0 7px}
+  textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px;font-size:15px;font-family:inherit}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+  .chip{padding:7px 13px;border-radius:20px;border:1.5px solid #e5e7eb;background:#fff;font-size:13px;cursor:pointer}
+  .chip.on{border-color:#7c3aed;background:#f5f3ff;color:#7c3aed;font-weight:700}
+  .btn{display:block;width:100%;margin-top:20px;padding:14px;border-radius:12px;border:none;font-size:16px;font-weight:800;color:#fff;background:#7c3aed;cursor:pointer}
+  .foot{text-align:center;color:#9ca3af;font-size:11.5px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">🔍 <b>客人端示意</b>：這是完工後系統自動用 LINE 發連結給客人的評分頁，客人<b>不用登入</b>、點開就填。資料為範例。</div>
+  <div class="card">
+    <div class="brand">🎨 繪新國際</div>
+    <h1>感謝您選擇繪新！</h1>
+    <div class="sub">您的施工已完成，想聽聽您的感受 🙏</div>
+    <div class="case">中和區-門/框框室內貼膜 · 完工日 2026-07-02</div>
+
+    <div class="big">整體滿意度</div>
+    <div class="stars" id="mainStars"></div>
+    <div class="scoreword" id="scoreWord"></div>
+
+    <div class="sub-item"><span class="n">施工品質</span><div class="ministars" data-k="quality"></div></div>
+    <div class="sub-item"><span class="n">準時到場</span><div class="ministars" data-k="ontime"></div></div>
+    <div class="sub-item"><span class="n">服務態度</span><div class="ministars" data-k="attitude"></div></div>
+    <div class="sub-item"><span class="n">現場整潔</span><div class="ministars" data-k="clean"></div></div>
+
+    <label class="lb">最讓您滿意的地方（可複選）</label>
+    <div class="chips" id="goodChips"></div>
+
+    <label class="lb">給我們的話 / 建議（選填）</label>
+    <textarea rows="3" placeholder="施工師傅很細心，環境也清理得很乾淨…"></textarea>
+
+    <button class="btn" onclick="submitReview()">送出評分</button>
+  </div>
+  <div class="foot">繪新國際有限公司 · 您的回饋是我們進步的動力</div>
+</div>
+
+<script>
+const WORDS={1:'很抱歉讓您失望 😢',2:'我們會再加強 🙏',3:'謝謝您的回饋 🙂',4:'很高興讓您滿意 😊',5:'太感謝了！非常滿意 🤩'};
+function paint(container,n){container.querySelectorAll('.s').forEach((s,i)=>s.classList.toggle('on',i<n));}
+// main stars
+const main=document.getElementById('mainStars');
+for(let i=1;i<=5;i++){const s=document.createElement('span');s.className='s';s.textContent='★';s.onclick=()=>{paint(main,i);document.getElementById('scoreWord').textContent=WORDS[i];};main.appendChild(s);}
+// mini stars
+document.querySelectorAll('.ministars').forEach(ms=>{for(let i=1;i<=5;i++){const s=document.createElement('span');s.className='s';s.textContent='★';s.onclick=()=>paint(ms,i);ms.appendChild(s);}});
+// good chips
+document.getElementById('goodChips').innerHTML=['施工品質好','師傅細心','準時','態度親切','現場乾淨','溝通清楚'].map(t=>`<span class="chip" onclick="this.classList.toggle('on')">${t}</span>`).join('');
+function submitReview(){alert('（示意）感謝您的評分！\\n\\n正式版：分數與留言會回到系統，公司看得到；低分會自動提醒客服關心。這是客人端評分頁，與師傅內部回報完全分開。');}
+</script>
+</body>
+</html>

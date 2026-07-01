@@ -194,6 +194,10 @@ app.get('/contract', requireAuth, (req, res) => {
 app.get('/preview-daily-output', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'preview-daily-output.html'));
 });
+// 完工滿意度評分 — 客人端示意預覽頁
+app.get('/preview-customer-review', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'preview-customer-review.html'));
+});
 
 function requireContract(req, res, next) {
   const u = req.session?.user;

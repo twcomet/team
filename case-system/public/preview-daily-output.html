@@ -193,16 +193,31 @@
 
   <!-- ④ 驗收 -->
   <div id="v4" style="display:none">
-    <h1>施工完畢驗收</h1><div class="sub">小組長做 · 與完工回報分開 · 業主看不到內部缺失回報</div>
+    <h1>施工完畢驗收</h1><div class="sub">兩段分開：① 師傅內部驗收（缺失）→ ② 把手機轉給客人做乾淨的驗收簽名</div>
 
-    <div class="box"><div class="h">✍️ 業主簽名（業主可見）</div>
-      <div class="sign" onclick="this.textContent='✓ 已簽名（示意）';this.style.color='var(--green)';this.style.borderColor='var(--green)'">點此請業主簽名</div></div>
-
-    <div class="box"><div class="h">⚠️ 驗收缺失回報（內部，業主看不到）<button class="btn sm amber" style="margin-left:auto" onclick="addDef()">＋ 新增缺失</button></div>
+    <!-- ① 內部（師傅看，客人看不到） -->
+    <div class="box"><div class="h">🔧 內部驗收 · 缺失回報 <span style="font-size:11px;color:#94a3b8;font-weight:400">師傅看，客人看不到</span><button class="btn sm amber" style="margin-left:auto" onclick="addDef()">＋ 缺失</button></div>
       <div id="defs"></div>
-      <div class="hint">可新增多筆；每筆註明是誰的缺失、團體或個人，連動缺失系統扣點。</div></div>
+      <div class="hint">可多筆；每筆標「個人／團體 ＋ 是誰」，連動缺失系統扣點。</div></div>
 
-    <button class="btn green" onclick="alert('（示意）驗收已送出。業主簽名對外，缺失回報只給內部。')">送出驗收</button>
+    <div style="text-align:center;color:#94a3b8;font-size:12.5px;margin:2px 0 12px">— 👇 以下轉給客人簽名（乾淨畫面，不含缺失／點數）—</div>
+
+    <!-- ② 客人端（乾淨畫面） -->
+    <div class="box" style="border:2px solid #86efac;background:#f7fef9">
+      <div class="h">✅ 請您確認驗收</div>
+      <div class="lab">本次完成的施工項目</div>
+      <div id="custItems" style="margin-bottom:12px"></div>
+      <div class="lab">完工照片</div>
+      <div style="display:flex;gap:7px;margin-bottom:14px">
+        <div style="flex:1;height:64px;background:#e2e8f0;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#94a3b8">📷</div>
+        <div style="flex:1;height:64px;background:#e2e8f0;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#94a3b8">📷</div>
+        <div style="flex:1;height:64px;background:#e2e8f0;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#94a3b8">📷</div>
+      </div>
+      <div class="lab">屋主 / 現場負責人簽名</div>
+      <div class="sign" onclick="this.textContent='✓ 已簽名（示意）';this.style.color='var(--green)';this.style.borderColor='var(--green)'">點此簽名確認驗收</div>
+      <button class="btn green" style="margin-top:12px" onclick="alert('（示意）客人驗收完成。這畫面只給客人看施工項目＋完工照＋簽名，看不到內部缺失與點數。\\n\\n完工後系統會再自動發「滿意度評分」連結給客人。')">確認驗收完成</button>
+      <div class="hint" style="text-align:center">此畫面不顯示缺失、才數、點數、金額</div>
+    </div>
   </div>
 </div>
 
@@ -285,6 +300,7 @@ function calcRet(){const pick=30;const rem=parseFloat(document.getElementById('r
   const used=Math.max(0,pick-rem);u.textContent=used+' 米';
   h.textContent=`領用 30 米 − 歸還剩餘 ${rem} 米 = 實際用量 ${used} 米（超出正常用料的部分用上面原因說明）`;}
 document.getElementById('caiRows').innerHTML=ITEMS.map((it,i)=>`<div class="matline ${i<3?'on':''}" onclick="this.classList.toggle('on');calcCai()"><span class="tick"></span><b>${it[0]}</b> ${it[1]}　<span style="color:#64748b">${it[3]}才 · ${it[4]}</span></div>`).join('');
+document.getElementById('custItems').innerHTML=ITEMS.map(it=>`<div class="matline" style="cursor:default"><span style="color:var(--green);font-weight:800">✓</span>　${it[0]} ${it[1]}</div>`).join('');
 calcCai();buildMid();addDef();drawQ();
 </script>
 </body>
