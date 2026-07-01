@@ -3,201 +3,227 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>完工回報機制（手機預覽示意）</title>
+<title>師傅任務動線（手機預覽示意）</title>
 <style>
   :root{--blue:#2563eb;--green:#15803d;--amber:#b45309;--red:#b91c1c;--ink:#1f2937}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{background:#f1f5f9;margin:0;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
-  .wrap{max-width:520px;margin:0 auto;padding:12px 12px 60px}
-  .banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.6;margin-bottom:12px}
-  .seg{display:flex;background:#e2e8f0;border-radius:12px;padding:4px;margin-bottom:14px}
-  .seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-size:13.5px;font-weight:700;color:#475569}
-  .seg button.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  h1{font-size:18px;margin:2px 2px 2px}.sub{color:#6b7280;font-size:12.5px;margin:0 2px 12px}
-  .box{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-  .box>.h{font-size:14.5px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:7px}
-  .box>.h .no{background:#eff6ff;color:var(--blue);width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
-  .box>.h .ok{margin-left:auto;font-size:12px;color:var(--green);font-weight:700}
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{padding:8px 14px;border-radius:20px;border:1.5px solid #e5e7eb;background:#fff;font-size:14px;cursor:pointer;user-select:none}
+  .wrap{max-width:520px;margin:0 auto;padding:10px 12px 70px}
+  .banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:9px 12px;font-size:12px;line-height:1.5;margin-bottom:10px}
+  .nav{position:sticky;top:0;z-index:20;display:flex;background:#e2e8f0;border-radius:12px;padding:4px;margin-bottom:12px}
+  .nav button{flex:1;border:none;background:none;padding:8px 2px;border-radius:9px;font-size:12.5px;font-weight:700;color:#475569}
+  .nav button.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  h1{font-size:17px;margin:2px 2px}.sub{color:#6b7280;font-size:12.5px;margin:2px 2px 12px}
+  .box{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:13px;margin-bottom:11px}
+  .box>.h{font-size:14px;font-weight:800;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+  .box>.h .who{margin-left:auto;font-size:11.5px;font-weight:700}
+  .lab{font-size:12px;color:#64748b;margin:2px 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{padding:7px 13px;border-radius:20px;border:1.5px solid #e5e7eb;background:#fff;font-size:13.5px;cursor:pointer;user-select:none}
   .chip.on{border-color:var(--blue);background:#eff6ff;color:var(--blue);font-weight:700}
-  .chip.crown.on{border-color:#d97706;background:#fffbeb;color:#b45309}
-  .hint{font-size:11.5px;color:#94a3b8;margin-top:7px}
-  .lamp{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12px;font-weight:700}
+  .chip.sm{padding:5px 11px;font-size:12.5px}
+  .task{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;margin-bottom:11px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .task .cno{font-family:ui-monospace,monospace;font-size:12px;color:#64748b}
+  .task .tt{font-size:15.5px;font-weight:800;margin:2px 0 4px}
+  .task .m{font-size:12.5px;color:#475569;line-height:1.7}
+  .task .d{display:inline-block;background:#eff6ff;color:var(--blue);font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px}
+  .row{display:flex;gap:8px}.grow{flex:1}
+  .btn{display:block;width:100%;padding:13px;border-radius:12px;border:none;font-size:15.5px;font-weight:800;color:#fff;background:var(--blue);cursor:pointer;margin-top:4px}
+  .btn.amber{background:#d97706}.btn.green{background:var(--green)}.btn.ghost{background:#f1f5f9;color:#475569}
+  .btn.sm{padding:9px;font-size:13.5px;width:auto}
+  .toggle{display:flex;gap:7px}.toggle .t{flex:1;text-align:center;padding:9px;border-radius:10px;border:1.5px solid #e5e7eb;font-size:13px;cursor:pointer}
+  .toggle .t.on{border-color:var(--green);background:#f0fdf4;color:var(--green);font-weight:700}
+  .matline{display:flex;align-items:center;gap:9px;background:#f8fafc;border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13.5px;cursor:pointer;border:1.5px solid transparent}
+  .matline.on{border-color:var(--blue);background:#eff6ff}
+  .matline .tick{width:20px;height:20px;border-radius:6px;border:2px solid #cbd5e1;flex-shrink:0}
+  .matline.on .tick{background:var(--blue);border-color:var(--blue)}
+  .link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-size:12.5px;font-weight:600;background:#eff6ff;padding:8px 12px;border-radius:9px;text-decoration:none;margin-top:2px}
+  input[type=text]{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit}
+  textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px;font-size:14px;font-family:inherit}
+  .stepper{display:flex;align-items:center;justify-content:center;gap:14px}
+  .stepper button{width:46px;height:46px;border-radius:50%;border:2px solid #e5e7eb;background:#fff;font-size:22px;font-weight:700;color:#334155}
+  .stepper .disp b{font-size:30px;font-weight:800}
+  .lamp{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700}
   .lamp.ahead{background:#dbeafe;color:var(--blue)}.lamp.ok{background:#dcfce7;color:var(--green)}
   .lamp.behind{background:#fef3c7;color:var(--amber)}.lamp.bad{background:#fee2e2;color:var(--red)}
-  .stepper{display:flex;align-items:center;justify-content:center;gap:16px}
-  .stepper button{width:50px;height:50px;border-radius:50%;border:2px solid #e5e7eb;background:#fff;font-size:24px;font-weight:700;color:#334155}
-  .stepper .disp{min-width:88px;text-align:center}.stepper .disp b{font-size:34px;font-weight:800}
-  .stepper .disp span{display:block;font-size:11px;color:#9ca3af}
-  .row{display:flex;gap:10px}.row>div{flex:1}
-  .lab{font-size:12.5px;color:#64748b;margin-bottom:5px}
-  input[type=text],textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;font-size:15px;font-family:inherit}
-  .worker-line{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .worker-line .nm{width:74px;font-size:14px;font-weight:600;flex-shrink:0}
-  .toggle{display:flex;gap:8px}.toggle .t{flex:1;text-align:center;padding:9px;border-radius:10px;border:1.5px solid #e5e7eb;font-size:13.5px;cursor:pointer}
-  .toggle .t.on{border-color:var(--green);background:#f0fdf4;color:var(--green);font-weight:700}
-  .toggle .t.on.warn{border-color:var(--red);background:#fef2f2;color:var(--red)}
-  .matline{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-radius:10px;padding:9px 12px;margin-bottom:7px;font-size:13.5px}
-  .link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-size:13px;text-decoration:none;font-weight:600;background:#eff6ff;padding:8px 12px;border-radius:9px}
-  .sign{height:90px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;background:#fafcff}
-  .foot{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(241,245,249,0),#f1f5f9 34%);padding-top:14px;margin-top:4px}
-  .foot .prog{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
-  .btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;font-size:16px;font-weight:800;color:#fff;background:var(--amber)}
-  .ptsbadge{font-size:11.5px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 10px;text-align:center;margin-bottom:10px}
-  /* view1 客服端 */
-  .cardx{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px}
-  .flow{font-size:12.5px;color:#475569;line-height:1.8;background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:12px}
+  .slrow{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .slrow .nm{width:118px;font-size:13px;font-weight:600;flex-shrink:0}
+  .slrow input[type=range]{flex:1}.slrow .pc{width:42px;text-align:right;font-weight:800;font-size:14px}
+  .defcard{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:11px;margin-bottom:9px}
+  .sign{height:84px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;background:#fafcff}
+  .hint{font-size:11.5px;color:#94a3b8;margin-top:6px}
+  .sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:60}
+  .sheet-ov.open{display:block}
+  .sheet{position:absolute;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:#fff;border-radius:20px 20px 0 0;max-height:92vh;overflow:auto;padding:14px 15px calc(16px + env(safe-area-inset-bottom))}
+  .sheet .grab{width:40px;height:4px;background:#e5e7eb;border-radius:9px;margin:0 auto 12px}
+  .kv{font-size:13px;line-height:2;color:#334155}.kv b{color:#0f172a}
+  .memo{white-space:pre-wrap;font-size:12.5px;color:#475569;background:#f8fafc;border-radius:10px;padding:10px;line-height:1.7;margin-top:8px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="banner">🔍 <b>示意預覽</b>：確認長相與流程用，<b>資料是範例、按鈕不會真的存</b>。拍板後才寫正式版。</div>
-  <div class="seg">
-    <button id="t1" class="on" onclick="tab(1)">① 派工選組長</button>
-    <button id="t2" onclick="tab(2)">② 師傅手機完工回報</button>
+  <div class="banner">🔍 <b>師傅手機示意預覽</b>：確認動線用，資料是範例、按鈕不會真的存。師傅端一律<b>不顯示金額</b>。</div>
+  <div class="nav">
+    <button class="on" onclick="go(1)">① 我的任務</button>
+    <button onclick="go(2)">② 施工前</button>
+    <button onclick="go(3)">③ 完工回報</button>
+    <button onclick="go(4)">④ 驗收</button>
   </div>
 
-  <!-- ===== VIEW 1: 客服派工選組長 ===== -->
-  <div id="view1">
-    <h1>派工 · 指派人員與小組長</h1>
-    <div class="sub">客服操作：先勾今天出工的人 → 再從勾選的人裡點一位小組長</div>
-    <div class="flow">流程：勾人 → 系統只把「勾到的人」列成小組長選項 → 點一位 👑。<br>只勾 1 人時自動當組長；組長＝完工回報負責人。</div>
-
-    <div class="cardx">
-      <div class="lab">① 指派人員（可多選）</div>
-      <div class="chips" id="w-pick"></div>
-      <div class="hint">點一下勾選／取消。範例案：HX2605-240 九昱建設</div>
-    </div>
-
-    <div class="cardx">
-      <div class="lab">② 小組長 👑（只能從上面勾到的人選）</div>
-      <div class="chips" id="leader-pick"><span class="hint">先在上面勾人，這裡才會出現可選的組長</span></div>
-      <div class="hint" id="leader-note"></div>
-    </div>
-
-    <button class="btn" style="background:var(--blue)" onclick="tab(2)">儲存派工（示意）→ 看組長要回報什麼</button>
-  </div>
-
-  <!-- ===== VIEW 2: 師傅手機完工回報 ===== -->
-  <div id="view2" style="display:none">
-    <h1>今日完工回報</h1>
-    <div class="sub">HX2605-240 九昱建設 · 2026-07-01 · 組長 <b id="v2leader">呂紹銘</b></div>
-    <div class="ptsbadge">⚠️ 8 項全部回報完成，這場才計點數；沒回報＝本場 0 點</div>
-
-    <!-- 1 開車 -->
-    <div class="box"><div class="h"><span class="no">1</span>今天誰開車<span class="ok" id="ok1"></span></div>
-      <div class="chips" id="c-drive"></div><div class="hint">可多台車、多選</div></div>
-
-    <!-- 2 備料 -->
-    <div class="box"><div class="h"><span class="no">2</span>誰準備材料<span class="ok" id="ok2"></span></div>
-      <div class="chips" id="c-mat"></div></div>
-
-    <!-- 3 材料領用/歸回 -->
-    <div class="box"><div class="h"><span class="no">3</span>材料領用 / 歸回<span class="ok" id="ok3"></span></div>
-      <div class="matline"><span>LG ST014（整捲帶出）</span><span style="color:var(--green);font-weight:700">已領用 ✓</span></div>
-      <div class="matline"><span>剩料歸還</span>
-        <div class="toggle" style="width:150px"><div class="t" onclick="tg(this,3,'a')">已歸還</div><div class="t" onclick="tg(this,3,'b')">用罄</div></div></div>
-      <a class="link" href="#" onclick="return false">↗ 開膜料領用單填米數 / 料差</a></div>
-
-    <!-- 4 分工 -->
-    <div class="box"><div class="h"><span class="no">4</span>工作分工（誰貼哪些）<span class="ok" id="ok4"></span></div>
-      <div id="c-div"></div></div>
-
-    <!-- 5 驗收 -->
-    <div class="box"><div class="h"><span class="no">5</span>跟業主驗收<span class="ok" id="ok5"></span></div>
-      <div class="toggle" style="margin-bottom:10px">
-        <div class="t" onclick="tg(this,5,'ok')">✓ 驗收通過</div>
-        <div class="t" onclick="tg(this,5,'na')">業主不在</div>
-        <div class="t" onclick="tg(this,5,'re')">待複驗</div></div>
-      <div class="lab">業主簽名</div><div class="sign" onclick="signOk(this)">點此請業主簽名</div></div>
-
-    <!-- 6 完工抓量 -->
-    <div class="box"><div class="h"><span class="no">6</span>完工回報（抓量）<span class="ok" id="ok6"></span></div>
-      <div class="row" style="align-items:center">
-        <div><div class="lab" style="text-align:center">今日目標(片)</div>
-          <div class="stepper"><button onclick="step('t',-1)">−</button><div class="disp"><b id="tv">12</b></div><button onclick="step('t',1)">＋</button></div></div>
-        <div><div class="lab" style="text-align:center">實際完成(片)</div>
-          <div class="stepper"><button onclick="step('d',-1)">−</button><div class="disp"><b id="dv">9</b></div><button onclick="step('d',1)">＋</button></div></div>
+  <!-- ① 我的任務 -->
+  <div id="v1">
+    <h1>我的任務</h1><div class="sub">只看到自己的任務 · 點卡片看現場說明 · 施工前先確認</div>
+    <div class="task">
+      <div class="cno">HX2606-124 <span class="d">明天 D1</span></div>
+      <div class="tt">中和區-門/框框室內 · 李珞熒</div>
+      <div class="m">📍 新北市中和區中正路839巷72號23樓<br>🗓 2026-07-02（四）09:30–17:00 · 同工：呂紹銘、偉宏、小楊</div>
+      <div class="row" style="margin-top:11px">
+        <button class="btn ghost sm grow" onclick="openSum()">看現場說明</button>
+        <button class="btn sm grow" onclick="go(2)">施工前確認 →</button>
       </div>
-      <div style="text-align:center;margin-top:12px"><span style="font-size:30px;font-weight:900" id="pv">75%</span> <span id="lv"></span></div>
-      <div class="hint" style="text-align:center">本案累計 26/40 片 · 片數之後可從恰吉的展開圖自動帶</div>
-      <div id="reasonWrap" style="margin-top:10px;display:none"><div class="lab">落後原因</div><div class="chips" id="c-reason"></div></div>
+    </div>
+    <div class="task" style="opacity:.7">
+      <div class="cno">HX2606-203 <span class="d">7/4 D1</span></div>
+      <div class="tt">某科技公司 · 系統櫃貼膜</div>
+      <div class="m">📍 台北市內湖區 · 🗓 2026-07-04 · 同工：呂紹銘、小傑</div>
+    </div>
+    <div class="hint">＊「開啟完整案件」會跳到案件 summary（業務用的完整畫面）；師傅看得到內容、看不到金額。</div>
+  </div>
+
+  <!-- ② 施工前 -->
+  <div id="v2" style="display:none">
+    <h1>施工前確認</h1><div class="sub">HX2606-124 · 小組長 呂紹銘 交代並指定執行人；全部落實才能開工</div>
+
+    <div class="box"><div class="h">🎒 應帶物品清單<span class="who" style="color:var(--blue)">負責：<u onclick="pickWho(this)">偉宏</u></span></div>
+      <div id="bring"></div>
+      <div class="row" style="margin-top:8px"><input type="text" placeholder="新增應帶物品…"><button class="btn sm" onclick="return false">＋</button></div>
     </div>
 
-    <!-- 7 缺失 -->
-    <div class="box"><div class="h"><span class="no">7</span>缺失回報<span class="ok" id="ok7"></span></div>
-      <div class="toggle"><div class="t" onclick="tg(this,7,'no')">✓ 無缺失</div><div class="t" onclick="tg(this,7,'yes')">有缺失</div></div>
-      <div id="defWrap" style="display:none;margin-top:10px"><textarea rows="2" placeholder="描述缺失（例：門片右上折角需重貼）"></textarea>
-        <div class="hint">有缺失會連動缺失系統，責任人扣點</div></div></div>
+    <div class="box"><div class="h">📦 材料領用<span class="who" style="color:var(--blue)">負責：<u onclick="pickWho(this)">呂紹銘</u></span></div>
+      <div class="lab">本案已指定材料（點選要領用的，只顯示型號無金額）</div>
+      <div id="mats"></div>
+      <div class="row" style="margin:8px 0"><input type="text" placeholder="找不到？輸入材料編號搜尋…"><button class="btn sm" onclick="return false">搜</button></div>
+      <button class="btn amber" onclick="applyMat()">申請領用（勾選的材料）</button>
+      <div class="hint">正式版：直接在案件裡領用，不用跑回左側膜料使用記錄。</div>
+    </div>
 
-    <!-- 8 拍照 -->
-    <div class="box"><div class="h"><span class="no">8</span>誰拍照 · 照片上傳雲端<span class="ok" id="ok8"></span></div>
-      <div class="lab">誰拍照（可多選）</div><div class="chips" id="c-photo" style="margin-bottom:12px"></div>
-      <div class="toggle" style="margin-bottom:10px"><div class="t" onclick="tg(this,8,'up')">✓ 照片已上傳雲端</div><div class="t" onclick="tg(this,8,'no')">尚未上傳</div></div>
+    <div class="box"><div class="h">✅ 材料準備了沒</div>
+      <div class="toggle"><div class="t" onclick="tg(this)">已備妥</div><div class="t" onclick="tg(this)">尚缺</div></div></div>
+
+    <div class="box"><div class="h">👥 行前分工（點師傅，不打字）</div>
+      <div class="lab">每個報價項目要誰貼（可複選）</div>
+      <div id="itemDiv"></div>
+      <div style="border-top:1px solid #f1f5f9;margin:10px 0"></div>
+      <div id="roleDiv"></div>
+    </div>
+    <button class="btn green" onclick="go(3)">行前完成 → 去完工回報</button>
+  </div>
+
+  <!-- ③ 完工回報 -->
+  <div id="v3" style="display:none">
+    <h1>完工回報</h1><div class="sub">HX2606-124 · 2026-07-02 · 組長 呂紹銘</div>
+
+    <div class="box"><div class="h">📐 完工進度</div>
+      <div class="toggle" style="margin-bottom:12px">
+        <div class="t on" id="mA" onclick="mode('piece')">用片數（有展開圖）</div>
+        <div class="t" id="mB" onclick="mode('pct')">用項目%（沒展開圖）</div>
+      </div>
+      <div id="pieceBox">
+        <div class="row" style="align-items:center">
+          <div class="grow"><div class="lab" style="text-align:center">今日目標(片)</div>
+            <div class="stepper"><button onclick="stp('t',-1)">−</button><div class="disp"><b id="tv">12</b></div><button onclick="stp('t',1)">＋</button></div></div>
+          <div class="grow"><div class="lab" style="text-align:center">實際完成(片)</div>
+            <div class="stepper"><button onclick="stp('d',-1)">−</button><div class="disp"><b id="dv">9</b></div><button onclick="stp('d',1)">＋</button></div></div>
+        </div>
+        <div style="text-align:center;margin-top:10px"><span id="pv" style="font-size:28px;font-weight:900">75%</span> <span id="lv"></span></div>
+        <div class="hint" style="text-align:center">片數之後可從恰吉的展開圖自動帶</div>
+      </div>
+      <div id="pctBox" style="display:none">
+        <div class="lab">各施工項目完成百分比（大約即可）</div>
+        <div id="pctRows"></div>
+      </div>
+    </div>
+
+    <div class="box"><div class="h">📷 拍照上傳雲端</div>
+      <div class="lab">拍照的人（行前已指定）：<b>小楊</b></div>
+      <div class="toggle" style="margin:6px 0 10px"><div class="t" onclick="tg(this)">✓ 照片已上傳雲端</div><div class="t" onclick="tg(this)">尚未上傳</div></div>
       <a class="link" href="#" onclick="return false">☁️ 開啟本案雲端資料夾</a></div>
 
-    <div class="foot">
-      <div class="prog"><span>回報完成度</span><b id="progTxt" style="color:var(--amber)">0 / 8</b></div>
-      <button class="btn" id="submitBtn" onclick="submitRep()">送出完工回報 · 領本場點數</button>
-    </div>
+    <button class="btn green" onclick="alert('（示意）完工回報已送出，本場點數計入。')">送出完工回報 · 領本場點數</button>
+  </div>
+
+  <!-- ④ 驗收 -->
+  <div id="v4" style="display:none">
+    <h1>施工完畢驗收</h1><div class="sub">小組長做 · 與完工回報分開 · 業主看不到內部缺失回報</div>
+
+    <div class="box"><div class="h">✍️ 業主簽名（業主可見）</div>
+      <div class="sign" onclick="this.textContent='✓ 已簽名（示意）';this.style.color='var(--green)';this.style.borderColor='var(--green)'">點此請業主簽名</div></div>
+
+    <div class="box"><div class="h">⚠️ 驗收缺失回報（內部，業主看不到）<button class="btn sm amber" style="margin-left:auto" onclick="addDef()">＋ 新增缺失</button></div>
+      <div id="defs"></div>
+      <div class="hint">可新增多筆；每筆註明是誰的缺失、團體或個人，連動缺失系統扣點。</div></div>
+
+    <button class="btn green" onclick="alert('（示意）驗收已送出。業主簽名對外，缺失回報只給內部。')">送出驗收</button>
   </div>
 </div>
 
+<!-- 現場說明 sheet -->
+<div class="sheet-ov" id="ov"><div class="sheet"><div class="grab"></div>
+  <h1 style="margin-bottom:8px">HX2606-124 中和區-門/框框室內</h1>
+  <div class="kv">📍 <b>新北市中和區中正路839巷72號23樓</b><br>🗓 施工 2026-07-02（四）09:30–17:00<br>👷 施工：呂紹銘（組長）、偉宏、小楊<br>🔎 場勘：張耿豪<br>📞 客戶：0935-602-007</div>
+  <a class="link" href="#" onclick="return false">☁️ 開啟雲端資料夾</a>
+  <div class="memo">◇ 現場聯絡人：李珞熒　◆ 師傅到場：9:00–9:30
+◆ 建議下貨：車道口登記換證，9–10點，逾時排隊
+◇ 臨停：無臨時車位，下完貨離開
+◆ 最晚施工：9–12／13–17
+◇ 換卡/密碼：需設計師或屋主帶上樓
+◆ 其他：完工細清，換室內拖鞋，垃圾物品都帶走</div>
+  <div style="height:10px"></div>
+  <button class="btn" onclick="alert('（示意）跳到完整案件 summary（金額隱藏）')">↗ 開啟完整案件</button>
+  <div style="height:8px"></div><button class="btn ghost" onclick="closeSum()">關閉</button>
+</div></div>
+
 <script>
-const CREW=['呂紹銘','陳怡仲','偉宏','小羊','小傑'];
-// ---- VIEW1 ----
-let picked=new Set(['呂紹銘','偉宏','小羊']), leader='呂紹銘';
-function renderV1(){
-  document.getElementById('w-pick').innerHTML=CREW.map(n=>`<span class="chip ${picked.has(n)?'on':''}" onclick="togW('${n}')">${n}</span>`).join('');
-  const arr=[...picked];
-  document.getElementById('leader-pick').innerHTML = arr.length
-    ? arr.map(n=>`<span class="chip crown ${leader===n?'on':''}" onclick="setLeader('${n}')">${leader===n?'👑 ':''}${n}</span>`).join('')
-    : `<span class="hint">先在上面勾人，這裡才會出現可選的組長</span>`;
-  const note=document.getElementById('leader-note');
-  if(arr.length===1){leader=arr[0];note.textContent='只勾 1 人 → 自動當小組長';}
-  else if(arr.length===0){note.textContent='';}
-  else if(!picked.has(leader)){note.innerHTML='<span style="color:var(--red)">原組長已被取消勾選，請重選</span>';}
-  else note.textContent='組長 '+leader+' 將負責這場的完工回報';
-}
-function togW(n){picked.has(n)?picked.delete(n):picked.add(n);if(!picked.has(leader))leader=[...picked][0]||'';renderV1();}
-function setLeader(n){leader=n;renderV1();}
-// ---- VIEW2 ----
-const done={};
-function tab(n){document.getElementById('view1').style.display=n===1?'':'none';document.getElementById('view2').style.display=n===2?'':'none';
-  document.getElementById('t1').classList.toggle('on',n===1);document.getElementById('t2').classList.toggle('on',n===2);
-  document.getElementById('v2leader').textContent=leader||'呂紹銘';window.scrollTo(0,0);}
-function multiChip(id,key){const el=document.getElementById(id);const sel=new Set();
-  el.innerHTML=CREW.map(n=>`<span class="chip" data-n="${n}">${n}</span>`).join('');
-  el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const n=c.dataset.n;if(sel.has(n)){sel.delete(n);c.classList.remove('on');}else{sel.add(n);c.classList.add('on');}done[key]=sel.size>0;prog();});}
-function divRows(){document.getElementById('c-div').innerHTML=[...picked].map(n=>`<div class="worker-line"><span class="nm">${n}</span><input type="text" placeholder="貼了哪些（門片/櫃體/框…）" oninput="done.div=true;prog()"></div>`).join('');}
-function tg(el,sec,v){const p=el.parentElement;p.querySelectorAll('.t').forEach(t=>t.classList.remove('on','warn'));el.classList.add('on');if(['b','na','re','yes','no2'].includes(v))el.classList.add('warn');
-  if(sec===7){document.getElementById('defWrap').style.display=(v==='yes')?'block':'none';}
-  done['s'+sec]=true;prog();}
-function signOk(el){el.textContent='✓ 已簽名（示意）';el.style.color='var(--green)';el.style.borderColor='var(--green)';done.sign=true;prog();}
+const CREW=['呂紹銘','偉宏','小楊','小傑','陳怡仲'];
+const ITEMS=[['A','浴室門+框雙面','LG ST014/SM013'],['B','系統櫃門片','BODAQ AB004'],['C','櫃體','LG SM013'],['D','補條','偉宏布'],['E','天花','LG ST014']];
+function go(n){for(let i=1;i<=4;i++)document.getElementById('v'+i).style.display=i===n?'':'none';
+  document.querySelectorAll('.nav button').forEach((b,i)=>b.classList.toggle('on',i===n-1));window.scrollTo(0,0);}
+function openSum(){document.getElementById('ov').classList.add('open');}
+function closeSum(){document.getElementById('ov').classList.remove('open');}
+function tg(el){el.parentElement.querySelectorAll('.t').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
+function pickWho(el){const i=CREW.indexOf(el.textContent);el.textContent=CREW[(i+1)%CREW.length];}
+// bring list
+document.getElementById('bring').innerHTML=['梯子','延長線','裁刀+刀片','刮板/毛刷','清潔布','室內拖鞋'].map(x=>`<label class="matline" style="cursor:default"><span class="tick"></span>${x}</label>`).join('');
+document.querySelectorAll('#bring .matline').forEach(l=>l.onclick=()=>l.classList.toggle('on'));
+// materials
+document.getElementById('mats').innerHTML=ITEMS.map((it,i)=>`<div class="matline" onclick="this.classList.toggle('on')"><span class="tick"></span><b>${it[0]}</b>　${it[1]}　<span style="color:#64748b">${it[2]}</span></div>`).join('');
+function applyMat(){const n=document.querySelectorAll('#mats .matline.on').length;alert(n?`（示意）已對 ${n} 支材料送出領用申請 → 倉管審核`:'請先點選要領用的材料');}
+// item division
+document.getElementById('itemDiv').innerHTML=ITEMS.map((it,i)=>`<div style="margin-bottom:10px"><div class="lab" style="margin-bottom:5px"><b>${it[0]}</b> ${it[1]}</div><div class="chips" data-item="${i}">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.classList.toggle('on')">${n}</span>`).join('')}</div></div>`).join('');
+// roles
+const ROLES=['🚗 誰開車','📦 誰備料','📷 誰拍照','🧰 行前前置','🔍 驗收檢查'];
+document.getElementById('roleDiv').innerHTML=ROLES.map(r=>`<div style="margin-bottom:9px"><div class="lab" style="margin-bottom:5px">${r}（指定負責人）</div><div class="chips">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));this.classList.add('on')">${n}</span>`).join('')}</div></div>`).join('');
+// completion piece mode
 let tt=12,dd=9;
 function lampOf(p){if(p>=110)return['ahead','超前'];if(p>=90)return['ok','達標'];if(p>=60)return['behind','落後'];return['bad','嚴重落後'];}
 const COL={ahead:'#2563eb',ok:'#15803d',behind:'#b45309',bad:'#b91c1c'};
-function step(k,x){if(k==='t')tt=Math.max(0,tt+x);else dd=Math.max(0,dd+x);drawQ();done.s6=true;prog();}
+function stp(k,x){if(k==='t')tt=Math.max(0,tt+x);else dd=Math.max(0,dd+x);drawQ();}
 function drawQ(){document.getElementById('tv').textContent=tt;document.getElementById('dv').textContent=dd;
   const p=tt?Math.round(dd/tt*100):0;const[c,t]=lampOf(p);
   document.getElementById('pv').textContent=(tt?p:0)+'%';document.getElementById('pv').style.color=COL[c];
-  document.getElementById('lv').innerHTML=`<span class="lamp ${c}">${t}</span>`;
-  document.getElementById('reasonWrap').style.display=(tt&&p<90)?'block':'none';}
-function okMark(sec){document.getElementById('ok'+sec).textContent=done['s'+sec]||done[sec]?'✓':'';}
-function prog(){
-  const map={1:done.drive,2:done.mat,3:done.s3,4:done.div,5:done.s5&&done.sign,6:done.s6,7:done.s7,8:done.photo&&done.s8};
-  let n=0;for(let i=1;i<=8;i++){const v=!!map[i];document.getElementById('ok'+i).textContent=v?'✓':'';if(v)n++;}
-  document.getElementById('progTxt').textContent=n+' / 8';
-  const b=document.getElementById('submitBtn');b.style.background=n===8?'var(--green)':'var(--amber)';
-  b.textContent=n===8?'✅ 送出完工回報 · 領本場點數':`送出完工回報（還差 ${8-n} 項）`;}
-function submitRep(){const n=[...document.querySelectorAll('.foot .prog b')][0].textContent;
-  alert('（示意）'+ (document.getElementById('progTxt').textContent==='8 / 8'?'8 項全部完成，本場點數已計入！':'尚未全部完成，正式版會擋下並提示缺哪幾項→沒補齊本場 0 點')+'\\n\\n這是預覽，先不真的存。');}
-// reasons + init
-renderV1();
-multiChip('c-drive','drive');multiChip('c-mat','mat');multiChip('c-photo','photo');
-document.getElementById('c-reason').innerHTML=['材料不足','人力不足','現場太熱','難度高(折角)','客戶追加','其他'].map(r=>`<span class="chip" onclick="this.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));this.classList.add('on')">${r}</span>`).join('');
-divRows();drawQ();prog();
+  document.getElementById('lv').innerHTML=`<span class="lamp ${c}">${t}</span>`;}
+function mode(m){document.getElementById('mA').classList.toggle('on',m==='piece');document.getElementById('mB').classList.toggle('on',m==='pct');
+  document.getElementById('pieceBox').style.display=m==='piece'?'':'none';document.getElementById('pctBox').style.display=m==='pct'?'':'none';}
+document.getElementById('pctRows').innerHTML=ITEMS.map((it,i)=>{const v=[100,80,60,100,30][i];return `<div class="slrow"><span class="nm">${it[0]} ${it[1]}</span><input type="range" min="0" max="100" value="${v}" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="pc">${v}%</span></div>`;}).join('');
+// defects
+let defN=0;
+function addDef(){defN++;const d=document.createElement('div');d.className='defcard';
+  d.innerHTML=`<div class="lab">缺失 #${defN} 描述</div><textarea rows="2" placeholder="例：B項門片右上折角起翹，需重貼"></textarea>
+  <div class="lab" style="margin-top:8px">是誰的缺失</div>
+  <div class="toggle" style="margin-bottom:7px"><div class="t" onclick="tg(this)">個人</div><div class="t" onclick="tg(this)">團體</div></div>
+  <div class="chips">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.classList.toggle('on')">${n}</span>`).join('')}</div>`;
+  document.getElementById('defs').appendChild(d);}
+addDef();drawQ();
 </script>
 </body>
 </html>
