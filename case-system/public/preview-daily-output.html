@@ -64,10 +64,11 @@
 <div class="wrap">
   <div class="banner">🔍 <b>師傅手機示意預覽</b>：確認動線用，資料是範例、按鈕不會真的存。師傅端一律<b>不顯示金額</b>。</div>
   <div class="nav">
-    <button class="on" onclick="go(1)">① 我的任務</button>
-    <button onclick="go(2)">② 施工前</button>
-    <button onclick="go(3)">③ 完工回報</button>
-    <button onclick="go(4)">④ 驗收</button>
+    <button class="on" onclick="go(1)">①任務</button>
+    <button onclick="go(2)">②施工前</button>
+    <button onclick="go(3)">③施工中</button>
+    <button onclick="go(4)">④完工</button>
+    <button onclick="go(5)">⑤驗收</button>
   </div>
 
   <!-- ① 我的任務 -->
@@ -118,10 +119,17 @@
     <div class="box"><div class="h">✅ 材料準備了沒</div>
       <div class="toggle"><div class="t" onclick="tg(this)">已備妥</div><div class="t" onclick="tg(this)">尚缺</div></div></div>
 
-    <button class="btn green" onclick="go(3)">行前完成 → 去完工回報</button>
+    <button class="btn green" onclick="go(3)">行前完成 → 開始施工</button>
   </div>
 
-  <!-- ③ 完工回報 -->
+  <!-- ③ 施工中 -->
+  <div id="vmid" style="display:none">
+    <h1>施工中</h1><div class="sub">邊做邊看：項目／區塊／材料／負責人＋展開圖。點展開圖上的區塊＝已領/已貼那支料</div>
+    <div id="midCards"></div>
+    <button class="btn green" onclick="go(4)">施工完成 → 完工回報</button>
+  </div>
+
+  <!-- ④ 完工回報 -->
   <div id="v3" style="display:none">
     <h1>完工回報</h1><div class="sub">HX2606-124 · 2026-07-02 · 組長 呂紹銘</div>
 
@@ -218,8 +226,20 @@
 const CREW=['呂紹銘','偉宏','小楊','小傑','陳怡仲'];
 const ITEMS=[['A','浴室門+框雙面','LG ST014/SM013',12.5,'呂紹銘'],['B','系統櫃門片','BODAQ AB004',8,'偉宏'],['C','櫃體','LG SM013',20,'呂紹銘'],['D','補條','偉宏布',3,'呂紹銘'],['E','天花','LG ST014',15,'小楊']];
 const CAI_TOTAL=ITEMS.reduce((s,i)=>s+i[3],0);
-function go(n){for(let i=1;i<=4;i++)document.getElementById('v'+i).style.display=i===n?'':'none';
+const VIEWS=['v1','v2','vmid','v3','v4'];
+function go(n){VIEWS.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.style.display=(i===n-1)?'':'none';});
   document.querySelectorAll('.nav button').forEach((b,i)=>b.classList.toggle('on',i===n-1));window.scrollTo(0,0);}
+const BLOCKS={A:['A1','A2','A3'],B:['B1','B2','B3','B4'],C:['C1','C2'],D:['D1'],E:['E1','E2','E3','E4']};
+function buildMid(){document.getElementById('midCards').innerHTML=ITEMS.map(it=>{const bl=BLOCKS[it[0]]||[];
+  return `<div class="box"><div class="h">${it[0]} ${it[1]}<span class="who" style="color:var(--blue)">${it[4]} · ${it[3]}才</span></div>
+    <div class="lab">材料：${it[2]}</div>
+    <div style="height:96px;border:1.5px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#94a3b8;background:#fafcff;margin-bottom:9px;font-size:13px">📐 ${it[0]} 展開圖（點下方區塊＝已領/已貼該支料）</div>
+    <div class="lab" id="prog${it[0]}">已領 0 / ${bl.length}</div>
+    <div class="chips">${bl.map(b=>`<span class="chip sm" onclick="tgBlk(this,'${it[0]}')">${b}</span>`).join('')}</div></div>`;
+}).join('');}
+function tgBlk(el,k){el.classList.toggle('on');el.textContent=el.classList.contains('on')?'✓ '+el.textContent.replace('✓ ',''):el.textContent.replace('✓ ','');
+  const box=el.closest('.box');const n=box.querySelectorAll('.chip.on').length;const tot=(BLOCKS[k]||[]).length;
+  document.getElementById('prog'+k).textContent=`已領 ${n} / ${tot}`;}
 function openSum(){document.getElementById('ov').classList.add('open');}
 function closeSum(){document.getElementById('ov').classList.remove('open');}
 function tg(el){el.parentElement.querySelectorAll('.t').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
@@ -265,7 +285,7 @@ function calcRet(){const pick=30;const rem=parseFloat(document.getElementById('r
   const used=Math.max(0,pick-rem);u.textContent=used+' 米';
   h.textContent=`領用 30 米 − 歸還剩餘 ${rem} 米 = 實際用量 ${used} 米（超出正常用料的部分用上面原因說明）`;}
 document.getElementById('caiRows').innerHTML=ITEMS.map((it,i)=>`<div class="matline ${i<3?'on':''}" onclick="this.classList.toggle('on');calcCai()"><span class="tick"></span><b>${it[0]}</b> ${it[1]}　<span style="color:#64748b">${it[3]}才 · ${it[4]}</span></div>`).join('');
-calcCai();addDef();drawQ();
+calcCai();buildMid();addDef();drawQ();
 </script>
 </body>
 </html>
