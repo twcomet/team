@@ -190,6 +190,11 @@ app.get('/contract', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'contract.html'));
 });
 
+// 每日施工產量回報 — 示意預覽頁（只需登入、不進選單、不套權限、純示意不碰資料）
+app.get('/preview-daily-output', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'preview-daily-output.html'));
+});
+
 function requireContract(req, res, next) {
   const u = req.session?.user;
   if (!u) return next();

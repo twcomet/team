@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>每日施工產量回報（手機預覽示意）</title>
+<style>
+  :root{--blue:#2563eb;--green:#15803d;--amber:#b45309;--red:#b91c1c}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#f1f5f9;margin:0;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;color:#1f2937}
+  .wrap{max-width:520px;margin:0 auto;padding:12px 12px 40px}
+  .banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.6;margin-bottom:14px}
+  h1{font-size:19px;margin:4px 2px 2px}
+  .sub{color:#6b7280;font-size:12.5px;margin:0 2px 14px}
+  .day{display:flex;gap:8px;margin-bottom:14px}
+  .day .box{flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;text-align:center}
+  .day .box .n{font-size:20px;font-weight:800}.day .box .l{font-size:11px;color:#6b7280;margin-top:2px}
+  .cardx{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .cardx .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .cardx .cno{font-family:ui-monospace,monospace;font-size:13px;color:#334155}
+  .cardx .cli{font-size:15px;font-weight:700;margin-top:1px}
+  .cardx .meta{font-size:12px;color:#64748b;margin-top:3px}
+  .lamp{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+  .lamp.ahead{background:#dbeafe;color:var(--blue)}.lamp.ok{background:#dcfce7;color:var(--green)}
+  .lamp.behind{background:#fef3c7;color:var(--amber)}.lamp.bad{background:#fee2e2;color:var(--red)}
+  .nums{display:flex;align-items:center;gap:6px;margin:12px 0 4px}
+  .nums .seg{flex:1;background:#f8fafc;border-radius:12px;padding:9px;text-align:center}
+  .nums .seg .v{font-size:22px;font-weight:800}.nums .seg .k{font-size:11px;color:#6b7280}
+  .nums .arrow{color:#cbd5e1;font-size:18px}
+  .bar{height:9px;background:#eef2f7;border-radius:20px;overflow:hidden;margin:8px 0 12px}
+  .bar>i{display:block;height:100%;border-radius:20px}
+  .btn{display:block;width:100%;padding:13px;border-radius:12px;border:none;font-size:16px;font-weight:700;cursor:pointer}
+  .btn.blue{background:var(--blue);color:#fff}.btn.amber{background:#d97706;color:#fff}.btn.ghost{background:#f1f5f9;color:#475569}
+  /* bottom sheet */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:50}
+  .ov.open{display:block}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;max-height:94vh;overflow:auto;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto}
+  .sheet .grab{width:40px;height:4px;background:#e5e7eb;border-radius:20px;margin:2px auto 12px}
+  .sheet h3{margin:0 0 3px;font-size:17px}.sheet .st{font-size:12.5px;color:#6b7280;margin-bottom:14px}
+  .cum{font-size:12px;color:#475569;background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:16px;line-height:1.7}
+  .fld{margin-bottom:18px}
+  .fld>.lab{font-size:14px;font-weight:700;margin-bottom:8px}
+  .stepper{display:flex;align-items:center;justify-content:center;gap:14px}
+  .stepper button{width:52px;height:52px;border-radius:50%;border:2px solid #e5e7eb;background:#fff;font-size:26px;font-weight:700;color:#334155;cursor:pointer;line-height:1}
+  .stepper button:active{background:#f1f5f9}
+  .stepper .disp{min-width:96px;text-align:center}
+  .stepper .disp b{font-size:38px;font-weight:800;line-height:1}
+  .stepper .disp span{display:block;font-size:11px;color:#9ca3af}
+  .live{text-align:center;background:#f8fafc;border-radius:14px;padding:14px;margin-bottom:18px}
+  .live .big{font-size:40px;font-weight:900;line-height:1}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:9px 14px;border-radius:20px;border:1.5px solid #e5e7eb;background:#fff;font-size:14px;cursor:pointer}
+  .chip.on{border-color:var(--amber);background:#fffbeb;color:var(--amber);font-weight:700}
+  textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px;font-size:15px;font-family:inherit}
+  .rules{font-size:11.5px;color:#6b7280;line-height:1.9;margin:2px 2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">🔍 <b>手機示意預覽</b>：用來確認在案場用手機填順不順、欄位對不對。<b>資料是範例、按鈕不會真的存</b>。拍板後才寫正式版。</div>
+
+  <h1>今日施工回報</h1>
+  <div class="sub">2026-07-01 · 小組長在案場邊做邊填「目標幾片／完成幾片」</div>
+
+  <div class="day">
+    <div class="box"><div class="n">3</div><div class="l">今日派工案</div></div>
+    <div class="box"><div class="n" style="color:var(--green)">96%</div><div class="l">平均完工率</div></div>
+    <div class="box"><div class="n" style="color:var(--amber)">1</div><div class="l">落後案</div></div>
+  </div>
+
+  <div id="cards"></div>
+
+  <div class="rules">
+    燈號：<span class="lamp ahead">超前≥110%</span> <span class="lamp ok">達標90–110%</span> <span class="lamp behind">落後60–90%</span> <span class="lamp bad">嚴重落後&lt;60%</span><br>
+    ＋／－ 直接點，不用打字；落後才要選原因。完成後可自動連動業績、記點、案件進度。
+  </div>
+</div>
+
+<div class="ov" id="ov">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3 id="mT">回報今日產量</h3>
+    <div class="st" id="mS"></div>
+    <div class="cum" id="mCum"></div>
+
+    <div class="fld">
+      <div class="lab">今日目標（片）</div>
+      <div class="stepper">
+        <button onclick="step('t',-1)">−</button>
+        <div class="disp"><b id="tv">0</b><span>目標</span></div>
+        <button onclick="step('t',1)">＋</button>
+      </div>
+    </div>
+
+    <div class="fld">
+      <div class="lab">實際完成（片）</div>
+      <div class="stepper">
+        <button onclick="step('d',-1)">−</button>
+        <div class="disp"><b id="dv">0</b><span>完成</span></div>
+        <button onclick="step('d',1)">＋</button>
+      </div>
+    </div>
+
+    <div class="live">
+      <div class="big" id="pv">—</div>
+      <div id="lv" style="margin-top:6px"></div>
+    </div>
+
+    <div class="fld" id="rw" style="display:none">
+      <div class="lab">落後原因</div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="fld">
+      <div class="lab">備註（選填）</div>
+      <textarea id="note" rows="2" placeholder="例：系統櫃門片＋補條貼完，剩左右兩側明天收尾"></textarea>
+    </div>
+
+    <button class="btn amber" onclick="fakeSave()">儲存回報（示意）</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" onclick="closeM()">取消</button>
+  </div>
+</div>
+
+<script>
+const REASONS=['材料不足／未到','人力不足','現場太熱','難度高(折角/繞線)','客戶臨時追加','其他'];
+const DATA=[
+  {case_no:'HX2605-240',client:'九昱建設',leader:'呂紹銘',workers:3,target:12,done:9, total:40,cum:26},
+  {case_no:'HX2606-181',client:'亞士都飯店',leader:'陳怡仲(恰吉)',workers:2,target:8, done:8, total:22,cum:22},
+  {case_no:'HX2606-203',client:'某科技公司',leader:'呂紹銘',workers:4,target:15,done:17,total:60,cum:41},
+];
+function lampOf(p){if(p>=110)return['ahead','超前'];if(p>=90)return['ok','達標'];if(p>=60)return['behind','落後'];return['bad','嚴重落後'];}
+const COL={ahead:'#2563eb',ok:'#15803d',behind:'#b45309',bad:'#b91c1c'};
+function render(){
+  document.getElementById('cards').innerHTML=DATA.map((d,i)=>{
+    const p=d.target?Math.round(d.done/d.target*100):0;const[c,t]=lampOf(p);
+    return `<div class="cardx">
+      <div class="top">
+        <div><div class="cno">${d.case_no}</div><div class="cli">${d.client}</div>
+        <div class="meta">👷 ${d.leader}　·　${d.workers} 人</div></div>
+        <span class="lamp ${c}">${t} ${p}%</span>
+      </div>
+      <div class="nums">
+        <div class="seg"><div class="v">${d.target}</div><div class="k">今日目標(片)</div></div>
+        <div class="arrow">→</div>
+        <div class="seg"><div class="v" style="color:${COL[c]}">${d.done}</div><div class="k">實際完成(片)</div></div>
+      </div>
+      <div class="bar"><i style="width:${Math.min(p,100)}%;background:${COL[c]}"></i></div>
+      <button class="btn blue" onclick="openM(${i})">回報 / 修改</button>
+    </div>`;
+  }).join('');
+}
+let cur=null,tt=0,dd=0,reason='';
+function openM(i){
+  cur=DATA[i];tt=cur.target;dd=cur.done;reason='';
+  document.getElementById('mT').textContent=`${cur.case_no} ${cur.client}`;
+  document.getElementById('mS').textContent=`小組長 ${cur.leader} · ${cur.workers} 人 · 2026-07-01`;
+  document.getElementById('mCum').innerHTML=`本案累計：總 <b>${cur.total}</b> 片 · 已完成 <b>${cur.cum}</b> 片 · 剩 <b>${cur.total-cur.cum}</b> 片`;
+  document.getElementById('chips').innerHTML=REASONS.map(r=>`<span class="chip" onclick="pickR(this,'${r}')">${r}</span>`).join('');
+  document.getElementById('note').value='';
+  draw();
+  document.getElementById('ov').classList.add('open');
+}
+function closeM(){document.getElementById('ov').classList.remove('open');}
+function step(k,delta){if(k==='t')tt=Math.max(0,tt+delta);else dd=Math.max(0,dd+delta);draw();}
+function pickR(el,r){document.querySelectorAll('#chips .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');reason=r;}
+function draw(){
+  document.getElementById('tv').textContent=tt;
+  document.getElementById('dv').textContent=dd;
+  const p=tt?Math.round(dd/tt*100):0;const[c,t]=lampOf(p);
+  document.getElementById('pv').textContent=tt?p+'%':'—';
+  document.getElementById('pv').style.color=COL[c];
+  document.getElementById('lv').innerHTML=tt?`<span class="lamp ${c}">${t}</span>`:'';
+  document.getElementById('rw').style.display=(tt&&p<90)?'block':'none';
+}
+function fakeSave(){alert('（示意）已回報！\\n\\n正式版會存進資料庫、更新看板，並自動連動業績與記點。這是預覽畫面，先不真的存。');closeM();}
+render();
+</script>
+</body>
+</html>
