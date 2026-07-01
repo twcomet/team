@@ -94,12 +94,20 @@
   <div id="v2" style="display:none">
     <h1>施工前確認</h1><div class="sub">HX2606-124 · 小組長 呂紹銘 交代並指定執行人；全部落實才能開工</div>
 
-    <div class="box"><div class="h">🎒 應帶物品清單<span class="who" style="color:var(--blue)">負責：<u onclick="pickWho(this)">偉宏</u></span></div>
+    <div class="box"><div class="h">👥 行前分工（先定人，點師傅不打字）</div>
+      <div class="lab">每個報價項目要誰貼（可複選）</div>
+      <div id="itemDiv"></div>
+      <div style="border-top:1px solid #f1f5f9;margin:10px 0"></div>
+      <div id="roleDiv"></div>
+      <div class="hint">👇 定好負責人後，底下「應帶物品」「材料領用」就由對應負責人去準備</div>
+    </div>
+
+    <div class="box"><div class="h">🎒 應帶物品清單<span class="who" style="color:var(--blue)">負責（誰備料）：<u onclick="pickWho(this)">呂紹銘</u></span></div>
       <div id="bring"></div>
       <div class="row" style="margin-top:8px"><input type="text" placeholder="新增應帶物品…"><button class="btn sm" onclick="return false">＋</button></div>
     </div>
 
-    <div class="box"><div class="h">📦 材料領用<span class="who" style="color:var(--blue)">負責：<u onclick="pickWho(this)">呂紹銘</u></span></div>
+    <div class="box"><div class="h">📦 材料領用<span class="who" style="color:var(--blue)">負責（誰備料）：<u onclick="pickWho(this)">呂紹銘</u></span></div>
       <div class="lab">本案已指定材料（點選要領用的，只顯示型號無金額）</div>
       <div id="mats"></div>
       <div class="row" style="margin:8px 0"><input type="text" placeholder="找不到？輸入材料編號搜尋…"><button class="btn sm" onclick="return false">搜</button></div>
@@ -110,12 +118,6 @@
     <div class="box"><div class="h">✅ 材料準備了沒</div>
       <div class="toggle"><div class="t" onclick="tg(this)">已備妥</div><div class="t" onclick="tg(this)">尚缺</div></div></div>
 
-    <div class="box"><div class="h">👥 行前分工（點師傅，不打字）</div>
-      <div class="lab">每個報價項目要誰貼（可複選）</div>
-      <div id="itemDiv"></div>
-      <div style="border-top:1px solid #f1f5f9;margin:10px 0"></div>
-      <div id="roleDiv"></div>
-    </div>
     <button class="btn green" onclick="go(3)">行前完成 → 去完工回報</button>
   </div>
 
