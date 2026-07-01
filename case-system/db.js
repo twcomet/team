@@ -1672,6 +1672,28 @@ db.exec(`
   )
 `);
 
+// 施工完工回報（第二階段 2a）：師傅從「我的任務」填、辦公室看得到。獨立表，不碰既有派工/計價/庫存
+db.exec(`
+  CREATE TABLE IF NOT EXISTS work_reports (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id        INTEGER REFERENCES cases(id),
+    dispatch_id    INTEGER,
+    report_date    DATE,
+    reporter_id    INTEGER REFERENCES users(id),
+    driver_ids       TEXT,   -- 誰開車（JSON 使用者id陣列）
+    prepper_ids      TEXT,   -- 誰準備材料
+    photographer_ids TEXT,   -- 誰拍照
+    photos_uploaded  INTEGER DEFAULT 0,  -- 照片已上傳雲端
+    progress_pct     INTEGER,            -- 整體完工進度%
+    notes            TEXT,
+    status         TEXT DEFAULT 'submitted',
+    submitted_at   DATETIME,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(dispatch_id, reporter_id)
+  )
+`);
+
 // 狀態流程追蹤欄位（步驟時間戳記 + 承辦人）
 _addCol('cases', 'surveyed_at',         'DATETIME');
 _addCol('cases', 'quote_draft_at',      'DATETIME');

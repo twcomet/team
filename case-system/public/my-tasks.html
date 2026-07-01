@@ -214,9 +214,36 @@
   <div class="modal" style="max-width:460px;max-height:88vh;overflow:auto">
     <div class="modal-header"><div class="modal-title" id="tcm-title">案件說明</div><button class="modal-close" onclick="closeTaskCard()">×</button></div>
     <div class="modal-body" id="tcm-body" style="font-size:14px;line-height:1.9"></div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTaskCard()">關閉</button><a id="tcm-open" class="btn btn-primary" href="#">開啟完整案件 →</a></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTaskCard()">關閉</button><button id="tcm-report" class="btn" style="display:none;background:#16a34a;color:#fff" onclick="openReport()">📝 完工回報</button><a id="tcm-open" class="btn btn-primary" href="#">開啟完整案件 →</a></div>
   </div>
 </div>
+
+<!-- 完工回報 modal（第二階段2a：師傅填） -->
+<div id="reportModal" class="modal-overlay" onclick="if(event.target===this)closeReport()">
+  <div class="modal" style="max-width:460px;max-height:90vh;overflow:auto">
+    <div class="modal-header"><div class="modal-title" id="rp-title">完工回報</div><button class="modal-close" onclick="closeReport()">×</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px">在案場邊做邊填，送出後辦公室看得到。</div>
+      <div class="rp-fld"><div class="rp-lab">🚗 今天誰開車（可複選）</div><div class="chips" id="rp-driver"></div></div>
+      <div class="rp-fld"><div class="rp-lab">📦 誰準備材料（可複選）</div><div class="chips" id="rp-prepper"></div></div>
+      <div class="rp-fld"><div class="rp-lab">📷 誰拍照（可複選）</div><div class="chips" id="rp-photographer"></div></div>
+      <div class="rp-fld"><div class="rp-lab">☁️ 照片上傳雲端</div>
+        <div class="rp-toggle"><div class="rp-t" data-v="1" onclick="rpTog(this)">✓ 已上傳</div><div class="rp-t" data-v="0" onclick="rpTog(this)">尚未上傳</div></div></div>
+      <div class="rp-fld"><div class="rp-lab">📐 整體完工進度：<b id="rp-pctv" style="color:#16a34a">0%</b></div>
+        <input type="range" id="rp-pct" min="0" max="100" step="5" value="0" style="width:100%" oninput="document.getElementById('rp-pctv').textContent=this.value+'%'"></div>
+      <div class="rp-fld"><div class="rp-lab">備註（選填）</div><textarea id="rp-notes" rows="2" style="width:100%;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px;font-family:inherit" placeholder="例：系統櫃門片貼完，剩左右兩側明天收尾"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeReport()">取消</button><button id="rp-submit" class="btn" style="background:#16a34a;color:#fff" onclick="submitReport()">送出完工回報</button></div>
+  </div>
+</div>
+<style>
+  .rp-fld{margin-bottom:16px}.rp-lab{font-size:13.5px;font-weight:700;margin-bottom:7px}
+  #reportModal .chips{display:flex;flex-wrap:wrap;gap:7px}
+  #reportModal .chip{padding:7px 13px;border-radius:20px;border:1.5px solid var(--gray-200);background:#fff;font-size:14px;cursor:pointer;user-select:none}
+  #reportModal .chip.on{border-color:#16a34a;background:#f0fdf4;color:#16a34a;font-weight:700}
+  .rp-toggle{display:flex;gap:8px}.rp-t{flex:1;text-align:center;padding:9px;border-radius:10px;border:1.5px solid var(--gray-200);font-size:13.5px;cursor:pointer}
+  .rp-t.on{border-color:#16a34a;background:#f0fdf4;color:#16a34a;font-weight:700}
+</style>
 
 <script src="/js/common.js"></script>
 <script>
@@ -360,9 +387,56 @@ function openTaskCard(id) {
   document.getElementById('tcm-body').innerHTML = h || '<span style="color:var(--gray-400)">（尚無派工說明）</span>';
   const th = primaryTheme(t);
   document.getElementById('tcm-open').href = (th && th.url) ? th.url(t) : `/case-detail?id=${t.id}`;
+  const rpBtn = document.getElementById('tcm-report');
+  if (t.next_dispatch_id) { rpBtn.style.display = ''; window._rpTask = { dispatch_id: t.next_dispatch_id, case_id: t.id, title: `${t.case_number} ${t.title||''}` }; }
+  else { rpBtn.style.display = 'none'; window._rpTask = null; }
   document.getElementById('taskCardModal').classList.add('open');
 }
 function closeTaskCard() { document.getElementById('taskCardModal').classList.remove('open'); }
+
+// ── 完工回報（第二階段2a）─────────────────────────────────────
+let _crewCache = null;
+async function loadCrew() { if (_crewCache) return _crewCache; try { _crewCache = await fetch('/api/work-reports/crew').then(r => r.ok ? r.json() : []); } catch(e) { _crewCache = []; } return _crewCache; }
+function rpChips(id, crew, selectedIds) {
+  const sel = new Set((selectedIds || []).map(Number));
+  document.getElementById(id).innerHTML = crew.length
+    ? crew.map(c => `<span class="chip${sel.has(c.id)?' on':''}" data-id="${c.id}" onclick="this.classList.toggle('on')">${c.name}</span>`).join('')
+    : '<span style="font-size:12px;color:var(--gray-400)">（無可派工人員名單）</span>';
+}
+function rpGet(id) { return [...document.querySelectorAll(`#${id} .chip.on`)].map(el => Number(el.dataset.id)); }
+function rpTog(el) { el.parentElement.querySelectorAll('.rp-t').forEach(x => x.classList.remove('on')); el.classList.add('on'); }
+async function openReport() {
+  const task = window._rpTask; if (!task) return;
+  closeTaskCard();
+  document.getElementById('rp-title').textContent = `完工回報 · ${task.title}`;
+  const crew = await loadCrew();
+  let mine = null; try { mine = await fetch(`/api/work-reports/mine?dispatch_id=${task.dispatch_id}`).then(r => r.ok ? r.json() : null); } catch(e) {}
+  const parse = s => { try { return JSON.parse(s || '[]'); } catch(e) { return []; } };
+  rpChips('rp-driver', crew, mine ? parse(mine.driver_ids) : []);
+  rpChips('rp-prepper', crew, mine ? parse(mine.prepper_ids) : []);
+  rpChips('rp-photographer', crew, mine ? parse(mine.photographer_ids) : []);
+  const up = mine ? (mine.photos_uploaded ? 1 : 0) : 0;
+  document.querySelectorAll('#reportModal .rp-t').forEach(t => t.classList.toggle('on', Number(t.dataset.v) === up));
+  const pct = (mine && mine.progress_pct != null) ? mine.progress_pct : 0;
+  document.getElementById('rp-pct').value = pct; document.getElementById('rp-pctv').textContent = pct + '%';
+  document.getElementById('rp-notes').value = mine ? (mine.notes || '') : '';
+  document.getElementById('reportModal').classList.add('open');
+}
+function closeReport() { document.getElementById('reportModal').classList.remove('open'); }
+async function submitReport() {
+  const task = window._rpTask; if (!task) return;
+  const btn = document.getElementById('rp-submit'); btn.disabled = true; btn.textContent = '送出中…';
+  const upEl = document.querySelector('#reportModal .rp-t.on');
+  const body = { dispatch_id: task.dispatch_id, case_id: task.case_id, report_date: new Date().toISOString().slice(0,10),
+    driver_ids: rpGet('rp-driver'), prepper_ids: rpGet('rp-prepper'), photographer_ids: rpGet('rp-photographer'),
+    photos_uploaded: upEl ? Number(upEl.dataset.v) : 0, progress_pct: Number(document.getElementById('rp-pct').value) || 0,
+    notes: document.getElementById('rp-notes').value.trim() || null };
+  try {
+    const r = await fetch('/api/work-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (r.ok) { showToast('✅ 完工回報已送出'); closeReport(); }
+    else { btn.disabled = false; btn.textContent = '送出完工回報'; showToast('送出失敗', 'error'); }
+  } catch(e) { btn.disabled = false; btn.textContent = '送出完工回報'; showToast('送出失敗', 'error'); }
+}
 
 function renderSection(label, cls, list) {
   if (!list.length) return '';

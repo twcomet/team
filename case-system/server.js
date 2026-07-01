@@ -86,6 +86,7 @@ app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
 app.use('/api/subcontract',           require('./routes/subcontract'));
 app.use('/api/material-usage',        require('./routes/material-usage'));
+app.use('/api/work-reports',          require('./routes/work-reports'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
 app.use('/api/staff-performance',     require('./routes/staff-performance'));
