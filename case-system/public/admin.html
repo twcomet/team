@@ -1041,6 +1041,8 @@ function applyRoleDefaults(roleValue) {
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
     const isHQ = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
+    // 🔒 技術/施工/經銷不可看業績（總覽），預設不勾
+    const noBiz = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'].includes(roleValue);
     document.getElementById('userIsManager').checked              = false;
     document.getElementById('userCanSeeAmounts').checked          = false;
     document.getElementById('userCanDelete').checked              = false;
@@ -1049,7 +1051,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('userCanManageAssets').checked        = false;
     document.getElementById('userCanShip').checked                = false;
     document.getElementById('userCanLayout').checked              = false;
-    document.getElementById('perm_page_dashboard').checked        = !isContractor;
+    document.getElementById('perm_page_dashboard').checked        = !isContractor && !noBiz;
     document.getElementById('perm_page_cases').checked            = !isContractor;
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
     document.getElementById('perm_page_clients').checked          = !isContractor;

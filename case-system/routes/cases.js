@@ -1078,6 +1078,10 @@ router.post('/:id/initial-estimates', requireAuth, (req, res) => {
 // ── 統計 ─────────────────────────────────────────────────────
 router.get('/stats/summary', requireAuth, (req, res) => {
   const me = req.session.user;
+  // 🔒 機密鐵律：技術/施工/經銷不可看業績統計（總覽數字）
+  if (['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'].includes(me.role)) {
+    return res.status(403).json({ error: '無權限' });
+  }
   const { sql: orgSql2, params: orgPs2 } = orgFilterSQL(me, 'c.org_id');
   const orgCond = orgSql2 ? `AND ${orgSql2}` : '';
   const today = new Date().toISOString().split('T')[0];

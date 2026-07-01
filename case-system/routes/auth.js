@@ -20,6 +20,8 @@ router.post('/login', (req, res) => {
   const isOwner = user.role === 'owner';
   const RESTRICTED_ROLES = ['contractor_install','contractor_sales','dealer'];
   const isContractor = RESTRICTED_ROLES.includes(user.role);
+  // 🔒 機密鐵律：技術/施工/經銷角色絕不可看業績/財務（總覽/業績/財務），強制關閉不論後台如何設定
+  const noBiz = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'].includes(user.role);
   const perms = user.permissions ? JSON.parse(user.permissions) : {};
 
   // 從 role_defaults 資料表讀取管理員在後台設定的角色預設（內建角色）
@@ -61,7 +63,7 @@ router.post('/login', (req, res) => {
     manage_users: def.manageUsers,
     manage_orgs: def.manageOrgs,
     permissions: {
-      page_dashboard:      perm('page_dashboard',   user.role === 'hq_accounting'),
+      page_dashboard:      !noBiz && perm('page_dashboard',   user.role === 'hq_accounting'),
       page_cases:          perm('page_cases'),
       page_line_inquiries: perm('page_line_inquiries'),
       page_clients:        perm('page_clients'),
@@ -74,8 +76,8 @@ router.post('/login', (req, res) => {
       page_cases_deal:     perm('page_cases_deal',  ['vp','hq_cs','hq_sales','hq_accounting','hq_hr'].includes(user.role)),
       page_materials:      perm('page_materials',   def.manageUsers),
       page_material_calc:  perm('page_material_calc', true),
-      page_performance:    perm('page_performance', def.manageUsers),
-      page_reports:        perm('page_reports',     def.manageUsers),
+      page_performance:    !noBiz && perm('page_performance', def.manageUsers),
+      page_reports:        !noBiz && perm('page_reports',     def.manageUsers),
       page_marketing:      perm('page_marketing',   def.manageUsers),
       page_admin:          def.manageUsers,
       my_tasks:            perm('my_tasks',          isContractor),

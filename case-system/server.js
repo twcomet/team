@@ -146,6 +146,12 @@ function requirePagePerm(page) {
     if (u.role === 'owner') return next();
     const key = PAGE_PERMS[page];
     if (!key) return next();
+    // 🔒 機密鐵律：技術/施工/經銷角色絕不可看業績/財務頁（總覽/業績/財務），
+    //    以「角色」硬擋，即使 session 殘留舊權限或個人權限被誤設也擋掉
+    const NO_BIZ_ROLES = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'];
+    if (['page_dashboard','page_performance','page_reports'].includes(key) && NO_BIZ_ROLES.includes(u.role)) {
+      return res.redirect('/my-tasks');
+    }
     const p = u.permissions || {};
     let allowed;
     if (key === 'manage_users') {
