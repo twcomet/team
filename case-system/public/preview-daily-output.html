@@ -93,22 +93,27 @@
 
   <!-- ② 施工前 -->
   <div id="v2" style="display:none">
-    <h1>施工前確認</h1><div class="sub">HX2606-124 · 小組長 呂紹銘 交代並指定執行人；全部落實才能開工</div>
+    <h1>施工前確認</h1><div class="sub">先定角色分工 → 再由負責人準備材料 · 小組長 呂紹銘</div>
 
-    <div class="box"><div class="h">👥 行前分工（先定人，點師傅不打字）</div>
-      <div class="lab">每個報價項目要誰貼（可複選）</div>
-      <div id="itemDiv"></div>
-      <div style="border-top:1px solid #f1f5f9;margin:10px 0"></div>
+    <div class="box"><div class="h">👥 行前分工（角色指派，點師傅不打字）</div>
       <div id="roleDiv"></div>
-      <div class="hint">👇 定好負責人後，底下「應帶物品」「材料領用」就由對應負責人去準備</div>
+      <div class="hint">驗收檢查預設＝小組長；「誰備料」不另設，由下方材料區負責</div>
     </div>
 
-    <div class="box"><div class="h">🎒 應帶物品清單<span class="who" style="color:var(--blue)">負責（誰備料）：<u onclick="pickWho(this)">呂紹銘</u></span></div>
+    <div class="box"><div class="h">🧩 貼附項目（誰貼哪項·暫行）</div>
+      <div class="lab">每個報價項目要誰貼（可複選）</div>
+      <div id="itemDiv"></div>
+      <div class="hint">⚠️ 目前沒有展開圖，先手動指派；之後上傳展開圖就能精準對到每項/每塊負責人</div>
+    </div>
+
+    <div style="text-align:center;color:#94a3b8;font-size:12.5px;margin:2px 0 10px">— 材料相關：備料 → 領料 → 準備狀況 —</div>
+
+    <div class="box"><div class="h">🎒 備料 · 應帶物品清單</div>
       <div id="bring"></div>
       <div class="row" style="margin-top:8px"><input type="text" placeholder="新增應帶物品…"><button class="btn sm" onclick="return false">＋</button></div>
     </div>
 
-    <div class="box"><div class="h">📦 材料領用<span class="who" style="color:var(--blue)">負責（誰備料）：<u onclick="pickWho(this)">呂紹銘</u></span></div>
+    <div class="box"><div class="h">📦 領料 · 材料領用</div>
       <div class="lab">本案已指定材料（點選要領用的，只顯示型號無金額）</div>
       <div id="mats"></div>
       <div class="row" style="margin:8px 0"><input type="text" placeholder="找不到？輸入材料編號搜尋…"><button class="btn sm" onclick="return false">搜</button></div>
@@ -116,7 +121,7 @@
       <div class="hint">正式版：直接在案件裡領用，不用跑回左側膜料使用記錄。</div>
     </div>
 
-    <div class="box"><div class="h">✅ 材料準備了沒</div>
+    <div class="box"><div class="h">✅ 材料準備狀況</div>
       <div class="toggle"><div class="t" onclick="tg(this)">已備妥</div><div class="t" onclick="tg(this)">尚缺</div></div></div>
 
     <button class="btn green" onclick="go(3)">行前完成 → 開始施工</button>
@@ -126,6 +131,11 @@
   <div id="vmid" style="display:none">
     <h1>施工中</h1><div class="sub">邊做邊看：項目／區塊／材料／負責人＋展開圖。點展開圖上的區塊＝已領/已貼那支料</div>
     <div id="midCards"></div>
+    <div class="box" style="border:2px solid #bfdbfe;background:#f5f9ff">
+      <div class="h">📊 目前完工進度（依勾選區塊自動算）</div>
+      <div id="midProg" style="text-align:center;font-size:34px;font-weight:900;color:var(--blue)">0%</div>
+      <div class="hint" style="text-align:center">送「施工完成」後，這個進度與各項才數會自動帶入「完工回報」</div>
+    </div>
     <button class="btn green" onclick="go(4)">施工完成 → 完工回報</button>
   </div>
 
@@ -254,7 +264,10 @@ function buildMid(){document.getElementById('midCards').innerHTML=ITEMS.map(it=>
 }).join('');}
 function tgBlk(el,k){el.classList.toggle('on');el.textContent=el.classList.contains('on')?'✓ '+el.textContent.replace('✓ ',''):el.textContent.replace('✓ ','');
   const box=el.closest('.box');const n=box.querySelectorAll('.chip.on').length;const tot=(BLOCKS[k]||[]).length;
-  document.getElementById('prog'+k).textContent=`已領 ${n} / ${tot}`;}
+  document.getElementById('prog'+k).textContent=`已領 ${n} / ${tot}`;
+  const allChk=document.querySelectorAll('#midCards .chip.on').length;
+  const allTot=Object.values(BLOCKS).reduce((s,a)=>s+a.length,0);
+  document.getElementById('midProg').textContent=Math.round(allChk/allTot*100)+'%';}
 function openSum(){document.getElementById('ov').classList.add('open');}
 function closeSum(){document.getElementById('ov').classList.remove('open');}
 function tg(el){el.parentElement.querySelectorAll('.t').forEach(t=>t.classList.remove('on'));el.classList.add('on');}
@@ -268,8 +281,8 @@ function applyMat(){const n=document.querySelectorAll('#mats .matline.on').lengt
 // item division
 document.getElementById('itemDiv').innerHTML=ITEMS.map((it,i)=>`<div style="margin-bottom:10px"><div class="lab" style="margin-bottom:5px"><b>${it[0]}</b> ${it[1]}</div><div class="chips" data-item="${i}">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.classList.toggle('on')">${n}</span>`).join('')}</div></div>`).join('');
 // roles
-const ROLES=['🚗 誰開車','📦 誰備料','📷 誰拍照','🧰 行前前置','🔍 驗收檢查'];
-document.getElementById('roleDiv').innerHTML=ROLES.map(r=>`<div style="margin-bottom:9px"><div class="lab" style="margin-bottom:5px">${r}（指定負責人）</div><div class="chips">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));this.classList.add('on')">${n}</span>`).join('')}</div></div>`).join('');
+const ROLES=[['🚗 誰開車',''],['🧰 行前前置作業',''],['📷 誰拍照',''],['🔍 驗收檢查','呂紹銘']];
+document.getElementById('roleDiv').innerHTML=ROLES.map(([r,def])=>`<div style="margin-bottom:11px"><div class="lab" style="margin-bottom:5px">${r}（指定負責人）${def?' <span style="color:#b45309">預設小組長</span>':''}</div><div class="chips">${CREW.slice(0,4).map(n=>`<span class="chip sm ${n===def?'on':''}" onclick="this.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));this.classList.add('on')">${n}</span>`).join('')}</div></div>`).join('');
 // completion piece mode
 let tt=12,dd=9;
 function lampOf(p){if(p>=110)return['ahead','超前'];if(p>=90)return['ok','達標'];if(p>=60)return['behind','落後'];return['bad','嚴重落後'];}
