@@ -401,16 +401,20 @@ function render(){
 
 async function saveQuote(status){
  if(!CART.length){alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return;}
- var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
- var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
-   customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
-   items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
- var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
  try{
+   var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
+   var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
+     customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
+     items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
+   var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    var j=await r.json();
-   if(r.ok){ editId=editId||j.id; document.getElementById('ec-status').textContent='✓ 已儲存（估價單 #'+editId+'，總額 '+NT(j.total)+'）'; }
-   else alert('儲存失敗：'+(j.error||''));
+   if(r.ok){ editId=editId||j.id;
+     var msg='✓ 已儲存估價單 #'+editId+'（總額 '+NT(j.total)+'）'+(ECASE?'，已同步到案件':'');
+     document.getElementById('ec-status').textContent=msg;
+     alert(msg+'\n\n可到左側「估價單查詢」查看。');
+   }
+   else alert('儲存失敗：'+(j.error||('伺服器回應 '+r.status)));
  }catch(e){ alert('儲存失敗：'+e.message); }
 }
 
