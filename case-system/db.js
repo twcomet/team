@@ -671,6 +671,7 @@ _addCol('ledger_entries', 'client_id',    "INTEGER REFERENCES clients(id) DEFAUL
 _addCol('ledger_entries', 'sub_category', "TEXT DEFAULT NULL");  // 種類/部位（內部分析用）
 _addCol('ledger_entries', 'review_status', "TEXT DEFAULT 'approved'");  // approved=已入帳 / pending=待會計審核 / rejected=已退回；自動產生的帳預設pending、會計手動帳approved
 _addCol('ledger_entries', 'brand',        "TEXT DEFAULT NULL");  // 品牌（內部分析用）
+_addCol('ledger_entries', 'payee_info',   "TEXT DEFAULT NULL");  // 廠商收款資訊（手動填寫，付款時參考：匯款帳號/收款方式等）
 
 // 初始會計科目（只在空的時候 seed）
 const catExists = db.prepare(`SELECT id FROM ledger_categories LIMIT 1`).get();

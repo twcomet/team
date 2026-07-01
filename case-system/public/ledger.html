@@ -416,6 +416,12 @@
         <div id="vendorBankHint" style="font-size:11px;color:var(--gray-500);margin-top:3px;display:none"></div>
       </div>
 
+      <!-- 廠商收款資訊（支出才顯示，手動填寫，付款時參考） -->
+      <div class="form-group" id="payeeInfoRow" style="display:none">
+        <label>廠商收款資訊 <span style="font-size:11px;color:var(--gray-400)">付款時參考：匯款帳號 / 收款方式 / 抬頭等（可留空）</span></label>
+        <textarea id="ledgerPayeeInfo" rows="3" style="width:100%;resize:vertical" placeholder="例：合庫 006 帳號 1234567890　戶名 芙緹精緻窗簾有限公司　／　現金付款　／　LINE Pay 轉帳…"></textarea>
+      </div>
+
       <!-- 客戶（收入才顯示） -->
       <div class="form-group" id="clientRow" style="display:none;position:relative">
         <label>客戶（選填）</label>
@@ -875,7 +881,7 @@ function renderTable(rows) {
         </select>
       </td>
       <td style="color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.description||'').replace(/"/g,'&quot;')}">${r.description||'—'}</td>
-      <td style="font-size:12px;color:var(--gray-600);white-space:nowrap">${r.type==='expense'?(r.vendor||'—'):(r.client_name||'—')}</td>
+      <td style="font-size:12px;color:var(--gray-600)">${r.type==='expense'?(r.vendor||'—'):(r.client_name||'—')}${r.type==='expense'&&r.payee_info?`<br><span style="font-size:10px;color:#047857" title="${String(r.payee_info).replace(/"/g,'&quot;')}">💳 ${String(r.payee_info).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,' ').slice(0,20)}${String(r.payee_info).length>20?'…':''}</span>`:''}</td>
       <td>${r.case_number?`<a href="/case-detail?id=${r.case_id}&tab=payment" target="_blank" style="font-size:11px;font-family:monospace;color:var(--primary);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.case_number}</a>`:'—'}</td>
       <td style="font-size:12px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.org_name||'').replace(/"/g,'&quot;')}">${shortOrg(r.org_name)}</td>
       <td style="text-align:right" class="ledger-income">${r.type==='income'?fmt(r.amount):''}</td>
@@ -946,6 +952,7 @@ function updateCategoryOptions() {
 
   document.getElementById('payStatusRow').style.display = isExp ? '' : 'none';
   document.getElementById('vendorRow').style.display     = isExp ? '' : 'none';
+  document.getElementById('payeeInfoRow').style.display  = isExp ? '' : 'none';
   document.getElementById('clientRow').style.display     = isExp ? 'none' : '';
   document.getElementById('analysisRow').style.display   = isExp ? 'none' : '';
   const isPending = isExp && document.getElementById('payStatusPending').checked;
@@ -1028,6 +1035,8 @@ function openLedgerModal(arg=null) {
   // 廠商
   document.getElementById('ledgerVendor').value = entry?.vendor || '';
   onVendorChange();
+  // 廠商收款資訊
+  document.getElementById('ledgerPayeeInfo').value = entry?.payee_info || '';
   // 客戶
   document.getElementById('ledgerClientSearch').value = entry?.client_name || '';
   document.getElementById('ledgerClientId').value = entry?.client_id || '';
@@ -1104,6 +1113,7 @@ async function saveLedgerEntry() {
     client_id:     document.getElementById('ledgerClientId').value || null,
     sub_category:  document.getElementById('ledgerSubCategory').value || null,
     brand:         document.getElementById('ledgerBrand').value || null,
+    payee_info:    document.getElementById('ledgerPayeeInfo').value.trim() || null,
   };
   if (!body.date) return showToast('請填寫日期', 'error');
   if (!body.category) return showToast('請選擇科目', 'error');
@@ -1150,6 +1160,9 @@ function renderPendingPanel() {
     const bankLine  = bankParts.length
       ? `<div class="pi-bank">🏦 ${bankParts.join('　')}</div>`
       : '';
+    const payeeLine = r.payee_info
+      ? `<div class="pi-bank" style="color:#047857">💳 ${String(r.payee_info).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\n/g,'　')}</div>`
+      : '';
     return `
     <div class="pending-item">
       <div class="pi-row">
@@ -1162,6 +1175,7 @@ function renderPendingPanel() {
                 onclick="markAsPaid(${r.id})">付款</button>
       </div>
       ${bankLine}
+      ${payeeLine}
     </div>`;
   }).join('');
 }
@@ -1182,8 +1196,11 @@ function markAsPaid(id) {
   const bankHtml  = bankParts.length
     ? `<br><span style="font-size:12px;background:#fef3c7;border-radius:4px;padding:2px 8px;display:inline-block;margin-top:4px">🏦 ${bankParts.join('　')}</span>`
     : '';
+  const payeeHtml = (entry && entry.payee_info)
+    ? `<div style="margin-top:8px;padding:8px 10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;font-size:13px;line-height:1.6"><strong style="color:#047857">💳 廠商收款資訊</strong><br><span style="white-space:pre-wrap">${String(entry.payee_info).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</span></div>`
+    : '';
   document.getElementById('payModalInfo').innerHTML = entry
-    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}${bankHtml}`
+    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}${bankHtml}${payeeHtml}`
     : `ID: ${id}`;
   document.getElementById('payNote').value = '';
   document.getElementById('payActualDate').value = new Date().toISOString().slice(0, 10);
