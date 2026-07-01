@@ -171,6 +171,8 @@ tr:hover td { background: #eef2ff !important; }
   flex-direction: column; gap: 5px; margin-right: 12px;
 }
 .mobile-menu-btn span { display: block; width: 22px; height: 2px; background: currentColor; border-radius: 2px; transition: all .2s; }
+/* 無 top-bar 的頁面（個人資料/合約/使用說明）用浮動漢堡，避免手機上無法叫出選單被困住 */
+.mobile-menu-btn-floating { position: fixed; top: 10px; left: 10px; z-index: 101; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.18); margin-right: 0; }
 .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
 .sidebar-backdrop.open { display: block; }
 

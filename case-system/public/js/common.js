@@ -129,18 +129,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── 手機版漢堡選單 ──────────────────────────────────────
   const topBar  = document.querySelector('.top-bar');
   const sidebar = document.querySelector('.sidebar');
-  if (topBar && sidebar) {
+  if (sidebar) {
     // 注入背景遮罩
     const backdrop = document.createElement('div');
     backdrop.className = 'sidebar-backdrop';
     document.body.appendChild(backdrop);
 
-    // 注入漢堡按鈕（插在 top-bar 最前面）
+    // 注入漢堡按鈕；有 top-bar 就插進去，沒有 top-bar 的頁面（個人資料/合約/使用說明）
+    // 改用浮動按鈕，避免手機上叫不出選單、被困在該頁回不去
     const btn = document.createElement('button');
     btn.className = 'mobile-menu-btn';
     btn.setAttribute('aria-label', '選單');
     btn.innerHTML = '<span></span><span></span><span></span>';
-    topBar.insertBefore(btn, topBar.firstChild);
+    if (topBar) topBar.insertBefore(btn, topBar.firstChild);
+    else { btn.classList.add('mobile-menu-btn-floating'); document.body.appendChild(btn); }
 
     const openSidebar  = () => { sidebar.classList.add('open');  backdrop.classList.add('open'); };
     const closeSidebar = () => { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
