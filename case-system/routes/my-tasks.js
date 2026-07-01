@@ -40,7 +40,19 @@ router.get('/', requireAuth, (req, res) => {
            CASE WHEN EXISTS (
              SELECT 1 FROM notifications n
              WHERE n.user_id = ? AND n.entity = 'cases' AND n.entity_id = c.id AND n.type = 'assign'
-           ) THEN 1 ELSE 0 END AS was_assigned
+           ) THEN 1 ELSE 0 END AS was_assigned,
+           CASE WHEN EXISTS (
+             SELECT 1 FROM user_task_dismissals utd
+             WHERE utd.user_id = ? AND utd.case_id = c.id
+             AND NOT EXISTS (
+               SELECT 1 FROM dispatches d2 JOIN dispatch_users du2 ON du2.dispatch_id = d2.id
+               WHERE d2.case_id = c.id AND du2.user_id = ? AND d2.status NOT IN ('cancelled') AND d2.created_at > utd.dismissed_at
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM notifications n2
+               WHERE n2.user_id = ? AND n2.entity = 'cases' AND n2.entity_id = c.id AND n2.created_at > utd.dismissed_at
+             )
+           ) THEN 1 ELSE 0 END AS is_done
     FROM cases c
     LEFT JOIN clients cl ON c.client_id = cl.id
     LEFT JOIN survey_forms sf ON sf.case_id = c.id
@@ -56,22 +68,6 @@ router.get('/', requireAuth, (req, res) => {
           WHERE n.user_id = ? AND n.entity = 'cases' AND n.entity_id = c.id AND n.type = 'assign'
         )
       )
-      AND NOT EXISTS (
-        SELECT 1 FROM user_task_dismissals utd
-        WHERE utd.user_id = ? AND utd.case_id = c.id
-        AND NOT EXISTS (
-          SELECT 1 FROM dispatches d2
-          JOIN dispatch_users du2 ON du2.dispatch_id = d2.id
-          WHERE d2.case_id = c.id AND du2.user_id = ?
-            AND d2.status NOT IN ('cancelled')
-            AND d2.created_at > utd.dismissed_at
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM notifications n2
-          WHERE n2.user_id = ? AND n2.entity = 'cases' AND n2.entity_id = c.id
-            AND n2.created_at > utd.dismissed_at
-        )
-      )
     ORDER BY
       CASE WHEN c.scheduled_date IS NOT NULL THEN c.scheduled_date ELSE '9999-12-31' END ASC,
       c.created_at DESC
@@ -79,7 +75,7 @@ router.get('/', requireAuth, (req, res) => {
   res.json(tasks);
 });
 
-// ── 標記已完成（暫時隱藏，直到有新指派）─────────────────────
+// ── 標記已完成（移到「已完成」區，不消失、可再打開）─────────────
 router.post('/:caseId/dismiss', requireAuth, (req, res) => {
   const uid = req.session.user.id;
   const caseId = parseInt(req.params.caseId);
@@ -88,6 +84,15 @@ router.post('/:caseId/dismiss', requireAuth, (req, res) => {
     INSERT OR REPLACE INTO user_task_dismissals (user_id, case_id, dismissed_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
   `).run(uid, caseId);
+  res.json({ ok: true });
+});
+
+// ── 取消完成（把任務從「已完成」拉回進行中）───────────────────
+router.post('/:caseId/undismiss', requireAuth, (req, res) => {
+  const uid = req.session.user.id;
+  const caseId = parseInt(req.params.caseId);
+  if (!caseId) return res.status(400).json({ error: 'invalid id' });
+  db.prepare(`DELETE FROM user_task_dismissals WHERE user_id=? AND case_id=?`).run(uid, caseId);
   res.json({ ok: true });
 });
 

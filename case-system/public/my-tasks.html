@@ -320,7 +320,7 @@ function renderCard(t) {
     : '📅 未排日期';
 
   return `
-    <div class="task-card${isOverdue ? ' overdue' : isToday ? ' today' : ''}" id="tc-${t.id}">
+    <div class="task-card${isOverdue ? ' overdue' : isToday ? ' today' : ''}" id="tc-${t.id}"${t.is_done ? ' style="opacity:.58"' : ''}>
       ${renderThemeBanner(t)}
       <div class="task-body" onclick="openTaskCard(${t.id})" style="cursor:pointer">
         <div class="task-date-row">${dateDisplay}</div>
@@ -335,7 +335,9 @@ function renderCard(t) {
             ${currentUser.can_see_amounts && t.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(t.final_price)}</span>` : ''}
             ${paymentBadge(t.payment_status)}
           </div>
-          <button class="dismiss-btn" onclick="event.stopPropagation();dismissTask(${t.id}, this)">已完成</button>
+          ${t.is_done
+            ? `<button class="dismiss-btn" style="color:#2563eb" onclick="event.stopPropagation();undismissTask(${t.id}, this)">↩ 取消完成</button>`
+            : `<button class="dismiss-btn" onclick="event.stopPropagation();dismissTask(${t.id}, this)">已完成</button>`}
         </div>
       </div>
     </div>`;
@@ -368,22 +370,20 @@ function renderSection(label, cls, list) {
 }
 
 async function dismissTask(caseId, btn) {
-  btn.disabled = true;
-  btn.textContent = '處理中…';
-  const r = await fetch(`/api/my-tasks/${caseId}/dismiss`, { method: 'POST' });
-  if (r.ok) {
-    const card = document.getElementById(`tc-${caseId}`);
-    if (card) {
-      card.style.transition = 'opacity .3s,transform .3s';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(-4px)';
-      setTimeout(() => card.remove(), 320);
-    }
-  } else {
-    btn.disabled = false;
-    btn.textContent = '已完成';
-    showToast('操作失敗', 'error');
-  }
+  btn.disabled = true; btn.textContent = '處理中…';
+  try {
+    const r = await fetch(`/api/my-tasks/${caseId}/dismiss`, { method: 'POST' });
+    if (r.ok) { showToast('已標記完成（移到「已完成」，可再打開）'); await init(); }
+    else { btn.disabled = false; btn.textContent = '已完成'; showToast('操作失敗', 'error'); }
+  } catch(e) { btn.disabled = false; btn.textContent = '已完成'; showToast('操作失敗', 'error'); }
+}
+async function undismissTask(caseId, btn) {
+  btn.disabled = true; btn.textContent = '處理中…';
+  try {
+    const r = await fetch(`/api/my-tasks/${caseId}/undismiss`, { method: 'POST' });
+    if (r.ok) { showToast('已取消完成，拉回進行中'); await init(); }
+    else { btn.disabled = false; btn.textContent = '↩ 取消完成'; showToast('操作失敗', 'error'); }
+  } catch(e) { btn.disabled = false; btn.textContent = '↩ 取消完成'; showToast('操作失敗', 'error'); }
 }
 
 // ── 出勤快覽 ────────────────────────────────────────────────
@@ -469,8 +469,10 @@ async function init() {
   const day30    = new Date(Date.now() + 30 * 86400000);
   const day30Str = `${day30.getFullYear()}-${String(day30.getMonth()+1).padStart(2,'0')}-${String(day30.getDate()).padStart(2,'0')}`;
 
-  // 今日場勘：is_surveyor 且 survey_date === 今天
-  const todaySurvey = tasks.filter(t => t.is_surveyor && t.survey_date === todayStr);
+  // 已完成（點過「已完成」的）另外放，不消失、可再打開
+  const doneTasks = tasks.filter(t => t.is_done);
+  // 今日場勘：is_surveyor 且 survey_date === 今天（排除已完成）
+  const todaySurvey = tasks.filter(t => t.is_surveyor && t.survey_date === todayStr && !t.is_done);
   const todaySurveyIds = new Set(todaySurvey.map(t => t.id));
 
   // 排序用日期：場勘員優先用 survey_date，否則用 next_dispatch / scheduled_date
@@ -480,7 +482,7 @@ async function init() {
     return t.scheduled_date || '9999-12-31';
   }
 
-  const remaining = tasks.filter(t => !todaySurveyIds.has(t.id));
+  const remaining = tasks.filter(t => !todaySurveyIds.has(t.id) && !t.is_done);
   const overdue = remaining.filter(t => { const d = sortDate(t); return d < todayStr; });
   const near10  = remaining.filter(t => { const d = sortDate(t); return d >= todayStr && d <= day10Str; });
   const near30  = remaining.filter(t => { const d = sortDate(t); return d > day10Str && d <= day30Str; });
@@ -491,7 +493,8 @@ async function init() {
     renderSection('📌 本週任務（近 10 天）', 'lbl-week', near10) +
     renderSection('🟡 本月任務', 'lbl-month', near30) +
     renderSection('⚪ 未排日期', '', noDate) +
-    renderSection('🔴 已逾期任務', 'lbl-overdue', overdue);
+    renderSection('🔴 已逾期任務', 'lbl-overdue', overdue) +
+    (doneTasks.length ? `<div class="section-label" style="cursor:pointer;user-select:none" onclick="var d=document.getElementById('doneWrap');d.style.display=d.style.display==='none'?'':'none';this.querySelector('span').textContent=d.style.display==='none'?'▸':'▾'">✅ 已完成（${doneTasks.length}）<span style="float:right">▾</span></div><div id="doneWrap">${doneTasks.map(renderCard).join('')}</div>` : '');
 }
 
 init();
