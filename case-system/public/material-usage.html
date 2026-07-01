@@ -484,7 +484,7 @@ function onCaseSearch(q){
   document.getElementById('n_case_id').value=''; clearTimeout(_caseTimer);
   const drop=document.getElementById('caseDrop'); if(!q){ drop.classList.remove('open'); return; }
   _caseTimer=setTimeout(async()=>{
-    const list=await fetch('/api/cases?search='+encodeURIComponent(q)+'&limit=20').then(r=>r.ok?r.json():[]);
+    const list=await fetch('/api/material-usage/case-lookup?search='+encodeURIComponent(q)).then(r=>r.ok?r.json():[]);
     if(!list.length){ drop.innerHTML='<div class="ac-item muted">找不到案件</div>'; drop.classList.add('open'); return; }
     drop.innerHTML=list.map(c=>`<div class="ac-item" onclick="pickCase(${c.id},'${esc(c.case_number)}','${esc(c.client_name||'')}')"><strong>${esc(c.case_number)}</strong> ${esc(c.client_name||'')} ${esc(c.title||'')}</div>`).join('');
     drop.classList.add('open');

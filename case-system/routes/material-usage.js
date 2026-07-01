@@ -174,6 +174,21 @@ router.get('/reserves', requireAuth, (req, res) => {
   res.json(rows.map(r => ({ ...r, meters: Math.abs(r.meters || 0) })));
 });
 
+// 領用「關聯案件」下拉搜尋：回傳「全部案件」（不受派工/分店權限限制，就算他看不到案件也能關聯）
+// 只回傳案號/客戶/標題等識別欄位，不含金額或成本，避免洩漏機密
+router.get('/case-lookup', requireAuth, (req, res) => {
+  const q = (req.query.search || '').trim();
+  let sql = `
+    SELECT c.id, c.case_number, c.title, cl.name AS client_name
+    FROM cases c
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE 1=1`;
+  const p = [];
+  if (q) { sql += ` AND (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ?)`; const s = `%${q}%`; p.push(s, s, s); }
+  sql += ` ORDER BY c.updated_at DESC LIMIT 20`;
+  res.json(db.prepare(sql).all(...p));
+});
+
 // 新增領用申請
 router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;

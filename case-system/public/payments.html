@@ -233,7 +233,7 @@ function applyFilter() {
   const org = document.getElementById('filterCaseOrg')?.value || '';
   const q   = document.getElementById('searchInput').value.trim().toLowerCase();
   filtered = allPayments.filter(c => {
-    if (ps  && c.payment_status !== ps) return false;
+    if (ps  && derivedPayStatus(c) !== ps) return false;
     if (st  && c.status !== st) return false;
     if (org && String(c.org_id) !== org) return false;
     if (q   && !`${c.case_number} ${c.client_name} ${c.title}`.toLowerCase().includes(q)) return false;
@@ -245,7 +245,7 @@ function applyFilter() {
 
 function elapsedDays(c) {
   if (!c.scheduled_date) return '<span style="color:var(--gray-400)">—</span>';
-  if (c.payment_status === 'paid' || c.status === 'closed') return '<span style="color:var(--gray-400)">—</span>';
+  if (derivedPayStatus(c) === 'paid' || c.status === 'closed') return '<span style="color:var(--gray-400)">—</span>';
   const deadline = new Date(c.scheduled_date);
   deadline.setDate(deadline.getDate() + 7); // 完工日 + 7 天緩衝
   const today = new Date(new Date().toISOString().slice(0,10));
@@ -266,6 +266,13 @@ function caseReceived(c) {
 function caseOutstanding(c) {
   return Math.max(0, caseTotal(c) - caseReceived(c) - (c.retention_amount || 0));
 }
+// 收款狀態自動由金額推導（單一真實來源＝實收金額），不再依賴人工存的舊欄位，避免「結清卻部分收款」不一致
+function derivedPayStatus(c) {
+  if (caseTotal(c) <= 0) return c.payment_status || 'unpaid';  // 無成交金額：沿用舊值
+  if (caseOutstanding(c) <= 0) return 'paid';                  // 已收滿（含保留款）→ 結清
+  if (caseReceived(c) > 0)     return 'partial';               // 有收但未滿 → 部分收款
+  return 'unpaid';                                             // 完全沒收 → 未收款
+}
 
 function renderStats(cases) {
   const totalTax    = cases.reduce((s,c) => s + caseTotal(c), 0);
@@ -275,8 +282,8 @@ function renderStats(cases) {
     <div class="stat-card"><div class="label">含稅總應收</div><div class="value">${fmt(totalTax)}</div></div>
     <div class="stat-card"><div class="label">已收金額</div><div class="value success">${fmt(received)}</div></div>
     <div class="stat-card"><div class="label">未收金額</div><div class="value danger">${fmt(outstanding)}</div></div>
-    <div class="stat-card"><div class="label">未收款案件</div><div class="value danger">${cases.filter(c=>c.payment_status==='unpaid').length} 件</div></div>
-    <div class="stat-card"><div class="label">部分收款</div><div class="value warning">${cases.filter(c=>c.payment_status==='partial').length} 件</div></div>
+    <div class="stat-card"><div class="label">未收款案件</div><div class="value danger">${cases.filter(c=>derivedPayStatus(c)==='unpaid').length} 件</div></div>
+    <div class="stat-card"><div class="label">部分收款</div><div class="value warning">${cases.filter(c=>derivedPayStatus(c)==='partial').length} 件</div></div>
   `;
 }
 
@@ -307,7 +314,7 @@ function renderTable(cases) {
       <td>${dep?fmt(dep):'—'}</td>
       <td style="color:#057a55">${recv?fmt(recv):'—'}</td>
       <td style="color:${outstanding>0?'#e02424':'#057a55'};font-weight:600">${outstanding>0?fmt(outstanding):'✓ 結清'}</td>
-      <td>${paymentBadge(c.payment_status)}</td>
+      <td>${paymentBadge(derivedPayStatus(c))}</td>
       <td>${c.followup_date ? `<span style="font-size:12px;font-weight:600;color:${new Date(c.followup_date) <= new Date() ? '#dc2626' : '#2563eb'}">${fmtDate(c.followup_date)}</span>` : '—'}</td>
       <td>${c.sales_name||'—'}</td>
       <td style="white-space:nowrap">
