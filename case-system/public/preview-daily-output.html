@@ -126,11 +126,19 @@
     <h1>完工回報</h1><div class="sub">HX2606-124 · 2026-07-02 · 組長 呂紹銘</div>
 
     <div class="box"><div class="h">📐 完工進度</div>
-      <div class="toggle" style="margin-bottom:12px">
-        <div class="t on" id="mA" onclick="mode('piece')">用片數（有展開圖）</div>
-        <div class="t" id="mB" onclick="mode('pct')">用項目%（沒展開圖）</div>
+      <div class="toggle" style="margin-bottom:8px">
+        <div class="t on" id="mCai" onclick="mode('cai')">才數（精準）</div>
+        <div class="t" id="mA" onclick="mode('piece')">片數</div>
+        <div class="t" id="mB" onclick="mode('pct')">百分比</div>
       </div>
-      <div id="pieceBox">
+      <div class="lab" style="margin-bottom:10px">依案件資訊量選：有才數(報價/展開圖)最準 → 其次片數 → 最後大約百分比</div>
+      <div id="caiBox">
+        <div class="lab">勾選已完成的項目，系統依報價才數自動累加（含各師傅才數）</div>
+        <div id="caiRows"></div>
+        <div id="caiSum" style="text-align:center;margin-top:10px;font-size:20px;font-weight:900"></div>
+        <div id="caiByWho" class="hint" style="text-align:center;margin-top:4px"></div>
+      </div>
+      <div id="pieceBox" style="display:none">
         <div class="row" style="align-items:center">
           <div class="grow"><div class="lab" style="text-align:center">今日目標(片)</div>
             <div class="stepper"><button onclick="stp('t',-1)">−</button><div class="disp"><b id="tv">12</b></div><button onclick="stp('t',1)">＋</button></div></div>
@@ -208,7 +216,8 @@
 
 <script>
 const CREW=['呂紹銘','偉宏','小楊','小傑','陳怡仲'];
-const ITEMS=[['A','浴室門+框雙面','LG ST014/SM013'],['B','系統櫃門片','BODAQ AB004'],['C','櫃體','LG SM013'],['D','補條','偉宏布'],['E','天花','LG ST014']];
+const ITEMS=[['A','浴室門+框雙面','LG ST014/SM013',12.5,'呂紹銘'],['B','系統櫃門片','BODAQ AB004',8,'偉宏'],['C','櫃體','LG SM013',20,'呂紹銘'],['D','補條','偉宏布',3,'呂紹銘'],['E','天花','LG ST014',15,'小楊']];
+const CAI_TOTAL=ITEMS.reduce((s,i)=>s+i[3],0);
 function go(n){for(let i=1;i<=4;i++)document.getElementById('v'+i).style.display=i===n?'':'none';
   document.querySelectorAll('.nav button').forEach((b,i)=>b.classList.toggle('on',i===n-1));window.scrollTo(0,0);}
 function openSum(){document.getElementById('ov').classList.add('open');}
@@ -235,8 +244,12 @@ function drawQ(){document.getElementById('tv').textContent=tt;document.getElemen
   const p=tt?Math.round(dd/tt*100):0;const[c,t]=lampOf(p);
   document.getElementById('pv').textContent=(tt?p:0)+'%';document.getElementById('pv').style.color=COL[c];
   document.getElementById('lv').innerHTML=`<span class="lamp ${c}">${t}</span>`;}
-function mode(m){document.getElementById('mA').classList.toggle('on',m==='piece');document.getElementById('mB').classList.toggle('on',m==='pct');
-  document.getElementById('pieceBox').style.display=m==='piece'?'':'none';document.getElementById('pctBox').style.display=m==='pct'?'':'none';}
+function mode(m){document.getElementById('mCai').classList.toggle('on',m==='cai');document.getElementById('mA').classList.toggle('on',m==='piece');document.getElementById('mB').classList.toggle('on',m==='pct');
+  document.getElementById('caiBox').style.display=m==='cai'?'':'none';document.getElementById('pieceBox').style.display=m==='piece'?'':'none';document.getElementById('pctBox').style.display=m==='pct'?'':'none';}
+function calcCai(){let done=0;const byWho={};
+  document.querySelectorAll('#caiRows .matline').forEach((el,i)=>{if(el.classList.contains('on')){const c=ITEMS[i][3];done+=c;byWho[ITEMS[i][4]]=(byWho[ITEMS[i][4]]||0)+c;}});
+  document.getElementById('caiSum').innerHTML=`已完成 <span style="color:var(--green)">${done.toFixed(1)}</span> / ${CAI_TOTAL.toFixed(1)} 才（${Math.round(done/CAI_TOTAL*100)}%）`;
+  document.getElementById('caiByWho').textContent='各師傅才數：'+(Object.keys(byWho).length?Object.entries(byWho).map(([k,v])=>`${k} ${v.toFixed(1)}才`).join('　'):'—');}
 document.getElementById('pctRows').innerHTML=ITEMS.map((it,i)=>{const v=[100,80,60,100,30][i];return `<div class="slrow"><span class="nm">${it[0]} ${it[1]}</span><input type="range" min="0" max="100" value="${v}" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="pc">${v}%</span></div>`;}).join('');
 // defects
 let defN=0;
@@ -251,7 +264,8 @@ function calcRet(){const pick=30;const rem=parseFloat(document.getElementById('r
   if(isNaN(rem)){u.textContent='—';h.textContent='';return;}
   const used=Math.max(0,pick-rem);u.textContent=used+' 米';
   h.textContent=`領用 30 米 − 歸還剩餘 ${rem} 米 = 實際用量 ${used} 米（超出正常用料的部分用上面原因說明）`;}
-addDef();drawQ();
+document.getElementById('caiRows').innerHTML=ITEMS.map((it,i)=>`<div class="matline ${i<3?'on':''}" onclick="this.classList.toggle('on');calcCai()"><span class="tick"></span><b>${it[0]}</b> ${it[1]}　<span style="color:#64748b">${it[3]}才 · ${it[4]}</span></div>`).join('');
+calcCai();addDef();drawQ();
 </script>
 </body>
 </html>
