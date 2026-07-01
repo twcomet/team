@@ -209,6 +209,15 @@
   </div>
 </div>
 
+<!-- 任務現場說明卡（點任務卡打開） -->
+<div id="taskCardModal" class="modal-overlay" onclick="if(event.target===this)closeTaskCard()">
+  <div class="modal" style="max-width:460px;max-height:88vh;overflow:auto">
+    <div class="modal-header"><div class="modal-title" id="tcm-title">案件說明</div><button class="modal-close" onclick="closeTaskCard()">×</button></div>
+    <div class="modal-body" id="tcm-body" style="font-size:14px;line-height:1.9"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeTaskCard()">關閉</button><a id="tcm-open" class="btn btn-primary" href="#">開啟完整案件 →</a></div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 // ── 主題定義 ─────────────────────────────────────────────────
@@ -313,7 +322,7 @@ function renderCard(t) {
   return `
     <div class="task-card${isOverdue ? ' overdue' : isToday ? ' today' : ''}" id="tc-${t.id}">
       ${renderThemeBanner(t)}
-      <div class="task-body">
+      <div class="task-body" onclick="openTaskCard(${t.id})" style="cursor:pointer">
         <div class="task-date-row">${dateDisplay}</div>
         <div class="task-title">${t.title}</div>
         <div class="task-client">
@@ -326,11 +335,32 @@ function renderCard(t) {
             ${currentUser.can_see_amounts && t.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(t.final_price)}</span>` : ''}
             ${paymentBadge(t.payment_status)}
           </div>
-          <button class="dismiss-btn" onclick="dismissTask(${t.id}, this)">已完成</button>
+          <button class="dismiss-btn" onclick="event.stopPropagation();dismissTask(${t.id}, this)">已完成</button>
         </div>
       </div>
     </div>`;
 }
+
+function openTaskCard(id) {
+  const t = window.taskMap && window.taskMap[id]; if (!t) return;
+  const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  document.getElementById('tcm-title').textContent = `${t.case_number} ${t.title||''}`;
+  const dt = t.next_dispatch ? t.next_dispatch.split('|')[1] : (t.scheduled_date || '');
+  let h = '';
+  if (t.location) h += `<div>📍 <b>${esc(t.location)}</b></div>`;
+  if (dt) h += `<div>🗓 ${esc(dt)}${t.next_dispatch_time?' '+esc(t.next_dispatch_time):''}</div>`;
+  h += `<div>👤 ${esc(t.client_name||'—')}${t.client_phone?`　📞 <a href="tel:${esc(t.client_phone)}">${esc(t.client_phone)}</a>`:''}</div>`;
+  if (t.surveyor_name) h += `<div>🔎 場勘：${esc(t.surveyor_name)}</div>`;
+  if (t.desired_entry_date) h += `<div>📅 希望進場：${esc(t.desired_entry_date)}</div>`;
+  if (t.entry_info) h += `<div>🔑 ${esc(t.entry_info)}</div>`;
+  if (t.photo_upload_url) h += `<div style="margin-top:6px"><a href="${esc(t.photo_upload_url)}" target="_blank" rel="noopener">☁️ 開啟雲端資料夾 ↗</a></div>`;
+  if (t.next_dispatch_notes) h += `<div style="margin-top:10px;white-space:pre-wrap;background:var(--gray-50,#f8fafc);border-radius:8px;padding:10px;font-size:13px;line-height:1.7">${esc(t.next_dispatch_notes)}</div>`;
+  document.getElementById('tcm-body').innerHTML = h || '<span style="color:var(--gray-400)">（尚無派工說明）</span>';
+  const th = primaryTheme(t);
+  document.getElementById('tcm-open').href = (th && th.url) ? th.url(t) : `/case-detail?id=${t.id}`;
+  document.getElementById('taskCardModal').classList.add('open');
+}
+function closeTaskCard() { document.getElementById('taskCardModal').classList.remove('open'); }
 
 function renderSection(label, cls, list) {
   if (!list.length) return '';
@@ -424,6 +454,7 @@ async function init() {
 
   const res = await fetch('/api/my-tasks');
   const tasks = res.ok ? await res.json() : [];
+  window.taskMap = {}; tasks.forEach(t => window.taskMap[t.id] = t);
 
   const el = document.getElementById('taskContent');
   if (!tasks.length) {

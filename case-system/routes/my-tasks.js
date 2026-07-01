@@ -25,6 +25,16 @@ router.get('/', requireAuth, (req, res) => {
               AND d.status NOT IN ('cancelled')
               AND d.scheduled_date >= date('now','-1 day')
             ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch,
+           (SELECT d.notes FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
+            WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
+              AND d.scheduled_date >= date('now','-1 day')
+            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_notes,
+           (SELECT d.scheduled_time FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
+            WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
+              AND d.scheduled_date >= date('now','-1 day')
+            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_time,
+           c.photo_upload_url, c.entry_info, c.desired_entry_date,
+           (SELECT u.name FROM users u WHERE u.id = c.surveyor_id) AS surveyor_name,
            (SELECT COUNT(*) FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ?) AS dispatch_count,
            CASE WHEN EXISTS (
@@ -65,7 +75,7 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY
       CASE WHEN c.scheduled_date IS NOT NULL THEN c.scheduled_date ELSE '9999-12-31' END ASC,
       c.created_at DESC
-  `).all(uid, uid, uid, uid, uid, uid, uid, uid, uid, uid);
+  `).all(uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid);
   res.json(tasks);
 });
 
