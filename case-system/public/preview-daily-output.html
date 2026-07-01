@@ -144,6 +144,27 @@
       </div>
     </div>
 
+    <div class="box"><div class="h">📦 材料歸還（施工後）<span class="who" style="color:var(--blue)">負責：<u onclick="pickWho(this)">呂紹銘</u></span></div>
+      <div class="lab">施工前領用的材料自動帶入領用米數，填「歸還剩餘」自動算實際用量（沿用現有膜料歸還單＋料差原因）</div>
+      <div class="matline" style="cursor:default;display:block">
+        <div style="margin-bottom:8px"><b>LG ST014</b> · 領用 <b>30</b> 米（帶入）</div>
+        <div class="row" style="align-items:flex-end">
+          <div class="grow"><div class="lab">歸還剩餘(米)</div><input type="text" inputmode="decimal" id="rem" oninput="calcRet()" placeholder="剩幾米"></div>
+          <div class="grow"><div class="lab">實際使用(米)</div><div id="used" style="font-size:20px;font-weight:800;color:var(--blue)">—</div></div>
+        </div>
+        <div class="lab" style="margin-top:9px">使用原因 / 料差（可複選，正式版每項可填米數）</div>
+        <div class="chips">
+          <span class="chip sm" onclick="this.classList.toggle('on')">案場追加</span>
+          <span class="chip sm" onclick="this.classList.toggle('on')">重貼損失</span>
+          <span class="chip sm" onclick="this.classList.toggle('on')">帶錯</span>
+          <span class="chip sm" onclick="this.classList.toggle('on')">裁錯</span>
+          <span class="chip sm" onclick="this.classList.toggle('on')">遺失</span>
+          <span class="chip sm" onclick="this.classList.toggle('on')">其他</span>
+        </div>
+        <div class="hint" id="recHint"></div>
+      </div>
+      <a class="link" href="#" onclick="return false">↗ 這筆會進膜料歸還單 → 倉管核准歸還＝核銷</a></div>
+
     <div class="box"><div class="h">📷 拍照上傳雲端</div>
       <div class="lab">拍照的人（行前已指定）：<b>小楊</b></div>
       <div class="toggle" style="margin:6px 0 10px"><div class="t" onclick="tg(this)">✓ 照片已上傳雲端</div><div class="t" onclick="tg(this)">尚未上傳</div></div>
@@ -223,6 +244,11 @@ function addDef(){defN++;const d=document.createElement('div');d.className='defc
   <div class="toggle" style="margin-bottom:7px"><div class="t" onclick="tg(this)">個人</div><div class="t" onclick="tg(this)">團體</div></div>
   <div class="chips">${CREW.slice(0,4).map(n=>`<span class="chip sm" onclick="this.classList.toggle('on')">${n}</span>`).join('')}</div>`;
   document.getElementById('defs').appendChild(d);}
+function calcRet(){const pick=30;const rem=parseFloat(document.getElementById('rem').value);
+  const u=document.getElementById('used');const h=document.getElementById('recHint');
+  if(isNaN(rem)){u.textContent='—';h.textContent='';return;}
+  const used=Math.max(0,pick-rem);u.textContent=used+' 米';
+  h.textContent=`領用 30 米 − 歸還剩餘 ${rem} 米 = 實際用量 ${used} 米（超出正常用料的部分用上面原因說明）`;}
 addDef();drawQ();
 </script>
 </body>
