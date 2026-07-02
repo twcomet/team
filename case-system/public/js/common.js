@@ -59,6 +59,8 @@ async function loadUser() {
     'cases-deal':     p.page_cases_deal !== undefined ? p.page_cases_deal : ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(currentUser.role),
     'case-detail':    p.page_cases,
     'quote-list':     p.page_cases,
+    estimator:         !['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(currentUser.role),  // 技術/施工/外包不需估價
+    'estimator-quotes':!['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(currentUser.role),
     clients:          p.page_clients,
     calendar:         p.page_calendar,
     payments:         p.page_payments,

@@ -147,6 +147,11 @@ function requirePagePerm(page) {
     const u = req.session.user;
     if (!u) return res.redirect('/');
     if (u.role === 'owner') return next();
+    // 技術/施工/外包角色不需要估價功能（估價計算機/估價單查詢）
+    if (['estimator','estimator-quotes'].includes(page) &&
+        ['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(u.role)) {
+      return res.redirect('/my-tasks');
+    }
     const key = PAGE_PERMS[page];
     if (!key) return next();
     // 🔒 機密鐵律：技術/施工/經銷角色絕不可看業績/財務頁（總覽/業績/財務），
