@@ -1551,6 +1551,14 @@ _addCol('survey_forms', 'checklist_data',   'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'cs_service_note',  'TEXT DEFAULT NULL');
 _addCol('survey_forms', 'worker_token',     'TEXT DEFAULT NULL');
 
+// 場勘單：師傅回報現場搬運/停車資訊（供施工派工參考）
+_addCol('survey_forms', 'access_method',      'TEXT DEFAULT NULL');   // 'stairs'=爬樓梯 / 'elevator'=有電梯
+_addCol('survey_forms', 'access_note',        'TEXT DEFAULT NULL');   // 樓層/搬運備註
+_addCol('survey_forms', 'parking_location',   'TEXT DEFAULT NULL');   // 附近停車位置
+_addCol('survey_forms', 'parking_fee_hourly', 'REAL DEFAULT NULL');   // 每小時停車費
+_addCol('survey_forms', 'parking_fee_has_cap','INTEGER DEFAULT 0');   // 有無收費上限
+_addCol('survey_forms', 'parking_fee_cap',    'REAL DEFAULT NULL');   // 收費上限金額
+
 // 派工：進場資訊欄位
 _addCol('dispatches', 'unloading_location', 'TEXT DEFAULT NULL');
 _addCol('dispatches', 'has_parking',        'TEXT DEFAULT NULL');

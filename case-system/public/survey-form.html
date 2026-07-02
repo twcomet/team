@@ -148,6 +148,25 @@
         <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
       </div>
 
+      <!-- 現場搬運與停車（師傅回報）-->
+      <div class="sf-section">
+        <h4>🚚 現場搬運與停車</h4>
+        <div class="form-group">
+          <label>現場搬運狀況</label>
+          <div style="display:flex;gap:16px;align-items:center;padding:4px 0">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="sf_access" value="stairs"> 🪜 需爬樓梯</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="sf_access" value="elevator"> 🛗 有電梯</label>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('input[name=sf_access]').forEach(r=>r.checked=false)">清除</button>
+          </div>
+        </div>
+        <div class="form-group"><label>樓層 / 搬運備註</label><input type="text" id="sf_access_note" placeholder="例：4 樓無電梯、電梯門寬 90cm"></div>
+        <div class="form-group"><label>附近停車位置</label><input type="text" id="sf_parking_loc" placeholder="例：巷口路邊、地下停車場入口在後棟"></div>
+        <div class="form-row">
+          <div class="form-group"><label>停車費率（每小時 / 元）</label><input type="number" id="sf_parking_hourly" min="0" step="1" placeholder="0"></div>
+          <div class="form-group"><label>收費上限（元／日，無則留空）</label><input type="number" id="sf_parking_cap" min="0" step="1" placeholder="無上限"></div>
+        </div>
+      </div>
+
       <!-- 場勘項目 -->
       <div class="sf-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
@@ -230,6 +249,12 @@ function fillForm(f) {
   document.getElementById('sf_address').value       = f.site_address || '';
   document.getElementById('sf_photos').value        = f.photos_note || '';
   document.getElementById('sf_notes').value         = f.extra_notes || '';
+  // 搬運與停車
+  document.querySelectorAll('input[name=sf_access]').forEach(r => { r.checked = (r.value === f.access_method); });
+  document.getElementById('sf_access_note').value    = f.access_note || '';
+  document.getElementById('sf_parking_loc').value    = f.parking_location || '';
+  document.getElementById('sf_parking_hourly').value = f.parking_fee_hourly ?? '';
+  document.getElementById('sf_parking_cap').value    = f.parking_fee_has_cap ? (f.parking_fee_cap ?? '') : '';
   renderFindings(f.findings || []);
   // 顯示已指派的人名
   if (f.surveyor_name) {
@@ -335,6 +360,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     extra_notes:   document.getElementById('sf_notes').value || null,
     dispatch_note: document.getElementById('sf_dispatch_note').value || null,
     status:        formData?.status || 'draft',
+    access_method:    document.querySelector('input[name=sf_access]:checked')?.value || null,
+    access_note:      document.getElementById('sf_access_note').value || null,
+    parking_location: document.getElementById('sf_parking_loc').value || null,
+    parking_fee_hourly: document.getElementById('sf_parking_hourly').value !== '' ? parseFloat(document.getElementById('sf_parking_hourly').value) : null,
+    parking_fee_has_cap: document.getElementById('sf_parking_cap').value !== '' ? 1 : 0,
+    parking_fee_cap:     document.getElementById('sf_parking_cap').value !== '' ? parseFloat(document.getElementById('sf_parking_cap').value) : null,
   };
 
   let res;

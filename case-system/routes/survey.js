@@ -78,7 +78,9 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
           findings, photos_note, extra_notes, dispatch_note, cs_notes, checklist_data,
-          cs_service_note, survey_preferred_time } = req.body;
+          cs_service_note, survey_preferred_time,
+          access_method, access_note, parking_location,
+          parking_fee_hourly, parking_fee_has_cap, parking_fee_cap } = req.body;
 
   const existing = db.prepare(`SELECT id FROM survey_forms WHERE case_id = ?`).get(case_id);
   if (existing) return res.status(400).json({ error: '此案件已有場勘單，請使用更新 API' });
@@ -88,15 +90,22 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   const result = db.prepare(`
     INSERT INTO survey_forms (case_id, share_token, worker_token, surveyor_id, survey_date, survey_time,
       site_contact, site_phone, site_address, findings, photos_note, extra_notes, dispatch_note,
-      cs_notes, checklist_data, cs_service_note, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      cs_notes, checklist_data, cs_service_note,
+      access_method, access_note, parking_location, parking_fee_hourly, parking_fee_has_cap, parking_fee_cap,
+      created_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(case_id, token, workerToken,
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
     site_contact ?? null, site_phone ?? null, site_address ?? null,
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
-    cs_service_note ?? null, me.id);
+    cs_service_note ?? null,
+    access_method ?? null, access_note ?? null, parking_location ?? null,
+    parking_fee_hourly != null && parking_fee_hourly !== '' ? Number(parking_fee_hourly) : null,
+    parking_fee_has_cap ? 1 : 0,
+    parking_fee_has_cap && parking_fee_cap != null && parking_fee_cap !== '' ? Number(parking_fee_cap) : null,
+    me.id);
 
   // 同步 cases.surveyor_id / survey_date / survey_preferred_time（供列表查詢）
   db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, survey_preferred_time=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
@@ -122,7 +131,9 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   const me = req.session.user;
   const { surveyor_id, survey_date, survey_time, site_contact, site_phone, site_address,
           findings, photos_note, extra_notes, dispatch_note, status,
-          cs_notes, checklist_data, cs_service_note, survey_preferred_time } = req.body;
+          cs_notes, checklist_data, cs_service_note, survey_preferred_time,
+          access_method, access_note, parking_location,
+          parking_fee_hourly, parking_fee_has_cap, parking_fee_cap } = req.body;
 
   // 判斷場勘人員是否有變更 → 需重新通知
   const old = db.prepare(`SELECT surveyor_id, worker_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
@@ -133,6 +144,8 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     surveyor_id=?, survey_date=?, survey_time=?, site_contact=?, site_phone=?, site_address=?,
     findings=?, photos_note=?, extra_notes=?, dispatch_note=?,
     cs_notes=?, checklist_data=?, cs_service_note=?, status=?,
+    access_method=?, access_note=?, parking_location=?,
+    parking_fee_hourly=?, parking_fee_has_cap=?, parking_fee_cap=?,
     worker_token=COALESCE(worker_token, ?), updated_at=CURRENT_TIMESTAMP
     WHERE case_id=?`).run(
     surveyor_id ?? null, survey_date ?? null, survey_time ?? null,
@@ -140,7 +153,12 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     JSON.stringify(findings ?? []),
     photos_note ?? null, extra_notes ?? null, dispatch_note ?? null,
     cs_notes ?? null, JSON.stringify(checklist_data ?? []),
-    cs_service_note ?? null, status || 'draft', existingWorkerToken, req.params.id);
+    cs_service_note ?? null, status || 'draft',
+    access_method ?? null, access_note ?? null, parking_location ?? null,
+    parking_fee_hourly != null && parking_fee_hourly !== '' ? Number(parking_fee_hourly) : null,
+    parking_fee_has_cap ? 1 : 0,
+    parking_fee_has_cap && parking_fee_cap != null && parking_fee_cap !== '' ? Number(parking_fee_cap) : null,
+    existingWorkerToken, req.params.id);
 
   // 同步 cases.surveyor_id / survey_date / survey_preferred_time（供列表查詢）
   db.prepare(`UPDATE cases SET surveyor_id=?, survey_date=?, survey_preferred_time=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
@@ -227,6 +245,8 @@ router.get('/worker/:token', (req, res) => {
     SELECT sf.surveyor_id, sf.survey_date, sf.survey_time, sf.site_contact, sf.site_phone,
            sf.site_address, sf.dispatch_note, sf.findings, sf.extra_notes, sf.status,
            sf.share_token, sf.checklist_data,
+           sf.access_method, sf.access_note, sf.parking_location,
+           sf.parking_fee_hourly, sf.parking_fee_has_cap, sf.parking_fee_cap,
            c.case_number, c.title, c.location,
            c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
            c.survey_fee_actual, c.survey_fee_report, c.survey_site_absent,
@@ -254,18 +274,26 @@ router.put('/worker/:token', (req, res) => {
   const row = db.prepare(`SELECT id, case_id, status FROM survey_forms WHERE worker_token=?`).get(req.params.token);
   if (!row) return res.status(404).json({ error: '找不到場勘任務' });
   if (row.status === 'signed') return res.status(400).json({ error: '已完成簽署的場勘單無法修改' });
-  const { survey_date, survey_time, site_contact, site_phone, findings, extra_notes, checklist_data } = req.body;
+  const { survey_date, survey_time, site_contact, site_phone, findings, extra_notes, checklist_data,
+          access_method, access_note, parking_location,
+          parking_fee_hourly, parking_fee_has_cap, parking_fee_cap } = req.body;
   db.prepare(`UPDATE survey_forms SET
     survey_date=COALESCE(?,survey_date), survey_time=COALESCE(?,survey_time),
     site_contact=?, site_phone=?,
     findings=?, extra_notes=?,
     checklist_data=COALESCE(?,checklist_data),
+    access_method=?, access_note=?, parking_location=?,
+    parking_fee_hourly=?, parking_fee_has_cap=?, parking_fee_cap=?,
     updated_at=CURRENT_TIMESTAMP
     WHERE worker_token=?`).run(
     survey_date || null, survey_time || null,
     site_contact || null, site_phone || null,
     JSON.stringify(findings || []), extra_notes || null,
     checklist_data !== undefined ? JSON.stringify(checklist_data || []) : null,
+    access_method || null, access_note || null, parking_location || null,
+    parking_fee_hourly != null && parking_fee_hourly !== '' ? Number(parking_fee_hourly) : null,
+    parking_fee_has_cap ? 1 : 0,
+    parking_fee_has_cap && parking_fee_cap != null && parking_fee_cap !== '' ? Number(parking_fee_cap) : null,
     req.params.token
   );
   if (survey_date) {
