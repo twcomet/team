@@ -87,6 +87,7 @@ app.use('/api/expenses',              require('./routes/expenses'));
 app.use('/api/subcontract',           require('./routes/subcontract'));
 app.use('/api/material-usage',        require('./routes/material-usage'));
 app.use('/api/work-reports',          require('./routes/work-reports'));
+app.use('/api/daily-report',          require('./routes/daily-report'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
 app.use('/api/staff-performance',     require('./routes/staff-performance'));
@@ -205,6 +206,12 @@ app.get('/preview-daily-output', requireAuth, (req, res) => {
 // 完工滿意度評分 — 客人端示意預覽頁
 app.get('/preview-customer-review', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'preview-customer-review.html'));
+});
+// 營運日報（AI 總監 階段1a）：老闆/管理者
+app.get('/daily-report', requireAuth, (req, res) => {
+  const u = req.session.user;
+  if (u.role !== 'owner' && !u.manage_users) return res.redirect('/my-tasks');
+  res.sendFile(path.join(__dirname, 'public', 'daily-report.html'));
 });
 
 function requireContract(req, res, next) {

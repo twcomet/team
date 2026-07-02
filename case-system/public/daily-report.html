@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>營運日報 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .dr-sec{margin-bottom:24px}
+  .dr-h{font-size:14px;font-weight:800;color:var(--gray-700);margin:0 0 10px;display:flex;align-items:center;gap:7px}
+  .dr-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .dr-card{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:12px 14px}
+  .dr-card .l{font-size:12px;color:var(--gray-500)}
+  .dr-card .v{font-size:22px;font-weight:800;margin-top:3px}
+  .flag{background:#fff;border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;margin-bottom:14px}
+  .flag>.hd{padding:11px 15px;font-size:13.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .flag.red>.hd{background:#fef2f2;color:#b91c1c}.flag.amber>.hd{background:#fffbeb;color:#b45309}
+  .flag .row{padding:9px 15px;border-top:1px solid var(--gray-100);font-size:13px;display:flex;justify-content:space-between;gap:10px}
+  .flag .cnt{font-size:12px;font-weight:800;padding:1px 9px;border-radius:20px;background:#fff}
+  .dr-empty{padding:14px 15px;color:var(--gray-400);font-size:12.5px}
+  .dept{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .dept .box{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:13px 15px}
+  .dept .box h4{margin:0 0 8px;font-size:13.5px}
+  .dept .box .kv{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--gray-600)}
+  .dept .box .kv b{color:var(--gray-800)}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">🤖 營運日報</span>
+    </div>
+    <div class="page-body">
+      <div id="drDate" style="font-size:13px;color:var(--gray-500);margin-bottom:16px"></div>
+      <div id="drBody"><div style="padding:40px;text-align:center;color:var(--gray-400)">載入中…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const fmtN = n => (n==null?'—':Number(n).toLocaleString());
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function card(l,v,color){ return `<div class="dr-card"><div class="l">${l}</div><div class="v"${color?` style="color:${color}"`:''}>${v}</div></div>`; }
+function flagBlock(title, cls, rows, rowFn){
+  const body = rows.length ? rows.map(rowFn).join('') : '<div class="dr-empty">👍 目前沒有</div>';
+  return `<div class="flag ${cls}"><div class="hd"><span>${title}</span><span class="cnt">${rows.length}</span></div>${body}</div>`;
+}
+async function load(){
+  await loadUser();
+  highlightNav('daily-report');
+  document.getElementById('drDate').textContent = new Date().toLocaleString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long',hour:'2-digit',minute:'2-digit'}) + ' 產出';
+  let d;
+  try { const r = await fetch('/api/daily-report/summary'); if(!r.ok){ document.getElementById('drBody').innerHTML='<div style="padding:40px;text-align:center;color:#dc2626">無權限或載入失敗</div>'; return; } d = await r.json(); }
+  catch(e){ document.getElementById('drBody').innerHTML='<div style="padding:40px;text-align:center;color:#dc2626">載入失敗</div>'; return; }
+  const rv=d.revenue, cn=d.construction, rf=d.redflags, dp=d.departments;
+  const caseRow = r => `<div class="row"><span><code style="font-family:monospace">${esc(r.case_number||'')}</code> ${esc(r.client_name||r.title||'')}</span><span style="color:var(--gray-500)">${r.days!=null?r.days+' 天':''}${r.overdue_days!=null?'逾期 '+r.overdue_days+' 天':''}${r.amount!=null?' $'+fmtN(r.amount):''}</span></div>`;
+  document.getElementById('drBody').innerHTML = `
+    <div class="dr-sec"><div class="dr-h">📊 業績概況</div><div class="dr-cards">
+      ${card('今日進件', rv.inbound_today+' 件')}
+      ${card('本月進件', rv.inbound_month+' 件')}
+      ${card('今日成交', rv.deal_today+' 件','#15803d')}
+      ${card('本月成交', rv.deal_month+' 件','#15803d')}
+      ${card('本月成交額', '$'+fmtN(rv.deal_amount_month),'#15803d')}
+    </div></div>
+    <div class="dr-sec"><div class="dr-h">🔨 施工狀況</div><div class="dr-cards">
+      ${card('今日施工', cn.install_today+' 案')}
+      ${card('本週施工', cn.install_week+' 場')}
+      ${card('今日完工回報', cn.reports_today+' 筆','#2563eb')}
+      ${card('待施工', cn.to_dispatch+' 案','#b45309')}
+      ${card('施工中', cn.constructing+' 案')}
+    </div></div>
+    <div class="dr-sec"><div class="dr-h">🚩 需跟進紅燈</div>
+      ${flagBlock('已場勘 · 超過3天還沒出報價單','red', rf.surveyed_no_quote, caseRow)}
+      ${flagBlock('已報價 · 超過5天還沒成交','amber', rf.quoted_no_deal, caseRow)}
+      ${flagBlock('逾期收款（完工超過7天未收滿）','red', rf.overdue_payment, caseRow)}
+      ${flagBlock('完工卻還沒開始收款','amber', rf.done_no_payment, caseRow)}
+    </div>
+    <div class="dr-sec"><div class="dr-h">🏢 各部門現況</div><div class="dept">
+      <div class="box"><h4>🎧 客服</h4><div class="kv"><span>詢價/初估待處理</span><b>${dp.cs.inquiry_pending}</b></div><div class="kv"><span>待排/已排場勘</span><b>${dp.cs.survey_todo}</b></div></div>
+      <div class="box"><h4>💼 業務</h4><div class="kv"><span>待出報價單</span><b>${dp.sales.to_quote}</b></div><div class="kv"><span>已報價待成交</span><b>${dp.sales.to_deal}</b></div></div>
+      <div class="box"><h4>🧮 會計</h4><div class="kv"><span>逾期收款案</span><b style="color:#b91c1c">${dp.accounting.overdue_count}</b></div><div class="kv"><span>待審核帳</span><b>${dp.accounting.ledger_pending}</b></div></div>
+      <div class="box"><h4>🔧 技術</h4><div class="kv"><span>今日施工</span><b>${dp.tech.install_today}</b></div><div class="kv"><span>待施工</span><b>${dp.tech.to_dispatch}</b></div><div class="kv"><span>今日完工回報</span><b>${dp.tech.reports_today}</b></div></div>
+    </div></div>
+    <div style="font-size:12px;color:var(--gray-400);margin-top:8px">🤖 之後可加「AI 總監白話總結」（需設定 Claude 金鑰）。目前為規則版每日彙整。</div>`;
+}
+load();
+</script>
+</body>
+</html>

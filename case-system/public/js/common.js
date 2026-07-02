@@ -111,6 +111,17 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="calendar"]') || nav.querySelector('[data-page="my-tasks"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
+  // 注入「營運日報」選單（老闆/管理者），放在總覽下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="daily-report"]')) return;
+    if (!(currentUser.role === 'owner' || mu)) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'daily-report'; a.href = '/daily-report';
+    a.innerHTML = '<span class="icon">🤖</span>營運日報';
+    const anchor = nav.querySelector('[data-page="dashboard"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
 
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
