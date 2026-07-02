@@ -202,7 +202,8 @@ router.post('/', requireAuth, (req, res) => {
     .run(b.org_id || me.org_id || null, b.material_label, b.material_id || null, b.roll_id || null,
          b.case_id || null, b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, me.id);
   log(me.id, 'create', r.lastInsertRowid, b.material_label);
-  notifyManagers(b.org_id || me.org_id, `【膜料領用申請】\n${me.name} 申請領用「${b.material_label}」${b.est_meters ? '預估'+b.est_meters+'米' : ''}\n請至系統審核。`);
+  // 2026-07-03 Flora：關閉領用申請的 LINE 審核通知（不需 LINE 審核，只留系統紀錄；倉管改看系統「待核准」分頁）
+  // notifyManagers(b.org_id || me.org_id, `【膜料領用申請】\n${me.name} 申請領用「${b.material_label}」${b.est_meters ? '預估'+b.est_meters+'米' : ''}\n請至系統審核。`);
   res.json({ id: r.lastInsertRowid });
 });
 
@@ -288,7 +289,8 @@ router.patch('/:id/report', requireAuth, (req, res) => {
          Number(b.cat_add) || null, Number(b.cat_redo) || null, Number(b.cat_wrongmat) || null, Number(b.cat_recut) || null, Number(b.cat_loss) || null, Number(b.cat_other) || null, b.cat_other_note || null,
          b.note || null, r.id);
   log(me.id, 'report', r.id, `actual ${b.actual_meters}`);
-  notifyManagers(r.org_id, `【膜料歸檔申請】\n${me.name} 回報「${r.material_label}」實際用 ${b.actual_meters}米、剩餘 ${b.remaining_meters||0}米\n請至系統核准歸檔。`);
+  // 2026-07-03 Flora：關閉歸檔申請的 LINE 審核通知（改看系統「待歸還核准」分頁）
+  // notifyManagers(r.org_id, `【膜料歸檔申請】\n${me.name} 回報「${r.material_label}」實際用 ${b.actual_meters}米、剩餘 ${b.remaining_meters||0}米\n請至系統核准歸檔。`);
   res.json({ ok: true });
 });
 
