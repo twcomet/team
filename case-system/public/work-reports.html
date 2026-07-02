@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>完工回報總覽 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .wr-filter{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .wr-range{cursor:pointer}
+  .wr-range.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .wr-item{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:13px 16px;margin-bottom:10px;font-size:13.5px;line-height:1.9}
+  .wr-item .top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:2px}
+  .wr-input{font-size:13px;padding:5px 9px;border:1px solid var(--gray-200);border-radius:8px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <span class="page-title">📋 完工回報總覽</span>
+    </div>
+    <div class="page-body">
+      <div class="wr-filter">
+        <button class="btn btn-ghost btn-sm wr-range" onclick="wrRange('today',this)">今日</button>
+        <button class="btn btn-ghost btn-sm wr-range" onclick="wrRange('week',this)">本週</button>
+        <button class="btn btn-ghost btn-sm wr-range on" onclick="wrRange('month',this)">本月</button>
+        <button class="btn btn-ghost btn-sm wr-range" onclick="wrRange('quarter',this)">本季</button>
+        <button class="btn btn-ghost btn-sm wr-range" onclick="wrRange('all',this)">全部</button>
+        <input type="date" id="wrFrom" class="wr-input" onchange="wrCustom()">
+        <span style="color:var(--gray-400)">~</span>
+        <input type="date" id="wrTo" class="wr-input" onchange="wrCustom()">
+        <input type="text" id="wrKw" class="wr-input" placeholder="搜尋案號 / 客戶 / 師傅…" oninput="renderWorkReports()" style="min-width:180px">
+      </div>
+      <div id="wrList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let _wrAll = [], _wrRange = 'month';
+function wrRangeDates(r) {
+  const t = new Date(); const y = t.getFullYear(), m = t.getMonth();
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if (r === 'today')   return [fmt(t), fmt(t)];
+  if (r === 'week')    { const wd = (t.getDay()+6)%7; const mon = new Date(t); mon.setDate(t.getDate()-wd); return [fmt(mon), fmt(t)]; }
+  if (r === 'month')   return [`${y}-${String(m+1).padStart(2,'0')}-01`, fmt(t)];
+  if (r === 'quarter') { const qs = Math.floor(m/3)*3; return [`${y}-${String(qs+1).padStart(2,'0')}-01`, fmt(t)]; }
+  return ['', ''];
+}
+async function fetchWorkReports(from, to) {
+  let url = '/api/work-reports/all'; const q = [];
+  if (from) q.push('from=' + from); if (to) q.push('to=' + to);
+  if (q.length) url += '?' + q.join('&');
+  try { const r = await fetch(url); _wrAll = r.ok ? await r.json() : []; } catch(e) { _wrAll = []; }
+  renderWorkReports();
+}
+async function loadWorkReports() { const [f,t] = wrRangeDates(_wrRange); await fetchWorkReports(f, t); }
+function wrRange(r, btn) {
+  _wrRange = r;
+  document.querySelectorAll('.wr-range').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  document.getElementById('wrFrom').value = ''; document.getElementById('wrTo').value = '';
+  loadWorkReports();
+}
+function wrCustom() {
+  const f = document.getElementById('wrFrom').value, t = document.getElementById('wrTo').value;
+  if (!f && !t) return;
+  _wrRange = 'custom';
+  document.querySelectorAll('.wr-range').forEach(b => b.classList.remove('on'));
+  fetchWorkReports(f, t);
+}
+function renderWorkReports() {
+  const el = document.getElementById('wrList'); if (!el) return;
+  const kw = (document.getElementById('wrKw').value || '').toLowerCase().trim();
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const names = a => (a && a.length) ? a.map(esc).join('、') : '—';
+  let rows = _wrAll;
+  if (kw) rows = rows.filter(r => `${r.case_number||''} ${r.client_name||''} ${r.case_title||''} ${r.reporter_name||''} ${(r.driver_names||[]).join('')} ${(r.notes||'')}`.toLowerCase().includes(kw));
+  if (!rows.length) { el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--gray-400)">此區間尚無完工回報</div>'; return; }
+  el.innerHTML = `<div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">共 ${rows.length} 筆</div>` + rows.map(r => `
+    <div class="wr-item">
+      <div class="top">
+        <div><a href="/case-detail?id=${r.case_id}&tab=dispatch" style="font-family:monospace;color:var(--primary);text-decoration:none">${esc(r.case_number||'—')}</a> <b>${esc(r.client_name||r.case_title||'')}</b></div>
+        <div style="color:var(--gray-500);font-size:12px">${esc((r.submitted_at||'').replace('T',' ').slice(0,16))} · ${esc(r.reporter_name||'')}</div>
+      </div>
+      <div>📐 完工 <b style="color:#16a34a">${r.progress_pct!=null?r.progress_pct+'%':'—'}</b>　🚗 ${names(r.driver_names)}　📦 ${names(r.prepper_names)}　📷 ${names(r.photographer_names)}　☁️ ${r.photos_uploaded?'✅ 已上傳':'⛔ 未傳'}</div>
+      ${r.notes ? `<div style="color:var(--gray-600)">📝 ${esc(r.notes)}</div>` : ''}
+    </div>`).join('');
+}
+(async function init() {
+  await loadUser();
+  highlightNav('work-reports');
+  loadWorkReports();
+})();
+</script>
+</body>
+</html>

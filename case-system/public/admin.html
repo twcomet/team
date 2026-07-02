@@ -464,6 +464,9 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_marketing"> 📣 行銷報表
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_work_reports"> 📋 完工回報總覽
+          </label>
         </div>
       </div>
     </div>
@@ -1038,6 +1041,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_performance').checked      = !!p.page_performance;
     document.getElementById('perm_page_reports').checked          = !!p.page_reports;
     document.getElementById('perm_page_marketing').checked        = !!p.page_marketing;
+    document.getElementById('perm_page_work_reports').checked      = !!p.page_work_reports;
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
     const isHQ = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
@@ -1067,6 +1071,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_performance').checked      = false;
     document.getElementById('perm_page_reports').checked          = false;
     document.getElementById('perm_page_marketing').checked        = false;
+    document.getElementById('perm_page_work_reports').checked      = false;
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -1167,6 +1172,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
   document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
+  document.getElementById('perm_page_work_reports').checked      = isOwner ? true : (perms.page_work_reports !== undefined ? !!perms.page_work_reports : false);
   const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'];
   document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
@@ -1228,6 +1234,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_performance:    document.getElementById('perm_page_performance').checked,
       page_reports:        document.getElementById('perm_page_reports').checked,
       page_marketing:      document.getElementById('perm_page_marketing').checked,
+      page_work_reports:   document.getElementById('perm_page_work_reports').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
     allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))

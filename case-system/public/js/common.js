@@ -99,6 +99,19 @@ async function loadUser() {
     if (page in pageMap && !pageMap[page]) el.style.display = 'none';
   });
 
+  // 注入「完工回報」總覽選單（老闆 + 被授權者：客服/社群/小組長…），每頁只加一次
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="work-reports"]')) return;
+    const can = currentUser.role === 'owner' || p.page_work_reports === true;
+    if (!can) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'work-reports'; a.href = '/work-reports';
+    a.innerHTML = '<span class="icon">📋</span>完工回報';
+    const anchor = nav.querySelector('[data-page="calendar"]') || nav.querySelector('[data-page="my-tasks"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }

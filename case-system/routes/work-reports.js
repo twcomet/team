@@ -20,6 +20,35 @@ router.get('/crew', requireAuth, (req, res) => {
   res.json(rows);
 });
 
+// GET /api/work-reports/all?from=&to=  → 全部師傅回報（老闆/辦公室監控用；技術/施工看不到）
+router.get('/all', requireAuth, (req, res) => {
+  const me = req.session.user;
+  // 完工回報總覽：老闆 + 被授權者(客服/社群/小組長等，由後台勾選 page_work_reports)
+  if (me.role !== 'owner' && !(me.permissions && me.permissions.page_work_reports)) {
+    return res.status(403).json({ error: '無權限' });
+  }
+  const { from, to } = req.query;
+  let where = 'WHERE 1=1'; const p = [];
+  if (from) { where += ' AND w.report_date >= ?'; p.push(from); }
+  if (to)   { where += ' AND w.report_date <= ?'; p.push(to); }
+  const rows = db.prepare(`
+    SELECT w.*, u.name AS reporter_name, c.case_number, c.title AS case_title, cl.name AS client_name
+    FROM work_reports w
+    LEFT JOIN users u    ON u.id  = w.reporter_id
+    LEFT JOIN cases c    ON c.id  = w.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    ${where}
+    ORDER BY w.submitted_at DESC, w.id DESC
+    LIMIT 500
+  `).all(...p);
+  res.json(rows.map(r => ({
+    ...r,
+    driver_names:       namesFromIds(r.driver_ids),
+    prepper_names:      namesFromIds(r.prepper_ids),
+    photographer_names: namesFromIds(r.photographer_ids),
+  })));
+});
+
 // GET /api/work-reports/mine?dispatch_id=  → 帶入表單（我對這場的回報）
 router.get('/mine', requireAuth, (req, res) => {
   const uid = req.session.user.id;

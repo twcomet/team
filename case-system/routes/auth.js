@@ -79,6 +79,7 @@ router.post('/login', (req, res) => {
       page_performance:    !noBiz && perm('page_performance', def.manageUsers),
       page_reports:        !noBiz && perm('page_reports',     def.manageUsers),
       page_marketing:      perm('page_marketing',   def.manageUsers),
+      page_work_reports:   perm('page_work_reports', false),
       page_admin:          def.manageUsers,
       my_tasks:            perm('my_tasks',          isContractor),
     },
