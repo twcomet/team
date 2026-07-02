@@ -141,15 +141,21 @@ function renderWorkReports() {
   el.innerHTML = `<div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">共 ${rows.length} 筆</div>` + rows.map(r => `
     <div class="wr-item">
       <div class="top">
-        <div><a href="/case-detail?id=${r.case_id}&tab=dispatch" style="font-family:monospace;color:var(--primary);text-decoration:none">${esc(r.case_number||'—')}</a> <b>${esc(r.client_name||r.case_title||'')}</b></div>
+        <div>${_canOpenCase
+          ? `<a href="/case-detail?id=${r.case_id}&tab=dispatch" style="font-family:monospace;color:var(--primary);text-decoration:none">${esc(r.case_number||'—')}</a>`
+          : `<span style="font-family:monospace;color:var(--gray-600)">${esc(r.case_number||'—')}</span>`} <b>${esc(r.client_name||r.case_title||'')}</b></div>
         <div style="color:var(--gray-500);font-size:12px">${esc((r.submitted_at||'').replace('T',' ').slice(0,16))} · ${esc(r.reporter_name||'')}</div>
       </div>
       <div>📐 完工 <b style="color:#16a34a">${r.progress_pct!=null?r.progress_pct+'%':'—'}</b>　🚗 ${names(r.driver_names)}　📦 ${names(r.prepper_names)}　📷 ${names(r.photographer_names)}　☁️ ${r.photos_uploaded?'✅ 已上傳':'⛔ 未傳'}</div>
       ${r.notes ? `<div style="color:var(--gray-600)">📝 ${esc(r.notes)}</div>` : ''}
     </div>`).join('');
 }
+let _canOpenCase = false;
 (async function init() {
   await loadUser();
+  // 只有辦公室/管理角色能從這裡點進案件；小組長等技術人員看得到回報、但案號不可點（避免瀏覽非自己的案件財務）
+  _canOpenCase = currentUser.role === 'owner' || !!currentUser.manage_users
+    || ['hq_cs','hq_cs_manager','hq_sales','hq_accounting','vp','branch_manager','hq_hr'].includes(currentUser.role);
   highlightNav('work-reports');
   loadWorkReports();
 })();
