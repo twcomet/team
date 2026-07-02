@@ -1925,8 +1925,12 @@ function renderHeader() {
 }
 
 function applyGroupTabs(group) {
+  // B方案：無金額權限者(技術/小組長)隱藏 金額相關分頁（初步估價/正式報價單/收款）
+  const MONEY_TABS = ['estimate','quote','payment'];
+  const canMoney = !!currentUser?.can_see_amounts;
   document.querySelectorAll('.tab[data-groups]').forEach(tab => {
-    const show = tab.dataset.groups.split(',').includes(group);
+    let show = tab.dataset.groups.split(',').includes(group);
+    if (show && !canMoney && MONEY_TABS.includes(tab.dataset.tab)) show = false;
     tab.style.display = show ? '' : 'none';
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
