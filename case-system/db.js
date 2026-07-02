@@ -1596,6 +1596,7 @@ if (_dispSql && !_dispSql.sql.includes("'cut_material'")) {
 _addCol('dispatches', 'warranty_covered', 'INTEGER DEFAULT 1'); // 1=保固免費, 0=收費
 _addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
 _addCol('dispatches', 'day_index',        'INTEGER DEFAULT NULL'); // 多日施工第幾天(1=第1天)；NULL=未標記/單日
+_addCol('dispatches', 'leader_id',        'INTEGER REFERENCES users(id) DEFAULT NULL'); // 小組長（從指派人員中選一位，負責完工回報）
 
 // 場勘備註模板庫
 db.exec(`

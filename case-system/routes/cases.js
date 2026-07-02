@@ -683,7 +683,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   const case_id = Number(req.params.id);
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes, user_ids,
           unloading_location, has_parking, work_until, access_code,
-          warranty_covered, service_fee, confirm } = req.body;
+          warranty_covered, service_fee, confirm, leader_id } = req.body;
   let { day_index } = req.body;
   if (!scheduled_date) return res.status(400).json({ error: '請選擇派工日期' });
 
@@ -723,8 +723,8 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
 
   const result = db.prepare(`
     INSERT INTO dispatches (case_id, dispatch_type, scheduled_date, scheduled_time, estimated_hours, material, notes,
-      unloading_location, has_parking, work_until, access_code, warranty_covered, service_fee, day_index, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      unloading_location, has_parking, work_until, access_code, warranty_covered, service_fee, day_index, leader_id, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(case_id, dtype, scheduled_date,
          scheduled_time ?? null, estimated_hours ?? null,
          material ?? null, notes ?? null,
@@ -732,6 +732,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
          warranty_covered != null ? Number(warranty_covered) : 1,
          service_fee != null ? Number(service_fee) : null,
          day_index,
+         (leader_id != null && leader_id !== '') ? Number(leader_id) : null,
          req.session.user.id);
 
   const did = result.lastInsertRowid;
@@ -771,13 +772,13 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
 router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   const { dispatch_type, scheduled_date, scheduled_time, estimated_hours, actual_hours, material, material_used, status, notes, user_ids,
           unloading_location, has_parking, work_until, access_code,
-          warranty_covered, service_fee } = req.body;
+          warranty_covered, service_fee, leader_id } = req.body;
   try {
     db.prepare(`
       UPDATE dispatches SET dispatch_type=?, scheduled_date=?, scheduled_time=?, estimated_hours=?,
         actual_hours=?, material=?, material_used=?, status=COALESCE(?, status), notes=?,
         unloading_location=?, has_parking=?, work_until=?, access_code=?,
-        warranty_covered=?, service_fee=?
+        warranty_covered=?, service_fee=?, leader_id=?
       WHERE id=? AND case_id=?
     `).run(dispatch_type, scheduled_date, scheduled_time ?? null, estimated_hours ?? null,
            actual_hours ?? null, material ?? null, material_used ?? null,
@@ -785,6 +786,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
            unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
            warranty_covered != null ? Number(warranty_covered) : 1,
            service_fee != null ? Number(service_fee) : null,
+           (leader_id != null && leader_id !== '') ? Number(leader_id) : null,
            req.params.did, req.params.id);
   } catch (e) {
     console.error('PUT dispatch error:', e.message);

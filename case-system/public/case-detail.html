@@ -1440,6 +1440,12 @@
         <div id="d_users" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;padding:10px;border:1px solid var(--gray-200);border-radius:8px;min-height:48px"></div>
       </div>
 
+      <!-- 小組長（從勾選的人裡選一位） -->
+      <div class="form-group" id="d_leader_row" style="display:none">
+        <label>👑 小組長 <span style="font-size:11px;color:var(--gray-400)">從上面勾選的人選一位；只勾 1 人自動為組長。負責完工回報</span></label>
+        <div id="d_leader_opts" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+
       <!-- 售後維修費用（僅 aftersales 類型顯示） -->
       <div id="d_aftersales_row" style="display:none;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:8px;padding:12px 14px;margin-bottom:12px">
         <div style="font-size:12px;font-weight:600;color:#6b21a8;margin-bottom:8px">售後維修費用</div>
@@ -2654,6 +2660,7 @@ function renderDispatches(dispatches) {
       </div>
       <div style="font-size:13px;color:#374151">
         <span>👷 ${d.installer_names || '（尚未指派人員）'}</span>
+        ${d.leader_id ? `　<span style="color:#b45309;font-weight:600">👑 ${((users.find(u=>u.id===d.leader_id)||(allUsers||[]).find(u=>u.id===d.leader_id)||{}).name)||('#'+d.leader_id)}</span>` : ''}
         ${laborHtml}
         ${d.material ? `<span style="margin-left:16px">🎨 ${d.material}</span>` : ''}
       </div>
@@ -2695,11 +2702,29 @@ function buildUserCheckboxes(selectedIds = []) {
   const techUsers = users;
   container.innerHTML = techUsers.map(u => `
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid ${selectedIds.includes(u.id)?'var(--primary)':'var(--gray-200)'};background:${selectedIds.includes(u.id)?'#dbeafe':''}">
-      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)'">
+      <input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?'checked':''} onchange="this.closest('label').style.background=this.checked?'#dbeafe':'';this.closest('label').style.borderColor=this.checked?'var(--primary)':'var(--gray-200)';refreshLeaderOptions()">
       ${u.name}
     </label>
   `).join('');
+  refreshLeaderOptions();
 }
+// 小組長：只從「已勾選的施工人員」中選一位；只勾 1 人自動當組長
+function refreshLeaderOptions(presetId) {
+  const checked = [...document.querySelectorAll('#d_users input:checked')]
+    .map(el => ({ id: Number(el.value), name: el.closest('label').textContent.trim() }));
+  const row = document.getElementById('d_leader_row');
+  const opts = document.getElementById('d_leader_opts');
+  if (!row || !opts) return;
+  if (!checked.length) { row.style.display = 'none'; opts.innerHTML = ''; window._leaderId = null; return; }
+  row.style.display = '';
+  let lid = (presetId != null) ? presetId : window._leaderId;
+  if (checked.length === 1) lid = checked[0].id;                 // 只勾1人自動當組長
+  if (!checked.some(c => c.id === lid)) lid = (checked.length === 1 ? checked[0].id : null); // 組長被取消勾選 → 清空重選
+  window._leaderId = lid;
+  opts.innerHTML = checked.map(c => `<button type="button" onclick="pickLeader(${c.id})" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${lid===c.id?'#d97706':'var(--gray-200)'};background:${lid===c.id?'#fffbeb':'#fff'};color:${lid===c.id?'#b45309':'var(--gray-700)'};font-weight:${lid===c.id?'700':'400'};cursor:pointer;font-size:13px">${lid===c.id?'👑 ':''}${c.name}</button>`).join('')
+    + (lid==null ? '<span style="font-size:12px;color:#dc2626;align-self:center">請選一位小組長</span>' : '');
+}
+function pickLeader(id) { window._leaderId = id; refreshLeaderOptions(id); }
 
 // ── 派工 Modal 時間選擇器 ──────────────────────────────────
 function buildHourSelect(elId) {
@@ -3449,6 +3474,7 @@ function editDispatch(did) {
   document.querySelector('input[name="d_date_mode"][value="single"]').checked = true;
   switchDateMode();
   const ids = d.installer_ids ? d.installer_ids.split(',').map(Number) : [];
+  window._leaderId = d.leader_id || null;
   buildUserCheckboxes(ids);
   document.getElementById('dispatchModal').classList.add('open');
 }
@@ -3472,6 +3498,7 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
     warranty_covered:   dType === 'aftersales' ? warrantyCovered : 1,
     service_fee:        serviceFee,
     user_ids,
+    leader_id:          window._leaderId || null,
   };
 
   if (did || mode === 'single') {
