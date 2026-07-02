@@ -334,7 +334,8 @@ function buildMaps(){
   const byDate = {};
   const push = (date, ev) => { if(!date) return; (byDate[date]=byDate[date]||[]).push(ev); };
   (calData.cases||[]).forEach(c => push(c.scheduled_date, { kind:'case', cat:CAT_OF(c), c,
-    title:[c.title, c.client_name, c.installer_name].filter(Boolean).join('｜'),
+    reported:(c.source==='dispatch' && (c.report_count||0) > 0),
+    title:((c.source==='dispatch' && (c.report_count||0)>0) ? '✅ ' : '') + [c.title, c.client_name, c.installer_name].filter(Boolean).join('｜'),
     dayNo:(c.source==='dispatch' && c.dispatch_type==='install') ? (c.day_no||null) : null }));
   (calData.surveys||[]).forEach(s => push(s.survey_date, { kind:'survey', cat:'場勘', c:s,
     title:'🔍 '+[s.title, s.client_name, s.surveyor_name].filter(Boolean).join('｜'), dayNo:null }));
@@ -452,7 +453,7 @@ function renderMonth(){
         revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`;
       }
     }
-    const shown=ev.slice(0,3).map(e=>{const col=CAT_COLOR[e.cat]||'#5f6368';const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gcal-ev" style="background:${col}1f;color:${col}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
+    const shown=ev.slice(0,3).map(e=>{const col=e.reported?'#16a34a':(CAT_COLOR[e.cat]||'#5f6368');const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gcal-ev" style="background:${col}${e.reported?'2e':'1f'};color:${col};${e.reported?'font-weight:600':''}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
     const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
     let idleB='';

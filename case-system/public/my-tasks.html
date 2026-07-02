@@ -358,6 +358,7 @@ function renderCard(t) {
         </div>
         <div class="task-footer">
           <div class="task-badges">
+            ${t.my_report_count > 0 ? '<span style="font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:#dcfce7;color:#15803d">✅ 已回報</span>' : ''}
             ${statusBadge(t.status)}
             ${currentUser.can_see_amounts && t.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(t.final_price)}</span>` : ''}
             ${paymentBadge(t.payment_status)}

@@ -56,7 +56,8 @@ router.get('/', requireAuth, (req, res) => {
                SELECT 1 FROM notifications n2
                WHERE n2.user_id = ? AND n2.entity = 'cases' AND n2.entity_id = c.id AND n2.created_at > utd.dismissed_at
              )
-           ) THEN 1 ELSE 0 END AS is_done
+           ) THEN 1 ELSE 0 END AS is_done,
+           (SELECT COUNT(*) FROM work_reports w WHERE w.case_id = c.id AND w.reporter_id = ?) AS my_report_count
     FROM cases c
     LEFT JOIN clients cl ON c.client_id = cl.id
     LEFT JOIN survey_forms sf ON sf.case_id = c.id
@@ -75,7 +76,7 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY
       CASE WHEN c.scheduled_date IS NOT NULL THEN c.scheduled_date ELSE '9999-12-31' END ASC,
       c.created_at DESC
-  `).all(uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid);
+  `).all(uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid, uid);
   res.json(tasks);
 });
 

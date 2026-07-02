@@ -45,6 +45,7 @@ router.get('/', requireAuth, (req, res) => {
       cl.name         AS client_name,
       GROUP_CONCAT(u.name, '、') AS installer_name,
       COUNT(DISTINCT du.user_id) AS worker_count,
+      (SELECT COUNT(*) FROM work_reports w WHERE w.dispatch_id = d.id) AS report_count,
       'dispatch'      AS source
     FROM dispatches d
     JOIN cases c ON d.case_id = c.id
