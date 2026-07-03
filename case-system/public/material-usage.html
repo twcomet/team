@@ -162,7 +162,7 @@ table td, table th { font-size:13px; }
       <div class="form-group" style="position:relative"><label class="form-label">膜料 · 選到具體那一支 *</label>
         <input class="form-input" id="n_mat" placeholder="輸入品牌/型號/架位搜尋…" autocomplete="off" oninput="onRollSearch(this.value)" onfocus="onRollSearch(this.value)">
         <input type="hidden" id="n_roll_id"><input type="hidden" id="n_material_id_h">
-        <div id="rollDrop" style="display:none;position:absolute;z-index:200;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-top:2px;max-height:260px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.12)"></div>
+        <div class="ac-drop" id="rollDrop"></div>
         <div id="rollPicked" style="font-size:12px;margin-top:5px;color:#16a34a"></div>
         <div class="muted" style="font-size:11px;margin-top:2px">同型號可能有多支（不同架位/價位），請選到「具體那一支」避免選錯</div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -184,10 +184,12 @@ table td, table th { font-size:13px; }
               <option value="case_reserve">案件材料保留</option>
             </optgroup>
           </select></div>
-        <div class="form-group"><label class="form-label" id="n_est_label">使用米數 *</label>
-          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="使用幾米">
-          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">填整捲標籤上的米數；歸還時填剩餘，系統自動算用量</div></div>
+        <div class="form-group"><label class="form-label" id="n_est_label">領用時米數 *</label>
+          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="帶出/領取幾米">
+          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">整捲帶出填標籤米數；歸還時填剩餘，系統自動算實際用量</div></div>
       </div>
+      <div class="form-group" id="n_est_usage_row" style="display:none"><label class="form-label">預估使用米數（選填）</label>
+        <input class="form-input" id="n_est_usage" type="number" min="0" step="0.1" placeholder="預估會用幾米（出借型先估；歸還時填實際使用＋剩餘）"></div>
       <div class="form-group"><label class="form-label">關聯案件（可空，案件施工建議填）</label>
         <div class="ac-wrap">
           <input class="form-input" id="n_case" autocomplete="off" oninput="onCaseSearch(this.value)" placeholder="輸入案號或客戶搜尋…">
@@ -282,16 +284,18 @@ function onRollSearch(q){
   const drop=document.getElementById('rollDrop');
   clearTimeout(_rollTimer);
   _rollTimer=setTimeout(async()=>{
-    try{ _rolls=await fetch('/api/material-usage/rolls?q='+encodeURIComponent(q||'')).then(r=>r.ok?r.json():[]); }catch(e){ _rolls=[]; }
-    if(!_rolls.length){ drop.innerHTML='<div style="padding:8px 12px;font-size:13px;color:#9ca3af">查無庫存捲料</div>'; drop.style.display=''; return; }
+    let ok=true;
+    try{ const resp=await fetch('/api/material-usage/rolls?q='+encodeURIComponent(q||'')); ok=resp.ok; _rolls=ok?await resp.json():[]; }catch(e){ ok=false; _rolls=[]; }
+    if(!ok){ drop.innerHTML='<div class="ac-item muted">載入庫存失敗，請重試</div>'; drop.classList.add('open'); return; }
+    if(!_rolls.length){ drop.innerHTML='<div class="ac-item muted">查無庫存捲料</div>'; drop.classList.add('open'); return; }
     drop.innerHTML=_rolls.map((r,i)=>{
       const cost = (r.unit_cost!=null) ? ` · $${Math.round(r.unit_cost)}/米` : '';
-      return `<div class="roll-opt" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" onclick="pickRoll(${i})">
+      return `<div class="ac-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" onclick="pickRoll(${i})">
         <b>${esc(r.brand||'')} ${esc(r.model||'')}</b> ${esc(r.color||'')}<br>
         <span style="color:#6b7280">📍架位 ${esc(r.location||'—')} · 剩餘 <b style="color:#16a34a">${r.remaining_meters}</b> 米${r.roll_no?' · #'+esc(r.roll_no):''} · ${esc(r.branch||'')}${cost}</span>
       </div>`;
     }).join('');
-    drop.style.display='';
+    drop.classList.add('open');
   },200);
 }
 function pickRoll(i){
@@ -299,12 +303,12 @@ function pickRoll(i){
   document.getElementById('n_mat').value=`${r.brand||''} ${r.model||''} ${r.color||''}`.trim();
   document.getElementById('n_roll_id').value=r.roll_id;
   document.getElementById('n_material_id_h').value=r.material_id;
-  document.getElementById('rollDrop').style.display='none';
+  document.getElementById('rollDrop').classList.remove('open');
   document.getElementById('rollPicked').textContent=`✅ 已選：架位 ${r.location||'—'} · 現有庫存 ${r.remaining_meters} 米${r.roll_no?' · #'+r.roll_no:''}`;
   // 領用時米數自動帶出「現有庫存米數」供確認（可改）
   const est=document.getElementById('n_est'); if(est && !est.value) est.value=r.remaining_meters;
 }
-document.addEventListener('click',e=>{ const d=document.getElementById('rollDrop'); const inp=document.getElementById('n_mat'); if(d && !d.contains(e.target) && e.target!==inp) d.style.display='none'; });
+document.addEventListener('click',e=>{ const d=document.getElementById('rollDrop'); const inp=document.getElementById('n_mat'); if(d && !d.contains(e.target) && e.target!==inp) d.classList.remove('open'); });
 }
 async function loadData(){
   try{
@@ -435,12 +439,14 @@ async function releaseReserve(id){
   await loadData();
 }
 
-function close_(m){ document.getElementById(m).style.display='none'; document.getElementById('caseDrop').classList.remove('open'); }
+function close_(m){ document.getElementById(m).style.display='none'; document.getElementById('caseDrop').classList.remove('open'); const rd=document.getElementById('rollDrop'); if(rd) rd.classList.remove('open'); }
 function onPurposeChange(){
   const isTakeout = document.getElementById('n_purpose').value==='case_takeout';
   document.getElementById('n_est_hint').style.display = isTakeout?'':'none';
-  document.getElementById('n_est_label').textContent = isTakeout?'帶出米數（標籤米數）*':'使用米數 *';
-  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤上幾米，如 17':'使用幾米';
+  document.getElementById('n_est_label').textContent = isTakeout?'領用時米數（整捲帶出·標籤米數）*':'領用時米數（裁切/領取量）*';
+  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤上幾米，如 17':'裁/領幾米';
+  // 預估使用米數：只給出借型（整捲帶出）先估；裁切型直接扣不需要
+  const uRow=document.getElementById('n_est_usage_row'); if(uRow) uRow.style.display = isTakeout?'':'none';
 }
 function setPurposeByText(txt){
   const sel=document.getElementById('n_purpose');
