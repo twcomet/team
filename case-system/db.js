@@ -2254,6 +2254,7 @@ db.exec(`
     case_id         INTEGER REFERENCES cases(id),
     purpose         TEXT,
     est_meters      REAL,
+    est_usage_meters REAL,
     actual_meters   REAL,
     remaining_meters REAL,
     archive_location TEXT,
@@ -2285,6 +2286,7 @@ _addCol('material_requisitions', 'needs_return',   'INTEGER DEFAULT 0');
 _addCol('material_requisitions', 'cat_wrongmat',   'REAL');
 _addCol('material_requisitions', 'cat_other',      'REAL');
 _addCol('material_requisitions', 'cat_other_note', 'TEXT');
+_addCol('material_requisitions', 'est_usage_meters', 'REAL');  // 領用時預計使用米數（既有DB補欄，漏補會讓送出領用單502）
 
 // 依名稱關鍵字自動補上分類（只補尚未分類的，包在 try-catch 避免欄位不存在時崩潰）
 try {
