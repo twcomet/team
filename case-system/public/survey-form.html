@@ -9,7 +9,7 @@
 <style>
 .sf-section { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:20px; margin-bottom:16px; }
 .sf-section h4 { font-size:14px; font-weight:600; color:var(--gray-700); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--gray-100); }
-.finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 36px; gap:8px; align-items:center; margin-bottom:8px; }
+.finding-row { display:grid; grid-template-columns:1fr 1fr 80px 80px 70px 36px; gap:8px; align-items:center; margin-bottom:8px; }
 .finding-row input, .finding-row select { padding:7px 10px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; }
 .status-bar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-radius:8px; margin-bottom:16px; font-size:13px; }
 .status-draft   { background:#f9fafb; border:1px solid var(--gray-200); }
@@ -173,11 +173,12 @@
           <h4 style="margin:0;border:none;padding:0">場勘項目紀錄</h4>
           <button class="btn btn-ghost btn-sm" id="addFindingBtn">＋ 新增項目</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 36px;gap:8px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 70px 36px;gap:8px;margin-bottom:8px">
           <div style="font-size:12px;color:var(--gray-500);font-weight:500">施作位置</div>
           <div style="font-size:12px;color:var(--gray-500);font-weight:500">材料 / 說明</div>
           <div style="font-size:12px;color:var(--gray-500);font-weight:500">寬(cm)</div>
           <div style="font-size:12px;color:var(--gray-500);font-weight:500">高(cm)</div>
+          <div style="font-size:12px;color:var(--gray-500);font-weight:500">數量</div>
           <div></div>
         </div>
         <div id="findingsList"></div>
@@ -312,6 +313,7 @@ function renderFindings(findings) {
       <input class="f-mat" value="${f.material||''}" placeholder="PAROI MX001 / 隔熱紙" oninput="markDirty()">
       <input class="f-w" type="number" value="${f.width||''}" placeholder="cm" oninput="markDirty()">
       <input class="f-h" type="number" value="${f.height||''}" placeholder="cm" oninput="markDirty()">
+      <input class="f-qty" value="${f.qty||''}" placeholder="數量" style="text-align:center" oninput="markDirty()">
       <button class="btn btn-ghost btn-sm" style="color:#e02424;padding:4px 8px" onclick="removeFinding(${i})">✕</button>
     </div>
   `).join('');
@@ -323,12 +325,13 @@ function getFindings() {
     material: row.querySelector('.f-mat').value,
     width:    row.querySelector('.f-w').value || null,
     height:   row.querySelector('.f-h').value || null,
+    qty:      row.querySelector('.f-qty').value.trim() || null,
   })).filter(f => f.location || f.material);
 }
 
 document.getElementById('addFindingBtn').addEventListener('click', () => {
   const current = getFindings();
-  current.push({ location:'', material:'', width:'', height:'' });
+  current.push({ location:'', material:'', width:'', height:'', qty:'' });
   renderFindings(current);
   // focus 最後一行第一個輸入
   const rows = document.querySelectorAll('.finding-row');

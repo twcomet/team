@@ -207,6 +207,7 @@ function render(f) {
             <th>材料 / 說明</th>
             <th style="text-align:center">寬(cm)</th>
             <th style="text-align:center">高(cm)</th>
+            <th style="text-align:center">數量</th>
           </tr>
         </thead>
         <tbody>
@@ -215,6 +216,7 @@ function render(f) {
             <td>${esc(it.material || '—')}</td>
             <td style="text-align:center">${esc(it.width || '—')}</td>
             <td style="text-align:center">${esc(it.height || '—')}</td>
+            <td style="text-align:center">${esc(it.qty || '—')}</td>
           </tr>`).join('')}
         </tbody>
       </table>
