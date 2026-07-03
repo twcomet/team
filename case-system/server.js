@@ -243,6 +243,11 @@ pages.forEach(page => {
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
 
+// 新版報價單示意畫面（預覽用，不放選單；登入即可看）
+app.get('/quote-preview', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'quote-preview.html'));
+});
+
 // 員工績效報表（僅 owner）
 app.get('/staff-performance', requireAuth, requireContract, (req, res) => {
   if (req.session.user?.role !== 'owner') return res.redirect('/my-tasks');

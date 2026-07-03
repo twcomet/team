@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新版報價單（預覽示意） — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+/* 分頁列（複用 case-detail 外觀）*/
+.tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:20px; gap:0; overflow-x:auto; }
+.tab { padding:11px 16px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:700; }
+
+.preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:16px; line-height:1.7; }
+.qp-layout { display:grid; grid-template-columns:1fr 340px; gap:18px; align-items:start; }
+@media(max-width:1000px){ .qp-layout{ grid-template-columns:1fr; } }
+
+.qp-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.qp-toolbar .spacer { flex:1; }
+
+.qp-item { border:1px solid var(--gray-200); border-radius:12px; padding:14px; margin-bottom:12px; background:#fff; }
+.qp-item.film { border-left:4px solid #7c3aed; }
+.qp-item.catalog { border-left:4px solid #0891b2; }
+.qp-item-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.qp-item-head .idx { width:24px;height:24px;border-radius:50%;background:var(--primary-bg);color:var(--primary);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.qp-item-head .ty { font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px; }
+.ty-film{ background:#ede9fe;color:#6d28d9; } .ty-cat{ background:#cffafe;color:#0e7490; }
+.qp-item-head .del { margin-left:auto;color:#dc2626;cursor:pointer;font-weight:700;background:none;border:none;font-size:15px; }
+
+.qp-grid { display:grid; gap:10px; }
+.qp-grid.film { grid-template-columns:1.3fr 1fr .8fr .8fr; }
+.qp-grid.dims { grid-template-columns:repeat(4,1fr); margin-top:10px; }
+@media(max-width:640px){ .qp-grid.film,.qp-grid.dims{ grid-template-columns:1fr 1fr; } }
+.qp-field label { display:block;font-size:11px;color:var(--gray-500);font-weight:600;margin-bottom:3px; }
+.qp-field input, .qp-field select { width:100%;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px; }
+.qp-calc { background:var(--gray-50);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--gray-700);display:flex;align-items:center;justify-content:center;font-weight:700; }
+.qp-calc b { color:var(--gray-900);font-size:15px; }
+
+.work-pills { display:flex;gap:6px;margin-top:4px; }
+.work-pill { flex:1;text-align:center;border:1.5px solid var(--gray-200);border-radius:8px;padding:7px 4px;cursor:pointer;font-size:12px;font-weight:600;color:var(--gray-500); }
+.work-pill.on { border-color:var(--primary);background:var(--primary-bg);color:var(--primary); }
+.work-pill .p { display:block;font-size:11px;font-weight:800;color:var(--gray-900);margin-top:2px; }
+
+.thumb { width:100%;height:60px;border:1px dashed var(--gray-300);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--gray-400);background:var(--gray-50);cursor:pointer; }
+
+/* 右側金額區 */
+.qp-side { position:sticky; top:16px; }
+.sum-card { border:1px solid var(--gray-200);border-radius:12px;padding:16px;background:#fff;margin-bottom:14px; }
+.sum-card h4 { font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px; }
+.sum-row { display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;color:var(--gray-700); }
+.sum-row.total { border-top:2px solid var(--gray-200);margin-top:8px;padding-top:12px;font-size:16px;font-weight:800;color:var(--gray-900); }
+.sum-row .amt { font-weight:700;font-family:'SF Mono',monospace; }
+.sum-final { background:var(--primary-bg);border:1.5px solid var(--primary);border-radius:10px;padding:12px;margin-top:10px;text-align:center; }
+.sum-final .lab { font-size:12px;color:var(--primary-dark);font-weight:700; }
+.sum-final .val { font-size:26px;font-weight:900;color:var(--primary-dark);margin-top:2px; }
+.lowmin-warn { background:#fffbeb;border:1px solid #fcd34d;color:#92400e;font-size:12px;padding:8px 10px;border-radius:8px;margin-top:8px;display:none; }
+.lowmin-warn.on { display:block; }
+
+.compare { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px; }
+.compare .col { border:1px solid var(--gray-200);border-radius:10px;padding:10px;text-align:center; }
+.compare .col.mkt { border-color:var(--primary);background:var(--primary-bg); }
+.compare .col .t { font-size:11px;color:var(--gray-500);font-weight:700; }
+.compare .col .v { font-size:18px;font-weight:900;margin-top:3px; }
+.compare .col.mkt .v { color:var(--primary-dark); }
+
+.health { display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:9px 12px;border-radius:10px;background:#ecfdf5;color:#065f46;margin-top:6px; }
+.health .dot { width:10px;height:10px;border-radius:50%;background:#10b981; }
+
+.field-inline { display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0; }
+.field-inline label { color:var(--gray-500);width:74px;flex-shrink:0; }
+.field-inline select,.field-inline input { flex:1;padding:6px 8px;border:1px solid var(--gray-300);border-radius:7px;font-size:13px; }
+
+/* 客戶檢視 */
+.cust-view { display:none; }
+.cust-view.on { display:block; }
+.editor-view.hide { display:none; }
+.cust-card { max-width:720px;margin:0 auto;border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.06); }
+.cust-hd { background:linear-gradient(135deg,var(--space-900),#3d0026);color:#fff;padding:22px 24px; }
+.cust-hd h2 { font-size:20px;font-weight:800; }
+.cust-hd p { font-size:13px;opacity:.85;margin-top:4px; }
+.cust-body { padding:22px 24px; }
+.cust-item { display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-100); }
+.cust-item .ph { width:64px;height:64px;border-radius:8px;background:var(--gray-100);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--gray-400); }
+.cust-item .nm { font-weight:700;font-size:14px; } .cust-item .ds { font-size:12px;color:var(--gray-500);margin-top:2px; }
+.cust-item .pr { margin-left:auto;text-align:right;font-weight:800; }
+.fold { border:1px solid var(--gray-200);border-radius:10px;margin-top:10px;overflow:hidden; }
+.fold-h { padding:12px 14px;font-weight:700;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;background:var(--gray-50); }
+.fold-b { padding:0 14px;max-height:0;overflow:hidden;transition:max-height .2s;font-size:13px;color:var(--gray-600);line-height:1.8; }
+.fold.open .fold-b { max-height:300px;padding:12px 14px; }
+.sign-box { border:2px dashed var(--gray-300);border-radius:10px;height:110px;display:flex;align-items:center;justify-content:center;color:var(--gray-400);margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand" style="padding:18px 16px"><h2 style="font-size:16px;display:flex;align-items:center"><img src="/logo.png" style="height:26px;width:26px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px"> 繪新管理系統</h2></div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label">業務</span>
+      <a class="nav-item" href="#"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" href="#"><span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item active" href="#"><span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" href="#"><span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" href="#"><span class="icon">💲</span>估價計算機</a>
+      <span class="nav-group-label">進銷存</span>
+      <a class="nav-item" href="#"><span class="icon">🎞️</span>膜料管理</a>
+    </nav>
+  </aside>
+
+  <main class="main-content" style="padding:22px 26px">
+    <div class="preview-flag">🔎 這是<b>新版報價單的示意畫面</b>（可點：切換面材、改寬高看才數/金額即時變、切換客戶檢視）。所有數字是假資料，僅供確認長相與流程，<b>還沒接真系統</b>。看完覺得 OK 再開始寫。</div>
+
+    <!-- 案件 header -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <h1 style="font-size:22px;font-weight:800">HX2607-001 · 內湖陳宅系統櫃貼膜</h1>
+      <span class="badge badge-surveyed">已場勘</span>
+    </div>
+
+    <!-- 分頁 -->
+    <div class="tabs">
+      <div class="tab">基本資訊</div>
+      <div class="tab">初步估價紀錄</div>
+      <div class="tab">場勘</div>
+      <div class="tab active">正式報價單</div>
+      <div class="tab">往來文件</div>
+      <div class="tab">派工記錄</div>
+      <div class="tab">歷程</div>
+    </div>
+
+    <!-- 工具列 -->
+    <div class="qp-toolbar editor-view">
+      <span class="badge badge-quote_draft">草稿 v2</span>
+      <select style="padding:7px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"><option>v2（編輯中）</option><option>v1（已作廢）</option></select>
+      <span class="spacer"></span>
+      <button class="btn btn-secondary btn-sm" onclick="alert('示意：會列出此案的初步估價品項，勾選帶入')">📥 從初步估價帶入</button>
+      <button class="btn btn-secondary btn-sm" onclick="addFilm()">＋ 新增品項</button>
+      <button class="btn btn-primary btn-sm" onclick="toggleCust(true)">👁 切換客戶檢視</button>
+    </div>
+
+    <!-- 客戶/類型 -->
+    <div class="card editor-view" style="padding:12px 14px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <div class="field-inline" style="margin:0"><label>客戶</label><span style="font-weight:700">陳先生 · 內湖區</span></div>
+      <div class="field-inline" style="margin:0"><label>客戶類型</label>
+        <select id="custType" onchange="recalc()" style="width:auto">
+          <option value="owner">業主（低消 $10,000）</option>
+          <option value="designer">設計師（低消 $9,000，預設 9 折）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="qp-layout editor-view">
+      <!-- 左：品項 -->
+      <div>
+        <div id="itemList"></div>
+        <button class="btn btn-secondary" style="width:100%" onclick="addFilm()">＋ 新增貼膜品項</button>
+      </div>
+
+      <!-- 右：金額 -->
+      <div class="qp-side">
+        <div class="sum-card">
+          <h4>💵 金額試算（即時）</h4>
+          <div class="sum-row"><span>品項小計</span><span class="amt" id="s_sub">—</span></div>
+          <div class="sum-row"><span>折扣<span id="s_discLab" style="color:var(--gray-400)"></span></span><span class="amt" id="s_disc">—</span></div>
+          <div class="sum-row"><span>折後</span><span class="amt" id="s_after">—</span></div>
+          <div class="lowmin-warn" id="s_low">⚠️ 未達低消，已補至低消金額</div>
+          <div class="field-inline"><label>車馬費</label><input type="number" id="travel" value="1000" oninput="recalc()"></div>
+          <div class="field-inline"><label>期貨運費</label><input type="number" id="fut" value="0" oninput="recalc()"></div>
+          <div class="sum-row"><span>稅金 5%</span><span class="amt" id="s_tax">—</span></div>
+          <div class="sum-final"><div class="lab">含稅總價（一般優惠）</div><div class="val" id="s_total">—</div></div>
+          <div class="health"><span class="dot"></span> 利潤健康度：良好（業務看燈號、不看數字）</div>
+        </div>
+
+        <div class="sum-card">
+          <h4>🎁 優惠對照</h4>
+          <div class="field-inline"><label>一般折數</label><input type="number" id="disc" value="100" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">%</span></div>
+          <div class="field-inline"><label>行銷折數</label><input type="number" id="mkt" value="95" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">%</span></div>
+          <div class="compare">
+            <div class="col"><div class="t">一般優惠</div><div class="v" id="c_normal">—</div></div>
+            <div class="col mkt"><div class="t">行銷（同意拍攝）</div><div class="v" id="c_mkt">—</div></div>
+          </div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:8px;text-align:center">客戶端勾「同意拍攝」才套用行銷價</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 客戶檢視 -->
+    <div class="cust-view">
+      <div class="qp-toolbar"><button class="btn btn-secondary btn-sm" onclick="toggleCust(false)">← 回編輯</button><span class="spacer"></span><span style="font-size:12px;color:var(--gray-500)">這是客戶收到連結看到的樣子（業主版·隱藏才數）</span></div>
+      <div class="cust-card">
+        <div class="cust-hd"><h2>繪新國際 · 貼膜報價單</h2><p>陳先生　內湖區　報價單 HX2607-001　有效 7 天</p></div>
+        <div class="cust-body">
+          <div id="custItems"></div>
+          <div style="text-align:right;margin-top:14px;font-size:14px">連工帶料原價：<span id="cv_sub" style="text-decoration:line-through;color:var(--gray-400)"></span></div>
+          <div style="text-align:right;margin-top:4px;font-size:15px;font-weight:700">優惠後（未稅）：<span id="cv_after"></span></div>
+          <div style="text-align:right;margin-top:4px;font-size:13px;color:var(--gray-500)">稅金 5%：<span id="cv_tax"></span></div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總計</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_total"></span></div>
+
+          <label style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:12px;background:var(--primary-bg);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer"><input type="checkbox" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照紀錄並授權用於媒體（可享行銷優惠價）</label>
+
+          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">貼膜前須知 <span>▾</span></div><div class="fold-b">施工前請清空櫃體、移除貴重物品；牆面需保持乾燥平整……（每品項可帶不同須知模板，可編輯）</div></div>
+          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">付款方式 <span>▾</span></div><div class="fold-b">訂金 50%，完工驗收後付清尾款……</div></div>
+          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">條款與驗收須知 <span>▾</span></div><div class="fold-b">保固一年；驗收標準……</div></div>
+
+          <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽名確認</div>
+          <div class="sign-box">（客戶於此手寫簽名）</div>
+          <button class="btn btn-primary" style="width:100%;margin-top:10px">✓ 確認並簽署報價單</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── 假牌價（示意；正式版讀 est_film_catalog）──
+const CATALOG = {
+  bodaq: { label:'BODAQ', models:[
+    { name:'BM038 架位木紋', plane:180, cabinet:200, shape:260 },
+    { name:'BC903 淺灰石紋', plane:150, cabinet:170, shape:230 },
+  ]},
+  paroi: { label:'PAROI（防焰）', models:[
+    { name:'MX001 霧面白', plane:220, cabinet:260, shape:340 },
+  ]},
+};
+const WORK = { plane:'平面牆', cabinet:'系統櫃門', shape:'造型' };
+const LOWMIN = { owner:10000, designer:9000 };
+
+let items = [
+  { brand:'bodaq', model:0, work:'cabinet', w:90,  h:220, loc:'主臥系統櫃門片' },
+  { brand:'bodaq', model:1, work:'plane',   w:300, h:270, loc:'客廳主牆' },
+];
+
+const money = n => 'NT$ ' + Math.round(n).toLocaleString();
+
+function cai(it){ return (it.w * it.h) / 900; }
+function unit(it){ return CATALOG[it.brand].models[it.model][it.work]; }
+function lineTotal(it){ return Math.round(cai(it) * unit(it)); }
+
+function renderItems(){
+  const el = document.getElementById('itemList');
+  el.innerHTML = items.map((it,i) => {
+    const m = CATALOG[it.brand].models;
+    return `<div class="qp-item film">
+      <div class="qp-item-head"><div class="idx">${i+1}</div><span class="ty ty-film">貼膜（才數制）</span>
+        <button class="del" onclick="delItem(${i})">✕</button></div>
+      <div class="qp-grid film">
+        <div class="qp-field"><label>施作位置</label><input value="${it.loc}" oninput="setF(${i},'loc',this.value)"></div>
+        <div class="qp-field"><label>膜料品牌</label>
+          <select onchange="setBrand(${i},this.value)">${Object.keys(CATALOG).map(b=>`<option value="${b}" ${b===it.brand?'selected':''}>${CATALOG[b].label}</option>`).join('')}</select></div>
+        <div class="qp-field" style="grid-column:span 2"><label>膜款（自動帶三種面材單價）</label>
+          <select onchange="setF(${i},'model',+this.value);recalc()">${m.map((mm,j)=>`<option value="${j}" ${j===it.model?'selected':''}>${mm.name}</option>`).join('')}</select></div>
+      </div>
+      <div style="margin-top:10px"><label style="font-size:11px;color:var(--gray-500);font-weight:600">施作面材（點選，單價自動帶）</label>
+        <div class="work-pills">${Object.keys(WORK).map(wk=>`<div class="work-pill ${wk===it.work?'on':''}" onclick="setF(${i},'work','${wk}');recalc()">${WORK[wk]}<span class="p">$${m[it.model][wk]}/才</span></div>`).join('')}</div></div>
+      <div class="qp-grid dims">
+        <div class="qp-field"><label>寬 (cm)</label><input type="number" value="${it.w}" oninput="setF(${i},'w',+this.value||0);recalc()"></div>
+        <div class="qp-field"><label>高 (cm)</label><input type="number" value="${it.h}" oninput="setF(${i},'h',+this.value||0);recalc()"></div>
+        <div class="qp-field"><label>才數（自動）</label><div class="qp-calc"><b>${cai(it).toFixed(2)}</b>&nbsp;才</div></div>
+        <div class="qp-field"><label>小計（自動）</label><div class="qp-calc"><b>${money(lineTotal(it))}</b></div></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <div style="flex:1"><div class="thumb">📷 貼覆範圍照（逐列上傳）</div></div>
+        <div style="flex:1"><div class="thumb">🎞️ 膜料示意圖（膜料庫自動帶）</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setF(i,k,v){ items[i][k]=v; if(k==='loc'||k==='w'||k==='h') return; renderItems(); }
+function setBrand(i,v){ items[i].brand=v; items[i].model=0; renderItems(); recalc(); }
+function delItem(i){ items.splice(i,1); renderItems(); recalc(); }
+function addFilm(){ items.push({brand:'bodaq',model:0,work:'plane',w:100,h:200,loc:'新增位置'}); renderItems(); recalc(); }
+
+function recalc(){
+  const sub = items.reduce((s,it)=>s+lineTotal(it),0);
+  const ct = document.getElementById('custType').value;
+  const disc = (+document.getElementById('disc').value||100)/100;
+  const after0 = sub * disc;
+  const low = LOWMIN[ct];
+  const lowApplied = after0 < low;
+  const after = lowApplied ? low : after0;
+  document.getElementById('s_low').classList.toggle('on', lowApplied);
+  const travel = +document.getElementById('travel').value||0;
+  const fut = +document.getElementById('fut').value||0;
+  const preTax = after + travel + fut;
+  const tax = Math.round(preTax*0.05);
+  const total = preTax + tax;
+
+  document.getElementById('s_sub').textContent = money(sub);
+  document.getElementById('s_disc').textContent = '− ' + money(sub-after0);
+  document.getElementById('s_discLab').textContent = ' ('+(disc*100)+'%)';
+  document.getElementById('s_after').textContent = money(after);
+  document.getElementById('s_tax').textContent = money(tax);
+  document.getElementById('s_total').textContent = money(total);
+  document.getElementById('c_normal').textContent = money(total);
+
+  // 行銷
+  const mkt = (+document.getElementById('mkt').value||100)/100;
+  const mAfter0 = sub*disc*mkt;
+  const mAfter = mAfter0 < low ? low : mAfter0;
+  const mTotal = Math.round((mAfter+travel+fut)*1.05);
+  document.getElementById('c_mkt').textContent = money(mTotal);
+
+  // 客戶檢視數字
+  window._cust = { sub, after, tax, total, mAfter, mTax:Math.round((mAfter+travel+fut)*0.05), mTotal, travel, fut };
+  renderCust(false);
+}
+
+function renderCust(useMkt){
+  const el = document.getElementById('custItems');
+  el.innerHTML = items.map(it=>`<div class="cust-item">
+    <div class="ph">🎞️</div>
+    <div><div class="nm">${it.loc}</div><div class="ds">${CATALOG[it.brand].label} ${CATALOG[it.brand].models[it.model].name}｜${WORK[it.work]}</div></div>
+    <div class="pr">${money(lineTotal(it))}</div></div>`).join('');
+  const c = window._cust; if(!c) return;
+  const after = useMkt ? c.mAfter : c.after;
+  const tax = useMkt ? c.mTax : c.tax;
+  const total = useMkt ? c.mTotal : c.total;
+  document.getElementById('cv_sub').textContent = money(c.sub);
+  document.getElementById('cv_after').textContent = money(after);
+  document.getElementById('cv_tax').textContent = money(tax);
+  document.getElementById('cv_total').textContent = money(total);
+}
+function toggleMkt(on){ renderCust(on); }
+function toggleCust(on){
+  document.querySelectorAll('.editor-view').forEach(e=>e.classList.toggle('hide',on));
+  document.querySelector('.cust-view').classList.toggle('on',on);
+  window.scrollTo(0,0);
+}
+
+renderItems(); recalc();
+</script>
+</body>
+</html>
