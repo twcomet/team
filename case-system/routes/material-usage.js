@@ -174,6 +174,28 @@ router.get('/reserves', requireAuth, (req, res) => {
   res.json(rows.map(r => ({ ...r, meters: Math.abs(r.meters || 0) })));
 });
 
+// GET /api/material-usage/rolls?q=  → 列出「每一支捲」供領用/裁切精準選料（解決同型號多支不同架位/價位選錯）
+//   回傳 品牌/型號/花色/架位/剩餘米數/編號/分店；成本(價位)僅 can_see_cost 才帶
+router.get('/rolls', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const canCost = me.role === 'owner' || !!me.can_see_cost;
+  const q = (req.query.q || '').trim();
+  let sql = `
+    SELECT r.id AS roll_id, r.material_id, m.brand, m.model, m.color,
+           r.location, r.remaining_meters, r.roll_no, r.branch
+           ${canCost ? ', r.unit_cost' : ''}
+    FROM material_rolls r
+    JOIN materials m ON m.id = r.material_id
+    WHERE r.status='active' AND r.remaining_meters > 0`;
+  const p = [];
+  if (q) {
+    sql += ` AND (m.brand LIKE ? OR m.model LIKE ? OR m.color LIKE ? OR r.roll_no LIKE ? OR r.location LIKE ?)`;
+    const s = `%${q}%`; p.push(s, s, s, s, s);
+  }
+  sql += ` ORDER BY m.brand, m.model, r.location, r.id LIMIT 100`;
+  res.json(db.prepare(sql).all(...p));
+});
+
 // 領用「關聯案件」下拉搜尋：回傳「全部案件」（不受派工/分店權限限制，就算他看不到案件也能關聯）
 // 只回傳案號/客戶/標題等識別欄位，不含金額或成本，避免洩漏機密
 router.get('/case-lookup', requireAuth, (req, res) => {
