@@ -192,7 +192,7 @@ router.get('/rolls', requireAuth, (req, res) => {
     sql += ` AND (m.brand LIKE ? OR m.model LIKE ? OR m.color LIKE ? OR r.roll_no LIKE ? OR r.location LIKE ?)`;
     const s = `%${q}%`; p.push(s, s, s, s, s);
   }
-  sql += ` ORDER BY m.brand, m.model, r.location, r.id LIMIT 100`;
+  sql += ` ORDER BY m.brand, m.model, r.location, r.id LIMIT 2000`;
   res.json(db.prepare(sql).all(...p));
 });
 
@@ -228,10 +228,10 @@ router.post('/', requireAuth, (req, res) => {
       db.exec('BEGIN');
       const r = db.prepare(`
         INSERT INTO material_requisitions
-          (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, actual_meters, note, applicant_id, status, pickup_approver_id, pickup_approved_at, archive_approver_id, archived_at)
-        VALUES (?,?,?,?,?,?,?,0,?,?,?,?, 'archived', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`)
+          (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, est_usage_meters, actual_meters, note, applicant_id, status, pickup_approver_id, pickup_approved_at, archive_approver_id, archived_at)
+        VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?, 'archived', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`)
         .run(orgId, b.material_label, b.material_id || null, b.roll_id || null, b.case_id || null, b.purpose || null, b.purpose_code || null,
-             b.est_meters || null, willConsume ? b.est_meters : null, b.note || null, me.id, me.id, me.id);
+             b.est_meters || null, b.est_usage_meters || null, willConsume ? b.est_meters : null, b.note || null, me.id, me.id, me.id);
       const did = r.lastInsertRowid;
       if (willConsume) {
         consumeStock({ materialId: b.material_id, rollId: b.roll_id, meters: b.est_meters,
@@ -251,10 +251,10 @@ router.post('/', requireAuth, (req, res) => {
   // 出借型（整捲帶出）/ 其他 → 維持「申請待倉管核准」
   const r = db.prepare(`
     INSERT INTO material_requisitions
-      (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, note, applicant_id, status)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?, 'pending_pickup')`)
+      (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, est_usage_meters, note, applicant_id, status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'pending_pickup')`)
     .run(orgId, b.material_label, b.material_id || null, b.roll_id || null,
-         b.case_id || null, b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, me.id);
+         b.case_id || null, b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.est_usage_meters || null, b.note || null, me.id);
   log(me.id, 'create', r.lastInsertRowid, b.material_label);
   res.json({ id: r.lastInsertRowid });
 });
@@ -275,9 +275,9 @@ router.put('/:id', requireAuth, (req, res) => {
   try {
     db.exec('BEGIN');
     if (needsRestore) restoreRequisitionStock(r.id);
-    db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, purpose_code=?, needs_return=?, est_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, actual_meters=NULL, remaining_meters=NULL, pickup_approver_id=NULL, pickup_approved_at=NULL, archive_approver_id=NULL, archived_at=NULL, returned_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    db.prepare(`UPDATE material_requisitions SET material_label=?, material_id=?, roll_id=?, case_id=?, purpose=?, purpose_code=?, needs_return=?, est_meters=?, est_usage_meters=?, note=?, org_id=?, status='pending_pickup', reject_note=NULL, actual_meters=NULL, remaining_meters=NULL, pickup_approver_id=NULL, pickup_approved_at=NULL, archive_approver_id=NULL, archived_at=NULL, returned_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .run(b.material_label || r.material_label, b.material_id || null, b.roll_id || null, b.case_id || null,
-           b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, b.org_id || r.org_id, r.id);
+           b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.est_usage_meters || null, b.note || null, b.org_id || r.org_id, r.id);
     db.exec('COMMIT');
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch (_) {}

@@ -159,37 +159,42 @@ table td, table th { font-size:13px; }
   <div class="modal" style="max-width:500px">
     <div class="modal-header"><h3>新增領用申請</h3><button class="modal-close" onclick="close_('newModal')">×</button></div>
     <div class="modal-body">
-      <div class="form-group" style="position:relative"><label class="form-label">膜料 · 選到具體那一支 *</label>
-        <input class="form-input" id="n_mat" placeholder="輸入品牌/型號/架位搜尋…" autocomplete="off" oninput="onRollSearch(this.value)" onfocus="onRollSearch(this.value)">
-        <input type="hidden" id="n_roll_id"><input type="hidden" id="n_material_id_h">
-        <div class="ac-drop" id="rollDrop"></div>
+      <div class="form-group"><label class="form-label">膜料：品牌 → 系列 → 型號（選到具體那一支）*</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <select class="form-input" id="n_brand" onchange="onBrandChange()"><option value="">選品牌…</option></select>
+          <select class="form-input" id="n_series" onchange="onSeriesChange()"><option value="">選系列…</option></select>
+        </div>
+        <select class="form-input" id="n_roll_sel" onchange="onRollSelect()"><option value="">選型號 / 那一支（架位·剩餘）…</option></select>
+        <input type="hidden" id="n_roll_id"><input type="hidden" id="n_material_id_h"><input type="hidden" id="n_mat_label">
         <div id="rollPicked" style="font-size:12px;margin-top:5px;color:#16a34a"></div>
-        <div class="muted" style="font-size:11px;margin-top:2px">同型號可能有多支（不同架位/價位），請選到「具體那一支」避免選錯</div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">用途 *</label>
-          <select class="form-input" id="n_purpose" onchange="onPurposeChange()">
-            <optgroup label="出借歸還（要填歸還單）">
-              <option value="case_takeout">案件帶出（整捲）</option>
-            </optgroup>
-            <optgroup label="材料裁切（送出即扣庫存、免審核）">
-              <option value="sample">裁小樣</option>
-              <option value="case_material">案件裁料</option>
-              <option value="academy">學院使用</option>
-              <option value="store_sale">實體門市銷售</option>
-              <option value="ecommerce">電商銷售</option>
-              <option value="adjust">庫存調整</option>
-              <option value="other">非案件其他</option>
-            </optgroup>
-            <optgroup label="保留">
-              <option value="case_reserve">案件材料保留</option>
-            </optgroup>
-          </select></div>
+        <div class="muted" style="font-size:11px;margin-top:2px">同型號可能有多支（不同架位/價位），選到「具體那一支」避免選錯</div></div>
+      <div class="form-group"><label class="form-label">用途 *</label>
+        <select class="form-input" id="n_purpose" onchange="onPurposeChange()">
+          <optgroup label="出借歸還（要填歸還單）">
+            <option value="case_takeout">案件帶出（整捲）</option>
+          </optgroup>
+          <optgroup label="材料裁切（送出即扣庫存、免審核）">
+            <option value="sample">裁小樣</option>
+            <option value="case_material">案件裁料</option>
+            <option value="academy">學院使用</option>
+            <option value="store_sale">實體門市銷售</option>
+            <option value="ecommerce">電商銷售</option>
+            <option value="adjust">庫存調整</option>
+            <option value="other">非案件其他</option>
+          </optgroup>
+          <optgroup label="保留">
+            <option value="case_reserve">案件材料保留</option>
+          </optgroup>
+        </select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div class="form-group"><label class="form-label" id="n_est_label">領用時米數 *</label>
-          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="帶出/領取幾米">
-          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px;display:none">整捲帶出填標籤米數；歸還時填剩餘，系統自動算實際用量</div></div>
+          <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="自動帶庫存">
+          <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px">選料後自動帶入現有庫存米數，可改</div></div>
+        <div class="form-group"><label class="form-label">預計使用米數</label>
+          <input class="form-input" id="n_est_usage" type="number" min="0" step="0.1" placeholder="選填"></div>
+        <div class="form-group"><label class="form-label">實際使用米數</label>
+          <input class="form-input" id="n_actual" type="number" min="0" step="0.1" placeholder="選填(歸還時填)"></div>
       </div>
-      <div class="form-group" id="n_est_usage_row" style="display:none"><label class="form-label">預估使用米數（選填）</label>
-        <input class="form-input" id="n_est_usage" type="number" min="0" step="0.1" placeholder="預估會用幾米（出借型先估；歸還時填實際使用＋剩餘）"></div>
       <div class="form-group"><label class="form-label">關聯案件（可空，案件施工建議填）</label>
         <div class="ac-wrap">
           <input class="form-input" id="n_case" autocomplete="off" oninput="onCaseSearch(this.value)" placeholder="輸入案號或客戶搜尋…">
@@ -275,40 +280,57 @@ async function loadMats(){
     arr.forEach(m=>{ const label=[m.brand,m.model,m.color].filter(Boolean).join(' '); if(label) matLabelMap[label]=m.id; });
     // 選料改用「捲料層」搜尋(onRollSearch)，datalist 已移除
   }catch(e){ console.error('loadMats failed', e); }
-
-// ── 選到「具體那一支」捲料（解決同型號多支不同架位/價位選錯）──────────
-let _rolls=[], _rollTimer;
-function onRollSearch(q){
-  document.getElementById('n_roll_id').value=''; document.getElementById('n_material_id_h').value='';
-  document.getElementById('rollPicked').textContent='';
-  const drop=document.getElementById('rollDrop');
-  clearTimeout(_rollTimer);
-  _rollTimer=setTimeout(async()=>{
-    let ok=true;
-    try{ const resp=await fetch('/api/material-usage/rolls?q='+encodeURIComponent(q||'')); ok=resp.ok; _rolls=ok?await resp.json():[]; }catch(e){ ok=false; _rolls=[]; }
-    if(!ok){ drop.innerHTML='<div class="ac-item muted">載入庫存失敗，請重試</div>'; drop.classList.add('open'); return; }
-    if(!_rolls.length){ drop.innerHTML='<div class="ac-item muted">查無庫存捲料</div>'; drop.classList.add('open'); return; }
-    drop.innerHTML=_rolls.map((r,i)=>{
-      const cost = (r.unit_cost!=null) ? ` · $${Math.round(r.unit_cost)}/米` : '';
-      return `<div class="ac-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" onclick="pickRoll(${i})">
-        <b>${esc(r.brand||'')} ${esc(r.model||'')}</b> ${esc(r.color||'')}<br>
-        <span style="color:#6b7280">📍架位 ${esc(r.location||'—')} · 剩餘 <b style="color:#16a34a">${r.remaining_meters}</b> 米${r.roll_no?' · #'+esc(r.roll_no):''} · ${esc(r.branch||'')}${cost}</span>
-      </div>`;
-    }).join('');
-    drop.classList.add('open');
-  },200);
 }
-function pickRoll(i){
-  const r=_rolls[i]; if(!r) return;
-  document.getElementById('n_mat').value=`${r.brand||''} ${r.model||''} ${r.color||''}`.trim();
+
+// ── 膜料選料：品牌 → 系列 → 型號（三層下拉，可靠；系列自型號代碼帶出）──────
+let _allRolls=[];
+async function loadRolls(){
+  try{ _allRolls=await fetch('/api/material-usage/rolls').then(r=>r.ok?r.json():[]); }catch(e){ _allRolls=[]; }
+  populateBrands();
+}
+function seriesOf(model){ const m=(model||'').match(/^[A-Za-z]+/); return m?m[0]:(model||'其他'); }
+function populateBrands(){
+  const brands=[...new Set(_allRolls.map(r=>r.brand).filter(Boolean))].sort();
+  document.getElementById('n_brand').innerHTML='<option value="">選品牌…</option>'+brands.map(b=>`<option>${esc(b)}</option>`).join('');
+  document.getElementById('n_series').innerHTML='<option value="">選系列…</option>';
+  document.getElementById('n_roll_sel').innerHTML='<option value="">選型號 / 那一支…</option>';
+}
+function onBrandChange(){
+  const b=document.getElementById('n_brand').value;
+  const ser=[...new Set(_allRolls.filter(r=>r.brand===b).map(r=>seriesOf(r.model)).filter(Boolean))].sort();
+  document.getElementById('n_series').innerHTML='<option value="">選系列…</option>'+ser.map(s=>`<option>${esc(s)}</option>`).join('');
+  document.getElementById('n_roll_sel').innerHTML='<option value="">選型號 / 那一支…</option>';
+  clearRollSel();
+}
+function onSeriesChange(){
+  const b=document.getElementById('n_brand').value, s=document.getElementById('n_series').value;
+  const list=_allRolls.filter(r=>r.brand===b && seriesOf(r.model)===s);
+  document.getElementById('n_roll_sel').innerHTML='<option value="">選型號 / 那一支…</option>'+list.map(r=>{
+    const cost=(r.unit_cost!=null)?` $${Math.round(r.unit_cost)}/米`:'';
+    return `<option value="${r.roll_id}">${esc(r.model||'')} ${esc(r.color||'')}｜架位${esc(r.location||'—')}｜剩${r.remaining_meters}米${r.roll_no?' #'+esc(r.roll_no):''}${cost}</option>`;
+  }).join('');
+  clearRollSel();
+}
+function clearRollSel(){ document.getElementById('n_roll_id').value=''; document.getElementById('n_material_id_h').value=''; document.getElementById('rollPicked').textContent=''; }
+function onRollSelect(){
+  const id=document.getElementById('n_roll_sel').value;
+  const r=_allRolls.find(x=>String(x.roll_id)===String(id));
+  if(!r){ clearRollSel(); return; }
   document.getElementById('n_roll_id').value=r.roll_id;
   document.getElementById('n_material_id_h').value=r.material_id;
-  document.getElementById('rollDrop').classList.remove('open');
-  document.getElementById('rollPicked').textContent=`✅ 已選：架位 ${r.location||'—'} · 現有庫存 ${r.remaining_meters} 米${r.roll_no?' · #'+r.roll_no:''}`;
-  // 領用時米數自動帶出「現有庫存米數」供確認（可改）
-  const est=document.getElementById('n_est'); if(est && !est.value) est.value=r.remaining_meters;
+  document.getElementById('n_mat_label').value=`${r.brand||''} ${r.model||''} ${r.color||''}`.trim();
+  document.getElementById('rollPicked').textContent=`✅ 已選：${r.brand||''} ${r.model||''}｜架位 ${r.location||'—'}｜現有庫存 ${r.remaining_meters} 米${r.roll_no?'｜#'+r.roll_no:''}`;
+  const est=document.getElementById('n_est'); if(est) est.value=r.remaining_meters;  // 領用時米數自動帶庫存
 }
-document.addEventListener('click',e=>{ const d=document.getElementById('rollDrop'); const inp=document.getElementById('n_mat'); if(d && !d.contains(e.target) && e.target!==inp) d.classList.remove('open'); });
+// 編輯既有紀錄：把三層下拉還原到那一支
+function setRollByRecord(rec){
+  document.getElementById('n_mat_label').value=rec.material_label||'';
+  if(!rec.roll_id){ document.getElementById('rollPicked').textContent=rec.material_label?('原紀錄：'+rec.material_label):''; document.getElementById('n_roll_id').value=''; document.getElementById('n_material_id_h').value=rec.material_id||''; return; }
+  const r=_allRolls.find(x=>String(x.roll_id)===String(rec.roll_id));
+  if(!r){ document.getElementById('rollPicked').textContent='原紀錄那一支（已無庫存/已用完）：'+(rec.material_label||''); document.getElementById('n_roll_id').value=rec.roll_id; document.getElementById('n_material_id_h').value=rec.material_id||''; return; }
+  document.getElementById('n_brand').value=r.brand||''; onBrandChange();
+  document.getElementById('n_series').value=seriesOf(r.model); onSeriesChange();
+  document.getElementById('n_roll_sel').value=String(r.roll_id); onRollSelect();
 }
 async function loadData(){
   try{
@@ -442,11 +464,8 @@ async function releaseReserve(id){
 function close_(m){ document.getElementById(m).style.display='none'; document.getElementById('caseDrop').classList.remove('open'); const rd=document.getElementById('rollDrop'); if(rd) rd.classList.remove('open'); }
 function onPurposeChange(){
   const isTakeout = document.getElementById('n_purpose').value==='case_takeout';
-  document.getElementById('n_est_hint').style.display = isTakeout?'':'none';
-  document.getElementById('n_est_label').textContent = isTakeout?'領用時米數（整捲帶出·標籤米數）*':'領用時米數（裁切/領取量）*';
-  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤上幾米，如 17':'裁/領幾米';
-  // 預估使用米數：只給出借型（整捲帶出）先估；裁切型直接扣不需要
-  const uRow=document.getElementById('n_est_usage_row'); if(uRow) uRow.style.display = isTakeout?'':'none';
+  document.getElementById('n_est_label').textContent = isTakeout?'領用時米數（整捲帶出）*':'領用時米數 *';
+  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤米數，如 17':'自動帶庫存';
 }
 function setPurposeByText(txt){
   const sel=document.getElementById('n_purpose');
@@ -454,18 +473,22 @@ function setPurposeByText(txt){
   if(opt) sel.value=opt.value; else sel.selectedIndex=0;
   onPurposeChange();
 }
-function openNew(){ editId=null; document.querySelector('#newModal h3').textContent='新增領用申請';
-  ['n_mat','n_est','n_note','n_roll_id','n_material_id_h'].forEach(i=>document.getElementById(i).value=''); document.getElementById('rollPicked').textContent=''; clearCase();
+async function openNew(){ editId=null; document.querySelector('#newModal h3').textContent='新增領用/裁切';
+  ['n_est','n_est_usage','n_actual','n_note','n_roll_id','n_material_id_h','n_mat_label'].forEach(i=>document.getElementById(i).value=''); document.getElementById('rollPicked').textContent=''; ['n_brand','n_series','n_roll_sel'].forEach(i=>document.getElementById(i).selectedIndex=0); clearCase();
   document.getElementById('n_purpose').value='case_material'; document.getElementById('n_org').value='總部';
   onPurposeChange();
-  document.getElementById('newModal').style.display='flex'; }
-function openEdit(id){ const r=rows.find(x=>x.id===id); if(!r) return; editId=id;
-  document.querySelector('#newModal h3').textContent='編輯領用申請';
-  document.getElementById('n_mat').value=r.material_label||''; document.getElementById('n_est').value=r.est_meters??'';
-  document.getElementById('n_roll_id').value=r.roll_id||''; document.getElementById('n_material_id_h').value=r.material_id||'';
-  document.getElementById('rollPicked').textContent=r.roll_id?'✅ 已選（原紀錄那一支）':'';
+  document.getElementById('newModal').style.display='flex';
+  await loadRolls();  // 載入捲料 → 填品牌下拉
+}
+async function openEdit(id){ const r=rows.find(x=>x.id===id); if(!r) return; editId=id;
+  document.querySelector('#newModal h3').textContent='編輯領用/裁切';
+  document.getElementById('n_est').value=r.est_meters??''; document.getElementById('n_est_usage').value=r.est_usage_meters??''; document.getElementById('n_actual').value=r.actual_meters??'';
   document.getElementById('n_note').value=r.note||''; document.getElementById('n_org').value=r.org_name||'總部';
-  setPurposeByText(r.purpose||'');
+  document.getElementById('n_purpose').value='case_material';
+  setPurposeByText(r.purpose||''); onPurposeChange();
+  document.getElementById('newModal').style.display='flex';
+  await loadRolls(); setRollByRecord(r);  // 還原三層下拉到那一支
+  if(r.est_meters!=null) document.getElementById('n_est').value=r.est_meters;  // setRollByRecord 會用庫存覆蓋，還原原紀錄的領用時米數
   document.getElementById('n_case').value=r.case_number?`${r.case_number} ${r.client_name||''}`.trim():''; document.getElementById('n_case_id').value=r.case_id||'';
   document.getElementById('newModal').style.display='flex'; }
 async function saveNew(){
@@ -474,10 +497,11 @@ async function saveNew(){
   if(!editId && !rollId){ alert('請從搜尋結果選到「具體那一支」膜料捲（避免同型號選錯支）'); return; }
   const purposeVal=document.getElementById('n_purpose').value;
   if(!V('n_est')){ alert(purposeVal==='case_takeout'?'請填帶出米數（捲料標籤上的米數）':'請填領用時米數'); return; }
-  const label=V('n_mat');
+  const label=V('n_mat_label');
   const payload={ material_label:label, material_id:matId, roll_id:rollId, purpose:document.getElementById('n_purpose').selectedOptions[0].text,
     purpose_code:purposeVal,
-    est_meters:parseFloat(V('n_est'))||null, case_id:document.getElementById('n_case_id').value||null,
+    est_meters:parseFloat(V('n_est'))||null, est_usage_meters:parseFloat(V('n_est_usage'))||null, actual_meters:parseFloat(V('n_actual'))||null,
+    case_id:document.getElementById('n_case_id').value||null,
     org_id:null, note:V('n_note')||null };
   const url=editId?`/api/material-usage/${editId}`:'/api/material-usage';
   const r=await fetch(url,{method:editId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
