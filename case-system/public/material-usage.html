@@ -129,7 +129,7 @@ table td, table th { font-size:13px; }
       <div class="filter-bar">
         <input type="month" id="monthFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="resetPage()">
         <select id="orgFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px" onchange="resetPage()">
-          <option value="">全部分店</option><option>總部</option><option>鶯歌</option><option>新竹</option>
+          <option value="">全部分店</option>
         </select>
         <div style="position:relative;flex:1;min-width:200px;max-width:340px">
           <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none">🔍</span>
@@ -202,7 +202,7 @@ table td, table th { font-size:13px; }
           <div class="ac-drop" id="caseDrop"></div>
         </div></div>
       <div class="form-group"><label class="form-label">分店</label>
-        <select class="form-input" id="n_org"><option>總部</option><option>鶯歌</option><option>新竹</option></select></div>
+        <select class="form-input" id="n_org"></select></div>
       <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="n_note" placeholder="選填"></div>
       <div class="muted" style="font-size:12px">送出後 → 通知倉管審核；倉管核准後才可拿料。</div>
     </div>
@@ -257,6 +257,7 @@ document.addEventListener('DOMContentLoaded', async()=>{
   try{ if(window.highlightNav) highlightNav('material-usage'); }catch(e){}
   document.querySelectorAll('.tabs-bar .tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
   loadMats();
+  await loadOrgs();
   await loadData();
   // 從案件詳情「新增膜料使用」帶過來：自動開新增、預填案件
   const p=new URLSearchParams(location.search);
@@ -287,6 +288,16 @@ let _allRolls=[];
 async function loadRolls(){
   try{ _allRolls=await fetch('/api/material-usage/rolls').then(r=>r.ok?r.json():[]); }catch(e){ _allRolls=[]; }
   populateBrands();
+}
+// 分店清單：從系統「分店設定」(/api/orgs)動態載入，不寫死
+async function loadOrgs(){
+  let orgs=[];
+  try{ orgs=await fetch('/api/orgs').then(r=>r.ok?r.json():[]); }catch(e){}
+  const names=orgs.filter(o=>o.active!==0).map(o=>o.name);
+  const filt=document.getElementById('orgFilter');
+  if(filt) filt.innerHTML='<option value="">全部分店</option>'+names.map(n=>`<option>${esc(n)}</option>`).join('');
+  const form=document.getElementById('n_org');
+  if(form) form.innerHTML=names.map(n=>`<option>${esc(n)}</option>`).join('');
 }
 function seriesOf(model){ const m=(model||'').match(/^[A-Za-z]+/); return m?m[0]:(model||'其他'); }
 function populateBrands(){
