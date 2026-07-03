@@ -144,6 +144,7 @@ function render(f) {
         <div class="info-item"><div class="label">施工地址</div><div class="value">${address || '—'}</div></div>
       </div>
       ${mapsUrl ? `<a class="map-btn" href="${mapsUrl}" target="_blank">📍 在地圖中查看地址</a>` : ''}
+      ${f.photo_upload_url ? `<a class="map-btn" href="${f.photo_upload_url}" target="_blank" style="background:#1a56db;color:#fff;margin-top:8px">☁️ 開啟案件雲端資料夾（照片上傳到這裡）</a>` : ''}
     </div>
 
     ${f.dispatch_note ? `<div class="dispatch-note"><div class="note-label">📌 調度備注</div><div class="note-body">${f.dispatch_note}</div></div>` : ''}

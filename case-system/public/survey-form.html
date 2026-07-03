@@ -146,6 +146,10 @@
           <div class="form-group"><label>聯絡電話</label><input type="tel" id="sf_phone" placeholder="0912-345-678"></div>
         </div>
         <div class="form-group"><label>施工地址</label><input type="text" id="sf_address"></div>
+        <div class="form-group" id="sf_folder_wrap" style="display:none;margin:0">
+          <label>案件雲端資料夾</label>
+          <a id="sf_folder_link" href="#" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:#1a56db;font-weight:600;text-decoration:none;font-size:14px">☁️ 開啟雲端資料夾（師傅照片上傳處）</a>
+        </div>
       </div>
 
       <!-- 現場搬運與停車（師傅回報）-->
@@ -225,6 +229,12 @@ async function init() {
   document.getElementById('sf_address').value = c.location || '';
   document.getElementById('sf_contact').value = c.client_name || '';
   document.getElementById('sf_phone').value   = c.client_phone || '';
+
+  // 案件雲端資料夾連結
+  if (c.photo_upload_url) {
+    document.getElementById('sf_folder_link').href = c.photo_upload_url;
+    document.getElementById('sf_folder_wrap').style.display = '';
+  }
 
   // 載入現有場勘單
   const sfRes = await fetch(`/api/survey/cases/${caseId}/survey-form`);

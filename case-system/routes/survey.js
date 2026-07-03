@@ -247,7 +247,7 @@ router.get('/worker/:token', (req, res) => {
            sf.share_token, sf.checklist_data,
            sf.access_method, sf.access_note, sf.parking_location,
            sf.parking_fee_hourly, sf.parking_fee_has_cap, sf.parking_fee_cap,
-           c.case_number, c.title, c.location,
+           c.case_number, c.title, c.location, c.photo_upload_url,
            c.survey_fee, c.survey_fee_required, c.survey_fee_paid,
            c.survey_fee_actual, c.survey_fee_report, c.survey_site_absent,
            u.name as surveyor_name,
