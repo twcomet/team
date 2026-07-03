@@ -211,21 +211,51 @@ router.get('/case-lookup', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...p));
 });
 
-// 新增領用申請
+// 新增領用/裁切申請
 router.post('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const b = req.body;
   if (!b.material_label) return res.status(400).json({ error: '請填膜料' });
   const needsReturn = b.purpose_code === 'case_takeout' ? 1 : 0;  // 只有整捲帶出要歸還
+  const orgId = b.org_id || me.org_id || null;
+
+  // 2026-07-03 Flora：材料裁切（直接扣用途、非出借）→ 送出即扣庫存、直接結案，不需倉管審核
+  const isDirectCut = !needsReturn && CONSUME_PURPOSES.has(b.purpose_code);
+  if (isDirectCut) {
+    const willConsume = Number(b.est_meters) > 0;
+    if (willConsume && !b.material_id) return res.status(400).json({ error: '請選膜料' });
+    try {
+      db.exec('BEGIN');
+      const r = db.prepare(`
+        INSERT INTO material_requisitions
+          (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, actual_meters, note, applicant_id, status, pickup_approver_id, pickup_approved_at, archive_approver_id, archived_at)
+        VALUES (?,?,?,?,?,?,?,0,?,?,?,?, 'archived', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`)
+        .run(orgId, b.material_label, b.material_id || null, b.roll_id || null, b.case_id || null, b.purpose || null, b.purpose_code || null,
+             b.est_meters || null, willConsume ? b.est_meters : null, b.note || null, me.id, me.id, me.id);
+      const did = r.lastInsertRowid;
+      if (willConsume) {
+        consumeStock({ materialId: b.material_id, rollId: b.roll_id, meters: b.est_meters,
+          log_type: purposeToLogType(b.purpose_code), case_id: b.case_id,
+          notes: `材料裁切#${did} ${b.purpose || ''}`.trim(), logged_by: me.id, org_id: orgId, requisition_id: did });
+      }
+      db.exec('COMMIT');
+      log(me.id, 'cut', did, b.material_label);
+      if (b.case_id) syncCaseMaterialCost(b.case_id);
+      return res.json({ id: did, done: true, consumed: willConsume });
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch (_) {}
+      return res.status(400).json({ error: e.message });  // 例：庫存不足
+    }
+  }
+
+  // 出借型（整捲帶出）/ 其他 → 維持「申請待倉管核准」
   const r = db.prepare(`
     INSERT INTO material_requisitions
       (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, note, applicant_id, status)
     VALUES (?,?,?,?,?,?,?,?,?,?,?, 'pending_pickup')`)
-    .run(b.org_id || me.org_id || null, b.material_label, b.material_id || null, b.roll_id || null,
+    .run(orgId, b.material_label, b.material_id || null, b.roll_id || null,
          b.case_id || null, b.purpose || null, b.purpose_code || null, needsReturn, b.est_meters || null, b.note || null, me.id);
   log(me.id, 'create', r.lastInsertRowid, b.material_label);
-  // 2026-07-03 Flora：關閉領用申請的 LINE 審核通知（不需 LINE 審核，只留系統紀錄；倉管改看系統「待核准」分頁）
-  // notifyManagers(b.org_id || me.org_id, `【膜料領用申請】\n${me.name} 申請領用「${b.material_label}」${b.est_meters ? '預估'+b.est_meters+'米' : ''}\n請至系統審核。`);
   res.json({ id: r.lastInsertRowid });
 });
 
