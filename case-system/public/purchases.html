@@ -286,6 +286,11 @@
     <div class="modal-header"><h3>轉入物料庫存</h3><button class="modal-close" onclick="closeModal('convertModal')">✕</button></div>
     <div class="modal-body">
       <p id="convertInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:14px"></p>
+      <div class="form-group" style="margin-bottom:14px;border:2px solid #7c3aed;border-radius:8px;padding:12px;background:#faf5ff">
+        <label class="form-label" style="color:#6d28d9;font-weight:700">轉入米數 <span style="color:red">*</span></label>
+        <input class="form-input" id="cv_meters" type="number" min="0" step="0.1" style="font-size:16px;font-weight:700">
+        <div style="font-size:12px;color:var(--gray-500);margin-top:4px">預設帶到貨米數，可修改為實際轉入庫存的米數。</div>
+      </div>
       <div id="cv_new_box" style="border:1px solid var(--gray-200);border-radius:8px;padding:12px;background:#fafafa">
         <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151">建立料（系統會自動給這支料一個獨立捲號）</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -579,11 +584,15 @@ function openConvert(poId) {
   document.getElementById('cv_model').value = modelLabel || '';
   document.getElementById('cv_on_ecommerce').value = '0';
   document.getElementById('cv_fire_retardant').value = '0';
+  document.getElementById('cv_meters').value = po.received_meters || '';
   document.getElementById('cv_cost_box').style.display = (currentUser && currentUser.can_see_cost) ? '' : 'none';
   document.getElementById('convertModal').style.display = 'flex';
 }
 async function saveConvert() {
   const body = {};
+  const meters = parseFloat(document.getElementById('cv_meters').value);
+  if (!(meters > 0)) { alert('請填入轉入米數'); return; }
+  body.meters = meters;
   {
     const brand = document.getElementById('cv_brand').value.trim();
     const model = document.getElementById('cv_model').value.trim();

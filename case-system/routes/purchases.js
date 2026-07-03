@@ -405,8 +405,15 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
   const pending = receipts.filter(r => !r.material_roll_id);
   if (!pending.length) return res.status(400).json({ error: '此採購單到貨已全部入庫，無需轉庫存' });
 
-  const { material_id, new_material } = req.body;
+  const { material_id, new_material, meters } = req.body;
   let matId = material_id ? Number(material_id) : (po.material_id || null);
+
+  // 轉入總米數：預設＝各待入庫到貨批次米數總和；使用者可覆寫。
+  // 為保留「一到貨批次＝一捲」結構（刪除回退依此逐捲扣庫存），覆寫的總數按各批原始米數等比例分攤；
+  // 單一批次（最常見）時即精確等於輸入值。
+  const defaultTotal = pending.reduce((s, r) => s + (parseFloat(r.quantity_meters) || 0), 0);
+  const targetTotal  = (meters != null && meters !== '' && parseFloat(meters) > 0) ? parseFloat(meters) : defaultTotal;
+  const scale = defaultTotal > 0 ? (targetTotal / defaultTotal) : 0;
 
   try {
     db.exec('BEGIN');
@@ -431,8 +438,14 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
     const cleanModel = s => String(s || '').replace(/[（(][^）)]*[)）]/g, '').trim();
     let seq = db.prepare(`SELECT COUNT(*) c FROM material_rolls WHERE material_id=?`).get(matId).c;
     let totalMeters = 0; const rollIds = [];
-    for (const rc of pending) {
-      const m = parseFloat(rc.quantity_meters) || 0;
+    const lastIdx = pending.length - 1;
+    for (let i = 0; i < pending.length; i++) {
+      const rc = pending[i];
+      const raw = parseFloat(rc.quantity_meters) || 0;
+      // 等比例分攤；最後一批用「目標總數 − 已分攤」補足，避免浮點誤差累積
+      let m = defaultTotal > 0 ? Math.round(raw * scale * 100) / 100 : Math.round((targetTotal / pending.length) * 100) / 100;
+      if (i === lastIdx) m = Math.round((targetTotal - totalMeters) * 100) / 100;
+      if (m < 0) m = 0;
       // 每支料自動給獨立捲號：品牌-型號-到貨日-序號
       const dateCode = String(rc.received_date || '').replace(/-/g, '') || 'NA';
       const rollNo = `${mat.brand || ''}-${cleanModel(mat.model)}-${dateCode}-${String(++seq).padStart(2, '0')}`;
