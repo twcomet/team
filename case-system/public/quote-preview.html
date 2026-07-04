@@ -11,77 +11,95 @@
 .tab { padding:11px 16px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; }
 .tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:700; }
 .preview-flag { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:13px; padding:10px 14px; border-radius:10px; margin-bottom:14px; line-height:1.7; }
-
 .qtoolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
 .qtoolbar .spacer { flex:1; }
-.pickbar { background:var(--primary-bg); border:1px solid #fbcfe8; border-radius:10px; padding:9px 13px; font-size:13px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.pickbar { background:var(--primary-bg); border:1px solid #fbcfe8; border-radius:10px; padding:9px 13px; font-size:13px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.sec-title { font-size:13px; font-weight:700; color:var(--gray-700); margin:18px 0 8px; display:flex; align-items:center; gap:6px; }
 
-/* 乾淨表格 */
-.qtbl { width:100%; border-collapse:collapse; font-size:13px; }
-.qtbl th { background:var(--space-900); color:#fff; padding:8px 8px; text-align:left; font-weight:600; font-size:12px; white-space:nowrap; }
-.qtbl th.cost { background:#475569; }
-.qtbl td { border-bottom:1px solid var(--gray-100); padding:8px; vertical-align:top; }
-.qtbl tr:nth-child(even) td { background:var(--gray-50); }
-.qtbl .num { text-align:right; white-space:nowrap; }
-.qtbl input { border:1px solid var(--gray-300); border-radius:6px; padding:5px 7px; font-size:13px; width:100%; }
-.qtbl input.money { text-align:right; font-weight:700; }
-.qtbl select { border:1px solid var(--gray-300); border-radius:6px; padding:5px 6px; font-size:12px; width:100%; }
-.qtbl .rowtot { font-weight:800; color:var(--gray-900); }
-.qtbl .rowpromo { font-weight:800; color:var(--primary-dark); }
-.qtbl .cost-cell { background:#f1f5f9; }
-.thumb { width:52px; height:38px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; cursor:pointer; }
-.thumb.film { background:linear-gradient(135deg,#c8a97e,#8a6d4b); }
-.thumb.area { background:var(--gray-100); color:var(--gray-400); border:1px dashed var(--gray-300); }
-.itemname { font-weight:700; font-size:13px; margin-bottom:3px; }
-.itemnote { font-size:11px; color:var(--gray-500); line-height:1.5; }
-.notetip { font-size:11px; color:var(--primary); cursor:pointer; }
+/* 品項清單：一項一行，點開編輯 */
+.items { border:1px solid var(--gray-200); border-radius:12px; overflow:hidden; }
+.irow { display:grid; grid-template-columns:26px 1fr 150px 128px 92px 118px 26px; gap:10px; align-items:center; padding:11px 12px; border-bottom:1px solid var(--gray-100); }
+.irow:last-child { border-bottom:none; }
+.irow.head { background:var(--space-900); color:#fff; font-size:12px; font-weight:600; padding:9px 12px; }
+.irow .caret { cursor:pointer; color:var(--gray-400); font-size:14px; user-select:none; text-align:center; }
+.irow .caret.open { color:var(--primary); transform:rotate(90deg); }
+.iname { font-weight:700; font-size:14px; }
+.ifilm { font-size:12px; color:var(--gray-500); margin-top:2px; }
+.mchip { display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:20px; }
+.m-cai { background:#e0edfb; color:#1763b6; } .m-unit { background:#f3e8ff; color:#7c3aed; }
+.thumb-sm { width:42px; height:30px; border-radius:5px; background:linear-gradient(135deg,#c8a97e,#8a6d4b); display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:#fff; }
+.calc-sum { font-size:12px; color:var(--gray-500); }
+.rowtot { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.rowpromo { text-align:right; }
+.rowpromo b { font-size:17px; font-weight:900; color:var(--primary-dark); } .rowpromo .lab { font-size:10px; color:var(--gray-400); display:block; }
 .delrow { color:#dc2626; cursor:pointer; font-weight:700; background:none; border:none; font-size:14px; }
 
-/* 底部金額 */
-.foot { display:flex; gap:14px; margin-top:14px; align-items:flex-start; flex-wrap:wrap; }
-.amt-tbl { border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; font-size:13px; min-width:360px; }
-.amt-tbl table { width:100%; border-collapse:collapse; }
-.amt-tbl th { background:#475569; color:#fff; padding:7px 10px; font-size:12px; text-align:right; }
-.amt-tbl th:first-child { text-align:left; }
-.amt-tbl td { padding:7px 10px; border-bottom:1px solid var(--gray-100); }
-.amt-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
-.amt-tbl tr.hl td { background:var(--primary-bg); font-weight:800; }
-.amt-tbl tr.final td { background:var(--space-900); color:#fff; font-weight:800; font-size:15px; }
-.amt-tbl tr.final td .mkt { color:#fde047; }
-.amt-inputs { flex:1; min-width:240px; }
-.fi { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 0; }
-.fi label { color:var(--gray-500); width:120px; flex-shrink:0; }
-.fi input,.fi select { flex:1; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; }
+/* 展開編輯面板 */
+.editpanel { grid-column:1/-1; background:var(--gray-50); border-radius:10px; padding:14px; margin-top:4px; display:grid; grid-template-columns:150px 1fr; gap:16px; }
+@media(max-width:760px){ .editpanel{ grid-template-columns:1fr; } }
+.ep-media { display:flex; flex-direction:column; gap:8px; }
+.thumb-lg { width:100%; height:88px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+.thumb-lg.film { background:linear-gradient(135deg,#c8a97e,#8a6d4b); color:#fff; }
+.thumb-lg.area { background:#fff; border:2px dashed var(--gray-300); color:var(--gray-400); cursor:pointer; }
+.ep-fields .fr { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px; }
+.ep-fields .f { flex:1; min-width:96px; }
+.ep-fields label { display:block; font-size:11px; color:var(--gray-500); font-weight:600; margin-bottom:3px; }
+.ep-fields input, .ep-fields select { width:100%; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; }
+.ep-fields .ro { background:var(--gray-100); border:1px solid var(--gray-200); border-radius:7px; padding:6px 8px; font-size:13px; font-weight:700; color:var(--gray-700); text-align:center; }
+.seg { display:inline-flex; border:1px solid var(--gray-300); border-radius:7px; overflow:hidden; }
+.seg span { padding:6px 12px; font-size:12px; font-weight:600; color:var(--gray-500); cursor:pointer; background:#fff; }
+.seg span.on { background:var(--primary); color:#fff; }
+.ep-fields textarea { width:100%; border:1px solid var(--gray-300); border-radius:7px; padding:8px; font-size:12px; line-height:1.7; min-height:64px; font-family:inherit; }
 
-/* 底部四塊可編輯 */
-.blocks { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
-@media(max-width:800px){ .blocks{ grid-template-columns:1fr; } }
-.block { border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; }
-.block-h { background:var(--gray-50); padding:9px 12px; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
-.block-h .edit { font-size:12px; color:var(--primary); cursor:pointer; font-weight:600; }
-.block textarea { width:100%; border:none; padding:10px 12px; font-size:12px; line-height:1.7; color:var(--gray-700); resize:vertical; min-height:90px; outline:none; font-family:inherit; }
+/* 內部成本（收合） */
+.collapse { border:1px solid var(--gray-200); border-radius:10px; margin-top:12px; overflow:hidden; }
+.collapse-h { padding:10px 13px; font-weight:700; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:#f8fafc; }
+.collapse-b { display:none; padding:12px 13px; } .collapse.open .collapse-b { display:block; }
+.cost-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+.cost-tbl th { text-align:left; color:var(--gray-500); font-weight:600; padding:4px 6px; border-bottom:1px solid var(--gray-200); }
+.cost-tbl td { padding:5px 6px; border-bottom:1px solid var(--gray-100); }
+
+/* 金額 + 行銷優惠 */
+.foot { display:flex; gap:14px; margin-top:14px; align-items:flex-start; flex-wrap:wrap; }
+.mkt-card { flex:1; min-width:260px; border:1.5px solid #c4b5fd; background:#f6f2ff; border-radius:12px; padding:14px; }
+.mkt-card h4 { font-size:13px; font-weight:800; color:#6d28d9; margin-bottom:8px; }
+.fi { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 0; }
+.fi label { color:var(--gray-500); width:110px; flex-shrink:0; }
+.fi input,.fi select { flex:1; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; }
+.amt-tbl { border:1px solid var(--gray-200); border-radius:12px; overflow:hidden; font-size:13px; min-width:360px; }
+.amt-tbl table { width:100%; border-collapse:collapse; }
+.amt-tbl th { background:#475569; color:#fff; padding:7px 10px; font-size:12px; text-align:right; } .amt-tbl th:first-child { text-align:left; }
+.amt-tbl td { padding:7px 10px; border-bottom:1px solid var(--gray-100); } .amt-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.amt-tbl tr.hl td { background:var(--primary-bg); font-weight:800; }
+.amt-tbl tr.final td { background:var(--space-900); color:#fff; font-weight:800; font-size:15px; } .amt-tbl tr.final td .mkt { color:#fde047; }
+
+/* 條款：一列一列可編輯 */
+.block { border:1px solid var(--gray-200); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+.block-h { background:var(--gray-50); padding:10px 13px; font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+.block-h .edit { font-size:12px; color:var(--primary); font-weight:600; }
+.block textarea { width:100%; border:none; border-top:1px solid var(--gray-100); padding:10px 13px; font-size:12px; line-height:1.8; color:var(--gray-700); resize:vertical; min-height:78px; outline:none; font-family:inherit; }
 
 /* 客戶檢視 */
-.editor-view.hide { display:none; }
-.cust-view { display:none; } .cust-view.on { display:block; }
+.editor-view.hide { display:none; } .cust-view { display:none; } .cust-view.on { display:block; }
 .cust-card { max-width:820px; margin:0 auto; border:1px solid var(--gray-200); border-radius:14px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.06); }
 .cust-hd { background:linear-gradient(135deg,var(--space-900),#3d0026); color:#fff; padding:20px 24px; }
 .cust-hd h2 { font-size:19px; font-weight:800; } .cust-hd p { font-size:12px; opacity:.85; margin-top:4px; }
-.party { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid var(--gray-200); font-size:12px; }
+.party { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid var(--gray-200); font-size:12px; }
 .party > div { padding:12px 16px; } .party > div:first-child { border-right:1px solid var(--gray-200); }
 .party b { color:var(--gray-900); } .party .r { color:var(--gray-500); margin-top:3px; line-height:1.7; }
 .cust-body { padding:18px 20px; }
-.citem { padding:12px 0; border-bottom:1px solid var(--gray-100); }
-.citem-top { display:flex; gap:12px; align-items:flex-start; }
-.citem .imgs { display:flex; gap:6px; flex-shrink:0; }
-.citem .ph { width:56px; height:56px; border-radius:8px; background:var(--gray-100); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--gray-400); }
-.citem .pr { margin-left:auto; text-align:right; white-space:nowrap; }
-.citem .pr .o { text-decoration:line-through; color:var(--gray-400); font-size:12px; } .citem .pr .p { font-weight:800; font-size:15px; color:var(--primary-dark); }
+.citem { padding:12px 0; border-bottom:1px solid var(--gray-100); display:flex; gap:12px; align-items:flex-start; }
+.citem .ph { width:56px; height:56px; border-radius:8px; background:var(--gray-100); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--gray-400); flex-shrink:0; }
+.citem .pr { margin-left:auto; text-align:right; white-space:nowrap; } .citem .pr .o { text-decoration:line-through; color:var(--gray-400); font-size:12px; } .citem .pr .p { font-weight:800; font-size:15px; color:var(--primary-dark); }
+.mkt-sign { border:2px solid var(--primary); border-radius:12px; padding:14px; margin-top:16px; background:var(--primary-bg); }
+.mkt-sign .cmp { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+.mkt-sign .cmp .col { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:10px; text-align:center; }
+.mkt-sign .cmp .col.on { border-color:var(--primary); box-shadow:0 0 0 3px rgba(255,0,128,.12); }
+.mkt-sign .cmp .t { font-size:11px; color:var(--gray-500); font-weight:700; } .mkt-sign .cmp .v { font-size:18px; font-weight:900; margin-top:3px; }
 .fold { border:1px solid var(--gray-200); border-radius:10px; margin-top:10px; overflow:hidden; }
 .fold-h { padding:11px 14px; font-weight:700; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; background:var(--gray-50); }
-.fold-b { padding:0 14px; max-height:0; overflow:hidden; transition:max-height .2s; font-size:12px; color:var(--gray-600); line-height:1.8; }
-.fold.open .fold-b { max-height:400px; padding:12px 14px; }
-.sign-box { border:2px dashed var(--gray-300); border-radius:10px; height:100px; display:flex; align-items:center; justify-content:center; color:var(--gray-400); margin-top:8px; }
+.fold-b { padding:0 14px; max-height:0; overflow:hidden; transition:max-height .2s; font-size:12px; color:var(--gray-600); line-height:1.8; } .fold.open .fold-b { max-height:360px; padding:12px 14px; }
+.sign-box { border:2px dashed var(--gray-300); border-radius:10px; height:96px; display:flex; align-items:center; justify-content:center; color:var(--gray-400); margin-top:8px; }
 </style>
 </head>
 <body>
@@ -101,76 +119,67 @@
   </aside>
 
   <main class="main-content" style="padding:20px 24px;max-width:100%;overflow-x:hidden">
-    <div class="preview-flag">🔎 <b>新版報價單示意</b>（乾淨表格式）。可點：改單價/數量/優惠看金額即時變、切換客戶檢視、底部四塊可編輯。數字為假資料、<b>尚未接真系統</b>，供你確認長相與流程。</div>
+    <div class="preview-flag">🔎 <b>新版報價單示意 v3</b>（清單＋點開編輯）。平常每項只一行；點「▸」展開改尺寸/照片/說明/計價方式。成本收在下方隱藏區。數字為假、<b>尚未接真系統</b>。</div>
 
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
       <h1 style="font-size:21px;font-weight:800">HX2606-101 · 十三紅設計工作室</h1>
       <span class="badge badge-surveyed">已場勘</span>
     </div>
-
     <div class="tabs">
-      <div class="tab">基本資訊</div>
-      <div class="tab">初步估價紀錄</div>
-      <div class="tab">場勘</div>
-      <div class="tab active">正式報價單</div>
-      <div class="tab">往來文件</div>
-      <div class="tab">派工記錄</div>
-      <div class="tab">歷程</div>
+      <div class="tab">基本資訊</div><div class="tab">初步估價紀錄</div><div class="tab">場勘</div>
+      <div class="tab active">正式報價單</div><div class="tab">往來文件</div><div class="tab">派工記錄</div><div class="tab">歷程</div>
     </div>
 
-    <!-- 編輯視圖 -->
     <div class="editor-view">
       <div class="qtoolbar">
         <span class="badge badge-quote_draft">草稿 v2</span>
-        <select class="ddl" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px"><option>v2（編輯中）</option><option>v1（已作廢）</option></select>
         <span class="spacer"></span>
         <span style="font-size:12px;color:var(--gray-500)">呈現版本</span>
         <select style="padding:6px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px"><option>設計師版</option><option>業主版（隱藏才數）</option></select>
         <button class="btn btn-secondary btn-sm" onclick="alert('示意：列出此案初步估價品項，勾選帶入')">📥 從初步估價帶入</button>
         <button class="btn btn-primary btn-sm" onclick="toggleCust(true)">👁 客戶檢視</button>
       </div>
-
       <div class="pickbar">
         <span style="color:var(--gray-500)">客戶（乙方）</span>
-        <b>十三紅設計工作室</b> · 統編 37910109 · 黃柏淵 · 新北市板橋區大觀路二段79巷2弄5-1號
+        <b>十三紅設計工作室</b> · 統編 37910109 · 黃柏淵
         <span style="color:var(--gray-500)">｜案件地址</span> 新北市中和區民安街103號
       </div>
 
-      <div style="overflow-x:auto">
-      <table class="qtbl">
-        <thead><tr>
-          <th style="width:20px">#</th>
-          <th>貼覆項目</th>
-          <th style="width:120px">膜料 ▼ / 示意圖</th>
-          <th style="width:70px">貼覆區域照</th>
-          <th style="width:96px">單價<div style="font-weight:400;font-size:10px;opacity:.8">連工帶料/座</div></th>
-          <th style="width:56px">數量</th>
-          <th style="width:90px">總價</th>
-          <th style="width:96px">優惠價</th>
-          <th class="cost" style="width:92px">🔒 工務回報米數<div style="font-weight:400;font-size:10px;opacity:.8">算成本用</div></th>
-          <th style="width:24px"></th>
-        </tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
+      <div class="sec-title">📋 報價品項</div>
+      <div class="items">
+        <div class="irow head"><div></div><div>貼覆項目</div><div>膜料 / 示意圖</div><div>計價</div><div style="text-align:right">總價</div><div style="text-align:right">優惠價</div><div></div></div>
+        <div id="rows"></div>
       </div>
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" onclick="addRow()">＋ 新增品項列</button>
-        <button class="btn btn-secondary btn-sm" onclick="alert('示意：加一列自由文字（如期貨運費、區段標題）')">＋ 自由文字列</button>
-        <span style="font-size:12px;color:var(--gray-500);align-self:center">＊「工務回報米數」只給內部算成本用，客戶版不會出現。</span>
+        <button class="btn btn-secondary btn-sm" onclick="addRow()">＋ 新增品項</button>
+        <button class="btn btn-secondary btn-sm" onclick="alert('示意：加自由文字列，如期貨運費/區段標題')">＋ 自由文字列</button>
       </div>
 
-      <!-- 底部金額 -->
+      <!-- 內部成本：收合隱藏 -->
+      <div class="collapse" id="costBox">
+        <div class="collapse-h" onclick="document.getElementById('costBox').classList.toggle('open')">
+          <span>🔒 內部成本試算（工務回報米數）· 客服平常不用看</span><span>展開 ▾</span></div>
+        <div class="collapse-b">
+          <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">此區只給內部算成本用，客戶版完全不會出現。真實成本/毛利在案件「機密分頁」（限老闆＋會計）。</div>
+          <table class="cost-tbl"><thead><tr><th>品項</th><th>膜料</th><th>工務回報米數</th></tr></thead><tbody id="costRows"></tbody></table>
+        </div>
+      </div>
+
+      <!-- 金額 + 行銷優惠 -->
+      <div class="sec-title">💵 金額試算</div>
       <div class="foot">
-        <div class="amt-inputs">
-          <div class="fi"><label>整單優惠折數</label><input type="number" id="disc" value="80" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">%（80=8折）</span></div>
-          <div class="fi"><label>行銷再優惠</label><input type="number" id="mkt" value="7000" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">元（同意拍攝才享）</span></div>
-          <div class="fi"><label>專案優惠含稅價</label><input type="number" id="proj" value="180000" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">湊整（可空）</span></div>
-          <div class="fi"><label>場勘費折抵</label><input type="number" id="survey" value="1000" oninput="recalc()"> <span style="font-size:12px;color:var(--gray-400)">元</span></div>
-          <div style="font-size:12px;color:var(--gray-500);margin-top:6px">💚 利潤健康度：良好（業務看燈號、不看數字；真實成本/毛利在機密分頁）</div>
+        <div class="mkt-card">
+          <h4>🎁 行銷優惠（同意拍攝才享）</h4>
+          <div class="fi"><label>整單優惠折數</label><input type="number" id="disc" value="80" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">%</span></div>
+          <div class="fi"><label>行銷優惠方式</label>
+            <select id="mktMode" onchange="recalc()"><option value="amt">再折抵金額</option><option value="pct">全案折數</option></select></div>
+          <div class="fi"><label>行銷數值</label><input type="number" id="mktVal" value="7000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)" id="mktUnit">元</span></div>
+          <div class="fi"><label>專案優惠含稅</label><input type="number" id="proj" value="180000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">湊整(可空)</span></div>
+          <div class="fi"><label>場勘費折抵</label><input type="number" id="survey" value="1000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">元</span></div>
+          <div style="font-size:11px;color:var(--gray-500);margin-top:4px">＊行銷優惠需客戶簽「同意拍攝」才套用；客戶檢視有專屬簽署畫面。</div>
         </div>
         <div class="amt-tbl">
-          <table>
-            <thead><tr><th>金額明細</th><th>一般優惠</th><th>同意拍攝（行銷）</th></tr></thead>
+          <table><thead><tr><th>金額明細</th><th>一般優惠</th><th>行銷優惠</th></tr></thead>
             <tbody>
               <tr><td>連工帶料原價（未稅）</td><td class="num" id="a_sub">—</td><td class="num" id="b_sub">—</td></tr>
               <tr class="hl"><td>優惠後（未稅）</td><td class="num" id="a_promo">—</td><td class="num" id="b_promo">—</td></tr>
@@ -178,60 +187,64 @@
               <tr><td>含稅總額</td><td class="num" id="a_wtax">—</td><td class="num" id="b_wtax">—</td></tr>
               <tr><td>專案優惠 · 場勘費折抵</td><td class="num" id="a_adj">—</td><td class="num" id="b_adj">—</td></tr>
               <tr class="final"><td>應付總金額</td><td class="num" id="a_pay">—</td><td class="num"><span class="mkt" id="b_pay">—</span></td></tr>
-            </tbody>
-          </table>
+            </tbody></table>
         </div>
       </div>
 
-      <!-- 底部四塊可編輯 -->
-      <div class="blocks">
-        <div class="block"><div class="block-h">(a) 報價單優惠條款 <span class="edit">✎ 可編輯 · 套模板</span></div>
-          <textarea>1. 回簽報價單後請先支付 70% 訂金方可訂料排工，完工驗收後七日內支付 30% 尾款。
-2. 若享優惠價則同意繪新進行案件拍照攝影紀錄，完工作品照片影片同意於網站及社群使用（不揭露個資）；若不同意，請於回簽時寫明，未寫明視為同意。
+      <!-- 條款：一列一列可編輯 -->
+      <div class="sec-title">📝 報價單文字（可編輯・套模板）</div>
+      <div class="block"><div class="block-h" onclick="tgl(this)">(a) 報價單優惠條款 <span class="edit">✎ 展開編輯 ▾</span></div>
+        <textarea style="display:none">1. 回簽後支付 70% 訂金方可訂料排工，完工驗收後七日內支付 30% 尾款。
+2. 享優惠價則同意繪新拍照攝影紀錄並用於網站/社群（不揭露個資）；不同意請於回簽時寫明。
 3. 場勘費【1,000 元】成交後折抵。</textarea></div>
-        <div class="block"><div class="block-h">(b) 貼膜前須知 <span class="edit">✎ 可編輯 · 套模板</span></div>
-          <textarea>1. 複雜物件需多張搭接（約 3–5mm 搭接痕），轉角處做 45 度斜刀。
+      <div class="block"><div class="block-h" onclick="tgl(this)">(b) 貼膜前須知 <span class="edit">✎ 展開編輯 ▾</span></div>
+        <textarea style="display:none">1. 複雜物件需多張搭接（約 3–5mm 搭接痕），轉角處做 45 度斜刀。
 2. 寬幅超過 120cm 僅能交疊拼接（大圖輸出貼法）。
-3. 表面平整度由客戶自行處理；亮面材質建議張貼面 100% 平坦。
-4. 貼附區域如有油漬、鏽蝕、殘膠、髒汙，請客戶施工前先行清潔。</textarea></div>
-        <div class="block"><div class="block-h">(c) 驗收須知 <span class="edit">✎ 可編輯 · 套模板</span></div>
-          <textarea>1. 施工完畢當天請乙方安排人員當場驗收，有問題請當場提出。
+3. 表面平整度由客戶自行處理；亮面材質建議張貼面 100% 平坦。</textarea></div>
+      <div class="block"><div class="block-h" onclick="tgl(this)">(c) 驗收須知 <span class="edit">✎ 展開編輯 ▾</span></div>
+        <textarea style="display:none">1. 施工完畢當天請乙方安排人員當場驗收，有問題請當場提出。
 2. 若當天無法到場，請於完工後七日內通知；逾期視同驗收通過。
 3. 施工保固：完工後皮料「非人為」問題免費保固一年。</textarea></div>
-        <div class="block"><div class="block-h">(d) 回簽 / 訂單簽核資訊 <span class="edit">✎ 可編輯 · 套模板</span></div>
-          <textarea>1. 本報價單確認回傳後即代表同意上述全部條款，不可任意更改。
-2. 本報價有效期限 7 天，逾期需重新估報價。
-3. 付款資訊：台灣企銀 050 三峽分行 · 帳號 148-12-005937 · 戶名 繪新國際有限公司。
-客戶簽章＿＿＿＿＿＿＿＿  日期＿＿＿＿＿＿＿＿</textarea></div>
-      </div>
+      <div class="block"><div class="block-h" onclick="tgl(this)">(d) 回簽 / 訂單簽核資訊 <span class="edit">✎ 展開編輯 ▾</span></div>
+        <textarea style="display:none">1. 本報價單確認回傳後即代表同意上述全部條款。
+2. 有效期限 7 天，逾期需重新估報價。
+3. 付款資訊：台灣企銀 050 三峽分行 · 148-12-005937 · 繪新國際有限公司。</textarea></div>
     </div>
 
     <!-- 客戶檢視 -->
     <div class="cust-view">
-      <div class="qtoolbar"><button class="btn btn-secondary btn-sm" onclick="toggleCust(false)">← 回編輯</button><span class="spacer"></span><span style="font-size:12px;color:var(--gray-500)">客戶收到連結看到的樣子（不含工務米數/成本）</span></div>
+      <div class="qtoolbar"><button class="btn btn-secondary btn-sm" onclick="toggleCust(false)">← 回編輯</button><span class="spacer"></span><span style="font-size:12px;color:var(--gray-500)">客戶收到連結看到的樣子（不含成本）</span></div>
       <div class="cust-card">
         <div class="cust-hd"><h2>繪新國際有限公司 · 報價單</h2><p>報價日期 2026年6月1日　·　有效 7 天</p></div>
         <div class="party">
-          <div><b>繪新資訊（甲方）</b><div class="r">聯絡人 林佳樺　電話 02-8678-1229<br>239 新北市鶯歌區中山路166巷2號　twcomet@gmail.com</div></div>
-          <div><b>客戶資訊（乙方）</b><div class="r">十三紅設計工作室　統編 37910109　聯絡人 黃柏淵<br>案件地址：新北市中和區民安街103號</div></div>
+          <div><b>繪新資訊（甲方）</b><div class="r">聯絡人 林佳樺　02-8678-1229<br>239 新北市鶯歌區中山路166巷2號</div></div>
+          <div><b>客戶資訊（乙方）</b><div class="r">十三紅設計工作室　統編 37910109　黃柏淵<br>案件地址：新北市中和區民安街103號</div></div>
         </div>
         <div class="cust-body">
           <div id="custItems"></div>
           <div style="margin-top:14px;font-size:13px;text-align:right;line-height:2">
             連工帶料原價（未稅）：<span id="cv_sub"></span><br>
-            <b>優惠後（未稅）：<span id="cv_promo"></span></b><br>
-            稅金 5%：<span id="cv_tax"></span>
+            <b>優惠後（未稅）：<span id="cv_promo"></span></b><br>稅金 5%：<span id="cv_tax"></span>
           </div>
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
 
-          <label style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:12px;background:var(--primary-bg);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer"><input type="checkbox" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照紀錄並授權用於媒體（可享行銷優惠價）</label>
+          <!-- 行銷優惠簽署 -->
+          <div class="mkt-sign">
+            <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
+            <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影紀錄、並授權用於官網及社群媒體（不揭露個資），即可享行銷優惠價。</div>
+            <div class="cmp">
+              <div class="col" id="col_normal"><div class="t">一般價</div><div class="v" id="ms_normal"></div></div>
+              <div class="col" id="col_mkt"><div class="t">行銷優惠價</div><div class="v" style="color:var(--primary-dark)" id="ms_mkt"></div></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照攝影紀錄並授權用於媒體（下方簽名即代表同意此條款）</label>
+          </div>
 
-          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">報價單優惠條款 <span>▾</span></div><div class="fold-b">70% 訂金 / 30% 尾款；同意拍攝享優惠價；場勘費 1,000 元成交折抵……</div></div>
+          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">報價單優惠條款 <span>▾</span></div><div class="fold-b">70% 訂金 / 30% 尾款；同意拍攝享優惠價；場勘費成交折抵……</div></div>
           <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">貼膜前須知 <span>▾</span></div><div class="fold-b">複雜物件需搭接；寬幅超過 120cm 交疊拼接；平整度由客戶處理……</div></div>
           <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">驗收須知 <span>▾</span></div><div class="fold-b">當天當場驗收；七日內通知；非人為保固一年……</div></div>
-          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">回簽 / 付款資訊 <span>▾</span></div><div class="fold-b">回傳即同意條款；有效 7 天；台灣企銀三峽分行 148-12-005937 繪新國際……</div></div>
+          <div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">回簽 / 付款資訊 <span>▾</span></div><div class="fold-b">回傳即同意條款；有效 7 天；台灣企銀三峽分行 148-12-005937……</div></div>
 
-          <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認</div>
+          <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
           <div class="sign-box">（客戶於此手寫簽名）</div>
           <button class="btn btn-primary" style="width:100%;margin-top:10px">✓ 確認並簽署報價單</button>
         </div>
@@ -242,97 +255,125 @@
 
 <script>
 let items = [
-  { name:'門口櫃 (1座)',        film:'BODAQ BC903(立面) / BA095(平面)', seat:46000, qty:1, meters:19,
+  { name:'門口櫃 (1座)', film:'BODAQ BC903(立面) / BA095(平面)', mode:'unit', unitEach:46000, qty:1, unitCai:180, cusMeters:19, srvMeters:19, width:122, open:false,
     note:'貼附紅框正面可視面；不含補土打磨；牆面超過120cm需搭接；不含矽利康收邊。' },
-  { name:'廁所房系統櫃 (1座)',  film:'BODAQ BC903(立面) / BA095(平面)', seat:34000, qty:1, meters:14,
-    note:'貼門片正面，背面與櫃內不貼；桌面選另一款料。' },
-  { name:'H房 衣櫃+床板',       film:'BODAQ BC903',                    seat:46000, qty:1, meters:19,
-    note:'貼門片正面；層板間隙過小建議先切短。' },
+  { name:'客廳主牆', film:'BODAQ BM038 木紋', mode:'cai', unitEach:0, qty:1, unitCai:180, cusMeters:19, srvMeters:18.5, width:122, open:false,
+    note:'全平面牆貼膜，才數制計價。' },
+  { name:'房間門（含框·雙面）', film:'BODAQ BC903', mode:'unit', unitEach:15000, qty:2, unitCai:0, cusMeters:0, srvMeters:0, width:122, open:false,
+    note:'公規品件數制，房間門 15,000 × 2 座。' },
 ];
 const money = n => 'NT$ ' + Math.round(n).toLocaleString();
 const discRate = () => (+document.getElementById('disc').value || 100) / 100;
-const promoOf = it => Math.round(it.seat * discRate()) * it.qty;
-const totOf = it => it.seat * it.qty;
+const caiOf = it => it.cusMeters * 100 * it.width / 900;
+const totOf = it => it.mode==='cai' ? Math.round(caiOf(it)*it.unitCai) : it.unitEach*it.qty;
+const promoOf = it => Math.round(totOf(it) * discRate());
+const sumText = it => it.mode==='cai'
+  ? `才數制 · ${it.cusMeters}米→${caiOf(it).toFixed(1)}才 ×${it.unitCai}`
+  : `件數制 · ${money(it.unitEach)} ×${it.qty}`;
 
 function renderRows(){
-  document.getElementById('rows').innerHTML = items.map((it,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td>
-        <div class="itemname">${it.name}</div>
-        <div class="itemnote">${it.note}</div>
-        <span class="notetip" onclick="alert('示意：從貼膜須知模板挑選/編輯這段說明文字')">✎ 編輯說明 / 套模板</span>
-      </td>
-      <td>
-        <select onchange="setF(${i},'film',this.value)">
-          <option ${it.film.includes('BC903')?'selected':''}>${it.film}</option>
-          <option>BODAQ BM038 木紋</option><option>PAROI MX001 霧白</option>
-        </select>
-        <div style="margin-top:5px"><span class="thumb film">🎞️示意</span></div>
-      </td>
-      <td><div class="thumb area" onclick="alert('示意：點此上傳現場貼覆區域照片')">＋上傳</div></td>
-      <td><input class="money" type="number" value="${it.seat}" oninput="setF(${i},'seat',+this.value||0)"></td>
-      <td><input type="number" value="${it.qty}" style="text-align:center" oninput="setF(${i},'qty',+this.value||0)"></td>
-      <td class="num rowtot" id="tot${i}">${money(totOf(it))}</td>
-      <td class="num rowpromo" id="pro${i}">${money(promoOf(it))}</td>
-      <td class="cost-cell"><input type="number" value="${it.meters}" style="text-align:center" oninput="setF(${i},'meters',+this.value||0)"> <span style="font-size:10px;color:var(--gray-400)">米</span></td>
-      <td><button class="delrow" onclick="delRow(${i})">✕</button></td>
-    </tr>`).join('');
+  document.getElementById('rows').innerHTML = items.map((it,i)=>{
+    const head = `
+    <div class="irow">
+      <div class="caret ${it.open?'open':''}" onclick="toggle(${i})">▸</div>
+      <div><div class="iname">${it.name}</div><div class="ifilm">${it.film}</div></div>
+      <div><span class="thumb-sm">🎞️</span> <span class="mchip ${it.mode==='cai'?'m-cai':'m-unit'}">${it.mode==='cai'?'才數制':'件數制'}</span></div>
+      <div class="calc-sum" id="sum${i}">${sumText(it)}</div>
+      <div class="rowtot" id="tot${i}">${money(totOf(it))}</div>
+      <div class="rowpromo"><span class="lab">優惠價</span><b id="pro${i}">${money(promoOf(it))}</b></div>
+      <div><button class="delrow" onclick="delRow(${i})">✕</button></div>
+    </div>`;
+    if(!it.open) return head;
+    const cai = it.mode==='cai';
+    const panel = `
+    <div class="editpanel">
+      <div class="ep-media">
+        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">膜料示意圖（膜料庫自動帶）</label><div class="thumb-lg film">🎞️ ${it.film}</div></div>
+        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">貼覆區域照（點擊上傳現場照）</label><div class="thumb-lg area" onclick="alert('示意：上傳現場貼覆區域照，可多張')">＋ 上傳現場照</div></div>
+      </div>
+      <div class="ep-fields">
+        <div class="fr">
+          <div class="f" style="flex:2"><label>貼覆項目名稱</label><input value="${it.name}" oninput="setF(${i},'name',this.value)"></div>
+          <div class="f" style="flex:2"><label>膜料型號（可多款：立面/平面）</label>
+            <select onchange="setF(${i},'film',this.value)"><option ${it.film.includes('BC903')?'selected':''}>${it.film}</option><option>BODAQ BM038 木紋</option><option>PAROI MX001 霧白</option></select></div>
+        </div>
+        <div class="fr">
+          <div class="f" style="flex:0 0 auto"><label>計價方式</label>
+            <div class="seg"><span class="${cai?'on':''}" onclick="setMode(${i},'cai')">才數制</span><span class="${!cai?'on':''}" onclick="setMode(${i},'unit')">件數制</span></div></div>
+          ${cai ? `
+            <div class="f"><label>報價米數（客服取整）</label><input type="number" value="${it.cusMeters}" oninput="setNum(${i},'cusMeters',this.value)"></div>
+            <div class="f"><label>膜寬 cm</label><input type="number" value="${it.width}" oninput="setNum(${i},'width',this.value)"></div>
+            <div class="f"><label>才數（自動）</label><div class="ro" id="caiv${i}">${caiOf(it).toFixed(2)} 才</div></div>
+            <div class="f"><label>單價 / 才</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)"></div>
+          ` : `
+            <div class="f"><label>單價 / 座·件（連工帶料）</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)"></div>
+            <div class="f"><label>數量（座/件）</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)"></div>
+          `}
+        </div>
+        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">項目說明 / 貼膜須知（套模板・可編輯）</label><textarea oninput="setF(${i},'note',this.value,true)">${it.note}</textarea></div>
+      </div>
+    </div>`;
+    return head + panel;
+  }).join('');
+  renderCost();
 }
-function setF(i,k,v){ items[i][k]=v; if(k==='seat'||k==='qty'){ document.getElementById('tot'+i).textContent=money(totOf(items[i])); document.getElementById('pro'+i).textContent=money(promoOf(items[i])); } recalc(); if(k==='film'||k==='name') renderRows(); }
+function renderCost(){
+  document.getElementById('costRows').innerHTML = items.map(it=>`<tr><td>${it.name}</td><td>${it.film}</td><td><b>${it.srvMeters||0}</b> 米</td></tr>`).join('');
+}
+function toggle(i){ items[i].open=!items[i].open; renderRows(); }
+function setF(i,k,v,noRender){ items[i][k]=v; if(noRender){ return; } renderRows(); }
+function setMode(i,m){ items[i].mode=m; renderRows(); recalc(); }
+function setNum(i,k,v){ items[i][k]=+v||0; const it=items[i];
+  const cv=document.getElementById('caiv'+i); if(cv) cv.textContent=caiOf(it).toFixed(2)+' 才';
+  document.getElementById('sum'+i).textContent=sumText(it);
+  document.getElementById('tot'+i).textContent=money(totOf(it));
+  document.getElementById('pro'+i).textContent=money(promoOf(it));
+  renderCost(); recalc();
+}
 function delRow(i){ items.splice(i,1); renderRows(); recalc(); }
-function addRow(){ items.push({name:'新增品項',film:'BODAQ BC903',seat:20000,qty:1,meters:8,note:'（點編輯說明填寫）'}); renderRows(); recalc(); }
+function addRow(){ items.push({name:'新增品項',film:'BODAQ BC903',mode:'unit',unitEach:20000,qty:1,unitCai:180,cusMeters:8,srvMeters:8,width:122,open:true,note:'（展開填寫說明）'}); renderRows(); recalc(); }
+function tgl(h){ const t=h.nextElementSibling; t.style.display=t.style.display==='none'?'block':'none'; }
 
 function recalc(){
   const sub = items.reduce((s,it)=>s+totOf(it),0);
   const promo = items.reduce((s,it)=>s+promoOf(it),0);
-  const mkt = +document.getElementById('mkt').value || 0;
-  const promoM = Math.max(0, promo - mkt);
-  const proj = +document.getElementById('proj').value || 0;   // 專案優惠含稅價(湊整)
+  const mode = document.getElementById('mktMode').value;
+  document.getElementById('mktUnit').textContent = mode==='amt' ? '元' : '%';
+  const mv = +document.getElementById('mktVal').value || 0;
+  const promoM = mode==='amt' ? Math.max(0,promo-mv) : Math.round(promo*(mv/100||1));
+  const proj = +document.getElementById('proj').value || 0;
   const survey = +document.getElementById('survey').value || 0;
-
-  function calc(promoVal){
-    const tax = Math.round(promoVal*0.05);
-    const wtax = promoVal + tax;
-    const base = proj > 0 ? proj : wtax;        // 有填專案優惠含稅價就用它
-    const pay = base - survey;
-    return { tax, wtax, adj:(base-wtax)-survey, pay };
-  }
-  const A = calc(promo), B = calc(promoM);
+  function calc(p){ const tax=Math.round(p*0.05), wtax=p+tax, base=proj>0?proj:wtax, pay=base-survey; return {tax,wtax,pay}; }
+  const A=calc(promo), B=calc(promoM);
   const g=(id,v)=>document.getElementById(id).textContent=v;
   g('a_sub',money(sub)); g('b_sub',money(sub));
   g('a_promo',money(promo)); g('b_promo',money(promoM));
   g('a_tax',money(A.tax)); g('b_tax',money(B.tax));
   g('a_wtax',money(A.wtax)); g('b_wtax',money(B.wtax));
-  g('a_adj', '− '+money(A.wtax-A.pay)); g('b_adj','− '+money(B.wtax-B.pay));
+  g('a_adj','− '+money(A.wtax-A.pay)); g('b_adj','− '+money(B.wtax-B.pay));
   g('a_pay',money(A.pay)); g('b_pay',money(B.pay));
-
-  window._cust = { sub, promo, promoM, A, B };
-  renderCust(document.getElementById('_mktChk')?.checked);
+  window._cust={ sub, promo, promoM, A, B };
+  renderCust(document.getElementById('mktChk')?.checked);
 }
-
 function renderCust(useMkt){
-  const c = window._cust; if(!c) return;
+  const c=window._cust; if(!c) return;
   document.getElementById('custItems').innerHTML = items.map(it=>`
-    <div class="citem"><div class="citem-top">
-      <div class="imgs"><div class="ph">🎞️膜料</div><div class="ph">📷區域</div></div>
+    <div class="citem"><div class="ph">🎞️膜料</div><div class="ph">📷區域</div>
       <div style="flex:1"><div style="font-weight:700">${it.name}</div><div style="font-size:12px;color:var(--gray-500)">${it.film}</div>
         <div style="font-size:11px;color:var(--gray-400);margin-top:3px">${it.note}</div></div>
-      <div class="pr"><div class="o">${money(totOf(it))}</div><div class="p">${money(promoOf(it))}</div></div>
-    </div></div>`).join('');
-  const promo = useMkt ? c.promoM : c.promo;
-  const r = useMkt ? c.B : c.A;
-  document.getElementById('cv_sub').textContent = money(c.sub);
-  document.getElementById('cv_promo').textContent = money(promo);
-  document.getElementById('cv_tax').textContent = money(r.tax);
-  document.getElementById('cv_pay').textContent = money(r.pay);
+      <div class="pr"><div class="o">${money(totOf(it))}</div><div class="p">${money(promoOf(it))}</div></div></div>`).join('');
+  const promo=useMkt?c.promoM:c.promo, r=useMkt?c.B:c.A;
+  document.getElementById('cv_sub').textContent=money(c.sub);
+  document.getElementById('cv_promo').textContent=money(promo);
+  document.getElementById('cv_tax').textContent=money(r.tax);
+  document.getElementById('cv_pay').textContent=money(r.pay);
+  document.getElementById('ms_normal').textContent=money(c.A.pay);
+  document.getElementById('ms_mkt').textContent=money(c.B.pay);
+  document.getElementById('col_normal').classList.toggle('on',!useMkt);
+  document.getElementById('col_mkt').classList.toggle('on',!!useMkt);
 }
-function toggleMkt(on){ window._mktOn = on; renderCust(on); }
-function toggleCust(on){
-  document.querySelectorAll('.editor-view').forEach(e=>e.classList.toggle('hide',on));
-  document.querySelector('.cust-view').classList.toggle('on',on);
-  window.scrollTo(0,0);
-}
+function toggleMkt(on){ renderCust(on); }
+function toggleCust(on){ document.querySelectorAll('.editor-view').forEach(e=>e.classList.toggle('hide',on)); document.querySelector('.cust-view').classList.toggle('on',on); window.scrollTo(0,0); }
 renderRows(); recalc();
 </script>
 </body>
