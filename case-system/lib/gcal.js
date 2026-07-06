@@ -165,12 +165,17 @@ function safeRemoveEvent(eventId) {
 async function syncAll() {
   if (!isConnected()) throw new Error('尚未連接 Google');
   const rows = db.prepare(`SELECT id FROM dispatches WHERE status != 'cancelled'`).all();
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, sampleError = null, aborted = false;
   for (const row of rows) {
     try { await _syncDispatch(row.id); ok++; }
-    catch (e) { fail++; console.error('[gcal] 回填失敗 #' + row.id + '：', e.message); }
+    catch (e) {
+      fail++;
+      if (!sampleError) sampleError = e.message;
+      console.error('[gcal] 回填失敗 #' + row.id + '：', e.message);
+      if (ok === 0 && fail >= 3) { aborted = true; break; } // 連續失敗＝系統性問題（權限/API未啟用），提早中止避免狂打 API
+    }
   }
-  return { total: rows.length, ok, fail };
+  return { total: rows.length, ok, fail, sampleError, aborted };
 }
 
 function calendarInfo() {

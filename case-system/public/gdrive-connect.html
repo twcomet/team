@@ -119,6 +119,11 @@
     m.innerHTML = '<div class="gd-msg gd-msg-ok">同步中，請稍候…</div>';
     fetch('/api/gdrive/gcal/sync-all', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
       if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步失敗：'+r.error+'</div>'; return; }
+      if (r.fail && r.sampleError){
+        m.innerHTML = '<div class="gd-msg gd-msg-err">✗ 同步失敗（成功 '+r.ok+'／失敗 '+r.fail+'）'
+          + (r.aborted ? '，已提早中止' : '') + '<br>Google 回報：<b>'+r.sampleError+'</b></div>';
+        return;
+      }
       m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功 '+r.ok+' 筆，失敗 '+r.fail+' 筆（共 '+r.total+' 筆）</div>';
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步發生錯誤，請稍後再試。</div>'; });
   };
