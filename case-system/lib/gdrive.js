@@ -6,7 +6,8 @@ const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const REDIRECT_URI  = process.env.GDRIVE_REDIRECT_URI
                     || 'https://twcometsystem.zeabur.app/api/gdrive/callback';
-const SCOPE         = 'https://www.googleapis.com/auth/drive.file';
+// drive.file：只能存取自己建立的資料夾；calendar：派單行事曆同步
+const SCOPE         = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar';
 
 const getS = (k) => { const r = db.prepare('SELECT value FROM settings WHERE key=?').get(k); return r ? r.value : null; };
 const setS = (k, v) => db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(k, v == null ? null : String(v));
@@ -94,4 +95,4 @@ function disconnect() {
   db.prepare("DELETE FROM settings WHERE key='gdrive_refresh_token'").run();
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, disconnect };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, disconnect, accessToken };

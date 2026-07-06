@@ -32,8 +32,20 @@
     <div id="msg"></div>
     <div id="status" class="gd-status gd-off">讀取狀態中…</div>
     <div id="actions"></div>
-    <div class="gd-note">🔒 系統只會使用最小權限 <b>drive.file</b> —— 只能存取它自己建立的資料夾，<b>看不到你雲端其他的檔案</b>。</div>
+    <div class="gd-note">🔒 系統只會使用最小權限 <b>drive.file</b>（自己建立的資料夾）與 <b>calendar</b>（派單行事曆）。</div>
     <a class="gd-back" href="/dashboard">← 回總覽</a>
+  </div>
+
+  <div class="gd-card" style="margin-top:20px">
+    <div class="gd-h">📅 派單行事曆同步</div>
+    <div class="gd-sub">開啟後，每次派工（場勘／施工／售後）建立、改期或取消，都會自動同步到一個名為「<b>繪新派單</b>」的 Google 行事曆。師傅只要訂閱這個行事曆，手機就能看到自己的工作排程並收到提醒。</div>
+    <div id="gcal-status" class="gd-status gd-off">讀取狀態中…</div>
+    <div id="gcal-actions"></div>
+    <div id="gcal-msg"></div>
+    <div class="gd-note">
+      ⚠️ 若你是在此功能上線<b>之前</b>就連接過 Google，請先按上方「重新連接 Google」授權行事曆權限，再回來這裡開啟同步。<br>
+      👥 分享給師傅：到 Google 日曆網頁版 →「繪新派單」行事曆設定 → 與特定使用者共用，或產生訂閱連結給師傅加入。
+    </div>
   </div>
 </div>
 <script>
@@ -58,12 +70,14 @@
     if (s.connected) {
       st.className = 'gd-status gd-on';
       st.textContent = '✓ 已連接 Google 雲端';
-      act.innerHTML = '<button class="gd-btn gd-ghost" onclick="disc()">中斷連接</button>';
+      act.innerHTML = '<a class="gd-btn gd-primary" href="/api/gdrive/connect">重新連接 Google（授權行事曆）</a>'
+                    + '<button class="gd-btn gd-ghost" onclick="disc()">中斷連接</button>';
     } else {
       st.className = 'gd-status gd-off';
       st.textContent = '尚未連接';
       act.innerHTML = '<a class="gd-btn gd-primary" href="/api/gdrive/connect">連接 Google 雲端</a>';
     }
+    loadGcal(s.connected);
   }).catch(function(){
     document.getElementById('status').textContent = '讀取狀態失敗（請確認你是最高管理者）';
   });
@@ -71,6 +85,42 @@
   window.disc = function(){
     if (!confirm('確定中斷 Google 雲端連接？中斷後案件將無法建立新資料夾（已建立的資料夾不受影響）。')) return;
     fetch('/api/gdrive/disconnect', {method:'POST'}).then(function(){ location.href='/gdrive-connect'; });
+  };
+
+  // ── 派單行事曆同步 ──────────────────────────────────────
+  function loadGcal(connected){
+    var st = document.getElementById('gcal-status'), act = document.getElementById('gcal-actions');
+    if (!connected){
+      st.className = 'gd-status gd-off';
+      st.textContent = '請先連接 Google（上方）才能啟用';
+      act.innerHTML = '';
+      return;
+    }
+    fetch('/api/gdrive/gcal/status').then(function(x){return x.json();}).then(function(g){
+      if (g.enabled){
+        st.className = 'gd-status gd-on';
+        st.textContent = '✓ 派單同步已開啟';
+        act.innerHTML = '<button class="gd-btn gd-primary" onclick="syncAll()">同步全部現有派單到 Google</button>'
+                      + '<button class="gd-btn gd-ghost" onclick="toggleGcal(false)">暫停同步</button>';
+      } else {
+        st.className = 'gd-status gd-off';
+        st.textContent = '派單同步已暫停';
+        act.innerHTML = '<button class="gd-btn gd-primary" onclick="toggleGcal(true)">開啟派單同步</button>';
+      }
+    });
+  }
+  window.toggleGcal = function(on){
+    fetch('/api/gdrive/gcal/toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:on})})
+      .then(function(){ loadGcal(true); });
+  };
+  window.syncAll = function(){
+    if (!confirm('把目前所有未取消的派工都推到「繪新派單」行事曆？資料多時可能需要一點時間。')) return;
+    var m = document.getElementById('gcal-msg');
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">同步中，請稍候…</div>';
+    fetch('/api/gdrive/gcal/sync-all', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步失敗：'+r.error+'</div>'; return; }
+      m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功 '+r.ok+' 筆，失敗 '+r.fail+' 筆（共 '+r.total+' 筆）</div>';
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步發生錯誤，請稍後再試。</div>'; });
   };
 })();
 </script>

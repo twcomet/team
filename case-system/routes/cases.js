@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, orgFilter, orgFilterSQL } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
+const gcal = require('../lib/gcal');
 const router = express.Router();
 
 // ── 地址轉座標（非阻塞，fire-and-forget）────────────────────
@@ -766,6 +767,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   recalcLaborCost(case_id);
   syncCaseScheduledDate(case_id); // 新增派工後同步施工日期=最早施工派工
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
+  gcal.safeSyncDispatch(did); // 同步到 Google 派單行事曆（best-effort，不阻塞）
   res.json({ ok: true, id: did, day_index });
 });
 
@@ -812,14 +814,16 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
     notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, newUserIds, req.session.user.id);
   }
   syncCaseScheduledDate(Number(req.params.id)); // 改派工日期後同步案件施工日期，避免過期
+  gcal.safeSyncDispatch(Number(req.params.did)); // 同步 Google 派單行事曆（含改期/取消）
   res.json({ ok: true });
 });
 
 router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
   const caseId = Number(req.params.id);
-  const d = db.prepare(`SELECT dispatch_type, scheduled_date FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, caseId);
+  const d = db.prepare(`SELECT dispatch_type, scheduled_date, gcal_event_id FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, caseId);
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, caseId);
+  gcal.safeRemoveEvent(d?.gcal_event_id); // 刪派工 → 同步移除 Google 事件
   recalcLaborCost(caseId);
 
   // 若刪除施工派工後已無任何施工派工，案件退回「成交待派工」並清除施工日期
@@ -993,11 +997,13 @@ router.delete('/:id', requireAuth, (req, res) => {
 
   // 先關閉外鍵檢查（必須在 BEGIN 之前，PRAGMA 於交易內無效），
   // 確保即使有未列舉到的關聯表也能順利刪除，避免 FOREIGN KEY constraint failed
+  let gcalEventIds = []; // 案件底下派工對應的 Google 事件，交易成功後再移除
   db.exec('PRAGMA foreign_keys=OFF');
   db.exec('BEGIN');
   try {
     const id = req.params.id;
     const dispIds = db.prepare(`SELECT id FROM dispatches WHERE case_id=?`).all(id).map(r => r.id);
+    gcalEventIds = db.prepare(`SELECT gcal_event_id FROM dispatches WHERE case_id=? AND gcal_event_id IS NOT NULL`).all(id).map(r => r.gcal_event_id);
     if (dispIds.length) {
       const ph = dispIds.map(() => '?').join(',');
       db.prepare(`DELETE FROM dispatch_users    WHERE dispatch_id IN (${ph})`).run(...dispIds);
@@ -1035,6 +1041,7 @@ router.delete('/:id', requireAuth, (req, res) => {
     db.exec('PRAGMA foreign_keys=ON');   // 無論成敗都恢復外鍵檢查
   }
 
+  gcalEventIds.forEach(eid => gcal.safeRemoveEvent(eid)); // 刪案件 → 一併移除其派工的 Google 事件
   res.json({ ok: true });
 });
 

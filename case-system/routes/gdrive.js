@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireOwner } = require('../middleware/auth');
 const gdrive = require('../lib/gdrive');
+const gcal = require('../lib/gcal');
 const router = express.Router();
 
 // 狀態（只有老闆）
@@ -35,6 +36,28 @@ router.get('/callback', async (req, res) => {
     res.redirect('/gdrive-connect?r=connected');
   } catch (e) {
     res.redirect('/gdrive-connect?r=error');
+  }
+});
+
+// ── 派單行事曆同步（只有老闆）──────────────────────────────
+// 狀態
+router.get('/gcal/status', requireAuth, requireOwner, (req, res) => {
+  res.json(gcal.calendarInfo());
+});
+
+// 開/關同步
+router.post('/gcal/toggle', requireAuth, requireOwner, (req, res) => {
+  gcal.setEnabled(!!req.body.enabled);
+  res.json({ ok: true, enabled: gcal.syncEnabled() });
+});
+
+// 回填：把所有現有派工推到 Google 行事曆
+router.post('/gcal/sync-all', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const r = await gcal.syncAll();
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
