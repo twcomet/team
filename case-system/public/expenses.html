@@ -353,7 +353,7 @@ async function loadMy() {
   const rows = await res.json();
   document.getElementById('myBody').innerHTML = rows.map(r => `
     <tr>
-      <td>${r.expense_date}</td>
+      <td>${r.expense_date}${weekdayZh(r.expense_date)}</td>
       <td>${r.category_name||'—'}</td>
       <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description||'—'}</td>
@@ -381,7 +381,7 @@ async function loadReview() {
   const rejectAction  = isMgr ? 'mgr-reject'  : 'owner-reject';
   document.getElementById('reviewBody').innerHTML = rows.map(r => `
     <tr>
-      <td>${r.expense_date}</td>
+      <td>${r.expense_date}${weekdayZh(r.expense_date)}</td>
       <td>${r.user_name||'—'}</td>
       <td>${r.category_name||'—'}</td>
       <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
@@ -419,7 +419,7 @@ async function loadPendingSettlement() {
         <div class="settle-user">👤 ${u.name}</div>
         ${u.items.map(r => `
           <div class="settle-row">
-            <span>${r.expense_date} ${r.category_name} ${r.description ? '— ' + r.description : ''}</span>
+            <span>${r.expense_date}${weekdayZh(r.expense_date)} ${r.category_name} ${r.description ? '— ' + r.description : ''}</span>
             <span>$${Number(r.amount).toLocaleString()}</span>
           </div>
         `).join('')}
@@ -449,7 +449,7 @@ async function loadAll() {
   const rows = await res.json();
   document.getElementById('allBody').innerHTML = rows.map(r => `
     <tr>
-      <td>${r.expense_date}</td>
+      <td>${r.expense_date}${weekdayZh(r.expense_date)}</td>
       <td>${r.user_name||'—'}</td>
       <td>${r.category_name||'—'}</td>
       <td style="font-weight:600">$${Number(r.amount).toLocaleString()}</td>
@@ -538,7 +538,7 @@ async function openReviewModal(id, approveAction, rejectAction) {
   document.getElementById('reviewModalTitle').textContent = `審核 — ${r.user_name}`;
   document.getElementById('reviewInfo').innerHTML = `
     <div><strong>${r.category_name}</strong>　$${Number(r.amount).toLocaleString()}</div>
-    <div style="color:var(--gray-500);margin-top:4px">日期：${r.expense_date}　說明：${r.description||'—'}</div>
+    <div style="color:var(--gray-500);margin-top:4px">日期：${r.expense_date}${weekdayZh(r.expense_date)}　說明：${r.description||'—'}</div>
     ${r.case_number ? `<div style="margin-top:4px">案件：${r.case_number} ${r.case_title||''}</div>` : ''}
   `;
   document.getElementById('reviewNote').value = '';

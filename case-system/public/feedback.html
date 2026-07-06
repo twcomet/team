@@ -259,9 +259,9 @@ function renderList(list) {
           </div>
           <div class="ticket-title">${escHtml(t.title)}</div>
           <div class="ticket-meta">
-            送出：${t.created_at?.slice(0,10) || '—'}
+            送出：${t.created_at?.slice(0,10) || '—'}${weekdayZh(t.created_at)}
             ${t.reply_count > 0 ? `｜💬 ${t.reply_count} 則回覆` : ''}
-            ${t.last_reply_at ? `｜最新：${t.last_reply_at.slice(0,10)}` : ''}
+            ${t.last_reply_at ? `｜最新：${t.last_reply_at.slice(0,10)}${weekdayZh(t.last_reply_at)}` : ''}
           </div>
         </div>
         <span style="font-size:18px;color:var(--gray-300)">›</span>

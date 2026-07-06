@@ -594,7 +594,7 @@ function renderPerf(d) {
           <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
           <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type}</td>
           <td>${c.sales_name||'—'}</td>
-          <td>${c.contracted_date||'—'}</td>
+          <td>${c.contracted_date||'—'}${weekdayZh(c.contracted_date)}</td>
           <td>${c.value?fmt(c.value):'—'}</td>
           <td style="font-weight:600">${c.tax_value?fmt(c.tax_value):'—'}</td>
           <td style="color:#057a55">${c.received?fmt(c.received):'—'}</td>
@@ -648,7 +648,7 @@ function renderCf(d) {
   document.getElementById('cfTable').innerHTML = daily.map(r => {
     const dayNet = r.inflow - r.outflow;
     return `<tr>
-      <td>${r.date}</td>
+      <td>${r.date}${weekdayZh(r.date)}</td>
       <td style="text-align:right;color:#057a55">${r.inflow?fmt(r.inflow):''}</td>
       <td style="text-align:right;color:#e02424">${r.outflow?fmt(r.outflow):''}</td>
       <td style="text-align:right;font-weight:500;color:${dayNet>=0?'#057a55':'#e02424'}">${dayNet>=0?'+':''}${fmt(dayNet)}</td>
@@ -969,7 +969,7 @@ function renderPaymentStatus(d) {
     <tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:11px">${c.case_number}</code></td>
       <td>${c.client_name||'—'}</td>
-      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}${weekdayZh(c.contracted_at)}</td>
       <td style="text-align:right;font-weight:600">${fmt(Math.round(c.tax_value||0))}</td>
       <td>${c.sales_name||'—'}</td>
       <td>${paymentBadge(c.payment_status)}</td>
@@ -982,7 +982,7 @@ function renderPaymentStatus(d) {
     return `<tr onclick="location.href='/case-detail?id=${c.id}'" style="cursor:pointer">
       <td><code style="font-size:11px">${c.case_number}</code></td>
       <td>${c.client_name||'—'}</td>
-      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}${weekdayZh(c.contracted_at)}</td>
       <td style="text-align:right">${fmt(Math.round(c.tax_value||0))}</td>
       <td style="text-align:right;color:#057a55">${c.received ? fmt(c.received) : '—'}</td>
       <td style="text-align:right;color:#e02424;font-weight:600">${fmt(outstanding)}</td>
@@ -994,7 +994,7 @@ function renderPaymentStatus(d) {
   const dailyBody = document.getElementById('dailyPayTable');
   dailyBody.innerHTML = dailyCollection?.length ? dailyCollection.map(r => `
     <tr>
-      <td>${r.day}</td>
+      <td>${r.day}${weekdayZh(r.day)}</td>
       <td style="text-align:right">${r.cnt} 件</td>
       <td style="text-align:right;font-weight:600;color:#057a55">${fmt(Math.round(r.total||0))}</td>
     </tr>`).join('')

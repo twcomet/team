@@ -343,7 +343,7 @@ function renderCard(t) {
   const displayDiff  = dispatchDate ? dayDiff(dispatchDate) : diff;
 
   const dateDisplay = displayDate
-    ? `📅 ${displayDate}　${dateTag(displayDiff)}`
+    ? `📅 ${displayDate}${weekdayZh(displayDate)}　${dateTag(displayDiff)}`
     : '📅 未排日期';
 
   return `
@@ -385,11 +385,11 @@ function openTaskCard(id) {
 
   // ── 1. 地點 ──
   if (t.location) h += `<div>📍 <b>${esc(t.location)}</b></div>`;
-  if (dt) h += `<div>🗓 ${esc(dt)}${t.next_dispatch_time?' '+esc(t.next_dispatch_time):''}</div>`;
+  if (dt) h += `<div>🗓 ${esc(dt)}${weekdayZh(dt)}${t.next_dispatch_time?' '+esc(t.next_dispatch_time):''}</div>`;
   // ── 2. 現場聯絡人 ──
   if (contactName || contactPhone) h += `<div>👤 現場聯絡人：${esc(contactName||'—')}${contactPhone?`　📞 <a href="tel:${esc(contactPhone)}">${esc(contactPhone)}</a>`:''}</div>`;
   if (t.surveyor_name) h += `<div>🔎 場勘：${esc(t.surveyor_name)}</div>`;
-  if (t.desired_entry_date) h += `<div>📅 希望進場：${esc(t.desired_entry_date)}</div>`;
+  if (t.desired_entry_date) h += `<div>📅 希望進場：${esc(t.desired_entry_date)}${weekdayZh(t.desired_entry_date)}</div>`;
   // ── 3. 進場資訊 ──
   if (t.entry_info) h += `<div>🔑 進場資訊：${esc(t.entry_info)}</div>`;
   // ── 6. 施作內容 ──

@@ -119,6 +119,7 @@ async function load() {
 function esc(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function weekdayZh(d){if(!d)return'';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return'';const dt=new Date(+m[1],+m[2]-1,+m[3]);if(isNaN(dt.getTime()))return'';return'（'+['日','一','二','三','四','五','六'][dt.getDay()]+'）';}
 
 function render(f) {
   const signed   = f.status === 'signed';
@@ -138,7 +139,7 @@ function render(f) {
       <div class="card-title">場勘時間</div>
       <div class="datetime-badge">
         <span style="font-size:18px">📅</span>
-        <span class="date-part">${esc(dateStr)}</span>
+        <span class="date-part">${esc(dateStr)}${weekdayZh(dateStr)}</span>
         ${timeStr ? `<span class="time-part">${esc(timeStr)}</span>` : ''}
       </div>
     </div>
@@ -241,7 +242,7 @@ function render(f) {
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
             <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
-            <span>場勘日期：<strong>${esc(f.survey_date || '—')}${f.survey_time ? ' ' + esc(f.survey_time) : ''}</strong></span>
+            <span>場勘日期：<strong>${esc(f.survey_date || '—')}${weekdayZh(f.survey_date)}${f.survey_time ? ' ' + esc(f.survey_time) : ''}</strong></span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
             <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>

@@ -409,7 +409,7 @@ function renderTable(cases) {
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
       <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type||'—'}</td>
       <td>${c.sales_name||'—'}</td>
-      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}</td>
+      <td>${c.contracted_at ? c.contracted_at.slice(0,10) : '—'}${weekdayZh(c.contracted_at)}</td>
       <td style="text-align:right">${c.value ? fmt(c.value) : '—'}</td>
       <td style="text-align:right;font-weight:600">${c.tax_value ? fmt(Math.round(c.tax_value)) : '—'}</td>
       <td style="text-align:right;color:#057a55">${c.received ? fmt(c.received) : '—'}</td>
@@ -431,7 +431,7 @@ function renderDispatchTable(cases) {
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title}</td>
       <td>${CASE_TYPE_LABELS[c.case_type]||c.case_type||'—'}</td>
       <td>${c.sales_name||'—'}</td>
-      <td>${c.dispatch_date ? c.dispatch_date.slice(0,10) : '—'}</td>
+      <td>${c.dispatch_date ? c.dispatch_date.slice(0,10) : '—'}${weekdayZh(c.dispatch_date)}</td>
       <td style="text-align:center">${c.dispatch_count}</td>
       <td style="text-align:right;font-weight:600">${c.value ? fmt(c.value) : '—'}${c.full_value && Math.round(c.full_value) !== Math.round(c.value||0) ? `<br><span style="font-size:10px;color:#9ca3af;font-weight:400">全額 ${fmt(c.full_value)}</span>` : ''}</td>
     </tr>`).join('');

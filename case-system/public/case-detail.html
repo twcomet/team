@@ -2689,7 +2689,7 @@ function renderDispatches(dispatches) {
           <span class="dispatch-type-tag ${tagClass}">${tag}</span>
           ${warrantyBadge}
           ${(d.dispatch_type === 'install' && d.day_index) ? `<span style="padding:2px 7px;border-radius:6px;background:#16a34a;color:#fff;font-size:11px;font-weight:700">第 ${d.day_index} 天</span>` : ''}
-          <strong>${d.scheduled_date}</strong>
+          <strong>${d.scheduled_date}${weekdayZh(d.scheduled_date)}</strong>
           ${d.scheduled_time ? `<span style="color:#6b7280;font-size:13px">${d.scheduled_time}</span>` : ''}
           ${d.actual_hours ? `<span style="color:#374151;font-size:13px;font-weight:600">${d.actual_hours}hr</span>` : (d.estimated_hours ? `<span style="color:#6b7280;font-size:13px">預${d.estimated_hours}hr</span>` : '')}
         </div>
@@ -3095,7 +3095,7 @@ async function sf_checkConflict() {
     const conflicts = [...(data.dispatch_conflicts || [])];
     if (!conflicts.length) { warn.style.display = 'none'; return; }
     warn.style.display = '';
-    warn.innerHTML = `⚠️ 該場勘人員在 ${date} 已有安排：` +
+    warn.innerHTML = `⚠️ 該場勘人員在 ${date}${weekdayZh(date)} 已有安排：` +
       conflicts.map(c => `<strong>${c.case_number}</strong> ${c.title || ''}${c.survey_time ? ' @ ' + c.survey_time : ''}`).join('、');
   } catch(e) { warn.style.display = 'none'; }
 }
@@ -3598,7 +3598,7 @@ document.getElementById('saveDispatchBtn').addEventListener('click', async () =>
 async function handleDispatchConfirm(data, body) {
   let dayIndex, proceed;
   if (data.conflict === 'multi_day') {
-    const dates = (data.existing || []).map(e => e.scheduled_date).join('、');
+    const dates = (data.existing || []).map(e => e.scheduled_date + weekdayZh(e.scheduled_date)).join('、');
     proceed = window.confirm(`此案件已排過施工（${dates}）。\n這次是「第 ${data.suggestedDay} 天施工」嗎？\n\n確定＝是，建立第 ${data.suggestedDay} 天；取消＝放棄。`);
     dayIndex = data.suggestedDay;
   } else { // same_day
@@ -3659,7 +3659,7 @@ function renderRetentionVerify(c) {
   const canVerify = currentUser && ['owner','hq_accounting'].includes(currentUser.role);
   if (c.retention_verified) {
     const when = (c.retention_verified_at || '').slice(0, 10);
-    el.innerHTML = `<span style="color:#166534;font-weight:600;font-size:12px">✓ 已核銷入帳${when ? '（' + when + '）' : ''}</span>`
+    el.innerHTML = `<span style="color:#166534;font-weight:600;font-size:12px">✓ 已核銷入帳${when ? '（' + when + weekdayZh(when) + '）' : ''}</span>`
       + (canVerify ? ` <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px;color:#b91c1c" onclick="unverifyRetention()">取消核銷</button>` : '');
   } else if (canVerify) {
     el.innerHTML = `<button type="button" class="btn btn-primary btn-sm" style="font-size:12px" onclick="verifyRetention()">會計核銷（入流水帳）</button>`;
@@ -3879,7 +3879,7 @@ function renderCreditsBlock() {
              style="width:15px;height:15px;accent-color:var(--primary)">
       <span style="font-weight:500">${typeLabel}</span>
       <span style="color:var(--primary);font-weight:600">${fmt(d.amount)}</span>
-      ${d.collected_at ? `<span style="font-size:12px;color:var(--gray-400)">${d.collected_at}</span>` : ''}
+      ${d.collected_at ? `<span style="font-size:12px;color:var(--gray-400)">${d.collected_at}${weekdayZh(d.collected_at)}</span>` : ''}
       ${d.note ? `<span style="font-size:12px;color:var(--gray-400)">${d.note}</span>` : ''}
       ${isApplied ? '<span style="font-size:11px;color:var(--gray-400)">（已折抵）</span>' : ''}
     </label>`;
@@ -3931,7 +3931,7 @@ async function loadCaseRequisitions() {
   let body = rows.length ? rows.map(r => {
     const s = SB[r.status] || ['#eee','#555',r.status];
     return `<tr>
-      <td style="padding:7px 10px">${(r.applied_at||'').slice(0,10)}</td>
+      <td style="padding:7px 10px">${(r.applied_at||'').slice(0,10)}${weekdayZh((r.applied_at||'').slice(0,10))}</td>
       <td style="padding:7px 10px">${esc(r.material_label||'—')}</td>
       <td style="padding:7px 10px">${esc(r.purpose||'—')}</td>
       <td style="padding:7px 10px">${r.est_meters!=null?r.est_meters+'米':'—'}</td>
@@ -4024,7 +4024,7 @@ function renderMatUsage(dispatchList, logList) {
                 ? `<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:20px;font-size:11px">保留已取消</span>`
                 : m.type_label;
             return `<tr style="${rowStyle}">
-              <td>${m.date || '—'}</td>
+              <td>${m.date || '—'}${weekdayZh(m.date)}</td>
               <td>${typeBadge}</td>
               <td>${m.film_brand}</td>
               <td><strong>${m.film_model}</strong></td>
@@ -4105,7 +4105,7 @@ function renderQuotePanel() {
   if (vSel) {
     const sLbl = { draft:'草稿', sent:'已傳送', accepted:'已確認', rejected:'已拒絕' };
     vSel.innerHTML = quoteVersions.map(v =>
-      `<option value="${v.id}" ${v.id===currentQuote.id?'selected':''}>v${v.version}（${sLbl[v.status]||v.status}）${(v.created_at||'').slice(0,10)}</option>`
+      `<option value="${v.id}" ${v.id===currentQuote.id?'selected':''}>v${v.version}（${sLbl[v.status]||v.status}）${(v.created_at||'').slice(0,10)}${weekdayZh((v.created_at||'').slice(0,10))}</option>`
     ).join('');
   }
 
@@ -5958,7 +5958,7 @@ async function loadCaseDeficiencies() {
       ${d.description ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:8px">${esc(d.description)}</div>` : ''}
       ${d.damage_amount ? `<div style="font-size:12px;color:#b91c1c;margin-bottom:8px">損失金額：$${d.damage_amount.toLocaleString()}</div>` : ''}
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">${persons}</div>
-      <div style="font-size:11px;color:var(--gray-400)">${(d.created_at||'').slice(0,10)} · ${esc(d.created_by_name||'')}</div>
+      <div style="font-size:11px;color:var(--gray-400)">${(d.created_at||'').slice(0,10)}${weekdayZh((d.created_at||'').slice(0,10))} · ${esc(d.created_by_name||'')}</div>
     </div>`;
   }).join('');
 }
@@ -5996,7 +5996,7 @@ function renderDocList(docs) {
           ${typeBadge}
         </div>
         ${d.notes ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:4px">${esc(d.notes)}</div>` : ''}
-        <div style="font-size:12px;color:var(--gray-400)">${date}　${esc(d.uploader_name || '')}</div>
+        <div style="font-size:12px;color:var(--gray-400)">${date}${weekdayZh(date)}　${esc(d.uploader_name || '')}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <a href="/api/cases/${caseId}/documents/${d.id}/download" class="btn btn-ghost btn-sm" style="text-decoration:none" download>下載</a>

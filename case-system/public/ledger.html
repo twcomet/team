@@ -808,7 +808,7 @@ async function loadReview() {
   const tb = document.getElementById('reviewBody');
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px">目前沒有待審核項目 ✅</td></tr>'; return; }
   tb.innerHTML = rows.map(r => `<tr style="border-bottom:1px solid #f3f4f6">
-    <td style="padding:8px 12px">${r.date||''}</td>
+    <td style="padding:8px 12px">${r.date||''}${weekdayZh(r.date)}</td>
     <td style="padding:8px 12px">${r.type==='income'?'<span style="color:#057a55">收入</span>':'<span style="color:#e02424">支出</span>'}</td>
     <td style="padding:8px 12px">${escH(r.category)}</td>
     <td style="padding:8px 12px">${escH(r.description)}</td>
@@ -866,7 +866,7 @@ function renderTable(rows) {
     <tr class="tr-${r.type}${isPending ? ' tr-pending' : ''}">
       <td style="white-space:nowrap">
         ${fmtDate(r.date)}${r.hidden ? ' 🔒' : ''}
-        ${isPending ? `<br><span style="font-size:10px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 6px;border-radius:10px">${isOverdue?'逾期':'待匯款'}${r.pay_due_date?'·'+r.pay_due_date.slice(5):''}</span>` : ''}
+        ${isPending ? `<br><span style="font-size:10px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 6px;border-radius:10px">${isOverdue?'逾期':'待匯款'}${r.pay_due_date?'·'+r.pay_due_date.slice(5)+weekdayZh(r.pay_due_date):''}</span>` : ''}
         ${isPaid && r.paid_note ? `<br><span style="font-size:10px;color:var(--gray-400)">✓ ${r.paid_note}</span>` : ''}
       </td>
       <td style="white-space:nowrap"><span class="badge-${r.type}">${r.type==='income'?'收入':'支出'}</span></td>
@@ -1154,7 +1154,7 @@ function renderPendingPanel() {
   list.innerHTML = sorted.map(r => {
     const isOverdue = r.pay_due_date && r.pay_due_date < today;
     const dueBadge  = r.pay_due_date
-      ? `<span style="font-size:11px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 7px;border-radius:10px;flex-shrink:0">${isOverdue?'逾期 ':'到期 '}${r.pay_due_date.slice(5)}</span>`
+      ? `<span style="font-size:11px;background:${isOverdue?'#e02424':'#d97706'};color:#fff;padding:1px 7px;border-radius:10px;flex-shrink:0">${isOverdue?'逾期 ':'到期 '}${r.pay_due_date.slice(5)}${weekdayZh(r.pay_due_date)}</span>`
       : '';
     const bankParts = [r.bank_name, r.bank_branch, r.bank_account, r.bank_account_name].filter(Boolean);
     const bankLine  = bankParts.length
@@ -1200,7 +1200,7 @@ function markAsPaid(id) {
     ? `<div style="margin-top:8px;padding:8px 10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;font-size:13px;line-height:1.6"><strong style="color:#047857">💳 廠商收款資訊</strong><br><span style="white-space:pre-wrap">${String(entry.payee_info).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}</span></div>`
     : '';
   document.getElementById('payModalInfo').innerHTML = entry
-    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date : ''}${bankHtml}${payeeHtml}`
+    ? `科目：<strong>${entry.category}</strong><br>金額：<strong style="color:#e02424">${fmt(entry.amount)}</strong><br>記帳日期：${fmtDate(entry.date)}${entry.description ? '<br>說明：' + entry.description : ''}${entry.pay_due_date ? '<br>到期日：' + entry.pay_due_date + weekdayZh(entry.pay_due_date) : ''}${bankHtml}${payeeHtml}`
     : `ID: ${id}`;
   document.getElementById('payNote').value = '';
   document.getElementById('payActualDate').value = new Date().toISOString().slice(0, 10);

@@ -378,7 +378,7 @@ function render() {
 
     html += `<tr>
       <td><span class="status-badge ${sb[0]}">${sb[1]}</span></td>
-      <td>${r.work_date||'<span class="muted">—</span>'}</td>
+      <td>${r.work_date||'<span class="muted">—</span>'}${weekdayZh(r.work_date)}</td>
       <td><span class="cat-pill">${esc(r.category||'—')}</span></td>
       <td>${esc(r.worker||'—')}</td>
       <td>${r.hours?r.hours+' hr':'<span class="muted">—</span>'}</td>
@@ -387,7 +387,7 @@ function render() {
       <td style="max-width:200px">${caseCell}</td>
       <td>${esc(r.vendor)||'<span class="muted">—</span>'}</td>
       <td>${esc(r.org_name||'—')}</td>
-      <td>${r.paid_at||'<span class="muted">—</span>'}</td>
+      <td>${r.paid_at||'<span class="muted">—</span>'}${weekdayZh(r.paid_at)}</td>
       <td style="white-space:nowrap">${acts}</td>
     </tr>`;
   });

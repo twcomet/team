@@ -468,7 +468,7 @@ function renderOrders() {
           : `<span style="color:#b45309;font-weight:600">🛒 待 ${esc(po.ordered_by_name||'')} 訂</span>`)
       : '<span style="color:#9ca3af">—</span>';
     const recvCell = (po.received_meters > 0 || po.last_received_date)
-      ? `${po.last_received_date||''} <span style="color:#9ca3af">(${po.received_meters}/${po.quantity_meters}米)</span>`
+      ? `${po.last_received_date||''}${weekdayZh(po.last_received_date)} <span style="color:#9ca3af">(${po.received_meters}/${po.quantity_meters}米)</span>`
       : '<span style="color:#9ca3af">未到貨</span>';
     const canConfirm = po.ordered_by && po.order_status !== 'ordered' && (String(currentUser.id)===String(po.ordered_by) || isManager);
     const canReceive = isManager && po.status !== 'received' && po.status !== 'cancelled';
@@ -489,7 +489,7 @@ function renderOrders() {
     const td = (c, style='') => `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap;${style}">${c}</td>`;
     html += `<tr style="vertical-align:middle">
       ${td(`<span style="background:${sb[0]};color:${sb[1]};padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">${sb[2]}</span>`)}
-      ${td((po.created_at||'').slice(0,10))}
+      ${td((po.created_at||'').slice(0,10)+weekdayZh(po.created_at))}
       ${td(esc(brandLabel),'font-weight:600')}
       ${td(esc(modelLabel))}
       ${td(po.quantity_meters+' 米')}
@@ -497,7 +497,7 @@ function renderOrders() {
             ? `<a href="/case-detail?id=${po.case_id}" style="color:#1a56db;text-decoration:none;font-weight:600">${esc(po.case_number)}</a>${po.client_name?`<div style="font-size:12px;color:#374151;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px">👤 ${esc(po.client_name)}</div>`:''}${po.case_title?`<div style="font-size:11px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px">${esc(po.case_title)}</div>`:''}`
             : '<span style="color:#9ca3af">—</span>','max-width:250px')}
       ${td(orderCell)}
-      ${td((po.expected_date||'未設定')+(overdue?' ⚠️':''), overdue?'color:#dc2626':'')}
+      ${td((po.expected_date||'未設定')+weekdayZh(po.expected_date)+(overdue?' ⚠️':''), overdue?'color:#dc2626':'')}
       ${td(recvCell)}
       ${td(esc(po.carrier)||'<span style="color:#9ca3af">—</span>')}
       ${td(po.total_shipping_fee>0?'$'+Number(po.total_shipping_fee).toLocaleString():'<span style="color:#9ca3af">—</span>')}
@@ -654,7 +654,7 @@ async function openReceiptEdit(poId) {
   // 多筆 → 選擇
   document.getElementById('receiptPickerList').innerHTML = receipts.map(rc => `
     <div onclick='openReceiptEditForm(${poId}, ${JSON.stringify(rc)})' style="cursor:pointer;border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-      <div style="font-weight:600">${rc.received_date||''}　${rc.quantity_meters}米　${rc.batch_note?'·'+esc(rc.batch_note):''}</div>
+      <div style="font-weight:600">${rc.received_date||''}${weekdayZh(rc.received_date)}　${rc.quantity_meters}米　${rc.batch_note?'·'+esc(rc.batch_note):''}</div>
       <div style="font-size:12px;color:var(--gray-500)">運費 ${rc.shipping_fee!=null?'$'+rc.shipping_fee:'—'}　稅金 ${rc.tax!=null?'$'+rc.tax:'—'}　${rc.carrier||''} ${rc.payment_method||''}</div>
     </div>`).join('');
   document.getElementById('receiptPickerModal').style.display = 'flex';

@@ -470,7 +470,7 @@ function renderTableRows(rows) {
     const typeLabel = d.type === 'sample' ? `樣本${d.product_name ? '｜' + d.product_name : ''}` : (DEP_TYPE_LABEL[d.type] || d.type);
     const statusHtml = `<span class="badge-dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
     const verifyHtml = d.accounting_verified
-      ? `<span class="badge-verified">✓ 已核銷</span><br><span style="font-size:11px;color:var(--gray-400)">${(d.accounting_verified_at || '').slice(0,10)} ${d.verified_by_name || ''}</span>`
+      ? `<span class="badge-verified">✓ 已核銷</span><br><span style="font-size:11px;color:var(--gray-400)">${(d.accounting_verified_at || '').slice(0,10)}${weekdayZh((d.accounting_verified_at || '').slice(0,10))} ${d.verified_by_name || ''}</span>`
       : `<span class="badge-unverified">待核銷</span>`;
     const caseId  = d.linked_case_id || d.applied_case_id;
     const caseNum = d.applied_case_number || d.linked_case_number;
@@ -493,7 +493,7 @@ function renderTableRows(rows) {
       ? `<a href="/client-detail?id=${d.client_id}" style="color:var(--primary);text-decoration:none;font-weight:500">${d.client_name || '—'}</a>`
       : (d.client_name || '—');
     return `<tr>
-      <td style="white-space:nowrap">${d.collected_at || '—'}</td>
+      <td style="white-space:nowrap">${d.collected_at || '—'}${weekdayZh(d.collected_at)}</td>
       <td>${clientLink}</td>
       <td style="max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${typeLabel}">${typeLabel}</td>
       <td style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtText}</td>
@@ -606,7 +606,7 @@ function ownerConfirmRow(id) {
   document.getElementById('ownerConfirmInfo').innerHTML =
     `確認從會計處收到：<strong>${dep.client_name || '—'}</strong>　${typeLabel}　<strong style="color:#7c3aed">NT$${Math.round(dep.amount).toLocaleString()}</strong>` +
     (dep.linked_case_number ? `<br><span style="font-size:12px;color:var(--gray-500)">關聯案件：${dep.linked_case_number}</span>` : '') +
-    `<br><span style="font-size:12px;color:var(--gray-500)">會計核銷：${(dep.accounting_verified_at || '').slice(0,10)} ${dep.verified_by_name || ''}</span>`;
+    `<br><span style="font-size:12px;color:var(--gray-500)">會計核銷：${(dep.accounting_verified_at || '').slice(0,10)}${weekdayZh((dep.accounting_verified_at || '').slice(0,10))} ${dep.verified_by_name || ''}</span>`;
   clearOwnerSig();
   document.getElementById('ownerConfirmModal').classList.add('open');
 }

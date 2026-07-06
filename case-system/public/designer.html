@@ -223,6 +223,7 @@ let stockData = [];
 let discountRate = 1.0;
 let quotesLoaded = false;
 
+function weekdayZh(d){if(!d)return'';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return'';const dt=new Date(+m[1],+m[2]-1,+m[3]);if(isNaN(dt.getTime()))return'';return'（'+['日','一','二','三','四','五','六'][dt.getDay()]+'）';}
 function switchTab(tab) {
   document.querySelectorAll('.page-tab').forEach((el, i) => {
     el.classList.toggle('active', ['stock','quotes'][i] === tab);
@@ -422,8 +423,8 @@ async function loadQuotes() {
       </div>
       ${q.total_price ? `<div class="quote-total">$${Math.round(q.total_price).toLocaleString()}</div>` : ''}
       <div class="quote-meta">
-        建立於 ${q.created_at?.slice(0,10) || '—'}
-        ${q.valid_until ? `｜有效至 ${q.valid_until}` : ''}
+        建立於 ${q.created_at?.slice(0,10) || '—'}${weekdayZh(q.created_at)}
+        ${q.valid_until ? `｜有效至 ${q.valid_until}${weekdayZh(q.valid_until)}` : ''}
         ${q.created_by_name ? `｜負責人：${q.created_by_name}` : ''}
       </div>
       ${viewBtn}

@@ -142,6 +142,8 @@ let quoteData = null;
 
 const fmt = n => 'NT$ ' + Math.round(n||0).toLocaleString('zh-TW');
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+// 本頁未載入 common.js，內嵌一份純函式版 weekdayZh（由 YYYY-MM-DD/ISO 取得（週幾），壞值回空字串）
+function weekdayZh(d){ if(!d) return ''; const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return ''; const dt=new Date(+m[1],+m[2]-1,+m[3]); if(isNaN(dt.getTime())) return ''; return '（'+['日','一','二','三','四','五','六'][dt.getDay()]+'）'; }
 
 const TYPE_LABEL = { film:'貼膜', catalog:'公規品', service:'服務', travel:'車馬費', freight:'運費' };
 const TYPE_CLASS = { film:'item-film', catalog:'item-catalog', service:'item-service', travel:'item-service', freight:'item-service' };
@@ -227,7 +229,7 @@ function render(q) {
           <div class="info-cell"><div class="lbl">客戶</div><div class="val">${esc(q.client_name||'—')}</div></div>
           <div class="info-cell"><div class="lbl">業務負責人</div><div class="val">${esc(q.creator_name||'—')}</div></div>
           ${q.client_phone ? `<div class="info-cell"><div class="lbl">聯絡電話</div><div class="val">${esc(q.client_phone)}</div></div>` : ''}
-          <div class="info-cell"><div class="lbl">報價日期</div><div class="val">${(q.created_at||'').slice(0,10)}</div></div>
+          <div class="info-cell"><div class="lbl">報價日期</div><div class="val">${(q.created_at||'').slice(0,10)}${weekdayZh(q.created_at)}</div></div>
           ${q.location ? `<div class="info-cell" style="grid-column:1/-1"><div class="lbl">施工地點</div><div class="val">${esc(q.location)}</div></div>` : ''}
           ${q.title ? `<div class="info-cell" style="grid-column:1/-1"><div class="lbl">專案名稱</div><div class="val">${esc(q.title)}</div></div>` : ''}
         </div>

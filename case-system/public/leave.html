@@ -430,7 +430,7 @@ function renderLeaveList(containerId, list, showUser) {
   }
   el.innerHTML = list.map(lr => {
     const dateRange = lr.leave_end_date && lr.leave_end_date !== lr.leave_date
-      ? `${lr.leave_date} ~ ${lr.leave_end_date}` : lr.leave_date;
+      ? `${lr.leave_date}${weekdayZh(lr.leave_date)} ~ ${lr.leave_end_date}${weekdayZh(lr.leave_end_date)}` : `${lr.leave_date}${weekdayZh(lr.leave_date)}`;
     const statusHtml = `<span class="leave-type-badge sb-${lr.status}">${LEAVE_STATUS_LABEL[lr.status] || lr.status}</span>`;
     const typeHtml   = `<span class="leave-type-badge lt-${lr.leave_type}">${lr.leave_type}</span>`;
     _leaveCache[lr.id] = lr;  // 快取供編輯用
@@ -474,10 +474,10 @@ function renderLeaveList(containerId, list, showUser) {
         </div>
         ${lr.status !== 'pending' ? `<div class="leave-card-meta">
           ${lr.status === 'approved' ? '✅ 核准' : '❌ 拒絕'}：${lr.reviewed_by_name || '—'}
-          ${lr.reviewed_at ? ' / ' + lr.reviewed_at.slice(0,10) : ''}
+          ${lr.reviewed_at ? ' / ' + lr.reviewed_at.slice(0,10) + weekdayZh(lr.reviewed_at) : ''}
           ${lr.review_note ? `｜駁回原因：${lr.review_note}` : ''}
         </div>` : ''}
-        <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}</div>
+        <div class="leave-card-meta" style="color:var(--gray-300)">申請時間：${lr.created_at?.slice(0,10) || '—'}${weekdayZh(lr.created_at)}</div>
       </div>
       ${actionsHtml}
     </div>`;

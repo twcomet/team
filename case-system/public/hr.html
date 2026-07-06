@@ -274,7 +274,7 @@ async function loadPendingBanner() {
       <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px">請假申請</div>
       ${leave.map(r => `
         <div class="pending-item">
-          <span>${r.user_name}｜${r.leave_type}｜${r.leave_date}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date:''}</span>
+          <span>${r.user_name}｜${r.leave_type}｜${r.leave_date}${weekdayZh(r.leave_date)}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date+weekdayZh(r.leave_end_date):''}</span>
           <div style="display:flex;gap:6px">
             <button class="btn btn-primary btn-sm" onclick="reviewLeave(${r.id},'approved')">核准</button>
             <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="reviewLeave(${r.id},'rejected')">拒絕</button>
@@ -284,7 +284,7 @@ async function loadPendingBanner() {
       <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin:10px 0 6px">補打上班卡申請</div>
       ${makeup.map(r => `
         <div class="pending-item">
-          <span>${r.user_name}｜補打 ${r.makeup_date}${r.reason?' — '+r.reason:''}</span>
+          <span>${r.user_name}｜補打 ${r.makeup_date}${weekdayZh(r.makeup_date)}${r.reason?' — '+r.reason:''}</span>
           <div style="display:flex;gap:6px">
             <button class="btn btn-primary btn-sm" onclick="reviewMakeup(${r.id},'approved')">核准</button>
             <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="reviewMakeup(${r.id},'rejected')">拒絕</button>
@@ -386,7 +386,7 @@ function renderEmpDetail(emp) {
     <!-- 特休管理 -->
     <div id="tab-leave" style="display:none">
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px">
-        到職日：<strong>${emp.hire_date||'未設定'}</strong>　計算基準：歷年制（每年 1/1）
+        到職日：<strong>${emp.hire_date||'未設定'}${weekdayZh(emp.hire_date)}</strong>　計算基準：歷年制（每年 1/1）
         ${emp.hire_date?`<span style="margin-left:16px">${emp.leave_year} 年年資應得 <strong>${emp.leave_entitlement} 天</strong></span>`:''}
       </div>
 
@@ -406,7 +406,7 @@ function renderEmpDetail(emp) {
         <thead><tr><th>日期</th><th>天數</th><th>原因</th><th>操作人</th></tr></thead>
         <tbody>${emp.leave_adjustment_list.map(a => `
           <tr>
-            <td>${a.created_at?.slice(0,10)||''}</td>
+            <td>${a.created_at?.slice(0,10)||''}${weekdayZh(a.created_at)}</td>
             <td style="color:${a.days>=0?'#16a34a':'#ef4444'};font-weight:600">${a.days>=0?'+':''}${a.days}</td>
             <td>${a.reason}</td>
             <td>${a.adjusted_by_name||''}</td>
@@ -422,7 +422,7 @@ function renderEmpDetail(emp) {
         <thead><tr><th>日期</th><th>假別</th><th>狀態</th><th>原因</th><th>審核人</th></tr></thead>
         <tbody>${emp.leave_requests.map(r => `
           <tr>
-            <td>${r.leave_date}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date:''}</td>
+            <td>${r.leave_date}${weekdayZh(r.leave_date)}${r.leave_end_date&&r.leave_end_date!==r.leave_date?' ~ '+r.leave_end_date+weekdayZh(r.leave_end_date):''}</td>
             <td>${r.leave_type}</td>
             <td><span class="tag-${r.status}">${{pending:'待審',approved:'核准',rejected:'拒絕'}[r.status]||r.status}</span></td>
             <td>${r.reason||'—'}</td>
@@ -439,7 +439,7 @@ function renderEmpDetail(emp) {
         <thead><tr><th>日期</th><th>上班打卡</th><th>下班打卡</th><th>狀態</th></tr></thead>
         <tbody>${emp.attendance.map(a => `
           <tr>
-            <td>${a.work_date}</td>
+            <td>${a.work_date}${weekdayZh(a.work_date)}</td>
             <td>${a.clock_in||'—'}</td>
             <td>${a.clock_out||'—'}${a.auto_clock_out?'<span style="font-size:10px;color:#9ca3af;margin-left:4px">自動</span>':''}</td>
             <td>${a.is_late?'<span class="tag-rejected">遲到</span>':'<span class="tag-approved">準時</span>'}</td>
@@ -566,7 +566,7 @@ function renderLateSection(list) {
     </tr>
     ${emp.records.map(r => `
       <tr id="att-row-${r.id}">
-        <td style="padding-left:24px;color:var(--gray-500)">${r.work_date}</td>
+        <td style="padding-left:24px;color:var(--gray-500)">${r.work_date}${weekdayZh(r.work_date)}</td>
         <td>${r.clock_in || '—'}</td>
         <td><span class="tag-rejected">遲到</span></td>
         <td>
@@ -624,7 +624,7 @@ function renderMakeupSection(list) {
   const rows = list.length ? list.map(r => `
     <tr>
       <td>${r.user_name}</td>
-      <td>${r.makeup_date}</td>
+      <td>${r.makeup_date}${weekdayZh(r.makeup_date)}</td>
       <td>${r.reason || '—'}</td>
       <td><span class="tag-${r.status}">${{pending:'待審',approved:'核准',rejected:'拒絕'}[r.status]||r.status}</span></td>
       <td>
@@ -661,7 +661,7 @@ function renderLeaveMonSection(list) {
     </tr>
     ${emp.requests.map(r => `
       <tr>
-        <td style="padding-left:24px;color:var(--gray-500)">${r.leave_date}${r.leave_end_date && r.leave_end_date !== r.leave_date ? ' ~ ' + r.leave_end_date : ''}</td>
+        <td style="padding-left:24px;color:var(--gray-500)">${r.leave_date}${weekdayZh(r.leave_date)}${r.leave_end_date && r.leave_end_date !== r.leave_date ? ' ~ ' + r.leave_end_date + weekdayZh(r.leave_end_date) : ''}</td>
         <td>${r.leave_type}</td>
         <td>${r.hours} 時</td>
         <td>${r.reason || '—'}</td>

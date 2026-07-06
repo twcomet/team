@@ -335,11 +335,11 @@ async function loadMyRequests() {
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">尚無申請紀錄</td></tr>'; return; }
   tbody.innerHTML = list.map(r => `
     <tr>
-      <td>${r.created_at?.slice(0,10) || ''}</td>
+      <td>${r.created_at?.slice(0,10) || ''}${weekdayZh(r.created_at?.slice(0,10))}</td>
       <td>${esc(r.asset_name)} ${r.is_consumable ? '<span class="consumable-tag">消耗品</span>' : ''}</td>
       <td>${r.quantity} ${esc(r.unit||'')}</td>
       <td style="color:var(--gray-500)">${esc(r.purpose||'—')}</td>
-      <td>${r.due_date || '—'}</td>
+      <td>${r.due_date || '—'}${weekdayZh(r.due_date)}</td>
       <td><span class="status-badge sb-${r.status}">${STATUS_LABEL[r.status]||r.status}</span></td>
       <td>${r.reject_reason ? `<span style="font-size:12px;color:#991b1b">${esc(r.reject_reason)}</span>` : ''}</td>
     </tr>
@@ -354,7 +354,7 @@ async function loadReview() {
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px">目前無待審核申請</td></tr>'; return; }
   tbody.innerHTML = list.map(r => `
     <tr>
-      <td>${r.created_at?.slice(0,10)||''}</td>
+      <td>${r.created_at?.slice(0,10)||''}${weekdayZh(r.created_at?.slice(0,10))}</td>
       <td>${esc(r.user_name)}</td>
       <td>${esc(r.asset_name)} ${r.is_consumable ? '<span class="consumable-tag">消耗品</span>' : ''}</td>
       <td>${r.quantity} ${esc(r.unit||'')}</td>
@@ -381,8 +381,8 @@ async function loadLoans() {
       <td>${esc(r.user_name)}</td>
       <td>${esc(r.asset_name)}</td>
       <td>${r.quantity} ${esc(r.unit||'')}</td>
-      <td>${r.approved_at?.slice(0,10)||'—'}</td>
-      <td>${r.due_date||'—'}</td>
+      <td>${r.approved_at?.slice(0,10)||'—'}${weekdayZh(r.approved_at?.slice(0,10))}</td>
+      <td>${r.due_date||'—'}${weekdayZh(r.due_date)}</td>
       <td>${overdue ? '<span style="color:#dc2626;font-weight:600">已逾期</span>' : '—'}</td>
       <td><button class="btn btn-secondary btn-sm" onclick="markReturn(${r.id})">標記歸還</button></td>
     </tr>`;

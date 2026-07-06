@@ -273,7 +273,7 @@ function renderUsers() {
     const dailyRows = u.daily.map(d => {
       const barW = Math.round((d.cases / Math.max(...u.daily.map(x=>x.cases),1)) * 120);
       return `<tr>
-        <td style="color:var(--gray-500)">${d.date}</td>
+        <td style="color:var(--gray-500)">${d.date}${weekdayZh(d.date)}</td>
         <td>${d.cases} 件</td>
         <td>${d.creates > 0 ? `<span style="color:#9d174d;font-weight:600">${d.creates}</span>` : '—'}</td>
         <td>${d.updates > 0 ? `<span style="color:#075985;font-weight:600">${d.updates}</span>` : '—'}</td>

@@ -192,7 +192,7 @@ async function init() {
   document.getElementById('iRole').textContent     = data.role || '—';
   document.getElementById('iDept').textContent     = data.department || '—';
   document.getElementById('iOrg').textContent      = data.org_name || '—';
-  document.getElementById('iHire').textContent     = data.hire_date || '未設定';
+  document.getElementById('iHire').textContent     = (data.hire_date || '未設定') + weekdayZh(data.hire_date);
   document.getElementById('iLine').innerHTML       = data.line_bound
     ? '<span class="info-tag tag-bound">已綁定</span>'
     : '<span class="info-tag tag-unbound">尚未綁定</span>';

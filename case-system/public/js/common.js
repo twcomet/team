@@ -32,7 +32,16 @@ function badge(text, cls) { return `<span class="badge badge-${cls}">${text}</sp
 function statusBadge(s) { return badge(STATUS_LABELS[s] || s, s); }
 function paymentBadge(s) { return badge(PAYMENT_LABELS[s] || s, s); }
 function fmt(n) { return (n != null && n !== '') ? `$${Math.round(Number(n)).toLocaleString()}` : '—'; }
-function fmtDate(d) { return d ? d.slice(0, 10) : '—'; }
+// 由 YYYY-MM-DD（或含時間的字串）取得（週幾），空值/壞日期回傳空字串，不會出現（NaN）
+function weekdayZh(d) {
+  if (!d) return '';
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  const dt = new Date(+m[1], +m[2] - 1, +m[3]);
+  if (isNaN(dt.getTime())) return '';
+  return '（' + ['日', '一', '二', '三', '四', '五', '六'][dt.getDay()] + '）';
+}
+function fmtDate(d) { return d ? d.slice(0, 10) + weekdayZh(d) : '—'; }
 
 let currentUser = null;
 

@@ -314,7 +314,7 @@ async function loadList() {
       <td style="text-align:center;color:#6b7280">v${q.version}</td>
       <td><span class="status-pill ${st.cls}">${st.label}</span></td>
       <td class="amt-cell">${amt}</td>
-      <td style="color:#6b7280;font-size:12px">${dateStr}</td>
+      <td style="color:#6b7280;font-size:12px">${dateStr}${weekdayZh(q.created_at)}</td>
       <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
         <a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
         ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}

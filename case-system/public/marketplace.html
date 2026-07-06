@@ -411,7 +411,7 @@ function renderMarket() {
       ? `<div class="cc-amount">${c.final_price ? '$'+Math.round(Number(c.final_price)).toLocaleString() : '約 $'+Math.round(Number(c.quoted_price)).toLocaleString()}</div>`
       : '';
     const dateHtml = c.scheduled_date
-      ? `<span class="cc-info-item">📅 施工日：${c.scheduled_date}</span>` : '';
+      ? `<span class="cc-info-item">📅 施工日：${c.scheduled_date}${weekdayZh(c.scheduled_date)}</span>` : '';
     const locationHtml = c.location
       ? `<span class="cc-info-item">📍 ${c.location}</span>` : '';
     const regionHtml = c.region_name
@@ -537,7 +537,7 @@ function renderMyTasks() {
         </div>
       </div>
       <div class="cc-info-row">
-        ${t.scheduled_date ? `<span class="cc-info-item${isUrgent ? ';color:#ef4444;font-weight:600' : ''}">📅 施工日：${t.scheduled_date}${isUrgent ? ' ⚠️' : ''}</span>` : ''}
+        ${t.scheduled_date ? `<span class="cc-info-item${isUrgent ? ';color:#ef4444;font-weight:600' : ''}">📅 施工日：${t.scheduled_date}${weekdayZh(t.scheduled_date)}${isUrgent ? ' ⚠️' : ''}</span>` : ''}
         ${t.location ? `<span class="cc-info-item">📍 ${t.location}</span>` : ''}
         <span class="cc-info-item">🏷️ ${CASE_TYPE_MAP[t.case_type] || t.case_type}</span>
       </div>

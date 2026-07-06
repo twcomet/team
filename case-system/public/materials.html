@@ -865,7 +865,7 @@ async function loadRolls(matId) {
             <span style="font-family:monospace;font-weight:700">${r.roll_no || `#${r.id}`}</span>
             <span class="status-pill ${r.status}">${{active:'使用中',finished:'用完',lost:'遺失'}[r.status]||r.status}</span>
             <span class="branch-badge">🏪 ${r.branch||'總部'}</span>
-            <span style="color:var(--gray-500)">進貨 ${r.purchase_date||'—'}</span>
+            <span style="color:var(--gray-500)">進貨 ${r.purchase_date||'—'}${weekdayZh(r.purchase_date)}</span>
             <span>初始 <strong>${r.initial_meters}</strong> 米 → 剩餘 <strong class="${stockClass(r.remaining_meters)}">${(r.remaining_meters||0).toFixed(1)}</strong> 米</span>
             ${r.unit_cost && currentUser?.can_see_cost ? `<span style="color:var(--gray-500)">$${r.unit_cost}/米</span>` : ''}
             ${r.location ? `<span style="font-size:11px;color:var(--gray-500)">📍${r.location}</span>` : ''}

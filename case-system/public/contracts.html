@@ -642,7 +642,8 @@ document.getElementById('createModal').addEventListener('click', e => {
 });
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function fmtDate(s) { return s ? s.slice(0,10) : '—'; }
+function weekdayZh(d){if(!d)return'';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return'';const dt=new Date(+m[1],+m[2]-1,+m[3]);if(isNaN(dt.getTime()))return'';return'（'+['日','一','二','三','四','五','六'][dt.getDay()]+'）';}
+function fmtDate(s) { return s ? s.slice(0,10) + weekdayZh(s) : '—'; }
 function fmtDateTime(s) { return s ? s.slice(0,16).replace('T',' ') : '—'; }
 
 init();

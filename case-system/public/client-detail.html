@@ -413,7 +413,7 @@ function renderHeader() {
 
   const created = c.created_at ? c.created_at.slice(0, 10) : null;
   if (created) {
-    document.getElementById('hdrCreated').textContent = `建檔日期：${created}`;
+    document.getElementById('hdrCreated').textContent = `建檔日期：${created}${weekdayZh(created)}`;
     const days = Math.floor((Date.now() - new Date(created).getTime()) / 86400000);
     const ageTxt = days >= 365 ? `${Math.floor(days/365)} 年 ${Math.floor((days%365)/30)} 個月`
                  : days >= 30  ? `${Math.floor(days/30)} 個月`
@@ -434,13 +434,13 @@ function renderStats() {
                  : days >= 30  ? `${Math.floor(days/30)} 個月`
                  : `${days} 天`;
     document.getElementById('statAge').textContent    = ageTxt;
-    document.getElementById('statAgeDate').textContent = `建檔 ${created}`;
+    document.getElementById('statAgeDate').textContent = `建檔 ${created}${weekdayZh(created)}`;
   }
 
   document.getElementById('statTotal').textContent = s.total_cases ?? 0;
   document.getElementById('statDeals').textContent = s.deal_count  ?? 0;
   if (s.last_deal_at) {
-    document.getElementById('statLastDeal').textContent = `最近成交 ${(s.last_deal_at||'').slice(0,10)}`;
+    document.getElementById('statLastDeal').textContent = `最近成交 ${(s.last_deal_at||'').slice(0,10)}${weekdayZh(s.last_deal_at)}`;
   } else {
     document.getElementById('statLastDeal').textContent = '尚未成交';
   }
@@ -494,7 +494,7 @@ function renderCases() {
       ${statusBadge(c.status)}
       ${currentUser?.can_see_amounts && c.final_price ? `<span style="font-weight:600;color:var(--primary)">${fmt(c.final_price)}</span>` : ''}
       ${paymentBadge(c.payment_status)}
-      <span style="font-size:12px;color:var(--gray-400);flex-shrink:0">${(c.created_at||'').slice(0,10)}</span>
+      <span style="font-size:12px;color:var(--gray-400);flex-shrink:0">${(c.created_at||'').slice(0,10)}${weekdayZh(c.created_at)}</span>
     </div>`;
 
   if (!byMonth) {
@@ -556,7 +556,7 @@ function renderDeposits() {
         ${badge}
         <span style="font-weight:500">${typeLabel}</span>
         <span style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${d.amount > 0 ? fmt(d.amount) : '免費'}</span>
-        <span style="font-size:12px;color:var(--gray-400)">${d.collected_at || ''}</span>
+        <span style="font-size:12px;color:var(--gray-400)">${d.collected_at || ''}${weekdayZh(d.collected_at)}</span>
         ${d.note ? `<span style="font-size:12px;color:var(--gray-500)">${d.note}</span>` : ''}
         ${caseRef}
         <span style="flex:1"></span>
@@ -714,7 +714,7 @@ function renderDesignerCodes() {
         </div>
         <div style="font-size:12px;color:var(--gray-500)">
           PIN：${c.pin}
-          ${c.expires_at ? `｜有效至 ${c.expires_at.slice(0,10)}` : '｜永久有效'}
+          ${c.expires_at ? `｜有效至 ${c.expires_at.slice(0,10)}${weekdayZh(c.expires_at)}` : '｜永久有效'}
           ${c.note ? `｜備注：${c.note}` : ''}
           ｜建立：${c.created_by_name || '—'}
         </div>

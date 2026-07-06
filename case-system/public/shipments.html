@@ -176,7 +176,7 @@ function render() {
     const addrParts = [s.postal_code, s.recipient_address].filter(Boolean).join(' ');
     const recipientInfo = [s.recipient_name, s.recipient_phone, addrParts, s.recipient_note].filter(Boolean).join('<br>');
     return `<tr>
-      <td style="white-space:nowrap">${s.shipped_at || '—'}</td>
+      <td style="white-space:nowrap">${s.shipped_at || '—'}${weekdayZh(s.shipped_at)}</td>
       <td>${esc(s.client_name || '—')}</td>
       <td style="color:var(--gray-500)">${esc(s.line_id_name || '—')}</td>
       <td>${s.case_number ? `<a href="/case-detail?id=${s.case_id}" style="color:var(--primary);text-decoration:none">${esc(s.case_number)}</a>${s.case_title ? `<br><span style="font-size:11px;color:var(--gray-500)">${esc(s.case_title)}</span>` : ''}` : '<span style="color:var(--gray-400)">—</span>'}</td>

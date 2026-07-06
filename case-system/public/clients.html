@@ -734,7 +734,7 @@ function renderClientDeposits(cid) {
       ${verifyBadge}
       <span style="font-weight:500">${typeLabel}</span>
       <span style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtLabel}</span>
-      <span style="color:var(--gray-500);font-size:12px">${d.collected_at || ''}</span>
+      <span style="color:var(--gray-500);font-size:12px">${d.collected_at || ''}${weekdayZh(d.collected_at)}</span>
       ${d.note ? `<span style="color:var(--gray-500);font-size:12px">${d.note}</span>` : ''}
       ${caseRef}
       <span style="flex:1"></span>

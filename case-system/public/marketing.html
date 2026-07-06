@@ -372,7 +372,7 @@ function renderDaily(d) {
   </tr>`;
 
   tbody.innerHTML = totRow + d.days.map(r => `<tr>
-    <td style="font-size:12px;white-space:nowrap">${r.day}</td>
+    <td style="font-size:12px;white-space:nowrap">${r.day}${weekdayZh(r.day)}</td>
     ${cell(r.line_new,'#0891b2')} ${cell(r.line_old,'#6366f1')}
     ${cell(r.case_new,'var(--primary)')} ${cell(r.estimated,'#059669')}
     ${cell(r.surveyed,'#d97706')} ${cell(r.quoted,'#7c3aed')}

@@ -406,7 +406,7 @@ function render(){
     const rejNote = r.status==='rejected'&&r.reject_note?`<div style="font-size:11px;color:#b91c1c">退回：${esc(r.reject_note)}</div>`:'';
     return `<tr>
       <td><span class="sbadge ${sb[0]}">${sb[1]}</span>${rejNote}</td>
-      <td>${(r.applied_at||'').slice(0,10)}</td>
+      <td>${(r.applied_at||'').slice(0,10)}${weekdayZh(r.applied_at)}</td>
       <td>${esc(r.material_label||'—')}</td>
       <td>${r.case_number?`${esc(r.case_number)}<div class="muted" style="font-size:11px">👤 ${esc(r.client_name||'')}</div>`:'<span class="muted">無案件</span>'}</td>
       <td>${esc(r.purpose||'—')}</td>
@@ -433,7 +433,7 @@ function renderReserves(body){
   if(!list.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:36px">目前沒有保留材料</td></tr>'; return; }
   body.innerHTML=list.map(r=>`<tr>
     <td><span class="sbadge s-rsv">保留材料</span></td>
-    <td>${(r.logged_at||'').slice(0,10)}</td>
+    <td>${(r.logged_at||'').slice(0,10)}${weekdayZh(r.logged_at)}</td>
     <td>${esc([r.brand,r.model].filter(Boolean).join(' ')||'—')}</td>
     <td>${r.case_number?`${esc(r.case_number)}<div class="muted" style="font-size:11px">👤 ${esc(r.client_name||'')}</div>`:'<span class="muted">無案件</span>'}</td>
     <td>案件保留（成交預扣）</td>
