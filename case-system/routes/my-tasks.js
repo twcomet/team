@@ -37,7 +37,23 @@ router.get('/', requireAuth, (req, res) => {
             WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
               AND d.scheduled_date >= date('now','-1 day')
             ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_time,
-           c.photo_upload_url, c.entry_info, c.desired_entry_date,
+           c.photo_upload_url, c.drive_folder_url,
+           c.entry_info, c.desired_entry_date,
+           sf.site_contact, sf.site_phone, cl.contact_person AS client_contact_person,
+           (SELECT group_concat(
+              ci.item_type
+              || CASE WHEN COALESCE(ci.description,'') <> '' THEN ' ' || ci.description ELSE '' END
+              || CASE WHEN ci.width_cm IS NOT NULL AND ci.height_cm IS NOT NULL
+                      THEN ' '
+                        || CAST(CASE WHEN ci.width_cm  = CAST(ci.width_cm  AS INT) THEN CAST(ci.width_cm  AS INT) ELSE ci.width_cm  END AS TEXT)
+                        || '×'
+                        || CAST(CASE WHEN ci.height_cm = CAST(ci.height_cm AS INT) THEN CAST(ci.height_cm AS INT) ELSE ci.height_cm END AS TEXT)
+                        || 'cm'
+                      ELSE '' END
+              || CASE WHEN ci.quantity IS NOT NULL AND ci.quantity <> ''
+                      THEN ' ×' || CAST(CASE WHEN ci.quantity = CAST(ci.quantity AS INT) THEN CAST(ci.quantity AS INT) ELSE ci.quantity END AS TEXT) || COALESCE(ci.unit,'')
+                      ELSE '' END
+            , char(10)) FROM case_items ci WHERE ci.case_id = c.id) AS work_items,
            (SELECT u.name FROM users u WHERE u.id = c.surveyor_id) AS surveyor_name,
            (SELECT COUNT(*) FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ?) AS dispatch_count,

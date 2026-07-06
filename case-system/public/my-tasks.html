@@ -377,14 +377,28 @@ function openTaskCard(id) {
   document.getElementById('tcm-title').textContent = `${t.case_number} ${t.title||''}`;
   const dt = t.next_dispatch ? t.next_dispatch.split('|')[1] : (t.scheduled_date || '');
   let h = '';
+  // 現場聯絡人：優先場勘填的現場聯絡人，其次客戶聯絡人 / 客戶
+  const contactName  = t.site_contact || t.client_contact_person || t.client_name || '';
+  const contactPhone = t.site_phone   || t.client_phone || '';
+  // 完工資料夾：優先自動整合建立的 Drive 連結，退回手動貼上的照片雲端連結
+  const folderUrl = t.drive_folder_url || t.photo_upload_url || '';
+
+  // ── 1. 地點 ──
   if (t.location) h += `<div>📍 <b>${esc(t.location)}</b></div>`;
   if (dt) h += `<div>🗓 ${esc(dt)}${t.next_dispatch_time?' '+esc(t.next_dispatch_time):''}</div>`;
-  h += `<div>👤 ${esc(t.client_name||'—')}${t.client_phone?`　📞 <a href="tel:${esc(t.client_phone)}">${esc(t.client_phone)}</a>`:''}</div>`;
+  // ── 2. 現場聯絡人 ──
+  if (contactName || contactPhone) h += `<div>👤 現場聯絡人：${esc(contactName||'—')}${contactPhone?`　📞 <a href="tel:${esc(contactPhone)}">${esc(contactPhone)}</a>`:''}</div>`;
   if (t.surveyor_name) h += `<div>🔎 場勘：${esc(t.surveyor_name)}</div>`;
   if (t.desired_entry_date) h += `<div>📅 希望進場：${esc(t.desired_entry_date)}</div>`;
-  if (t.entry_info) h += `<div>🔑 ${esc(t.entry_info)}</div>`;
-  if (t.photo_upload_url) h += `<div style="margin-top:6px"><a href="${esc(t.photo_upload_url)}" target="_blank" rel="noopener">☁️ 開啟雲端資料夾 ↗</a></div>`;
-  if (t.next_dispatch_notes) h += `<div style="margin-top:10px;white-space:pre-wrap;background:var(--gray-50,#f8fafc);border-radius:8px;padding:10px;font-size:13px;line-height:1.7">${esc(t.next_dispatch_notes)}</div>`;
+  // ── 3. 進場資訊 ──
+  if (t.entry_info) h += `<div>🔑 進場資訊：${esc(t.entry_info)}</div>`;
+  // ── 6. 施作內容 ──
+  if (t.work_items) h += `<div style="margin-top:8px"><div style="font-weight:600;font-size:12px;color:var(--gray-500,#64748b)">🔧 施作內容</div><div style="white-space:pre-wrap;font-size:13px;line-height:1.6;margin-top:2px">${esc(t.work_items)}</div></div>`;
+  // ── 4. 完工資料夾連結 ──
+  // 註：報價單品項（膜料／示意圖／數量尺寸）待正式報價單設計定案後再撈進卡片，先不放連結
+  if (folderUrl) h += `<div style="margin-top:8px"><a href="${esc(folderUrl)}" target="_blank" rel="noopener">☁️ 完工資料夾 ↗</a></div>`;
+  // ── 派工指示（呈現在以上項目下方）──
+  if (t.next_dispatch_notes) h += `<div style="margin-top:10px;white-space:pre-wrap;background:var(--gray-50,#f8fafc);border-radius:8px;padding:10px;font-size:13px;line-height:1.7"><span style="font-weight:600;color:var(--gray-500,#64748b)">📋 指示</span>\n${esc(t.next_dispatch_notes)}</div>`;
   document.getElementById('tcm-body').innerHTML = h || '<span style="color:var(--gray-400)">（尚無派工說明）</span>';
   const th = primaryTheme(t);
   document.getElementById('tcm-open').href = (th && th.url) ? th.url(t) : `/case-detail?id=${t.id}`;
