@@ -409,7 +409,9 @@ function render(){
       <td>${esc(r.material_label||'—')}</td>
       <td>${r.case_number?`${esc(r.case_number)}<div class="muted" style="font-size:11px">👤 ${esc(r.client_name||'')}</div>`:'<span class="muted">無案件</span>'}</td>
       <td>${esc(r.purpose||'—')}</td>
-      <td>${r.est_meters!=null?r.est_meters+'米':'<span class="muted">—</span>'}</td>
+      <td>${r.est_usage_meters!=null
+          ? `${r.est_usage_meters}米${r.est_meters!=null?`<div class="muted" style="font-size:11px">領${r.est_meters}米</div>`:''}`
+          : (r.est_meters!=null?r.est_meters+'米':'<span class="muted">—</span>')}</td>
       <td>${r.actual_meters!=null?`${r.actual_meters}米 ${cats}`:'<span class="muted">—</span>'}</td>
       <td>${r.remaining_meters!=null?r.remaining_meters+'米':'<span class="muted">—</span>'}</td>
       <td>${esc(r.archive_location)||'<span class="muted">—</span>'}</td>
