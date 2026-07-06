@@ -182,6 +182,7 @@
         <button class="btn btn-secondary btn-sm" id="toSurveyBtn" style="display:none">→ 轉場勘案件</button>
         <button class="btn btn-primary btn-sm" id="toDealBtn" style="display:none">✓ 確認成交</button>
         <button class="btn btn-ghost btn-sm" id="toInvalidBtn" style="display:none;color:#e02424">✕ 無效保存</button>
+        <button class="btn btn-ghost btn-sm" id="driveBtn" style="margin-left:8px" title="Google 雲端資料夾" onclick="openOrCreateDrive()">📁 雲端資料夾</button>
         <button class="btn btn-ghost btn-sm" id="deleteCaseBtn" style="display:none;color:#9ca3af;margin-left:8px" onclick="deleteCaseInDetail()">🗑 刪除案件</button>
       </div>
     </div>
@@ -1885,10 +1886,28 @@ async function loadCase() {
 }
 
 // ── 頁首 ───────────────────────────────────────────────────
+function renderDriveBtn() {
+  const btn = document.getElementById('driveBtn'); if (!btn) return;
+  if (caseData && caseData.drive_folder_url) { btn.textContent = '📁 開啟雲端資料夾'; btn.title = '開啟此案件的 Google 雲端資料夾'; }
+  else { btn.textContent = '📁 建立雲端資料夾'; btn.title = '在 Google 雲端建立此案件的資料夾'; }
+}
+async function openOrCreateDrive() {
+  const btn = document.getElementById('driveBtn');
+  if (caseData && caseData.drive_folder_url) { window.open(caseData.drive_folder_url, '_blank'); return; }
+  btn.disabled = true; btn.textContent = '建立中…';
+  try {
+    const r = await fetch(`/api/gdrive/case/${caseId}/folder`, { method: 'POST' });
+    const j = await r.json();
+    if (r.ok && j.url) { caseData.drive_folder_url = j.url; renderDriveBtn(); window.open(j.url, '_blank'); }
+    else alert('建立雲端資料夾失敗：' + (j.error || r.status));
+  } catch (e) { alert('建立雲端資料夾失敗：' + e.message); }
+  finally { btn.disabled = false; renderDriveBtn(); }
+}
 function renderHeader() {
   document.title = `${caseData.case_number} — 繪新管理系統`;
   document.getElementById('caseTitle').textContent = caseData.title;
   document.getElementById('caseNumber').textContent = caseData.case_number;
+  renderDriveBtn();
   // 動態填充狀態選單
   const STATUS_TO_GROUP = {
     contracted:'deal', dispatched:'deal', constructing:'deal', payment:'deal', closed:'deal', aftersales:'deal',

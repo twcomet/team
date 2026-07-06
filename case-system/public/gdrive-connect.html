@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google 雲端整合</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body{background:#f6f7f9}
+  .gd-wrap{max-width:560px;margin:60px auto;padding:0 20px}
+  .gd-card{background:#fff;border:1px solid #eceef2;border-radius:16px;padding:30px;box-shadow:0 2px 10px rgba(16,24,40,.06)}
+  .gd-h{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:#1f2937;margin-bottom:6px}
+  .gd-sub{font-size:13px;color:#6b7280;line-height:1.7;margin-bottom:22px}
+  .gd-status{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:11px;font-size:14px;font-weight:600;margin-bottom:20px}
+  .gd-on{background:#ECFDF5;border:1px solid #A7F3D0;color:#047857}
+  .gd-off{background:#FFF7ED;border:1px solid #FED7AA;color:#c2410c}
+  .gd-btn{display:inline-block;width:100%;box-sizing:border-box;text-align:center;padding:13px;border-radius:11px;border:none;cursor:pointer;font-size:15px;font-weight:700;text-decoration:none}
+  .gd-primary{background:linear-gradient(135deg,#FF0080,#D40069);color:#fff;box-shadow:0 2px 8px rgba(255,0,128,.25)}
+  .gd-ghost{background:#f3f4f6;color:#374151;margin-top:10px}
+  .gd-msg{padding:12px 14px;border-radius:10px;font-size:13.5px;margin-bottom:18px}
+  .gd-msg-ok{background:#ECFDF5;color:#047857;border:1px solid #A7F3D0}
+  .gd-msg-err{background:#FEF2F2;color:#b91c1c;border:1px solid #FECACA}
+  .gd-note{font-size:12px;color:#9ca3af;line-height:1.7;margin-top:18px}
+  .gd-back{display:inline-block;margin-top:18px;font-size:13px;color:#6b7280;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="gd-wrap">
+  <div class="gd-card">
+    <div class="gd-h">📁 Google 雲端整合</div>
+    <div class="gd-sub">連接後，每個案件都能一鍵在你的 Google 雲端硬碟建立一個專屬資料夾（資料夾集中放在「繪新案件資料」裡）。只需連接這一次。</div>
+    <div id="msg"></div>
+    <div id="status" class="gd-status gd-off">讀取狀態中…</div>
+    <div id="actions"></div>
+    <div class="gd-note">🔒 系統只會使用最小權限 <b>drive.file</b> —— 只能存取它自己建立的資料夾，<b>看不到你雲端其他的檔案</b>。</div>
+    <a class="gd-back" href="/dashboard">← 回總覽</a>
+  </div>
+</div>
+<script>
+(function(){
+  var r = new URLSearchParams(location.search).get('r');
+  var msg = document.getElementById('msg');
+  var MSGS = {
+    connected: ['gd-msg-ok', '✓ 連接成功！現在每個案件都能建立雲端資料夾了。'],
+    denied:    ['gd-msg-err', '你取消了授權，尚未連接。'],
+    badstate:  ['gd-msg-err', '連接驗證失敗（可能逾時），請再試一次。'],
+    error:     ['gd-msg-err', '連接時發生錯誤，請再試一次；若持續失敗請截圖回報。'],
+  };
+  if (r && MSGS[r]) msg.innerHTML = '<div class="gd-msg '+MSGS[r][0]+'">'+MSGS[r][1]+'</div>';
+
+  fetch('/api/gdrive/status').then(function(x){return x.json();}).then(function(s){
+    var st = document.getElementById('status'), act = document.getElementById('actions');
+    if (!s.configured) {
+      st.className = 'gd-status gd-off';
+      st.textContent = '⚠️ 伺服器尚未設定金鑰（GOOGLE_CLIENT_ID / SECRET）';
+      return;
+    }
+    if (s.connected) {
+      st.className = 'gd-status gd-on';
+      st.textContent = '✓ 已連接 Google 雲端';
+      act.innerHTML = '<button class="gd-btn gd-ghost" onclick="disc()">中斷連接</button>';
+    } else {
+      st.className = 'gd-status gd-off';
+      st.textContent = '尚未連接';
+      act.innerHTML = '<a class="gd-btn gd-primary" href="/api/gdrive/connect">連接 Google 雲端</a>';
+    }
+  }).catch(function(){
+    document.getElementById('status').textContent = '讀取狀態失敗（請確認你是最高管理者）';
+  });
+
+  window.disc = function(){
+    if (!confirm('確定中斷 Google 雲端連接？中斷後案件將無法建立新資料夾（已建立的資料夾不受影響）。')) return;
+    fetch('/api/gdrive/disconnect', {method:'POST'}).then(function(){ location.href='/gdrive-connect'; });
+  };
+})();
+</script>
+</body>
+</html>

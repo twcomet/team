@@ -113,6 +113,9 @@ db.exec(`
     priority        TEXT DEFAULT 'normal'
                     CHECK(priority IN ('low','normal','high','urgent')),
     notes           TEXT,
+    -- Google 雲端資料夾（每案一個）
+    drive_folder_id  TEXT,
+    drive_folder_url TEXT,
     created_by      INTEGER REFERENCES users(id),
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -253,6 +256,8 @@ _addCol('cases', 'invoice_item_desc','TEXT');
 _addCol('cases', 'scheduled_date',   'DATE');
 _addCol('cases', 'survey_date',      'DATE');
 _addCol('cases', 'surveyor_id',      'INTEGER REFERENCES users(id)');
+_addCol('cases', 'drive_folder_id',  'TEXT');
+_addCol('cases', 'drive_folder_url', 'TEXT');
 _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');

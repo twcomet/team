@@ -57,6 +57,12 @@ app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
 app.use('/api/quote-settings', require('./routes/quote-settings'));
 app.use('/api/estimator', require('./routes/estimator'));
+app.use('/api/gdrive',    require('./routes/gdrive'));
+
+// Google 雲端整合連接頁（只有老闆）— 也是 OAuth 回呼的落地頁
+app.get('/gdrive-connect', requireAuth, requireOwner, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'gdrive-connect.html'));
+});
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/vendors', require('./routes/vendors'));
