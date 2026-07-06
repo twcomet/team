@@ -56,6 +56,17 @@ function purposeToLogType(code) {
 // 哪些用途會真的扣庫存（case_reserve 為保留、不扣）
 const CONSUME_PURPOSES = new Set(['case_takeout','case_material','sample','academy','store_sale','ecommerce','adjust','other']);
 
+// 2026-07-06 Flora：直接扣用途實扣量＝實際使用 ?? 預計使用 ?? 領用時米數（都空才退回領用量，維持舊行為）
+const _num = v => (v != null && v !== '') ? Number(v) : null;
+function consumedMetersOf(x) {
+  return _num(x.actual_meters) ?? _num(x.est_usage_meters) ?? Number(x.est_meters || 0);
+}
+// 剩餘＝領用時米數 − 實扣（領用未填則不算）
+function remainingAfter(x, consumed) {
+  const est = _num(x.est_meters);
+  return est == null ? null : Math.max(0, Math.round((est - consumed) * 100) / 100);
+}
+
 // 申領單沒存 material_id 時，盡力用 material_label 回推（品牌+型號包含比對）
 function resolveMaterialId(reqRow) {
   if (reqRow.material_id) return reqRow.material_id;
@@ -135,14 +146,16 @@ function activeCaseReserves(caseId, materialId) {
 
 const SEL = `
   SELECT r.*, o.name AS org_name, c.case_number, c.title AS case_title, cl.name AS client_name,
-         ua.name AS applicant_name, up.name AS pickup_approver_name, uar.name AS archive_approver_name
+         ua.name AS applicant_name, up.name AS pickup_approver_name, uar.name AS archive_approver_name,
+         mr.location AS roll_location
   FROM material_requisitions r
   LEFT JOIN orgs o   ON o.id = r.org_id
   LEFT JOIN cases c  ON c.id = r.case_id
   LEFT JOIN clients cl ON cl.id = c.client_id
   LEFT JOIN users ua ON ua.id = r.applicant_id
   LEFT JOIN users up ON up.id = r.pickup_approver_id
-  LEFT JOIN users uar ON uar.id = r.archive_approver_id`;
+  LEFT JOIN users uar ON uar.id = r.archive_approver_id
+  LEFT JOIN material_rolls mr ON mr.id = r.roll_id`;
 
 // 列表
 router.get('/', requireAuth, (req, res) => {
@@ -222,19 +235,21 @@ router.post('/', requireAuth, (req, res) => {
   // 2026-07-03 Flora：材料裁切（直接扣用途、非出借）→ 送出即扣庫存、直接結案，不需倉管審核
   const isDirectCut = !needsReturn && CONSUME_PURPOSES.has(b.purpose_code);
   if (isDirectCut) {
-    const willConsume = Number(b.est_meters) > 0;
+    const consumed = consumedMetersOf(b);            // 實扣＝實際 ?? 預計 ?? 領用
+    const remaining = remainingAfter(b, consumed);   // 剩餘＝領用 − 實扣
+    const willConsume = consumed > 0;
     if (willConsume && !b.material_id) return res.status(400).json({ error: '請選膜料' });
     try {
       db.exec('BEGIN');
       const r = db.prepare(`
         INSERT INTO material_requisitions
-          (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, est_usage_meters, actual_meters, note, applicant_id, status, pickup_approver_id, pickup_approved_at, archive_approver_id, archived_at)
-        VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?, 'archived', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`)
+          (org_id, material_label, material_id, roll_id, case_id, purpose, purpose_code, needs_return, est_meters, est_usage_meters, actual_meters, remaining_meters, note, applicant_id, status, pickup_approver_id, pickup_approved_at, archive_approver_id, archived_at)
+        VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?,?, 'archived', ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`)
         .run(orgId, b.material_label, b.material_id || null, b.roll_id || null, b.case_id || null, b.purpose || null, b.purpose_code || null,
-             b.est_meters || null, b.est_usage_meters || null, willConsume ? b.est_meters : null, b.note || null, me.id, me.id, me.id);
+             b.est_meters || null, b.est_usage_meters || null, b.actual_meters || null, remaining, b.note || null, me.id, me.id, me.id);
       const did = r.lastInsertRowid;
       if (willConsume) {
-        consumeStock({ materialId: b.material_id, rollId: b.roll_id, meters: b.est_meters,
+        consumeStock({ materialId: b.material_id, rollId: b.roll_id, meters: consumed,
           log_type: purposeToLogType(b.purpose_code), case_id: b.case_id,
           notes: `材料裁切#${did} ${b.purpose || ''}`.trim(), logged_by: me.id, org_id: orgId, requisition_id: did });
       }
@@ -299,18 +314,20 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
     db.prepare(`UPDATE material_requisitions SET status='picked', material_id=COALESCE(material_id,?), pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(resolveMaterialId(r) || null, me.id, r.id);
     notifyUser(r.applicant_id, `【膜料領用已核准】\n你申請的「${r.material_label}」已核准，可前往拿料；用完請填歸還單。`);
   } else {
-    // 裁切型：核准即結案 → 倉管審核＝實扣庫存
+    // 裁切型：核准即結案 → 倉管審核＝實扣庫存（實扣＝實際 ?? 預計 ?? 領用）
     const matId = resolveMaterialId(r);
-    const willConsume = CONSUME_PURPOSES.has(r.purpose_code) && Number(r.est_meters) > 0;
+    const consumed = consumedMetersOf(r);
+    const remaining = remainingAfter(r, consumed);
+    const willConsume = CONSUME_PURPOSES.has(r.purpose_code) && consumed > 0;
     if (willConsume && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
     try {
       db.exec('BEGIN');
       if (willConsume) {
-        consumeStock({ materialId: matId, rollId: r.roll_id, meters: r.est_meters,
+        consumeStock({ materialId: matId, rollId: r.roll_id, meters: consumed,
           log_type: purposeToLogType(r.purpose_code), case_id: r.case_id,
           notes: `申領核銷#${r.id} ${r.purpose || ''}`.trim(), logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
       }
-      db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, me.id, me.id, r.id);
+      db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), remaining_meters=?, pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, remaining, me.id, me.id, r.id);
       db.exec('COMMIT');
     } catch (e) {
       try { db.exec('ROLLBACK'); } catch (_) {}
@@ -318,7 +335,7 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
     }
     if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
     if (willConsume) caseReserves = activeCaseReserves(r.case_id, matId);
-    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${willConsume ? `，庫存已扣 ${Math.abs(Number(r.est_meters))} 米` : ''}。`);
+    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${willConsume ? `，庫存已扣 ${consumed} 米` : ''}。`);
   }
   log(me.id, 'approve_pickup', r.id, r.needs_return ? 'picked' : 'archived');
   res.json({ ok: true, caseReserves });

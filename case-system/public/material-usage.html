@@ -143,7 +143,7 @@ table td, table th { font-size:13px; }
         <div class="table-wrap"><table>
           <thead><tr>
             <th>狀態</th><th>申請日</th><th>膜料</th><th>案件（客戶）</th><th>用途</th>
-            <th>預估</th><th>實際用量</th><th>剩餘</th><th>貨架</th><th>申請人</th><th>倉管</th><th></th>
+            <th>原本領用</th><th>預估使用</th><th>實際使用</th><th>剩餘</th><th>貨架</th><th>申請人</th><th>倉管</th><th></th>
           </tr></thead>
           <tbody id="listBody"></tbody>
         </table></div>
@@ -244,6 +244,7 @@ table td, table th { font-size:13px; }
 <script>
 let isWarehouse=false, meId=null;
 let rows=[], reserves=[];
+const fmtM = v => (v==null||v==='') ? null : (Math.round(Number(v)*100)/100);   // 米數顯示：去浮點雜訊(25.7999→25.8)
 const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
 let curTab='all', returnId=null, editId=null, _caseTimer=null, allPage=1;
@@ -330,8 +331,8 @@ function onRollSelect(){
   document.getElementById('n_roll_id').value=r.roll_id;
   document.getElementById('n_material_id_h').value=r.material_id;
   document.getElementById('n_mat_label').value=`${r.brand||''} ${r.model||''} ${r.color||''}`.trim();
-  document.getElementById('rollPicked').textContent=`✅ 已選：${r.brand||''} ${r.model||''}｜架位 ${r.location||'—'}｜現有庫存 ${r.remaining_meters} 米${r.roll_no?'｜#'+r.roll_no:''}`;
-  const est=document.getElementById('n_est'); if(est) est.value=r.remaining_meters;  // 領用時米數自動帶庫存
+  document.getElementById('rollPicked').textContent=`✅ 已選：${r.brand||''} ${r.model||''}｜架位 ${r.location||'—'}｜現有庫存 ${fmtM(r.remaining_meters)} 米${r.roll_no?'｜#'+r.roll_no:''}`;
+  const est=document.getElementById('n_est'); if(est) est.value=fmtM(r.remaining_meters);  // 領用時米數自動帶庫存(去浮點雜訊)
 }
 // 編輯既有紀錄：把三層下拉還原到那一支
 function setRollByRecord(rec){
@@ -409,12 +410,11 @@ function render(){
       <td>${esc(r.material_label||'—')}</td>
       <td>${r.case_number?`${esc(r.case_number)}<div class="muted" style="font-size:11px">👤 ${esc(r.client_name||'')}</div>`:'<span class="muted">無案件</span>'}</td>
       <td>${esc(r.purpose||'—')}</td>
-      <td>${r.est_usage_meters!=null
-          ? `${r.est_usage_meters}米${r.est_meters!=null?`<div class="muted" style="font-size:11px">領${r.est_meters}米</div>`:''}`
-          : (r.est_meters!=null?r.est_meters+'米':'<span class="muted">—</span>')}</td>
-      <td>${r.actual_meters!=null?`${r.actual_meters}米 ${cats}`:'<span class="muted">—</span>'}</td>
-      <td>${r.remaining_meters!=null?r.remaining_meters+'米':'<span class="muted">—</span>'}</td>
-      <td>${esc(r.archive_location)||'<span class="muted">—</span>'}</td>
+      <td>${fmtM(r.est_meters)!=null?fmtM(r.est_meters)+'米':'<span class="muted">—</span>'}</td>
+      <td>${fmtM(r.est_usage_meters)!=null?fmtM(r.est_usage_meters)+'米':'<span class="muted">—</span>'}</td>
+      <td>${fmtM(r.actual_meters)!=null?`${fmtM(r.actual_meters)}米 ${cats}`:'<span class="muted">—</span>'}</td>
+      <td>${fmtM(r.remaining_meters)!=null?fmtM(r.remaining_meters)+'米':'<span class="muted">—</span>'}</td>
+      <td>${esc(r.archive_location||r.roll_location)||'<span class="muted">—</span>'}</td>
       <td>${esc(r.applicant_name||'—')}</td>
       <td>${esc(r.pickup_approver_name||r.archive_approver_name||'')||'<span class="muted">—</span>'}</td>
       <td style="white-space:nowrap">${acts}</td>
@@ -495,13 +495,13 @@ async function openNew(){ editId=null; document.querySelector('#newModal h3').te
 }
 async function openEdit(id){ const r=rows.find(x=>x.id===id); if(!r) return; editId=id;
   document.querySelector('#newModal h3').textContent='編輯領用/裁切';
-  document.getElementById('n_est').value=r.est_meters??''; document.getElementById('n_est_usage').value=r.est_usage_meters??''; document.getElementById('n_actual').value=r.actual_meters??'';
+  document.getElementById('n_est').value=fmtM(r.est_meters)??''; document.getElementById('n_est_usage').value=fmtM(r.est_usage_meters)??''; document.getElementById('n_actual').value=fmtM(r.actual_meters)??'';
   document.getElementById('n_note').value=r.note||''; document.getElementById('n_org').value=r.org_name||'總部';
   document.getElementById('n_purpose').value='case_material';
   setPurposeByText(r.purpose||''); onPurposeChange();
   document.getElementById('newModal').style.display='flex';
   await loadRolls(); setRollByRecord(r);  // 還原三層下拉到那一支
-  if(r.est_meters!=null) document.getElementById('n_est').value=r.est_meters;  // setRollByRecord 會用庫存覆蓋，還原原紀錄的領用時米數
+  if(r.est_meters!=null) document.getElementById('n_est').value=fmtM(r.est_meters);  // setRollByRecord 會用庫存覆蓋，還原原紀錄的領用時米數
   document.getElementById('n_case').value=r.case_number?`${r.case_number} ${r.client_name||''}`.trim():''; document.getElementById('n_case_id').value=r.case_id||'';
   document.getElementById('newModal').style.display='flex'; }
 async function saveNew(){
