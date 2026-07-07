@@ -829,6 +829,25 @@
           <div class="form-group"><label>備註 / 注意事項</label><textarea id="sf_notes" rows="3" placeholder="施工注意事項、客戶特殊要求…"></textarea></div>
         </div>
 
+        <!-- 現場搬運與停車（師傅到場回報）-->
+        <div class="sf-tab-section">
+          <h4 class="sf-tab-title">🚚 現場搬運與停車</h4>
+          <div class="form-group">
+            <label>現場搬運狀況</label>
+            <div style="display:flex;gap:16px;align-items:center;padding:4px 0;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="sf_access" value="stairs"> 🪜 需爬樓梯</label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer"><input type="radio" name="sf_access" value="elevator"> 🛗 有電梯</label>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('input[name=sf_access]').forEach(r=>r.checked=false)">清除</button>
+            </div>
+          </div>
+          <div class="form-group"><label>樓層 / 搬運備註</label><input type="text" id="sf_access_note" placeholder="例：4 樓無電梯、電梯門寬 90cm"></div>
+          <div class="form-group"><label>附近停車位置</label><input type="text" id="sf_parking_loc" placeholder="例：巷口路邊、地下停車場入口在後棟"></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div class="form-group" style="flex:1;min-width:160px"><label>停車費率（每小時 / 元）</label><input type="number" id="sf_parking_hourly" min="0" step="1" placeholder="0"></div>
+            <div class="form-group" style="flex:1;min-width:160px"><label>收費上限（元／日，無則留空）</label><input type="number" id="sf_parking_cap" min="0" step="1" placeholder="無上限"></div>
+          </div>
+        </div>
+
         <!-- 師傅回報區 + 簽收欄 -->
         <div class="sf-tab-section" style="border:2px solid #fbbf24">
           <h4 class="sf-tab-title" style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:16px">
@@ -3058,6 +3077,11 @@ function sf_fillForm(f) {
   document.getElementById('sf_cs_service_note').value  = f.cs_service_note || '';
   document.getElementById('sf_notes').value             = f.extra_notes || '';
   document.getElementById('sf_cs_notes').value          = f.cs_notes || '';
+  document.querySelectorAll('input[name=sf_access]').forEach(r => { r.checked = (r.value === f.access_method); });
+  document.getElementById('sf_access_note').value    = f.access_note || '';
+  document.getElementById('sf_parking_loc').value    = f.parking_location || '';
+  document.getElementById('sf_parking_hourly').value = f.parking_fee_hourly ?? '';
+  document.getElementById('sf_parking_cap').value    = f.parking_fee_has_cap ? (f.parking_fee_cap ?? '') : '';
   sf_renderFindings(f.findings || []);
   sfChecklistState = Array.isArray(f.checklist_data) ? f.checklist_data : [];
   sf_renderChecklist();
@@ -3301,6 +3325,12 @@ document.getElementById('sf_saveBtn').addEventListener('click', async () => {
     findings:              sf_getFindings(),
     extra_notes:           document.getElementById('sf_notes').value || null,
     cs_notes:              document.getElementById('sf_cs_notes').value || null,
+    access_method:         document.querySelector('input[name=sf_access]:checked')?.value || null,
+    access_note:           document.getElementById('sf_access_note').value || null,
+    parking_location:      document.getElementById('sf_parking_loc').value || null,
+    parking_fee_hourly:    document.getElementById('sf_parking_hourly').value !== '' ? parseFloat(document.getElementById('sf_parking_hourly').value) : null,
+    parking_fee_has_cap:   document.getElementById('sf_parking_cap').value !== '' ? 1 : 0,
+    parking_fee_cap:       document.getElementById('sf_parking_cap').value !== '' ? parseFloat(document.getElementById('sf_parking_cap').value) : null,
     checklist_data:        sfChecklistState,
     status:                sfData?.status || 'draft',
   };

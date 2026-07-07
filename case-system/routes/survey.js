@@ -3,6 +3,15 @@ const crypto     = require('crypto');
 const db         = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
+const gcal = require('../lib/gcal');
+
+// 場勘資訊（進場資訊/cs_service_note 等）更新後，重新把該案未取消的派工推上 Google 行事曆
+function resyncCaseDispatches(caseId) {
+  try {
+    db.prepare(`SELECT id FROM dispatches WHERE case_id=? AND status!='cancelled'`).all(caseId)
+      .forEach(r => gcal.safeSyncDispatch(r.id));
+  } catch (e) { console.error('[gcal] 場勘同步派工失敗 case#' + caseId + '：', e.message); }
+}
 const router     = express.Router();
 
 function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNote, assignerName, workerToken) {
@@ -123,6 +132,7 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
     db.prepare(`UPDATE cases SET status='survey_scheduled', case_group='survey', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(case_id);
   }
 
+  resyncCaseDispatches(case_id);  // 場勘資訊帶到 Google 行事曆
   res.json({ ok: true, id: result.lastInsertRowid, token });
 });
 
@@ -177,6 +187,7 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
     db.prepare(`UPDATE cases SET status='survey_scheduled', case_group='survey', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(req.params.id);
   }
 
+  resyncCaseDispatches(Number(req.params.id));  // 場勘資訊帶到 Google 行事曆
   const form = db.prepare(`SELECT share_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
   res.json({ ok: true, token: form?.share_token });
 });

@@ -6,7 +6,7 @@ const gdrive = require('./gdrive');
 
 const TZ      = 'Asia/Taipei';
 const CAL_API = 'https://www.googleapis.com/calendar/v3';
-const LABELS  = { survey: '場勘', install: '施工', aftersales: '售後維修' };
+const LABELS  = { survey: '場勘', factory_survey: '場勘', install: '施工', cut_material: '裁料', aftersales: '售後服務', other: '其他' };
 
 const getS = (k) => { const r = db.prepare('SELECT value FROM settings WHERE key=?').get(k); return r ? r.value : null; };
 const setS = (k, v) => db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(k, v == null ? null : String(v));
@@ -72,20 +72,20 @@ function _loadDispatch(dispatchId) {
   `).get(dispatchId);
 }
 
-// 每個人一個固定顏色：依需求自動指派 Google 行事曆 11 色（1..11），存 settings 保持穩定
+// 依「小組長」上色（沒設小組長時看施工人員），姓名→固定 Google 色，與系統派單行事曆完全一致
 // Google 事件色：1薰衣草 2鼠尾草 3葡萄 4火鶴 5香蕉 6橘 7孔雀藍 8石墨 9藍莓 10羅勒綠 11番茄
-function _colorFor(userId) {
-  if (!userId) return undefined;
-  let map = {};
-  try { map = JSON.parse(getS('gcal_user_colors') || '{}'); } catch {}
-  if (map[userId]) return String(map[userId]);
-  const used = Object.values(map).map(Number);
-  let next = null;
-  for (let c = 1; c <= 11; c++) { if (!used.includes(c)) { next = c; break; } } // 先用沒被占用的色
-  if (next == null) next = (Object.keys(map).length % 11) + 1;                   // 超過 11 人才輪迴重複
-  map[userId] = next;
-  setS('gcal_user_colors', JSON.stringify(map));
-  return String(next);
+function _colorFor(names) {
+  const s = names || '';
+  if (s.includes('紹銘')) return '11'; // 紅 → 番茄
+  if (s.includes('傳恩')) return '10'; // 綠 → 羅勒
+  if (s.includes('申鴻')) return '6';  // 橘 → 橘
+  if (s.includes('天鈞')) return '8';  // 棕 → 石墨
+  if (s.includes('名汎')) return '7';  // 藍綠 → 孔雀藍
+  if (s.includes('洪義')) return '4';  // 粉 → 火鶴
+  if (s.includes('維宏')) return '3';  // 洋紅 → 葡萄
+  if (s.includes('恰吉')) return '1';  // 紫 → 薰衣草
+  if (s.includes('Dan'))  return '5';  // 黃 → 香蕉
+  return '9';                          // 無小組長 → 藍莓（深藍）
 }
 
 function _buildEvent(d) {
@@ -108,8 +108,8 @@ function _buildEvent(d) {
   if (d.drive_folder_url) desc.push(`完工資料夾：${d.drive_folder_url}`);
 
   const ev = { summary, location: d.location || '', description: desc.join('\n') };
-  // 依「小組長」上色（沒設小組長時退回第一位師傅），每個人一個固定顏色
-  const colorId = _colorFor(d.leader_id || d.first_user_id);
+  // 依「小組長」上色（沒設小組長時看施工人員），與系統派單行事曆一致
+  const colorId = _colorFor(d.leader_name || d.workers);
   if (colorId) ev.colorId = colorId;
   const t  = _hhmm(d.scheduled_time);
   if (t) {
