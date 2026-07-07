@@ -146,14 +146,21 @@ router.put('/:id', requireAuth, (req, res) => {
     if (Math.abs(meters - oldTotal) > 1e-6) {
       if (activeRolls.length === 1) {
         const r = activeRolls[0], nr = Math.max(0, meters);
+        const delta = Math.round((nr - (r.remaining_meters || 0)) * 100) / 100;  // 正=增、負=減
         db.prepare(`UPDATE material_rolls SET remaining_meters=?, initial_meters=MAX(initial_meters,?), status=? WHERE id=?`)
           .run(nr, nr, nr > 0 ? 'active' : 'finished', r.id);
+        // 補寫一筆綁 roll 的「庫存調整」，讓卷料明細與剩餘米數對得上（否則手改庫存無痕跡）
+        if (Math.abs(delta) > 1e-6) db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by) VALUES (?,?,?, 'adjust', ?, ?, ?)`)
+          .run(r.id, req.params.id, org_id, delta, `編輯膜料庫存調整（${Math.round((r.remaining_meters || 0) * 100) / 100} → ${nr} 米）`, uid);
       } else {
         // 多支捲料：差額套到剩餘最多的那支
         const tgt = activeRolls.slice().sort((a, b) => (b.remaining_meters || 0) - (a.remaining_meters || 0))[0];
         const nr = Math.max(0, (tgt.remaining_meters || 0) + (meters - oldTotal));
+        const delta = Math.round((nr - (tgt.remaining_meters || 0)) * 100) / 100;
         db.prepare(`UPDATE material_rolls SET remaining_meters=?, status=? WHERE id=?`)
           .run(nr, nr > 0 ? 'active' : 'finished', tgt.id);
+        if (Math.abs(delta) > 1e-6) db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by) VALUES (?,?,?, 'adjust', ?, ?, ?)`)
+          .run(tgt.id, req.params.id, org_id, delta, `編輯膜料庫存調整（${Math.round((tgt.remaining_meters || 0) * 100) / 100} → ${nr} 米）`, uid);
       }
     }
   }

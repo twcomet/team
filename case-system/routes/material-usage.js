@@ -318,11 +318,19 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
     const matId = resolveMaterialId(r);
     const consumed = consumedMetersOf(r);
     const remaining = remainingAfter(r, consumed);
+    // 案件材料保留＝預扣：核准時就從捲料/總庫存扣住，寫一筆綁 roll 的 reserve log
+    //   → 可在卷料明細看到；實際裁料時系統會提示倉管沖銷此保留（加回庫存）再扣實際用量，達成「預扣→實際裁再調整一次」
+    const isReserve = r.purpose_code === 'case_reserve';
+    const reserveMeters = isReserve ? Number(r.est_meters || r.est_usage_meters || 0) : 0;  // 預扣量＝原本領用(退而求其次預估使用)
     const willConsume = CONSUME_PURPOSES.has(r.purpose_code) && consumed > 0;
-    if (willConsume && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
+    if ((willConsume || (isReserve && reserveMeters > 0)) && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
     try {
       db.exec('BEGIN');
-      if (willConsume) {
+      if (isReserve && reserveMeters > 0) {
+        consumeStock({ materialId: matId, rollId: r.roll_id, meters: reserveMeters,
+          log_type: 'reserve', case_id: r.case_id,
+          notes: `案件材料保留#${r.id} ${r.purpose || ''}`.trim(), logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
+      } else if (willConsume) {
         consumeStock({ materialId: matId, rollId: r.roll_id, meters: consumed,
           log_type: purposeToLogType(r.purpose_code), case_id: r.case_id,
           notes: `申領核銷#${r.id} ${r.purpose || ''}`.trim(), logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
@@ -333,9 +341,9 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
       try { db.exec('ROLLBACK'); } catch (_) {}
       return res.status(400).json({ error: e.message });
     }
-    if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);
-    if (willConsume) caseReserves = activeCaseReserves(r.case_id, matId);
-    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${willConsume ? `，庫存已扣 ${consumed} 米` : ''}。`);
+    if (willConsume && r.case_id) syncCaseMaterialCost(r.case_id);   // 保留不計入案件成本（等實際裁才算）
+    if (willConsume) caseReserves = activeCaseReserves(r.case_id, matId);  // 只有實際消耗才提示沖銷保留；建立保留本身不提示
+    notifyUser(r.applicant_id, `【膜料申請已核准】\n你申請的「${r.material_label}」已核准${isReserve && reserveMeters > 0 ? `，已預扣保留 ${reserveMeters} 米` : willConsume ? `，庫存已扣 ${consumed} 米` : ''}。`);
   }
   log(me.id, 'approve_pickup', r.id, r.needs_return ? 'picked' : 'archived');
   res.json({ ok: true, caseReserves });
