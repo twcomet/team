@@ -133,6 +133,8 @@ function releaseReserveLog(l) {
     db.prepare(`UPDATE materials SET stock_meters = stock_meters - ? WHERE id=?`).run(l.meters, l.material_id);
   }
   db.prepare(`UPDATE material_logs SET status='cancelled' WHERE id=?`).run(l.id);
+  // 保留被沖銷(實際裁料已扣或手動沖銷) → 對應的申領單(若有)從「保留中」轉「已完成」
+  if (l.requisition_id) db.prepare(`UPDATE material_requisitions SET status='archived', archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='reserved'`).run(l.requisition_id);
 }
 
 // 某案(可限型號)目前有效保留的彙總，供核准扣庫存後提示倉管沖銷
@@ -335,7 +337,12 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
           log_type: purposeToLogType(r.purpose_code), case_id: r.case_id,
           notes: `申領核銷#${r.id} ${r.purpose || ''}`.trim(), logged_by: me.id, org_id: r.org_id, requisition_id: r.id });
       }
-      db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), remaining_meters=?, pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, remaining, me.id, me.id, r.id);
+      if (isReserve && reserveMeters > 0) {
+        // 保留＝進行中的預扣：狀態設 reserved(保留中)，留在「保留材料」頁籤，不進「已完成」；等實際裁料沖銷才轉 archived
+        db.prepare(`UPDATE material_requisitions SET status='reserved', material_id=COALESCE(material_id,?), remaining_meters=?, pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, remaining, me.id, r.id);
+      } else {
+        db.prepare(`UPDATE material_requisitions SET status='archived', material_id=COALESCE(material_id,?), remaining_meters=?, pickup_approver_id=?, pickup_approved_at=CURRENT_TIMESTAMP, archive_approver_id=?, archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(matId || null, remaining, me.id, me.id, r.id);
+      }
       db.exec('COMMIT');
     } catch (e) {
       try { db.exec('ROLLBACK'); } catch (_) {}

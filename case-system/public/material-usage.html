@@ -245,7 +245,7 @@ table td, table th { font-size:13px; }
 let isWarehouse=false, meId=null;
 let rows=[], reserves=[];
 const fmtM = v => (v==null||v==='') ? null : (Math.round(Number(v)*100)/100);   // 米數顯示：去浮點雜訊(25.7999→25.8)
-const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'] };
+const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'], reserved:['s-rsv','保留中'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
 let curTab='all', returnId=null, editId=null, _caseTimer=null, allPage=1;
 let matList=[], matLabelMap={};   // 膜料清單＋「顯示文字→material_id」對照，供送出時帶上 material_id
@@ -399,8 +399,9 @@ function render(){
       ? `<a class="act-link" style="color:#065f46" onclick="archive(${r.id})">核准歸還</a><a class="act-link" style="color:#dc2626" onclick="reject(${r.id})">駁回</a>`
       : `<span class="muted" style="font-size:12px">🔒 待倉管核准歸還</span>`;
     if(r.status==='archived') acts = `<span class="muted" style="font-size:12px">🔒 已完成</span>`;
+    if(r.status==='reserved') acts = `<span class="muted" style="font-size:12px">🔒 保留中（實際裁料時沖銷）</span>`;
     // 倉管/老闆：每列都可編輯/刪除（已扣庫存者編輯會還原並退回重審、刪除會還原庫存）
-    if(isWarehouse && ['pending_pickup','picked','pending_return','archived'].includes(r.status)){
+    if(isWarehouse && ['pending_pickup','picked','pending_return','archived','reserved'].includes(r.status)){
       acts += `<a class="act-link" style="color:#0369a1" onclick="openEdit(${r.id})">編輯</a><a class="act-link" style="color:#dc2626" onclick="del(${r.id})">刪除</a>`;
     }
     const rejNote = r.status==='rejected'&&r.reject_note?`<div style="font-size:11px;color:#b91c1c">退回：${esc(r.reject_note)}</div>`:'';

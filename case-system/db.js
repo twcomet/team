@@ -1613,6 +1613,15 @@ _addCol('dispatches', 'leader_id',        'INTEGER REFERENCES users(id) DEFAULT 
 _addCol('dispatches', 'gcal_event_id',    'TEXT DEFAULT NULL'); // 對應的 Google 行事曆事件 ID（派單同步用）
 _addCol('cases',      'survey_gcal_event_id', 'TEXT DEFAULT NULL'); // 場勘(非派工)對應的 Google 行事曆事件 ID
 
+// 一次性修正：已核准且已預扣(有有效 reserve log)的「案件材料保留」若被標成 archived(已完成)，改回 reserved(保留中)
+// 只動「確實有作用中預扣紀錄」的，沒預扣過的舊保留不碰(需重新核准才會預扣)，避免誤判
+try {
+  db.prepare(`UPDATE material_requisitions SET status='reserved'
+    WHERE purpose_code='case_reserve' AND status='archived'
+      AND id IN (SELECT requisition_id FROM material_logs
+                 WHERE log_type='reserve' AND status='active' AND requisition_id IS NOT NULL)`).run();
+} catch (_) {}
+
 // 場勘備註模板庫
 db.exec(`
   CREATE TABLE IF NOT EXISTS survey_note_templates (
