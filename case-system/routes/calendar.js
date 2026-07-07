@@ -38,6 +38,9 @@ router.get('/', requireAuth, (req, res) => {
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
       c.location, c.entry_info, c.photo_upload_url,
+      (SELECT sf.cs_service_note FROM survey_forms sf
+         WHERE sf.case_id = c.id AND sf.cs_service_note IS NOT NULL AND TRIM(sf.cs_service_note) <> ''
+         ORDER BY sf.id DESC LIMIT 1) AS cs_service_note,
       d.work_until, d.notes AS dispatch_notes,
       cl.phone        AS client_phone,
       sv.name         AS surveyor_name,
