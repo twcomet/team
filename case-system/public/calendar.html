@@ -446,7 +446,7 @@ function openEvCard(idx){
   html += row('👷','施工人員', c.installer_name ? esc(c.installer_name) : '');
   html += row('🔍','場勘人', c.surveyor_name ? esc(c.surveyor_name) : '');
   html += row('📞','客戶電話', c.client_phone ? esc(c.client_phone) : '');
-  html += row('📝','進場資訊', c.cs_service_note ? linkify(c.cs_service_note) : '');
+  html += row('📝','進場資訊', (e.cat==='場勘' && c.cs_service_note) ? linkify(c.cs_service_note) : '');
   html += row('🔑','門禁停車', c.entry_info ? linkify(c.entry_info) : '');
   html += row('🔗','雲端資料夾', folder);
   if (currentUser.can_see_amounts && c.final_price) {

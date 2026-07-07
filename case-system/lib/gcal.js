@@ -102,9 +102,10 @@ function _buildEvent(d) {
   if (d.client_name)  desc.push(`客戶：${d.client_name}${d.client_phone ? ' ' + d.client_phone : ''}`);
   if (d.leader_name)  desc.push(`小組長：${d.leader_name}`);
   if (crewStr)           desc.push(`師傅：${crewStr}`);              // 小組長第一，組員在後
-  if (d.cs_service_note) desc.push(`進場資訊：${d.cs_service_note}`);  // 客服場勘資訊備註
+  const isSurvey = ['survey', 'factory_survey'].includes(d.dispatch_type);
+  if (d.cs_service_note && isSurvey) desc.push(`進場資訊：${d.cs_service_note}`);  // 客服場勘資訊備註：只放場勘派工
   if (d.entry_info)      desc.push(`門禁停車：${d.entry_info}`);
-  if (d.notes)           desc.push(`客服備註：${d.notes}`);
+  if (d.notes)           desc.push(`客服備註：${d.notes}`);           // 派工欄位的客服備註：施工等派工照常帶入
   const folderUrl = d.photo_upload_url || d.drive_folder_url;  // 與系統顯示一致：優先客服貼的雲端資料夾
   if (folderUrl)         desc.push(`完工資料夾：${folderUrl}`);
 
