@@ -55,7 +55,7 @@ function _loadDispatch(dispatchId) {
   return db.prepare(`
     SELECT d.id, d.dispatch_type, d.scheduled_date, d.scheduled_time, d.work_until,
            d.notes, d.status, d.gcal_event_id, d.leader_id,
-           c.case_number, c.title, c.location, c.entry_info,
+           c.case_number, c.title, c.location, c.entry_info, c.drive_folder_url,
            cl.name AS client_name, cl.phone AS client_phone,
            ld.name AS leader_name,
            (SELECT du.user_id FROM dispatch_users du WHERE du.dispatch_id = d.id ORDER BY du.id LIMIT 1) AS first_user_id,
@@ -93,9 +93,10 @@ function _buildEvent(d) {
   if (d.case_number)  desc.push(`案件：${d.case_number}${d.title ? ' ' + d.title : ''}`);
   if (d.client_name)  desc.push(`客戶：${d.client_name}${d.client_phone ? ' ' + d.client_phone : ''}`);
   if (d.leader_name)  desc.push(`小組長：${d.leader_name}`);
-  if (d.workers)      desc.push(`師傅：${d.workers}`);
-  if (d.entry_info)   desc.push(`進場資訊：${d.entry_info}`);
-  if (d.notes)        desc.push(`備註：${d.notes}`);
+  if (d.workers)         desc.push(`師傅：${d.workers}`);
+  if (d.entry_info)      desc.push(`進場資訊：${d.entry_info}`);
+  if (d.notes)           desc.push(`備註：${d.notes}`);
+  if (d.drive_folder_url) desc.push(`完工資料夾：${d.drive_folder_url}`);
 
   const ev = { summary, location: d.location || '', description: desc.join('\n') };
   // 依「小組長」上色（沒設小組長時退回第一位師傅），每個人一個固定顏色
