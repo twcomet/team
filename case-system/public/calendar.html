@@ -109,6 +109,7 @@
         <span style="background:#fce7f3;color:#be185d;border-radius:3px;padding:1px 6px">洪義</span>
         <span style="background:#fae8ff;color:#a21caf;border-radius:3px;padding:1px 6px">維宏</span>
         <span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 6px">恰吉</span>
+        <span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 6px">Dan</span>
       </div>
 
       <!-- 待排工案件 -->
@@ -296,6 +297,7 @@ function getWorkerKey(c) {
   if (names.includes('洪義')) return 'hongyi';    // 王洪義
   if (names.includes('維宏')) return 'weihong';   // 黃維宏
   if (names.includes('恰吉')) return 'chaji';     // 恰吉
+  if (names.includes('Dan'))  return 'dan';       // Dan
   return 'nolead';   // 沒有小組長 → 固定一個顏色
 }
 const WORKER_PILL = {
@@ -308,6 +310,7 @@ const WORKER_PILL = {
   hongyi:    'background:#fce7f3;color:#be185d',
   weihong:   'background:#fae8ff;color:#a21caf',
   chaji:     'background:#ede9fe;color:#6d28d9',
+  dan:       'background:#dbeafe;color:#1e40af',
 };
 const WORKER_CARD = {
   nolead:    'background:#f9fafb;border-color:#e5e7eb',
@@ -319,6 +322,7 @@ const WORKER_CARD = {
   hongyi:    'background:#fdf2f8;border-color:#f9a8d4',
   weihong:   'background:#fdf4ff;border-color:#e9a8f0',
   chaji:     'background:#f5f3ff;border-color:#c4b5fd',
+  dan:       'background:#eff6ff;border-color:#93c5fd',
 };
 function getPillStyle(c) { return WORKER_PILL[getWorkerKey(c)]; }
 function getCardStyle(c)  { return WORKER_CARD[getWorkerKey(c)]; }
