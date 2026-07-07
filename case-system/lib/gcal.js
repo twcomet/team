@@ -121,7 +121,8 @@ function _buildEvent(d) {
   const folderUrl = d.photo_upload_url || d.drive_folder_url;  // 與系統顯示一致：優先客服貼的雲端資料夾
   if (folderUrl)         desc.push(`完工資料夾：${folderUrl}`);
 
-  const ev = { summary, location: d.location || '', description: desc.join('\n') };
+  // status:'confirmed' 確保事件為可見狀態：修正固定 id 被 Google 復活成「已取消(隱藏)」的問題
+  const ev = { summary, location: d.location || '', description: desc.join('\n'), status: 'confirmed' };
   // 依「小組長」上色（沒設小組長時看施工人員），與系統派單行事曆一致
   const colorId = _colorFor(d.leader_name || d.workers);
   if (colorId) ev.colorId = colorId;
