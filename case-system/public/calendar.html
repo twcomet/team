@@ -86,6 +86,8 @@
           <button data-v="week" onclick="setCalView('week')">週</button>
           <button data-v="day" onclick="setCalView('day')">天</button>
         </div>
+        <button class="gcal-today" id="gcalSyncBtn" onclick="syncToGoogle()" style="margin-left:auto"
+          title="把目前所有派單重新同步到 Google 行事曆。平常新增/修改派工會自動同步，這顆用於一次補齊或手動重整。">🔄 同步到 Google</button>
       </div>
       <div class="gcal-filterbar" id="calFilterBar"></div>
 
@@ -393,6 +395,19 @@ function setCalFilter(c){ calFilter=c; renderCalendar(); }
 function toggleIdle(){ showIdle=!showIdle; renderCalendar(); }
 function setCalView(v){ calView=v; document.querySelectorAll('#calSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); renderCalendar(); }
 function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getMonth()+1; loadCalendar(); }
+async function syncToGoogle(){
+  const btn = document.getElementById('gcalSyncBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 同步中…';
+  try {
+    const r = await fetch('/api/gdrive/gcal/sync-all', { method:'POST' });
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok || j.error) { alert('同步失敗：' + (j.error || ('HTTP ' + r.status)) + (j.sampleError ? '\n' + j.sampleError : '')); }
+    else if (j.aborted)  { alert('同步中止：連續失敗，通常是 Google 未連接或授權過期。\n' + (j.sampleError || '')); }
+    else { alert('✅ 同步完成\n成功 ' + (j.ok||0) + '　失敗 ' + (j.fail||0) + (j.sampleError ? '\n範例錯誤：' + j.sampleError : '')); }
+  } catch (e) { alert('同步失敗：' + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
 
 function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 // 把自由文字裡的網址變成可點連結（先 esc 再 linkify，最後換行）
@@ -471,7 +486,7 @@ function renderMonth(){
         revHtml=`<div class="gcal-rev ${cls}">$${(rev/1000).toFixed(0)}k / $${(tgt/1000).toFixed(0)}k</div>`;
       }
     }
-    const shown=ev.slice(0,3).map(e=>{const col=e.reported?'#16a34a':(CAT_COLOR[e.cat]||'#5f6368');const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gcal-ev" style="background:${col}${e.reported?'2e':'1f'};color:${col};${e.reported?'font-weight:600':''}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
+    const shown=ev.slice(0,3).map(e=>{const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);let style;if(e.cat==='施工'){style=getPillStyle(e.c);}else{const col=e.reported?'#16a34a':(CAT_COLOR[e.cat]||'#5f6368');style=`background:${col}${e.reported?'2e':'1f'};color:${col};${e.reported?'font-weight:600':''}`;}return `<div class="gcal-ev" style="${style}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
     const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
     let idleB='';
