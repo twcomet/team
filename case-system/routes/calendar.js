@@ -37,7 +37,7 @@ router.get('/', requireAuth, (req, res) => {
       d.status        AS dispatch_status,
       c.id, c.case_number, c.title, c.status,
       c.final_price, c.quoted_price,
-      c.location, c.entry_info, c.photo_upload_url,
+      c.location, c.entry_info, c.photo_upload_url, c.drive_folder_url,
       (SELECT sf.cs_service_note FROM survey_forms sf
          WHERE sf.case_id = c.id AND sf.cs_service_note IS NOT NULL AND TRIM(sf.cs_service_note) <> ''
          ORDER BY sf.id DESC LIMIT 1) AS cs_service_note,
@@ -102,7 +102,10 @@ router.get('/', requireAuth, (req, res) => {
     SELECT
       c.id, c.case_number, c.title, c.status,
       COALESCE(sf.survey_date, c.survey_date) AS survey_date,
+      c.location, c.entry_info, c.photo_upload_url, c.drive_folder_url, c.final_price,
       cl.name  AS client_name,
+      cl.phone AS client_phone,
+      sf.cs_service_note,
       COALESCE(sf_u.name, sv.name) AS surveyor_name,
       'survey' AS source
     FROM cases c
