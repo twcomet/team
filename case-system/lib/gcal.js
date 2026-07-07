@@ -58,6 +58,9 @@ function _loadDispatch(dispatchId) {
            c.case_number, c.title, c.location, c.entry_info, c.drive_folder_url,
            cl.name AS client_name, cl.phone AS client_phone,
            ld.name AS leader_name,
+           (SELECT sf.cs_service_note FROM survey_forms sf
+              WHERE sf.case_id = c.id AND sf.cs_service_note IS NOT NULL AND TRIM(sf.cs_service_note) <> ''
+              ORDER BY sf.id DESC LIMIT 1) AS cs_service_note,
            (SELECT du.user_id FROM dispatch_users du WHERE du.dispatch_id = d.id ORDER BY du.id LIMIT 1) AS first_user_id,
            (SELECT GROUP_CONCAT(u.name, '、') FROM dispatch_users du
               JOIN users u ON u.id = du.user_id WHERE du.dispatch_id = d.id) AS workers
@@ -94,7 +97,8 @@ function _buildEvent(d) {
   if (d.client_name)  desc.push(`客戶：${d.client_name}${d.client_phone ? ' ' + d.client_phone : ''}`);
   if (d.leader_name)  desc.push(`小組長：${d.leader_name}`);
   if (d.workers)         desc.push(`師傅：${d.workers}`);
-  if (d.entry_info)      desc.push(`進場資訊：${d.entry_info}`);
+  if (d.cs_service_note) desc.push(`進場資訊：${d.cs_service_note}`);  // 客服場勘資訊備註
+  if (d.entry_info)      desc.push(`門禁停車：${d.entry_info}`);
   if (d.notes)           desc.push(`備註：${d.notes}`);
   if (d.drive_folder_url) desc.push(`完工資料夾：${d.drive_folder_url}`);
 
