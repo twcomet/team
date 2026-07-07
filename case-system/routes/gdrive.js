@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireOwner } = require('../middleware/auth');
+const { requireAuth, requireOwner, requireCalendarAccess } = require('../middleware/auth');
 const gdrive = require('../lib/gdrive');
 const gcal = require('../lib/gcal');
 const router = express.Router();
@@ -51,8 +51,8 @@ router.post('/gcal/toggle', requireAuth, requireOwner, (req, res) => {
   res.json({ ok: true, enabled: gcal.syncEnabled() });
 });
 
-// 回填：啟動背景同步（立即回傳，前端輪詢 /gcal/sync-status 看進度）
-router.post('/gcal/sync-all', requireAuth, requireOwner, (req, res) => {
+// 回填：啟動背景同步（立即回傳，前端輪詢 /gcal/sync-status 看進度）。客服(有行事曆頁權限)也可用
+router.post('/gcal/sync-all', requireAuth, requireCalendarAccess, (req, res) => {
   try { res.json(gcal.startSync('sync')); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -63,8 +63,8 @@ router.post('/gcal/rebuild', requireAuth, requireOwner, (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 同步進度查詢（前端每 2 秒輪詢）
-router.get('/gcal/sync-status', requireAuth, requireOwner, (req, res) => {
+// 同步進度查詢（前端每 2 秒輪詢）。客服(有行事曆頁權限)也可用
+router.get('/gcal/sync-status', requireAuth, requireCalendarAccess, (req, res) => {
   res.json(gcal.syncJobStatus());
 });
 

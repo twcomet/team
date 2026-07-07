@@ -53,6 +53,14 @@ function requireOwner(req, res, next) {
   next();
 }
 
+// 允許最高管理者，或有「派單行事曆」頁權限的人（如客服）操作行事曆同步
+function requireCalendarAccess(req, res, next) {
+  const u = req.session?.user;
+  if (!u) return res.status(401).json({ error: '請先登入' });
+  if (u.role === 'owner' || u.permissions?.page_calendar) return next();
+  return res.status(403).json({ error: '無派單行事曆權限' });
+}
+
 function requireCanManageUsers(req, res, next) {
   const user = req.session?.user;
   if (!user) return res.status(401).json({ error: '請先登入' });
@@ -78,4 +86,4 @@ function orgFilterSQL(user, col) {
   return { sql: `${col} IN (${ids.map(() => '?').join(',')})`, params: ids };
 }
 
-module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCanManageUsers, orgFilter, orgFilterSQL };
+module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCalendarAccess, requireCanManageUsers, orgFilter, orgFilterSQL };

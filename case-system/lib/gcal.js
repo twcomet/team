@@ -125,13 +125,18 @@ function _buildEvent(d) {
   // 依「小組長」上色（沒設小組長時看施工人員），與系統派單行事曆一致
   const colorId = _colorFor(d.leader_name || d.workers);
   if (colorId) ev.colorId = colorId;
-  const t  = _hhmm(d.scheduled_time);
-  if (t) {
-    const endT = _hhmm(d.work_until) || _plusHours(t, 2);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(String(d.scheduled_date || ''));
+  if (!validDate) return null;                         // 沒有有效日期 → 無法建立事件，交由上層跳過
+  const _toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+  const t = _hhmm(d.scheduled_time);
+  let endT = t ? (_hhmm(d.work_until) || _plusHours(t, 2)) : null;
+  // 結束時間無效或早於/等於開始 → 用開始+2小時（避免 Google「Invalid start time / end before start」）
+  if (t && (!endT || _toMin(endT) <= _toMin(t))) endT = _plusHours(t, 2);
+  if (t && endT && _toMin(endT) > _toMin(t)) {
     ev.start = { dateTime: `${d.scheduled_date}T${t}:00`,    timeZone: TZ };
     ev.end   = { dateTime: `${d.scheduled_date}T${endT}:00`, timeZone: TZ };
   } else {
-    ev.start = { date: d.scheduled_date };            // 全天事件
+    ev.start = { date: d.scheduled_date };            // 全天事件（無時間或時間無效）
     ev.end   = { date: _nextDay(d.scheduled_date) };  // 全天事件 end 為隔天（不含）
   }
   return ev;
