@@ -68,6 +68,16 @@ router.get('/gcal/sync-status', requireAuth, requireOwner, (req, res) => {
   res.json(gcal.syncJobStatus());
 });
 
+// 把「繪新派單」行事曆分享給指定信箱（讓它出現在對方 Google 行事曆清單）
+router.post('/gcal/share', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const r = await gcal.shareCalendar(req.body.email, req.body.role);
+    res.json(r);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 為某案件建立（或取得已建立的）雲端資料夾
 router.post('/case/:id/folder', requireAuth, async (req, res) => {
   try {

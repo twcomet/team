@@ -42,9 +42,18 @@
     <div id="gcal-status" class="gd-status gd-off">讀取狀態中…</div>
     <div id="gcal-actions"></div>
     <div id="gcal-msg"></div>
+    <div id="gcal-share" style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid var(--gray-200);border-radius:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">👥 看不到行事曆？分享「繪新派單」到你的信箱</div>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">事件建在「授權系統的那個 Google 帳號」裡。若你用別的帳號看 Google 行事曆、或清單裡找不到「繪新派單」，在這裡填入你要用來看行事曆的 Gmail，按分享即可讓它出現在你的清單。師傅也可用同樣方式加入。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="shareEmail" type="email" placeholder="you@gmail.com" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+        <button class="gd-btn gd-primary" style="width:auto;padding:8px 16px" onclick="shareGcal()">分享行事曆</button>
+      </div>
+      <div id="share-msg"></div>
+    </div>
     <div class="gd-note">
       ⚠️ 若你是在此功能上線<b>之前</b>就連接過 Google，請先按上方「重新連接 Google」授權行事曆權限，再回來這裡開啟同步。<br>
-      👥 分享給師傅：到 Google 日曆網頁版 →「繪新派單」行事曆設定 → 與特定使用者共用，或產生訂閱連結給師傅加入。
+      👥 分享給師傅：填上面信箱按分享，或到 Google 日曆網頁版 →「繪新派單」行事曆設定 → 與特定使用者共用。
     </div>
   </div>
 </div>
@@ -149,6 +158,17 @@
       m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功建立 '+r.ok+' 個，失敗 '+r.fail+'（共 '+r.total+' 個待補案件）'
         + (r.sampleError ? '<br>範例錯誤：'+r.sampleError : '') + '</div>';
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">補建發生錯誤，請稍後再試。</div>'; });
+  };
+  window.shareGcal = function(){
+    var email = (document.getElementById('shareEmail').value || '').trim();
+    var sm = document.getElementById('share-msg');
+    if (!email){ sm.innerHTML = '<div class="gd-msg gd-msg-err">請先填入 email</div>'; return; }
+    sm.innerHTML = '<div class="gd-msg gd-msg-ok">分享中…</div>';
+    fetch('/api/gdrive/gcal/share', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email, role:'reader'})})
+      .then(function(x){return x.json();}).then(function(r){
+        if (r.error){ sm.innerHTML = '<div class="gd-msg gd-msg-err">分享失敗：'+r.error+'</div>'; return; }
+        sm.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 已分享給 '+r.email+'。請到該帳號的 Google 行事曆收通知（或左側「其他日曆」會出現「繪新派單」），打勾即可看到。</div>';
+      }).catch(function(){ sm.innerHTML = '<div class="gd-msg gd-msg-err">分享發生錯誤，請稍後再試。</div>'; });
   };
   window.rebuildGcal = function(){
     if (!confirm('會先「刪光」繪新派單行事曆內所有事件，再重新同步一份乾淨的。\n用於修正重複／孤兒事件。資料多時需要 1–2 分鐘，過程會顯示進度。確定執行？')) return;

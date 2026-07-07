@@ -277,8 +277,26 @@ async function duplicateCalendars() {
   return (j.items || []).filter(c => c.summary === '繪新派單').map(c => ({ id: c.id, summary: c.summary }));
 }
 
+// 把「繪新派單」行事曆分享給指定 email（加入對方 Google 行事曆清單）
+// role: reader(唯讀，給師傅/檢視) / writer(可編輯)
+async function shareCalendar(email, role) {
+  email = (email || '').trim();
+  if (!email) throw new Error('請輸入 email');
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const token = await gdrive.accessToken();
+  const calId = await _ensureCalendar(token);
+  const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/acl?sendNotifications=true`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: role === 'writer' ? 'writer' : 'reader', scope: { type: 'user', value: email } }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('分享失敗：' + ((j.error && j.error.message) || r.status));
+  return { ok: true, calendarId: calId, email, role: role === 'writer' ? 'writer' : 'reader' };
+}
+
 function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, syncEnabled, setEnabled, calendarInfo };
