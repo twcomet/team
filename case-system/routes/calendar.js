@@ -43,6 +43,7 @@ router.get('/', requireAuth, (req, res) => {
       sv.name         AS surveyor_name,
       d.service_fee, d.warranty_covered,
       cl.name         AS client_name,
+      ld.name         AS leader_name,
       GROUP_CONCAT(u.name, '、') AS installer_name,
       COUNT(DISTINCT du.user_id) AS worker_count,
       (SELECT COUNT(*) FROM work_reports w WHERE w.dispatch_id = d.id) AS report_count,
@@ -53,6 +54,7 @@ router.get('/', requireAuth, (req, res) => {
     LEFT JOIN users sv ON c.surveyor_id = sv.id
     LEFT JOIN dispatch_users du ON du.dispatch_id = d.id
     LEFT JOIN users u ON u.id = du.user_id
+    LEFT JOIN users ld ON ld.id = d.leader_id
     WHERE d.scheduled_date BETWEEN ? AND ?
       AND d.status != 'cancelled'
       ${orgCond}

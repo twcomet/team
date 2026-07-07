@@ -288,7 +288,8 @@ async function loadCalendar() {
 }
 
 function getWorkerKey(c) {
-  const names = c.installer_name || '';
+  // 優先用系統指定的小組長；沒指定才看施工人員名單
+  const names = c.leader_name || c.installer_name || '';
   if (names.includes('紹銘')) return 'shaoming';
   if (names.includes('傳恩')) return 'chuanen';
   if (names.includes('申鴻')) return 'shenghong';   // 劉申鴻（原誤植為「昇鴻」）
