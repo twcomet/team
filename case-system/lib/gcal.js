@@ -200,22 +200,24 @@ function safeRemoveEvent(eventId) {
     .catch(e => console.error('[gcal] 刪除事件失敗：', e.message));
 }
 
-// 回填：把所有未取消的派工推上去（老闆手動觸發，第一次連接後使用）
-async function syncAll() {
-  if (!isConnected()) throw new Error('尚未連接 Google');
+// ── 背景同步任務：長時間工作(數百筆)不走 HTTP 請求，避免閘道逾時 ──
+// 前端「啟動→輪詢進度」，任務進度存在模組記憶體
+let _job = { kind: null, running: false, phase: '', total: 0, ok: 0, fail: 0, purged: 0, sampleError: null, aborted: false, done: false, dupCalendars: 0 };
+function syncJobStatus() { return { ..._job }; }
+
+async function _runSyncAll() {
   const rows = db.prepare(`SELECT id FROM dispatches WHERE status != 'cancelled'`).all();
-  let ok = 0, fail = 0, sampleError = null, aborted = false;
+  _job.total = rows.length; _job.phase = '同步派工';
   for (const row of rows) {
-    try { await _syncDispatch(row.id); ok++; }
+    try { await _syncDispatch(row.id); _job.ok++; }
     catch (e) {
-      fail++;
-      if (!sampleError) sampleError = e.message;
+      _job.fail++;
+      if (!_job.sampleError) _job.sampleError = e.message;
       console.error('[gcal] 回填失敗 #' + row.id + '：', e.message);
-      if (ok === 0 && fail >= 3) { aborted = true; break; } // 連續失敗＝系統性問題（權限/API未啟用），提早中止避免狂打 API
+      if (_job.ok === 0 && _job.fail >= 3) { _job.aborted = true; break; } // 連續失敗＝系統性問題，提早中止
     }
     await _sleep(150); // 節流：放慢呼叫速度，避免觸發 Google 速率限制
   }
-  return { total: rows.length, ok, fail, sampleError, aborted };
 }
 
 // 列出行事曆內全部事件 id（分頁）
@@ -236,21 +238,32 @@ async function _listAllEventIds(token, calId) {
 
 // 清除重建：刪光「繪新派單」行事曆內所有事件（此曆專用），清空 event id，再重新同步一份乾淨的
 // 用來修正「早期同步未記 id 造成的孤兒事件 → 重複」
-async function purgeAndRebuild() {
-  if (!isConnected()) throw new Error('尚未連接 Google');
+async function _runRebuild() {
   const token = await gdrive.accessToken();
   const calId = await _ensureCalendar(token);
-  const ids   = await _listAllEventIds(token, calId);
-  let purged = 0;
+  try { _job.dupCalendars = (await duplicateCalendars()).length; } catch {}
+  _job.phase = '清除舊事件';
+  const ids = await _listAllEventIds(token, calId);
+  _job.total = ids.length;
   for (const eid of ids) {
     const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eid)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
-    if (r.ok || r.status === 404 || r.status === 410) purged++;
+    if (r.ok || r.status === 404 || r.status === 410) _job.purged++;
     await _sleep(120); // 節流：避免刪除大量事件時觸發速率限制
   }
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
-  const res = await syncAll();
-  return { purged, ...res };
+  await _runSyncAll();
+}
+
+// 啟動背景同步（立即回傳、不阻塞 HTTP）。kind: 'sync' 一般回填 / 'rebuild' 清除重建
+function startSync(kind) {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  if (_job.running) return { running: true, already: true, ..._job };
+  _job = { kind, running: true, phase: '準備中', total: 0, ok: 0, fail: 0, purged: 0, sampleError: null, aborted: false, done: false, dupCalendars: 0 };
+  const task = kind === 'rebuild' ? _runRebuild() : _runSyncAll();
+  task.catch(e => { _job.sampleError = _job.sampleError || e.message; _job.aborted = true; })
+      .finally(() => { _job.running = false; _job.done = true; _job.phase = '完成'; });
+  return { started: true, kind };
 }
 
 // 診斷：Google 帳號裡叫「繪新派單」的行事曆有幾個（>1 代表有重複曆，需手動刪多的）
@@ -268,4 +281,4 @@ function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeRemoveEvent, syncAll, purgeAndRebuild, duplicateCalendars, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, syncEnabled, setEnabled, calendarInfo };

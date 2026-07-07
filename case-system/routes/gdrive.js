@@ -51,25 +51,21 @@ router.post('/gcal/toggle', requireAuth, requireOwner, (req, res) => {
   res.json({ ok: true, enabled: gcal.syncEnabled() });
 });
 
-// 回填：把所有現有派工推到 Google 行事曆
-router.post('/gcal/sync-all', requireAuth, requireOwner, async (req, res) => {
-  try {
-    const r = await gcal.syncAll();
-    res.json({ ok: true, ...r });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+// 回填：啟動背景同步（立即回傳，前端輪詢 /gcal/sync-status 看進度）
+router.post('/gcal/sync-all', requireAuth, requireOwner, (req, res) => {
+  try { res.json(gcal.startSync('sync')); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 清除重建：刪光行事曆事件後重新同步一份乾淨的（修正重複/孤兒事件）
-router.post('/gcal/rebuild', requireAuth, requireOwner, async (req, res) => {
-  try {
-    const dups = await gcal.duplicateCalendars();
-    const r = await gcal.purgeAndRebuild();
-    res.json({ ok: true, duplicateCalendars: dups.length, ...r });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+// 清除重建：啟動背景「刪光→重建」任務（修正重複/孤兒事件）
+router.post('/gcal/rebuild', requireAuth, requireOwner, (req, res) => {
+  try { res.json(gcal.startSync('rebuild')); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 同步進度查詢（前端每 2 秒輪詢）
+router.get('/gcal/sync-status', requireAuth, requireOwner, (req, res) => {
+  res.json(gcal.syncJobStatus());
 });
 
 // 為某案件建立（或取得已建立的）雲端資料夾

@@ -115,19 +115,30 @@
     fetch('/api/gdrive/gcal/toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:on})})
       .then(function(){ loadGcal(true); });
   };
+  // 啟動背景同步後，每 2 秒輪詢進度直到完成（避免長時間工作造成 HTTP 逾時）
+  function pollSync(m, label){
+    var t = setInterval(function(){
+      fetch('/api/gdrive/gcal/sync-status').then(function(x){return x.json();}).then(function(s){
+        if (s.running){
+          m.innerHTML = '<div class="gd-msg gd-msg-ok">'+label+'進行中… '+(s.phase||'')+'（進度 '+(s.ok+s.fail)+'/'+(s.total||'?')+'，失敗 '+s.fail+'）</div>';
+        } else {
+          clearInterval(t);
+          var warn = s.dupCalendars > 1 ? '<br>⚠️ 偵測到 Google 裡有 '+s.dupCalendars+' 個「繪新派單」行事曆，請到 Google 手動刪掉多餘的那個。' : '';
+          var pg = s.purged ? '清掉舊事件 '+s.purged+' 筆，' : '';
+          m.innerHTML = '<div class="gd-msg '+(s.fail?'gd-msg-err':'gd-msg-ok')+'">✓ 完成：'+pg+'成功 '+s.ok+'／失敗 '+s.fail+'（共 '+s.total+'）'
+            + (s.aborted ? '，已提早中止' : '') + (s.sampleError ? '<br>Google 回報：<b>'+s.sampleError+'</b>' : '') + warn + '</div>';
+        }
+      }).catch(function(){});
+    }, 2000);
+  }
   window.syncAll = function(){
-    if (!confirm('把目前所有未取消的派工都推到「繪新派單」行事曆？資料多時可能需要一點時間。')) return;
+    if (!confirm('把目前所有未取消的派工都推到「繪新派單」行事曆？資料多時需要 1–2 分鐘，過程會顯示進度，可離開頁面。')) return;
     var m = document.getElementById('gcal-msg');
-    m.innerHTML = '<div class="gd-msg gd-msg-ok">同步中，請稍候…</div>';
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">啟動中…</div>';
     fetch('/api/gdrive/gcal/sync-all', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
-      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步失敗：'+r.error+'</div>'; return; }
-      if (r.fail && r.sampleError){
-        m.innerHTML = '<div class="gd-msg gd-msg-err">✗ 同步失敗（成功 '+r.ok+'／失敗 '+r.fail+'）'
-          + (r.aborted ? '，已提早中止' : '') + '<br>Google 回報：<b>'+r.sampleError+'</b></div>';
-        return;
-      }
-      m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功 '+r.ok+' 筆，失敗 '+r.fail+' 筆（共 '+r.total+' 筆）</div>';
-    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步發生錯誤，請稍後再試。</div>'; });
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動失敗：'+r.error+'</div>'; return; }
+      pollSync(m, '同步');
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
   };
   window.backfillFolders = function(){
     if (!confirm('為所有還沒有雲端資料夾的舊案件批次建立資料夾？（作廢案件除外，數量多時需要一點時間）')) return;
@@ -140,16 +151,13 @@
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">補建發生錯誤，請稍後再試。</div>'; });
   };
   window.rebuildGcal = function(){
-    if (!confirm('會先「刪光」繪新派單行事曆內所有事件，再重新同步一份乾淨的。\n用於修正重複／孤兒事件。確定執行？')) return;
+    if (!confirm('會先「刪光」繪新派單行事曆內所有事件，再重新同步一份乾淨的。\n用於修正重複／孤兒事件。資料多時需要 1–2 分鐘，過程會顯示進度。確定執行？')) return;
     var m = document.getElementById('gcal-msg');
-    m.innerHTML = '<div class="gd-msg gd-msg-ok">清除並重建中，資料多時可能要一分鐘，請勿關閉頁面…</div>';
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">啟動中…</div>';
     fetch('/api/gdrive/gcal/rebuild', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
-      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">重建失敗：'+r.error+'</div>'; return; }
-      var warn = r.duplicateCalendars > 1
-        ? '<br>⚠️ 偵測到 Google 裡有 '+r.duplicateCalendars+' 個「繪新派單」行事曆，請到 Google 行事曆手動刪掉多餘的那個。'
-        : '';
-      m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 重建完成：清掉舊事件 '+r.purged+' 筆，重新建立成功 '+r.ok+'／失敗 '+r.fail+'（共 '+r.total+'）'+warn+'</div>';
-    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">重建發生錯誤，請稍後再試。</div>'; });
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動失敗：'+r.error+'</div>'; return; }
+      pollSync(m, '清除重建');
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
   };
 })();
 </script>

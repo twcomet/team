@@ -398,15 +398,23 @@ function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getM
 async function syncToGoogle(){
   const btn = document.getElementById('gcalSyncBtn');
   const old = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ 同步中…';
+  btn.disabled = true; btn.textContent = '⏳ 啟動中…';
   try {
     const r = await fetch('/api/gdrive/gcal/sync-all', { method:'POST' });
     const j = await r.json().catch(()=>({}));
-    if (!r.ok || j.error) { alert('同步失敗：' + (j.error || ('HTTP ' + r.status)) + (j.sampleError ? '\n' + j.sampleError : '')); }
-    else if (j.aborted)  { alert('同步中止：連續失敗，通常是 Google 未連接或授權過期。\n' + (j.sampleError || '')); }
-    else { alert('✅ 同步完成\n成功 ' + (j.ok||0) + '　失敗 ' + (j.fail||0) + (j.sampleError ? '\n範例錯誤：' + j.sampleError : '')); }
-  } catch (e) { alert('同步失敗：' + e.message); }
-  finally { btn.disabled = false; btn.textContent = old; }
+    if (!r.ok || j.error) { alert('啟動失敗：' + (j.error || ('HTTP ' + r.status))); btn.disabled=false; btn.textContent=old; return; }
+    // 背景執行 → 每 2 秒輪詢進度，避免大量同步造成逾時
+    const poll = setInterval(async () => {
+      let s = {};
+      try { s = await (await fetch('/api/gdrive/gcal/sync-status')).json(); } catch { return; }
+      if (s.running) { btn.textContent = '⏳ ' + (s.ok + s.fail) + '/' + (s.total || '?'); }
+      else {
+        clearInterval(poll); btn.disabled = false; btn.textContent = old;
+        alert('✅ 同步完成\n成功 ' + (s.ok||0) + '　失敗 ' + (s.fail||0) + (s.sampleError ? '\n範例錯誤：' + s.sampleError : ''));
+        loadCalendar();
+      }
+    }, 2000);
+  } catch (e) { alert('啟動失敗：' + e.message); btn.disabled=false; btn.textContent=old; }
 }
 
 function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
