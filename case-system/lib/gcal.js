@@ -365,6 +365,7 @@ async function _runRebuild() {
     const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eid)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
     if (r.ok || r.status === 404 || r.status === 410) _job.purged++;
+    else { _job.fail++; if (!_job.sampleError) _job.sampleError = '刪除事件失敗 HTTP ' + r.status + '（多半是 Google 速率限制，建議改用硬重置）'; }
     await _sleep(120); // 節流：避免刪除大量事件時觸發速率限制
   }
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
@@ -372,12 +373,32 @@ async function _runRebuild() {
   await _runSyncAll();
 }
 
-// 啟動背景同步（立即回傳、不阻塞 HTTP）。kind: 'sync' 一般回填 / 'rebuild' 清除重建
+// 硬重置：直接刪掉整個「繪新派單」行事曆（一次 API 呼叫清光裡面所有事件，不受逐筆刪除的速率限制），
+// 再建一個全新的空行事曆重新同步。用於事件數爆量(上千筆)導致逐筆清除卡在速率限制時。
+// 代價：行事曆 id 會變，先前分享給師傅的訂閱需重新分享。
+async function _runHardReset() {
+  const token = await gdrive.accessToken();
+  const oldId = getS('gcal_dispatch_calendar_id');
+  _job.phase = '刪除整個舊行事曆';
+  if (oldId) {
+    // DELETE 整個次要行事曆＝連同裡面全部事件一起消失，一次搞定
+    await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(oldId)}`,
+      { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+  }
+  setS('gcal_dispatch_calendar_id', null);          // 清掉舊 id，_ensureCalendar 會建新的
+  db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();
+  db.prepare('UPDATE cases SET survey_gcal_event_id=NULL').run();
+  _job.phase = '建立新行事曆';
+  await _ensureCalendar(token);                      // 建立全新空行事曆
+  await _runSyncAll();                               // 重新同步派工＋場勘
+}
+
+// 啟動背景同步（立即回傳、不阻塞 HTTP）。kind: 'sync' 一般回填 / 'rebuild' 清除重建 / 'reset' 硬重置
 function startSync(kind) {
   if (!isConnected()) throw new Error('尚未連接 Google');
   if (_job.running) return { running: true, already: true, ..._job };
   _job = { kind, running: true, phase: '準備中', total: 0, ok: 0, fail: 0, purged: 0, sampleError: null, aborted: false, done: false, dupCalendars: 0 };
-  const task = kind === 'rebuild' ? _runRebuild() : _runSyncAll();
+  const task = kind === 'reset' ? _runHardReset() : kind === 'rebuild' ? _runRebuild() : _runSyncAll();
   task.catch(e => { _job.sampleError = _job.sampleError || e.message; _job.aborted = true; })
       .finally(() => { _job.running = false; _job.done = true; _job.phase = '完成'; });
   return { started: true, kind };

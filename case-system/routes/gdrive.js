@@ -63,6 +63,12 @@ router.post('/gcal/rebuild', requireAuth, requireOwner, (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 硬重置：事件爆量(上千筆)逐筆刪不動時，直接刪掉整個行事曆重建（一次清光，避開速率限制）
+router.post('/gcal/hard-reset', requireAuth, requireOwner, (req, res) => {
+  try { res.json(gcal.startSync('reset')); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 同步進度查詢（前端每 2 秒輪詢）。客服(有行事曆頁權限)也可用
 router.get('/gcal/sync-status', requireAuth, requireCalendarAccess, (req, res) => {
   res.json(gcal.syncJobStatus());

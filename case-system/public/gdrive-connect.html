@@ -112,6 +112,7 @@
         st.textContent = '✓ 派單同步已開啟';
         act.innerHTML = '<button class="gd-btn gd-primary" onclick="syncAll()">同步全部現有派單到 Google</button>'
                       + '<button class="gd-btn gd-ghost" onclick="rebuildGcal()" style="color:#b45309">清除重複並重建</button>'
+                      + '<button class="gd-btn gd-ghost" onclick="hardResetGcal()" style="color:#b91c1c">🔥 硬重置（事件爆量、清不動時用）</button>'
                       + '<button class="gd-btn gd-ghost" onclick="toggleGcal(false)">暫停同步</button>';
       } else {
         st.className = 'gd-status gd-off';
@@ -177,6 +178,15 @@
     fetch('/api/gdrive/gcal/rebuild', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
       if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動失敗：'+r.error+'</div>'; return; }
       pollSync(m, '清除重建');
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
+  };
+  window.hardResetGcal = function(){
+    if (!confirm('【硬重置】會直接刪掉整個「繪新派單」行事曆（一次清光裡面全部事件，避開逐筆刪除的速率限制），再建一個全新的重新同步。\n\n適用於事件爆量、清除重建卡住刪不動時。\n\n⚠️ 行事曆會變成新的，先前分享給師傅的訂閱需要重新分享。\n\n確定執行？')) return;
+    var m = document.getElementById('gcal-msg');
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">啟動中…</div>';
+    fetch('/api/gdrive/gcal/hard-reset', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動失敗：'+r.error+'</div>'; return; }
+      pollSync(m, '硬重置');
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
   };
 })();
