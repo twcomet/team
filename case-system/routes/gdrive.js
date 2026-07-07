@@ -61,6 +61,17 @@ router.post('/gcal/sync-all', requireAuth, requireOwner, async (req, res) => {
   }
 });
 
+// 清除重建：刪光行事曆事件後重新同步一份乾淨的（修正重複/孤兒事件）
+router.post('/gcal/rebuild', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const dups = await gcal.duplicateCalendars();
+    const r = await gcal.purgeAndRebuild();
+    res.json({ ok: true, duplicateCalendars: dups.length, ...r });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 為某案件建立（或取得已建立的）雲端資料夾
 router.post('/case/:id/folder', requireAuth, async (req, res) => {
   try {

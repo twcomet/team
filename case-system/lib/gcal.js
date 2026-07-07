@@ -55,7 +55,7 @@ function _loadDispatch(dispatchId) {
   return db.prepare(`
     SELECT d.id, d.dispatch_type, d.scheduled_date, d.scheduled_time, d.work_until,
            d.notes, d.status, d.gcal_event_id, d.leader_id,
-           c.case_number, c.title, c.location, c.entry_info, c.drive_folder_url,
+           c.case_number, c.title, c.location, c.entry_info, c.drive_folder_url, c.photo_upload_url,
            cl.name AS client_name, cl.phone AS client_phone,
            ld.name AS leader_name,
            (SELECT sf.cs_service_note FROM survey_forms sf
@@ -105,7 +105,8 @@ function _buildEvent(d) {
   if (d.cs_service_note) desc.push(`進場資訊：${d.cs_service_note}`);  // 客服場勘資訊備註
   if (d.entry_info)      desc.push(`門禁停車：${d.entry_info}`);
   if (d.notes)           desc.push(`客服備註：${d.notes}`);
-  if (d.drive_folder_url) desc.push(`完工資料夾：${d.drive_folder_url}`);
+  const folderUrl = d.photo_upload_url || d.drive_folder_url;  // 與系統顯示一致：優先客服貼的雲端資料夾
+  if (folderUrl)         desc.push(`完工資料夾：${folderUrl}`);
 
   const ev = { summary, location: d.location || '', description: desc.join('\n') };
   // 依「小組長」上色（沒設小組長時看施工人員），與系統派單行事曆一致
@@ -188,8 +189,53 @@ async function syncAll() {
   return { total: rows.length, ok, fail, sampleError, aborted };
 }
 
+// 列出行事曆內全部事件 id（分頁）
+async function _listAllEventIds(token, calId) {
+  const ids = [];
+  let pageToken = null;
+  do {
+    const url = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events?maxResults=2500&singleEvents=false`
+              + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error('讀取事件失敗：' + ((j.error && j.error.message) || r.status));
+    (j.items || []).forEach(e => { if (e.id) ids.push(e.id); });
+    pageToken = j.nextPageToken || null;
+  } while (pageToken);
+  return ids;
+}
+
+// 清除重建：刪光「繪新派單」行事曆內所有事件（此曆專用），清空 event id，再重新同步一份乾淨的
+// 用來修正「早期同步未記 id 造成的孤兒事件 → 重複」
+async function purgeAndRebuild() {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const token = await gdrive.accessToken();
+  const calId = await _ensureCalendar(token);
+  const ids   = await _listAllEventIds(token, calId);
+  let purged = 0;
+  for (const eid of ids) {
+    const r = await fetch(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eid)}`,
+      { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok || r.status === 404 || r.status === 410) purged++;
+  }
+  db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
+  const res = await syncAll();
+  return { purged, ...res };
+}
+
+// 診斷：Google 帳號裡叫「繪新派單」的行事曆有幾個（>1 代表有重複曆，需手動刪多的）
+async function duplicateCalendars() {
+  if (!isConnected()) return [];
+  const token = await gdrive.accessToken();
+  const r = await fetch(`${CAL_API}/users/me/calendarList?maxResults=250`,
+    { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return [];
+  return (j.items || []).filter(c => c.summary === '繪新派單').map(c => ({ id: c.id, summary: c.summary }));
+}
+
 function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeRemoveEvent, syncAll, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeRemoveEvent, syncAll, purgeAndRebuild, duplicateCalendars, syncEnabled, setEnabled, calendarInfo };

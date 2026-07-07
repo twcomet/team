@@ -101,6 +101,7 @@
         st.className = 'gd-status gd-on';
         st.textContent = '✓ 派單同步已開啟';
         act.innerHTML = '<button class="gd-btn gd-primary" onclick="syncAll()">同步全部現有派單到 Google</button>'
+                      + '<button class="gd-btn gd-ghost" onclick="rebuildGcal()" style="color:#b45309">清除重複並重建</button>'
                       + '<button class="gd-btn gd-ghost" onclick="toggleGcal(false)">暫停同步</button>';
       } else {
         st.className = 'gd-status gd-off';
@@ -126,6 +127,18 @@
       }
       m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功 '+r.ok+' 筆，失敗 '+r.fail+' 筆（共 '+r.total+' 筆）</div>';
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步發生錯誤，請稍後再試。</div>'; });
+  };
+  window.rebuildGcal = function(){
+    if (!confirm('會先「刪光」繪新派單行事曆內所有事件，再重新同步一份乾淨的。\n用於修正重複／孤兒事件。確定執行？')) return;
+    var m = document.getElementById('gcal-msg');
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">清除並重建中，資料多時可能要一分鐘，請勿關閉頁面…</div>';
+    fetch('/api/gdrive/gcal/rebuild', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">重建失敗：'+r.error+'</div>'; return; }
+      var warn = r.duplicateCalendars > 1
+        ? '<br>⚠️ 偵測到 Google 裡有 '+r.duplicateCalendars+' 個「繪新派單」行事曆，請到 Google 行事曆手動刪掉多餘的那個。'
+        : '';
+      m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 重建完成：清掉舊事件 '+r.purged+' 筆，重新建立成功 '+r.ok+'／失敗 '+r.fail+'（共 '+r.total+'）'+warn+'</div>';
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">重建發生錯誤，請稍後再試。</div>'; });
   };
 })();
 </script>
