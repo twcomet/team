@@ -382,8 +382,13 @@ async function _runHardReset() {
   _job.phase = '刪除整個舊行事曆';
   if (oldId) {
     // DELETE 整個次要行事曆＝連同裡面全部事件一起消失，一次搞定
-    await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(oldId)}`,
+    const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(oldId)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+    // 刪不掉(非 404/410)就中止，不要默默往下建立新曆造成兩個並存
+    if (!r.ok && r.status !== 404 && r.status !== 410) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error('刪除舊行事曆失敗 HTTP ' + r.status + '：' + ((j.error && j.error.message) || '') + '（多半是 Google 速率限制，請等 3–5 分鐘再試）');
+    }
   }
   setS('gcal_dispatch_calendar_id', null);          // 清掉舊 id，_ensureCalendar 會建新的
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();
