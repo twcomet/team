@@ -16,23 +16,83 @@
 .pickbar { background:var(--primary-bg); border:1px solid #fbcfe8; border-radius:10px; padding:9px 13px; font-size:13px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
 .sec-title { font-size:13px; font-weight:700; color:var(--gray-700); margin:18px 0 8px; display:flex; align-items:center; gap:6px; }
 
-/* 品項清單：一項一行，點開編輯 */
-.items { border:1px solid var(--gray-200); border-radius:12px; overflow:hidden; }
-.irow { display:grid; grid-template-columns:26px 1fr 150px 128px 92px 118px 26px; gap:10px; align-items:center; padding:11px 12px; border-bottom:1px solid var(--gray-100); }
-.irow:last-child { border-bottom:none; }
-.irow.head { background:var(--space-900); color:#fff; font-size:12px; font-weight:600; padding:9px 12px; }
-.irow .caret { cursor:pointer; color:var(--gray-400); font-size:14px; user-select:none; text-align:center; }
-.irow .caret.open { color:var(--primary); transform:rotate(90deg); }
-.iname { font-weight:700; font-size:14px; }
-.ifilm { font-size:12px; color:var(--gray-500); margin-top:2px; }
-.mchip { display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:20px; }
+/* 品項卡片：一項一張卡，不擁擠 */
+.items { display:flex; flex-direction:column; gap:12px; }
+.icard { border:1px solid var(--gray-200); border-radius:14px; background:#fff; padding:14px 16px; transition:box-shadow .15s; }
+.icard:hover { box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.ic-top { display:flex; align-items:flex-start; gap:12px; }
+.ic-idx { width:24px; height:24px; border-radius:50%; background:var(--space-900); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+.ic-head { flex:1; min-width:0; }
+.iname { font-weight:800; font-size:16px; color:var(--gray-900); }
+.name-inp { font-weight:800; font-size:16px; color:var(--gray-900); border:1px solid transparent; border-radius:6px; padding:2px 5px; margin:-2px -5px; width:100%; background:transparent; }
+.name-inp:hover { border-color:var(--gray-200); }
+.name-inp:focus { border-color:var(--primary); background:#fff; outline:none; }
+.ifilm { font-size:12.5px; color:var(--gray-500); margin-top:3px; }
+.ifilm b { color:var(--gray-700); font-weight:700; }
+.mchip { display:inline-block; font-size:11px; font-weight:700; padding:1px 9px; border-radius:20px; margin-left:6px; }
 .m-cai { background:#e0edfb; color:#1763b6; } .m-unit { background:#f3e8ff; color:#7c3aed; }
-.thumb-sm { width:42px; height:30px; border-radius:5px; background:linear-gradient(135deg,#c8a97e,#8a6d4b); display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:#fff; }
-.calc-sum { font-size:12px; color:var(--gray-500); }
-.rowtot { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
-.rowpromo { text-align:right; }
-.rowpromo b { font-size:17px; font-weight:900; color:var(--primary-dark); } .rowpromo .lab { font-size:10px; color:var(--gray-400); display:block; }
-.delrow { color:#dc2626; cursor:pointer; font-weight:700; background:none; border:none; font-size:14px; }
+.ic-price { text-align:right; white-space:nowrap; flex-shrink:0; }
+.ic-orig { font-size:12px; color:var(--gray-400); }
+.ic-promo { font-size:19px; font-weight:900; color:var(--primary-dark); line-height:1.1; margin-top:2px; }
+.ic-promo .lab { display:block; font-size:10px; color:var(--gray-400); font-weight:600; text-decoration:none; }
+.delrow { color:var(--gray-300); cursor:pointer; font-weight:700; background:none; border:none; font-size:15px; margin-left:4px; }
+.delrow:hover { color:#dc2626; }
+/* 卡片主體：計價欄位（膜料小圖跟著型號；區域照＋備註在底部） */
+.ic-body { margin-top:12px; }
+.filmthumb { width:52px; height:40px; border-radius:8px; background:linear-gradient(135deg,#c8a97e,#8a6d4b); color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; align-self:flex-end; flex-shrink:0; cursor:pointer; }
+.mtile-sm { border-radius:9px; font-size:10px; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; flex-shrink:0; align-self:flex-end; }
+.mtile-sm span { font-size:22px; }
+.mtile-sm.film { width:98px; height:72px; background:linear-gradient(135deg,#c8a97e,#8a6d4b); color:#fff; }
+.mtile-sm.photo { width:120px; height:72px; background:var(--gray-50); border:2px dashed var(--gray-300); color:var(--gray-500); }
+/* 底部：區域照片 + 備註 */
+.ic-foot { display:flex; gap:14px; margin-top:13px; padding-top:13px; border-top:1px dashed var(--gray-200); align-items:stretch; }
+@media(max-width:640px){ .ic-foot { flex-direction:column; } }
+.mtile { border-radius:11px; font-size:11.5px; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.5; cursor:pointer; gap:6px; flex-shrink:0; }
+.mtile .big { font-size:32px; }
+.mtile.photo { width:160px; height:104px; background:var(--gray-50); border:2px dashed var(--gray-300); color:var(--gray-500); }
+@media(max-width:640px){ .mtile.photo { width:100%; } }
+.ic-foot .fld { flex:1; }
+.ic-foot textarea { width:100%; height:104px; border:1px solid var(--gray-200); background:var(--gray-50); border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.7; resize:vertical; font-family:inherit; color:var(--gray-600); }
+.ic-calc { min-width:0; }
+.seg-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.seg-row .cap { font-size:11px; color:var(--gray-400); font-weight:700; }
+.cfields { display:flex; gap:9px; flex-wrap:wrap; align-items:flex-end; }
+.cfields + .cfields { margin-top:11px; }
+.fld { display:flex; flex-direction:column; gap:3px; }
+.fld > label { font-size:10.5px; color:var(--gray-500); font-weight:700; white-space:nowrap; }
+.fld input, .fld select { border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; background:#fff; }
+.fld input[type=number] { text-align:right; }
+.fld.hl > label { color:#b45309; }
+.fld.hl input { border-color:#f59e0b; background:#fffbeb; font-weight:800; color:#92400e; }
+.fld .chip { border-radius:7px; padding:6px 11px; font-size:13px; font-weight:800; text-align:center; background:#eef2ff; color:#4338ca; }
+.fld .chip.sub { background:var(--primary-bg); color:var(--primary-dark); }
+.fld .cap { font-size:9px; color:var(--gray-400); text-align:center; }
+.eq { padding-bottom:7px; font-weight:800; color:var(--gray-300); font-size:14px; }
+.cgrp { border:1px solid var(--gray-200); border-radius:10px; padding:9px 13px 11px; margin-top:10px; width:fit-content; max-width:100%; }
+.prow { display:flex; gap:12px; flex-wrap:wrap; align-items:stretch; margin-top:11px; }
+.modebar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:13px 0 2px; padding:9px 13px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:10px; font-size:13px; font-weight:800; color:#7c3aed; }
+.prow .cgrp { margin-top:0; }
+.pricebox { margin-left:auto; border:2px solid #ff2d87; border-radius:12px; padding:11px 14px; background:#fff0f6; min-width:214px; align-self:stretch; display:flex; flex-direction:column; justify-content:center; gap:8px; }
+.pb-t { font-size:11px; font-weight:800; color:#ff2d87; text-align:center; }
+.pb-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.pb-row > span { font-size:11.5px; color:var(--gray-600); font-weight:700; white-space:nowrap; }
+.cai-in { width:70px; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; font-weight:800; text-align:right; color:#4338ca; background:#eef2ff; }
+.cgrp-t { font-size:11px; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.cgrp-works { background:#fffdf5; border-color:#fce4a6; }
+.cgrp-works .cgrp-t { color:#b45309; }
+.cgrp-cs { background:#fdf3f8; border-color:#f7cbe4; }
+.cgrp-cs .cgrp-t { color:var(--primary-dark); }
+.adopt-btn { border:1px solid var(--primary); color:var(--primary-dark); background:#fff; border-radius:7px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.adopt-btn:hover { background:var(--primary-bg); }
+.cs-price input { width:130px; border:1.5px solid var(--primary)!important; font-weight:800; font-size:14px!important; color:var(--primary-dark); }
+.price-in { width:108px; border:1.5px solid var(--primary); border-radius:8px; padding:7px 9px; font-size:15px; font-weight:800; text-align:right; color:var(--primary-dark); background:#fff; }
+.price-in.promo { border-color:#ff2d87; color:#ff2d87; background:#fff0f6; }
+.price-in:focus { outline:none; box-shadow:0 0 0 3px rgba(255,45,135,.15); }
+.pricebox .price-in { width:104px; font-size:14px; padding:6px 8px; }
+.disc-in { width:60px; border:1.5px solid #f59e0b; border-radius:8px; padding:6px 8px; font-size:14px; font-weight:800; text-align:right; color:#92400e; background:#fffbeb; }
+.disc-in:focus { outline:none; box-shadow:0 0 0 3px rgba(245,158,11,.18); }
+.ic-note textarea { width:100%; border:1px solid var(--gray-200); background:var(--gray-50); border-radius:8px; padding:6px 10px; font-size:12px; line-height:1.6; min-height:34px; height:34px; resize:vertical; font-family:inherit; color:var(--gray-600); margin-top:11px; }
+.ic-note textarea:focus { height:64px; outline:none; border-color:var(--primary); }
 
 /* 展開編輯面板 */
 .editpanel { grid-column:1/-1; background:var(--gray-50); border-radius:10px; padding:14px; margin-top:4px; display:grid; grid-template-columns:150px 1fr; gap:16px; }
@@ -60,16 +120,18 @@
 .cost-tbl td { padding:5px 6px; border-bottom:1px solid var(--gray-100); }
 
 /* 金額 + 行銷優惠 */
-.foot { display:flex; gap:14px; margin-top:14px; align-items:flex-start; flex-wrap:wrap; }
-.mkt-card { flex:1; min-width:260px; border:1.5px solid #c4b5fd; background:#f6f2ff; border-radius:12px; padding:14px; }
+.foot { display:flex; gap:14px; margin-top:14px; align-items:flex-start; flex-wrap:wrap; max-width:800px; }
+.mkt-card { border:1.5px solid #c4b5fd; background:#f6f2ff; border-radius:12px; padding:14px; }
 .mkt-card h4 { font-size:13px; font-weight:800; color:#6d28d9; margin-bottom:8px; }
 .fi { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 0; }
-.fi label { color:var(--gray-500); width:110px; flex-shrink:0; }
-.fi input,.fi select { flex:1; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; }
+.fi label { color:var(--gray-500); width:84px; flex-shrink:0; }
+.fi input,.fi select { flex:1; min-width:0; border:1px solid var(--gray-300); border-radius:7px; padding:6px 8px; font-size:13px; }
+.fi > span { flex-shrink:0; white-space:nowrap; }
 .amt-tbl { border:1px solid var(--gray-200); border-radius:12px; overflow:hidden; font-size:13px; min-width:360px; }
 .amt-tbl table { width:100%; border-collapse:collapse; }
 .amt-tbl th { background:#475569; color:#fff; padding:7px 10px; font-size:12px; text-align:right; } .amt-tbl th:first-child { text-align:left; }
 .amt-tbl td { padding:7px 10px; border-bottom:1px solid var(--gray-100); } .amt-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.amt-tbl tr.grp td { background:#f1f5f9; color:var(--gray-500); font-size:11px; font-weight:700; text-align:left; padding:5px 10px; }
 .amt-tbl tr.hl td { background:var(--primary-bg); font-weight:800; }
 .amt-tbl tr.final td { background:var(--space-900); color:#fff; font-weight:800; font-size:15px; } .amt-tbl tr.final td .mkt { color:#fde047; }
 
@@ -100,6 +162,24 @@
 .fold-h { padding:11px 14px; font-weight:700; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; background:var(--gray-50); }
 .fold-b { padding:0 14px; max-height:0; overflow:hidden; transition:max-height .2s; font-size:12px; color:var(--gray-600); line-height:1.8; } .fold.open .fold-b { max-height:360px; padding:12px 14px; }
 .sign-box { border:2px dashed var(--gray-300); border-radius:10px; height:96px; display:flex; align-items:center; justify-content:center; color:var(--gray-400); margin-top:8px; }
+
+/* 從估價單帶入 modal */
+.imp-mask { position:fixed; inset:0; background:rgba(15,10,20,.5); display:none; align-items:center; justify-content:center; z-index:99; padding:16px; }
+.imp-mask.on { display:flex; }
+.imp-box { background:#fff; border-radius:16px; width:100%; max-width:560px; max-height:86vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.imp-h { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid var(--gray-200); font-weight:800; font-size:16px; }
+.imp-h button { background:none; border:none; font-size:18px; color:var(--gray-400); cursor:pointer; }
+.imp-sub { padding:12px 18px 4px; font-size:12.5px; color:var(--gray-500); }
+.imp-list { padding:8px 18px; }
+.imp-item { display:flex; gap:11px; align-items:center; padding:11px 12px; border:1px solid var(--gray-200); border-radius:11px; margin-bottom:9px; cursor:pointer; }
+.imp-item.pick { border-color:var(--primary); background:var(--primary-bg); }
+.imp-item input { width:17px; height:17px; flex-shrink:0; }
+.imp-item .nm { font-weight:700; font-size:14px; }
+.imp-item .mt { font-size:12px; color:var(--gray-500); margin-top:2px; }
+.imp-item .pz { margin-left:auto; text-align:right; font-weight:800; color:var(--primary-dark); white-space:nowrap; }
+.imp-item .pz small { display:block; font-size:10px; color:var(--gray-400); font-weight:600; }
+.imp-f { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--gray-200); padding:13px 18px; display:flex; align-items:center; justify-content:space-between; }
+.imp-f label { font-size:13px; color:var(--gray-600); display:flex; align-items:center; gap:7px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -119,7 +199,7 @@
   </aside>
 
   <main class="main-content" style="padding:20px 24px;max-width:100%;overflow-x:hidden">
-    <div class="preview-flag">🔎 <b>新版報價單示意 v3</b>（清單＋點開編輯）。平常每項只一行；點「▸」展開改尺寸/照片/說明/計價方式。成本收在下方隱藏區。數字為假、<b>尚未接真系統</b>。</div>
+    <div class="preview-flag">🔎 <b>新版報價單示意 v10</b>。這版：計價方式三選一 <b>座計價／才數計價／材料販售</b>（第4項是材料販售示範）；<b>連工帶料總價、優惠價改成可直接打字覆蓋</b>（公式先幫算、但不鎖死、可手改）；材料販售隱藏工務施工區、成本＝材料進價×數量。<b>成本/毛利表保留</b>。數字為假、<b>尚未接真系統</b>。</div>
 
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
       <h1 style="font-size:21px;font-weight:800">HX2606-101 · 十三紅設計工作室</h1>
@@ -136,7 +216,8 @@
         <span class="spacer"></span>
         <span style="font-size:12px;color:var(--gray-500)">呈現版本</span>
         <select style="padding:6px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px"><option>設計師版</option><option>業主版（隱藏才數）</option></select>
-        <button class="btn btn-secondary btn-sm" onclick="alert('示意：列出此案初步估價品項，勾選帶入')">📥 從初步估價帶入</button>
+        <label style="font-size:12px;color:var(--gray-600);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap"><input type="checkbox" id="sizeChk" checked onchange="setShowSize(this.checked)"> 客戶版顯示尺寸/數量</label>
+        <button class="btn btn-secondary btn-sm" onclick="openImp()">📥 從估價單帶入</button>
         <button class="btn btn-primary btn-sm" onclick="toggleCust(true)">👁 客戶檢視</button>
       </div>
       <div class="pickbar">
@@ -146,48 +227,70 @@
       </div>
 
       <div class="sec-title">📋 報價品項</div>
-      <div class="items">
-        <div class="irow head"><div></div><div>貼覆項目</div><div>膜料 / 示意圖</div><div>計價</div><div style="text-align:right">總價</div><div style="text-align:right">優惠價</div><div></div></div>
-        <div id="rows"></div>
-      </div>
+      <div class="items" id="rows"></div>
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-secondary btn-sm" onclick="addRow()">＋ 新增品項</button>
         <button class="btn btn-secondary btn-sm" onclick="alert('示意：加自由文字列，如期貨運費/區段標題')">＋ 自由文字列</button>
       </div>
 
-      <!-- 內部成本：收合隱藏 -->
+      <!-- 內部成本 / 毛利：收合隱藏（機密） -->
       <div class="collapse" id="costBox">
         <div class="collapse-h" onclick="document.getElementById('costBox').classList.toggle('open')">
-          <span>🔒 內部成本試算（工務回報米數）· 客服平常不用看</span><span>展開 ▾</span></div>
+          <span>🔒 內部成本 / 毛利試算（工務回報米數）· 只給老闆＋會計</span><span>展開 ▾</span></div>
         <div class="collapse-b">
-          <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">此區只給內部算成本用，客戶版完全不會出現。真實成本/毛利在案件「機密分頁」（限老闆＋會計）。</div>
-          <table class="cost-tbl"><thead><tr><th>品項</th><th>膜料</th><th>工務回報米數</th></tr></thead><tbody id="costRows"></tbody></table>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <div style="font-size:12px;color:var(--gray-500)">客服平常不用看；客戶版完全不會出現。<b>工務回報米數</b>是成本基準，欄位須清楚。</div>
+            <label style="font-size:12px;color:var(--gray-600);font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap">每人天日薪
+              <input type="number" id="dayRate" value="2800" oninput="setDayRate(this.value)" style="width:88px;border:1px solid var(--gray-300);border-radius:7px;padding:5px 8px;font-size:13px;text-align:right"> 元</label>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="cost-tbl">
+            <thead><tr>
+              <th>品項</th><th>膜料</th>
+              <th style="background:#fef3c7;color:#92400e">工務回報米數</th>
+              <th>膜料成本/米</th><th>材料成本</th>
+              <th>人×天</th><th>人工成本</th>
+              <th>報價(未稅)</th><th>毛利</th><th>毛利率</th>
+            </tr></thead>
+            <tbody id="costRows"></tbody>
+            <tfoot><tr style="font-weight:800;background:#f8fafc">
+              <td colspan="4" style="text-align:right">合計</td>
+              <td id="ct_mat">—</td><td></td><td id="ct_labor">—</td>
+              <td id="ct_price">—</td><td id="ct_margin">—</td><td id="ct_pct">—</td>
+            </tr></tfoot>
+          </table>
+          </div>
         </div>
       </div>
 
-      <!-- 金額 + 行銷優惠 -->
+      <!-- 金額試算 -->
       <div class="sec-title">💵 金額試算</div>
       <div class="foot">
-        <div class="mkt-card">
-          <h4>🎁 行銷優惠（同意拍攝才享）</h4>
-          <div class="fi"><label>整單優惠折數</label><input type="number" id="disc" value="80" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">%</span></div>
-          <div class="fi"><label>行銷優惠方式</label>
-            <select id="mktMode" onchange="recalc()"><option value="amt">再折抵金額</option><option value="pct">全案折數</option></select></div>
-          <div class="fi"><label>行銷數值</label><input type="number" id="mktVal" value="7000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)" id="mktUnit">元</span></div>
-          <div class="fi"><label>專案優惠含稅</label><input type="number" id="proj" value="180000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">湊整(可空)</span></div>
-          <div class="fi"><label>場勘費折抵</label><input type="number" id="survey" value="1000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">元</span></div>
-          <div style="font-size:11px;color:var(--gray-500);margin-top:4px">＊行銷優惠需客戶簽「同意拍攝」才套用；客戶檢視有專屬簽署畫面。</div>
-        </div>
-        <div class="amt-tbl">
-          <table><thead><tr><th>金額明細</th><th>一般優惠</th><th>行銷優惠</th></tr></thead>
+        <div class="amt-tbl" style="flex:2;min-width:300px">
+          <table><thead><tr><th>金額明細</th><th>金額</th></tr></thead>
             <tbody>
-              <tr><td>連工帶料原價（未稅）</td><td class="num" id="a_sub">—</td><td class="num" id="b_sub">—</td></tr>
-              <tr class="hl"><td>優惠後（未稅）</td><td class="num" id="a_promo">—</td><td class="num" id="b_promo">—</td></tr>
-              <tr><td>稅金 5%</td><td class="num" id="a_tax">—</td><td class="num" id="b_tax">—</td></tr>
-              <tr><td>含稅總額</td><td class="num" id="a_wtax">—</td><td class="num" id="b_wtax">—</td></tr>
-              <tr><td>專案優惠 · 場勘費折抵</td><td class="num" id="a_adj">—</td><td class="num" id="b_adj">—</td></tr>
-              <tr class="final"><td>應付總金額</td><td class="num" id="a_pay">—</td><td class="num"><span class="mkt" id="b_pay">—</span></td></tr>
+              <tr><td>各項總價合計（未稅）</td><td class="num" id="b_sub">—</td></tr>
+              <tr class="hl"><td>各項優惠價合計（未稅）</td><td class="num" id="b_promo">—</td></tr>
+              <tr id="row_mkt"><td>🎁 行銷優惠折抵（同意拍照才享）</td><td class="num" id="b_mkt">—</td></tr>
+              <tr id="row_after" class="hl"><td>行銷優惠後（未稅）</td><td class="num" id="b_after">—</td></tr>
+              <tr><td>稅金 5%</td><td class="num" id="b_tax">—</td></tr>
+              <tr><td>開發票含稅總額</td><td class="num" id="b_wtax">—</td></tr>
+              <tr id="row_survey"><td>場勘費折抵</td><td class="num" id="b_survey">—</td></tr>
+              <tr class="final"><td>應付總金額（同意拍照）</td><td class="num"><span class="mkt" id="b_pay">—</span></td></tr>
             </tbody></table>
+        </div>
+        <div class="mkt-card" style="min-width:248px;flex:0 1 264px">
+          <h4>🎁 行銷優惠（客戶同意拍照才享）</h4>
+          <div class="fi"><label>優惠方式</label>
+            <select id="mktMode" onchange="recalc()">
+              <option value="pct">總優惠價再打折（折數）</option>
+              <option value="amt">總優惠價再折抵固定金額</option>
+            </select></div>
+          <div class="fi"><label>數值</label><input type="number" id="mktVal" value="" placeholder="空白＝不套用" oninput="recalc()"><span id="mktUnit" style="font-size:12px;color:var(--gray-400)">折(90=9折)</span></div>
+          <div style="font-size:11px;color:var(--gray-500);margin:2px 0 8px">＊折數填 90＝9折、85＝85折；折抵金額直接填如 3000。<b>空白＝不套行銷優惠</b>。需客戶在下方勾「同意拍照」才享。</div>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;margin:6px 0 4px;cursor:pointer">
+            <input type="checkbox" id="hasSurvey" onchange="recalc()"> 本案關聯可折抵場勘費</label>
+          <div class="fi" id="surveyRow" style="display:none"><label>場勘費折抵</label><input type="number" id="survey" value="1000" oninput="recalc()"><span style="font-size:12px;color:var(--gray-400)">元</span></div>
         </div>
       </div>
 
@@ -233,8 +336,8 @@
             <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
             <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影紀錄、並授權用於官網及社群媒體（不揭露個資），即可享行銷優惠價。</div>
             <div class="cmp">
-              <div class="col" id="col_normal"><div class="t">一般價</div><div class="v" id="ms_normal"></div></div>
-              <div class="col" id="col_mkt"><div class="t">行銷優惠價</div><div class="v" style="color:var(--primary-dark)" id="ms_mkt"></div></div>
+              <div class="col" id="col_normal"><div class="t">不同意拍照（優惠價）</div><div class="v" id="ms_normal"></div></div>
+              <div class="col" id="col_mkt"><div class="t">同意拍照（行銷優惠價）</div><div class="v" style="color:var(--primary-dark)" id="ms_mkt"></div></div>
             </div>
             <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照攝影紀錄並授權用於媒體（下方簽名即代表同意此條款）</label>
           </div>
@@ -253,106 +356,245 @@
   </main>
 </div>
 
+<!-- 從估價單帶入 modal -->
+<div class="imp-mask" id="impModal">
+  <div class="imp-box">
+    <div class="imp-h">📥 從估價單帶入品項 <button onclick="closeImp()">✕</button></div>
+    <div class="imp-sub">估價單 HX2606-101（估價計算機・2026/06/28）· 勾選要帶入報價單的品項，帶入後仍可再編輯。</div>
+    <div class="imp-list" id="impList"></div>
+    <div class="imp-f">
+      <label><input type="checkbox" id="impAll" onchange="impToggleAll(this.checked)"> 全選</label>
+      <button class="btn btn-primary btn-sm" onclick="doImport()">帶入所選 <span id="impCount"></span></button>
+    </div>
+  </div>
+</div>
+
 <script>
 let items = [
-  { name:'門口櫃 (1座)', film:'BODAQ BC903(立面) / BA095(平面)', mode:'unit', unitEach:46000, qty:1, unitCai:180, cusMeters:19, srvMeters:19, width:122, open:false,
-    note:'貼附紅框正面可視面；不含補土打磨；牆面超過120cm需搭接；不含矽利康收邊。' },
-  { name:'客廳主牆', film:'BODAQ BM038 木紋', mode:'cai', unitEach:0, qty:1, unitCai:180, cusMeters:19, srvMeters:18.5, width:122, open:false,
-    note:'全平面牆貼膜，才數制計價。' },
-  { name:'房間門（含框·雙面）', film:'BODAQ BC903', mode:'unit', unitEach:15000, qty:2, unitCai:0, cusMeters:0, srvMeters:0, width:122, open:false,
-    note:'公規品件數制，房間門 15,000 × 2 座。' },
+  { name:'門口櫃 (1座)', mode:'unit', film:'BODAQ · BC903(立面)／BA095(平面) · 寬122cm', unitEach:46000, qty:1, unitCai:180, srvMeters:19, width:122, sizeText:'', disc:80,
+    filmCostPerM:520, workers:2, days:1,
+    note:'1.貼附紅框正面可視面範圍，隱藏門貼雙面。\n2.不含補土打磨，舊家具難免有凹凸傷痕。\n3.牆面超過120公分，膜料需搭接。\n4.貼淺色膜料貼附後難免仍有痕跡。\n5.不含矽利康收邊。' },
+  { name:'廁所房系統櫃 (1座)', mode:'unit', film:'BODAQ · BC903(立面)／BA095(平面) · 寬122cm', unitEach:34000, qty:1, unitCai:180, srvMeters:14, width:122, sizeText:'', disc:80,
+    filmCostPerM:520, workers:1, days:1,
+    note:'1.貼附門片正面，門片背面與櫃體內不貼；桌面另選料。\n2.不含補土打磨。\n3.牆面超過120公分需搭接。' },
+  { name:'電視櫃 (1座)', mode:'cai', film:'BODAQ · BC903(立面)／BA095(平面) · 寬122cm', unitEach:35000, qty:1, unitCai:180, srvMeters:14.5, width:122, sizeText:'', disc:80,
+    filmCostPerM:520, workers:1, days:1,
+    note:'1.貼附門片正面，門片背面與櫃體內不貼。\n2.不含補土打磨。\n6.玻璃層板間隙太小，屋主將重作層板。' },
+  { name:'LX WH006 膜料（一支）', mode:'material', film:'LX · WH006【一支】 · 膜料寬度122公分', unitEach:1300, qty:50, unitCai:0, srvMeters:0, width:122, sizeText:'', disc:65,
+    filmCostPerM:820, workers:0, days:0,
+    note:'單買膜料，整支出貨，不含施工。' },
+  { name:'韓國期貨空運運費', mode:'material', film:'每款6,000元／支（老客戶訂整支免收、訂散米優惠4,500/支）', unitEach:6000, qty:2, unitCai:0, srvMeters:0, width:0, sizeText:'', disc:37.5,
+    filmCostPerM:0, workers:0, days:0,
+    note:'訂購運輸大約 4-10 個工作天（不含假日）。' },
 ];
+let dayRate = 2800;   // 每人天日薪（可改）
+let showSize = true;  // 客戶版是否顯示尺寸/數量（整單開關）
 const money = n => 'NT$ ' + Math.round(n).toLocaleString();
-const discRate = () => (+document.getElementById('disc').value || 100) / 100;
-const caiOf = it => it.cusMeters * 100 * it.width / 900;
-const totOf = it => it.mode==='cai' ? Math.round(caiOf(it)*it.unitCai) : it.unitEach*it.qty;
-const promoOf = it => Math.round(totOf(it) * discRate());
+const rawCai = it => (it.srvMeters||0) * 100 * (it.width||0) / 900;   // 才數公式 = 米 × 膜寬 × 100 ÷ 900
+const caiOf = it => it.cai!=null ? it.cai : rawCai(it);              // 才數（可手動覆蓋 it.cai）
+const caiCalcAmt = it => Math.round(caiOf(it) * (it.unitCai||0));   // 才數計算總價 = 才數 × 單價/才
+// 公式算出的建議總價：座計價 = 單價 × 數量；才數計價 = 才數 × 單價/才；材料販售 = 材料單價 × 數量
+const baseAmt = it => it.mode==='cai' ? caiCalcAmt(it) : (it.unitEach||0) * (it.qty||0);
+// 連工帶料總價（客戶原價・未稅）：以 it.total 為主（客服可手動覆蓋），未設定則用公式
+const totOf = it => it.total!=null ? it.total : baseAmt(it);
+const discOf = it => it.disc!=null ? it.disc : 80;                  // 每項折扣（幾折，8折=80），可手動 key-in
+// 連工帶料優惠價：以 it.promo 為主（客服可手動覆蓋），未設定則 = 總價 × 該項折扣
+const promoOf = it => it.promo!=null ? it.promo : Math.round(totOf(it) * discOf(it)/100);
 const sumText = it => it.mode==='cai'
   ? `才數制 · ${it.cusMeters}米→${caiOf(it).toFixed(1)}才 ×${it.unitCai}`
   : `件數制 · ${money(it.unitEach)} ×${it.qty}`;
+// —— 內部成本 / 毛利（機密，只給老闆＋會計） ——
+const matCostOf   = it => Math.round((it.filmCostPerM||0) * (it.mode==='material' ? (it.qty||0) : (it.srvMeters||0)));  // 材料成本：材料販售=進價×數量；其他=膜料單價/米×工務回報米數
+const laborCostOf = it => it.mode==='material' ? 0 : Math.round((it.workers||0) * (it.days||0) * dayRate);            // 人工成本 = 人數 × 天數 × 每人天日薪（材料販售無施工）
+const costOf      = it => matCostOf(it) + laborCostOf(it);                            // 真實成本
+const marginOf    = it => totOf(it) - costOf(it);                                     // 毛利 = 報價(未稅) − 真實成本
+const marginPct   = it => { const t=totOf(it); return t>0 ? Math.round(marginOf(it)/t*100) : 0; };
 
 function renderRows(){
   document.getElementById('rows').innerHTML = items.map((it,i)=>{
-    const head = `
-    <div class="irow">
-      <div class="caret ${it.open?'open':''}" onclick="toggle(${i})">▸</div>
-      <div><div class="iname">${it.name}</div><div class="ifilm">${it.film}</div></div>
-      <div><span class="thumb-sm">🎞️</span> <span class="mchip ${it.mode==='cai'?'m-cai':'m-unit'}">${it.mode==='cai'?'才數制':'件數制'}</span></div>
-      <div class="calc-sum" id="sum${i}">${sumText(it)}</div>
-      <div class="rowtot" id="tot${i}">${money(totOf(it))}</div>
-      <div class="rowpromo"><span class="lab">優惠價</span><b id="pro${i}">${money(promoOf(it))}</b></div>
-      <div><button class="delrow" onclick="delRow(${i})">✕</button></div>
-    </div>`;
-    if(!it.open) return head;
-    const cai = it.mode==='cai';
-    const panel = `
-    <div class="editpanel">
-      <div class="ep-media">
-        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">膜料示意圖（膜料庫自動帶）</label><div class="thumb-lg film">🎞️ ${it.film}</div></div>
-        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">貼覆區域照（點擊上傳現場照）</label><div class="thumb-lg area" onclick="alert('示意：上傳現場貼覆區域照，可多張')">＋ 上傳現場照</div></div>
-      </div>
-      <div class="ep-fields">
-        <div class="fr">
-          <div class="f" style="flex:2"><label>貼覆項目名稱</label><input value="${it.name}" oninput="setF(${i},'name',this.value)"></div>
-          <div class="f" style="flex:2"><label>膜料型號（可多款：立面/平面）</label>
-            <select onchange="setF(${i},'film',this.value)"><option ${it.film.includes('BC903')?'selected':''}>${it.film}</option><option>BODAQ BM038 木紋</option><option>PAROI MX001 霧白</option></select></div>
+    const isCai = it.mode==='cai', isMat = it.mode==='material';
+    const totLabel = isMat ? '總價' : '連工帶料總價';
+    const promoLabel = isMat ? '總優惠價' : '連工帶料優惠價';
+    const spec = `
+        <div class="cfields" style="align-items:flex-end">
+          <div class="fld"><label>${isMat?'單買膜料資訊（品牌／型號／規格）':'膜料資訊（品牌／型號）'}</label><input value="${it.film}" onchange="setF(${i},'film',this.value)" style="width:${isMat?300:250}px"></div>
+          <div class="mtile-sm film" title="選好型號後，膜料庫自動帶出示意圖" onclick="alert('示意：選好型號後，膜料庫會自動帶出示意圖，也可人工上傳覆蓋')"><span>🎞️</span>膜料示意圖</div>
+          ${isMat?'':`<div class="fld"><label>尺寸（客戶版・可空）</label><input value="${it.sizeText||''}" oninput="setF(${i},'sizeText',this.value,true)" style="width:116px"></div>
+          <div class="mtile-sm photo" onclick="alert('示意：上傳現場貼覆區域照，可多張')"><span>📷</span>貼覆區域</div>`}
+        </div>`;
+    const modeToggle = `<span class="seg" style="margin-left:6px">
+            <span class="${it.mode==='unit'?'on':''}" onclick="setMode(${i},'unit')">座計價</span>
+            <span class="${isCai?'on':''}" onclick="setMode(${i},'cai')">才數計價</span>
+            <span class="${isMat?'on':''}" onclick="setMode(${i},'material')">材料販售</span>
+          </span>`;
+    const csFields = isCai ? `
+            <div class="fld"><label>單價/才</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)" style="width:78px"></div>
+            <span class="eq">×</span>
+            <div class="fld"><label>才數（工務帶入・可改）</label><input class="cai-in" id="caiv2${i}" type="number" step="0.01" value="${caiOf(it).toFixed(2)}" oninput="setCai(${i},this.value)"></div>`
+      : isMat ? `
+            <div class="fld"><label>每米單價</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:96px"></div>
+            <span class="eq">×</span>
+            <div class="fld"><label>訂購米數/數量</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:92px"></div>`
+      : `
+            <div class="fld"><label>連工帶料單價</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:104px"></div>
+            <span class="eq">×</span>
+            <div class="fld"><label>數量</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:52px"></div>`;
+    const worksZone = isMat ? '' : `
+        <div class="cgrp cgrp-works">
+          <div class="cgrp-t">🔧 工務回報（純參考・可手改）</div>
+          <div class="cfields">
+            <div class="fld hl"><label>工務回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:74px"></div>
+            <span class="eq">×</span>
+            <div class="fld"><label>膜寬</label><input type="number" value="${it.width}" oninput="setNum(${i},'width',this.value)" style="width:56px"></div>
+            <span class="eq">=</span>
+            <div class="fld"><label>才數（可改）</label><input class="cai-in" id="caiv${i}" type="number" step="0.01" value="${caiOf(it).toFixed(2)}" oninput="setCai(${i},this.value)"></div>
+            ${isCai ? '' : `
+            <span class="eq">×</span>
+            <div class="fld"><label>單價/才</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)" style="width:66px"></div>
+            <span class="eq">=</span>
+            <div class="fld"><div class="chip" id="caic${i}" style="background:#fef3c7;color:#92400e">${money(caiCalcAmt(it))}</div><div class="cap">才數計算總價（參考）</div></div>`}
+          </div>
+        </div>`;
+    return `
+    <div class="icard">
+      <div class="ic-top">
+        <div class="ic-idx">${i+1}</div>
+        <div class="ic-head">
+          <input class="name-inp" value="${it.name}" oninput="setF(${i},'name',this.value,true)" placeholder="${isMat?'材料品項名稱':'貼覆項目名稱'}">
         </div>
-        <div class="fr">
-          <div class="f" style="flex:0 0 auto"><label>計價方式</label>
-            <div class="seg"><span class="${cai?'on':''}" onclick="setMode(${i},'cai')">才數制</span><span class="${!cai?'on':''}" onclick="setMode(${i},'unit')">件數制</span></div></div>
-          ${cai ? `
-            <div class="f"><label>報價米數（客服取整）</label><input type="number" value="${it.cusMeters}" oninput="setNum(${i},'cusMeters',this.value)"></div>
-            <div class="f"><label>膜寬 cm</label><input type="number" value="${it.width}" oninput="setNum(${i},'width',this.value)"></div>
-            <div class="f"><label>才數（自動）</label><div class="ro" id="caiv${i}">${caiOf(it).toFixed(2)} 才</div></div>
-            <div class="f"><label>單價 / 才</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)"></div>
-          ` : `
-            <div class="f"><label>單價 / 座·件（連工帶料）</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)"></div>
-            <div class="f"><label>數量（座/件）</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)"></div>
-          `}
+        <button class="delrow" onclick="delRow(${i})">✕</button>
+      </div>
+      <div class="ic-body">
+        <div class="prow" style="align-items:flex-start">
+          <div style="flex:1;min-width:300px">${spec}</div>
+          ${worksZone}
         </div>
-        <div><label style="font-size:11px;color:var(--gray-500);font-weight:600">項目說明 / 貼膜須知（套模板・可編輯）</label><textarea oninput="setF(${i},'note',this.value,true)">${it.note}</textarea></div>
+        <div class="modebar">🧮 計價方式（先選好）：${modeToggle}</div>
+        <div class="prow">
+          <div class="cgrp cgrp-cs" style="flex:1;min-width:300px">
+            <div class="cgrp-t">🎧 客戶報價（客服填）</div>
+            <div class="cfields" style="align-items:flex-end">${csFields}</div>
+          </div>
+          <div class="pricebox">
+            <div class="pb-t">🎯 給客戶報價（可手改）</div>
+            <div class="pb-row"><span>${totLabel}</span><input class="price-in" id="tin${i}" type="number" value="${totOf(it)}" oninput="setTotal(${i},this.value)"></div>
+            <div class="pb-row"><span>折扣 %</span><input class="disc-in" id="din${i}" type="number" step="0.5" value="${discOf(it)}" oninput="setDisc(${i},this.value)"></div>
+            <div class="pb-row"><span>${promoLabel}</span><input class="price-in promo" id="pin${i}" type="number" value="${promoOf(it)}" oninput="setPromo(${i},this.value)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="ic-foot" style="border-top:1px dashed var(--gray-200);padding-top:12px">
+        <div class="fld" style="flex:1"><label>備註 / 貼覆項目說明（套模板・可編輯）</label><textarea oninput="setF(${i},'note',this.value,true)" placeholder="備註…">${it.note}</textarea></div>
       </div>
     </div>`;
-    return head + panel;
   }).join('');
   renderCost();
 }
+const ci = 'width:62px;border:1px solid var(--gray-300);border-radius:6px;padding:4px 6px;font-size:12px;text-align:right';
 function renderCost(){
-  document.getElementById('costRows').innerHTML = items.map(it=>`<tr><td>${it.name}</td><td>${it.film}</td><td><b>${it.srvMeters||0}</b> 米</td></tr>`).join('');
+  document.getElementById('costRows').innerHTML = items.map((it,i)=>`
+    <tr>
+      <td style="font-weight:700">${it.name}</td>
+      <td style="color:var(--gray-500)">${it.film}</td>
+      <td style="background:#fffbeb;font-weight:800;color:#92400e;text-align:right">${it.srvMeters||0} 米</td>
+      <td><input type="number" value="${it.filmCostPerM||0}" oninput="setCost(${i},'filmCostPerM',this.value)" style="${ci}"></td>
+      <td style="text-align:right;font-weight:600" id="cm${i}">${money(matCostOf(it))}</td>
+      <td><input type="number" value="${it.workers||0}" oninput="setCost(${i},'workers',this.value)" style="${ci};width:40px">×<input type="number" value="${it.days||0}" oninput="setCost(${i},'days',this.value)" style="${ci};width:40px"></td>
+      <td style="text-align:right" id="cl${i}">${money(laborCostOf(it))}</td>
+      <td style="text-align:right;color:var(--gray-500)" id="cp${i}">${money(totOf(it))}</td>
+      <td style="text-align:right;font-weight:800;color:${marginOf(it)>=0?'#059669':'#dc2626'}" id="cg${i}">${money(marginOf(it))}</td>
+      <td style="text-align:right;font-weight:700;color:${marginOf(it)>=0?'#059669':'#dc2626'}" id="cr${i}">${marginPct(it)}%</td>
+    </tr>`).join('');
+  renderCostTotals();
 }
+function renderCostTotals(){
+  const mat=items.reduce((s,it)=>s+matCostOf(it),0), labor=items.reduce((s,it)=>s+laborCostOf(it),0);
+  const price=items.reduce((s,it)=>s+totOf(it),0), margin=price-mat-labor;
+  const g=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  g('ct_mat',money(mat)); g('ct_labor',money(labor)); g('ct_price',money(price));
+  g('ct_margin',money(margin)); g('ct_pct',(price>0?Math.round(margin/price*100):0)+'%');
+}
+function setCost(i,k,v){ items[i][k]=+v||0;
+  const it=items[i];
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('cm'+i,money(matCostOf(it))); set('cl'+i,money(laborCostOf(it)));
+  set('cp'+i,money(totOf(it)));
+  set('cg'+i,money(marginOf(it))); set('cr'+i,marginPct(it)+'%');
+  const cg=document.getElementById('cg'+i), cr=document.getElementById('cr'+i);
+  const col=marginOf(it)>=0?'#059669':'#dc2626'; if(cg)cg.style.color=col; if(cr)cr.style.color=col;
+  // 工務回報米數同步影響才數制報價
+  if(k==='srvMeters' && it.mode!=='cai'){}
+  renderCostTotals();
+}
+function setDayRate(v){ dayRate=+v||0; renderCost(); }
 function toggle(i){ items[i].open=!items[i].open; renderRows(); }
 function setF(i,k,v,noRender){ items[i][k]=v; if(noRender){ return; } renderRows(); }
 function setMode(i,m){ items[i].mode=m; renderRows(); recalc(); }
+const _txt=(id,val)=>{const e=document.getElementById(id); if(e) e.textContent=val;};
+const _inp=(id,val)=>{const e=document.getElementById(id); if(e) e.value=val;};
 function setNum(i,k,v){ items[i][k]=+v||0; const it=items[i];
-  const cv=document.getElementById('caiv'+i); if(cv) cv.textContent=caiOf(it).toFixed(2)+' 才';
-  document.getElementById('sum'+i).textContent=sumText(it);
-  document.getElementById('tot'+i).textContent=money(totOf(it));
-  document.getElementById('pro'+i).textContent=money(promoOf(it));
+  if(k==='srvMeters'||k==='width') it.cai = Math.round(rawCai(it)*100)/100;  // 米數/膜寬改 → 才數重算
+  it.total = baseAmt(it);                          // 改單價/數量/才數 → 總價回到公式值
+  it.promo = null;                                 // 優惠價回到 總價×該項折扣
+  _inp('caiv2'+i, caiOf(it).toFixed(2));
+  _inp('caiv'+i, caiOf(it).toFixed(2));
+  _txt('caic'+i, money(caiCalcAmt(it)));
+  _inp('tin'+i, it.total); _inp('pin'+i, promoOf(it)); _inp('din'+i, discOf(it));
   renderCost(); recalc();
 }
+function setCai(i,v){ const it=items[i]; it.cai=+v||0;      // 才數可手動覆蓋（工務框/客服框皆可改，雙向同步）
+  it.total = baseAmt(it); it.promo = null;
+  const val = caiOf(it).toFixed(2);
+  ['caiv'+i,'caiv2'+i].forEach(id=>{ const e=document.getElementById(id); if(e && e!==document.activeElement) e.value=val; });  // 同步另一個才數框（不覆蓋正在打字的）
+  _txt('caic'+i, money(caiCalcAmt(it)));
+  _inp('tin'+i, it.total); _inp('pin'+i, promoOf(it));
+  renderCost(); recalc();
+}
+function setTotal(i,v){ const it=items[i]; it.total=+v||0; it.promo=null;    // 改總價 → 優惠回到 總價×該項折扣
+  _inp('pin'+i, promoOf(it));
+  renderCost(); recalc();
+}
+function setDisc(i,v){ const it=items[i]; it.disc=+v||0; it.promo=null;      // 改折扣 → 優惠 = 總價×折扣
+  _inp('pin'+i, promoOf(it));
+  recalc();
+}
+function setPromo(i,v){ const it=items[i]; it.promo=+v||0;                   // 直接改優惠 → 反推折扣顯示
+  const t=totOf(it); it.disc = t>0 ? Math.round(it.promo/t*1000)/10 : 0;
+  _inp('din'+i, it.disc);
+  recalc();
+}
 function delRow(i){ items.splice(i,1); renderRows(); recalc(); }
-function addRow(){ items.push({name:'新增品項',film:'BODAQ BC903',mode:'unit',unitEach:20000,qty:1,unitCai:180,cusMeters:8,srvMeters:8,width:122,open:true,note:'（展開填寫說明）'}); renderRows(); recalc(); }
+function addRow(){ items.push({name:'新增品項',film:'BODAQ · 型號待填 · 寬122cm',unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',filmCostPerM:500,workers:1,days:1,note:'（填寫貼覆項目說明）'}); renderRows(); recalc(); }
 function tgl(h){ const t=h.nextElementSibling; t.style.display=t.style.display==='none'?'block':'none'; }
 
 function recalc(){
-  const sub = items.reduce((s,it)=>s+totOf(it),0);
-  const promo = items.reduce((s,it)=>s+promoOf(it),0);
-  const mode = document.getElementById('mktMode').value;
-  document.getElementById('mktUnit').textContent = mode==='amt' ? '元' : '%';
+  const sub = items.reduce((s,it)=>s+totOf(it),0);        // 各項總價合計
+  const promo = items.reduce((s,it)=>s+promoOf(it),0);    // 各項優惠價合計（逐項折扣後）
+  const mode = document.getElementById('mktMode').value;  // 行銷優惠：pct 再打折 / amt 再折抵金額
+  document.getElementById('mktUnit').textContent = mode==='pct' ? '折(90=9折)' : '元';
   const mv = +document.getElementById('mktVal').value || 0;
-  const promoM = mode==='amt' ? Math.max(0,promo-mv) : Math.round(promo*(mv/100||1));
-  const proj = +document.getElementById('proj').value || 0;
-  const survey = +document.getElementById('survey').value || 0;
-  function calc(p){ const tax=Math.round(p*0.05), wtax=p+tax, base=proj>0?proj:wtax, pay=base-survey; return {tax,wtax,pay}; }
-  const A=calc(promo), B=calc(promoM);
-  const g=(id,v)=>document.getElementById(id).textContent=v;
-  g('a_sub',money(sub)); g('b_sub',money(sub));
-  g('a_promo',money(promo)); g('b_promo',money(promoM));
-  g('a_tax',money(A.tax)); g('b_tax',money(B.tax));
-  g('a_wtax',money(A.wtax)); g('b_wtax',money(B.wtax));
-  g('a_adj','− '+money(A.wtax-A.pay)); g('b_adj','− '+money(B.wtax-B.pay));
-  g('a_pay',money(A.pay)); g('b_pay',money(B.pay));
-  window._cust={ sub, promo, promoM, A, B };
+  const afterMkt = mv>0 ? (mode==='pct' ? Math.round(promo*mv/100) : Math.max(0, promo-mv)) : promo;
+  const mktCut = promo - afterMkt;                         // 行銷折抵金額（同意拍照才享）
+  const hasSurvey = document.getElementById('hasSurvey')?.checked;
+  document.getElementById('surveyRow').style.display = hasSurvey ? 'flex' : 'none';
+  const survey = hasSurvey ? (+document.getElementById('survey').value || 0) : 0;
+  const tax = Math.round(afterMkt*0.05), wtax = afterMkt+tax;   // 以行銷優惠後計稅
+  const pay = wtax - survey;                                    // 同意拍照應付
+  const g=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  g('b_sub',money(sub));
+  g('b_promo',money(promo));
+  document.getElementById('row_mkt').style.display = mv>0 ? 'table-row' : 'none';
+  document.getElementById('row_after').style.display = mv>0 ? 'table-row' : 'none';
+  g('b_mkt','− '+money(mktCut));
+  g('b_after',money(afterMkt));
+  g('b_tax',money(tax));
+  g('b_wtax',money(wtax));
+  document.getElementById('row_survey').style.display = hasSurvey ? 'table-row' : 'none';
+  g('b_survey', '− '+money(survey));
+  g('b_pay',money(pay));
+  const origPay = Math.round(sub*1.05) - survey;           // 原價含稅－場勘（僅供參考）
+  const promoPay = Math.round(promo*1.05) - survey;        // 不同意拍照＝優惠價含稅－場勘（享逐項折扣、不享行銷優惠）
+  window._cust={ sub, promo, afterMkt, mktCut, tax, wtax, pay, origPay, promoPay };
   renderCust(document.getElementById('mktChk')?.checked);
 }
 function renderCust(useMkt){
@@ -360,19 +602,52 @@ function renderCust(useMkt){
   document.getElementById('custItems').innerHTML = items.map(it=>`
     <div class="citem"><div class="ph">🎞️膜料</div><div class="ph">📷區域</div>
       <div style="flex:1"><div style="font-weight:700">${it.name}</div><div style="font-size:12px;color:var(--gray-500)">${it.film}</div>
+        ${showSize?`<div style="font-size:11px;color:var(--gray-500);margin-top:3px">尺寸 ${it.sizeText||'—'}　·　數量 ${it.qty||1}</div>`:''}
         <div style="font-size:11px;color:var(--gray-400);margin-top:3px">${it.note}</div></div>
       <div class="pr"><div class="o">${money(totOf(it))}</div><div class="p">${money(promoOf(it))}</div></div></div>`).join('');
-  const promo=useMkt?c.promoM:c.promo, r=useMkt?c.B:c.A;
+  const agree = !!useMkt;                              // 是否同意拍照
+  const promoShown = agree ? c.afterMkt : c.promo;     // 同意=行銷優惠價；不同意=優惠價（逐項折扣一律享）
+  const tax = agree ? c.tax : Math.round(c.promo*0.05);
+  const pay = agree ? c.pay : c.promoPay;
   document.getElementById('cv_sub').textContent=money(c.sub);
-  document.getElementById('cv_promo').textContent=money(promo);
-  document.getElementById('cv_tax').textContent=money(r.tax);
-  document.getElementById('cv_pay').textContent=money(r.pay);
-  document.getElementById('ms_normal').textContent=money(c.A.pay);
-  document.getElementById('ms_mkt').textContent=money(c.B.pay);
-  document.getElementById('col_normal').classList.toggle('on',!useMkt);
-  document.getElementById('col_mkt').classList.toggle('on',!!useMkt);
+  document.getElementById('cv_promo').textContent=money(promoShown);
+  document.getElementById('cv_tax').textContent=money(tax);
+  document.getElementById('cv_pay').textContent=money(pay);
+  document.getElementById('ms_normal').textContent=money(c.promoPay);  // 不同意拍照（優惠價）
+  document.getElementById('ms_mkt').textContent=money(c.pay);          // 同意拍照（行銷優惠價）
+  document.getElementById('col_normal').classList.toggle('on',!agree);
+  document.getElementById('col_mkt').classList.toggle('on',agree);
 }
 function toggleMkt(on){ renderCust(on); }
+function setShowSize(on){ showSize=on; renderCust(document.getElementById('mktChk')?.checked); }
+
+// —— 從估價單帶入（示意）——
+const estItems = [
+  {name:'玄關天花', film:'BODAQ · BM038 木紋 · 寬122cm', srvMeters:12, width:122, unitCai:180, unitEach:29000, qty:1, filmCostPerM:480, workers:1, days:1, sizeText:'', note:'天花平面貼膜。'},
+  {name:'中島檯面', film:'PAROI · MX001 霧白 · 寬122cm', srvMeters:4, width:122, unitCai:180, unitEach:12000, qty:1, filmCostPerM:520, workers:1, days:1, sizeText:'', note:'檯面連工帶料。'},
+  {name:'電視主牆', film:'BODAQ · BC903 · 寬122cm', srvMeters:15, width:122, unitCai:180, unitEach:36000, qty:1, filmCostPerM:500, workers:2, days:1, sizeText:'', note:'主牆貼膜。'},
+];
+let impPick = new Set();
+const estTot = it => (it.unitEach||0)*(it.qty||0);
+function openImp(){ impPick=new Set(); document.getElementById('impModal').classList.add('on'); renderImp(); }
+function closeImp(){ document.getElementById('impModal').classList.remove('on'); }
+function renderImp(){
+  document.getElementById('impList').innerHTML = estItems.map((it,i)=>`
+    <div class="imp-item ${impPick.has(i)?'pick':''}" onclick="impPickToggle(${i})">
+      <input type="checkbox" ${impPick.has(i)?'checked':''} onclick="event.stopPropagation();impPickToggle(${i})">
+      <div><div class="nm">${it.name}</div><div class="mt">${it.film}　·　連工帶料 ${money(it.unitEach)} ×${it.qty}</div></div>
+      <div class="pz">${money(estTot(it))}<small>估價金額</small></div>
+    </div>`).join('');
+  document.getElementById('impAll').checked = impPick.size===estItems.length;
+  document.getElementById('impCount').textContent = impPick.size?`(${impPick.size})`:'';
+}
+function impPickToggle(i){ impPick.has(i)?impPick.delete(i):impPick.add(i); renderImp(); }
+function impToggleAll(on){ impPick = on ? new Set(estItems.map((_,i)=>i)) : new Set(); renderImp(); }
+function doImport(){
+  if(!impPick.size){ alert('請先勾選要帶入的品項'); return; }
+  [...impPick].sort((a,b)=>a-b).forEach(i=>items.push({...estItems[i], open:false}));
+  closeImp(); renderRows(); recalc();
+}
 function toggleCust(on){ document.querySelectorAll('.editor-view').forEach(e=>e.classList.toggle('hide',on)); document.querySelector('.cust-view').classList.toggle('on',on); window.scrollTo(0,0); }
 renderRows(); recalc();
 </script>
