@@ -100,7 +100,7 @@
         <span style="color:#7c3aed">■</span> 場勘
       </div>
       <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#6b7280;flex-wrap:wrap">
-        <span style="background:#e5e7eb;color:#6b7280;border-radius:3px;padding:1px 6px">未指派</span>
+        <span style="background:#e5e7eb;color:#6b7280;border-radius:3px;padding:1px 6px">無小組長</span>
         <span style="background:#fee2e2;color:#b91c1c;border-radius:3px;padding:1px 6px">紹銘</span>
         <span style="background:#d1fae5;color:#065f46;border-radius:3px;padding:1px 6px">傳恩</span>
         <span style="background:#ffedd5;color:#c2410c;border-radius:3px;padding:1px 6px">昇鴻</span>
@@ -109,8 +109,6 @@
         <span style="background:#fce7f3;color:#be185d;border-radius:3px;padding:1px 6px">洪義</span>
         <span style="background:#fae8ff;color:#a21caf;border-radius:3px;padding:1px 6px">維宏</span>
         <span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 6px">恰吉</span>
-        <span style="background:#fef9c3;color:#92400e;border-radius:3px;padding:1px 6px">8人以上</span>
-        <span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 6px">其他人員</span>
       </div>
 
       <!-- 待排工案件 -->
@@ -290,7 +288,6 @@ async function loadCalendar() {
 
 function getWorkerKey(c) {
   const names = c.installer_name || '';
-  if (!names) return 'none';
   if (names.includes('紹銘')) return 'shaoming';
   if (names.includes('傳恩')) return 'chuanen';
   if (names.includes('昇鴻')) return 'shenghong';
@@ -299,11 +296,10 @@ function getWorkerKey(c) {
   if (names.includes('洪義')) return 'hongyi';    // 王洪義
   if (names.includes('維宏')) return 'weihong';   // 黃維宏
   if (names.includes('恰吉')) return 'chaji';     // 恰吉
-  if ((c.worker_count || 0) >= 8) return 'large';
-  return 'other';
+  return 'nolead';   // 沒有小組長 → 固定一個顏色
 }
 const WORKER_PILL = {
-  none:      'background:#e5e7eb;color:#6b7280',
+  nolead:    'background:#e5e7eb;color:#6b7280',
   shaoming:  'background:#fee2e2;color:#b91c1c',
   chuanen:   'background:#d1fae5;color:#065f46',
   shenghong: 'background:#ffedd5;color:#c2410c',
@@ -312,11 +308,9 @@ const WORKER_PILL = {
   hongyi:    'background:#fce7f3;color:#be185d',
   weihong:   'background:#fae8ff;color:#a21caf',
   chaji:     'background:#ede9fe;color:#6d28d9',
-  large:     'background:#fef9c3;color:#92400e',
-  other:     'background:#dbeafe;color:#1e40af',
 };
 const WORKER_CARD = {
-  none:      'background:#f9fafb;border-color:#e5e7eb',
+  nolead:    'background:#f9fafb;border-color:#e5e7eb',
   shaoming:  'background:#fff5f5;border-color:#fca5a5',
   chuanen:   'background:#f0fdf4;border-color:#6ee7b7',
   shenghong: 'background:#fff7ed;border-color:#fdba74',
@@ -325,8 +319,6 @@ const WORKER_CARD = {
   hongyi:    'background:#fdf2f8;border-color:#f9a8d4',
   weihong:   'background:#fdf4ff;border-color:#e9a8f0',
   chaji:     'background:#f5f3ff;border-color:#c4b5fd',
-  large:     'background:#fefce8;border-color:#fde047',
-  other:     'background:#f0f9ff;border-color:#93c5fd',
 };
 function getPillStyle(c) { return WORKER_PILL[getWorkerKey(c)]; }
 function getCardStyle(c)  { return WORKER_CARD[getWorkerKey(c)]; }
@@ -498,7 +490,7 @@ function renderGrouped(isDay){
     CAT_ORDER.forEach(cat=>{
       const items=ev.filter(e=>e.cat===cat); if(!items.length)return;
       body+=`<div class="gsec"><div class="gsec-h" style="color:${CAT_COLOR[cat]}"><span class="dot" style="background:${CAT_COLOR[cat]}"></span>${cat}(${items.length})</div>`+
-        items.map(e=>{const dayB=e.dayNo?`<span class="tm">D${e.dayNo}</span>`:'';const ix=regEv(e);return `<div class="gchip" style="background:${CAT_COLOR[cat]}18;color:${CAT_COLOR[cat]}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('')+`</div>`;
+        items.map(e=>{const dayB=e.dayNo?`<span class="tm">D${e.dayNo}</span>`:'';const ix=regEv(e);const chipStyle=(cat==='施工')?getPillStyle(e.c):`background:${CAT_COLOR[cat]}18;color:${CAT_COLOR[cat]}`;return `<div class="gchip" style="${chipStyle}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('')+`</div>`;
     });
     const lvs=(leaveMap[ds]||[]);
     if((calFilter==='全部'||calFilter==='請假')&&lvs.length){
