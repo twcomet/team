@@ -100,7 +100,7 @@
         <span style="color:#7c3aed">■</span> 場勘
       </div>
       <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#6b7280;flex-wrap:wrap">
-        <span style="background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 6px">無小組長</span>
+        <span style="background:#1e40af;color:#ffffff;border-radius:3px;padding:1px 6px">無小組長</span>
         <span style="background:#fee2e2;color:#b91c1c;border-radius:3px;padding:1px 6px">紹銘</span>
         <span style="background:#d1fae5;color:#065f46;border-radius:3px;padding:1px 6px">傳恩</span>
         <span style="background:#ffedd5;color:#c2410c;border-radius:3px;padding:1px 6px">申鴻</span>
@@ -109,7 +109,7 @@
         <span style="background:#fce7f3;color:#be185d;border-radius:3px;padding:1px 6px">洪義</span>
         <span style="background:#fae8ff;color:#a21caf;border-radius:3px;padding:1px 6px">維宏</span>
         <span style="background:#ede9fe;color:#6d28d9;border-radius:3px;padding:1px 6px">恰吉</span>
-        <span style="background:#1e40af;color:#ffffff;border-radius:3px;padding:1px 6px">Dan</span>
+        <span style="background:#fef9c3;color:#92400e;border-radius:3px;padding:1px 6px">Dan</span>
       </div>
 
       <!-- 待排工案件 -->
@@ -302,7 +302,7 @@ function getWorkerKey(c) {
   return 'nolead';   // 沒有小組長 → 固定一個顏色
 }
 const WORKER_PILL = {
-  nolead:    'background:#dbeafe;color:#1e40af',
+  nolead:    'background:#1e40af;color:#ffffff',
   shaoming:  'background:#fee2e2;color:#b91c1c',
   chuanen:   'background:#d1fae5;color:#065f46',
   shenghong: 'background:#ffedd5;color:#c2410c',
@@ -311,10 +311,10 @@ const WORKER_PILL = {
   hongyi:    'background:#fce7f3;color:#be185d',
   weihong:   'background:#fae8ff;color:#a21caf',
   chaji:     'background:#ede9fe;color:#6d28d9',
-  dan:       'background:#1e40af;color:#ffffff',
+  dan:       'background:#fef9c3;color:#92400e',
 };
 const WORKER_CARD = {
-  nolead:    'background:#eff6ff;border-color:#bfdbfe',
+  nolead:    'background:#eef4ff;border-color:#1e40af',
   shaoming:  'background:#fff5f5;border-color:#fca5a5',
   chuanen:   'background:#f0fdf4;border-color:#6ee7b7',
   shenghong: 'background:#fff7ed;border-color:#fdba74',
@@ -323,7 +323,7 @@ const WORKER_CARD = {
   hongyi:    'background:#fdf2f8;border-color:#f9a8d4',
   weihong:   'background:#fdf4ff;border-color:#e9a8f0',
   chaji:     'background:#f5f3ff;border-color:#c4b5fd',
-  dan:       'background:#eef4ff;border-color:#1e40af',
+  dan:       'background:#fefce8;border-color:#fde047',
 };
 function getPillStyle(c) { return WORKER_PILL[getWorkerKey(c)]; }
 function getCardStyle(c)  { return WORKER_CARD[getWorkerKey(c)]; }
