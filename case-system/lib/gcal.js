@@ -11,6 +11,18 @@ const LABELS  = { survey: '場勘', factory_survey: '場勘', install: '施工',
 const getS = (k) => { const r = db.prepare('SELECT value FROM settings WHERE key=?').get(k); return r ? r.value : null; };
 const setS = (k, v) => db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(k, v == null ? null : String(v));
 
+const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// Google API 呼叫：遇速率限制(403/429)自動指數退避重試，避免大量同步時被 Rate Limit Exceeded 擋掉
+async function _fetchRetry(url, opts, tries = 6) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    last = await fetch(url, opts);
+    if (last.status !== 403 && last.status !== 429) return last;   // 非速率限制 → 直接回
+    if (i < tries - 1) await _sleep(Math.min(1500 * 2 ** i, 20000)); // 1.5s,3s,6s,12s,20s...
+  }
+  return last;                                                      // 用盡重試仍失敗 → 交回上層處理
+}
+
 const isConnected  = () => gdrive.isConnected();
 // 同步開關：預設開啟；設為 '0' 則暫停（未連 Google 時本來就不會動作）
 const syncEnabled  = () => getS('gcal_sync_enabled') !== '0';
@@ -40,7 +52,7 @@ function _nextDay(dateStr) {
 async function _ensureCalendar(token) {
   const existing = getS('gcal_dispatch_calendar_id');
   if (existing) return existing;
-  const r = await fetch(`${CAL_API}/calendars`, {
+  const r = await _fetchRetry(`${CAL_API}/calendars`, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ summary: '繪新派單', description: '繪新管理系統自動同步的派工排程', timeZone: TZ }),
@@ -143,7 +155,7 @@ async function _syncDispatch(dispatchId) {
 
   // 1) 已知事件 id（舊隨機 id 或固定 id）→ 直接 PATCH 更新，不會產生第二筆
   const known = d.gcal_event_id || eid;
-  let r = await fetch(`${base}/${encodeURIComponent(known)}`,
+  let r = await _fetchRetry(`${base}/${encodeURIComponent(known)}`,
     { method: 'PATCH', headers, body: JSON.stringify(ev) });
   if (r.ok) { if (d.gcal_event_id !== known) _rememberEid(dispatchId, known); return; }
   if (r.status !== 404 && r.status !== 410) {   // 非「不存在」的錯誤才拋
@@ -153,13 +165,13 @@ async function _syncDispatch(dispatchId) {
 
   // 2) 不存在 → 用固定 id 建立（固定 id 讓重試/競態/重複同步都只會是同一筆）
   ev.id = eid;
-  r = await fetch(base, { method: 'POST', headers, body: JSON.stringify(ev) });
+  r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
   if (r.ok) { _rememberEid(dispatchId, eid); return; }
   if (r.status === 409) {                        // 固定 id 已存在或剛被刪除保留中
-    const p = await fetch(`${base}/${encodeURIComponent(eid)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    const p = await _fetchRetry(`${base}/${encodeURIComponent(eid)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
     if (p.ok) { _rememberEid(dispatchId, eid); return; }
     delete ev.id;                                // 刪除保留中無法重用 → 退回隨機 id 建立
-    r = await fetch(base, { method: 'POST', headers, body: JSON.stringify(ev) });
+    r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
     if (r.ok) { const j = await r.json().catch(() => ({})); _rememberEid(dispatchId, j.id); return; }
   }
   const j = await r.json().catch(() => ({}));
@@ -170,7 +182,7 @@ async function _removeEvent(eventId, dispatchId) {
   if (eventId) {
     const token = await gdrive.accessToken();
     const calId = await _ensureCalendar(token);
-    await fetch(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`,
+    await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } }); // 204 成功；404/410 視為已刪
   }
   if (dispatchId) db.prepare('UPDATE dispatches SET gcal_event_id=NULL WHERE id=?').run(dispatchId);
@@ -201,6 +213,7 @@ async function syncAll() {
       console.error('[gcal] 回填失敗 #' + row.id + '：', e.message);
       if (ok === 0 && fail >= 3) { aborted = true; break; } // 連續失敗＝系統性問題（權限/API未啟用），提早中止避免狂打 API
     }
+    await _sleep(150); // 節流：放慢呼叫速度，避免觸發 Google 速率限制
   }
   return { total: rows.length, ok, fail, sampleError, aborted };
 }
@@ -212,7 +225,7 @@ async function _listAllEventIds(token, calId) {
   do {
     const url = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events?maxResults=2500&singleEvents=false`
               + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const r = await _fetchRetry(url, { headers: { Authorization: 'Bearer ' + token } });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error('讀取事件失敗：' + ((j.error && j.error.message) || r.status));
     (j.items || []).forEach(e => { if (e.id) ids.push(e.id); });
@@ -230,9 +243,10 @@ async function purgeAndRebuild() {
   const ids   = await _listAllEventIds(token, calId);
   let purged = 0;
   for (const eid of ids) {
-    const r = await fetch(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eid)}`,
+    const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eid)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
     if (r.ok || r.status === 404 || r.status === 410) purged++;
+    await _sleep(120); // 節流：避免刪除大量事件時觸發速率限制
   }
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
   const res = await syncAll();
@@ -243,7 +257,7 @@ async function purgeAndRebuild() {
 async function duplicateCalendars() {
   if (!isConnected()) return [];
   const token = await gdrive.accessToken();
-  const r = await fetch(`${CAL_API}/users/me/calendarList?maxResults=250`,
+  const r = await _fetchRetry(`${CAL_API}/users/me/calendarList?maxResults=250`,
     { headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) return [];
