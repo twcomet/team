@@ -444,7 +444,7 @@ function openEvCard(idx){
       }
     }
   }
-  if (c.dispatch_notes) html += row('🗒️','派工備註', linkify(c.dispatch_notes));
+  if (c.dispatch_notes) html += row('🗒️','客服備註', linkify(c.dispatch_notes));
   if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm" style="margin-top:12px">→ 開啟完整案件</a>`;
   document.getElementById('evCardBody').innerHTML = html;
   document.getElementById('evCard').classList.add('open');

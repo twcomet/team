@@ -91,15 +91,20 @@ function _colorFor(userId) {
 function _buildEvent(d) {
   const label   = LABELS[d.dispatch_type] || d.dispatch_type || '派工';
   const title   = [d.title, d.client_name].filter(Boolean).join('｜') || d.case_number || '案件';
-  const summary = `【${label}】${title}`;
+  // 師傅名單：小組長排第一，其後才是組員（去重）
+  const crew = [];
+  if (d.leader_name) crew.push(d.leader_name);
+  if (d.workers) String(d.workers).split('、').forEach(n => { n = n.trim(); if (n && !crew.includes(n)) crew.push(n); });
+  const crewStr = crew.join('、');
+  const summary = `【${label}】${title}${crewStr ? '　' + crewStr : ''}`;  // 標題後面帶師傅資訊
   const desc = [];
   if (d.case_number)  desc.push(`案件：${d.case_number}${d.title ? ' ' + d.title : ''}`);
   if (d.client_name)  desc.push(`客戶：${d.client_name}${d.client_phone ? ' ' + d.client_phone : ''}`);
   if (d.leader_name)  desc.push(`小組長：${d.leader_name}`);
-  if (d.workers)         desc.push(`師傅：${d.workers}`);
+  if (crewStr)           desc.push(`師傅：${crewStr}`);              // 小組長第一，組員在後
   if (d.cs_service_note) desc.push(`進場資訊：${d.cs_service_note}`);  // 客服場勘資訊備註
   if (d.entry_info)      desc.push(`門禁停車：${d.entry_info}`);
-  if (d.notes)           desc.push(`備註：${d.notes}`);
+  if (d.notes)           desc.push(`客服備註：${d.notes}`);
   if (d.drive_folder_url) desc.push(`完工資料夾：${d.drive_folder_url}`);
 
   const ev = { summary, location: d.location || '', description: desc.join('\n') };
