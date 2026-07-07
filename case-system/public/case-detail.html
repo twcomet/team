@@ -2696,6 +2696,7 @@ function renderDispatches(dispatches) {
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:13px;color:#6b7280">${(d.scheduled_date && d.scheduled_date < _today) ? '✅ 已完成' : '待施工'}</span>
           ${pushMode === 'manual' ? `<button class="btn btn-ghost btn-sm" style="color:#0EA5E9" onclick="pushDispatchNotify(${d.id},this)" title="發送 LINE 派工通知給指派人員">LINE 通知</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="color:#16a34a" onclick="copyDispatch(${d.id})" title="複製這筆派工（同組人員與資訊），只要改日期就能多派一天">複製</button>
           <button class="btn btn-ghost btn-sm" onclick="editDispatch(${d.id})">編輯</button>
           <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteDispatch(${d.id})">刪除</button>
         </div>
@@ -3519,6 +3520,17 @@ function editDispatch(did) {
   window._leaderId = d.leader_id || null;
   buildUserCheckboxes(ids);
   document.getElementById('dispatchModal').classList.add('open');
+}
+
+// 複製派工：沿用整筆資訊（人員/時間/備註/下貨停車等），但清成「新增」，讓客服重選日期多派一天
+function copyDispatch(did) {
+  editDispatch(did);                                                       // 先帶入所有欄位
+  document.getElementById('dispatchModalTitle').textContent = '複製派工（請選新日期）';
+  document.getElementById('d_dispatch_id').value  = '';                    // 清空 id → 存檔時變成「新增」
+  document.getElementById('d_date').value         = '';                    // 清空日期，客服重選
+  document.getElementById('d_actual_hours').value = '';                    // 實際工時不帶（新的一天）
+  const dateEl = document.getElementById('d_date');
+  if (dateEl) dateEl.focus();                                              // 聚焦日期，方便直接選
 }
 
 document.getElementById('saveDispatchBtn').addEventListener('click', async () => {
