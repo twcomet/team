@@ -92,4 +92,14 @@ router.post('/case/:id/folder', requireAuth, async (req, res) => {
   }
 });
 
+// 批次補建：為所有還沒有雲端資料夾的舊案件建立（老闆手動觸發）
+router.post('/backfill-folders', requireAuth, requireOwner, async (req, res) => {
+  try {
+    const r = await gdrive.backfillCaseFolders();
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

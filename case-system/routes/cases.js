@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth, orgFilter, orgFilterSQL } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const gcal = require('../lib/gcal');
+const gdrive = require('../lib/gdrive');
 const router = express.Router();
 
 // ── 地址轉座標（非阻塞，fire-and-forget）────────────────────
@@ -326,6 +327,7 @@ router.post('/', requireAuth, (req, res) => {
       .run(me.id, result.lastInsertRowid, `建立案件 ${case_number}`);
 
     if (location) geocodeCase(result.lastInsertRowid, location);
+    gdrive.safeEnsureCaseFolder(result.lastInsertRowid); // 成立案件即自動建立完工資料夾（best-effort，不阻塞）
 
     res.json({ ok: true, id: result.lastInsertRowid, case_number });
   } catch (err) {

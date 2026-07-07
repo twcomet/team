@@ -89,10 +89,48 @@ async function createCaseFolder(name) {
   return _createFolder(name || '未命名案件', parent, token);
 }
 
+// 確保案件有雲端資料夾（沒有才建立），回傳資料夾網址或 null。未連 Google / 已有資料夾則不動作。
+async function ensureCaseFolder(caseId) {
+  if (!isConnected()) return null;
+  const c = db.prepare(`
+    SELECT c.id, c.case_number, c.title, c.drive_folder_url, cl.name AS client_name
+    FROM cases c LEFT JOIN clients cl ON c.client_id = cl.id WHERE c.id = ?
+  `).get(caseId);
+  if (!c) return null;
+  if (c.drive_folder_url) return c.drive_folder_url;
+  const name = [c.case_number, c.title, c.client_name].filter(Boolean).join(' ');
+  const f = await createCaseFolder(name);
+  db.prepare('UPDATE cases SET drive_folder_id = ?, drive_folder_url = ? WHERE id = ?').run(f.id, f.webViewLink, c.id);
+  return f.webViewLink;
+}
+
+// best-effort 版本：永不 throw（用於案件建立等流程，不阻塞、不影響存檔）
+function safeEnsureCaseFolder(caseId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return ensureCaseFolder(caseId).catch(e => { console.error('[gdrive] 自動建立資料夾失敗 case#' + caseId + '：', e.message); return null; });
+}
+
+// 批次補建：為所有還沒有資料夾的案件建立（排除作廢），回傳統計
+async function backfillCaseFolders() {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const rows = db.prepare(`
+    SELECT id FROM cases
+    WHERE (drive_folder_url IS NULL OR drive_folder_url = '')
+      AND status <> 'invalid'
+    ORDER BY id DESC
+  `).all();
+  let ok = 0, fail = 0, sampleError = null;
+  for (const r of rows) {
+    try { await ensureCaseFolder(r.id); ok++; }
+    catch (e) { fail++; if (!sampleError) sampleError = e.message; if (ok === 0 && fail >= 3) break; }
+  }
+  return { total: rows.length, ok, fail, sampleError };
+}
+
 // 中斷連接（清掉 token）
 function disconnect() {
   setS('gdrive_refresh_token', null);
   db.prepare("DELETE FROM settings WHERE key='gdrive_refresh_token'").run();
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, disconnect, accessToken };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, disconnect, accessToken };

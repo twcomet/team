@@ -71,6 +71,7 @@
       st.className = 'gd-status gd-on';
       st.textContent = '✓ 已連接 Google 雲端';
       act.innerHTML = '<a class="gd-btn gd-primary" href="/api/gdrive/connect">重新連接 Google（授權行事曆）</a>'
+                    + '<button class="gd-btn gd-ghost" onclick="backfillFolders()">為舊案件補建資料夾</button>'
                     + '<button class="gd-btn gd-ghost" onclick="disc()">中斷連接</button>';
     } else {
       st.className = 'gd-status gd-off';
@@ -127,6 +128,16 @@
       }
       m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功 '+r.ok+' 筆，失敗 '+r.fail+' 筆（共 '+r.total+' 筆）</div>';
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">同步發生錯誤，請稍後再試。</div>'; });
+  };
+  window.backfillFolders = function(){
+    if (!confirm('為所有還沒有雲端資料夾的舊案件批次建立資料夾？（作廢案件除外，數量多時需要一點時間）')) return;
+    var m = document.getElementById('msg');
+    m.innerHTML = '<div class="gd-msg gd-msg-ok">補建中，請勿關閉頁面…</div>';
+    fetch('/api/gdrive/backfill-folders', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">補建失敗：'+r.error+'</div>'; return; }
+      m.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 完成：成功建立 '+r.ok+' 個，失敗 '+r.fail+'（共 '+r.total+' 個待補案件）'
+        + (r.sampleError ? '<br>範例錯誤：'+r.sampleError : '') + '</div>';
+    }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">補建發生錯誤，請稍後再試。</div>'; });
   };
   window.rebuildGcal = function(){
     if (!confirm('會先「刪光」繪新派單行事曆內所有事件，再重新同步一份乾淨的。\n用於修正重複／孤兒事件。確定執行？')) return;
