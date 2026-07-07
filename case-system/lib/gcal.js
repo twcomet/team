@@ -143,45 +143,37 @@ function _buildEvent(d) {
   return ev;
 }
 
-// 依派工 id 產生固定、唯一的 Google 事件 id（字元僅限 a-v 與 0-9）→ 同一派工永遠對同一事件，天然防重複
-function _eventId(dispatchId) { return 'disp' + dispatchId; }
 function _rememberEid(dispatchId, eid) { db.prepare('UPDATE dispatches SET gcal_event_id=? WHERE id=?').run(eid, dispatchId); }
 
 async function _syncDispatch(dispatchId) {
   const d = _loadDispatch(dispatchId);
   if (!d) return;
-  const eid = _eventId(dispatchId);
-  if (d.status === 'cancelled') { await _removeEvent(d.gcal_event_id || eid, dispatchId); return; }
+  if (d.status === 'cancelled') { await _removeEvent(d.gcal_event_id, dispatchId); return; }
+
+  const ev = _buildEvent(d);
+  if (!ev) return;                               // 無有效日期 → 略過（不阻斷整批）
 
   const token   = await gdrive.accessToken();
   const calId   = await _ensureCalendar(token);
-  const ev      = _buildEvent(d);
   const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
   const base    = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events`;
 
-  // 1) 已知事件 id（舊隨機 id 或固定 id）→ 直接 PATCH 更新，不會產生第二筆
-  const known = d.gcal_event_id || eid;
-  let r = await _fetchRetry(`${base}/${encodeURIComponent(known)}`,
-    { method: 'PATCH', headers, body: JSON.stringify(ev) });
-  if (r.ok) { if (d.gcal_event_id !== known) _rememberEid(dispatchId, known); return; }
-  if (r.status !== 404 && r.status !== 410) {   // 非「不存在」的錯誤才拋
-    const j = await r.json().catch(() => ({}));
-    throw new Error('更新事件失敗：' + ((j.error && j.error.message) || r.status));
+  // 有存事件 id → PATCH 更新（含把隱藏事件 status:confirmed 復活）；不存在(404/410)才往下重建
+  if (d.gcal_event_id) {
+    const r = await _fetchRetry(`${base}/${encodeURIComponent(d.gcal_event_id)}`,
+      { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (r.ok) return;
+    if (r.status !== 404 && r.status !== 410) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error('更新事件失敗：' + ((j.error && j.error.message) || r.status));
+    }
   }
 
-  // 2) 不存在 → 用固定 id 建立（固定 id 讓重試/競態/重複同步都只會是同一筆）
-  ev.id = eid;
-  r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
-  if (r.ok) { _rememberEid(dispatchId, eid); return; }
-  if (r.status === 409) {                        // 固定 id 已存在或剛被刪除保留中
-    const p = await _fetchRetry(`${base}/${encodeURIComponent(eid)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
-    if (p.ok) { _rememberEid(dispatchId, eid); return; }
-    delete ev.id;                                // 刪除保留中無法重用 → 退回隨機 id 建立
-    r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
-    if (r.ok) { const j = await r.json().catch(() => ({})); _rememberEid(dispatchId, j.id); return; }
-  }
+  // 建立：讓 Google 指派全新隨機 id（不用固定 id，避免被刪除保留而復活成隱藏），可靠存回
+  const r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
   const j = await r.json().catch(() => ({}));
-  throw new Error('建立事件失敗：' + ((j.error && j.error.message) || r.status));
+  if (!r.ok) throw new Error('建立事件失敗：' + ((j.error && j.error.message) || r.status));
+  _rememberEid(dispatchId, j.id);
 }
 
 async function _removeEvent(eventId, dispatchId) {
@@ -231,7 +223,7 @@ async function _listAllEventIds(token, calId) {
   const ids = [];
   let pageToken = null;
   do {
-    const url = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events?maxResults=2500&singleEvents=false`
+    const url = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events?maxResults=2500&singleEvents=false&showDeleted=true`
               + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
     const r = await _fetchRetry(url, { headers: { Authorization: 'Bearer ' + token } });
     const j = await r.json().catch(() => ({}));
