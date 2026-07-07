@@ -1611,6 +1611,7 @@ _addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
 _addCol('dispatches', 'day_index',        'INTEGER DEFAULT NULL'); // 多日施工第幾天(1=第1天)；NULL=未標記/單日
 _addCol('dispatches', 'leader_id',        'INTEGER REFERENCES users(id) DEFAULT NULL'); // 小組長（從指派人員中選一位，負責完工回報）
 _addCol('dispatches', 'gcal_event_id',    'TEXT DEFAULT NULL'); // 對應的 Google 行事曆事件 ID（派單同步用）
+_addCol('cases',      'survey_gcal_event_id', 'TEXT DEFAULT NULL'); // 場勘(非派工)對應的 Google 行事曆事件 ID
 
 // 場勘備註模板庫
 db.exec(`

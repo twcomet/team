@@ -6,7 +6,7 @@ const gdrive = require('./gdrive');
 
 const TZ      = 'Asia/Taipei';
 const CAL_API = 'https://www.googleapis.com/calendar/v3';
-const LABELS  = { survey: '場勘', factory_survey: '場勘', install: '施工', cut_material: '裁料', aftersales: '售後服務', other: '其他' };
+const LABELS  = { survey: '場勘', factory_survey: '場勘', install: '施工', cut_material: '裁料', aftersales: '維修', other: '其他' };
 
 const getS = (k) => { const r = db.prepare('SELECT value FROM settings WHERE key=?').get(k); return r ? r.value : null; };
 const setS = (k, v) => db.prepare('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)').run(k, v == null ? null : String(v));
@@ -176,14 +176,108 @@ async function _syncDispatch(dispatchId) {
   _rememberEid(dispatchId, j.id);
 }
 
+// 只刪 Google 端事件（204 成功；404/410 視為已刪）
+async function _gcalDelete(eventId) {
+  if (!eventId) return;
+  const token = await gdrive.accessToken();
+  const calId = await _ensureCalendar(token);
+  await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`,
+    { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+}
+
 async function _removeEvent(eventId, dispatchId) {
-  if (eventId) {
-    const token = await gdrive.accessToken();
-    const calId = await _ensureCalendar(token);
-    await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`,
-      { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } }); // 204 成功；404/410 視為已刪
-  }
+  await _gcalDelete(eventId);
   if (dispatchId) db.prepare('UPDATE dispatches SET gcal_event_id=NULL WHERE id=?').run(dispatchId);
+}
+
+// ── 場勘同步：場勘表單排定的日期(survey_forms.survey_date / cases.survey_date) 不是派工紀錄，
+//    需另外同步到 Google。事件 id 記在 cases.survey_gcal_event_id（一案一場勘事件）。──────────
+function _loadSurvey(caseId) {
+  return db.prepare(`
+    SELECT c.id AS case_id, c.case_number, c.title, c.status,
+           c.location, c.entry_info, c.photo_upload_url, c.drive_folder_url,
+           c.survey_date AS case_survey_date, c.survey_gcal_event_id,
+           cl.name AS client_name, cl.phone AS client_phone,
+           sf.survey_date, sf.survey_time, sf.site_address, sf.cs_service_note,
+           su.name AS surveyor_name,
+           (SELECT COUNT(*) FROM dispatches d WHERE d.case_id = c.id
+              AND d.dispatch_type IN ('survey','factory_survey') AND d.status != 'cancelled') AS survey_dispatch_count
+    FROM cases c
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    LEFT JOIN survey_forms sf ON sf.id = (
+      SELECT id FROM survey_forms WHERE case_id = c.id AND survey_date IS NOT NULL
+      ORDER BY survey_date DESC, id DESC LIMIT 1)
+    LEFT JOIN users su ON su.id = COALESCE(sf.surveyor_id, c.surveyor_id)
+    WHERE c.id = ?
+  `).get(caseId);
+}
+
+function _buildSurveyEvent(s) {
+  const date = s.survey_date || s.case_survey_date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;   // 無有效場勘日 → 略過
+  const title   = [s.title, s.client_name].filter(Boolean).join('｜') || s.case_number || '案件';
+  const crewStr = s.surveyor_name || '';
+  const summary = `【場勘】${title}${crewStr ? '　' + crewStr : ''}`;
+  const desc = [];
+  if (s.case_number)   desc.push(`案件：${s.case_number}${s.title ? ' ' + s.title : ''}`);
+  if (s.client_name)   desc.push(`客戶：${s.client_name}${s.client_phone ? ' ' + s.client_phone : ''}`);
+  if (crewStr)         desc.push(`場勘師傅：${crewStr}`);
+  if (s.cs_service_note) desc.push(`進場資訊：${s.cs_service_note}`);   // 客服場勘備註
+  if (s.entry_info)    desc.push(`門禁停車：${s.entry_info}`);
+  const folderUrl = s.photo_upload_url || s.drive_folder_url;
+  if (folderUrl)       desc.push(`完工資料夾：${folderUrl}`);
+
+  const ev = { summary, location: s.site_address || s.location || '', description: desc.join('\n'), status: 'confirmed' };
+  const colorId = _colorFor(s.surveyor_name);
+  if (colorId) ev.colorId = colorId;
+  const _toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+  const t = _hhmm(s.survey_time);
+  let endT = t ? _plusHours(t, 2) : null;
+  if (t && endT && _toMin(endT) > _toMin(t)) {
+    ev.start = { dateTime: `${date}T${t}:00`,    timeZone: TZ };
+    ev.end   = { dateTime: `${date}T${endT}:00`, timeZone: TZ };
+  } else {
+    ev.start = { date };
+    ev.end   = { date: _nextDay(date) };
+  }
+  return ev;
+}
+
+async function _removeSurveyEvent(eventId, caseId) {
+  await _gcalDelete(eventId);
+  if (caseId) db.prepare('UPDATE cases SET survey_gcal_event_id=NULL WHERE id=?').run(caseId);
+}
+
+async function _syncSurvey(caseId) {
+  const s = _loadSurvey(caseId);
+  if (!s) return;
+  const date = s.survey_date || s.case_survey_date;
+  // 已作廢/結案、無場勘日、或該案已有「場勘派工」(以派工為準避免重複) → 移除場勘事件
+  if (!date || ['closed', 'invalid'].includes(s.status) || s.survey_dispatch_count > 0) {
+    await _removeSurveyEvent(s.survey_gcal_event_id, caseId);
+    return;
+  }
+  const ev = _buildSurveyEvent(s);
+  if (!ev) return;
+
+  const token   = await gdrive.accessToken();
+  const calId   = await _ensureCalendar(token);
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+  const base    = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events`;
+
+  if (s.survey_gcal_event_id) {
+    const r = await _fetchRetry(`${base}/${encodeURIComponent(s.survey_gcal_event_id)}`,
+      { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (r.ok) return;
+    if (r.status !== 404 && r.status !== 410) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error('更新場勘事件失敗：' + ((j.error && j.error.message) || r.status));
+    }
+  }
+  const r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('建立場勘事件失敗：' + ((j.error && j.error.message) || r.status));
+  db.prepare('UPDATE cases SET survey_gcal_event_id=? WHERE id=?').run(j.id, caseId);
 }
 
 // ── 對外 API：best-effort，永不 throw（不阻塞派單流程）──────
@@ -197,6 +291,12 @@ function safeRemoveEvent(eventId) {
   return _removeEvent(eventId, null)
     .catch(e => console.error('[gcal] 刪除事件失敗：', e.message));
 }
+// 同步某案件的「場勘事件」（非派工的場勘日期）。best-effort，永不 throw
+function safeSyncSurvey(caseId) {
+  if (!syncEnabled() || !isConnected()) return Promise.resolve();
+  return _syncSurvey(caseId)
+    .catch(e => console.error('[gcal] 同步場勘失敗 case#' + caseId + '：', e.message));
+}
 
 // ── 背景同步任務：長時間工作(數百筆)不走 HTTP 請求，避免閘道逾時 ──
 // 前端「啟動→輪詢進度」，任務進度存在模組記憶體
@@ -205,7 +305,14 @@ function syncJobStatus() { return { ..._job }; }
 
 async function _runSyncAll() {
   const rows = db.prepare(`SELECT id FROM dispatches WHERE status != 'cancelled'`).all();
-  _job.total = rows.length; _job.phase = '同步派工';
+  // 有場勘日期、且尚未結案/作廢的案件（場勘非派工，需另外同步）
+  const surveyRows = db.prepare(`
+    SELECT DISTINCT c.id FROM cases c
+    LEFT JOIN survey_forms sf ON sf.case_id = c.id
+    WHERE c.status NOT IN ('closed','invalid')
+      AND COALESCE(sf.survey_date, c.survey_date) IS NOT NULL
+  `).all();
+  _job.total = rows.length + surveyRows.length; _job.phase = '同步派工';
   for (const row of rows) {
     try { await _syncDispatch(row.id); _job.ok++; }
     catch (e) {
@@ -215,6 +322,17 @@ async function _runSyncAll() {
       if (_job.ok === 0 && _job.fail >= 3) { _job.aborted = true; break; } // 連續失敗＝系統性問題，提早中止
     }
     await _sleep(150); // 節流：放慢呼叫速度，避免觸發 Google 速率限制
+  }
+  if (_job.aborted) return;
+  _job.phase = '同步場勘';
+  for (const row of surveyRows) {
+    try { await _syncSurvey(row.id); _job.ok++; }
+    catch (e) {
+      _job.fail++;
+      if (!_job.sampleError) _job.sampleError = e.message;
+      console.error('[gcal] 場勘回填失敗 case#' + row.id + '：', e.message);
+    }
+    await _sleep(150);
   }
 }
 
@@ -250,6 +368,7 @@ async function _runRebuild() {
     await _sleep(120); // 節流：避免刪除大量事件時觸發速率限制
   }
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
+  db.prepare('UPDATE cases SET survey_gcal_event_id=NULL').run(); // 場勘事件也一併重建
   await _runSyncAll();
 }
 
@@ -309,12 +428,19 @@ async function diagnose() {
     calendars.push({ id: c.id, isStored: c.id === storedId, accessRole: c.accessRole, eventCount });
   }
   const dispatchCount = db.prepare(`SELECT COUNT(*) n FROM dispatches WHERE status != 'cancelled'`).get().n;
+  const surveyCount = db.prepare(`
+    SELECT COUNT(*) n FROM (
+      SELECT DISTINCT c.id FROM cases c
+      LEFT JOIN survey_forms sf ON sf.case_id = c.id
+      WHERE c.status NOT IN ('closed','invalid')
+        AND COALESCE(sf.survey_date, c.survey_date) IS NOT NULL)
+  `).get().n;
   const storedInList = named.some(c => c.id === storedId);
-  return { storedId, storedInList, dispatchCount, namedCount: calendars.length, calendars };
+  return { storedId, storedInList, dispatchCount, surveyCount, namedCount: calendars.length, calendars };
 }
 
 function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, diagnose, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeSyncSurvey, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, diagnose, syncEnabled, setEnabled, calendarInfo };

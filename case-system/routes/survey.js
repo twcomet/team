@@ -10,6 +10,7 @@ function resyncCaseDispatches(caseId) {
   try {
     db.prepare(`SELECT id FROM dispatches WHERE case_id=? AND status!='cancelled'`).all(caseId)
       .forEach(r => gcal.safeSyncDispatch(r.id));
+    gcal.safeSyncSurvey(caseId);   // 場勘日期(非派工)也同步一筆場勘事件到 Google
   } catch (e) { console.error('[gcal] 場勘同步派工失敗 case#' + caseId + '：', e.message); }
 }
 const router     = express.Router();

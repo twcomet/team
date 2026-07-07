@@ -770,6 +770,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   syncCaseScheduledDate(case_id); // 新增派工後同步施工日期=最早施工派工
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
   gcal.safeSyncDispatch(did); // 同步到 Google 派單行事曆（best-effort，不阻塞）
+  if (['survey', 'factory_survey'].includes(dtype)) gcal.safeSyncSurvey(case_id); // 場勘派工→移除重複的場勘表單事件
   res.json({ ok: true, id: did, day_index });
 });
 
@@ -817,6 +818,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
   }
   syncCaseScheduledDate(Number(req.params.id)); // 改派工日期後同步案件施工日期，避免過期
   gcal.safeSyncDispatch(Number(req.params.did)); // 同步 Google 派單行事曆（含改期/取消）
+  if (['survey', 'factory_survey'].includes(dispatch_type)) gcal.safeSyncSurvey(Number(req.params.id)); // 場勘派工異動→同步場勘事件去重
   res.json({ ok: true });
 });
 
@@ -826,6 +828,7 @@ router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, caseId);
   gcal.safeRemoveEvent(d?.gcal_event_id); // 刪派工 → 同步移除 Google 事件
+  if (['survey', 'factory_survey'].includes(d?.dispatch_type)) gcal.safeSyncSurvey(caseId); // 刪場勘派工→若仍有場勘日期則補回場勘事件
   recalcLaborCost(caseId);
 
   // 若刪除施工派工後已無任何施工派工，案件退回「成交待派工」並清除施工日期
