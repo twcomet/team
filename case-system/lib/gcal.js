@@ -300,8 +300,28 @@ async function shareCalendar(email, role) {
   return { ok: true, calendarId: calId, email, role: role === 'writer' ? 'writer' : 'reader' };
 }
 
+// 診斷：列出帳號內所有叫「繪新派單」的行事曆、各有幾筆事件、系統目前用的是哪一個
+async function diagnose() {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const token = await gdrive.accessToken();
+  const storedId = getS('gcal_dispatch_calendar_id') || null;
+  const r = await _fetchRetry(`${CAL_API}/users/me/calendarList?maxResults=250`,
+    { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  const named = (j.items || []).filter(c => c.summary === '繪新派單');
+  const calendars = [];
+  for (const c of named) {
+    let eventCount = null;
+    try { eventCount = (await _listAllEventIds(token, c.id)).length; } catch (e) { eventCount = 'err:' + e.message; }
+    calendars.push({ id: c.id, isStored: c.id === storedId, accessRole: c.accessRole, eventCount });
+  }
+  const dispatchCount = db.prepare(`SELECT COUNT(*) n FROM dispatches WHERE status != 'cancelled'`).get().n;
+  const storedInList = named.some(c => c.id === storedId);
+  return { storedId, storedInList, dispatchCount, namedCount: calendars.length, calendars };
+}
+
 function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, diagnose, syncEnabled, setEnabled, calendarInfo };

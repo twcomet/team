@@ -68,6 +68,12 @@ router.get('/gcal/sync-status', requireAuth, requireCalendarAccess, (req, res) =
   res.json(gcal.syncJobStatus());
 });
 
+// 診斷：查有幾個「繪新派單」行事曆、各幾筆事件、系統用哪個（直接開網址看 JSON）
+router.get('/gcal/diagnose', requireAuth, requireOwner, async (req, res) => {
+  try { res.json(await gcal.diagnose()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 把「繪新派單」行事曆分享給指定信箱（讓它出現在對方 Google 行事曆清單）
 router.post('/gcal/share', requireAuth, requireOwner, async (req, res) => {
   try {
