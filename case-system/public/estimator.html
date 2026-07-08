@@ -439,10 +439,11 @@ async function doCaseSearch(q){
     if(!cases.length){drop.innerHTML='<div style="padding:8px 12px;font-size:13px;color:#9ca3af">查無案件（可自行輸入名稱）</div>';drop.style.display='';return;}
     drop.innerHTML=cases.slice(0,8).map(function(r){
       var id=((r.link.match(/id=(\d+)/))||[])[1]||'';
-      var txt=(r.case_number?r.case_number+' ':'')+(r.title||'')+(r.client_name?' · '+r.client_name:'');
-      return '<div class="case-opt" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" data-id="'+id+'" data-t="'+txt.replace(/"/g,'&quot;')+'">'+txt+'</div>';
+      var proj=(r.case_number?r.case_number+' ':'')+(r.title||'');   // 專案名稱＝案號＋案名
+      var txt=proj+(r.client_name?' · '+r.client_name:'');
+      return '<div class="case-opt" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f3f4f6" data-id="'+id+'" data-proj="'+proj.replace(/"/g,'&quot;')+'" data-t="'+txt.replace(/"/g,'&quot;')+'">'+txt+'</div>';
     }).join('');
-    drop.querySelectorAll('.case-opt').forEach(function(el){ el.onclick=function(){ ECASE=el.dataset.id||null; document.getElementById('b-project').value=el.dataset.t; drop.style.display='none'; document.getElementById('ec-status').textContent=ECASE?('🔗 已關聯案件 #'+ECASE+'（儲存時會同步存回此案件）'):''; }; });
+    drop.querySelectorAll('.case-opt').forEach(function(el){ el.onclick=function(){ ECASE=el.dataset.id||null; document.getElementById('b-project').value=el.dataset.proj||el.dataset.t; drop.style.display='none'; document.getElementById('ec-status').textContent=ECASE?('🔗 已關聯案件 #'+ECASE+'（儲存時會同步存回此案件）'):''; }; });
     drop.style.display='';
   }catch(e){ console.error('case search',e); drop.style.display='none'; }
 }
@@ -451,7 +452,7 @@ async function prefillFromCase(id){
     var c = await fetch('/api/cases/'+id).then(function(r){return r.ok?r.json():null;});
     if(!c) return;
     var setIf=function(id,val){var e=document.getElementById(id);if(e&&val)e.value=val;};
-    if(!v('b-project')) document.getElementById('b-project').value = c.case_name || c.community || c.address || ('案件 '+id);
+    if(!v('b-project')) document.getElementById('b-project').value = [c.case_number, c.title].filter(Boolean).join(' ') || c.community || c.address || ('案件 '+id);
     setIf('b-name', c.client_name);
     setIf('b-phone', c.client_phone || c.phone);
     setIf('b-address', c.address);
