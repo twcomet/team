@@ -97,6 +97,15 @@
   .thumb.photo{width:104px;height:78px;background:linear-gradient(160deg,#e6ebef,#c6d0d8);border:1px solid var(--gray-300);color:var(--gray-700)}
   .thumb .em{font-size:22px} .thumb.photo .em{font-size:24px} .thumb.photo .lb{font-size:10.5px;font-weight:800}
   .thumb .up{font-size:8.5px}
+  .thumb.has{background-size:cover;background-position:center;color:transparent}
+  .thumb.has .em,.thumb.has .lb{opacity:0}
+  .thumb .xbtn{position:absolute;top:3px;right:3px;width:17px;height:17px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:17px;text-align:center;cursor:pointer;z-index:2}
+  .thumb .up{cursor:pointer}
+  .film-portrait{width:56px;height:80px}
+  .area-strip{display:flex;gap:5px;flex-wrap:wrap;align-items:flex-end}
+  .area-mini{position:relative;width:58px;height:44px;border-radius:6px;background-size:cover;background-position:center;border:1px solid var(--gray-300)}
+  .area-mini .xbtn{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#fff;font-size:11px;line-height:16px;text-align:center;cursor:pointer}
+  .area-add{width:58px;height:44px;border-radius:6px;border:1.5px dashed var(--gray-300);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--gray-400);cursor:pointer;background:#fafafa}
 
   /* customer quote table (參考舊報價單) */
   .quote-tbl-wrap{overflow-x:auto;border:1px solid var(--gray-300);border-radius:10px}
@@ -424,7 +433,7 @@
 <!-- lightbox 現場照放大 -->
 <div class="lb-mask" id="lbMask" onclick="if(event.target===this)closePhoto()">
   <div class="lb-x" onclick="closePhoto()">✕</div>
-  <div class="lb-img"><div class="em">📷</div><div>現場貼膜照（大圖）</div></div>
+  <div class="lb-img" id="lbImg"><div class="em">📷</div><div>現場貼膜照（大圖）</div></div>
   <div class="lb-cap" id="lbCap"></div>
 </div>
 
@@ -491,7 +500,8 @@ function mapDbToProto(d){
     unitCai:d.unit_price_cai||0, srvMeters:d.estimated_meters||0, width:d.film_width_cm||122,
     sizeText:d.size_text||'', disc:(d.item_disc!=null?d.item_disc:((d.row_kind==='text')?100:80)),
     promo:(d.promo_price==null?null:d.promo_price), filmCostPerM:d.cost_per_meter||0,
-    workers:d.workers||0, days:d.work_days||0, note:d.notes||'', cai:d.area_sqchi };
+    workers:d.workers||0, days:d.work_days||0, note:d.notes||'', cai:d.area_sqchi,
+    filmImg:d.material_photo_url||'', areaPhotos:(()=>{let a=[];try{a=JSON.parse(d.area_photos||'[]')||[];}catch(e){}if(d.area_photo_url&&!a.includes(d.area_photo_url))a.unshift(d.area_photo_url);return a;})() };
 }
 function mapProtoToDb(it){
   return { row_kind:it.kind||'item', calc_mode:it.mode||'unit', item_type:'film',
@@ -499,7 +509,9 @@ function mapProtoToDb(it){
     unit_price:it.unitEach||0, unit_price_cai:it.unitCai||0, quantity:it.qty||1,
     estimated_meters:it.srvMeters||0, area_sqchi:(it.cai==null?null:it.cai), item_disc:it.disc,
     promo_price:(it.promo==null?null:it.promo), suggested_price:Math.round((it.cai||0)*(it.unitCai||0)),
-    cost_per_meter:it.filmCostPerM||0, workers:it.workers||0, work_days:it.days||0, notes:it.note||'' };
+    cost_per_meter:it.filmCostPerM||0, workers:it.workers||0, work_days:it.days||0, notes:it.note||'',
+    material_photo_url:it.filmImg||null, area_photo_url:(it.areaPhotos&&it.areaPhotos[0])||null,
+    area_photos:JSON.stringify(it.areaPhotos||[]) };
 }
 async function loadQuote(){
   const r=await fetch(`/api/quotes/${quoteId}`);
@@ -632,9 +644,20 @@ function renderRows(){
     const totLabel=isMat?'總價':'連工帶料總價', promoLabel=isMat?'總優惠價':'連工帶料優惠價';
     const spec=`<div class="cfields">
         <div class="fld"><label>${isMat?'單買膜料資訊（品牌／型號／規格）':'膜料資訊（品牌／型號／膜寬）'}</label><input value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" style="width:${isMat?280:236}px"></div>
-        <div class="thumb film" onclick="alert('示意：選好型號後膜料庫自動帶示意圖')"><div class="em">🎞️</div><div class="lb">膜料示意圖</div><div class="up">點擊上傳</div></div>
+        <div>
+          <label style="font-size:11px;color:var(--gray-500);display:block;margin-bottom:3px">膜料示意圖（A4 直式）</label>
+          <div class="thumb film film-portrait ${it.filmImg?'has':''}" style="${it.filmImg?`background-image:url('${esc(it.filmImg)}')`:''}" onclick="upFilmImg(${i})">
+            ${it.filmImg?`<span class="xbtn" onclick="event.stopPropagation();delFilmImg(${i})">✕</span>`:'<div class="em">🎞️</div><div class="lb">膜料示意圖</div><div class="up">點擊上傳</div>'}
+          </div>
+        </div>
         ${isMat?'':`<div class="fld"><label>尺寸規格（客戶版・文字）</label><input value="${esc(it.sizeText)}" placeholder="例：寬300 × 高250 cm" oninput="setF(${i},'sizeText',this.value,true)" style="width:150px"></div>
-        <div class="thumb photo" onclick="alert('示意：上傳現場貼膜照，客戶版會大圖呈現')"><div class="em">📷</div><div class="lb">現場貼膜照</div><div class="up">點擊上傳・客戶版放大</div></div>`}
+        <div>
+          <label style="font-size:11px;color:var(--gray-500);display:block;margin-bottom:3px">現場貼膜照（客戶版大圖，可多張）</label>
+          <div class="area-strip">
+            ${(it.areaPhotos||[]).map((u,pi)=>`<div class="area-mini" style="background-image:url('${esc(u)}')"><span class="xbtn" onclick="delAreaPhoto(${i},${pi})">✕</span></div>`).join('')}
+            <div class="area-add" onclick="upAreaPhoto(${i})" title="上傳現場照">＋</div>
+          </div>
+        </div>`}
       </div>`;
     const modeToggle=`<span class="seg" style="margin-left:6px">
         <span class="${it.mode==='unit'?'on':''}" onclick="setMode(${i},'unit')">座計價</span>
@@ -720,6 +743,20 @@ function setCost(i,k,v){items[i][k]=+v||0;renderCost();}
 function setDayRate(v){dayRate=+v||0;renderCost();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){items[i].mode=m;renderRows();recalc();}
+// ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
+function pickImage(cb){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;
+    const fd=new FormData();fd.append('image',f);
+    try{const r=await fetch('/api/storage/upload',{method:'POST',body:fd});const d=await r.json();
+      if(!r.ok||!d.url)throw new Error(d.error||'上傳失敗');cb(d.url);}
+    catch(e){alert('照片上傳失敗：'+e.message);}};
+  inp.click();
+}
+function upFilmImg(i){pickImage(url=>{items[i].filmImg=url;markDirty();renderRows();});}
+function delFilmImg(i){items[i].filmImg='';markDirty();renderRows();}
+function upAreaPhoto(i){pickImage(url=>{const it=items[i];if(!Array.isArray(it.areaPhotos))it.areaPhotos=[];it.areaPhotos.push(url);markDirty();renderRows();});}
+function delAreaPhoto(i,idx){items[i].areaPhotos.splice(idx,1);markDirty();renderRows();}
 const _txt=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
 const _inp=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
 function setNum(i,k,v){const it=items[i];it[k]=+v||0;
@@ -735,7 +772,7 @@ function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'
 function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));recalc();}
 function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);recalc();}
 function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items.splice(i,1);renderRows();recalc();}
-function addRow(){items.push({name:'新增品項',mode:'unit',film:'BODAQ · 型號待填 · 寬122cm',unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:''});renderRows();recalc();focusLast();}
+function addRow(){items.push({name:'新增品項',mode:'unit',film:'BODAQ · 型號待填 · 寬122cm',unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}
 function tgl(h){const t=h.closest('.block').querySelector('textarea');t.style.display=t.style.display==='none'?'block':'none';}
@@ -791,8 +828,8 @@ function renderCust(useMkt){
       <td class="c" style="font-weight:700">${i+1}</td>
       <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSize&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
       <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span><br>膜料寬度 ${it.width||'—'} 公分</td>
-      <td class="c"><div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div></td>
-      <td class="c"><div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>現場貼膜照<span class="zoom">🔍 點擊放大</span></div></td>
+      <td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>
+      <td class="c">${(it.areaPhotos&&it.areaPhotos[0])?`<div class="q-photo" style="background-image:url('${esc(it.areaPhotos[0])}');background-size:cover;background-position:center" onclick="openPhoto(${i})"><span class="zoom">🔍 點擊放大${it.areaPhotos.length>1?'（共'+it.areaPhotos.length+'張）':''}</span></div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>
       <td class="num">${unitTxt(it)}</td>
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
@@ -807,7 +844,12 @@ function renderCust(useMkt){
   document.getElementById('col_mkt').classList.toggle('on',agree);
   syncCustNotice();
 }
-function openPhoto(i){const it=items[i];document.getElementById('lbCap').textContent=`項目 ${i+1}｜${it?it.name:''}（示範：實際會顯示上傳的現場照，可放多張）`;document.getElementById('lbMask').classList.add('on');}
+function openPhoto(i,which){const it=items[i];const img=document.getElementById('lbImg');
+  const url=which==='film'?it.filmImg:(it.areaPhotos&&it.areaPhotos[0]);
+  if(url){img.style.backgroundImage=`url('${url}')`;img.style.backgroundSize='contain';img.style.backgroundRepeat='no-repeat';img.style.backgroundPosition='center';img.innerHTML='';}
+  else{img.style.backgroundImage='';img.innerHTML='<div class="em">📷</div><div>尚未上傳照片</div>';}
+  document.getElementById('lbCap').textContent=`項目 ${i+1}｜${it?it.name:''}${which==='film'?'・膜料示意圖':(it.areaPhotos&&it.areaPhotos.length>1?'・現場照 '+it.areaPhotos.length+' 張':'')}`;
+  document.getElementById('lbMask').classList.add('on');}
 function closePhoto(){document.getElementById('lbMask').classList.remove('on');}
 function toggleMkt(on){renderCust(on);}
 // 折抵：預付金逐筆勾（撈 client_deposits 未使用預收款）
