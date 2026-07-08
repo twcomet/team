@@ -430,7 +430,7 @@
         </div>
         <!-- 快速估價紀錄 -->
         <div class="sf-tab-section" id="quickEstHistorySection" style="display:none">
-          <h4 class="sf-tab-title" style="margin-bottom:8px">快速估價紀錄</h4>
+          <h4 class="sf-tab-title" style="margin-bottom:8px">估價紀錄（快速報價／估價計算機）</h4>
           <div id="quickEstList"></div>
         </div>
         <div class="sf-tab-section">
@@ -2542,38 +2542,67 @@ document.getElementById('saveEstimateBtn').addEventListener('click', async () =>
   else showToast('儲存失敗', 'error');
 });
 
-// ── 快速估價紀錄 ───────────────────────────────────────────
+// ── 估價紀錄（合併：快速報價 initial_estimates + 估價計算機 est_quotes）────
 async function loadQuickEstimates() {
-  const res = await fetch(`/api/cases/${caseId}/initial-estimates`);
-  if (!res.ok) return;
-  const records = await res.json();
   const section = document.getElementById('quickEstHistorySection');
   const list    = document.getElementById('quickEstList');
   if (!section || !list) return;
-  if (!records.length) { section.style.display = 'none'; return; }
-  section.style.display = '';
+
+  const [ieRes, eqRes] = await Promise.all([
+    fetch(`/api/cases/${caseId}/initial-estimates`).catch(() => null),
+    fetch(`/api/estimator/quotes?case_id=${caseId}`).catch(() => null),
+  ]);
+  const ie = (ieRes && ieRes.ok) ? await ieRes.json() : [];
+  const eq = (eqRes && eqRes.ok) ? await eqRes.json() : [];
+
   const modeLabel = { meter:'依米數', no_loss:'實際面積', with_loss:'含損料', splice:'拼料' };
-  list.innerHTML = records.map(r => {
-    const price    = r.discount_price || r.total_price;
-    const priceStr = price ? `NT$ ${Math.round(price).toLocaleString()}` : '—';
-    const origStr  = (r.discount_price && r.total_price && r.discount_price !== r.total_price)
-                     ? `原價 NT$ ${Math.round(r.total_price).toLocaleString()}　` : '';
-    const caiStr   = r.total_cai ? `・${Number(r.total_cai).toFixed(2)} 才` : '';
-    const mode     = modeLabel[r.calc_mode] || r.calc_mode || '';
+  const custLabel = { owner:'業主', designer:'設計師' };
+
+  // 統一成共同格式，來源用 badge 區分
+  const recs = [];
+  ie.forEach(r => {
+    const price = r.discount_price || r.total_price;
+    recs.push({
+      source: '快速報價', badge: '#0ea5e9', badgeBg: '#e0f2fe',
+      title: r.film_type || '快速估價',
+      meta: [modeLabel[r.calc_mode] || r.calc_mode || '', r.total_cai ? `${Number(r.total_cai).toFixed(2)} 才` : ''].filter(Boolean).join('・'),
+      price, orig: (r.discount_price && r.total_price && r.discount_price !== r.total_price) ? r.total_price : null,
+      applyArgs: `${r.total_price || 'null'}, ${r.discount_price || 'null'}`,
+      by: r.created_by_name || '', at: r.created_at || '',
+    });
+  });
+  eq.forEach(r => {
+    recs.push({
+      source: '估價計算機', badge: '#7c3aed', badgeBg: '#ede9fe',
+      title: r.project_name || '估價計算機',
+      meta: [custLabel[r.customer_type] || r.customer_type || '', r.region || '', (r.disc != null && r.disc < 1) ? `折 ${r.disc}` : ''].filter(Boolean).join('・'),
+      price: r.total, orig: (r.disc != null && r.disc < 1 && r.subtotal) ? r.subtotal : null,
+      applyArgs: `${r.total || 'null'}, null`,
+      by: r.created_by_name || '', at: r.created_at || '',
+    });
+  });
+
+  if (!recs.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  recs.sort((a, b) => String(b.at).localeCompare(String(a.at)));   // 新到舊
+
+  list.innerHTML = recs.map(r => {
+    const priceStr = r.price ? `NT$ ${Math.round(r.price).toLocaleString()}` : '—';
+    const origStr  = r.orig ? `原價 NT$ ${Math.round(r.orig).toLocaleString()}　` : '';
     return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;font-size:13px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <div>
-          <span style="font-weight:600;color:#1e293b">${r.film_type || '快速估價'}</span>
-          ${mode ? `<span style="color:#64748b;margin-left:6px">・${mode}</span>` : ''}
-          ${caiStr ? `<span style="color:#64748b;margin-left:6px">${caiStr}</span>` : ''}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:700;color:${r.badge};background:${r.badgeBg};padding:2px 7px;border-radius:10px">${r.source}</span>
+          <span style="font-weight:600;color:#1e293b">${esc(r.title)}</span>
+          ${r.meta ? `<span style="color:#64748b">・${esc(r.meta)}</span>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:700;color:#0ea5e9">${priceStr}</span>
-          <button onclick="applyQuickEstimate(${r.total_price||'null'}, ${r.discount_price||'null'})"
-            style="font-size:12px;padding:4px 10px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer">套用報價</button>
+          <span style="font-weight:700;color:${r.badge}">${priceStr}</span>
+          <button onclick="applyQuickEstimate(${r.applyArgs})"
+            style="font-size:12px;padding:4px 10px;background:${r.badge};color:#fff;border:none;border-radius:6px;cursor:pointer">套用報價</button>
         </div>
       </div>
-      <div style="color:#94a3b8;font-size:12px;margin-top:4px">${origStr}${r.created_by_name || ''}・${(r.created_at||'').slice(0,16).replace('T',' ')}</div>
+      <div style="color:#94a3b8;font-size:12px;margin-top:4px">${origStr}${esc(r.by)}・${String(r.at).slice(0,16).replace('T',' ')}</div>
     </div>`;
   }).join('');
 }

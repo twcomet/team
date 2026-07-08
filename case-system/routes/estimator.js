@@ -166,7 +166,18 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   res.json({ ok: true, total: r.total });
 });
 router.get('/quotes', requireAuth, (req, res) => {
-  const rows = db.prepare(`SELECT id,case_id,project_name,customer_name,customer_type,region,total,status,created_at FROM est_quotes ORDER BY id DESC LIMIT 200`).all();
+  // 可用 ?case_id= 篩選單一案件（供案件詳情「初步估價紀錄」合併顯示）；不帶則回全部(限200)
+  const caseId = req.query.case_id;
+  const where  = caseId ? `WHERE q.case_id = ?` : ``;
+  const limit  = caseId ? `` : `LIMIT 200`;
+  const params = caseId ? [Number(caseId)] : [];
+  const rows = db.prepare(`
+    SELECT q.id,q.case_id,q.project_name,q.customer_name,q.customer_type,q.region,
+           q.subtotal,q.discount,q.disc,q.total,q.status,q.created_at,
+           u.name AS created_by_name
+    FROM est_quotes q LEFT JOIN users u ON u.id = q.created_by
+    ${where} ORDER BY q.id DESC ${limit}
+  `).all(...params);
   res.json(rows);
 });
 router.get('/quotes/:id', requireAuth, (req, res) => {
