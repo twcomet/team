@@ -102,6 +102,11 @@
   .thumb .xbtn{position:absolute;top:3px;right:3px;width:17px;height:17px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:17px;text-align:center;cursor:pointer;z-index:2}
   .thumb .up{cursor:pointer}
   .film-portrait{width:56px;height:80px}
+  .film-sel{padding:6px 8px;border:1px solid var(--gray-300);border-radius:7px;font-size:12.5px;background:#fff;min-width:104px}
+  .stk{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;align-self:center}
+  .stk.now{background:#dcfce7;color:#166534}
+  .stk.fut{background:#fff7ed;color:#c2410c}
+  .stk.non{background:#f3f4f6;color:#9ca3af}
   .area-strip{display:flex;gap:5px;flex-wrap:wrap;align-items:flex-end}
   .area-mini{position:relative;width:58px;height:44px;border-radius:6px;background-size:cover;background-position:center;border:1px solid var(--gray-300)}
   .area-mini .xbtn{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#fff;font-size:11px;line-height:16px;text-align:center;cursor:pointer}
@@ -494,9 +499,24 @@ async function boot(){
   if(!id){ document.querySelector('.wrap').innerHTML='<p style="padding:40px;color:var(--gray-500)">缺少報價單 id。請從報價列表或案件開啟。</p>'; return; }
   quoteId=id; await loadQuote();
 }
+// ── 膜料庫存勾稽 ────────────────────────────────────────────────
+let MATERIALS=[];
+async function loadMaterials(){ try{ const r=await fetch('/api/materials'); MATERIALS=r.ok?await r.json():[]; }catch(e){ MATERIALS=[]; } }
+const brandList=()=>[...new Set(MATERIALS.map(m=>m.brand).filter(Boolean))].sort();
+const modelList=(brand)=>MATERIALS.filter(m=>m.brand===brand);
+const findMat=(brand,model)=>MATERIALS.find(m=>m.brand===brand&&m.model===model);
+const findMatById=(id)=>MATERIALS.find(m=>String(m.id)===String(id));
+const fmtStock=v=>{const n=Math.round((Number(v)||0)*10)/10;return Number.isInteger(n)?String(n):n.toFixed(1);};
+// 該品項是否走「期貨/自訂」自由輸入（沒勾到庫存膜料）
+const isCustomFilm=it=>!!it.isFutures || (!it.materialId && !it.brand && !!it.film);
 function mapDbToProto(d){
+  const matId=d.material_id||null; const mat=matId?findMatById(matId):null;
+  const brand=mat?mat.brand:(d.film_brand||''); const model=mat?mat.model:(d.film_model||'');
+  const filmDisp=mat?[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ')
+                    :[d.film_brand,d.film_model].filter(Boolean).join(' · ')||(d.film_model||'');
   return { id:d.id, kind:d.row_kind||'item', mode:d.calc_mode||'unit',
-    name:d.description||'', film:d.film_model||'', unitEach:d.unit_price||0, qty:d.quantity||1,
+    name:d.description||'', film:filmDisp, brand, model, materialId:matId, isFutures:(!matId&&!!(d.film_model||d.film_brand)),
+    unitEach:d.unit_price||0, qty:d.quantity||1,
     unitCai:d.unit_price_cai||0, srvMeters:d.estimated_meters||0, width:d.film_width_cm||122,
     sizeText:d.size_text||'', disc:(d.item_disc!=null?d.item_disc:((d.row_kind==='text')?100:80)),
     promo:(d.promo_price==null?null:d.promo_price), filmCostPerM:d.cost_per_meter||0,
@@ -505,7 +525,8 @@ function mapDbToProto(d){
 }
 function mapProtoToDb(it){
   return { row_kind:it.kind||'item', calc_mode:it.mode||'unit', item_type:'film',
-    description:it.name||'', film_model:it.film||'', film_width_cm:it.width||122, size_text:it.sizeText||'',
+    description:it.name||'', film_brand:it.brand||null, film_model:(it.model||it.film||''), material_id:(it.materialId||null),
+    film_width_cm:it.width||122, size_text:it.sizeText||'',
     unit_price:it.unitEach||0, unit_price_cai:it.unitCai||0, quantity:it.qty||1,
     estimated_meters:it.srvMeters||0, area_sqchi:(it.cai==null?null:it.cai), item_disc:it.disc,
     promo_price:(it.promo==null?null:it.promo), suggested_price:Math.round((it.cai||0)*(it.unitCai||0)),
@@ -528,6 +549,7 @@ async function loadQuote(){
   try{ deducts=JSON.parse(q.flex_deducts||'[]')||[]; }catch(e){ deducts=[]; }
   document.getElementById('flexChk').checked=deducts.length>0;
   document.getElementById('flexBox').style.display=deducts.length>0?'block':'none';
+  await loadMaterials();                       // 先載膜料庫存，供品牌/型號勾稽與示意圖帶入
   items=(q.items||[]).map(mapDbToProto);
   await Promise.all([loadNotices(), loadPrepay()]);
   renderPrepay(); renderFlex(); renderRows(); recalc(); syncCustNotice();
@@ -642,8 +664,26 @@ function renderRows(){
     }
     const isCai=it.mode==='cai', isMat=it.mode==='material';
     const totLabel=isMat?'總價':'連工帶料總價', promoLabel=isMat?'總優惠價':'連工帶料優惠價';
+    const custom=isCustomFilm(it);
+    const _mat=it.materialId?findMatById(it.materialId):(it.brand&&it.model?findMat(it.brand,it.model):null);
+    const stockChip = custom
+      ? `<span class="stk fut" title="庫存查無此料＝期貨，需採購">期貨（庫存查無）</span>`
+      : (_mat ? `<span class="stk now" title="架位：${esc(_mat.location||'—')}｜成本：${_mat.unit_cost!=null?_mat.unit_cost+'元/米':'—'}">現貨 ${fmtStock(_mat.stock_meters)} 米</span>`
+              : `<span class="stk non">選品牌／型號</span>`);
+    const brandOpts=`<option value="">品牌…</option>`+brandList().map(b=>`<option ${b===it.brand?'selected':''}>${esc(b)}</option>`).join('')+`<option value="__custom" ${custom?'selected':''}>其他（期貨/自訂）</option>`;
+    const modelOpts=`<option value="">型號…</option>`+(it.brand?modelList(it.brand).map(m=>`<option ${m.model===it.model?'selected':''}>${esc(m.model)}</option>`).join(''):'');
+    const filmField=`<div class="fld" style="flex:1;min-width:${isMat?300:280}px">
+        <label>${isMat?'單買膜料（品牌／型號・勾稽庫存）':'膜料資訊（品牌／型號・勾稽庫存）'}</label>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select class="film-sel" onchange="setFilmBrand(${i},this.value)">${brandOpts}</select>
+          ${custom
+            ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
+            : `<select class="film-sel" onchange="setFilmModel(${i},this.value)">${modelOpts}</select>`}
+          ${stockChip}
+        </div>
+      </div>`;
     const spec=`<div class="cfields">
-        <div class="fld"><label>${isMat?'單買膜料資訊（品牌／型號／規格）':'膜料資訊（品牌／型號／膜寬）'}</label><input value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" style="width:${isMat?280:236}px"></div>
+        ${filmField}
         <div>
           <label style="font-size:11px;color:var(--gray-500);display:block;margin-bottom:3px">膜料示意圖（A4 直式）</label>
           <div class="thumb film film-portrait ${it.filmImg?'has':''}" style="${it.filmImg?`background-image:url('${esc(it.filmImg)}')`:''}" onclick="upFilmImg(${i})">
@@ -743,6 +783,25 @@ function setCost(i,k,v){items[i][k]=+v||0;renderCost();}
 function setDayRate(v){dayRate=+v||0;renderCost();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){items[i].mode=m;renderRows();recalc();}
+// ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
+function setFilmBrand(i,v){
+  const it=items[i];
+  if(v==='__custom'){ it.isFutures=true; it.brand=''; it.model=''; it.materialId=null; markDirty(); renderRows(); return; }
+  it.isFutures=false; it.brand=v; it.model=''; it.materialId=null;
+  markDirty(); renderRows();
+}
+function setFilmModel(i,v){
+  const it=items[i]; it.model=v; it.isFutures=false;
+  const mat=findMat(it.brand,v);
+  if(mat){
+    it.materialId=mat.id;
+    it.width=mat.width_cm||it.width||122;
+    if(mat.image_url) it.filmImg=mat.image_url;              // 自動帶膜料示意圖
+    if(mat.unit_cost!=null) it.filmCostPerM=mat.unit_cost;   // 帶內部成本
+    it.film=[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ');
+  }else{ it.materialId=null; }
+  markDirty(); renderRows(); recalc();
+}
 // ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
 function pickImage(cb){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
@@ -772,7 +831,7 @@ function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'
 function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));recalc();}
 function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);recalc();}
 function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items.splice(i,1);renderRows();recalc();}
-function addRow(){items.push({name:'新增品項',mode:'unit',film:'BODAQ · 型號待填 · 寬122cm',unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
+function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}
 function tgl(h){const t=h.closest('.block').querySelector('textarea');t.style.display=t.style.display==='none'?'block':'none';}
