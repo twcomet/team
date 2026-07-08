@@ -374,15 +374,20 @@ let calView = 'month', calFilter = '全部', showIdle = true;
 function fmtD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function todayStr(){ return fmtD(new Date()); }
 
+// ── 師傅名字：去姓、保留完整名字（與 Google 行事曆同步一致）──────
+const _COMPOUND_SURNAMES = ['歐陽','太史','端木','上官','司馬','東方','獨孤','南宮','夏侯','諸葛','尉遲','皇甫','宇文','長孫','慕容','司徒','司空','令狐','鍾離','宗政','濮陽','公孫','澹台','公冶','太叔','申屠','公羊','万俟'];
+function _givenName(full){ const n=String(full||'').trim(); if(n.length<=1) return n; if(_COMPOUND_SURNAMES.includes(n.slice(0,2))) return n.slice(2)||n; return n.slice(1); }
+function _crewGiven(names){ const seen=new Set(); const out=[]; (names||[]).forEach(raw=> String(raw||'').split(/[、,，\/\s]+/).forEach(x=>{ const g=_givenName(x.trim()); if(g&&!seen.has(g)){ seen.add(g); out.push(g); } })); return out.join('、'); }
+
 function buildMaps(){
   const byDate = {};
   const push = (date, ev) => { if(!date) return; (byDate[date]=byDate[date]||[]).push(ev); };
   (calData.cases||[]).forEach(c => push(c.scheduled_date, { kind:'case', cat:CAT_OF(c), c,
     reported:(c.source==='dispatch' && (c.report_count||0) > 0),
-    title:((c.source==='dispatch' && (c.report_count||0)>0) ? '✅ ' : '') + [c.title, c.client_name, c.installer_name].filter(Boolean).join('｜'),
+    title:((c.source==='dispatch' && (c.report_count||0)>0) ? '✅ ' : '') + `【${_crewGiven([c.leader_name, c.installer_name])}${CAT_OF(c)}】` + [c.title, c.client_name].filter(Boolean).join('｜'),
     dayNo:(c.source==='dispatch' && c.dispatch_type==='install') ? (c.day_no||null) : null }));
   (calData.surveys||[]).forEach(s => push(s.survey_date, { kind:'survey', cat:'場勘', c:s,
-    title:'🔍 '+[s.title, s.client_name, s.surveyor_name].filter(Boolean).join('｜'), dayNo:null }));
+    title:`【${_crewGiven([s.surveyor_name])}場勘】`+[s.title, s.client_name].filter(Boolean).join('｜'), dayNo:null }));
   return byDate;
 }
 function filtEv(arr){ return calFilter==='全部' ? (arr||[]) : (arr||[]).filter(e=>e.cat===calFilter); }
