@@ -136,10 +136,67 @@ async function backfillCaseFolders() {
   return { total: rows.length, ok, fail, sampleError };
 }
 
+// 改名（同一個檔案/資料夾，只改名稱，內容/ID/共享都不動）
+async function _renameFile(fileId, name, token) {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error('資料夾改名失敗：' + ((j.error && j.error.message) || r.status)); }
+}
+
+// 派工子資料夾：建在「案件資料夾」裡面（父層＝案件資料夾，絕不另開頂層資料夾）。
+//   命名 YYYYMMDD_類型_師傅名字；場勘/施工/維修才建，材料(裁料)不建。
+//   已建者：改人員/日期 → 同一個資料夾直接改名（ID 不變、內容都在）。
+const _DISPATCH_SUB_LABELS = { survey: '場勘', factory_survey: '場勘', install: '施工', aftersales: '維修' };
+async function ensureDispatchSubfolder(dispatchId) {
+  if (!isConnected()) return null;
+  const d = db.prepare(`
+    SELECT d.id, d.dispatch_type, d.scheduled_date, d.case_id,
+           d.drive_subfolder_id, d.drive_subfolder_url, d.drive_subfolder_name,
+           ld.name AS leader_name,
+           (SELECT GROUP_CONCAT(u.name, '、') FROM dispatch_users du JOIN users u ON u.id = du.user_id
+              WHERE du.dispatch_id = d.id) AS workers
+    FROM dispatches d LEFT JOIN users ld ON ld.id = d.leader_id
+    WHERE d.id = ?
+  `).get(dispatchId);
+  if (!d) return null;
+  const label = _DISPATCH_SUB_LABELS[d.dispatch_type];
+  if (!label) return null;                                  // 材料/其他 → 不建
+  // 師傅名字：小組長第一、組員在後、去重（完整姓名）
+  const crew = [];
+  if (d.leader_name) crew.push(String(d.leader_name).trim());
+  if (d.workers) String(d.workers).split('、').forEach(n => { n = n.trim(); if (n && !crew.includes(n)) crew.push(n); });
+  const dateStr = String(d.scheduled_date || '').replace(/-/g, '');
+  const base = [dateStr, label].filter(Boolean).join('_');
+  const name = crew.length ? `${base}_${crew.join('、')}` : base;
+
+  const token = await accessToken();
+  if (d.drive_subfolder_id) {                               // 已有 → 名稱變了才改名（同一個資料夾）
+    if (d.drive_subfolder_name !== name) {
+      await _renameFile(d.drive_subfolder_id, name, token);
+      db.prepare('UPDATE dispatches SET drive_subfolder_name=? WHERE id=?').run(name, d.id);
+    }
+    return d.drive_subfolder_url;
+  }
+  await ensureCaseFolder(d.case_id);                        // 保底：先確保案件資料夾存在
+  const c = db.prepare('SELECT drive_folder_id FROM cases WHERE id=?').get(d.case_id);
+  if (!c || !c.drive_folder_id) return null;                // 仍無案件資料夾 → 略過
+  const f = await _createFolder(name, c.drive_folder_id, token);   // 父層＝案件資料夾 → 一定在案件夾裡面
+  db.prepare('UPDATE dispatches SET drive_subfolder_id=?, drive_subfolder_url=?, drive_subfolder_name=? WHERE id=?')
+    .run(f.id, f.webViewLink, name, d.id);
+  return f.webViewLink;
+}
+function safeEnsureDispatchSubfolder(dispatchId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return ensureDispatchSubfolder(dispatchId).catch(e => { console.error('[gdrive] 派工子資料夾失敗 dispatch#' + dispatchId + '：', e.message); return null; });
+}
+
 // 中斷連接（清掉 token）
 function disconnect() {
   setS('gdrive_refresh_token', null);
   db.prepare("DELETE FROM settings WHERE key='gdrive_refresh_token'").run();
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, disconnect, accessToken };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, disconnect, accessToken };

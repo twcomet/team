@@ -788,6 +788,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   syncCaseScheduledDate(case_id); // 新增派工後同步施工日期=最早施工派工
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
   gdrive.safeEnsureCaseFolder(case_id); // 保底：派工當下確保案件有雲端資料夾（供客服上傳資料給師傅；冪等，已有不重建）
+  gdrive.safeEnsureDispatchSubfolder(did); // 派工在案件資料夾內建子夾（場勘/施工/維修_師傅名字；材料不建）
   gcal.safeSyncDispatch(did); // 同步到 Google 派單行事曆（best-effort，不阻塞）
   if (['survey', 'factory_survey'].includes(dtype)) gcal.safeSyncSurvey(case_id); // 場勘派工→移除重複的場勘表單事件
   res.json({ ok: true, id: did, day_index });
@@ -836,6 +837,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
     notifyDispatch(Number(req.params.id), dispatch_type, scheduled_date, newUserIds, req.session.user.id);
   }
   syncCaseScheduledDate(Number(req.params.id)); // 改派工日期後同步案件施工日期，避免過期
+  gdrive.safeEnsureDispatchSubfolder(Number(req.params.did)); // 改人員/日期→子資料夾自動改名（同一個資料夾）
   gcal.safeSyncDispatch(Number(req.params.did)); // 同步 Google 派單行事曆（含改期/取消）
   if (['survey', 'factory_survey'].includes(dispatch_type)) gcal.safeSyncSurvey(Number(req.params.id)); // 場勘派工異動→同步場勘事件去重
   res.json({ ok: true });

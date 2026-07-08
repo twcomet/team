@@ -1611,6 +1611,9 @@ _addCol('dispatches', 'service_fee',      'REAL DEFAULT NULL'); // 收費金額
 _addCol('dispatches', 'day_index',        'INTEGER DEFAULT NULL'); // 多日施工第幾天(1=第1天)；NULL=未標記/單日
 _addCol('dispatches', 'leader_id',        'INTEGER REFERENCES users(id) DEFAULT NULL'); // 小組長（從指派人員中選一位，負責完工回報）
 _addCol('dispatches', 'gcal_event_id',    'TEXT DEFAULT NULL'); // 對應的 Google 行事曆事件 ID（派單同步用）
+_addCol('dispatches', 'drive_subfolder_id',   'TEXT DEFAULT NULL'); // 派工在案件資料夾內的子資料夾 ID（場勘/施工/維修夾）
+_addCol('dispatches', 'drive_subfolder_url',  'TEXT DEFAULT NULL'); // 子資料夾網址
+_addCol('dispatches', 'drive_subfolder_name', 'TEXT DEFAULT NULL'); // 子資料夾目前名稱（改人員/日期時據此判斷是否需改名）
 _addCol('cases',      'survey_gcal_event_id', 'TEXT DEFAULT NULL'); // 場勘(非派工)對應的 Google 行事曆事件 ID
 
 // 一次性修正：已核准且已預扣(有有效 reserve log)的「案件材料保留」若被標成 archived(已完成)，改回 reserved(保留中)
