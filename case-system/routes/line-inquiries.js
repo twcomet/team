@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const gdrive  = require('../lib/gdrive');
 const { requireAuth } = require('../middleware/auth');
 
 // ── 列表（含分頁、狀態篩選、關鍵字搜尋）──────────────────────────
@@ -200,6 +201,8 @@ router.post('/:id/convert', requireAuth, (req, res) => {
         converted_by=?, updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(r.lastInsertRowid, u.id, inq.id);
+
+  gdrive.safeEnsureCaseFolder(r.lastInsertRowid); // LINE 詢問轉案件也自動建雲端資料夾（best-effort，不阻塞）
 
   res.json({ ok: true, case_id: r.lastInsertRowid, case_number: caseNumber });
 });

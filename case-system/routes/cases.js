@@ -787,6 +787,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
   recalcLaborCost(case_id);
   syncCaseScheduledDate(case_id); // 新增派工後同步施工日期=最早施工派工
   notifyDispatch(case_id, dispatch_type || 'install', scheduled_date, user_ids, req.session.user.id);
+  gdrive.safeEnsureCaseFolder(case_id); // 保底：派工當下確保案件有雲端資料夾（供客服上傳資料給師傅；冪等，已有不重建）
   gcal.safeSyncDispatch(did); // 同步到 Google 派單行事曆（best-effort，不阻塞）
   if (['survey', 'factory_survey'].includes(dtype)) gcal.safeSyncSurvey(case_id); // 場勘派工→移除重複的場勘表單事件
   res.json({ ok: true, id: did, day_index });
