@@ -340,7 +340,7 @@ function foldsHtml(q){
   ].filter(b=>b[1]);
   if(!blocks.length) return '';
   return `<div class="section"><div class="section-title">條款與須知</div>
-    ${blocks.map(b=>`<div class="fold" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${esc(b[1])}</div></div>`).join('')}</div>`;
+    ${blocks.map(b=>`<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${esc(b[1])}</div></div>`).join('')}</div>`;
 }
 
 function onMkt(on){ agreeMkt=on; document.getElementById('colNormal')?.classList.toggle('on',!on); document.getElementById('colMkt')?.classList.toggle('on',on);
