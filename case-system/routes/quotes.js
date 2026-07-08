@@ -544,7 +544,7 @@ router.post('/sign/:token', (req, res) => {
   const { signature, marketing_consent } = req.body;
   if (!signature) return res.status(400).json({ error: '請提供簽名' });
 
-  const q = db.prepare(`SELECT id, case_id, status, marketing_total, final_total FROM quote_sheets WHERE share_token=?`).get(req.params.token);
+  const q = db.prepare(`SELECT id, case_id, status, engine, discount_value, marketing_total, tax_amount, tax_rate, final_total FROM quote_sheets WHERE share_token=?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
   if (q.status === 'accepted') return res.status(400).json({ error: '此報價單已確認' });
 
@@ -553,8 +553,16 @@ router.post('/sign/:token', (req, res) => {
     client_accepted_at=CURRENT_TIMESTAMP, client_marketing_consent=? WHERE share_token=?`)
     .run(signature, consent, req.params.token);
 
-  // 案件升為已確認，同步成交金額（行銷同意用優惠價，否則用一般折扣價）
-  const finalAmt = consent && q.marketing_total ? q.marketing_total : q.final_total;
+  // 案件升為已確認，同步成交金額
+  let finalAmt;
+  if (q.engine === 'v2') {
+    // final_total 已是「同意拍照」的含稅扣折抵應付；不同意＝優惠價×(1+稅)−折抵
+    const deduction = Math.max(0, (q.marketing_total || 0) + (q.tax_amount || 0) - (q.final_total || 0));
+    finalAmt = consent ? (q.final_total || 0)
+                       : Math.round((q.discount_value || 0) * (1 + (q.tax_rate || 0.05))) - deduction;
+  } else {
+    finalAmt = consent && q.marketing_total ? q.marketing_total : q.final_total;
+  }
   db.prepare(`UPDATE cases SET status='confirmed', contract_amount=?, contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP),
     updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(finalAmt || 0, q.case_id);
 
