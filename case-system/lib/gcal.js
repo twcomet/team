@@ -23,6 +23,19 @@ async function _fetchRetry(url, opts, tries = 6) {
   return last;                                                      // 用盡重試仍失敗 → 交回上層處理
 }
 
+// ── 同步序列化鎖：同一 key（同一筆派工/場勘）的同步排隊執行，杜絕並發競態造成的重複事件 ──
+// 競態：safeSync 是 fire-and-forget，同筆派工被兩個觸發點near-同時同步時，兩次都讀到 gcal_event_id
+// 還是 NULL → 各自 POST 建立 → Google 出現兩筆。用 per-key promise chain 讓同 key 串行即可根治。
+const _locks = new Map();
+function _withLock(key, fn) {
+  const prev = _locks.get(key) || Promise.resolve();
+  const run  = prev.then(fn, fn);          // 不論前一個成功/失敗都接著跑
+  const guard = run.catch(() => {});       // 吞掉錯誤，確保鏈不中斷
+  _locks.set(key, guard);
+  guard.then(() => { if (_locks.get(key) === guard) _locks.delete(key); }); // 隊尾清理，避免記憶體長大
+  return run;
+}
+
 const isConnected  = () => gdrive.isConnected();
 // 同步開關：預設開啟；設為 '0' 則暫停（未連 Google 時本來就不會動作）
 const syncEnabled  = () => getS('gcal_sync_enabled') !== '0';
@@ -283,7 +296,7 @@ async function _syncSurvey(caseId) {
 // ── 對外 API：best-effort，永不 throw（不阻塞派單流程）──────
 function safeSyncDispatch(dispatchId) {
   if (!syncEnabled() || !isConnected()) return Promise.resolve();
-  return _syncDispatch(dispatchId)
+  return _withLock('d' + dispatchId, () => _syncDispatch(dispatchId))
     .catch(e => console.error('[gcal] 同步派工失敗 #' + dispatchId + '：', e.message));
 }
 function safeRemoveEvent(eventId) {
@@ -294,7 +307,7 @@ function safeRemoveEvent(eventId) {
 // 同步某案件的「場勘事件」（非派工的場勘日期）。best-effort，永不 throw
 function safeSyncSurvey(caseId) {
   if (!syncEnabled() || !isConnected()) return Promise.resolve();
-  return _syncSurvey(caseId)
+  return _withLock('s' + caseId, () => _syncSurvey(caseId))
     .catch(e => console.error('[gcal] 同步場勘失敗 case#' + caseId + '：', e.message));
 }
 
@@ -314,7 +327,7 @@ async function _runSyncAll() {
   `).all();
   _job.total = rows.length + surveyRows.length; _job.phase = '同步派工';
   for (const row of rows) {
-    try { await _syncDispatch(row.id); _job.ok++; }
+    try { await _withLock('d' + row.id, () => _syncDispatch(row.id)); _job.ok++; }
     catch (e) {
       _job.fail++;
       if (!_job.sampleError) _job.sampleError = e.message;
@@ -326,7 +339,7 @@ async function _runSyncAll() {
   if (_job.aborted) return;
   _job.phase = '同步場勘';
   for (const row of surveyRows) {
-    try { await _syncSurvey(row.id); _job.ok++; }
+    try { await _withLock('s' + row.id, () => _syncSurvey(row.id)); _job.ok++; }
     catch (e) {
       _job.fail++;
       if (!_job.sampleError) _job.sampleError = e.message;
