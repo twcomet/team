@@ -159,8 +159,9 @@
               <th>版本</th>
               <th>狀態</th>
               <th>金額</th>
+              <th>編輯人</th>
               <th>建立日期</th>
-              <th width="80">操作</th>
+              <th width="180">操作</th>
             </tr>
           </thead>
           <tbody id="quoteList"></tbody>
@@ -314,10 +315,10 @@ async function loadList() {
       <td style="text-align:center;color:#6b7280">v${q.version}</td>
       <td><span class="status-pill ${st.cls}">${st.label}</span></td>
       <td class="amt-cell">${amt}</td>
+      <td style="color:#374151;font-size:12px;white-space:nowrap">${esc(q.creator_name||'—')}</td>
       <td style="color:#6b7280;font-size:12px">${dateStr}${weekdayZh(q.created_at)}</td>
-      <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
-        <a href="/quote-detail?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
-        <a href="/quote-form?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#d6336c;color:#fff;border-radius:6px;text-decoration:none;margin-left:4px">🆕 新版</a>
+      <td style="white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <a href="/quote-form?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#d6336c;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
         ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}
         ${(currentUser?.role==='owner'||currentUser?.manage_users) ? `<button class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#fee2e2;color:#991b1b;border-radius:6px;border:none;cursor:pointer" onclick="deleteQuote(${q.id},'${(q.case_number||'').replace(/'/g,"\\'")}')">刪除</button>` : ''}
       </td>
