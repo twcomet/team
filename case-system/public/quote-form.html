@@ -865,7 +865,7 @@ function parseFilm(it){
 }
 function noteHtml(note){
   return String(note||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
-    const em=l.startsWith('!'); const t=esc(l.replace(/^!\s*/,''));
+    const em=/^[!！]/.test(l); const t=esc(l.replace(/^[!！]\s*/,''));   // 同時認全形！與半形!
     return em?`<div class="em">${t}</div>`:`<div>${t}</div>`;
   }).join('');
 }

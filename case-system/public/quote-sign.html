@@ -162,7 +162,7 @@ function weekdayZh(d){ if(!d) return ''; const m=String(d).match(/^(\d{4})-(\d{2
 // 貼覆項目說明：行首「!」＝紅字重點
 function noteHtml(note){
   return String(note||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
-    const em=l.startsWith('!'); const t=esc(l.replace(/^!\s*/,''));
+    const em=/^[!！]/.test(l); const t=esc(l.replace(/^[!！]\s*/,''));   // 同時認全形！與半形!
     return em?`<div class="em">${t}</div>`:`<div>${t}</div>`;
   }).join('');
 }
