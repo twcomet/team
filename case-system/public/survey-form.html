@@ -175,7 +175,10 @@
       <div class="sf-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
           <h4 style="margin:0;border:none;padding:0">場勘項目紀錄</h4>
-          <button class="btn btn-ghost btn-sm" id="addFindingBtn">＋ 新增項目</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="importEstBtn" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe" title="從本案估價單帶入項目/尺寸/數量（不含金額）">📥 代入估價資料</button>
+            <button class="btn btn-ghost btn-sm" id="addFindingBtn">＋ 新增項目</button>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 70px 36px;gap:8px;margin-bottom:8px">
           <div style="font-size:12px;color:var(--gray-500);font-weight:500">施作位置</div>
@@ -347,6 +350,47 @@ document.getElementById('addFindingBtn').addEventListener('click', () => {
   const rows = document.querySelectorAll('.finding-row');
   if (rows.length) rows[rows.length-1].querySelector('.f-loc').focus();
 });
+
+// 從本案估價單帶入場勘項目：只帶項目/尺寸/數量，不帶金額（估價 items_json 為原始輸入，依 kind 轉可讀名稱）
+document.getElementById('importEstBtn').addEventListener('click', importEstimate);
+async function importEstimate() {
+  const btn = document.getElementById('importEstBtn');
+  const label = btn.textContent; btn.disabled = true; btn.textContent = '載入中…';
+  try {
+    // 估價清單端點不吃 case_id，先撈全部再過濾本案（已 ORDER BY id DESC）
+    const list = await fetch('/api/estimator/quotes').then(r => r.ok ? r.json() : []);
+    const mine = (list || []).filter(q => String(q.case_id) === String(caseId));
+    if (!mine.length) { alert('這個案件目前沒有估價單可帶入。'); return; }
+    const q = await fetch(`/api/estimator/quotes/${mine[0].id}`).then(r => r.ok ? r.json() : null);
+    const raw = (q && Array.isArray(q.items)) ? q.items : [];
+    if (!raw.length) { alert('估價單沒有品項可帶入。'); return; }
+    const workName = { plane:'牆面貼膜', cabinet:'系統櫃貼膜', shape:'造型貼膜' };
+    const grp = {};
+    raw.forEach(it => {
+      let loc = '項目', w = it.w || '', h = it.h || '';
+      if (it.kind === 'film') loc = workName[it.work] || '裝潢膜貼覆';
+      else if (it.kind === 'glass') loc = '玻璃貼膜';
+      else if (it.kind === 'door') loc = '門片包膜' + (it.cat ? `（${it.cat}）` : '');
+      else if (it.kind === 'object') { loc = it.name || '物件'; w = ''; h = ''; }
+      else if (it.kind === 'other') loc = it.name || '其他項目';
+      else if (it.kind && it.kind.indexOf('elev') === 0) loc = '電梯貼膜';
+      else if (it.kind === 'fut') return;   // 期貨運費非施作項目，略過
+      else loc = it.name || it.kind || '項目';
+      const key = `${loc}||${w}||${h}`;
+      if (grp[key]) grp[key].qty++;
+      else grp[key] = { location: loc, material: '', width: w || null, height: h || null, qty: 1 };
+    });
+    const imported = Object.values(grp);
+    if (!imported.length) { alert('沒有可帶入的施作項目。'); return; }
+    renderFindings(getFindings().concat(imported));   // 附加到現有項目後面，不覆蓋既有手填
+    markDirty();
+    alert(`已帶入 ${imported.length} 筆估價項目（只帶項目／尺寸／數量，金額不帶）。請確認後儲存。`);
+  } catch (e) {
+    alert('帶入失敗：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
 
 function removeFinding(idx) {
   const current = getFindings();
