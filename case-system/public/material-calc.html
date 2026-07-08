@@ -1209,14 +1209,24 @@ input[type=number] { -moz-appearance: textfield; }
     const params = new URLSearchParams(location.search);
     const caseIdParam = params.get('case_id');
 
-    const res = await fetch('/api/cases?group=inquiry&limit=200');
-    const data = res.ok ? await res.json() : [];
-    allCases = Array.isArray(data) ? data : (data.items || []);
+    await fetchCases('');   // 預載一批進行中案件供點選
 
     if (caseIdParam) {
       const found = allCases.find(c => String(c.id) === String(caseIdParam));
       if (found) selectCase(found.id, caseLabel(found));
     }
+    updateSaveBox();   // 一進頁面就顯示儲存區塊（未關聯案件時為停用狀態）
+  }
+
+  // 伺服器端關鍵字搜尋（全部進行中案件，不限階段）——原本只載詢價階段，別的階段搜不到
+  let _caseSearchTimer = null;
+  async function fetchCases(q) {
+    try {
+      const url = q ? `/api/cases?active=1&search=${encodeURIComponent(q)}` : '/api/cases?active=1';
+      const res = await fetch(url);
+      const data = res.ok ? await res.json() : [];
+      allCases = Array.isArray(data) ? data : (data.items || []);
+    } catch (e) { allCases = []; }
   }
 
   function onCaseSearchFocus() {
@@ -1224,7 +1234,12 @@ input[type=number] { -moz-appearance: textfield; }
   }
 
   function onCaseSearch() {
-    showCaseDropdown(document.getElementById('caseSearch').value.toLowerCase().trim());
+    const q = document.getElementById('caseSearch').value.trim();
+    clearTimeout(_caseSearchTimer);
+    _caseSearchTimer = setTimeout(async () => {
+      await fetchCases(q);
+      showCaseDropdown(q.toLowerCase());
+    }, 220);
   }
 
   function showCaseDropdown(q) {
@@ -1268,12 +1283,17 @@ input[type=number] { -moz-appearance: textfield; }
   function updateSaveBox() {
     const saveBox = document.getElementById('saveEstBox');
     const pdfBtn  = document.getElementById('pdfOnlyBtn');
+    const saveBtn = document.getElementById('saveEstBtn');
+    saveBox.style.display = 'flex';    // 一律顯示，讓「儲存」看得見（saveEstBox 內已含 PDF 按鈕）
+    pdfBtn.style.display = 'none';
     if (linkedCaseId) {
-      saveBox.style.display = 'flex';
-      pdfBtn.style.display = 'none';
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 儲存初步估價到案件';
+      saveBtn.removeAttribute('title');
     } else {
-      saveBox.style.display = 'none';
-      pdfBtn.style.display = '';
+      saveBtn.disabled = true;
+      saveBtn.textContent = '💾 儲存（請先在上方關聯案件）';
+      saveBtn.title = '需先選擇關聯案件才能把初步估價存進去';
     }
   }
 
