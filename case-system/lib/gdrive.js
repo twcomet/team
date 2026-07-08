@@ -170,7 +170,21 @@ async function ensureDispatchSubfolder(dispatchId) {
   if (d.workers) String(d.workers).split('、').forEach(n => { n = n.trim(); if (n && !crew.includes(n)) crew.push(n); });
   const dateStr = String(d.scheduled_date || '').replace(/-/g, '');
   const base = [dateStr, label].filter(Boolean).join('_');
-  const name = crew.length ? `${base}_${crew.join('、')}` : base;
+  let name = crew.length ? `${base}_${crew.join('、')}` : base;
+
+  // 拍照者：完工回報指定後直接寫進資料夾名稱（可能多人多筆回報，取聯集）
+  const wrs = db.prepare(`SELECT photographer_ids FROM work_reports
+    WHERE dispatch_id=? AND photographer_ids IS NOT NULL AND photographer_ids NOT IN ('', '[]')`).all(d.id);
+  if (wrs.length) {
+    const pids = [];
+    wrs.forEach(w => { try { JSON.parse(w.photographer_ids).forEach(id => { if (!pids.includes(id)) pids.push(id); }); } catch {} });
+    if (pids.length) {
+      const rows = db.prepare(`SELECT id, name FROM users WHERE id IN (${pids.map(() => '?').join(',')})`).all(...pids);
+      const map = {}; rows.forEach(r => { map[r.id] = r.name; });
+      const photog = pids.map(id => map[id]).filter(Boolean);
+      if (photog.length) name += `_拍照${photog.join('、')}`;
+    }
+  }
 
   const token = await accessToken();
   if (d.drive_subfolder_id) {                               // 已有 → 名稱變了才改名（同一個資料夾）

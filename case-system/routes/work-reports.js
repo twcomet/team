@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const gdrive = require('../lib/gdrive');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -100,6 +101,7 @@ router.post('/', requireAuth, (req, res) => {
       (b.progress_pct != null && b.progress_pct !== '') ? Number(b.progress_pct) : null,
       b.notes || null
     );
+    gdrive.safeEnsureDispatchSubfolder(Number(b.dispatch_id)); // 拍照者確定後→施工夾自動改名帶上拍照者
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
