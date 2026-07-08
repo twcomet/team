@@ -142,6 +142,24 @@ function canDispatch(me) {
       || !DISPATCH_RECIPIENT_ROLES.includes(me.role);
 }
 
+// 小組長自動判定：客服沒選組長時，從指派人員中挑「最資深」者當組長。
+//   資深排序：到職日(hire_date)最早 → is_manager 優先 → id 小者。無 hire_date 者排最後。
+function _pickLeader(userIds) {
+  const ids = (Array.isArray(userIds) ? userIds : []).map(Number).filter(Boolean);
+  if (!ids.length) return null;
+  const rows = db.prepare(
+    `SELECT id, hire_date, is_manager FROM users WHERE id IN (${ids.map(() => '?').join(',')})`
+  ).all(...ids);
+  if (!rows.length) return null;
+  rows.sort((a, b) => {
+    const ah = a.hire_date || '9999-12-31', bh = b.hire_date || '9999-12-31';
+    if (ah !== bh) return ah < bh ? -1 : 1;                 // 到職越早越資深
+    if ((b.is_manager || 0) !== (a.is_manager || 0)) return (b.is_manager || 0) - (a.is_manager || 0);
+    return a.id - b.id;
+  });
+  return rows[0].id;
+}
+
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { status, case_type, date_from, date_to, search, group, client_id } = req.query;
@@ -735,7 +753,7 @@ router.post('/:id/dispatches', requireAuth, (req, res) => {
          warranty_covered != null ? Number(warranty_covered) : 1,
          service_fee != null ? Number(service_fee) : null,
          day_index,
-         (leader_id != null && leader_id !== '') ? Number(leader_id) : null,
+         (leader_id != null && leader_id !== '') ? Number(leader_id) : _pickLeader(user_ids),  // 沒選組長→自動挑最資深者
          req.session.user.id);
 
   const did = result.lastInsertRowid;
@@ -791,7 +809,7 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
            unloading_location ?? null, has_parking ?? null, work_until ?? null, access_code ?? null,
            warranty_covered != null ? Number(warranty_covered) : 1,
            service_fee != null ? Number(service_fee) : null,
-           (leader_id != null && leader_id !== '') ? Number(leader_id) : null,
+           (leader_id != null && leader_id !== '') ? Number(leader_id) : _pickLeader(user_ids),  // 沒選組長→自動挑最資深者
            req.params.did, req.params.id);
   } catch (e) {
     console.error('PUT dispatch error:', e.message);

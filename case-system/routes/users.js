@@ -12,7 +12,7 @@ router.get('/', requireAuth, (req, res) => {
   let query = `SELECT u.id, u.name, u.username, u.role, u.org_id, u.department, u.allowed_org_ids,
                       u.is_manager, u.can_see_amounts, u.can_see_cost, u.can_see_labor_cost,
                       u.can_manage_assets, u.can_delete, u.can_ship, u.can_layout, u.service_areas, u.active,
-                      u.permissions, u.sort_order, u.daily_cost, u.line_user_id,
+                      u.permissions, u.sort_order, u.daily_cost, u.line_user_id, u.hire_date,
                       u.accept_dispatch, u.is_sales, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
   const params = [];

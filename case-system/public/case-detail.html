@@ -1384,7 +1384,7 @@
 
       <!-- 小組長（從勾選的人裡選一位） -->
       <div class="form-group" id="d_leader_row" style="display:none">
-        <label>👑 小組長 <span style="font-size:11px;color:var(--gray-400)">從上面勾選的人選一位；只勾 1 人自動為組長。負責完工回報</span></label>
+        <label>👑 小組長 <span style="font-size:11px;color:var(--gray-400)">從上面勾選的人選一位；沒選則自動預設最資深者。負責完工回報</span></label>
         <div id="d_leader_opts" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
 
@@ -1407,6 +1407,12 @@
       </div>
 
       <div class="form-group"><label>客服備註</label><textarea id="d_notes" rows="2"></textarea></div>
+
+      <!-- 案件雲端資料夾：客服可上傳資料給師傅看，連結會一併同步到 Google 行事曆 -->
+      <div class="form-group" id="d_folder_row">
+        <label>📁 案件雲端資料夾 <span style="font-size:11px;color:var(--gray-400)">客服可把要給師傅看的資料上傳到這裡；此連結會一併同步到 Google 行事曆</span></label>
+        <div id="d_folder_box"></div>
+      </div>
 
       <!-- 進場資訊 -->
       <div style="border-top:1px solid var(--gray-200);margin:12px 0 14px;padding-top:14px">
@@ -1832,6 +1838,36 @@ function renderDriveBtn() {
   const btn = document.getElementById('driveBtn'); if (!btn) return;
   if (caseData && caseData.drive_folder_url) { btn.textContent = '📁 開啟雲端資料夾'; btn.title = '開啟此案件的 Google 雲端資料夾'; }
   else { btn.textContent = '📁 建立雲端資料夾'; btn.title = '在 Google 雲端建立此案件的資料夾'; }
+}
+// 派工 modal 的雲端資料夾連結：與 Google 行事曆「完工資料夾」同一份（photo_upload_url 優先）
+function dispatchFolderUrl() { return (caseData && (caseData.photo_upload_url || caseData.drive_folder_url)) || ''; }
+function populateDispatchFolder() {
+  const box = document.getElementById('d_folder_box'); if (!box) return;
+  const url = dispatchFolderUrl();
+  if (url) {
+    box.innerHTML =
+      `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:#eef4ff;border:1px solid #c9ddff;border-radius:8px">`
+      + `<a href="${esc(url)}" target="_blank" style="color:#1a56db;font-weight:600;text-decoration:none;word-break:break-all;flex:1;min-width:180px">📂 開啟雲端資料夾 ↗</a>`
+      + `<button type="button" class="btn btn-ghost btn-sm" onclick="copyDispatchFolder(this)">複製連結</button></div>`;
+  } else {
+    box.innerHTML =
+      `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:#f9fafb;border:1px dashed var(--gray-300);border-radius:8px">`
+      + `<span style="font-size:13px;color:var(--gray-500);flex:1">此案件尚未建立雲端資料夾</span>`
+      + `<button type="button" class="btn btn-primary btn-sm" id="d_folder_create" onclick="createDispatchFolder(this)">建立雲端資料夾</button></div>`;
+  }
+}
+function copyDispatchFolder(btn) {
+  const url = dispatchFolderUrl(); if (!url) return;
+  navigator.clipboard.writeText(url).then(() => { const t = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = t, 1500); });
+}
+async function createDispatchFolder(btn) {
+  btn.disabled = true; btn.textContent = '建立中…';
+  try {
+    const r = await fetch(`/api/gdrive/case/${caseId}/folder`, { method: 'POST' });
+    const j = await r.json();
+    if (r.ok && j.url) { caseData.drive_folder_url = j.url; renderDriveBtn(); fillFolderField(j.url); populateDispatchFolder(); }
+    else { alert('建立雲端資料夾失敗：' + (j.error || r.status)); btn.disabled = false; btn.textContent = '建立雲端資料夾'; }
+  } catch (e) { alert('建立雲端資料夾失敗：' + e.message); btn.disabled = false; btn.textContent = '建立雲端資料夾'; }
 }
 async function openOrCreateDrive() {
   const btn = document.getElementById('driveBtn');
@@ -2690,7 +2726,20 @@ function buildUserCheckboxes(selectedIds = []) {
   `).join('');
   refreshLeaderOptions();
 }
-// 小組長：只從「已勾選的施工人員」中選一位；只勾 1 人自動當組長
+// 從一群人員 id 中挑最資深者（到職日最早 → is_manager → id 小者），與後端規則一致
+function _seniorLeaderId(ids) {
+  const pool = (users || []).concat(allUsers || []);
+  let best = null, bestH = '9999-12-31', bestMgr = -1;
+  ids.forEach(id => {
+    const u = pool.find(x => x.id === id); if (!u) return;
+    const h = u.hire_date || '9999-12-31', mgr = u.is_manager ? 1 : 0;
+    if (best === null || h < bestH || (h === bestH && (mgr > bestMgr || (mgr === bestMgr && id < best)))) {
+      best = id; bestH = h; bestMgr = mgr;
+    }
+  });
+  return best != null ? best : (ids[0] ?? null);
+}
+// 小組長：只從「已勾選的施工人員」中選一位；沒選則自動預設最資深者
 function refreshLeaderOptions(presetId) {
   const checked = [...document.querySelectorAll('#d_users input:checked')]
     .map(el => ({ id: Number(el.value), name: el.closest('label').textContent.trim() }));
@@ -2702,6 +2751,7 @@ function refreshLeaderOptions(presetId) {
   let lid = (presetId != null) ? presetId : window._leaderId;
   if (checked.length === 1) lid = checked[0].id;                 // 只勾1人自動當組長
   if (!checked.some(c => c.id === lid)) lid = (checked.length === 1 ? checked[0].id : null); // 組長被取消勾選 → 清空重選
+  if (lid == null && checked.length) lid = _seniorLeaderId(checked.map(c => c.id)); // 沒選→自動預設最資深者
   window._leaderId = lid;
   opts.innerHTML = checked.map(c => `<button type="button" onclick="pickLeader(${c.id})" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${lid===c.id?'#d97706':'var(--gray-200)'};background:${lid===c.id?'#fffbeb':'#fff'};color:${lid===c.id?'#b45309':'var(--gray-700)'};font-weight:${lid===c.id?'700':'400'};cursor:pointer;font-size:13px">${lid===c.id?'👑 ':''}${c.name}</button>`).join('')
     + (lid==null ? '<span style="font-size:12px;color:#dc2626;align-self:center">請選一位小組長</span>' : '');
@@ -3438,6 +3488,7 @@ document.getElementById('addDispatchBtn').addEventListener('click', () => {
   document.querySelector('input[name="d_date_mode"][value="single"]').checked = true;
   switchDateMode();
   buildUserCheckboxes([]);
+  populateDispatchFolder();
   document.getElementById('dispatchModal').classList.add('open');
 });
 
@@ -3469,6 +3520,7 @@ function editDispatch(did) {
   const ids = d.installer_ids ? d.installer_ids.split(',').map(Number) : [];
   window._leaderId = d.leader_id || null;
   buildUserCheckboxes(ids);
+  populateDispatchFolder();
   document.getElementById('dispatchModal').classList.add('open');
 }
 
