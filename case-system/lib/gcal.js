@@ -62,6 +62,35 @@ function _nextDay(dateStr) {
 }
 
 // ── 取得/建立專用行事曆 ───────────────────────────────────
+// ── 分享名單持久化：settings.gcal_shared_acl = [{email, role}] ──
+// 讓「硬重置/清除重建」換成新行事曆(ID 變)後，能自動還原先前分享的同事，不必手動重分享。
+function _getShares() {
+  try { return JSON.parse(getS('gcal_shared_acl') || '[]') || []; } catch { return []; }
+}
+function _rememberShare(email, role) {
+  const e = (email || '').trim(); if (!e) return;
+  const list = _getShares().filter(s => (s.email || '').toLowerCase() !== e.toLowerCase());
+  list.push({ email: e, role: role === 'writer' ? 'writer' : 'reader' });
+  setS('gcal_shared_acl', JSON.stringify(list));
+}
+function _forgetShare(email) {
+  const e = (email || '').trim().toLowerCase();
+  setS('gcal_shared_acl', JSON.stringify(_getShares().filter(s => (s.email || '').toLowerCase() !== e)));
+}
+// 對指定行事曆重新套用已記住的分享（新建/重置後呼叫）
+async function _reapplyShares(token, calId) {
+  for (const s of _getShares()) {
+    try {
+      await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(calId)}/acl?sendNotifications=false`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: s.role === 'writer' ? 'writer' : 'reader', scope: { type: 'user', value: s.email } }),
+      });
+      await _sleep(120);
+    } catch (e) { console.error('[gcal] 還原分享失敗 ' + s.email + '：', e.message); }
+  }
+}
+
 async function _ensureCalendar(token) {
   const existing = getS('gcal_dispatch_calendar_id');
   if (existing) return existing;
@@ -73,6 +102,7 @@ async function _ensureCalendar(token) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('建立行事曆失敗：' + ((j.error && j.error.message) || r.status));
   setS('gcal_dispatch_calendar_id', j.id);
+  await _reapplyShares(token, j.id);   // 新建行事曆 → 自動還原先前記住的分享名單
   return j.id;
 }
 
@@ -135,7 +165,9 @@ function _buildEvent(d) {
   if (folderUrl)         desc.push(`完工資料夾：${folderUrl}`);
 
   // status:'confirmed' 確保事件為可見狀態：修正固定 id 被 Google 復活成「已取消(隱藏)」的問題
-  const ev = { summary, location: d.location || '', description: desc.join('\n'), status: 'confirmed' };
+  // extendedProperties.private.dispatchId：蓋上派工標記，讓同步可「建立前先找既有事件」達成冪等、自癒重複
+  const ev = { summary, location: d.location || '', description: desc.join('\n'), status: 'confirmed',
+    extendedProperties: { private: { dispatchId: String(d.id) } } };
   // 依「小組長」上色（沒設小組長時看施工人員），與系統派單行事曆一致
   const colorId = _colorFor(d.leader_name || d.workers);
   if (colorId) ev.colorId = colorId;
@@ -179,6 +211,26 @@ async function _syncDispatch(dispatchId) {
     if (r.status !== 404 && r.status !== 410) {
       const j = await r.json().catch(() => ({}));
       throw new Error('更新事件失敗：' + ((j.error && j.error.message) || r.status));
+    }
+  }
+
+  // 建立前先找有沒有蓋著同 dispatchId 標記的既有事件（冪等、自癒重複/孤兒）：
+  //   找到 → 沿用第一個(PATCH 更新並存回 id)、刪掉其餘重複；都沒有才真的建立新事件。
+  const fr = await _fetchRetry(
+    `${base}?privateExtendedProperty=${encodeURIComponent('dispatchId=' + d.id)}&showDeleted=false&maxResults=50&singleEvents=false`,
+    { headers });
+  const fj = await fr.json().catch(() => ({}));
+  const dupes = (fr.ok && Array.isArray(fj.items)) ? fj.items.filter(e => e.id && e.status !== 'cancelled') : [];
+  if (dupes.length) {
+    const keep = dupes[0].id;
+    const pr = await _fetchRetry(`${base}/${encodeURIComponent(keep)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (pr.ok) {
+      _rememberEid(dispatchId, keep);
+      for (let i = 1; i < dupes.length; i++) {   // 清掉多餘的重複事件
+        await _fetchRetry(`${base}/${encodeURIComponent(dupes[i].id)}`, { method: 'DELETE', headers });
+        await _sleep(80);
+      }
+      return;
     }
   }
 
@@ -448,7 +500,18 @@ async function shareCalendar(email, role) {
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('分享失敗：' + ((j.error && j.error.message) || r.status));
+  _rememberShare(email, role);   // 記住分享名單，硬重置/重建換新行事曆時可自動還原
   return { ok: true, calendarId: calId, email, role: role === 'writer' ? 'writer' : 'reader' };
+}
+// 已記住的分享名單（供設定頁顯示 / 手動還原）
+function listShares() { return _getShares(); }
+// 手動把記住的名單重新套用到目前行事曆（例如舊資料沒記到、想補上）
+async function reapplyShares() {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const token = await gdrive.accessToken();
+  const calId = await _ensureCalendar(token);
+  await _reapplyShares(token, calId);
+  return { ok: true, count: _getShares().length };
 }
 
 // 診斷：列出帳號內所有叫「繪新派單」的行事曆、各有幾筆事件、系統目前用的是哪一個
@@ -482,4 +545,4 @@ function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeSyncSurvey, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, diagnose, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeSyncSurvey, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, syncEnabled, setEnabled, calendarInfo };

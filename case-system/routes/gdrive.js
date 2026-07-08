@@ -90,6 +90,18 @@ router.post('/gcal/share', requireAuth, requireOwner, async (req, res) => {
   }
 });
 
+// 已記住的分享名單
+router.get('/gcal/shares', requireAuth, requireOwner, (req, res) => {
+  try { res.json({ shares: gcal.listShares() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 把記住的名單重新套用到目前行事曆（硬重置換新曆後補還原用）
+router.post('/gcal/reapply-shares', requireAuth, requireOwner, async (req, res) => {
+  try { res.json(await gcal.reapplyShares()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 為某案件建立（或取得已建立的）雲端資料夾
 router.post('/case/:id/folder', requireAuth, async (req, res) => {
   try {
