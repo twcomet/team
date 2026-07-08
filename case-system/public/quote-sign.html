@@ -61,6 +61,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .q-photo-ph .em{font-size:34px}
 .q-thumbs{display:flex;gap:4px;justify-content:center;margin-top:5px;flex-wrap:wrap}
 .q-thumbs img{width:34px;height:44px;object-fit:cover;border-radius:4px;cursor:zoom-in;border:1px solid var(--gray-200)}
+.q-gallery{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.q-gallery img{width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--gray-200)}
+.lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:30px;display:grid;place-items:center;cursor:pointer;user-select:none}
+.lb-nav.prev{left:16px} .lb-nav.next{right:16px}
+.lb-count{position:fixed;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-size:14px;font-weight:600;letter-spacing:.05em}
 .q-orig{text-decoration:line-through;color:var(--gray-400);font-weight:500}
 .q-promo{font-weight:800;color:var(--primary-dark);font-size:14px}
 
@@ -149,7 +154,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
     <button class="btn-print" onclick="window.print()">📄 下載 / 列印 PDF</button>
   </div>
 </div>
-<div class="lb" id="lb" onclick="if(event.target.id==='lb')closeLb()"><div class="x" onclick="closeLb()">✕</div><img id="lbImg" src="" alt=""></div>
+<div class="lb" id="lb" onclick="if(event.target.id==='lb')closeLb()">
+  <div class="x" onclick="closeLb()">✕</div>
+  <div class="lb-nav prev" id="lbPrev" onclick="galStep(-1)">‹</div>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-nav next" id="lbNext" onclick="galStep(1)">›</div>
+  <div class="lb-count" id="lbCount"></div>
+</div>
 
 <script>
 const token   = location.pathname.split('/quote/')[1]?.split('?')[0];
@@ -175,13 +186,11 @@ function filmInfo(it){
 }
 function siteThumbs(it){
   let arr=[]; try{ arr=JSON.parse(it.area_photos||'[]'); }catch(e){}
-  const main=it.area_photo_url||arr[0]||null;
-  const extra=arr.filter(u=>u&&u!==main);
-  let html = main
-    ? `<img class="q-photo" src="${esc(main)}" onclick="openLb('${esc(main)}')" alt="現場照">`
-    : `<div class="q-photo-ph"><div class="em">📷</div>現場照</div>`;
-  if(extra.length) html += `<div class="q-thumbs">${extra.slice(0,4).map(u=>`<img src="${esc(u)}" onclick="openLb('${esc(u)}')">`).join('')}</div>`;
-  return html;
+  const all=[]; const seen=new Set();
+  [it.area_photo_url,...arr].forEach(u=>{ if(u&&!seen.has(u)){ seen.add(u); all.push(u); } });
+  if(!all.length) return `<div class="q-photo-ph"><div class="em">📷</div>現場照</div>`;
+  // 全部照片整齊排成縮圖牆，點任一張開燈箱可翻頁
+  return `<div class="q-gallery">${all.map(u=>`<img src="${esc(u)}" onclick="openGal(this)" alt="現場照">`).join('')}</div>`;
 }
 function filmImg(it){
   return it.material_photo_url
@@ -346,8 +355,26 @@ function foldsHtml(q){
 
 function onMkt(on){ agreeMkt=on; document.getElementById('colNormal')?.classList.toggle('on',!on); document.getElementById('colMkt')?.classList.toggle('on',on);
   const b=document.getElementById('submitBtn'); if(b) b.textContent = on?'確認接受報價（享行銷優惠價）':'確認接受報價'; }
-function openLb(src){ document.getElementById('lbImg').src=src; document.getElementById('lb').classList.add('on'); }
+let GAL=[], GALI=0;
+function showGal(){
+  document.getElementById('lbImg').src=GAL[GALI]||'';
+  const multi=GAL.length>1;
+  document.getElementById('lbCount').textContent=multi?`${GALI+1} / ${GAL.length}`:'';
+  document.getElementById('lbPrev').style.display=multi?'grid':'none';
+  document.getElementById('lbNext').style.display=multi?'grid':'none';
+  document.getElementById('lb').classList.add('on');
+}
+function galStep(d){ if(!GAL.length)return; GALI=(GALI+d+GAL.length)%GAL.length; showGal(); }
+function openGal(imgEl){
+  const imgs=[...imgEl.parentElement.querySelectorAll('img')].map(i=>i.getAttribute('src'));
+  GAL=imgs; GALI=Math.max(0,imgs.indexOf(imgEl.getAttribute('src'))); showGal();
+}
+function openLb(src){ GAL=[src]; GALI=0; showGal(); }   // 單張（膜料示意圖）
 function closeLb(){ document.getElementById('lb').classList.remove('on'); }
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lb').classList.contains('on'))return;
+  if(e.key==='ArrowLeft')galStep(-1); else if(e.key==='ArrowRight')galStep(1); else if(e.key==='Escape')closeLb();
+});
 
 function setupCanvas(){
   const canvas=document.getElementById('sigCanvas'); if(!canvas) return;

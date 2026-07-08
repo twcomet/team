@@ -137,6 +137,10 @@
   .lb-img .em{font-size:72px}
   .lb-cap{color:#fff;font-weight:700;font-size:15px;text-align:center;max-width:560px}
   .lb-x{position:fixed;top:18px;right:22px;color:#fff;font-size:26px;cursor:pointer;background:rgba(255,255,255,.14);width:42px;height:42px;border-radius:50%;display:grid;place-items:center}
+  .q-gallery{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+  .q-gallery img{width:62px;height:62px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--gray-300)}
+  .lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:30px;display:grid;place-items:center;cursor:pointer;user-select:none}
+  .lb-nav.prev{left:18px} .lb-nav.next{right:18px}
   .q-orig{text-decoration:line-through;color:var(--gray-400);font-weight:500}
   .q-promo{font-weight:800;color:var(--primary-dark);font-size:14px}
 
@@ -439,7 +443,9 @@
 <!-- lightbox 現場照放大 -->
 <div class="lb-mask" id="lbMask" onclick="if(event.target===this)closePhoto()">
   <div class="lb-x" onclick="closePhoto()">✕</div>
+  <div class="lb-nav prev" id="lbPrevP" onclick="event.stopPropagation();pgalStep(-1)">‹</div>
   <div class="lb-img" id="lbImg"><div class="em">📷</div><div>現場貼膜照（大圖）</div></div>
+  <div class="lb-nav next" id="lbNextP" onclick="event.stopPropagation();pgalStep(1)">›</div>
   <div class="lb-cap" id="lbCap"></div>
 </div>
 
@@ -892,7 +898,7 @@ function renderCust(useMkt){
       <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSz&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
       <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span>${owner?'':`<br>膜料寬度 ${it.width||'—'} 公分`}</td>
       <td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>
-      <td class="c">${(it.areaPhotos&&it.areaPhotos[0])?`<div class="q-photo" style="background-image:url('${esc(it.areaPhotos[0])}');background-size:cover;background-position:center" onclick="openPhoto(${i})"><span class="zoom">🔍 點擊放大${it.areaPhotos.length>1?'（共'+it.areaPhotos.length+'張）':''}</span></div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>
+      <td class="c">${(it.areaPhotos&&it.areaPhotos.length)?`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
@@ -907,13 +913,29 @@ function renderCust(useMkt){
   document.getElementById('col_mkt').classList.toggle('on',agree);
   syncCustNotice();
 }
-function openPhoto(i,which){const it=items[i];const img=document.getElementById('lbImg');
-  const url=which==='film'?it.filmImg:(it.areaPhotos&&it.areaPhotos[0]);
+let PGAL=[], PGALI=0, PGCAP='';
+function showPGal(){
+  const img=document.getElementById('lbImg'); const url=PGAL[PGALI];
   if(url){img.style.backgroundImage=`url('${url}')`;img.style.backgroundSize='contain';img.style.backgroundRepeat='no-repeat';img.style.backgroundPosition='center';img.innerHTML='';}
   else{img.style.backgroundImage='';img.innerHTML='<div class="em">📷</div><div>尚未上傳照片</div>';}
-  document.getElementById('lbCap').textContent=`項目 ${i+1}｜${it?it.name:''}${which==='film'?'・膜料示意圖':(it.areaPhotos&&it.areaPhotos.length>1?'・現場照 '+it.areaPhotos.length+' 張':'')}`;
-  document.getElementById('lbMask').classList.add('on');}
+  const multi=PGAL.length>1;
+  document.getElementById('lbCap').textContent=PGCAP+(multi?`　${PGALI+1} / ${PGAL.length}`:'');
+  document.getElementById('lbPrevP').style.display=multi?'grid':'none';
+  document.getElementById('lbNextP').style.display=multi?'grid':'none';
+  document.getElementById('lbMask').classList.add('on');
+}
+function pgalStep(d){ if(!PGAL.length)return; PGALI=(PGALI+d+PGAL.length)%PGAL.length; showPGal(); }
+function openPhoto(i,which){
+  const it=items[i];
+  if(which==='film'){ PGAL=it.filmImg?[it.filmImg]:[]; PGALI=0; PGCAP=`項目 ${i+1}｜${it?it.name:''}・膜料示意圖`; }
+  else{ PGAL=(it.areaPhotos||[]).slice(); PGALI=(typeof which==='number')?which:0; PGCAP=`項目 ${i+1}｜${it?it.name:''}・現場照`; }
+  showPGal();
+}
 function closePhoto(){document.getElementById('lbMask').classList.remove('on');}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lbMask').classList.contains('on'))return;
+  if(e.key==='ArrowLeft')pgalStep(-1); else if(e.key==='ArrowRight')pgalStep(1); else if(e.key==='Escape')closePhoto();
+});
 function toggleMkt(on){renderCust(on);}
 // 折抵：預付金逐筆勾（撈 client_deposits 未使用預收款）
 function renderPrepay(){
