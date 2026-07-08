@@ -269,6 +269,7 @@
 <script>
 let curYear = new Date().getFullYear();
 let curMonth = new Date().getMonth() + 1;
+let curAnchor = new Date(); curAnchor.setHours(0,0,0,0);   // 週/天視角的錨定日期（上下頁依此移動）
 let calData = { cases: [], surveys: [], targets: [], leaves: [] };
 let defaultTarget = 100000;
 
@@ -281,10 +282,34 @@ async function init() {
   await loadCalendar();
 }
 
+function _mergeCalData(a, b){
+  const out = {}; const keys = new Set([...Object.keys(a||{}), ...Object.keys(b||{})]);
+  keys.forEach(k => {
+    if (Array.isArray(a?.[k]) || Array.isArray(b?.[k])) out[k] = [...(a?.[k]||[]), ...(b?.[k]||[])];
+    else if (a?.[k] && b?.[k] && typeof a[k]==='object') out[k] = { ...a[k], ...b[k] };  // 物件型(caseInstallWeight 等)淺合併
+    else out[k] = a?.[k] ?? b?.[k];
+  });
+  return out;
+}
+function updateCalTitle(){
+  const el = document.getElementById('calTitle'); if(!el) return;
+  if (calView==='day'){ const d=curAnchor; el.textContent = `${d.getFullYear()} 年 ${d.getMonth()+1} 月 ${d.getDate()} 日`; }
+  else if (calView==='week'){ const s=new Date(curAnchor); s.setDate(s.getDate()-s.getDay()); const e=new Date(s); e.setDate(s.getDate()+6);
+    el.textContent = `${s.getFullYear()} 年 ${s.getMonth()+1}/${s.getDate()} – ${e.getMonth()+1}/${e.getDate()}`; }
+  else el.textContent = `${curYear} 年 ${curMonth} 月`;
+}
 async function loadCalendar() {
-  document.getElementById('calTitle').textContent = `${curYear} 年 ${curMonth} 月`;
-  const res = await fetch(`/api/calendar?year=${curYear}&month=${curMonth}`);
-  calData = await res.json();
+  // 依視角決定要抓哪些月份（週可能跨月 → 抓兩個月合併）
+  let months;
+  if (calView==='day') months = [[curAnchor.getFullYear(), curAnchor.getMonth()+1]];
+  else if (calView==='week'){
+    const s=new Date(curAnchor); s.setDate(s.getDate()-s.getDay()); const e=new Date(s); e.setDate(s.getDate()+6);
+    months = [[s.getFullYear(), s.getMonth()+1]];
+    if (e.getMonth()!==s.getMonth() || e.getFullYear()!==s.getFullYear()) months.push([e.getFullYear(), e.getMonth()+1]);
+  } else months = [[curYear, curMonth]];
+  const parts = await Promise.all(months.map(([y,m]) => fetch(`/api/calendar?year=${y}&month=${m}`).then(r=>r.ok?r.json():{})));
+  calData = parts.reduce((acc,p)=>_mergeCalData(acc,p), {});
+  updateCalTitle();
   renderCalendar();
   renderUnscheduled();
 }
@@ -393,8 +418,19 @@ function renderFilterBar(){
 }
 function setCalFilter(c){ calFilter=c; renderCalendar(); }
 function toggleIdle(){ showIdle=!showIdle; renderCalendar(); }
-function setCalView(v){ calView=v; document.querySelectorAll('#calSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); renderCalendar(); }
-function goToday(){ const t=new Date(); curYear=t.getFullYear(); curMonth=t.getMonth()+1; loadCalendar(); }
+function setCalView(v){
+  calView=v; document.querySelectorAll('#calSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  // 切到週/天時，錨定日期若不在目前月份 → 用今天(在本月時)或本月1號，避免顯示到不相干的週
+  if(v!=='month'){
+    const anchorInMonth = (curAnchor.getFullYear()===curYear && curAnchor.getMonth()+1===curMonth);
+    if(!anchorInMonth){
+      const t=new Date();
+      curAnchor = (t.getFullYear()===curYear && t.getMonth()+1===curMonth) ? (t.setHours(0,0,0,0), t) : new Date(curYear,curMonth-1,1);
+    }
+  }
+  loadCalendar();   // 視角變 → 需要的月份範圍可能不同，重新載入
+}
+function goToday(){ const t=new Date(); t.setHours(0,0,0,0); curYear=t.getFullYear(); curMonth=t.getMonth()+1; curAnchor=t; loadCalendar(); }
 async function syncToGoogle(){
   const btn = document.getElementById('gcalSyncBtn');
   const old = btn.textContent;
@@ -429,7 +465,7 @@ function regEv(e){ window._calEv.push(e); return window._calEv.length - 1; }
 function renderCalendar(){
   renderFilterBar();
   window._calEv = [];
-  document.getElementById('calTitle').textContent = `${curYear} 年 ${curMonth} 月`;
+  updateCalTitle();
   if(calView==='month') renderMonth();
   else renderGrouped(calView==='day');
 }
@@ -508,10 +544,9 @@ function renderMonth(){
 
 function renderGrouped(isDay){
   const byDate=buildMaps(), leaveMap=leavesByDate(), today=todayStr();
-  const nowInMonth=(new Date().getFullYear()===curYear && new Date().getMonth()+1===curMonth);
   let days=[];
-  if(isDay){ days=[ nowInMonth?new Date():new Date(curYear,curMonth-1,1) ]; }
-  else { const base=nowInMonth?new Date():new Date(curYear,curMonth-1,1); const s=new Date(base); s.setDate(base.getDate()-base.getDay()); for(let i=0;i<7;i++){const x=new Date(s);x.setDate(s.getDate()+i);days.push(x);} }
+  if(isDay){ days=[ new Date(curAnchor) ]; }
+  else { const s=new Date(curAnchor); s.setDate(curAnchor.getDate()-curAnchor.getDay()); for(let i=0;i<7;i++){const x=new Date(s);x.setDate(s.getDate()+i);days.push(x);} }
   const W=['日','一','二','三','四','五','六'];
   let html=`<div class="gcols" style="grid-template-columns:repeat(${days.length},minmax(0,1fr))">`;
   html+=days.map(d=>{
@@ -740,8 +775,15 @@ document.getElementById('setTargetBtn')?.addEventListener('click', async () => {
   await loadCalendar();
 });
 
-document.getElementById('prevMonth').addEventListener('click', () => { curMonth--; if (curMonth < 1) { curMonth = 12; curYear--; } loadCalendar(); });
-document.getElementById('nextMonth').addEventListener('click', () => { curMonth++; if (curMonth > 12) { curMonth = 1; curYear++; } loadCalendar(); });
+// 上下頁依視角移動：月→上/下月、週→上/下週、天→前/後一天
+function navCal(dir){
+  if(calView==='week'){ curAnchor.setDate(curAnchor.getDate()+7*dir); curYear=curAnchor.getFullYear(); curMonth=curAnchor.getMonth()+1; }
+  else if(calView==='day'){ curAnchor.setDate(curAnchor.getDate()+dir); curYear=curAnchor.getFullYear(); curMonth=curAnchor.getMonth()+1; }
+  else { curMonth+=dir; if(curMonth<1){curMonth=12;curYear--;} else if(curMonth>12){curMonth=1;curYear++;} curAnchor=new Date(curYear,curMonth-1,1); }
+  loadCalendar();
+}
+document.getElementById('prevMonth').addEventListener('click', () => navCal(-1));
+document.getElementById('nextMonth').addEventListener('click', () => navCal(1));
 // ── 新增派工（分店篩選＋內部/外包多選＋重複/多日偵測）──────────────
 const AD_OUTSOURCED = ['contractor_install','contractor_sales','dealer'];
 const AD_NON_DISPATCHER = ['hq_tech','branch_tech','contractor_install','contractor_sales','dealer'];
