@@ -2883,6 +2883,17 @@ db.exec(`
 _addCol('quote_sheet_items', 'display_mode', "TEXT DEFAULT 'detail'");
 _addCol('quote_sheet_items', 'simple_price', 'REAL');
 _addCol('quote_sheet_items', 'material_id',  'INTEGER REFERENCES materials(id)');
+_addCol('quote_sheet_items', 'size_text',    'TEXT'); // 報價單/場勘用的單一「尺寸規格」文字欄(才數計算才用寬×高,報價單用文字即可)
+
+// ── 報價單 v2 重建：品項欄位 ──────────────────────────────────────────────
+// 計價方式：unit=座計價(單價×數量) / cai=才數計價(才數×單價/才) / material=材料販售(每米×米數)
+_addCol('quote_sheet_items', 'calc_mode',      "TEXT DEFAULT 'unit'");
+_addCol('quote_sheet_items', 'unit_price_cai', 'REAL');            // 單價/才(才數計價用；座計價的建議報價參考單價也存這)
+_addCol('quote_sheet_items', 'item_disc',      'REAL DEFAULT 100'); // 逐項折扣 %(100=不折，舊資料不受影響)
+_addCol('quote_sheet_items', 'promo_price',    'REAL');            // 逐項優惠價(折後)
+_addCol('quote_sheet_items', 'area_photos',    "TEXT DEFAULT '[]'"); // 現場貼膜照多張(JSON array of url)；沿用 area_photo_url 為主圖
+_addCol('quote_sheet_items', 'row_kind',       "TEXT DEFAULT 'item'"); // item=品項 / text=自由文字列
+_addCol('quote_sheet_items', 'suggested_price','REAL');            // 客服內部估價的建議報價(參考，內部)
 
 // 擴充 quote_sheets
 _addCol('quote_sheets', 'subtotal',                'REAL DEFAULT 0');
@@ -2898,6 +2909,29 @@ _addCol('quote_sheets', 'freight_fee',             'REAL DEFAULT 0');
 _addCol('quote_sheets', 'client_marketing_consent','INTEGER DEFAULT 0');
 _addCol('quote_sheets', 'notes_terms',             'TEXT');
 _addCol('quote_sheets', 'notes_acceptance',        'TEXT');
+
+// ── 報價單 v2 重建：報價主表欄位 ─────────────────────────────────────────
+_addCol('quote_sheets', 'mkt_mode',    "TEXT DEFAULT 'pct'"); // 行銷優惠(PAROI)：pct=再打折 / amt=再折抵金額
+_addCol('quote_sheets', 'mkt_value',   'REAL');               // 行銷優惠數值(pct:90=9折 / amt:金額)；空=不套用
+_addCol('quote_sheets', 'flex_deducts','TEXT DEFAULT \'[]\''); // 彈性折抵 JSON: [{label,amount}]（預付金折抵走 client_deposits）
+_addCol('quote_sheets', 'notes_notice',      'TEXT');         // 貼膜前須知(整單層級，可套範本)
+_addCol('quote_sheets', 'notes_inspection',  'TEXT');         // 驗收須知
+_addCol('quote_sheets', 'engine',      "TEXT DEFAULT 'v1'");  // v1=舊算法 / v2=逐項優惠+行銷優惠+折抵(重建版)
+
+// ── 報價單 v2：貼膜前須知範本種子(若空)──────────────────────────────────
+try {
+  const _cnt = db.prepare(`SELECT COUNT(*) n FROM film_notice_templates`).get().n;
+  if (!_cnt) {
+    const _ins = db.prepare(`INSERT INTO film_notice_templates (name,category,content,sort_order) VALUES (?,?,?,?)`);
+    ([
+      ['裝潢膜 · 一般','裝潢膜','1. 複雜物件需多張搭接（約 3–5mm 搭接痕），轉角處做 45 度斜刀。\n2. 寬幅超過 120cm 僅能交疊拼接（大圖輸出貼法）。\n3. 表面平整度由客戶自行處理；亮面材質建議張貼面 100% 平坦。\n4. 不含補土打磨、不含矽利康收邊。',1],
+      ['玻璃／隔熱紙','玻璃隔熱紙','1. 玻璃須先清潔乾淨，施工後 3 天內請勿擦拭或碰水。\n2. 貼膜後短期內可能有水氣霧感，屬正常現象，約 1–2 週自然消散。\n3. 邊緣預留約 1–2mm 退邊，避免翹邊。',2],
+      ['電梯','電梯','1. 施工需配合大樓管委會核准之停梯時段，當日請電梯專業人員協助操控。\n2. 轎廂面板轉角、按鈕面板邊緣做細部收邊。\n3. 施工期間電梯暫停使用，請事先公告住戶。\n4. 不含範圍：不鏽鋼壓條／防撞條／地板／鏡子／按鍵面板。',3],
+      ['汽車隔熱紙','汽車隔熱紙','1. 施工後 3–7 天內請勿升降車窗，避免膜料位移。\n2. 短期內玻璃可能出現水霧或小水泡，屬正常乾燥現象。\n3. 清潔請用軟布與中性清潔劑，勿用含氨清潔劑。',4],
+    ]).forEach(t => _ins.run(t[0],t[1],t[2],t[3]));
+    console.log('🌱 已建立貼膜前須知範本種子 4 筆');
+  }
+} catch (e) { console.warn('須知範本種子略過:', e.message.slice(0,80)); }
 
 // ── P1 成本權限系統 ────────────────────────────────────────────────────────
 // 材料成本可見性：老闆 + 會計
