@@ -123,6 +123,7 @@ async function _ensureCalendar(token) {
 function _loadDispatch(dispatchId) {
   return db.prepare(`
     SELECT d.id, d.dispatch_type, d.scheduled_date, d.scheduled_time, d.work_until,
+           d.estimated_hours,
            d.notes, d.status, d.gcal_event_id, d.leader_id,
            c.case_number, c.title, c.location, c.entry_info, c.drive_folder_url, c.photo_upload_url,
            cl.name AS client_name, cl.phone AS client_phone,
@@ -166,6 +167,7 @@ function _buildEvent(d) {
   if (d.workers) String(d.workers).split('、').forEach(n => { n = n.trim(); if (n && !crew.includes(n)) crew.push(n); });
   // 標題：師傅名字(去姓)放最前面、接標籤，如【申鴻、傳恩、天鈞施工】案件｜客戶
   const crewFront = _crewGiven(crew);
+  const crewStr = crew.join('、');                  // 描述內文用完整姓名（小組長第一、組員在後）
   const summary = `【${crewFront}${label}】${title}`;
   const desc = [];
   if (d.case_number)  desc.push(`案件：${d.case_number}${d.title ? ' ' + d.title : ''}`);
@@ -189,15 +191,20 @@ function _buildEvent(d) {
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(String(d.scheduled_date || ''));
   if (!validDate) return null;                         // 沒有有效日期 → 無法建立事件，交由上層跳過
   const _toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
-  const t = _hhmm(d.scheduled_time);
-  let endT = t ? (_hhmm(d.work_until) || _plusHours(t, 2)) : null;
-  // 結束時間無效或早於/等於開始 → 用開始+2小時（避免 Google「Invalid start time / end before start」）
-  if (t && (!endT || _toMin(endT) <= _toMin(t))) endT = _plusHours(t, 2);
-  if (t && endT && _toMin(endT) > _toMin(t)) {
+  const t = _hhmm(d.scheduled_time);                   // 客服填的抵達時間
+  if (t) {
+    // 完工時間優先序：① 客服明填的完工時間(work_until) ② 抵達 + 預估工時 ③ 抵達 + 預設7小時
+    //   estimated_hours：客服有寫「預計施工幾小時」就用該時數，沒寫預設 7 小時（可含 0.5 小數）
+    let endT = _hhmm(d.work_until);
+    if (!endT || _toMin(endT) <= _toMin(t)) {
+      const estH = Number(d.estimated_hours);
+      const dur  = (estH > 0) ? estH : 7;              // (a)沒填→7小時 (b)有填→該時數
+      endT = _plusHours(t, dur);                       // _plusHours 會夾在當天 23:59 內
+    }
     ev.start = { dateTime: `${d.scheduled_date}T${t}:00`,    timeZone: TZ };
     ev.end   = { dateTime: `${d.scheduled_date}T${endT}:00`, timeZone: TZ };
   } else {
-    ev.start = { date: d.scheduled_date };            // 全天事件（無時間或時間無效）
+    ev.start = { date: d.scheduled_date };            // 全天事件（沒選抵達時間）
     ev.end   = { date: _nextDay(d.scheduled_date) };  // 全天事件 end 為隔天（不含）
   }
   return ev;
@@ -297,6 +304,7 @@ function _buildSurveyEvent(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;   // 無有效場勘日 → 略過
   const title   = [s.title, s.client_name].filter(Boolean).join('｜') || s.case_number || '案件';
   const crewFront = _crewGiven([s.surveyor_name]);   // 場勘師傅名字(去姓)放最前面
+  const crewStr = (s.surveyor_name || '').trim();    // 描述內文用完整姓名
   const summary = `【${crewFront}場勘】${title}`;
   const desc = [];
   if (s.case_number)   desc.push(`案件：${s.case_number}${s.title ? ' ' + s.title : ''}`);

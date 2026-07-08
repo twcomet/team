@@ -379,6 +379,18 @@ const _COMPOUND_SURNAMES = ['歐陽','太史','端木','上官','司馬','東方
 function _givenName(full){ const n=String(full||'').trim(); if(n.length<=1) return n; if(_COMPOUND_SURNAMES.includes(n.slice(0,2))) return n.slice(2)||n; return n.slice(1); }
 function _crewGiven(names){ const seen=new Set(); const out=[]; (names||[]).forEach(raw=> String(raw||'').split(/[、,，\/\s]+/).forEach(x=>{ const g=_givenName(x.trim()); if(g&&!seen.has(g)){ seen.add(g); out.push(g); } })); return out.join('、'); }
 
+// 完工時間推算（與 Google 行事曆同步一致）：① 客服填的完工時間 ② 抵達+預估工時 ③ 抵達+預設7小時
+function _t2m(hm){ const m=String(hm||'').match(/^(\d{1,2}):(\d{2})/); return m ? (+m[1])*60+(+m[2]) : null; }
+function _m2t(mins){ const t=Math.min(mins,23*60+59); return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
+function calcEndTime(c){
+  const start=_t2m(c.scheduled_time); if(start==null) return '';
+  const wu=_t2m(c.work_until);
+  if(wu!=null && wu>start) return _m2t(wu);          // 客服明填完工時間，優先
+  const estH=Number(c.estimated_hours);
+  const dur=(estH>0)?estH:7;                          // 沒填→7小時；有填→該時數
+  return _m2t(start+Math.round(dur*60));
+}
+
 function buildMaps(){
   const byDate = {};
   const push = (date, ev) => { if(!date) return; (byDate[date]=byDate[date]||[]).push(ev); };
@@ -483,7 +495,7 @@ function openEvCard(idx){
   const col = CAT_COLOR[e.cat] || '#5f6368';
   const dObj = c.scheduled_date || c.survey_date;
   const dateLine = dObj ? `${dObj}（週${WEEKD[new Date(dObj+'T00:00:00').getDay()]}）` : '';
-  const timeStr = c.scheduled_time ? (c.scheduled_time + (c.work_until ? '–'+c.work_until : '')) : '';
+  const timeStr = c.scheduled_time ? (c.scheduled_time + '–' + calcEndTime(c)) : '';
   const row = (icon,label,val)=> val ? `<div style="display:flex;gap:8px;margin-bottom:5px"><span style="width:74px;color:#70757a;flex-shrink:0">${icon}${label}</span><span style="flex:1">${val}</span></div>` : '';
   const mapLink = c.location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.location)}" target="_blank" style="color:#1a73e8;text-decoration:none">${esc(c.location)} ↗</a>` : '';
   const folderUrl = c.photo_upload_url || c.drive_folder_url;
