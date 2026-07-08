@@ -40,8 +40,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .party .r{color:var(--gray-600);margin-top:4px;line-height:1.8}
 
 /* 報價表格 */
-.qwrap{overflow-x:auto;border:1px solid var(--gray-300);border-radius:10px}
-.qtbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:880px}
+.qwrap{border:1px solid var(--gray-300);border-radius:10px;overflow:hidden}
+.qtbl{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+.qtbl td,.qtbl th{overflow:hidden;word-break:break-word}
 .qtbl th{background:var(--space);color:#fff;font-weight:700;padding:10px 8px;text-align:center;font-size:11.5px;border-right:1px solid rgba(255,255,255,.14);white-space:nowrap}
 .qtbl td{border:1px solid var(--gray-200);padding:11px 9px;vertical-align:top}
 .qtbl td.c{text-align:center;vertical-align:middle}
@@ -50,11 +51,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .q-note div{font-size:11.5px;line-height:1.8;color:var(--gray-700)}
 .q-note div.em{color:#d81f1f;font-weight:700}
 .q-size{font-size:11px;color:var(--gray-500);margin-top:7px;border-top:1px dashed var(--gray-200);padding-top:6px}
-.q-film{font-size:11.5px;line-height:1.85;text-align:center;color:var(--gray-700);min-width:110px}
+.q-film{font-size:11.5px;line-height:1.85;text-align:center;color:var(--gray-700)}
 .q-film .hi{color:var(--primary-dark);font-weight:800}
-.q-film-img{width:92px;height:130px;border-radius:7px;object-fit:cover;margin:0 auto;display:block;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b)}
-.q-film-ph{width:92px;height:130px;border-radius:7px;margin:0 auto;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-size:22px}
-.q-photo,.q-photo-ph{width:210px;height:280px;border-radius:9px;margin:0 auto;object-fit:cover;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.q-film-img{width:64px;height:90px;max-width:100%;border-radius:6px;object-fit:cover;margin:0 auto;display:block;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b)}
+.q-film-ph{width:64px;height:90px;max-width:100%;border-radius:6px;margin:0 auto;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-size:18px}
+.q-photo,.q-photo-ph{width:100%;max-width:150px;aspect-ratio:3/4;border-radius:9px;margin:0 auto;object-fit:cover;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
 .q-photo{cursor:zoom-in}
 .q-photo-ph{background:linear-gradient(160deg,#dbe3e9,#a9b6c0);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#41505c;font-size:12px;font-weight:700;gap:7px}
 .q-photo-ph .em{font-size:34px}
@@ -257,10 +258,10 @@ function render(q){
         <div class="section-title">訂單資訊（共 ${items.length} 項）</div>
         <div class="qwrap"><table class="qtbl">
           <thead><tr>
-            <th style="width:36px">項目</th><th style="min-width:230px">貼覆項目</th>
-            <th>膜料資訊</th><th>膜料示意圖</th><th>貼覆區域（現場照）</th>
-            ${hideChi?'':'<th>連工帶料單價</th>'}<th style="width:50px">數量</th>
-            <th>連工帶料總價</th><th>連工帶料優惠價</th>
+            <th style="width:34px">項目</th><th>貼覆項目</th>
+            <th style="width:96px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:150px">貼覆區域（現場照）</th>
+            ${hideChi?'':'<th style="width:74px">連工帶料單價</th>'}<th style="width:42px">數量</th>
+            <th style="width:80px">連工帶料總價</th><th style="width:82px">連工帶料優惠價</th>
           </tr></thead>
           <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi)).join('')}</tbody>
         </table></div>

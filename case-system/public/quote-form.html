@@ -113,8 +113,9 @@
   .area-add{width:58px;height:44px;border-radius:6px;border:1.5px dashed var(--gray-300);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--gray-400);cursor:pointer;background:#fafafa}
 
   /* customer quote table (參考舊報價單) */
-  .quote-tbl-wrap{overflow-x:auto;border:1px solid var(--gray-300);border-radius:10px}
-  .quote-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:920px}
+  .quote-tbl-wrap{border:1px solid var(--gray-300);border-radius:10px;overflow:hidden}
+  .quote-tbl{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+  .quote-tbl td,.quote-tbl th{overflow:hidden;word-break:break-word}
   .quote-tbl th{background:var(--space-900);color:#fff;font-weight:700;padding:9px 8px;text-align:center;font-size:11.5px;border-right:1px solid rgba(255,255,255,.14);white-space:nowrap}
   .quote-tbl td{border:1px solid var(--gray-200);padding:11px 9px;vertical-align:top}
   .quote-tbl td.c{text-align:center;vertical-align:middle}
@@ -125,8 +126,8 @@
   .q-size{font-size:11px;color:var(--gray-500);margin-top:7px;border-top:1px dashed var(--gray-200);padding-top:6px}
   .q-film{font-size:11.5px;line-height:1.85;text-align:center;color:var(--gray-700);min-width:118px}
   .q-film .hi{color:var(--primary-dark);font-weight:800}
-  .q-film-photo{width:92px;height:130px;border-radius:7px;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b);margin:0 auto;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-size:22px}
-  .q-photo{position:relative;width:224px;height:300px;border-radius:9px;background:linear-gradient(160deg,#dbe3e9,#a9b6c0);margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#41505c;font-size:12px;font-weight:700;gap:7px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:zoom-in}
+  .q-film-photo{width:64px;height:90px;border-radius:6px;background:linear-gradient(160deg,#d8b98a,#a9855a 45%,#8a6d4b);margin:0 auto;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);font-size:18px;max-width:100%}
+  .q-photo{position:relative;width:100%;max-width:140px;aspect-ratio:3/4;border-radius:9px;background:linear-gradient(160deg,#dbe3e9,#a9b6c0);margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#41505c;font-size:11px;font-weight:700;gap:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:zoom-in}
   .q-photo .em{font-size:40px}
   .q-photo .zoom{position:absolute;right:7px;bottom:7px;font-size:10px;background:rgba(0,0,0,.5);color:#fff;padding:2px 9px;border-radius:999px;font-weight:600}
   /* lightbox */
@@ -272,7 +273,7 @@
   <div class="topbar-in">
     <div class="brand"><span class="mark">繪</span><span>繪新報價單<small id="brandSub">QUOTE v2</small></span></div>
     <span class="chk"><span style="color:var(--gray-400)">呈現</span>
-      <select id="clientType" onchange="markDirty()"><option value="designer">設計師版</option><option value="owner">業主版（隱藏才數/單價）</option></select></span>
+      <select id="clientType" onchange="markDirty();renderCust(document.getElementById('mktChk')?.checked)"><option value="designer">設計師版（顯示單價/才數/尺寸）</option><option value="owner">業主版（隱藏單價/才數/尺寸）</option></select></span>
     <span class="grow"></span>
     <span id="saveStatus" style="font-size:12px;color:var(--gray-400)"></span>
     <button class="btn sm" onclick="openCust()">👁 客戶檢視</button>
@@ -401,10 +402,10 @@
         <div class="quote-tbl-wrap">
           <table class="quote-tbl">
             <thead><tr>
-              <th style="width:38px">項目</th><th style="min-width:250px">貼覆項目</th>
-              <th>膜料資訊</th><th>膜料示意圖</th><th>貼覆區域（現場照）</th>
-              <th id="cth_unit">連工帶料單價</th><th style="width:52px">數量</th>
-              <th>連工帶料總價</th><th>連工帶料優惠價</th>
+              <th style="width:34px">項目</th><th>貼覆項目</th>
+              <th style="width:98px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:150px">貼覆區域（現場照）</th>
+              <th id="cth_unit" style="width:74px">連工帶料單價</th><th style="width:42px">數量</th>
+              <th style="width:80px">連工帶料總價</th><th style="width:82px">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
           </table>
@@ -872,12 +873,15 @@ function noteHtml(note){
 const unitTxt=it=>it.mode==='cai'?money(it.unitCai)+' /才':it.mode==='material'?money(it.unitEach)+' /米':money(it.unitEach);
 function renderCust(useMkt){
   const c=window._cust;if(!c)return;
+  const owner=document.getElementById('clientType').value==='owner';   // 業主版：隱藏單價/才數/尺寸
+  const uth=document.getElementById('cth_unit'); if(uth) uth.style.display=owner?'none':'';
+  const showSz=showSize&&!owner;
   document.getElementById('custItems').innerHTML=items.map((it,i)=>{
     if(it.kind==='text'){
       const priced=totOf(it)>0;
       return `<tr><td class="c" style="font-weight:700">${i+1}</td>
         <td colspan="4" style="background:var(--gray-50)"><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div></td>
-        <td class="num">${priced?money(it.unitEach):'—'}</td>
+        ${owner?'':`<td class="num">${priced?money(it.unitEach):'—'}</td>`}
         <td class="num">${priced?(it.qty||1):'—'}</td>
         <td class="num q-orig">${priced?money(totOf(it)):'—'}</td>
         <td class="num">${priced?`<span class="q-promo">${money(promoOf(it))}</span>`:'—'}</td></tr>`;
@@ -885,11 +889,11 @@ function renderCust(useMkt){
     const f=parseFilm(it);
     return `<tr>
       <td class="c" style="font-weight:700">${i+1}</td>
-      <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSize&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
-      <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span><br>膜料寬度 ${it.width||'—'} 公分</td>
+      <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSz&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
+      <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span>${owner?'':`<br>膜料寬度 ${it.width||'—'} 公分`}</td>
       <td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>
       <td class="c">${(it.areaPhotos&&it.areaPhotos[0])?`<div class="q-photo" style="background-image:url('${esc(it.areaPhotos[0])}');background-size:cover;background-position:center" onclick="openPhoto(${i})"><span class="zoom">🔍 點擊放大${it.areaPhotos.length>1?'（共'+it.areaPhotos.length+'張）':''}</span></div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>
-      <td class="num">${unitTxt(it)}</td>
+      ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
       <td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>
