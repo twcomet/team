@@ -884,17 +884,35 @@ let EST=[], SVY=[];
 async function loadEst(){
   EST=[];
   try{
-    const r=await fetch(`/api/estimator/quotes?case_id=${caseId}`); if(!r.ok) return;
-    const list=await r.json(); const q=Array.isArray(list)?list[0]:list; if(!q) return;
-    let its=q.items; if(!its && q.items_json){ try{ its=JSON.parse(q.items_json); }catch(e){} }
-    EST=(its||[]).map(x=>({
-      name:x.name||x.location||x.description||'項目',
-      film:x.film||[x.film_brand,x.film_model].filter(Boolean).join(' · ')||'',
-      mode:x.mode||'unit', srvMeters:+x.meters||+x.estimated_meters||0,
-      width:+x.film_width_cm||+x.width_cm||122, unitCai:+x.unit_price_cai||180,
-      unitEach:+x.amount||+x.subtotal||+x.unit_price||0, qty:+x.qty||+x.quantity||1,
-      filmCostPerM:+x.cost_per_meter||0, workers:1, days:1,
-      sizeText:(x.length_cm&&x.width_cm)?`${x.length_cm} × ${x.width_cm} cm`:(x.size_text||''), disc:80, note:x.note||x.notes||'' }));
+    // 清單端點不吃 case_id，需先撈全部再過濾出本案（清單已 ORDER BY id DESC）
+    const list=await fetch(`/api/estimator/quotes`).then(r=>r.ok?r.json():[]);
+    const mine=(list||[]).filter(q=>String(q.case_id)===String(caseId));
+    if(!mine.length) return;
+    // 取本案最新一張的明細（items_json 存原始輸入，per-item 金額未存 → 帶名稱/尺寸，價格報價階段填）
+    const q=await fetch(`/api/estimator/quotes/${mine[0].id}`).then(r=>r.ok?r.json():null);
+    if(!q) return;
+    const raw=Array.isArray(q.items)?q.items:[];
+    const workName={plane:'牆面貼膜',cabinet:'系統櫃貼膜',shape:'造型貼膜'};
+    const grp={};
+    raw.forEach(it=>{
+      let name='項目', size='', price=0;
+      if(it.kind==='film'){ name=workName[it.work]||'裝潢膜貼覆'; size=(it.w&&it.h)?`寬${it.w} × 高${it.h} cm`:''; }
+      else if(it.kind==='glass'){ name='玻璃貼膜'; size=(it.w&&it.h)?`寬${it.w} × 高${it.h} cm`:''; }
+      else if(it.kind==='door'){ name='門片包膜'+(it.cat?`（${it.cat}）`:''); }
+      else if(it.kind==='object'){ name=it.name||'物件'; price=+it.price||0; }
+      else if(it.kind==='other'){ name=it.name||'其他項目'; size=(it.w&&it.h)?`寬${it.w} × 高${it.h} cm`:''; }
+      else if(it.kind&&it.kind.indexOf('elev')===0){ name='電梯貼膜'; }
+      else if(it.kind==='fut'){ name='期貨運費'; }
+      else { name=it.name||it.kind||'項目'; }
+      const sig=`${name}||${size}||${price}`;
+      if(grp[sig]){ grp[sig].qty++; return; }
+      grp[sig]={ name, mode:'unit',
+        film:(it.kind==='film'||it.kind==='glass')?'型號待報價確認（估價已依寬×高算才數）':'',
+        srvMeters:0, width:122, unitCai:180, unitEach:price, qty:1,
+        filmCostPerM:0, workers:1, days:1, sizeText:size, disc:80, note:'',
+        filmImg:'', areaPhotos:[] };
+    });
+    EST=Object.values(grp);
   }catch(e){}
 }
 async function loadSvy(){
@@ -904,10 +922,12 @@ async function loadSvy(){
     const f=await r.json(); let its=f.findings||f.items;
     if(typeof its==='string'){ try{ its=JSON.parse(its); }catch(e){ its=[]; } }
     SVY=(its||[]).map(x=>({
-      name:x.location||x.name||x.item||'現場項目', film:'型號待場勘/排版確認', mode:'unit',
-      srvMeters:0, width:+x.width||122, unitCai:180, unitEach:0, qty:+x.qty||+x.quantity||1,
+      name:x.location||x.name||x.item||'現場項目',
+      film:x.material||'', mode:'unit',
+      srvMeters:0, width:122, unitCai:180, unitEach:0, qty:parseInt(x.qty)||+x.quantity||1,
       filmCostPerM:0, workers:1, days:1,
-      sizeText:(x.width&&x.height)?`${x.width} × ${x.height} cm`:(x.size||x.size_text||''), disc:80, note:x.note||x.notes||'' }));
+      sizeText:(x.width&&x.height)?`寬${x.width} × 高${x.height} cm`:(x.size||x.size_text||''),
+      disc:80, note:'', filmImg:'', areaPhotos:[] }));
   }catch(e){}
 }
 let impSrc='est', impPick=new Set();
