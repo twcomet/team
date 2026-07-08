@@ -519,6 +519,12 @@ router.get('/sign/:token', (req, res) => {
   `).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
 
+  // 記錄客戶首次開啟（已傳送後才算，避免草稿內部預覽誤標）→ 列表顯示「客戶已打開」
+  if (!q.client_viewed_at && q.status !== 'draft') {
+    db.prepare(`UPDATE quote_sheets SET client_viewed_at=CURRENT_TIMESTAMP WHERE id=? AND client_viewed_at IS NULL`).run(q.id);
+    q.client_viewed_at = new Date().toISOString();
+  }
+
   // 優先讀 quote_sheet_items（新版），fallback 到 case_items（舊版相容）
   let items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
   if (!items.length) {
