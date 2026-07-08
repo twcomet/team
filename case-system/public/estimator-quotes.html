@@ -95,7 +95,7 @@
     <div class="eq-wrap">
       <div class="eq-card">
         <div class="eq-bar"><input id="eq-q" placeholder="🔍 搜尋 專案名稱／客戶" oninput="renderList()"></div>
-        <table class="eq"><thead><tr><th>#</th><th>專案名稱</th><th>客戶</th><th>類型</th><th>區域</th><th>總額(未稅)</th><th>狀態</th><th>建立時間</th><th></th></tr></thead><tbody id="eq-body"></tbody></table>
+        <table class="eq"><thead><tr><th>#</th><th>專案名稱</th><th>客戶</th><th>類型</th><th>區域</th><th>總額(未稅)</th><th>狀態</th><th>建立人</th><th>建立時間</th><th></th></tr></thead><tbody id="eq-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -110,17 +110,18 @@ const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;
 async function load(){ ROWS=await fetch(API+'/quotes').then(r=>r.ok?r.json():[]); renderList(); }
 function renderList(){
   const q=(document.getElementById('eq-q').value||'').trim();
-  const rows=ROWS.filter(r=>!q||(r.project_name||'').includes(q)||(r.customer_name||'').includes(q));
+  const rows=ROWS.filter(r=>!q||(r.project_name||'').includes(q)||(r.customer_name||'').includes(q)||(r.case_client_name||'').includes(q));
   const b=document.getElementById('eq-body');
-  if(!rows.length){ b.innerHTML='<tr><td colspan="9" class="eq-empty">尚無估價單</td></tr>'; return; }
+  if(!rows.length){ b.innerHTML='<tr><td colspan="10" class="eq-empty">尚無估價單</td></tr>'; return; }
   b.innerHTML=rows.map(r=>`<tr>
     <td>#${r.id}</td>
     <td class="eq-name">${esc(r.project_name)||'—'}${r.case_id?` <span class="eq-badge">案件#${r.case_id}</span>`:''}</td>
-    <td>${esc(r.customer_name)||'—'}</td>
+    <td>${esc(r.customer_name||r.case_client_name)||'—'}</td>
     <td>${CUST[r.customer_type]||r.customer_type||''}</td>
     <td>${esc(r.region)||'—'}</td>
     <td class="eq-total">${NT(r.total)}</td>
     <td>${stBadge(r.status)}</td>
+    <td>${esc(r.created_by_name)||'—'}</td>
     <td>${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
     <td style="white-space:nowrap"><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span><span class="eq-del" onclick="deleteQuote(${r.id})">刪除</span></td>
   </tr>`).join('');
@@ -153,7 +154,7 @@ async function toggleDetail(id,el){
     return '<div class="di"><span>'+esc(t)+'</span></div>';
   }).join('')||'<div class="di"><span>（無品項）</span></div>';
   const d=document.createElement('tr'); d.className='eq-detail';
-  d.innerHTML='<td colspan="9"><div style="padding:6px 4px">'
+  d.innerHTML='<td colspan="10"><div style="padding:6px 4px">'
     +'<div style="font-weight:600;margin-bottom:6px">品項明細</div>'+items
     +'<div class="di" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px"><span>小計</span><span>'+NT(q.subtotal)+'</span></div>'
     +'<div class="di"><span>車馬費</span><span>'+NT(q.freight)+'</span></div>'

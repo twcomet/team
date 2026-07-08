@@ -174,8 +174,12 @@ router.get('/quotes', requireAuth, (req, res) => {
   const rows = db.prepare(`
     SELECT q.id,q.case_id,q.project_name,q.customer_name,q.customer_type,q.region,
            q.subtotal,q.discount,q.disc,q.total,q.status,q.created_at,
-           u.name AS created_by_name
-    FROM est_quotes q LEFT JOIN users u ON u.id = q.created_by
+           u.name AS created_by_name,
+           cl.name AS case_client_name
+    FROM est_quotes q
+    LEFT JOIN users u    ON u.id = q.created_by
+    LEFT JOIN cases c    ON c.id = q.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
     ${where} ORDER BY q.id DESC ${limit}
   `).all(...params);
   res.json(rows);
