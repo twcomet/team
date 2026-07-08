@@ -190,7 +190,7 @@ table td, table th { font-size:13px; }
         <div class="form-group"><label class="form-label" id="n_est_label">領用時米數 *</label>
           <input class="form-input" id="n_est" type="number" min="0" step="0.1" placeholder="自動帶庫存">
           <div id="n_est_hint" class="muted" style="font-size:11px;margin-top:3px">選料後自動帶入現有庫存米數，可改</div></div>
-        <div class="form-group"><label class="form-label">預計使用米數</label>
+        <div class="form-group"><label class="form-label" id="n_est_usage_label">預計使用米數</label>
           <input class="form-input" id="n_est_usage" type="number" min="0" step="0.1" placeholder="選填"></div>
         <div class="form-group"><label class="form-label">實際使用米數</label>
           <input class="form-input" id="n_actual" type="number" min="0" step="0.1" placeholder="選填(歸還時填)"></div>
@@ -332,7 +332,9 @@ function onRollSelect(){
   document.getElementById('n_material_id_h').value=r.material_id;
   document.getElementById('n_mat_label').value=`${r.brand||''} ${r.model||''} ${r.color||''}`.trim();
   document.getElementById('rollPicked').textContent=`✅ 已選：${r.brand||''} ${r.model||''}｜架位 ${r.location||'—'}｜現有庫存 ${fmtM(r.remaining_meters)} 米${r.roll_no?'｜#'+r.roll_no:''}`;
-  const est=document.getElementById('n_est'); if(est) est.value=fmtM(r.remaining_meters);  // 領用時米數自動帶庫存(去浮點雜訊)
+  // 領用時米數自動帶庫存(去浮點雜訊)；保留用途不帶整支庫存，避免誤扣整批
+  const est=document.getElementById('n_est');
+  if(est && document.getElementById('n_purpose').value!=='case_reserve') est.value=fmtM(r.remaining_meters);
 }
 // 編輯既有紀錄：把三層下拉還原到那一支
 function setRollByRecord(rec){
@@ -477,9 +479,16 @@ async function releaseReserve(id){
 
 function close_(m){ document.getElementById(m).style.display='none'; document.getElementById('caseDrop').classList.remove('open'); const rd=document.getElementById('rollDrop'); if(rd) rd.classList.remove('open'); }
 function onPurposeChange(){
-  const isTakeout = document.getElementById('n_purpose').value==='case_takeout';
-  document.getElementById('n_est_label').textContent = isTakeout?'領用時米數（整捲帶出）*':'領用時米數 *';
-  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤米數，如 17':'自動帶庫存';
+  const v = document.getElementById('n_purpose').value;
+  const isTakeout = v==='case_takeout';
+  const isReserve = v==='case_reserve';
+  document.getElementById('n_est_label').textContent = isTakeout?'領用時米數（整捲帶出）*':(isReserve?'領用時米數（保留免填）':'領用時米數 *');
+  document.getElementById('n_est').placeholder = isTakeout?'整捲標籤米數，如 17':(isReserve?'保留免填':'自動帶庫存');
+  document.getElementById('n_est_hint').textContent = isReserve?'保留用途免填此欄，請於右邊填「保留米數」':'選料後自動帶入現有庫存米數，可改';
+  // 保留：把重點欄位改成「保留米數」，並清掉可能自動帶入的整支庫存，避免核准時誤扣整批
+  document.getElementById('n_est_usage_label').textContent = isReserve?'保留米數 *':'預計使用米數';
+  document.getElementById('n_est_usage').placeholder = isReserve?'要保留幾米，例 5.5':'選填';
+  if(isReserve) document.getElementById('n_est').value='';
 }
 function setPurposeByText(txt){
   const sel=document.getElementById('n_purpose');
@@ -510,7 +519,9 @@ async function saveNew(){
   if(!matId){ alert('請從搜尋結果選膜料'); return; }
   if(!editId && !rollId){ alert('請從搜尋結果選到「具體那一支」膜料捲（避免同型號選錯支）'); return; }
   const purposeVal=document.getElementById('n_purpose').value;
-  if(!V('n_est')){ alert(purposeVal==='case_takeout'?'請填帶出米數（捲料標籤上的米數）':'請填領用時米數'); return; }
+  if(purposeVal==='case_reserve'){
+    if(!V('n_est_usage')){ alert('請填「保留米數」（要保留幾米，例 5.5）'); return; }
+  }else if(!V('n_est')){ alert(purposeVal==='case_takeout'?'請填帶出米數（捲料標籤上的米數）':'請填領用時米數'); return; }
   const label=V('n_mat_label');
   const payload={ material_label:label, material_id:matId, roll_id:rollId, purpose:document.getElementById('n_purpose').selectedOptions[0].text,
     purpose_code:purposeVal,
