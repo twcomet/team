@@ -60,6 +60,20 @@ function _nextDay(dateStr) {
   d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+// 去姓取名（行事曆標題用）：劉申鴻→申鴻、林冠捷→冠捷；顧及常見複姓
+const _COMPOUND_SURNAMES = ['歐陽','太史','端木','上官','司馬','東方','獨孤','南宮','夏侯','諸葛','尉遲','皇甫','宇文','長孫','慕容','司徒','司空','令狐','鍾離','宗政','濮陽','公孫','澹台','公冶','太叔','申屠','公羊','万俟','万俟'];
+function _givenName(full) {
+  const n = String(full || '').trim();
+  if (n.length <= 1) return n;
+  if (_COMPOUND_SURNAMES.includes(n.slice(0, 2))) return n.slice(2) || n;
+  return n.slice(1);
+}
+// 一組人名 → 去姓、去重、以、串接
+function _crewGiven(names) {
+  const seen = new Set(); const out = [];
+  names.forEach(nm => { const g = _givenName(nm); if (g && !seen.has(g)) { seen.add(g); out.push(g); } });
+  return out.join('、');
+}
 
 // ── 取得/建立專用行事曆 ───────────────────────────────────
 // ── 分享名單持久化：settings.gcal_shared_acl = [{email, role}] ──
@@ -150,8 +164,9 @@ function _buildEvent(d) {
   const crew = [];
   if (d.leader_name) crew.push(d.leader_name);
   if (d.workers) String(d.workers).split('、').forEach(n => { n = n.trim(); if (n && !crew.includes(n)) crew.push(n); });
-  const crewStr = crew.join('、');
-  const summary = `【${label}】${title}${crewStr ? '　' + crewStr : ''}`;  // 標題後面帶師傅資訊
+  // 標題：師傅名字(去姓)放最前面、接標籤，如【申鴻、傳恩、天鈞施工】案件｜客戶
+  const crewFront = _crewGiven(crew);
+  const summary = `【${crewFront}${label}】${title}`;
   const desc = [];
   if (d.case_number)  desc.push(`案件：${d.case_number}${d.title ? ' ' + d.title : ''}`);
   if (d.client_name)  desc.push(`客戶：${d.client_name}${d.client_phone ? ' ' + d.client_phone : ''}`);
@@ -281,8 +296,8 @@ function _buildSurveyEvent(s) {
   const date = s.survey_date || s.case_survey_date;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;   // 無有效場勘日 → 略過
   const title   = [s.title, s.client_name].filter(Boolean).join('｜') || s.case_number || '案件';
-  const crewStr = s.surveyor_name || '';
-  const summary = `【場勘】${title}${crewStr ? '　' + crewStr : ''}`;
+  const crewFront = _crewGiven([s.surveyor_name]);   // 場勘師傅名字(去姓)放最前面
+  const summary = `【${crewFront}場勘】${title}`;
   const desc = [];
   if (s.case_number)   desc.push(`案件：${s.case_number}${s.title ? ' ' + s.title : ''}`);
   if (s.client_name)   desc.push(`客戶：${s.client_name}${s.client_phone ? ' ' + s.client_phone : ''}`);
