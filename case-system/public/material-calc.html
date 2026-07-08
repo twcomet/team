@@ -1261,7 +1261,7 @@ input[type=number] { -moz-appearance: textfield; }
       html += `<div style="padding:10px 14px;font-size:13px;color:var(--gray-400)">找不到符合的案件</div>`;
     }
     dropdown.innerHTML = html;
-    dropdown.style.display = '';
+    dropdown.style.display = 'block';   // CSS 預設 display:none；用 '' 會退回 none 導致選單永遠不顯示
   }
 
   function selectCase(id, name) {
