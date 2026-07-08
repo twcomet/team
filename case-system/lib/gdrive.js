@@ -89,16 +89,25 @@ async function createCaseFolder(name) {
   return _createFolder(name || '未命名案件', parent, token);
 }
 
+// 資料夾名前綴年月：優先用建立日期(YYYY-MM)，取不到再從案號 HXyymm 解析
+function _yearMonth(createdAt, caseNumber) {
+  const m = String(createdAt || '').match(/^(\d{4})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  const cm = String(caseNumber || '').match(/^[A-Za-z]*(\d{2})(\d{2})/);
+  if (cm) return `20${cm[1]}-${cm[2]}`;
+  return '';
+}
+
 // 確保案件有雲端資料夾（沒有才建立），回傳資料夾網址或 null。未連 Google / 已有資料夾則不動作。
 async function ensureCaseFolder(caseId) {
   if (!isConnected()) return null;
   const c = db.prepare(`
-    SELECT c.id, c.case_number, c.title, c.drive_folder_url, cl.name AS client_name
+    SELECT c.id, c.case_number, c.title, c.drive_folder_url, c.created_at, cl.name AS client_name
     FROM cases c LEFT JOIN clients cl ON c.client_id = cl.id WHERE c.id = ?
   `).get(caseId);
   if (!c) return null;
   if (c.drive_folder_url) return c.drive_folder_url;
-  const name = [c.case_number, c.title, c.client_name].filter(Boolean).join(' ');
+  const name = [_yearMonth(c.created_at, c.case_number), c.case_number, c.title, c.client_name].filter(Boolean).join(' ');
   const f = await createCaseFolder(name);
   db.prepare('UPDATE cases SET drive_folder_id = ?, drive_folder_url = ? WHERE id = ?').run(f.id, f.webViewLink, c.id);
   return f.webViewLink;
