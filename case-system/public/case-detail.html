@@ -505,6 +505,16 @@
       <!-- 正式報價單 v2 -->
       <div class="tab-pane" id="tab-quote">
 
+        <!-- 🆕 新版報價單入口 -->
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;padding:12px 16px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border:1px solid #f9a8d4;border-radius:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:14px;font-weight:700;color:#9d174d">🆕 新版報價單編輯器</div>
+            <div style="font-size:12px;color:#be185d;margin-top:2px">表格式客戶版、現場照放大、才數/座/材料計價、折抵、下載 PDF</div>
+          </div>
+          <button class="btn btn-sm" id="qV2Btn" onclick="openV2Quote()"
+                  style="background:#db2777;color:#fff;border:0;padding:8px 18px;font-weight:600;white-space:nowrap">開啟新版 →</button>
+        </div>
+
         <!-- 報價單連結 -->
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;padding:10px 14px;background:#f9fafb;border:1px solid var(--gray-200);border-radius:8px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap">報價單連結</span>
@@ -4106,6 +4116,15 @@ let discountRulesAll   = [];
 let noticeTemplatesAll = [];
 
 const QFmt = n => (n == null || isNaN(n)) ? '—' : 'NT$ ' + Math.round(n).toLocaleString();
+
+// 🆕 開啟新版報價單編輯器：有現成報價單就沿用，否則用 case 建立
+function openV2Quote() {
+  if (currentQuote && currentQuote.id) {
+    window.open(`/quote-form?id=${currentQuote.id}`, '_blank');
+  } else {
+    window.open(`/quote-form?case=${caseId}`, '_blank');
+  }
+}
 
 async function loadQuote() {
   if (!filmMatrix.length) {
