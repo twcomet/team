@@ -323,7 +323,9 @@ router.patch('/:id/approve-pickup', requireAuth, (req, res) => {
     // 案件材料保留＝預扣：核准時就從捲料/總庫存扣住，寫一筆綁 roll 的 reserve log
     //   → 可在卷料明細看到；實際裁料時系統會提示倉管沖銷此保留（加回庫存）再扣實際用量，達成「預扣→實際裁再調整一次」
     const isReserve = r.purpose_code === 'case_reserve';
-    const reserveMeters = isReserve ? Number(r.est_meters || r.est_usage_meters || 0) : 0;  // 預扣量＝原本領用(退而求其次預估使用)
+    // 預扣量＝「預計使用」為準（est_usage_meters），退而求其次才用領用米數。
+    // 「領用時米數」選料後會自動帶入現有庫存(如50米)，若優先取它，保留 5.5 米會誤扣整批庫存 50 米。
+    const reserveMeters = isReserve ? Number(r.est_usage_meters || r.est_meters || 0) : 0;
     const willConsume = CONSUME_PURPOSES.has(r.purpose_code) && consumed > 0;
     if ((willConsume || (isReserve && reserveMeters > 0)) && !matId) return res.status(400).json({ error: '此申領單未綁定膜料型號，無法扣庫存，請先編輯申領單選擇膜料' });
     try {
