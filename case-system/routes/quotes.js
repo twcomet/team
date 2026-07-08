@@ -261,7 +261,15 @@ router.post('/cases/:id', requireAuth, (req, res) => {
 
 // 取得單一報價單（含品項），用於版本切換
 router.get('/:quoteId', requireAuth, (req, res) => {
-  const q = db.prepare(`SELECT qs.*, u.name as creator_name FROM quote_sheets qs LEFT JOIN users u ON u.id=qs.created_by WHERE qs.id=?`).get(req.params.quoteId);
+  const q = db.prepare(`
+    SELECT qs.*, u.name as creator_name,
+           c.case_number, c.title as case_title, c.location as case_location, c.client_id,
+           cl.name as client_name, cl.phone as client_phone, cl.tax_id as client_tax_id, cl.contact_person as client_contact
+    FROM quote_sheets qs
+    LEFT JOIN users u ON u.id=qs.created_by
+    LEFT JOIN cases c ON c.id=qs.case_id
+    LEFT JOIN clients cl ON cl.id=c.client_id
+    WHERE qs.id=?`).get(req.params.quoteId);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
   q.items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
   res.json(q);
