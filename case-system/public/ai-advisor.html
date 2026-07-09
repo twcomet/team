@@ -164,15 +164,15 @@
       <div class="ai-panel" id="panel-dispatch">
         <div class="ai-hero">
           <h2>🚚 派單 AI 顧問</h2>
-          <p>我會盤點<b>待派施工</b>與<b>待排場勘</b>的案子、<b>未來 14 天的排程</b>、各師傅的<b>工作量</b>,並揪出<b>可能撞班</b>或<b>沒指定小組長</b>的派工,幫你把工排得順、排得準。有排班問題也可以直接問我。</p>
+          <p>我會盤點<b>待派施工</b>與<b>待排場勘</b>的案子、依地點幫你把<b>就近的場勘併成一趟並排出順序</b>、看<b>未來 14 天的排程</b>與各師傅<b>工作量</b>,並揪出<b>可能撞班</b>或<b>沒指定小組長</b>的派工。有排班問題也可以直接問我。</p>
           <button class="ai-btn" onclick="loadBrief('dispatch')">🔍 產生今日派工洞察</button>
         </div>
         <div class="ai-thread" id="thread-dispatch"></div>
         <div class="ai-chips" id="chips-dispatch" style="display:none">
+          <span class="ai-chip" onclick="askChip('dispatch',this)">哪些待場勘的案子可以排在一起、順路一起去？</span>
+          <span class="ai-chip" onclick="askChip('dispatch',this)">幫我排出這批場勘的建議順序</span>
           <span class="ai-chip" onclick="askChip('dispatch',this)">哪些成交案還沒排施工？</span>
           <span class="ai-chip" onclick="askChip('dispatch',this)">有沒有師傅同一天被排到撞班？</span>
-          <span class="ai-chip" onclick="askChip('dispatch',this)">未來幾天的施工排程重點</span>
-          <span class="ai-chip" onclick="askChip('dispatch',this)">哪些施工派工還沒指定小組長？</span>
         </div>
         <div class="ai-inputbar">
           <textarea id="input-dispatch" rows="1" placeholder="問派單顧問任何關於排工的問題…（Enter 送出）"></textarea>
