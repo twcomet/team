@@ -1941,7 +1941,7 @@ function renderHeader() {
   applyConvertButtons(group);
   // 刪除按鈕（僅管理者可見）
   const delBtn = document.getElementById('deleteCaseBtn');
-  if (delBtn) delBtn.style.display = (currentUser?.manage_users || currentUser?.can_delete) ? '' : 'none';
+  if (delBtn) delBtn.style.display = (currentUser?.role === 'owner') ? '' : 'none';
   // 初步估價紀錄
   if (caseData.initial_estimate_data) {
     try {

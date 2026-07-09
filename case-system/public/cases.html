@@ -943,7 +943,7 @@ function getCaseRow(c) {
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${(currentUser?.role==='owner')?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }
@@ -989,7 +989,7 @@ function getCaseRow(c) {
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="display:${(currentUser?.manage_users||currentUser?.can_delete)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${(currentUser?.role==='owner')?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }
@@ -1506,7 +1506,7 @@ function surveyActionBtns(c) {
     parts.push(`<button onclick="doStepBack(${c.id})"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
   }
-  if (currentUser?.manage_users || currentUser?.can_delete) {
+  if (currentUser?.role === 'owner') {
     parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
   }
@@ -1534,7 +1534,7 @@ function dealActionBtns(c) {
     parts.push(`<button onclick="doStepBack(${c.id})"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">↩ 退回</button>`);
   }
-  if (currentUser?.manage_users || currentUser?.can_delete) {
+  if (currentUser?.role === 'owner') {
     parts.push(`<button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
       style="padding:3px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;white-space:nowrap;margin-left:4px">刪除</button>`);
   }

@@ -1014,8 +1014,9 @@ router.delete('/:id', requireAuth, (req, res) => {
     if (dispCount > 0)
       return res.status(400).json({ error: `此案件有 ${dispCount} 筆派工紀錄，無法刪除` });
   } else {
-    if (!me.manage_users && me.role !== 'owner' && !me.can_delete)
-      return res.status(403).json({ error: '僅限管理者可刪除案件' });
+    // 硬刪除會連同派工/場勘/報價/收款一併移除且無法復原 → 僅限老闆；其他人請改用「標記無效」
+    if (me.role !== 'owner')
+      return res.status(403).json({ error: '僅限老闆可刪除案件，其他人請改用「標記無效」' });
   }
 
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);
