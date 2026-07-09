@@ -111,47 +111,73 @@
   <div class="main-content">
     <div class="top-bar"><span class="page-title">🤝 AI 顧問</span></div>
     <div class="ai-wrap">
-      <div class="ai-tabs">
-        <div class="ai-tab on" data-adv="assistant" onclick="switchAdv('assistant')">🧑‍💼 特助顧問</div>
-        <div class="ai-tab" data-adv="estimate" onclick="switchAdv('estimate')">📐 估價顧問 <span class="soon">第二階段</span></div>
-        <div class="ai-tab" data-adv="biz" onclick="switchAdv('biz')">📊 經營分析 <span class="soon">規劃中</span></div>
-        <div class="ai-tab" data-adv="all" onclick="switchAdv('all')">💡 全能助手 <span class="soon">規劃中</span></div>
+      <div class="ai-tabs" id="aiTabs">
+        <div class="ai-tab" data-adv="assistant" data-real="1" style="display:none" onclick="switchAdv('assistant')">🧑‍💼 特助顧問</div>
+        <div class="ai-tab" data-adv="accounting" data-real="1" style="display:none" onclick="switchAdv('accounting')">🧾 會計顧問</div>
+        <div class="ai-tab soon-tab" data-adv="biz" style="display:none" onclick="switchAdv('biz')">🧑‍💻 業務客服顧問 <span class="soon">規劃中</span></div>
+        <div class="ai-tab soon-tab" data-adv="construction" style="display:none" onclick="switchAdv('construction')">🔧 施工顧問 <span class="soon">規劃中</span></div>
+        <div class="ai-tab soon-tab" data-adv="estimate" style="display:none" onclick="switchAdv('estimate')">📐 估價顧問 <span class="soon">第二階段</span></div>
       </div>
 
       <!-- 特助顧問 -->
-      <div class="ai-panel on" id="panel-assistant">
+      <div class="ai-panel" id="panel-assistant">
         <div class="ai-hero">
           <h2>🧑‍💼 特助 AI 顧問</h2>
           <p>我會即時掌握全系統的案件現況，幫你揪出<b>卡關風險</b>、<b>該跟進的事</b>，並點出<b>最有機會的案子</b>。像一位隨時待命的營運特助 —— 有問題也可以直接問我。</p>
-          <button class="ai-btn" id="briefBtn" onclick="loadBrief()">🔍 產生今日洞察</button>
+          <button class="ai-btn" onclick="loadBrief('assistant')">🔍 產生今日洞察</button>
         </div>
-        <div class="ai-thread" id="thread"></div>
-        <div class="ai-chips" id="chips" style="display:none">
-          <span class="ai-chip" onclick="askChip(this)">哪些案子最該今天跟進？</span>
-          <span class="ai-chip" onclick="askChip(this)">目前有哪些收款風險？</span>
-          <span class="ai-chip" onclick="askChip(this)">這週施工排程有沒有問題？</span>
-          <span class="ai-chip" onclick="askChip(this)">幫我列出最有機會成交的前 5 名</span>
+        <div class="ai-thread" id="thread-assistant"></div>
+        <div class="ai-chips" id="chips-assistant" style="display:none">
+          <span class="ai-chip" onclick="askChip('assistant',this)">哪些案子最該今天跟進？</span>
+          <span class="ai-chip" onclick="askChip('assistant',this)">目前有哪些收款風險？</span>
+          <span class="ai-chip" onclick="askChip('assistant',this)">這週施工排程有沒有問題？</span>
+          <span class="ai-chip" onclick="askChip('assistant',this)">幫我列出最有機會成交的前 5 名</span>
         </div>
         <div class="ai-inputbar">
-          <textarea id="chatInput" rows="1" placeholder="問特助顧問任何關於案件現況的問題…（Enter 送出）"></textarea>
-          <button class="ai-send" id="sendBtn" onclick="sendChat()">送出</button>
+          <textarea id="input-assistant" rows="1" placeholder="問特助顧問任何關於案件現況的問題…（Enter 送出）"></textarea>
+          <button class="ai-send" onclick="sendChat('assistant')">送出</button>
         </div>
       </div>
 
-      <!-- 其他顧問（第二階段） -->
+      <!-- 會計顧問 -->
+      <div class="ai-panel" id="panel-accounting">
+        <div class="ai-hero">
+          <h2>🧾 會計 AI 顧問</h2>
+          <p>我會即時盤點公司的<b>應收與逾期款</b>、<b>待審核的費用申請</b>、<b>本月收支結餘</b>與<b>未沖銷的預收訂金</b>，提醒你該催收、該撥款、該對帳的事。有財務問題也可以直接問我。</p>
+          <button class="ai-btn" onclick="loadBrief('accounting')">🔍 產生今日財務洞察</button>
+        </div>
+        <div class="ai-thread" id="thread-accounting"></div>
+        <div class="ai-chips" id="chips-accounting" style="display:none">
+          <span class="ai-chip" onclick="askChip('accounting',this)">目前有哪些逾期應收款？</span>
+          <span class="ai-chip" onclick="askChip('accounting',this)">有哪些費用申請還在待審核／待撥款？</span>
+          <span class="ai-chip" onclick="askChip('accounting',this)">本月收支結餘如何？</span>
+          <span class="ai-chip" onclick="askChip('accounting',this)">有哪些預收訂金還沒沖銷？</span>
+        </div>
+        <div class="ai-inputbar">
+          <textarea id="input-accounting" rows="1" placeholder="問會計顧問任何關於財務的問題…（Enter 送出）"></textarea>
+          <button class="ai-send" onclick="sendChat('accounting')">送出</button>
+        </div>
+      </div>
+
+      <!-- 其他顧問（規劃中） -->
+      <div class="ai-panel" id="panel-biz"><div class="ai-soon-box">🧑‍💻 <b>業務客服顧問</b><br>協助客服/業務跟進案件、擬定回覆話術。<br>規劃中，敬請期待。</div></div>
+      <div class="ai-panel" id="panel-construction"><div class="ai-soon-box">🔧 <b>施工顧問</b><br>協助施工排程、工班調度、工法建議。<br>規劃中，敬請期待。</div></div>
       <div class="ai-panel" id="panel-estimate"><div class="ai-soon-box">📐 <b>估價 AI 顧問</b><br>上傳客戶資訊 → 結合估價引擎自動產生報價。<br>第二階段開發中，敬請期待。</div></div>
-      <div class="ai-panel" id="panel-biz"><div class="ai-soon-box">📊 <b>經營分析顧問</b><br>業績、毛利、轉換率的深度分析。<br>規劃中。</div></div>
-      <div class="ai-panel" id="panel-all"><div class="ai-soon-box">💡 <b>全能助手</b><br>可查資料問答的系統內助理。<br>規劃中。</div></div>
     </div>
   </div>
 </div>
 
 <script src="/js/common.js"></script>
 <script>
-let messages = [];   // {role:'user'|'assistant', content}
-let busy = false;
+const AVATAR = { assistant:'🧑‍💼', accounting:'🧾' };
+const state = {   // 每個顧問各自的對話串與狀態
+  assistant:  { messages:[], busy:false, loaded:false },
+  accounting: { messages:[], busy:false, loaded:false },
+};
+let current = 'assistant';
 
 function switchAdv(a){
+  current = a;
   document.querySelectorAll('.ai-tab').forEach(t=>t.classList.toggle('on',t.dataset.adv===a));
   document.querySelectorAll('.ai-panel').forEach(p=>p.classList.toggle('on',p.id==='panel-'+a));
 }
@@ -173,62 +199,78 @@ function mdToHtml(md){
   return blocks.join('');
 }
 
-function renderThread(){
-  const t = document.getElementById('thread');
-  t.innerHTML = messages.map(m=>{
+function renderThread(adv){
+  const t = document.getElementById('thread-'+adv); if(!t) return;
+  const av = AVATAR[adv]||'🤝';
+  t.innerHTML = state[adv].messages.map(m=>{
     if(m.role==='user') return '<div class="ai-msg me"><div class="av">🧑</div><div class="ai-bubble">'+String(m.content).replace(/</g,'&lt;')+'</div></div>';
-    return '<div class="ai-msg ai"><div class="av">🤝</div><div class="ai-bubble">'+mdToHtml(m.content)+'</div></div>';
+    return '<div class="ai-msg ai"><div class="av">'+av+'</div><div class="ai-bubble">'+mdToHtml(m.content)+'</div></div>';
   }).join('');
   window.scrollTo(0, document.body.scrollHeight);
 }
 
-function showLoading(on){
-  const t = document.getElementById('thread');
-  const ex = document.getElementById('ai-loading-row'); if(ex) ex.remove();
-  if(on){ const d=document.createElement('div'); d.id='ai-loading-row'; d.className='ai-msg ai';
-    d.innerHTML='<div class="av">🤝</div><div class="ai-loading"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span> 思考中…</div>';
+function showLoading(adv,on){
+  const t = document.getElementById('thread-'+adv); if(!t) return;
+  const ex = t.querySelector('.ai-loading-row'); if(ex) ex.remove();
+  if(on){ const d=document.createElement('div'); d.className='ai-msg ai ai-loading-row';
+    d.innerHTML='<div class="av">'+(AVATAR[adv]||'🤝')+'</div><div class="ai-loading"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span> 思考中…</div>';
     t.appendChild(d); window.scrollTo(0, document.body.scrollHeight); }
 }
-function showErr(msg){
-  const t=document.getElementById('thread');
+function showErr(adv,msg){
+  const t=document.getElementById('thread-'+adv);
   const d=document.createElement('div'); d.className='ai-err'; d.textContent='⚠️ '+msg; t.appendChild(d);
 }
 
-async function loadBrief(){
-  if(busy) return; busy=true;
-  const btn=document.getElementById('briefBtn'); btn.disabled=true; btn.textContent='分析中…';
-  showLoading(true);
+async function loadBrief(adv){
+  const s=state[adv]; if(s.busy) return; s.busy=true;
+  const btn=event.currentTarget; if(btn){ btn.disabled=true; btn.textContent='分析中…'; }
+  showLoading(adv,true);
   try{
-    const r = await fetch('/api/ai-advisor/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    const j = await r.json(); showLoading(false);
-    if(!r.ok){ showErr(j.error||('錯誤 '+r.status)); }
-    else { messages.push({role:'assistant',content:j.brief}); renderThread(); document.getElementById('chips').style.display='flex'; }
-  }catch(e){ showLoading(false); showErr(e.message); }
-  finally{ busy=false; btn.disabled=false; btn.textContent='🔄 重新產生洞察'; }
+    const r = await fetch('/api/ai-advisor/'+adv+'/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const j = await r.json(); showLoading(adv,false);
+    if(!r.ok){ showErr(adv,j.error||('錯誤 '+r.status)); }
+    else { s.messages.push({role:'assistant',content:j.brief}); renderThread(adv); document.getElementById('chips-'+adv).style.display='flex'; }
+  }catch(e){ showLoading(adv,false); showErr(adv,e.message); }
+  finally{ s.busy=false; if(btn){ btn.disabled=false; btn.textContent=(adv==='accounting'?'🔄 重新產生財務洞察':'🔄 重新產生洞察'); } }
 }
 
-async function sendChat(){
-  const inp=document.getElementById('chatInput'); const text=inp.value.trim();
-  if(!text||busy) return; busy=true;
+async function sendChat(adv){
+  const s=state[adv]; const inp=document.getElementById('input-'+adv); const text=inp.value.trim();
+  if(!text||s.busy) return; s.busy=true;
   inp.value=''; inp.style.height='auto';
-  messages.push({role:'user',content:text}); renderThread();
-  document.getElementById('sendBtn').disabled=true; showLoading(true);
+  s.messages.push({role:'user',content:text}); renderThread(adv);
+  showLoading(adv,true);
   try{
-    const r=await fetch('/api/ai-advisor/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages})});
-    const j=await r.json(); showLoading(false);
-    if(!r.ok){ showErr(j.error||('錯誤 '+r.status)); }
-    else { messages.push({role:'assistant',content:j.reply}); renderThread(); }
-  }catch(e){ showLoading(false); showErr(e.message); }
-  finally{ busy=false; document.getElementById('sendBtn').disabled=false; }
+    const r=await fetch('/api/ai-advisor/'+adv+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:s.messages})});
+    const j=await r.json(); showLoading(adv,false);
+    if(!r.ok){ showErr(adv,j.error||('錯誤 '+r.status)); }
+    else { s.messages.push({role:'assistant',content:j.reply}); renderThread(adv); }
+  }catch(e){ showLoading(adv,false); showErr(adv,e.message); }
+  finally{ s.busy=false; }
 }
-function askChip(el){ document.getElementById('chatInput').value=el.textContent; sendChat(); }
+function askChip(adv,el){ const inp=document.getElementById('input-'+adv); inp.value=el.textContent; sendChat(adv); }
 
-document.getElementById('chatInput').addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); }
+['assistant','accounting'].forEach(adv=>{
+  const inp=document.getElementById('input-'+adv); if(!inp) return;
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(adv); } });
+  inp.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
 });
-document.getElementById('chatInput').addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
 
-(async function(){ if(window.loadUser) await loadUser(); if(window.highlightNav) highlightNav('ai-advisor'); })();
+// 依權限顯示可用顧問頁籤，並自動切到第一個可用的
+async function initAdvisors(){
+  let available=[];
+  try{ const r=await fetch('/api/ai-advisor/access'); if(r.ok){ available=(await r.json()).available||[]; } }catch(e){}
+  const keys = available.map(a=>a.key);
+  // 真實顧問：有權限才顯示
+  document.querySelectorAll('.ai-tab[data-real]').forEach(t=>{ if(keys.includes(t.dataset.adv)) t.style.display=''; });
+  // 規劃中頁籤：只給看得到特助顧問的人（老闆）看路線圖
+  if(keys.includes('assistant')) document.querySelectorAll('.ai-tab.soon-tab').forEach(t=>t.style.display='');
+  const first = keys[0];
+  if(first) switchAdv(first);
+  else document.querySelector('.ai-wrap').innerHTML='<div class="ai-soon-box">目前您沒有可使用的 AI 顧問，若需要請洽管理者開通權限。</div>';
+}
+
+(async function(){ if(window.loadUser) await loadUser(); if(window.highlightNav) highlightNav('ai-advisor'); await initAdvisors(); })();
 </script>
 </body>
 </html>

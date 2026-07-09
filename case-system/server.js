@@ -60,8 +60,11 @@ app.use('/api/estimator', require('./routes/estimator'));
 app.use('/api/gdrive',    require('./routes/gdrive'));
 
 // Google 雲端整合連接頁（只有老闆）— 也是 OAuth 回呼的落地頁
-// 特助 AI 顧問：權限最大（可看金額/毛利分析），限老闆
-app.get('/ai-advisor', requireAuth, requireOwner, (req, res) => {
+// AI 顧問統一入口：老闆(特助顧問)或會計/財務權限者(會計顧問)皆可進，頁內再依權限過濾顧問頁籤
+app.get('/ai-advisor', requireAuth, (req, res) => {
+  const u = req.session.user;
+  const canAdvisor = u.role === 'owner' || u.role === 'hq_accounting' || u.permissions?.page_ledger === true;
+  if (!canAdvisor) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'public', 'ai-advisor.html'));
 });
 

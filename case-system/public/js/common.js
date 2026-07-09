@@ -133,11 +133,13 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="dashboard"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
-  // 注入「AI 顧問（特助）」選單：權限最大(可看金額/毛利)，限老闆
+  // 注入「AI 顧問」選單：老闆(特助顧問)、會計/財務權限者(會計顧問) 皆可進入，頁內再依權限過濾顧問頁籤
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="ai-advisor"]')) return;
-    if (currentUser.role !== 'owner') return;
+    const p = currentUser.permissions || {};
+    const canAdvisor = currentUser.role === 'owner' || currentUser.role === 'hq_accounting' || p.page_ledger === true;
+    if (!canAdvisor) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'ai-advisor'; a.href = '/ai-advisor';
     a.innerHTML = '<span class="icon">🤝</span>AI 顧問';
