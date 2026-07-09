@@ -257,6 +257,40 @@
   </div>
 </div>
 
+<!-- 就地編輯事件（場勘/派工） -->
+<div class="modal-overlay" id="editEvModal">
+  <div class="modal" style="max-width:470px">
+    <div class="modal-header">
+      <h3 id="edEvTitle">編輯</h3>
+      <button class="modal-close" onclick="closeEditEv()">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="ad-fld">📅 日期</label>
+      <input type="date" id="edDate" class="ad-input">
+
+      <label class="ad-fld">🕘 時間</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="time" id="edTime" class="ad-input" style="flex:1">
+        <span id="edEndRow" style="display:flex;gap:8px;align-items:center;flex:1"><span style="color:#999">～</span><input type="time" id="edTimeEnd" class="ad-input" style="flex:1"></span>
+      </div>
+
+      <label class="ad-fld">📍 地點 / 地址</label>
+      <input type="text" id="edLocation" class="ad-input" placeholder="輸入案場地址…">
+
+      <label class="ad-fld">👷 人員（可多選；場勘為單一）</label>
+      <div id="edWorkerBox" class="ad-workerbox"></div>
+      <div id="edWorkerSel" class="ad-wsel">尚未選擇人員</div>
+
+      <label class="ad-fld" id="edNotesLabel">🗒️ 備註</label>
+      <textarea id="edNotes" class="ad-input" style="min-height:64px;resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #eef0f3">
+      <button class="btn btn-ghost" onclick="closeEditEv()">取消</button>
+      <button class="btn btn-primary" id="edSaveBtn" onclick="saveEditEv()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 事件資訊卡（點事件跳出）-->
 <div class="modal-overlay" id="evCard">
   <div class="modal" style="max-width:430px">
@@ -522,7 +556,10 @@ function openEvCard(idx){
     }
   }
   if (c.dispatch_notes) html += row('🗒️','客服備註', linkify(c.dispatch_notes));
-  if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm" style="margin-top:12px">→ 開啟完整案件</a>`;
+  html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">`;
+  if (canEditCal() && (c.dispatch_id || e.kind==='survey')) html += `<button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none" onclick="openEditEv(${idx})">✏️ 編輯</button>`;
+  if (c.id) html += `<a href="/case-detail?id=${c.id}" class="btn btn-ghost btn-sm">→ 開啟完整案件</a>`;
+  html += `</div>`;
   document.getElementById('evCardBody').innerHTML = html;
   document.getElementById('evCard').classList.add('open');
 }
@@ -813,6 +850,104 @@ function canDispatchFE() {
   if (u.role === 'owner') return true;
   if (u.permissions && u.permissions.page_dispatch_pool) return true;
   return !AD_NON_DISPATCHER.includes(u.role);
+}
+// 就地編輯權限：老闆/主管/客服，或有行事曆權限者
+function canEditCal() {
+  const u = currentUser || {};
+  return u.role === 'owner' || u.manage_users || u.is_manager
+    || u.role === 'vp' || u.role === 'hq_cs' || u.role === 'hq_cs_manager'
+    || (u.permissions && u.permissions.page_calendar === true);
+}
+
+// ── 派單行事曆：就地編輯事件（場勘/派工）──────────────────────────
+let edState = { kind:null, caseId:null, dispatchId:null, workers:new Set(), origLocation:'' };
+function edToggleWorker(id){ edState.workers.has(id)?edState.workers.delete(id):edState.workers.add(id); edRenderWorkers(); }
+function edRenderWorkers(){
+  const single = edState.kind === 'survey';
+  const ins  = adUsers.filter(u => !AD_OUTSOURCED.includes(u.role));
+  const outs = adUsers.filter(u => AD_OUTSOURCED.includes(u.role));
+  const row = u => {
+    const out = AD_OUTSOURCED.includes(u.role);
+    return `<label class="ad-wrow"><input type="${single?'radio':'checkbox'}" name="edw" ${edState.workers.has(u.id)?'checked':''} onchange="${single?`edSetSingle(${u.id})`:`edToggleWorker(${u.id})`}">${u.name}<span class="ad-wtag ${out?'out':'in'}">${out?'外包':'內部'}</span></label>`;
+  };
+  document.getElementById('edWorkerBox').innerHTML =
+    `<div class="ad-wgroup">👤 內部員工</div>${ins.map(row).join('')||'<div class="ad-wrow" style="color:#aab">無</div>'}`+
+    `<div class="ad-wgroup partner">🤝 外包夥伴</div>${outs.map(row).join('')||'<div class="ad-wrow" style="color:#aab">無</div>'}`;
+  const names = adUsers.filter(u=>edState.workers.has(u.id)).map(u=>u.name).join('、');
+  document.getElementById('edWorkerSel').textContent = names || (single?'尚未選擇場勘人員':'尚未選擇人員');
+}
+function edSetSingle(id){ edState.workers = new Set([id]); edRenderWorkers(); }
+
+async function openEditEv(idx){
+  const e = window._calEv[idx]; if(!e) return;
+  const c = e.c;
+  await ensureAdUsers();
+  const isSurvey = (e.kind === 'survey') || (!c.dispatch_id && e.cat === '場勘');
+  edState = { kind: isSurvey?'survey':'dispatch', caseId: c.id, dispatchId: c.dispatch_id || null, workers:new Set(), origLocation: c.location||'' };
+  document.getElementById('edEvTitle').textContent = `編輯${e.cat}｜${c.case_number||''} ${c.title||''}`;
+  document.getElementById('edDate').value = (c.scheduled_date || c.survey_date || '');
+  document.getElementById('edTime').value = (c.scheduled_time || '');
+  document.getElementById('edLocation').value = c.location || '';
+  // 結束時間僅施工/維修顯示
+  document.getElementById('edEndRow').style.display = isSurvey ? 'none' : '';
+  document.getElementById('edTimeEnd').value = (c.work_until || '');
+  // 備註欄標籤
+  document.getElementById('edNotesLabel').textContent = isSurvey ? '📝 進場資訊' : '🗒️ 客服備註';
+  closeEvCard();
+  // 抓完整資料以取得現有人員與備註
+  try {
+    if (isSurvey) {
+      const form = await fetch(`/api/survey/cases/${c.id}/survey-form`).then(r=>r.ok?r.json():null);
+      edState._form = form || {};
+      if (form && form.surveyor_id) edState.workers = new Set([form.surveyor_id]);
+      document.getElementById('edTime').value = form?.survey_time || c.scheduled_time || '';
+      document.getElementById('edDate').value = form?.survey_date || c.survey_date || '';
+      document.getElementById('edNotes').value = form?.cs_service_note || '';
+    } else {
+      const list = await fetch(`/api/cases/${c.id}/dispatches`).then(r=>r.ok?r.json():[]);
+      const d = (list||[]).find(x => x.id === c.dispatch_id) || {};
+      edState._disp = d;
+      (String(d.installer_ids||'').split(',').filter(Boolean)).forEach(id => edState.workers.add(Number(id)));
+      document.getElementById('edTime').value = d.scheduled_time || '';
+      document.getElementById('edTimeEnd').value = d.work_until || '';
+      document.getElementById('edNotes').value = d.notes || '';
+    }
+  } catch(err) { console.error(err); }
+  edRenderWorkers();
+  document.getElementById('editEvModal').classList.add('open');
+}
+function closeEditEv(){ document.getElementById('editEvModal').classList.remove('open'); }
+
+async function saveEditEv(){
+  const s = edState;
+  const btn = document.getElementById('edSaveBtn'); btn.disabled = true; btn.textContent = '儲存中…';
+  const date = document.getElementById('edDate').value || null;
+  const time = document.getElementById('edTime').value || null;
+  const timeEnd = document.getElementById('edTimeEnd').value || null;
+  const loc = document.getElementById('edLocation').value.trim();
+  const notes = document.getElementById('edNotes').value || null;
+  const workers = [...s.workers];
+  try {
+    if (s.kind === 'survey') {
+      // 場勘：更新案件排程欄位（行事曆讀 cases.survey_date/surveyor；並同步場勘單）
+      await fetch(`/api/cases/${s.caseId}/schedule`, {method:'PATCH', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ location: loc, survey_date: date, survey_time: time, surveyor_id: workers[0]||null, cs_service_note: notes })});
+    } else {
+      if (loc !== (s.origLocation||'')) {
+        await fetch(`/api/cases/${s.caseId}/schedule`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({location:loc})});
+      }
+      const d = s._disp || {};
+      const body = Object.assign({}, d, {
+        scheduled_date: date || d.scheduled_date, scheduled_time: time, work_until: timeEnd,
+        notes: notes, user_ids: workers, leader_id: d.leader_id ?? null,
+      });
+      await fetch(`/api/cases/${s.caseId}/dispatches/${s.dispatchId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+    closeEditEv();
+    await loadCalendar();
+  } catch(err) {
+    alert('儲存失敗：' + (err.message||err));
+  } finally { btn.disabled = false; btn.textContent = '儲存'; }
 }
 
 async function ensureAdUsers() {

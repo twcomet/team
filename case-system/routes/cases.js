@@ -698,6 +698,39 @@ router.get('/:id/dispatches', requireAuth, (req, res) => {
   res.json(rows);
 });
 
+// 輕量更新案件排程欄位（供派單行事曆就地編輯；只更新有傳的欄位，不動其他）
+router.patch('/:id/schedule', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const canEdit = me.role === 'owner' || me.manage_users || me.is_manager
+    || me.role === 'vp' || me.role === 'hq_cs' || me.role === 'hq_cs_manager'
+    || me.permissions?.page_calendar === true;
+  if (!canEdit) return res.status(403).json({ error: '無編輯權限' });
+  const id = Number(req.params.id);
+  const b = req.body || {};
+  const sets = [], ps = [];
+  if (b.location !== undefined)   { sets.push('location=?');    ps.push(b.location != null ? String(b.location) : null); }
+  if (b.survey_date !== undefined){ sets.push('survey_date=?'); ps.push(b.survey_date || null); }
+  if (b.surveyor_id !== undefined){ sets.push('surveyor_id=?'); ps.push(b.surveyor_id || null); }
+  if (sets.length) {
+    db.prepare(`UPDATE cases SET ${sets.join(',')}, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(...ps, id);
+  }
+  // 若有場勘單，同步場勘日期/人員/進場資訊，維持一致
+  const sf = db.prepare(`SELECT id FROM survey_forms WHERE case_id=?`).get(id);
+  if (sf) {
+    const s2 = [], p2 = [];
+    if (b.survey_date !== undefined)     { s2.push('survey_date=?');     p2.push(b.survey_date || null); }
+    if (b.survey_time !== undefined)     { s2.push('survey_time=?');     p2.push(b.survey_time || null); }
+    if (b.surveyor_id !== undefined)     { s2.push('surveyor_id=?');     p2.push(b.surveyor_id || null); }
+    if (b.cs_service_note !== undefined) { s2.push('cs_service_note=?'); p2.push(b.cs_service_note || null); }
+    if (s2.length) db.prepare(`UPDATE survey_forms SET ${s2.join(',')}, updated_at=CURRENT_TIMESTAMP WHERE case_id=?`).run(...p2, id);
+  }
+  if (b.survey_date !== undefined || b.surveyor_id !== undefined) {
+    gcal.safeSyncSurvey(id);                    // 場勘日期/人員變更 → 同步 Google 事件
+    gdrive.safeEnsureSurveyFolder(id);          // 場勘人員/日期變更 → 場勘子夾建立或改名
+  }
+  res.json({ ok: true });
+});
+
 router.post('/:id/dispatches', requireAuth, (req, res) => {
   const me = req.session.user;
   if (!canDispatch(me)) return res.status(403).json({ error: '無派工權限' });
