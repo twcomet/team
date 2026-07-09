@@ -4,6 +4,7 @@ const db         = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { pushMessage } = require('./webhook');
 const gcal = require('../lib/gcal');
+const gdrive = require('../lib/gdrive');
 
 // 場勘資訊（進場資訊/cs_service_note 等）更新後，重新把該案未取消的派工推上 Google 行事曆
 function resyncCaseDispatches(caseId) {
@@ -134,6 +135,7 @@ router.post('/cases/:id/survey-form', requireAuth, (req, res) => {
   }
 
   resyncCaseDispatches(case_id);  // 場勘資訊帶到 Google 行事曆
+  gdrive.safeEnsureSurveyFolder(case_id); // 排場勘 → 案件資料夾內自動建「場勘」子夾（best-effort）
   res.json({ ok: true, id: result.lastInsertRowid, token });
 });
 
@@ -189,6 +191,7 @@ router.put('/cases/:id/survey-form', requireAuth, (req, res) => {
   }
 
   resyncCaseDispatches(Number(req.params.id));  // 場勘資訊帶到 Google 行事曆
+  gdrive.safeEnsureSurveyFolder(Number(req.params.id)); // 場勘日期/人員異動 → 場勘子夾自動建立或改名
   const form = db.prepare(`SELECT share_token FROM survey_forms WHERE case_id=?`).get(req.params.id);
   res.json({ ok: true, token: form?.share_token });
 });
@@ -211,6 +214,7 @@ router.patch('/cases/:id/surveyor', requireAuth, (req, res) => {
     const caseData = db.prepare(`SELECT id, case_number, title, location FROM cases WHERE id=?`).get(caseId);
     notifySurveyor(surveyor_id, caseData, form?.survey_date, form?.survey_time, form?.dispatch_note, me.name, form?.worker_token);
   }
+  if (surveyorChanged) gdrive.safeEnsureSurveyFolder(Number(caseId)); // 換場勘人員 → 場勘子夾改名
 
   res.json({ ok: true });
 });

@@ -96,6 +96,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .fold{border:1px solid var(--gray-200);border-radius:10px;margin-bottom:9px;overflow:hidden}
 .fold-h{padding:12px 15px;font-weight:700;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;background:var(--gray-50)}
 .fold-b{padding:0 15px;max-height:0;overflow:hidden;transition:max-height .25s;font-size:12.5px;color:var(--gray-700);line-height:1.85;white-space:pre-line}
+.fold-b .em{color:#d81f1f;font-weight:700}
+.fold-b img.clause-img{display:block;max-width:100%;margin:10px 0 2px;border:1px solid #eee;border-radius:8px}
 .fold.open .fold-b{max-height:1200px;padding:12px 15px}
 
 /* 簽名 */
@@ -341,16 +343,21 @@ function rowHtml(it,i,hideChi){
 }
 
 function foldsHtml(q){
+  let bi={}; try{ bi=JSON.parse(q.block_images||'{}')||{}; }catch(e){}
+  const imgsOf=k=>(k&&Array.isArray(bi[k]))?bi[k]:[];
   const blocks = [
-    ['報價單優惠條款', q.notes_terms],
-    ['貼膜前須知', q.notes_notice],
-    ['驗收須知', q.notes_inspection],
-    ['付款條件', q.payment_terms],
-    ['回簽 / 訂單簽核資訊', q.notes_acceptance],
-  ].filter(b=>b[1]);
+    ['報價單優惠條款', q.notes_terms, 'terms'],
+    ['貼膜前須知', q.notes_notice, 'notice'],
+    ['驗收須知', q.notes_inspection, 'inspection'],
+    ['付款條件', q.payment_terms, null],
+    ['回簽 / 訂單簽核資訊', q.notes_acceptance, 'acceptance'],
+  ].filter(b=>b[1] || imgsOf(b[2]).length);
   if(!blocks.length) return '';
   return `<div class="section"><div class="section-title">條款與須知</div>
-    ${blocks.map(b=>`<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${esc(b[1])}</div></div>`).join('')}</div>`;
+    ${blocks.map(b=>{
+      const imgHtml=imgsOf(b[2]).map(u=>`<img class="clause-img" src="${esc(u)}" alt="">`).join('');
+      return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${noteHtml(b[1])}${imgHtml}</div></div>`;
+    }).join('')}</div>`;
 }
 
 function onMkt(on){ agreeMkt=on; document.getElementById('colNormal')?.classList.toggle('on',!on); document.getElementById('colMkt')?.classList.toggle('on',on);

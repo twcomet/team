@@ -207,10 +207,47 @@ function safeEnsureDispatchSubfolder(dispatchId) {
   return ensureDispatchSubfolder(dispatchId).catch(e => { console.error('[gdrive] 派工子資料夾失敗 dispatch#' + dispatchId + '：', e.message); return null; });
 }
 
+// 場勘單（客服填寫區流程，非派工）→ 在案件資料夾內建「場勘」子資料夾，含場勘人員名字，改人員/日期自動改名
+async function ensureSurveyFolder(caseId) {
+  if (!isConnected()) return null;
+  const sf = db.prepare(`
+    SELECT sf.id, sf.survey_date, sf.drive_subfolder_id, sf.drive_subfolder_url, sf.drive_subfolder_name,
+           u.name AS surveyor_name
+    FROM survey_forms sf LEFT JOIN users u ON u.id = sf.surveyor_id
+    WHERE sf.case_id = ? ORDER BY sf.id DESC LIMIT 1
+  `).get(caseId);
+  if (!sf) return null;
+  if (!sf.survey_date && !sf.surveyor_name) return null;          // 尚未排場勘 → 先不建
+  const dateStr = String(sf.survey_date || '').replace(/-/g, '');
+  const crew = sf.surveyor_name ? String(sf.surveyor_name).trim() : '';
+  const base = [dateStr, '場勘'].filter(Boolean).join('_');
+  const name = crew ? `${base}_${crew}` : base;
+
+  const token = await accessToken();
+  if (sf.drive_subfolder_id) {                                    // 已有 → 名稱變了才改名（同一個資料夾）
+    if (sf.drive_subfolder_name !== name) {
+      await _renameFile(sf.drive_subfolder_id, name, token);
+      db.prepare('UPDATE survey_forms SET drive_subfolder_name=? WHERE id=?').run(name, sf.id);
+    }
+    return sf.drive_subfolder_url;
+  }
+  await ensureCaseFolder(caseId);                                 // 保底：先確保案件資料夾存在
+  const c = db.prepare('SELECT drive_folder_id FROM cases WHERE id=?').get(caseId);
+  if (!c || !c.drive_folder_id) return null;
+  const f = await _createFolder(name, c.drive_folder_id, token);
+  db.prepare('UPDATE survey_forms SET drive_subfolder_id=?, drive_subfolder_url=?, drive_subfolder_name=? WHERE id=?')
+    .run(f.id, f.webViewLink, name, sf.id);
+  return f.webViewLink;
+}
+function safeEnsureSurveyFolder(caseId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return ensureSurveyFolder(caseId).catch(e => { console.error('[gdrive] 場勘子資料夾失敗 case#' + caseId + '：', e.message); return null; });
+}
+
 // 中斷連接（清掉 token）
 function disconnect() {
   setS('gdrive_refresh_token', null);
   db.prepare("DELETE FROM settings WHERE key='gdrive_refresh_token'").run();
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, disconnect, accessToken };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken };

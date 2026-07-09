@@ -226,6 +226,10 @@
   .block-h .edit{font-size:12px;color:var(--primary);font-weight:600}
   .block-h select{border:1px solid var(--gray-300);border-radius:7px;padding:5px 9px;font-size:12px;background:#fff}
   .block textarea{width:100%;border:none;border-top:1px solid var(--gray-100);padding:11px 14px;font-size:12.5px;line-height:1.85;color:var(--gray-700);resize:vertical;min-height:84px;font-family:inherit}
+  .block-imgs{display:none;flex-wrap:wrap;gap:8px;padding:10px 14px;border-top:1px solid var(--gray-100)}
+  .block-imgs .blk-img{position:relative}
+  .block-imgs .blk-img img{max-height:120px;max-width:100%;border:1px solid var(--gray-200);border-radius:8px;display:block}
+  .block-imgs .xbtn{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 
   /* customer view */
   .editor-view.hide{display:none} .cust-view{display:none} .cust-view.on{display:block}
@@ -372,28 +376,50 @@
     </div>
 
     <div class="sec-title">📝 報價單文字（可編輯・套範本）</div>
-    <div class="block"><div class="block-h"><span class="l" onclick="tgl(this)">(a) 報價單優惠條款 <span class="edit">✎ 展開 ▾</span></span></div>
-      <textarea style="display:none">1. 回簽後支付 70% 訂金方可訂料排工，完工驗收後七日內支付 30% 尾款。
+    <div class="block"><div class="block-h">
+        <span class="l" onclick="tgl(this)">(a) 報價單優惠條款 <span class="edit">✎ 展開 ▾</span></span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick('terms','termA')">📋 套用範本（可多選）</button>
+          <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
+        </span>
+      </div>
+      <textarea id="termA" style="display:none">1. 回簽後支付 70% 訂金方可訂料排工，完工驗收後七日內支付 30% 尾款。
 2. 享優惠價則同意繪新拍照攝影紀錄並用於網站/社群（不揭露個資）；不同意請於回簽時寫明。
-3. 場勘費【1,000 元】成交後折抵。</textarea></div>
+3. 場勘費【1,000 元】成交後折抵。</textarea>
+      <div class="block-imgs" id="img-terms" style="display:none"></div></div>
     <div class="block"><div class="block-h">
         <span class="l" onclick="tgl(this)">(b) 貼膜前須知 <span class="edit">✎ 展開 ▾</span></span>
         <span style="display:flex;align-items:center;gap:10px">
-          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick()">📋 套用範本（可多選）</button>
+          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick('notice','noticeArea')">📋 套用範本（可多選）</button>
           <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
         </span>
       </div>
       <textarea id="noticeArea" style="display:none">1. 複雜物件需多張搭接（約 3–5mm 搭接痕），轉角處做 45 度斜刀。
 2. 寬幅超過 120cm 僅能交疊拼接（大圖輸出貼法）。
-3. 表面平整度由客戶自行處理；亮面材質建議張貼面 100% 平坦。</textarea></div>
-    <div class="block"><div class="block-h"><span class="l" onclick="tgl(this)">(c) 驗收須知 <span class="edit">✎ 展開 ▾</span></span></div>
-      <textarea style="display:none">1. 施工完畢當天請乙方安排人員當場驗收，有問題請當場提出。
+3. 表面平整度由客戶自行處理；亮面材質建議張貼面 100% 平坦。</textarea>
+      <div class="block-imgs" id="img-notice" style="display:none"></div></div>
+    <div class="block"><div class="block-h">
+        <span class="l" onclick="tgl(this)">(c) 驗收須知 <span class="edit">✎ 展開 ▾</span></span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick('inspection','termC')">📋 套用範本（可多選）</button>
+          <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
+        </span>
+      </div>
+      <textarea id="termC" style="display:none">1. 施工完畢當天請乙方安排人員當場驗收，有問題請當場提出。
 2. 若當天無法到場，請於完工後七日內通知；逾期視同驗收通過。
-3. 施工保固：完工後皮料「非人為」問題免費保固一年。</textarea></div>
-    <div class="block"><div class="block-h"><span class="l" onclick="tgl(this)">(d) 回簽 / 訂單簽核資訊 <span class="edit">✎ 展開 ▾</span></span></div>
-      <textarea style="display:none">1. 本報價單確認回傳後即代表同意上述全部條款。
+3. 施工保固：完工後皮料「非人為」問題免費保固一年。</textarea>
+      <div class="block-imgs" id="img-inspection" style="display:none"></div></div>
+    <div class="block"><div class="block-h">
+        <span class="l" onclick="tgl(this)">(d) 回簽 / 訂單簽核資訊 <span class="edit">✎ 展開 ▾</span></span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick('acceptance','termD')">📋 套用範本（可多選）</button>
+          <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
+        </span>
+      </div>
+      <textarea id="termD" style="display:none">1. 本報價單確認回傳後即代表同意上述全部條款。
 2. 有效期限 7 天，逾期需重新估報價。
-3. 付款資訊：台灣企銀 050 三峽分行 · 148-12-005937 · 繪新國際有限公司。</textarea></div>
+3. 付款資訊：台灣企銀 050 三峽分行 · 148-12-005937 · 繪新國際有限公司。</textarea>
+      <div class="block-imgs" id="img-acceptance" style="display:none"></div></div>
   </div>
 
   <!-- customer view -->
@@ -476,7 +502,7 @@
 <!-- 套用貼膜前須知範本（可多選） -->
 <div class="imp-mask" id="noticeModal" onclick="if(event.target===this)closeNoticePick()">
   <div class="imp-box">
-    <div class="imp-h"><span style="display:flex;align-items:center"><span class="ic" style="background:var(--ok-bg)">📋</span><span>套用貼膜前須知範本（可多選）</span></span><button class="x" onclick="closeNoticePick()">✕</button></div>
+    <div class="imp-h"><span style="display:flex;align-items:center"><span class="ic" style="background:var(--ok-bg)">📋</span><span id="noticePickTitle">套用範本（可多選）</span></span><button class="x" onclick="closeNoticePick()">✕</button></div>
     <div class="imp-sub">勾選要加入的須知範本，可同時選多個（例如玻璃＋裝潢膜＋其他）。加入後仍可自行編輯。　<a href="/quote-settings#notices" target="_blank" style="color:var(--primary,#be185d);font-weight:700">＋ 管理範本</a></div>
     <div class="imp-list" id="noticePickList"></div>
     <div class="imp-f" style="gap:14px;flex-wrap:wrap">
@@ -579,6 +605,8 @@ async function loadQuote(){
   document.getElementById('clientType').value=q.client_type||'designer';
   setTerm('a',q.notes_terms); setTerm('c',q.notes_inspection); setTerm('d',q.notes_acceptance);
   if(q.notes_notice){ const na=document.getElementById('noticeArea'); na.value=q.notes_notice; }
+  try{ const bi=JSON.parse(q.block_images||'{}')||{}; blockImages={terms:bi.terms||[],notice:bi.notice||[],inspection:bi.inspection||[],acceptance:bi.acceptance||[]}; }catch(e){ blockImages={terms:[],notice:[],inspection:[],acceptance:[]}; }
+  renderBlockImages();
   try{ deducts=JSON.parse(q.flex_deducts||'[]')||[]; }catch(e){ deducts=[]; }
   document.getElementById('flexChk').checked=deducts.length>0;
   document.getElementById('flexBox').style.display=deducts.length>0?'block':'none';
@@ -608,33 +636,63 @@ async function loadNotices(){
   }catch(e){}
 }
 // ── 貼膜前須知：可多選套用範本 ──────────────────────────────
-let noticePick=new Set();
-function openNoticePick(){ noticePick=new Set(); renderNoticePick(); document.getElementById('noticeModal').classList.add('on'); }
+// ── 四區塊條款/須知：可多選套用範本（範本可帶圖，如(d)銀行帳號圖）──────────
+const BLOCK_LABEL={ terms:'報價單優惠條款', notice:'貼膜前須知', inspection:'驗收須知', acceptance:'回簽/訂單簽核資訊' };
+let blockImages={terms:[],notice:[],inspection:[],acceptance:[]};
+let noticePick=new Set();                    // 存被勾選範本的 id
+let noticePickCtx={block:'notice', ta:'noticeArea'};
+function pickerTemplates(){ return noticeList.filter(t=>(t.block||'notice')===noticePickCtx.block); }
+function openNoticePick(block, ta){
+  noticePickCtx={ block:block||'notice', ta:ta||'noticeArea' };
+  noticePick=new Set();
+  const rep=document.getElementById('noticeReplace'); if(rep) rep.checked=false;
+  const tt=document.getElementById('noticePickTitle'); if(tt) tt.textContent='套用「'+(BLOCK_LABEL[noticePickCtx.block]||'')+'」範本（可多選）';
+  renderNoticePick();
+  document.getElementById('noticeModal').classList.add('on');
+}
 function closeNoticePick(){ document.getElementById('noticeModal').classList.remove('on'); }
 function renderNoticePick(){
   const el=document.getElementById('noticePickList');
-  if(!noticeList.length){ el.innerHTML='<div style="padding:22px;text-align:center;color:var(--gray-400);font-size:13px">還沒有任何貼膜須知範本。<br>點上方「＋ 管理範本」去新增。</div>'; document.getElementById('noticePickCount').textContent=''; document.getElementById('noticeAll').checked=false; return; }
-  el.innerHTML=noticeList.map((t,i)=>`
-    <div class="imp-item ${noticePick.has(i)?'pick':''}" onclick="noticePickToggle(${i})">
-      <input type="checkbox" ${noticePick.has(i)?'checked':''} onclick="event.stopPropagation();noticePickToggle(${i})">
-      <div style="flex:1;min-width:0"><div class="nm">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}</div><div class="mt" style="white-space:normal;line-height:1.5">${esc((t.content||'').replace(/\n/g,'　').slice(0,70))}${(t.content||'').length>70?'…':''}</div></div>
+  const L=pickerTemplates();
+  if(!L.length){ el.innerHTML='<div style="padding:22px;text-align:center;color:var(--gray-400);font-size:13px">這個區塊還沒有任何範本。<br>點上方「＋ 管理範本」去新增。</div>'; document.getElementById('noticePickCount').textContent=''; document.getElementById('noticeAll').checked=false; return; }
+  el.innerHTML=L.map(t=>`
+    <div class="imp-item ${noticePick.has(t.id)?'pick':''}" onclick="noticePickToggle(${t.id})">
+      <input type="checkbox" ${noticePick.has(t.id)?'checked':''} onclick="event.stopPropagation();noticePickToggle(${t.id})">
+      <div style="flex:1;min-width:0"><div class="nm">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}${t.image_url?' 🖼':''}</div><div class="mt" style="white-space:normal;line-height:1.5">${esc((t.content||'').replace(/\n/g,'　').slice(0,70))}${(t.content||'').length>70?'…':''}</div></div>
     </div>`).join('');
-  document.getElementById('noticeAll').checked=noticePick.size===noticeList.length&&noticeList.length>0;
+  document.getElementById('noticeAll').checked=L.every(t=>noticePick.has(t.id))&&L.length>0;
   document.getElementById('noticePickCount').textContent=noticePick.size?`(${noticePick.size})`:'';
 }
-function noticePickToggle(i){ noticePick.has(i)?noticePick.delete(i):noticePick.add(i); renderNoticePick(); }
-function noticeToggleAll(on){ noticePick=on?new Set(noticeList.map((_,i)=>i)):new Set(); renderNoticePick(); }
+function noticePickToggle(id){ noticePick.has(id)?noticePick.delete(id):noticePick.add(id); renderNoticePick(); }
+function noticeToggleAll(on){ noticePick=on?new Set(pickerTemplates().map(t=>t.id)):new Set(); renderNoticePick(); }
 function applyNoticePick(){
-  if(!noticePick.size){ alert('請先勾選要加入的範本'); return; }
-  const chosen=[...noticePick].sort((a,b)=>a-b).map(i=>noticeList[i]);
+  const chosen=pickerTemplates().filter(t=>noticePick.has(t.id));
+  if(!chosen.length){ alert('請先勾選要加入的範本'); return; }
   const combined=chosen.map(t=>(t.content||'').trim()).filter(Boolean).join('\n\n');
-  const area=document.getElementById('noticeArea');
+  const area=document.getElementById(noticePickCtx.ta);
   const cur=(area.value||'').trim();
   const replace=document.getElementById('noticeReplace').checked;
-  area.value=(replace||!cur)?combined:(cur+'\n\n'+combined);
+  if(combined) area.value=(replace||!cur)?combined:(cur+'\n\n'+combined);
   area.style.display='block';
-  closeNoticePick(); syncCustNotice(); markDirty();
+  // 帶入範本附圖到該區塊
+  const imgs=chosen.map(t=>t.image_url).filter(Boolean);
+  const bk=noticePickCtx.block;
+  if(replace) blockImages[bk]=[];
+  if(imgs.length){ blockImages[bk]=(blockImages[bk]||[]).concat(imgs); }
+  renderBlockImages();
+  closeNoticePick(); if(bk==='notice') syncCustNotice(); markDirty();
 }
+function renderBlockImages(){
+  ['terms','notice','inspection','acceptance'].forEach(bk=>{
+    const el=document.getElementById('img-'+bk); if(!el) return;
+    const arr=blockImages[bk]||[];
+    el.innerHTML=arr.map((u,idx)=>`<div class="blk-img"><img src="${esc(u)}"><span class="xbtn" onclick="delBlockImg('${bk}',${idx})">✕</span></div>`).join('');
+    const ta=el.parentElement.querySelector('textarea');
+    const expanded=ta && ta.style.display!=='none';
+    el.style.display=(arr.length&&expanded)?'flex':'none';
+  });
+}
+function delBlockImg(bk,idx){ (blockImages[bk]||[]).splice(idx,1); renderBlockImages(); markDirty(); }
 async function loadPrepay(){
   PREPAY_DEPOSITS=[]; prepayPick=new Set();
   if(!clientId) return;
@@ -666,6 +724,7 @@ async function saveAll(){
       day_rate:dayRate,
       notes_terms:getTerm('a'), notes_notice:document.getElementById('noticeArea').value||null,
       notes_inspection:getTerm('c'), notes_acceptance:getTerm('d'),
+      block_images:JSON.stringify(blockImages||{}),
     };
     await fetch(`/api/quotes/${quoteId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     for(const it of items){
@@ -893,7 +952,7 @@ function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items
 function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}
-function tgl(h){const t=h.closest('.block').querySelector('textarea');t.style.display=t.style.display==='none'?'block':'none';}
+function tgl(h){const bl=h.closest('.block');const t=bl.querySelector('textarea');const show=t.style.display==='none';t.style.display=show?'block':'none';const im=bl.querySelector('.block-imgs');if(im)im.style.display=(show&&im.children.length>0)?'flex':'none';}
 
 function recalc(){
   const sub=items.reduce((s,it)=>s+totOf(it),0), promo=items.reduce((s,it)=>s+promoOf(it),0);

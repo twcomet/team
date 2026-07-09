@@ -275,31 +275,49 @@
     <!-- ── 貼膜須知模板 ── -->
     <div id="panel-notices" class="qs-panel">
       <div class="qs-card">
-        <h3>貼膜須知模板庫</h3>
-        <p class="section-hint">依施作物件類型建立須知模板，建立品項時選取後自動帶入，可再手動修改。</p>
+        <h3>報價單須知／條款範本庫</h3>
+        <p class="section-hint">四大區塊都能建範本：(a) 報價單優惠條款、(b) 貼膜前須知、(c) 驗收須知、(d) 回簽/訂單簽核資訊。報價單上點「套用範本（可多選）」即可帶入；(d) 可附「銀行帳號圖」，套範本時連圖一起帶出。</p>
         <table class="qs-table" id="notices-table">
-          <thead><tr><th>模板名稱</th><th>類別</th><th>內容預覽</th><th width="80">操作</th></tr></thead>
+          <thead><tr><th width="120">適用區塊</th><th>模板名稱</th><th>類別</th><th>內容預覽</th><th width="70">附圖</th><th width="80">操作</th></tr></thead>
           <tbody id="notices-tbody"></tbody>
         </table>
         <div class="qs-add-row">
-          <h4>+ 新增模板</h4>
+          <h4>+ 新增範本</h4>
           <div class="qs-grid qs-grid-3" style="margin-bottom:8px">
-            <div class="form-group"><label>模板名稱 *</label><input id="nn-name" placeholder="例：門片類須知"></div>
-            <div class="form-group"><label>類別</label>
+            <div class="form-group"><label>適用區塊 *</label>
+              <select id="nn-block">
+                <option value="terms">(a) 報價單優惠條款</option>
+                <option value="notice" selected>(b) 貼膜前須知</option>
+                <option value="inspection">(c) 驗收須知</option>
+                <option value="acceptance">(d) 回簽/訂單簽核資訊</option>
+              </select>
+            </div>
+            <div class="form-group"><label>模板名稱 *</label><input id="nn-name" placeholder="例：門片類須知 / 玉山銀行帳號"></div>
+            <div class="form-group"><label>類別（選填）</label>
               <select id="nn-cat">
+                <option value="一般">一般</option>
                 <option value="門片類">門片類</option>
                 <option value="系統櫃類">系統櫃類</option>
                 <option value="牆面類">牆面類</option>
                 <option value="窗台檯面類">窗台/檯面類</option>
                 <option value="電梯類">電梯類</option>
+                <option value="玻璃隔熱紙">玻璃隔熱紙</option>
+                <option value="裝潢膜">裝潢膜</option>
                 <option value="舊膜撕除類">舊膜撕除類</option>
-                <option value="一般">一般</option>
               </select>
             </div>
           </div>
           <div class="form-group" style="margin-bottom:10px">
-            <label>須知內容 *</label>
-            <textarea id="nn-content" style="height:120px" placeholder="輸入貼膜須知內容..."></textarea>
+            <label>範本內容 *</label>
+            <textarea id="nn-content" style="height:120px" placeholder="輸入條款/須知內容；行首加「!」或「！」該行會在客戶版顯示紅字重點..."></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>附圖（選填，例：(d) 銀行帳號圖）</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <button type="button" class="qs-btn" style="background:#f3f4f6" onclick="uploadNoticeImg('nn')">📷 上傳圖片</button>
+              <span id="nn-image-wrap" style="display:none"><img id="nn-image-thumb" style="height:44px;border:1px solid #eee;border-radius:6px;vertical-align:middle"> <a href="#" onclick="clearNoticeImg('nn');return false" style="color:#b91c1c;font-size:12px">移除</a></span>
+              <input type="hidden" id="nn-image">
+            </div>
           </div>
           <button class="qs-btn qs-btn-primary" onclick="addNotice()">新增</button>
         </div>
@@ -401,19 +419,37 @@
 <!-- 編輯 Modal（貼膜須知用） -->
 <div id="edit-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;display:none;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:12px;padding:24px;width:600px;max-width:95vw;max-height:80vh;overflow-y:auto">
-    <h3 style="margin:0 0 16px;font-size:16px">編輯貼膜須知模板</h3>
+    <h3 style="margin:0 0 16px;font-size:16px">編輯報價單須知／條款範本</h3>
     <input type="hidden" id="edit-notice-id">
-    <div class="form-group" style="margin-bottom:10px"><label>模板名稱</label><input id="edit-notice-name"></div>
-    <div class="form-group" style="margin-bottom:10px"><label>類別</label>
+    <div class="qs-grid qs-grid-2" style="margin-bottom:10px">
+      <div class="form-group"><label>適用區塊</label>
+        <select id="edit-notice-block">
+          <option value="terms">(a) 報價單優惠條款</option>
+          <option value="notice">(b) 貼膜前須知</option>
+          <option value="inspection">(c) 驗收須知</option>
+          <option value="acceptance">(d) 回簽/訂單簽核資訊</option>
+        </select>
+      </div>
+      <div class="form-group"><label>模板名稱</label><input id="edit-notice-name"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px"><label>類別（選填）</label>
       <select id="edit-notice-cat">
+        <option value="一般">一般</option>
         <option value="門片類">門片類</option><option value="系統櫃類">系統櫃類</option>
         <option value="牆面類">牆面類</option><option value="窗台檯面類">窗台/檯面類</option>
-        <option value="電梯類">電梯類</option><option value="舊膜撕除類">舊膜撕除類</option>
-        <option value="一般">一般</option>
+        <option value="電梯類">電梯類</option><option value="玻璃隔熱紙">玻璃隔熱紙</option>
+        <option value="裝潢膜">裝潢膜</option><option value="舊膜撕除類">舊膜撕除類</option>
       </select>
     </div>
-    <div class="form-group" style="margin-bottom:16px"><label>內容</label>
-      <textarea id="edit-notice-content" style="height:200px"></textarea>
+    <div class="form-group" style="margin-bottom:12px"><label>內容</label>
+      <textarea id="edit-notice-content" style="height:180px"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:16px"><label>附圖（選填）</label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" class="qs-btn" style="background:#f3f4f6" onclick="uploadNoticeImg('edit-notice')">📷 上傳圖片</button>
+        <span id="edit-notice-image-wrap" style="display:none"><img id="edit-notice-image-thumb" style="height:44px;border:1px solid #eee;border-radius:6px;vertical-align:middle"> <a href="#" onclick="clearNoticeImg('edit-notice');return false" style="color:#b91c1c;font-size:12px">移除</a></span>
+        <input type="hidden" id="edit-notice-image">
+      </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="qs-btn" style="background:#f3f4f6" onclick="closeNoticeModal()">取消</button>
@@ -702,29 +738,57 @@ async function loadNotices() {
   // Refresh notice selects in catalog form
   const ncNotice = document.getElementById('nc-notice');
   if (ncNotice) ncNotice.innerHTML = buildNoticeSelectOpts('');
+  const BLK = { terms:'(a) 優惠條款', notice:'(b) 貼膜前須知', inspection:'(c) 驗收須知', acceptance:'(d) 回簽/簽核' };
   const tbody = document.getElementById('notices-tbody');
   tbody.innerHTML = data.map(r => `
     <tr>
+      <td><span style="background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${BLK[r.block||'notice']||r.block}</span></td>
       <td><strong>${r.name}</strong></td>
       <td><span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px">${r.category||'一般'}</span></td>
       <td class="notice-content-preview">${(r.content||'').substring(0,80)}...</td>
+      <td style="text-align:center">${r.image_url?`<img src="${r.image_url}" style="height:32px;border:1px solid #eee;border-radius:4px">`:'—'}</td>
       <td style="white-space:nowrap">
         <button class="qs-btn qs-btn-sm" style="background:#f0f9ff;color:#0369a1;margin-right:4px" onclick="editNotice(${r.id})">編輯</button>
         <button class="qs-btn qs-btn-danger qs-btn-sm" onclick="delNotice(${r.id})">刪除</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:20px">尚未新增模板</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">尚未新增範本</td></tr>';
+}
+
+// 上傳範本附圖（reuse 共用 storage）
+async function uploadNoticeImg(prefix) {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append('image', f);
+    try {
+      const r = await fetch('/api/storage/upload', { method:'POST', body:fd });
+      const d = await r.json();
+      if (!r.ok || !d.url) throw new Error(d.error||'上傳失敗');
+      document.getElementById(prefix+'-image').value = d.url;
+      document.getElementById(prefix+'-image-thumb').src = d.url;
+      document.getElementById(prefix+'-image-wrap').style.display = 'inline';
+    } catch(e) { alert('圖片上傳失敗：'+e.message); }
+  };
+  inp.click();
+}
+function clearNoticeImg(prefix) {
+  document.getElementById(prefix+'-image').value = '';
+  document.getElementById(prefix+'-image-wrap').style.display = 'none';
 }
 
 async function addNotice() {
   const body = {
+    block: document.getElementById('nn-block').value,
     name: document.getElementById('nn-name').value,
     category: document.getElementById('nn-cat').value,
     content: document.getElementById('nn-content').value,
+    image_url: document.getElementById('nn-image').value || null,
   };
-  if (!body.name || !body.content) return alert('請填寫模板名稱和內容');
+  if (!body.name || !body.content) return alert('請填寫範本名稱和內容');
   await fetch(`${API}/notices`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
   document.getElementById('nn-name').value='';
   document.getElementById('nn-content').value='';
+  clearNoticeImg('nn');
   loadNotices();
 }
 
@@ -732,18 +796,24 @@ async function editNotice(id) {
   const data = await fetch(`${API}/notices`).then(r=>r.json());
   const n = data.find(r=>r.id===id); if (!n) return;
   document.getElementById('edit-notice-id').value = id;
+  document.getElementById('edit-notice-block').value = n.block||'notice';
   document.getElementById('edit-notice-name').value = n.name;
   document.getElementById('edit-notice-cat').value = n.category||'一般';
   document.getElementById('edit-notice-content').value = n.content||'';
+  document.getElementById('edit-notice-image').value = n.image_url||'';
+  if (n.image_url) { document.getElementById('edit-notice-image-thumb').src=n.image_url; document.getElementById('edit-notice-image-wrap').style.display='inline'; }
+  else { document.getElementById('edit-notice-image-wrap').style.display='none'; }
   document.getElementById('edit-notice-modal').style.display='flex';
 }
 
 async function saveNoticeEdit() {
   const id = document.getElementById('edit-notice-id').value;
   const body = {
+    block: document.getElementById('edit-notice-block').value,
     name: document.getElementById('edit-notice-name').value,
     category: document.getElementById('edit-notice-cat').value,
     content: document.getElementById('edit-notice-content').value,
+    image_url: document.getElementById('edit-notice-image').value || null,
   };
   await fetch(`${API}/notices/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
   closeNoticeModal(); loadNotices();

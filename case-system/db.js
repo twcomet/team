@@ -1615,6 +1615,10 @@ _addCol('dispatches', 'drive_subfolder_id',   'TEXT DEFAULT NULL'); // 派工在
 _addCol('dispatches', 'drive_subfolder_url',  'TEXT DEFAULT NULL'); // 子資料夾網址
 _addCol('dispatches', 'drive_subfolder_name', 'TEXT DEFAULT NULL'); // 子資料夾目前名稱（改人員/日期時據此判斷是否需改名）
 _addCol('cases',      'survey_gcal_event_id', 'TEXT DEFAULT NULL'); // 場勘(非派工)對應的 Google 行事曆事件 ID
+// 場勘單（客服填寫區流程，非派工）也建場勘子資料夾
+_addCol('survey_forms', 'drive_subfolder_id',   'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'drive_subfolder_url',  'TEXT DEFAULT NULL');
+_addCol('survey_forms', 'drive_subfolder_name', 'TEXT DEFAULT NULL');
 
 // 一次性修正：已核准且已預扣(有有效 reserve log)的「案件材料保留」若被標成 archived(已完成)，改回 reserved(保留中)
 // 只動「確實有作用中預扣紀錄」的，沒預扣過的舊保留不碰(需重新核准才會預扣)，避免誤判
@@ -2937,6 +2941,11 @@ _addCol('quote_sheets', 'notes_inspection',  'TEXT');         // 驗收須知
 _addCol('quote_sheets', 'engine',      "TEXT DEFAULT 'v1'");  // v1=舊算法 / v2=逐項優惠+行銷優惠+折抵(重建版)
 _addCol('quote_sheets', 'day_rate',    'REAL DEFAULT 2800');  // 內部成本：每人天日薪(v2)
 _addCol('quote_sheets', 'client_viewed_at', 'DATETIME');     // 客戶首次開啟報價單連結的時間（列表顯示「客戶已打開」）
+_addCol('quote_sheets', 'block_images', "TEXT DEFAULT '{}'"); // 各條款區塊附圖 JSON：{terms:[url],notice:[],inspection:[],acceptance:[銀行帳號圖]}
+
+// ── 報價單條款/須知範本：擴充成四大區塊都能套範本，並可帶一張圖(如(d)銀行帳號圖)──
+_addCol('film_notice_templates', 'block',     "TEXT DEFAULT 'notice'"); // terms(a)/notice(b)/inspection(c)/acceptance(d)
+_addCol('film_notice_templates', 'image_url', 'TEXT');                    // 範本附圖（例：回簽/付款區塊的銀行帳號圖）
 
 // ── 報價單 v2：貼膜前須知範本種子(若空)──────────────────────────────────
 try {

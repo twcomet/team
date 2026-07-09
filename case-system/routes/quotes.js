@@ -346,6 +346,12 @@ router.put('/:quoteId', requireAuth, (req, res) => {
            req.params.quoteId);
   }
 
+  // 各條款區塊附圖（如(d)回簽/付款的銀行帳號圖）
+  if (v2.block_images !== undefined) {
+    const bi = typeof v2.block_images === 'string' ? v2.block_images : JSON.stringify(v2.block_images || {});
+    db.prepare(`UPDATE quote_sheets SET block_images=? WHERE id=?`).run(bi, req.params.quoteId);
+  }
+
   recalcQuote(Number(req.params.quoteId));
   const q = db.prepare(`SELECT share_token, final_total FROM quote_sheets WHERE id=?`).get(req.params.quoteId);
   res.json({ ok: true, token: q?.share_token, final_total: q?.final_total });

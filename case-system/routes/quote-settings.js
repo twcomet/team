@@ -83,18 +83,23 @@ router.delete('/addons/:id', requireAuth, (req, res) => {
 
 // ── 貼膜須知模板 ─────────────────────────────────────────────────
 router.get('/notices', requireAuth, (req, res) => {
-  res.json(db.prepare(`SELECT * FROM film_notice_templates WHERE active=1 ORDER BY category, sort_order, id`).all());
+  const block = req.query.block;
+  let sql = `SELECT * FROM film_notice_templates WHERE active=1`;
+  const ps = [];
+  if (block) { sql += ` AND COALESCE(block,'notice')=?`; ps.push(block); }
+  sql += ` ORDER BY block, category, sort_order, id`;
+  res.json(db.prepare(sql).all(...ps));
 });
 router.post('/notices', requireAuth, (req, res) => {
-  const { name, category, content, sort_order } = req.body;
-  const r = db.prepare(`INSERT INTO film_notice_templates (name,category,content,sort_order) VALUES (?,?,?,?)`)
-    .run(name, category||null, content||'', sort_order||0);
+  const { name, category, content, sort_order, block, image_url } = req.body;
+  const r = db.prepare(`INSERT INTO film_notice_templates (name,category,content,sort_order,block,image_url) VALUES (?,?,?,?,?,?)`)
+    .run(name, category||null, content||'', sort_order||0, block||'notice', image_url||null);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 router.put('/notices/:id', requireAuth, (req, res) => {
-  const { name, category, content, sort_order, active } = req.body;
-  db.prepare(`UPDATE film_notice_templates SET name=?,category=?,content=?,sort_order=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(name, category||null, content||'', sort_order||0, active??1, req.params.id);
+  const { name, category, content, sort_order, active, block, image_url } = req.body;
+  db.prepare(`UPDATE film_notice_templates SET name=?,category=?,content=?,sort_order=?,active=?,block=?,image_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(name, category||null, content||'', sort_order||0, active??1, block||'notice', image_url||null, req.params.id);
   res.json({ ok: true });
 });
 router.delete('/notices/:id', requireAuth, (req, res) => {
