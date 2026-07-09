@@ -162,18 +162,8 @@
       <button class="btn btn-ghost btn-sm" onclick="exportInventory()">📤 匯出（含捲號）</button>
     </div>
     <div class="page-body">
-      <div class="stats-grid" id="statsGrid"></div>
-
-      <!-- 膜料異動紀錄 -->
+      <!-- 膜料庫存（首要顯示，方便更新） -->
       <div class="card" style="margin-bottom:16px">
-        <div class="card-header" style="cursor:default">
-          <h3>膜料異動紀錄</h3>
-          <button id="activityToggleBtn" onclick="toggleActivity()" class="btn btn-ghost btn-sm">展開全部</button>
-        </div>
-        <div id="activityList" style="padding:0 20px 4px"></div>
-      </div>
-
-      <div class="card">
         <div class="card-header">
           <h3>膜料庫存</h3>
         </div>
@@ -214,6 +204,18 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- 統計卡片（移到庫存下方） -->
+      <div class="stats-grid" id="statsGrid" style="margin-bottom:16px"></div>
+
+      <!-- 膜料異動紀錄（移到最下方） -->
+      <div class="card">
+        <div class="card-header" style="cursor:default">
+          <h3>膜料異動紀錄</h3>
+          <button id="activityToggleBtn" onclick="toggleActivity()" class="btn btn-ghost btn-sm">展開全部</button>
+        </div>
+        <div id="activityList" style="padding:0 20px 4px"></div>
       </div>
     </div>
   </div>
