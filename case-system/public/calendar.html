@@ -281,10 +281,16 @@
       <div id="edWorkerBox" class="ad-workerbox"></div>
       <div id="edWorkerSel" class="ad-wsel">尚未選擇人員</div>
 
+      <div id="edLeaderRow">
+        <label class="ad-fld">⭐ 小組長（負責完工回報；不選則自動挑最資深者）</label>
+        <select id="edLeader" class="ad-input"><option value="">自動（最資深者）</option></select>
+      </div>
+
       <label class="ad-fld" id="edNotesLabel">🗒️ 備註</label>
       <textarea id="edNotes" class="ad-input" style="min-height:64px;resize:vertical"></textarea>
     </div>
     <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #eef0f3">
+      <button class="btn btn-sm" id="edDeleteBtn" style="background:#fee2e2;color:#b91c1c;border:none;margin-right:auto" onclick="deleteEditEv()">🗑 刪除</button>
       <button class="btn btn-ghost" onclick="closeEditEv()">取消</button>
       <button class="btn btn-primary" id="edSaveBtn" onclick="saveEditEv()">儲存</button>
     </div>
@@ -875,8 +881,19 @@ function edRenderWorkers(){
     `<div class="ad-wgroup partner">🤝 外包夥伴</div>${outs.map(row).join('')||'<div class="ad-wrow" style="color:#aab">無</div>'}`;
   const names = adUsers.filter(u=>edState.workers.has(u.id)).map(u=>u.name).join('、');
   document.getElementById('edWorkerSel').textContent = names || (single?'尚未選擇場勘人員':'尚未選擇人員');
+  edRenderLeader();
 }
 function edSetSingle(id){ edState.workers = new Set([id]); edRenderWorkers(); }
+function edRenderLeader(){
+  const row = document.getElementById('edLeaderRow'), sel = document.getElementById('edLeader');
+  if (edState.kind !== 'dispatch') { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const prev = sel.value || (edState._leaderId != null ? String(edState._leaderId) : '');
+  const chosen = adUsers.filter(u => edState.workers.has(u.id));
+  const keep = chosen.some(u => String(u.id) === prev) ? prev : '';
+  sel.innerHTML = '<option value="">自動（最資深者）</option>' +
+    chosen.map(u => `<option value="${u.id}" ${String(u.id)===keep?'selected':''}>${esc(u.name)}</option>`).join('');
+}
 
 async function openEditEv(idx){
   const e = window._calEv[idx]; if(!e) return;
@@ -907,6 +924,7 @@ async function openEditEv(idx){
       const list = await fetch(`/api/cases/${c.id}/dispatches`).then(r=>r.ok?r.json():[]);
       const d = (list||[]).find(x => x.id === c.dispatch_id) || {};
       edState._disp = d;
+      edState._leaderId = (d.leader_id != null ? d.leader_id : null);
       (String(d.installer_ids||'').split(',').filter(Boolean)).forEach(id => edState.workers.add(Number(id)));
       document.getElementById('edTime').value = d.scheduled_time || '';
       document.getElementById('edTimeEnd').value = d.work_until || '';
@@ -937,9 +955,10 @@ async function saveEditEv(){
         await fetch(`/api/cases/${s.caseId}/schedule`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({location:loc})});
       }
       const d = s._disp || {};
+      const leaderVal = document.getElementById('edLeader').value;
       const body = Object.assign({}, d, {
         scheduled_date: date || d.scheduled_date, scheduled_time: time, work_until: timeEnd,
-        notes: notes, user_ids: workers, leader_id: d.leader_id ?? null,
+        notes: notes, user_ids: workers, leader_id: leaderVal ? Number(leaderVal) : null,
       });
       await fetch(`/api/cases/${s.caseId}/dispatches/${s.dispatchId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     }
@@ -948,6 +967,27 @@ async function saveEditEv(){
   } catch(err) {
     alert('儲存失敗：' + (err.message||err));
   } finally { btn.disabled = false; btn.textContent = '儲存'; }
+}
+
+async function deleteEditEv(){
+  const s = edState;
+  const msg = s.kind === 'survey'
+    ? '確定要移除這個場勘排程嗎？\n（案件會保留，只是從行事曆移除場勘日期）'
+    : '確定要刪除這筆派工嗎？此動作無法復原。';
+  if (!confirm(msg)) return;
+  const btn = document.getElementById('edDeleteBtn'); btn.disabled = true; btn.textContent = '刪除中…';
+  try {
+    if (s.kind === 'survey') {
+      await fetch(`/api/cases/${s.caseId}/schedule`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({survey_date:null})});
+    } else {
+      const r = await fetch(`/api/cases/${s.caseId}/dispatches/${s.dispatchId}`, {method:'DELETE'});
+      if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error||('錯誤 '+r.status)); }
+    }
+    closeEditEv();
+    await loadCalendar();
+  } catch(err) {
+    alert('刪除失敗：' + (err.message||err));
+  } finally { btn.disabled = false; btn.textContent = '🗑 刪除'; }
 }
 
 async function ensureAdUsers() {
