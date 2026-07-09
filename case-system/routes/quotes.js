@@ -259,6 +259,49 @@ router.post('/cases/:id', requireAuth, (req, res) => {
   res.json({ ok: true, id: quoteId, token, version: newVersion });
 });
 
+// ── 報價單範本（骨架）：只存報價品項內容，可存多種版本（電梯/門片…）─────────
+// 注意：這些 /templates 路由必須定義在 /:quoteId 之前，否則會被當成 quoteId
+
+// 範本清單（建立者 / 標題 / 建立日期 / 品項數）
+router.get('/templates', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT t.id, t.title, t.item_count, t.created_at, u.name AS created_by_name
+    FROM quote_templates t LEFT JOIN users u ON u.id = t.created_by
+    ORDER BY t.created_at DESC, t.id DESC`).all();
+  res.json(rows);
+});
+
+// 取得單一範本內容（含品項）供導入
+router.get('/templates/:tid', requireAuth, (req, res) => {
+  const t = db.prepare(`SELECT id, title, items_json, item_count, created_at FROM quote_templates WHERE id=?`).get(req.params.tid);
+  if (!t) return res.status(404).json({ error: '找不到範本' });
+  let items = [];
+  try { items = JSON.parse(t.items_json || '[]') || []; } catch (e) { items = []; }
+  res.json({ id: t.id, title: t.title, item_count: t.item_count, created_at: t.created_at, items });
+});
+
+// 儲存範本（body: { title, items }）items = 前端品項陣列（已去除照片/案件資料）
+router.post('/templates', requireAuth, (req, res) => {
+  const title = String(req.body.title || '').trim();
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!title) return res.status(400).json({ error: '請輸入範本標題' });
+  if (!items.length) return res.status(400).json({ error: '沒有可儲存的報價品項' });
+  const r = db.prepare(`INSERT INTO quote_templates (title, items_json, item_count, created_by) VALUES (?,?,?,?)`)
+    .run(title, JSON.stringify(items), items.length, req.session.user.id);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+// 刪除範本（限老闆或建立者）
+router.delete('/templates/:tid', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const t = db.prepare(`SELECT created_by FROM quote_templates WHERE id=?`).get(req.params.tid);
+  if (!t) return res.status(404).json({ error: '找不到範本' });
+  if (me.role !== 'owner' && !me.manage_users && t.created_by !== me.id)
+    return res.status(403).json({ error: '僅限老闆或建立者可刪除此範本' });
+  db.prepare(`DELETE FROM quote_templates WHERE id=?`).run(req.params.tid);
+  res.json({ ok: true });
+});
+
 // 取得單一報價單（含品項），用於版本切換
 router.get('/:quoteId', requireAuth, (req, res) => {
   const q = db.prepare(`

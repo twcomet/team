@@ -305,6 +305,8 @@
       <button class="btn imp sm" onclick="openImp('svy')">📥 從場勘單帶入</button>
       <button class="btn primary sm" onclick="addRow()">＋ 新增品項</button>
       <button class="btn sm" onclick="addTextRow()">＋ 自由文字列</button>
+      <button class="btn sm" onclick="openTplModal()">📋 導入範本</button>
+      <button class="btn sm" onclick="saveTemplate()">💾 存為範本</button>
       <span class="grow"></span>
       <button class="btn sm" onclick="toggleCust(true)">👁 客戶檢視</button>
     </div>
@@ -457,6 +459,15 @@
     <div class="imp-list" id="impList"></div>
     <div class="imp-f"><label><input type="checkbox" id="impAll" onchange="impToggleAll(this.checked)"> 全選</label>
       <button class="btn primary sm" onclick="doImport()">帶入所選 <span id="impCount"></span></button></div>
+  </div>
+</div>
+
+<!-- 導入報價單範本 -->
+<div class="imp-mask" id="tplModal" onclick="if(event.target===this)closeTplModal()">
+  <div class="imp-box">
+    <div class="imp-h"><span style="display:flex;align-items:center"><span class="ic" style="background:var(--primary-bg)">📋</span><span>導入報價單範本</span></span><button class="x" onclick="closeTplModal()">✕</button></div>
+    <div class="imp-sub">選一個範本把整組報價品項帶入目前的報價單，帶入後仍可自由編輯、刪減。範本只含品項內容，不含任何客戶／案件資料。</div>
+    <div class="imp-list" id="tplList"></div>
   </div>
 </div>
 
@@ -1043,6 +1054,63 @@ function impToggleAll(on){impPick=on?new Set(srcList().map((_,i)=>i)):new Set();
 function doImport(){if(!impPick.size){alert('請先勾選要帶入的品項');return;}
   const L=srcList();[...impPick].sort((a,b)=>a-b).forEach(i=>items.push({...L[i]}));
   closeImp();renderRows();recalc();}
+// ── 報價單範本（骨架）：存為範本 / 導入範本 ──────────────────────
+// 範本只存報價品項內容（去除 id 與照片），不含任何客戶／案件資料，可存多種版本
+function stripForTpl(it){ const c={...it}; delete c.id; c.filmImg=''; c.areaPhotos=[]; return c; }
+async function saveTemplate(){
+  if(!items.length){ alert('目前沒有可儲存的報價品項'); return; }
+  const title=prompt('請輸入範本標題（例如：電梯報價範本、門片範本）','');
+  if(title===null||!title.trim()) return;
+  const payload={ title:title.trim(), items:items.map(stripForTpl) };
+  try{
+    const r=await fetch('/api/quotes/templates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ alert('儲存範本失敗：'+(j.error||r.status)); return; }
+    alert('範本已儲存 ✓（'+payload.items.length+' 項）');
+  }catch(e){ alert('儲存範本失敗：'+(e.message||e)); }
+}
+async function openTplModal(){
+  document.getElementById('tplList').innerHTML='<div style="padding:22px;text-align:center;color:var(--gray-400);font-size:13px">載入中…</div>';
+  document.getElementById('tplModal').classList.add('on');
+  try{
+    const r=await fetch('/api/quotes/templates'); const rows=r.ok?await r.json():[];
+    renderTplList(rows);
+  }catch(e){ document.getElementById('tplList').innerHTML='<div style="padding:22px;text-align:center;color:#b91c1c">載入失敗</div>'; }
+}
+function closeTplModal(){ document.getElementById('tplModal').classList.remove('on'); }
+function renderTplList(rows){
+  const el=document.getElementById('tplList');
+  if(!rows||!rows.length){ el.innerHTML='<div style="padding:22px;text-align:center;color:var(--gray-400);font-size:13px">還沒有任何範本。<br>先把一份報價單的品項 key 好，再按「💾 存為範本」。</div>'; return; }
+  el.innerHTML=rows.map(t=>`
+    <div class="imp-item" onclick="importTpl(${t.id})" style="cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div class="nm">${esc(t.title)}</div>
+        <div class="mt">建立者 ${esc(t.created_by_name||'—')}　·　${esc((t.created_at||'').slice(0,10))}　·　${t.item_count} 項</div>
+      </div>
+      <button class="btn primary sm" onclick="event.stopPropagation();importTpl(${t.id})">導入</button>
+      <button class="btn sm" onclick="event.stopPropagation();deleteTpl(${t.id})" style="color:#b91c1c">刪除</button>
+    </div>`).join('');
+}
+async function importTpl(id){
+  try{
+    const r=await fetch('/api/quotes/templates/'+id); const j=await r.json().catch(()=>({}));
+    if(!r.ok){ alert('導入失敗：'+(j.error||r.status)); return; }
+    const its=Array.isArray(j.items)?j.items:[];
+    if(!its.length){ alert('此範本沒有品項'); return; }
+    its.forEach(it=>{ const c={...it}; delete c.id; c.filmImg=c.filmImg||''; c.areaPhotos=[]; items.push(c); });
+    closeTplModal(); renderRows(); recalc();
+    setStatus('已導入範本（'+its.length+' 項），可再編輯後儲存');
+  }catch(e){ alert('導入失敗：'+(e.message||e)); }
+}
+async function deleteTpl(id){
+  if(!confirm('確定刪除此範本？此動作無法復原。')) return;
+  try{
+    const r=await fetch('/api/quotes/templates/'+id,{method:'DELETE'}); const j=await r.json().catch(()=>({}));
+    if(!r.ok){ alert('刪除失敗：'+(j.error||r.status)); return; }
+    openTplModal();
+  }catch(e){ alert('刪除失敗：'+(e.message||e)); }
+}
+
 function toggleCust(on){document.querySelector('.editor-view').classList.toggle('hide',on);document.querySelector('.cust-view').classList.toggle('on',on);window.scrollTo(0,0);}
 
 boot();
