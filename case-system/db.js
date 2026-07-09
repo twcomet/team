@@ -2916,6 +2916,8 @@ db.exec(`
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+// 範本也可連同報價單底部文字（a/b/c/d 條款 + 帶入的圖片）一起存
+_addCol('quote_templates', 'blocks_json', "TEXT DEFAULT '{}'");
 
 // 擴充 quote_sheets
 _addCol('quote_sheets', 'subtotal',                'REAL DEFAULT 0');

@@ -265,29 +265,40 @@ router.post('/cases/:id', requireAuth, (req, res) => {
 // 範本清單（建立者 / 標題 / 建立日期 / 品項數）
 router.get('/templates', requireAuth, (req, res) => {
   const rows = db.prepare(`
-    SELECT t.id, t.title, t.item_count, t.created_at, u.name AS created_by_name
+    SELECT t.id, t.title, t.item_count, t.created_at, t.blocks_json, u.name AS created_by_name
     FROM quote_templates t LEFT JOIN users u ON u.id = t.created_by
     ORDER BY t.created_at DESC, t.id DESC`).all();
+  rows.forEach(r => {
+    let b = {}; try { b = JSON.parse(r.blocks_json || '{}') || {}; } catch (e) {}
+    r.has_blocks = ['termA','notice','termC','termD'].some(k => String(b[k] || '').trim()) ? 1 : 0;
+    delete r.blocks_json;
+  });
   res.json(rows);
 });
 
-// 取得單一範本內容（含品項）供導入
+// 取得單一範本內容（含品項 + 底部文字區塊）供導入
 router.get('/templates/:tid', requireAuth, (req, res) => {
-  const t = db.prepare(`SELECT id, title, items_json, item_count, created_at FROM quote_templates WHERE id=?`).get(req.params.tid);
+  const t = db.prepare(`SELECT id, title, items_json, blocks_json, item_count, created_at FROM quote_templates WHERE id=?`).get(req.params.tid);
   if (!t) return res.status(404).json({ error: '找不到範本' });
   let items = [];
   try { items = JSON.parse(t.items_json || '[]') || []; } catch (e) { items = []; }
-  res.json({ id: t.id, title: t.title, item_count: t.item_count, created_at: t.created_at, items });
+  let blocks = {};
+  try { blocks = JSON.parse(t.blocks_json || '{}') || {}; } catch (e) { blocks = {}; }
+  res.json({ id: t.id, title: t.title, item_count: t.item_count, created_at: t.created_at, items, blocks });
 });
 
-// 儲存範本（body: { title, items }）items = 前端品項陣列（已去除照片/案件資料）
+// 儲存範本（body: { title, items, blocks }）
+//   items  = 前端品項陣列（已去除照片/案件資料）
+//   blocks = 報價單底部文字 { termA, notice, termC, termD, block_images }
 router.post('/templates', requireAuth, (req, res) => {
   const title = String(req.body.title || '').trim();
   const items = Array.isArray(req.body.items) ? req.body.items : [];
+  const blocks = (req.body.blocks && typeof req.body.blocks === 'object') ? req.body.blocks : {};
   if (!title) return res.status(400).json({ error: '請輸入範本標題' });
-  if (!items.length) return res.status(400).json({ error: '沒有可儲存的報價品項' });
-  const r = db.prepare(`INSERT INTO quote_templates (title, items_json, item_count, created_by) VALUES (?,?,?,?)`)
-    .run(title, JSON.stringify(items), items.length, req.session.user.id);
+  const hasText = ['termA','notice','termC','termD'].some(k => String(blocks[k] || '').trim());
+  if (!items.length && !hasText) return res.status(400).json({ error: '沒有可儲存的報價品項或文字內容' });
+  const r = db.prepare(`INSERT INTO quote_templates (title, items_json, blocks_json, item_count, created_by) VALUES (?,?,?,?,?)`)
+    .run(title, JSON.stringify(items), JSON.stringify(blocks), items.length, req.session.user.id);
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 

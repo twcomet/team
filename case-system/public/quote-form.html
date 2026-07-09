@@ -1157,16 +1157,28 @@ function doImport(){if(!impPick.size){alert('請先勾選要帶入的品項');re
 // ── 報價單範本（骨架）：存為範本 / 導入範本 ──────────────────────
 // 範本只存報價品項內容（去除 id 與照片），不含任何客戶／案件資料，可存多種版本
 function stripForTpl(it){ const c={...it}; delete c.id; c.filmImg=''; c.areaPhotos=[]; return c; }
+// 收集底部文字區塊（含帶入的圖片），連同品項一起存成範本
+function gatherTplBlocks(){
+  return {
+    termA:  getTerm('a')||'',
+    notice: (document.getElementById('noticeArea')||{}).value||'',
+    termC:  getTerm('c')||'',
+    termD:  getTerm('d')||'',
+    block_images: JSON.parse(JSON.stringify(blockImages||{})),
+  };
+}
 async function saveTemplate(){
-  if(!items.length){ alert('目前沒有可儲存的報價品項'); return; }
+  const blocks=gatherTplBlocks();
+  const hasText=['termA','notice','termC','termD'].some(k=>String(blocks[k]||'').trim());
+  if(!items.length && !hasText){ alert('目前沒有可儲存的報價品項或文字內容'); return; }
   const title=prompt('請輸入範本標題（例如：電梯報價範本、門片範本）','');
   if(title===null||!title.trim()) return;
-  const payload={ title:title.trim(), items:items.map(stripForTpl) };
+  const payload={ title:title.trim(), items:items.map(stripForTpl), blocks };
   try{
     const r=await fetch('/api/quotes/templates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const j=await r.json().catch(()=>({}));
     if(!r.ok){ alert('儲存範本失敗：'+(j.error||r.status)); return; }
-    alert('範本已儲存 ✓（'+payload.items.length+' 項）');
+    alert('範本已儲存 ✓（'+payload.items.length+' 項＋報價單文字）');
   }catch(e){ alert('儲存範本失敗：'+(e.message||e)); }
 }
 async function openTplModal(){
@@ -1185,7 +1197,7 @@ function renderTplList(rows){
     <div class="imp-item" onclick="importTpl(${t.id})" style="cursor:pointer">
       <div style="flex:1;min-width:0">
         <div class="nm">${esc(t.title)}</div>
-        <div class="mt">建立者 ${esc(t.created_by_name||'—')}　·　${esc((t.created_at||'').slice(0,10))}　·　${t.item_count} 項</div>
+        <div class="mt">建立者 ${esc(t.created_by_name||'—')}　·　${esc((t.created_at||'').slice(0,10))}　·　${t.item_count} 項${t.has_blocks?'　·　📝 含報價單文字':''}</div>
       </div>
       <button class="btn primary sm" onclick="event.stopPropagation();importTpl(${t.id})">導入</button>
       <button class="btn sm" onclick="event.stopPropagation();deleteTpl(${t.id})" style="color:#b91c1c">刪除</button>
@@ -1196,10 +1208,24 @@ async function importTpl(id){
     const r=await fetch('/api/quotes/templates/'+id); const j=await r.json().catch(()=>({}));
     if(!r.ok){ alert('導入失敗：'+(j.error||r.status)); return; }
     const its=Array.isArray(j.items)?j.items:[];
-    if(!its.length){ alert('此範本沒有品項'); return; }
+    const blocks=(j.blocks&&typeof j.blocks==='object')?j.blocks:{};
+    const hasText=['termA','notice','termC','termD'].some(k=>String(blocks[k]||'').trim());
+    const bi=blocks.block_images&&typeof blocks.block_images==='object'?blocks.block_images:null;
+    const hasImg=bi&&['terms','notice','inspection','acceptance'].some(k=>Array.isArray(bi[k])&&bi[k].length);
+    if(!its.length && !hasText && !hasImg){ alert('此範本沒有內容'); return; }
+    // 品項：附加到現有清單
     its.forEach(it=>{ const c={...it}; delete c.id; c.filmImg=c.filmImg||''; c.areaPhotos=[]; items.push(c); });
-    closeTplModal(); renderRows(); recalc();
-    setStatus('已導入範本（'+its.length+' 項），可再編輯後儲存');
+    // 底部文字：範本有內容才覆蓋對應區塊（空的不動）
+    if(String(blocks.termA||'').trim())  setTerm('a', blocks.termA);
+    if(String(blocks.notice||'').trim()){ const na=document.getElementById('noticeArea'); if(na) na.value=blocks.notice; }
+    if(String(blocks.termC||'').trim())  setTerm('c', blocks.termC);
+    if(String(blocks.termD||'').trim())  setTerm('d', blocks.termD);
+    // 圖片：範本該區塊有圖才覆蓋該區塊
+    if(bi){ ['terms','notice','inspection','acceptance'].forEach(k=>{ if(Array.isArray(bi[k])&&bi[k].length) blockImages[k]=bi[k].slice(); }); renderBlockImages(); }
+    syncCustNotice();
+    closeTplModal(); renderRows(); recalc(); markDirty();
+    const parts=[]; if(its.length) parts.push(its.length+' 項'); if(hasText||hasImg) parts.push('報價單文字');
+    setStatus('已導入範本（'+parts.join('＋')+'），可再編輯後儲存');
   }catch(e){ alert('導入失敗：'+(e.message||e)); }
 }
 async function deleteTpl(id){
