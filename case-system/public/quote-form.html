@@ -378,8 +378,10 @@
 3. 場勘費【1,000 元】成交後折抵。</textarea></div>
     <div class="block"><div class="block-h">
         <span class="l" onclick="tgl(this)">(b) 貼膜前須知 <span class="edit">✎ 展開 ▾</span></span>
-        <span style="display:flex;align-items:center;gap:6px"><label style="font-size:11px;color:var(--gray-500);font-weight:700">套用範本</label>
-          <select id="noticeTmpl" onchange="applyNotice(this.value)"><option value="">選擇範本…</option></select></span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <button type="button" class="btn sm" onclick="event.stopPropagation();openNoticePick()">📋 套用範本（可多選）</button>
+          <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
+        </span>
       </div>
       <textarea id="noticeArea" style="display:none">1. 複雜物件需多張搭接（約 3–5mm 搭接痕），轉角處做 45 度斜刀。
 2. 寬幅超過 120cm 僅能交疊拼接（大圖輸出貼法）。
@@ -468,6 +470,21 @@
     <div class="imp-h"><span style="display:flex;align-items:center"><span class="ic" style="background:var(--primary-bg)">📋</span><span>導入報價單範本</span></span><button class="x" onclick="closeTplModal()">✕</button></div>
     <div class="imp-sub">選一個範本把整組報價品項帶入目前的報價單，帶入後仍可自由編輯、刪減。範本只含品項內容，不含任何客戶／案件資料。</div>
     <div class="imp-list" id="tplList"></div>
+  </div>
+</div>
+
+<!-- 套用貼膜前須知範本（可多選） -->
+<div class="imp-mask" id="noticeModal" onclick="if(event.target===this)closeNoticePick()">
+  <div class="imp-box">
+    <div class="imp-h"><span style="display:flex;align-items:center"><span class="ic" style="background:var(--ok-bg)">📋</span><span>套用貼膜前須知範本（可多選）</span></span><button class="x" onclick="closeNoticePick()">✕</button></div>
+    <div class="imp-sub">勾選要加入的須知範本，可同時選多個（例如玻璃＋裝潢膜＋其他）。加入後仍可自行編輯。　<a href="/quote-settings#notices" target="_blank" style="color:var(--primary,#be185d);font-weight:700">＋ 管理範本</a></div>
+    <div class="imp-list" id="noticePickList"></div>
+    <div class="imp-f" style="gap:14px;flex-wrap:wrap">
+      <label><input type="checkbox" id="noticeAll" onchange="noticeToggleAll(this.checked)"> 全選</label>
+      <label style="font-size:12px;color:var(--gray-500)"><input type="checkbox" id="noticeReplace"> 取代現有內容（預設為附加）</label>
+      <span class="grow" style="flex:1"></span>
+      <button class="btn primary sm" onclick="applyNoticePick()">加入所選 <span id="noticePickCount"></span></button>
+    </div>
   </div>
 </div>
 
@@ -590,9 +607,35 @@ function getTerm(w){ const t=termArea(w); return t?t.value:null; }
 async function loadNotices(){
   try{ const r=await fetch('/api/quote-settings/notices'); if(!r.ok) return;
     noticeList=await r.json();
-    const s=document.getElementById('noticeTmpl');
-    s.innerHTML='<option value="">選擇範本…</option>'+noticeList.map((t,i)=>`<option value="${i}">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}</option>`).join('');
   }catch(e){}
+}
+// ── 貼膜前須知：可多選套用範本 ──────────────────────────────
+let noticePick=new Set();
+function openNoticePick(){ noticePick=new Set(); renderNoticePick(); document.getElementById('noticeModal').classList.add('on'); }
+function closeNoticePick(){ document.getElementById('noticeModal').classList.remove('on'); }
+function renderNoticePick(){
+  const el=document.getElementById('noticePickList');
+  if(!noticeList.length){ el.innerHTML='<div style="padding:22px;text-align:center;color:var(--gray-400);font-size:13px">還沒有任何貼膜須知範本。<br>點上方「＋ 管理範本」去新增。</div>'; document.getElementById('noticePickCount').textContent=''; document.getElementById('noticeAll').checked=false; return; }
+  el.innerHTML=noticeList.map((t,i)=>`
+    <div class="imp-item ${noticePick.has(i)?'pick':''}" onclick="noticePickToggle(${i})">
+      <input type="checkbox" ${noticePick.has(i)?'checked':''} onclick="event.stopPropagation();noticePickToggle(${i})">
+      <div style="flex:1;min-width:0"><div class="nm">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}</div><div class="mt" style="white-space:normal;line-height:1.5">${esc((t.content||'').replace(/\n/g,'　').slice(0,70))}${(t.content||'').length>70?'…':''}</div></div>
+    </div>`).join('');
+  document.getElementById('noticeAll').checked=noticePick.size===noticeList.length&&noticeList.length>0;
+  document.getElementById('noticePickCount').textContent=noticePick.size?`(${noticePick.size})`:'';
+}
+function noticePickToggle(i){ noticePick.has(i)?noticePick.delete(i):noticePick.add(i); renderNoticePick(); }
+function noticeToggleAll(on){ noticePick=on?new Set(noticeList.map((_,i)=>i)):new Set(); renderNoticePick(); }
+function applyNoticePick(){
+  if(!noticePick.size){ alert('請先勾選要加入的範本'); return; }
+  const chosen=[...noticePick].sort((a,b)=>a-b).map(i=>noticeList[i]);
+  const combined=chosen.map(t=>(t.content||'').trim()).filter(Boolean).join('\n\n');
+  const area=document.getElementById('noticeArea');
+  const cur=(area.value||'').trim();
+  const replace=document.getElementById('noticeReplace').checked;
+  area.value=(replace||!cur)?combined:(cur+'\n\n'+combined);
+  area.style.display='block';
+  closeNoticePick(); syncCustNotice(); markDirty();
 }
 async function loadPrepay(){
   PREPAY_DEPOSITS=[]; prepayPick=new Set();

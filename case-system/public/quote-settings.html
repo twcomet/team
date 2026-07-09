@@ -439,6 +439,9 @@ async function init() {
     sel.appendChild(o);
   });
   loadAll();
+  // 從別頁帶 #notices 進來（例如報價單「＋管理範本」）→ 自動切到貼膜須知模板分頁
+  const hash = (location.hash || '').replace('#','');
+  if (['film','catalog','addons','notices','discount','travel','skill'].includes(hash)) switchTab(hash);
 }
 
 function switchTab(name) {
