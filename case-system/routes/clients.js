@@ -198,7 +198,7 @@ router.get('/:id', requireAuth, (req, res) => {
 router.get('/:id/cases', requireAuth, (req, res) => {
   const cases = db.prepare(`
     SELECT c.id, c.case_number, c.title, c.status, c.final_price, c.payment_status,
-           c.scheduled_date, c.created_at, c.contracted_at, c.address
+           c.scheduled_date, c.created_at, c.contracted_at, c.location AS address
     FROM cases c WHERE c.client_id = ? ORDER BY c.created_at DESC
   `).all(req.params.id);
   res.json(cases);
