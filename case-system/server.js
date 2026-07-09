@@ -63,7 +63,9 @@ app.use('/api/gdrive',    require('./routes/gdrive'));
 // AI 顧問統一入口：老闆(特助顧問)或會計/財務權限者(會計顧問)皆可進，頁內再依權限過濾顧問頁籤
 app.get('/ai-advisor', requireAuth, (req, res) => {
   const u = req.session.user;
-  const canAdvisor = u.role === 'owner' || u.role === 'hq_accounting' || u.permissions?.page_ledger === true;
+  const canAdvisor = u.role === 'owner'
+    || u.role === 'hq_accounting' || u.permissions?.page_ledger === true
+    || u.role === 'vp' || u.role === 'hq_cs' || u.role === 'hq_cs_manager' || u.permissions?.page_calendar === true;
   if (!canAdvisor) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'public', 'ai-advisor.html'));
 });

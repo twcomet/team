@@ -114,6 +114,7 @@
       <div class="ai-tabs" id="aiTabs">
         <div class="ai-tab" data-adv="assistant" data-real="1" style="display:none" onclick="switchAdv('assistant')">🧑‍💼 特助顧問</div>
         <div class="ai-tab" data-adv="accounting" data-real="1" style="display:none" onclick="switchAdv('accounting')">🧾 會計顧問</div>
+        <div class="ai-tab" data-adv="dispatch" data-real="1" style="display:none" onclick="switchAdv('dispatch')">🚚 派單顧問</div>
         <div class="ai-tab soon-tab" data-adv="biz" style="display:none" onclick="switchAdv('biz')">🧑‍💻 業務客服顧問 <span class="soon">規劃中</span></div>
         <div class="ai-tab soon-tab" data-adv="construction" style="display:none" onclick="switchAdv('construction')">🔧 施工顧問 <span class="soon">規劃中</span></div>
         <div class="ai-tab soon-tab" data-adv="estimate" style="display:none" onclick="switchAdv('estimate')">📐 估價顧問 <span class="soon">第二階段</span></div>
@@ -159,6 +160,26 @@
         </div>
       </div>
 
+      <!-- 派單顧問 -->
+      <div class="ai-panel" id="panel-dispatch">
+        <div class="ai-hero">
+          <h2>🚚 派單 AI 顧問</h2>
+          <p>我會盤點<b>待派施工</b>與<b>待排場勘</b>的案子、<b>未來 14 天的排程</b>、各師傅的<b>工作量</b>,並揪出<b>可能撞班</b>或<b>沒指定小組長</b>的派工,幫你把工排得順、排得準。有排班問題也可以直接問我。</p>
+          <button class="ai-btn" onclick="loadBrief('dispatch')">🔍 產生今日派工洞察</button>
+        </div>
+        <div class="ai-thread" id="thread-dispatch"></div>
+        <div class="ai-chips" id="chips-dispatch" style="display:none">
+          <span class="ai-chip" onclick="askChip('dispatch',this)">哪些成交案還沒排施工？</span>
+          <span class="ai-chip" onclick="askChip('dispatch',this)">有沒有師傅同一天被排到撞班？</span>
+          <span class="ai-chip" onclick="askChip('dispatch',this)">未來幾天的施工排程重點</span>
+          <span class="ai-chip" onclick="askChip('dispatch',this)">哪些施工派工還沒指定小組長？</span>
+        </div>
+        <div class="ai-inputbar">
+          <textarea id="input-dispatch" rows="1" placeholder="問派單顧問任何關於排工的問題…（Enter 送出）"></textarea>
+          <button class="ai-send" onclick="sendChat('dispatch')">送出</button>
+        </div>
+      </div>
+
       <!-- 其他顧問（規劃中） -->
       <div class="ai-panel" id="panel-biz"><div class="ai-soon-box">🧑‍💻 <b>業務客服顧問</b><br>協助客服/業務跟進案件、擬定回覆話術。<br>規劃中，敬請期待。</div></div>
       <div class="ai-panel" id="panel-construction"><div class="ai-soon-box">🔧 <b>施工顧問</b><br>協助施工排程、工班調度、工法建議。<br>規劃中，敬請期待。</div></div>
@@ -169,10 +190,11 @@
 
 <script src="/js/common.js"></script>
 <script>
-const AVATAR = { assistant:'🧑‍💼', accounting:'🧾' };
+const AVATAR = { assistant:'🧑‍💼', accounting:'🧾', dispatch:'🚚' };
 const state = {   // 每個顧問各自的對話串與狀態
   assistant:  { messages:[], busy:false, loaded:false },
   accounting: { messages:[], busy:false, loaded:false },
+  dispatch:   { messages:[], busy:false, loaded:false },
 };
 let current = 'assistant';
 
@@ -231,7 +253,7 @@ async function loadBrief(adv){
     if(!r.ok){ showErr(adv,j.error||('錯誤 '+r.status)); }
     else { s.messages.push({role:'assistant',content:j.brief}); renderThread(adv); document.getElementById('chips-'+adv).style.display='flex'; }
   }catch(e){ showLoading(adv,false); showErr(adv,e.message); }
-  finally{ s.busy=false; if(btn){ btn.disabled=false; btn.textContent=(adv==='accounting'?'🔄 重新產生財務洞察':'🔄 重新產生洞察'); } }
+  finally{ s.busy=false; if(btn){ btn.disabled=false; btn.textContent=(adv==='accounting'?'🔄 重新產生財務洞察':adv==='dispatch'?'🔄 重新產生派工洞察':'🔄 重新產生洞察'); } }
 }
 
 async function sendChat(adv){
@@ -250,7 +272,7 @@ async function sendChat(adv){
 }
 function askChip(adv,el){ const inp=document.getElementById('input-'+adv); inp.value=el.textContent; sendChat(adv); }
 
-['assistant','accounting'].forEach(adv=>{
+['assistant','accounting','dispatch'].forEach(adv=>{
   const inp=document.getElementById('input-'+adv); if(!inp) return;
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(adv); } });
   inp.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });

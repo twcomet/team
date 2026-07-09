@@ -138,7 +138,10 @@ async function loadUser() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="ai-advisor"]')) return;
     const p = currentUser.permissions || {};
-    const canAdvisor = currentUser.role === 'owner' || currentUser.role === 'hq_accounting' || p.page_ledger === true;
+    const r = currentUser.role;
+    const canAdvisor = r === 'owner'
+      || r === 'hq_accounting' || p.page_ledger === true                 // 會計顧問
+      || r === 'vp' || r === 'hq_cs' || r === 'hq_cs_manager' || p.page_calendar === true; // 派單顧問
     if (!canAdvisor) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'ai-advisor'; a.href = '/ai-advisor';
