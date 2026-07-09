@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 顧問</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ai-wrap{padding:20px 26px;max-width:980px;margin:0 auto}
+  .ai-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .ai-tab{padding:9px 16px;border-radius:999px;border:1.5px solid #e5e7eb;background:#fff;font-size:13.5px;font-weight:600;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .ai-tab.on{border-color:#7c3aed;background:#f5f3ff;color:#6d28d9}
+  .ai-tab .soon{font-size:10.5px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:1px 6px;font-weight:600}
+  .ai-panel{display:none}
+  .ai-panel.on{display:block}
+  .ai-hero{background:linear-gradient(135deg,#faf5ff,#eef2ff);border:1px solid #e9d5ff;border-radius:16px;padding:20px 22px;margin-bottom:16px}
+  .ai-hero h2{font-size:18px;font-weight:800;color:#5b21b6;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .ai-hero p{font-size:13px;color:#6b7280;margin:0;line-height:1.7}
+  .ai-btn{margin-top:14px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-size:14px;font-weight:700;padding:11px 20px;cursor:pointer}
+  .ai-btn:disabled{opacity:.6;cursor:default}
+  .ai-btn.ghost{background:#fff;color:#6d28d9;border:1.5px solid #ddd6fe}
+  .ai-thread{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+  .ai-msg{display:flex;gap:10px;align-items:flex-start}
+  .ai-msg .av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .ai-msg.ai .av{background:#ede9fe}
+  .ai-msg.me{flex-direction:row-reverse}
+  .ai-msg.me .av{background:#dbeafe}
+  .ai-bubble{border-radius:14px;padding:13px 16px;font-size:14px;line-height:1.75;max-width:78%}
+  .ai-msg.ai .ai-bubble{background:#fff;border:1px solid #ececf2}
+  .ai-msg.me .ai-bubble{background:#2563eb;color:#fff}
+  .ai-bubble h2{font-size:16px;margin:10px 0 6px;color:#4c1d95}
+  .ai-bubble h3{font-size:14.5px;margin:12px 0 5px;color:#5b21b6}
+  .ai-bubble h4{font-size:13.5px;margin:10px 0 4px;color:#6d28d9}
+  .ai-bubble ul{margin:6px 0;padding-left:20px}
+  .ai-bubble li{margin:3px 0}
+  .ai-bubble p{margin:6px 0}
+  .ai-bubble b{color:inherit}
+  .ai-loading{color:#8b5cf6;font-size:13.5px;display:flex;align-items:center;gap:8px;padding:6px 2px}
+  .ai-dot{width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:aiblink 1.2s infinite}
+  .ai-dot:nth-child(2){animation-delay:.2s}.ai-dot:nth-child(3){animation-delay:.4s}
+  @keyframes aiblink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .ai-inputbar{display:flex;gap:10px;margin-top:16px;position:sticky;bottom:12px}
+  .ai-inputbar textarea{flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:12px 14px;font-size:14px;resize:none;font-family:inherit;max-height:120px}
+  .ai-inputbar textarea:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12)}
+  .ai-send{border:none;border-radius:12px;background:#7c3aed;color:#fff;font-weight:700;padding:0 20px;cursor:pointer;font-size:14px}
+  .ai-send:disabled{opacity:.5;cursor:default}
+  .ai-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .ai-chip{font-size:12.5px;border:1px solid #e9d5ff;background:#faf5ff;color:#6d28d9;border-radius:999px;padding:6px 12px;cursor:pointer}
+  .ai-soon-box{text-align:center;color:#9ca3af;padding:60px 20px;font-size:14px;line-height:1.9}
+  .ai-err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 14px;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🤝 AI 顧問</span></div>
+    <div class="ai-wrap">
+      <div class="ai-tabs">
+        <div class="ai-tab on" data-adv="assistant" onclick="switchAdv('assistant')">🧑‍💼 特助顧問</div>
+        <div class="ai-tab" data-adv="estimate" onclick="switchAdv('estimate')">📐 估價顧問 <span class="soon">第二階段</span></div>
+        <div class="ai-tab" data-adv="biz" onclick="switchAdv('biz')">📊 經營分析 <span class="soon">規劃中</span></div>
+        <div class="ai-tab" data-adv="all" onclick="switchAdv('all')">💡 全能助手 <span class="soon">規劃中</span></div>
+      </div>
+
+      <!-- 特助顧問 -->
+      <div class="ai-panel on" id="panel-assistant">
+        <div class="ai-hero">
+          <h2>🧑‍💼 特助 AI 顧問</h2>
+          <p>我會即時掌握全系統的案件現況，幫你揪出<b>卡關風險</b>、<b>該跟進的事</b>，並點出<b>最有機會的案子</b>。像一位隨時待命的營運特助 —— 有問題也可以直接問我。</p>
+          <button class="ai-btn" id="briefBtn" onclick="loadBrief()">🔍 產生今日洞察</button>
+        </div>
+        <div class="ai-thread" id="thread"></div>
+        <div class="ai-chips" id="chips" style="display:none">
+          <span class="ai-chip" onclick="askChip(this)">哪些案子最該今天跟進？</span>
+          <span class="ai-chip" onclick="askChip(this)">目前有哪些收款風險？</span>
+          <span class="ai-chip" onclick="askChip(this)">這週施工排程有沒有問題？</span>
+          <span class="ai-chip" onclick="askChip(this)">幫我列出最有機會成交的前 5 名</span>
+        </div>
+        <div class="ai-inputbar">
+          <textarea id="chatInput" rows="1" placeholder="問特助顧問任何關於案件現況的問題…（Enter 送出）"></textarea>
+          <button class="ai-send" id="sendBtn" onclick="sendChat()">送出</button>
+        </div>
+      </div>
+
+      <!-- 其他顧問（第二階段） -->
+      <div class="ai-panel" id="panel-estimate"><div class="ai-soon-box">📐 <b>估價 AI 顧問</b><br>上傳客戶資訊 → 結合估價引擎自動產生報價。<br>第二階段開發中，敬請期待。</div></div>
+      <div class="ai-panel" id="panel-biz"><div class="ai-soon-box">📊 <b>經營分析顧問</b><br>業績、毛利、轉換率的深度分析。<br>規劃中。</div></div>
+      <div class="ai-panel" id="panel-all"><div class="ai-soon-box">💡 <b>全能助手</b><br>可查資料問答的系統內助理。<br>規劃中。</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let messages = [];   // {role:'user'|'assistant', content}
+let busy = false;
+
+function switchAdv(a){
+  document.querySelectorAll('.ai-tab').forEach(t=>t.classList.toggle('on',t.dataset.adv===a));
+  document.querySelectorAll('.ai-panel').forEach(p=>p.classList.toggle('on',p.id==='panel-'+a));
+}
+
+// 極簡 Markdown → HTML（標題/粗體/清單/段落）
+function mdToHtml(md){
+  let h = String(md||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  h = h.replace(/^### (.*)$/gm,'<h4>$1</h4>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/^# (.*)$/gm,'<h2>$1</h2>');
+  h = h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  h = h.replace(/(?:^|\n)((?:[-*] .*(?:\n|$))+)/g, function(_,block){
+    const items = block.trim().split('\n').map(l=>'<li>'+l.replace(/^[-*] /,'')+'</li>').join('');
+    return '\n<ul>'+items+'</ul>';
+  });
+  const blocks = h.split(/\n{2,}/).map(b=>{
+    b=b.trim(); if(!b) return '';
+    if(/^<(h\d|ul|ol|p)/.test(b)) return b.replace(/\n/g,'<br>');
+    return '<p>'+b.replace(/\n/g,'<br>')+'</p>';
+  });
+  return blocks.join('');
+}
+
+function renderThread(){
+  const t = document.getElementById('thread');
+  t.innerHTML = messages.map(m=>{
+    if(m.role==='user') return '<div class="ai-msg me"><div class="av">🧑</div><div class="ai-bubble">'+String(m.content).replace(/</g,'&lt;')+'</div></div>';
+    return '<div class="ai-msg ai"><div class="av">🤝</div><div class="ai-bubble">'+mdToHtml(m.content)+'</div></div>';
+  }).join('');
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function showLoading(on){
+  const t = document.getElementById('thread');
+  const ex = document.getElementById('ai-loading-row'); if(ex) ex.remove();
+  if(on){ const d=document.createElement('div'); d.id='ai-loading-row'; d.className='ai-msg ai';
+    d.innerHTML='<div class="av">🤝</div><div class="ai-loading"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span> 思考中…</div>';
+    t.appendChild(d); window.scrollTo(0, document.body.scrollHeight); }
+}
+function showErr(msg){
+  const t=document.getElementById('thread');
+  const d=document.createElement('div'); d.className='ai-err'; d.textContent='⚠️ '+msg; t.appendChild(d);
+}
+
+async function loadBrief(){
+  if(busy) return; busy=true;
+  const btn=document.getElementById('briefBtn'); btn.disabled=true; btn.textContent='分析中…';
+  showLoading(true);
+  try{
+    const r = await fetch('/api/ai-advisor/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const j = await r.json(); showLoading(false);
+    if(!r.ok){ showErr(j.error||('錯誤 '+r.status)); }
+    else { messages.push({role:'assistant',content:j.brief}); renderThread(); document.getElementById('chips').style.display='flex'; }
+  }catch(e){ showLoading(false); showErr(e.message); }
+  finally{ busy=false; btn.disabled=false; btn.textContent='🔄 重新產生洞察'; }
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chatInput'); const text=inp.value.trim();
+  if(!text||busy) return; busy=true;
+  inp.value=''; inp.style.height='auto';
+  messages.push({role:'user',content:text}); renderThread();
+  document.getElementById('sendBtn').disabled=true; showLoading(true);
+  try{
+    const r=await fetch('/api/ai-advisor/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages})});
+    const j=await r.json(); showLoading(false);
+    if(!r.ok){ showErr(j.error||('錯誤 '+r.status)); }
+    else { messages.push({role:'assistant',content:j.reply}); renderThread(); }
+  }catch(e){ showLoading(false); showErr(e.message); }
+  finally{ busy=false; document.getElementById('sendBtn').disabled=false; }
+}
+function askChip(el){ document.getElementById('chatInput').value=el.textContent; sendChat(); }
+
+document.getElementById('chatInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); }
+});
+document.getElementById('chatInput').addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
+
+(async function(){ if(window.loadUser) await loadUser(); if(window.highlightNav) highlightNav('ai-advisor'); })();
+</script>
+</body>
+</html>

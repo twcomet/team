@@ -133,6 +133,17 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="dashboard"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
+  // 注入「AI 顧問」選單（老闆/管理者），放在營運日報下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="ai-advisor"]')) return;
+    if (!(currentUser.role === 'owner' || mu)) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'ai-advisor'; a.href = '/ai-advisor';
+    a.innerHTML = '<span class="icon">🤝</span>AI 顧問';
+    const anchor = nav.querySelector('[data-page="daily-report"]') || nav.querySelector('[data-page="dashboard"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
 
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');

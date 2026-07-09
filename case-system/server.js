@@ -93,6 +93,7 @@ app.use('/api/expenses',              require('./routes/expenses'));
 app.use('/api/subcontract',           require('./routes/subcontract'));
 app.use('/api/material-usage',        require('./routes/material-usage'));
 app.use('/api/work-reports',          require('./routes/work-reports'));
+app.use('/api/ai-advisor',            require('./routes/ai-advisor'));
 app.use('/api/daily-report',          require('./routes/daily-report'));
 app.use('/api/feedback',              require('./routes/feedback'));
 app.use('/api/storage',               require('./routes/storage'));
@@ -132,6 +133,7 @@ const PAGE_PERMS = {
   materials:        'page_materials',
   'material-calc':  'page_material_calc',
   reports:          'page_reports',
+  'ai-advisor':     'manage_users',
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
   'quote-settings': 'page_quote_settings',
@@ -238,7 +240,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports', 'ai-advisor'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
