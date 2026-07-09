@@ -1,6 +1,6 @@
 const express = require('express');
 const db      = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, isOutsourced } = require('../middleware/auth');
 const router  = express.Router();
 
 // 排版工具存取權：owner / 管理者 / 被授予 can_layout 者（可開給學員、經銷商）
@@ -10,24 +10,27 @@ function canLayout(req, res, next) {
   res.status(403).json({ error: '無排版工具權限' });
 }
 
-// GET / — 專案清單（依組織）
+// GET / — 專案清單（依組織）。外包/經銷只看自己建立的
 router.get('/projects', requireAuth, canLayout, (req, res) => {
-  const { org_id } = req.session.user;
+  const { org_id, id: uid, role } = req.session.user;
   const archived = req.query.archived === '1' ? 1 : 0;
+  const ownOnly = isOutsourced(role);
   const rows = db.prepare(`
     SELECT p.id, p.name, p.archived, p.created_at, p.updated_at, u.name AS created_by_name
     FROM layout_projects p LEFT JOIN users u ON u.id = p.created_by
-    WHERE p.org_id = ? AND p.archived = ?
+    WHERE p.org_id = ? AND p.archived = ?${ownOnly ? ' AND p.created_by = ?' : ''}
     ORDER BY p.updated_at DESC
-  `).all(org_id, archived);
+  `).all(...(ownOnly ? [org_id, archived, uid] : [org_id, archived]));
   res.json(rows);
 });
 
 // GET /projects/:id — 單一專案（含 data）
 router.get('/projects/:id', requireAuth, canLayout, (req, res) => {
-  const { org_id } = req.session.user;
+  const { org_id, id: uid, role } = req.session.user;
   const p = db.prepare(`SELECT * FROM layout_projects WHERE id=? AND org_id=?`).get(req.params.id, org_id);
   if (!p) return res.status(404).json({ error: '找不到專案' });
+  // 外包/經銷只能開自己建立的
+  if (isOutsourced(role) && p.created_by !== uid) return res.status(404).json({ error: '找不到專案' });
   try { p.data = JSON.parse(p.data || '{}'); } catch { p.data = {}; }
   res.json(p);
 });
@@ -44,9 +47,10 @@ router.post('/projects', requireAuth, canLayout, (req, res) => {
 
 // PUT /projects/:id — 更新（名稱 / data）
 router.put('/projects/:id', requireAuth, canLayout, (req, res) => {
-  const { org_id } = req.session.user;
-  const p = db.prepare(`SELECT id FROM layout_projects WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+  const { org_id, id: uid, role } = req.session.user;
+  const p = db.prepare(`SELECT id, created_by FROM layout_projects WHERE id=? AND org_id=?`).get(req.params.id, org_id);
   if (!p) return res.status(404).json({ error: '找不到專案' });
+  if (isOutsourced(role) && p.created_by !== uid) return res.status(403).json({ error: '只能編輯自己建立的排版專案' });
   const { name, data } = req.body;
   db.prepare(`UPDATE layout_projects SET name=COALESCE(?,name), data=COALESCE(?,data), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(name?.trim() || null, data !== undefined ? JSON.stringify(data) : null, req.params.id);
@@ -55,16 +59,27 @@ router.put('/projects/:id', requireAuth, canLayout, (req, res) => {
 
 // PATCH /projects/:id/archive — 歸檔 / 取消歸檔
 router.patch('/projects/:id/archive', requireAuth, canLayout, (req, res) => {
-  const { org_id } = req.session.user;
+  const { org_id, id: uid, role } = req.session.user;
+  if (isOutsourced(role)) {
+    const p = db.prepare(`SELECT created_by FROM layout_projects WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+    if (!p) return res.status(404).json({ error: '找不到專案' });
+    if (p.created_by !== uid) return res.status(403).json({ error: '只能操作自己建立的排版專案' });
+  }
   const archived = req.body.archived ? 1 : 0;
   db.prepare(`UPDATE layout_projects SET archived=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND org_id=?`)
     .run(archived, req.params.id, org_id);
   res.json({ ok: true });
 });
 
-// DELETE /projects/:id
+// DELETE /projects/:id — 僅建立者本人，或老闆/管理者可刪
 router.delete('/projects/:id', requireAuth, canLayout, (req, res) => {
-  const { org_id } = req.session.user;
+  const { org_id, id: uid, role, manage_users, is_manager } = req.session.user;
+  const p = db.prepare(`SELECT created_by FROM layout_projects WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+  if (!p) return res.status(404).json({ error: '找不到專案' });
+  const isManager = role === 'owner' || !!manage_users || !!is_manager;
+  if (!isManager && p.created_by !== uid) {
+    return res.status(403).json({ error: '只能刪除自己建立的排版專案' });
+  }
   db.prepare(`DELETE FROM layout_projects WHERE id=? AND org_id=?`).run(req.params.id, org_id);
   res.json({ ok: true });
 });

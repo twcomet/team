@@ -3,7 +3,7 @@
 //   會計顧問 accounting：財務（應收/待審費用/收支/預收款）→ 老闆＋會計
 const express = require('express');
 const db = require('../db');
-const { requireAuth, orgFilterSQL } = require('../middleware/auth');
+const { requireAuth, orgFilterSQL, isOutsourced } = require('../middleware/auth');
 const router = express.Router();
 
 const MODEL = 'claude-sonnet-5';
@@ -22,8 +22,9 @@ function canAssistant(me) { return me.role === 'owner'; }
 function canAccounting(me) {
   return me.role === 'owner' || me.role === 'hq_accounting' || me.permissions?.page_ledger === true;
 }
-// 派單顧問（排工）→ 老闆、副總、客服(主管)，或被授予行事曆權限者
+// 派單顧問（排工）→ 老闆、副總、客服(主管)，或被授予行事曆權限者。外包/經銷一律排除
 function canDispatch(me) {
+  if (isOutsourced(me.role)) return false;
   return me.role === 'owner' || me.role === 'vp'
     || me.role === 'hq_cs' || me.role === 'hq_cs_manager'
     || me.permissions?.page_calendar === true;

@@ -1,12 +1,14 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, orgFilterSQL } = require('../middleware/auth');
+const { requireAuth, orgFilterSQL, isOutsourced } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/calendar?year=2026&month=5
 // 回傳該月份的派工記錄 + 有施工日期的案件，與每日目標
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
+  // 🔒 外包/經銷：不給看全公司行事曆，改用「我的行事曆」看自己的工作
+  if (isOutsourced(me.role)) return res.status(403).json({ error: '外包夥伴請改用「我的行事曆」' });
   if (me.role !== 'owner' && !me.permissions?.page_calendar) return res.status(403).json({ error: '無派單行事曆權限' });
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
   const { sql: orgSqlT, params: orgPsT } = orgFilterSQL(me, 'org_id');

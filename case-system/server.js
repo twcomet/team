@@ -6,7 +6,7 @@ const path = require('path');
 require('./db'); // 初始化資料庫
 
 const fs   = require('fs');
-const { requireAuth, requireOwner } = require('./middleware/auth');
+const { requireAuth, requireOwner, isOutsourced } = require('./middleware/auth');
 
 // 確保資料目錄存在（Zeabur volume）
 const dataDir = process.env.DB_PATH ? require('path').dirname(process.env.DB_PATH) : __dirname;
@@ -63,9 +63,9 @@ app.use('/api/gdrive',    require('./routes/gdrive'));
 // AI 顧問統一入口：老闆(特助顧問)或會計/財務權限者(會計顧問)皆可進，頁內再依權限過濾顧問頁籤
 app.get('/ai-advisor', requireAuth, (req, res) => {
   const u = req.session.user;
-  const canAdvisor = u.role === 'owner'
+  const canAdvisor = !isOutsourced(u.role) && (u.role === 'owner'
     || u.role === 'hq_accounting' || u.permissions?.page_ledger === true
-    || u.role === 'vp' || u.role === 'hq_cs' || u.role === 'hq_cs_manager' || u.permissions?.page_calendar === true;
+    || u.role === 'vp' || u.role === 'hq_cs' || u.role === 'hq_cs_manager' || u.permissions?.page_calendar === true);
   if (!canAdvisor) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'public', 'ai-advisor.html'));
 });
@@ -168,6 +168,11 @@ function requirePagePerm(page) {
     if (['estimator','estimator-quotes'].includes(page) &&
         ['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(u.role)) {
       return res.redirect('/my-tasks');
+    }
+    // 🔒 外包/經銷角色：全公司「派單行事曆」一律鎖住（只給「我的行事曆」看自己的），
+    //    即使個人被誤勾 page_calendar 也擋掉
+    if (isOutsourced(u.role) && page === 'calendar') {
+      return res.redirect('/my-calendar');
     }
     const key = PAGE_PERMS[page];
     if (!key) return next();

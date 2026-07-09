@@ -58,6 +58,8 @@ async function loadUser() {
 
   const p = currentUser.permissions || {};
   const mu = !!currentUser.manage_users;
+  // 外包/經銷角色：全公司視圖（派單行事曆、AI 顧問）一律隱藏，只留自己的工作
+  const outsourced = ['contractor_install','contractor_sales','dealer'].includes(currentUser.role);
 
   // 依權限隱藏側邊欄項目（所有頁面都在此管控）
   const pageMap = {
@@ -71,7 +73,7 @@ async function loadUser() {
     estimator:         !['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(currentUser.role),  // 技術/施工/外包不需估價
     'estimator-quotes':!['hq_tech','branch_tech','contractor_install','contractor_sales'].includes(currentUser.role),
     clients:          p.page_clients,
-    calendar:         p.page_calendar,
+    calendar:         p.page_calendar && !outsourced,
     payments:         p.page_payments,
     ledger:           p.page_ledger !== undefined ? p.page_ledger : p.page_payments,
     expenses:         p.page_expenses !== undefined ? p.page_expenses : ['owner','hq_accounting'].includes(currentUser.role),
@@ -139,9 +141,9 @@ async function loadUser() {
     if (!nav || nav.querySelector('[data-page="ai-advisor"]')) return;
     const p = currentUser.permissions || {};
     const r = currentUser.role;
-    const canAdvisor = r === 'owner'
+    const canAdvisor = !outsourced && (r === 'owner'
       || r === 'hq_accounting' || p.page_ledger === true                 // 會計顧問
-      || r === 'vp' || r === 'hq_cs' || r === 'hq_cs_manager' || p.page_calendar === true; // 派單顧問
+      || r === 'vp' || r === 'hq_cs' || r === 'hq_cs_manager' || p.page_calendar === true); // 派單顧問
     if (!canAdvisor) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'ai-advisor'; a.href = '/ai-advisor';

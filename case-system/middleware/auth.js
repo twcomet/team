@@ -18,6 +18,10 @@ const ROLE_DEFS = {
   dealer:             { label:'經銷商',     viewAllBranches:false, viewAmounts:false, manageUsers:false, manageOrgs:false },
 };
 
+// 外包/經銷角色：不隸屬公司內部，僅能看/操作自己的工作，全公司視圖一律鎖住
+const OUTSOURCED_ROLES = ['contractor_install', 'contractor_sales', 'dealer'];
+function isOutsourced(role) { return OUTSOURCED_ROLES.includes(role); }
+
 function getRoleDef(role) {
   if (ROLE_DEFS[role]) return ROLE_DEFS[role];
   try {
@@ -86,4 +90,4 @@ function orgFilterSQL(user, col) {
   return { sql: `${col} IN (${ids.map(() => '?').join(',')})`, params: ids };
 }
 
-module.exports = { ROLE_DEFS, getRoleDef, requireAuth, requireOwner, requireCalendarAccess, requireCanManageUsers, orgFilter, orgFilterSQL };
+module.exports = { ROLE_DEFS, OUTSOURCED_ROLES, isOutsourced, getRoleDef, requireAuth, requireOwner, requireCalendarAccess, requireCanManageUsers, orgFilter, orgFilterSQL };
