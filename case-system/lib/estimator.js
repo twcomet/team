@@ -34,8 +34,10 @@ function computeFilms(arr, cat, combine) {
   arr.forEach((it, ci) => {
     const item = filmItem(cat, it.brand, it.idx), W = filmW(item);
     const isComb = combine && (it.work === 'plane' || it.work === 'cabinet');
-    const key = isComb ? (it.brand + '|' + it.idx + '|' + it.work) : (it.brand + '|' + it.idx + '|' + it.work + '|' + it.h + '|' + it.w);
-    groups[key] = groups[key] || { item, brand: it.brand, W, work: it.work, isComb, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
+    const nm = (it.name || '').trim();
+    // 與前端一致：依「項目名稱＋膜＋工法」分組（同一物件的多尺寸歸在一起）
+    const key = nm + '|' + it.brand + '|' + it.idx + '|' + it.work + '|' + (isComb ? 'C' : 'L');
+    groups[key] = groups[key] || { name: nm, item, brand: it.brand, W, work: it.work, isComb, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
     g.sizes['寬' + it.w + '×高' + it.h] = (g.sizes['寬' + it.w + '×高' + it.h] || 0) + 1;
     if (isComb) {
@@ -47,7 +49,8 @@ function computeFilms(arr, cat, combine) {
   return Object.keys(groups).map(k => {
     const g = groups[k], unit = g.item[g.work];
     const r = g.isComb ? _combCai(g) : { cai: g.looseCai, comb: 0 };
-    return { type: 'film', work: g.work, brand: g.brand, label: workName[g.work] + '｜' + cat.FILMS[g.brand].label, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, idxs: g.idxs };
+    const title = (g.name ? g.name + '｜' : '') + workName[g.work] + '｜' + cat.FILMS[g.brand].label;
+    return { type: 'film', work: g.work, brand: g.brand, label: title, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, idxs: g.idxs };
   });
 }
 // 玻璃：combine=true 拼料省料(用該玻璃膜寬)；否則 寬鬆＝膜寬×高

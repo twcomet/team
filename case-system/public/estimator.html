@@ -295,6 +295,8 @@ async function loadCatalog(){
 function buildFilmPane(pfx){
   var t=FTAB[pfx];
   document.getElementById('pane-'+pfx).innerHTML=
+   '<div class="ec-fld"><label>項目名稱</label><input id="'+pfx+'-name" placeholder="例：客廳電視牆、主臥系統櫃（可留空）"></div>'+
+   '<div class="ec-fld"><label>類型</label><input value="'+t.label+'" disabled style="background:#f3f4f6;color:#6b7280"></div>'+
    '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
    '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
    '<div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="'+pfx+'-h" type="number" value="250"></div><div class="ec-fld"><label>寬 cm</label><input id="'+pfx+'-w" type="number" value="220"></div><div class="ec-fld"><label>數量</label><input id="'+pfx+'-q" type="number" value="1"></div></div>'+
@@ -306,7 +308,7 @@ function buildFilmPane(pfx){
 }
 function fillFilmP(pfx){var b=v(pfx+'-brand');fillSel(pfx+'-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));priceHint(pfx);}
 function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(it[t.work])+'／才　·　膜寬 '+filmW(it)+'cm';}
-function addFilm(pfx){var t=FTAB[pfx],b=v(pfx+'-brand'),idx=+v(pfx+'-item'),h=val(pfx+'-h'),w=val(pfx+'-w'),q=val(pfx+'-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'film',brand:b,idx:idx,work:t.work,h:h,w:w});render();}
+function addFilm(pfx){var t=FTAB[pfx],nm=(v(pfx+'-name')||'').trim(),b=v(pfx+'-brand'),idx=+v(pfx+'-item'),h=val(pfx+'-h'),w=val(pfx+'-w'),q=val(pfx+'-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w});render();}
 
 function fillElevItem(){var b=v('e-brand');fillSel('e-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));}
 function elevToggle(){var p=v('e-part');document.getElementById('e-box').style.display=p==='box'?'block':'none';document.getElementById('e-ceil').style.display=p==='ceil'?'block':'none';}
@@ -330,8 +332,16 @@ function rmGroup(csv){var idxs=csv.split(',').map(Number).sort(function(a,b){ret
 /* 計價（鏡像 lib/estimator.js）*/
 function _sizeStr(sz){return Object.keys(sz).map(function(s){return sz[s]>1?s+'×'+sz[s]:s;}).join('、');}
 function _combCai(g){var W=g.W,Fb=W*100/900,pcs=g.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});return {cai:(g.full+strips.reduce(function(a,s){return a+s.host/100;},0))*Fb,comb:strips.filter(function(s){return s.mem>1;}).length};}
-function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item);var isComb=COMBINE&&(it.work==='plane'||it.work==='cabinet');var k=isComb?(it.brand+'|'+it.idx+'|'+it.work):(it.brand+'|'+it.idx+'|'+it.work+'|'+it.h+'|'+it.w);g[k]=g[k]||{item:item,brand:it.brand,W:W,work:it.work,isComb:isComb,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});
- return Object.keys(g).map(function(k){var x=g[k],unit=x.item[x.work];var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};return {type:'film',work:x.work,label:workName[x.work]+'｜'+FILMS[x.brand].label,series:x.item.asia+' '+x.item.color+'　'+_sizeStr(x.sizes),n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs};});}
+function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item);var isComb=COMBINE&&(it.work==='plane'||it.work==='cabinet');var nm=(it.name||'').trim();
+  // 依「項目名稱＋膜＋工法」分組：同一物件的多尺寸歸在一起（寬鬆模式總額不變、僅呈現歸組）
+  var k=nm+'|'+it.brand+'|'+it.idx+'|'+it.work+'|'+(isComb?'C':'L');
+  g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,isComb:isComb,full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{}};var x=g[k];x.n++;x.idxs.push(ci);
+  var sk='寬'+it.w+'×高'+it.h;x.rows[sk]=x.rows[sk]||{w:it.w,h:it.h,n:0,caiEach:Math.ceil(it.w/W)*W*it.h/900};x.rows[sk].n++;
+  if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});
+ return Object.keys(g).map(function(k){var x=g[k],unit=x.item[x.work];var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
+  var title=(x.name?x.name+'｜':'')+workName[x.work]+'｜'+FILMS[x.brand].label;
+  var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
+  return {type:'film',work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs};});}
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,W=item.width||122;var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs};});}
 function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
@@ -374,7 +384,9 @@ function render(){
  if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
  else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':' 件'));
    var orig=L.base||L.amount;
-   h+='<div class="ec-grp"><div class="ec-gh"><b>'+L.label+'（'+L.n+u+'）'+(L.comb?'<span class="ec-badge">已併料</span>':'')+(L.type==='fut'?'<span class="ec-badge">運費·不折</span>':'')+'</b><span class="ec-gp">'+NT(orig)+'</span></div><div class="ec-gl"><span>'+L.series+(L.cai?'　·　'+L.cai.toFixed(1)+' 才 × '+L.unit:'')+'</span><span>'+(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>　':'')+'×'+L.n+'　<span class="ec-rm" onclick="rmGroup(\''+L.idxs.join(',')+'\')">移除</span></span></div></div>';});box.innerHTML=h;}
+   var szHtml='';
+   if(L.type==='film'&&L.sizeRows&&L.sizeRows.length){szHtml='<div style="margin-top:5px;padding-left:2px">'+L.sizeRows.map(function(s){return '<div style="font-size:12px;color:#6b7280;line-height:1.8">· 寬'+s.w+'×高'+s.h+' cm　×'+s.n+'　<span style="color:#9ca3af">'+s.caiEach.toFixed(1)+' 才/片</span></div>';}).join('')+'</div>';}
+   h+='<div class="ec-grp"><div class="ec-gh"><b>'+L.label+'（'+L.n+u+'）'+(L.comb?'<span class="ec-badge">已併料</span>':'')+(L.type==='fut'?'<span class="ec-badge">運費·不折</span>':'')+'</b><span class="ec-gp">'+NT(orig)+'</span></div><div class="ec-gl"><span>'+L.series+(L.cai?'　·　'+L.cai.toFixed(1)+' 才 × '+L.unit:'')+'</span><span>'+(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>　':'')+'×'+L.n+'　<span class="ec-rm" onclick="rmGroup(\''+L.idxs.join(',')+'\')">移除</span></span></div>'+szHtml+'</div>';});box.innerHTML=h;}
  var priced=lines.filter(function(L){return L.type!=='fut';}),futL=lines.filter(function(L){return L.type==='fut';});
  var origItems=priced.reduce(function(a,L){return a+(L.base||L.amount);},0),discItems=priced.reduce(function(a,L){return a+L.amount;},0),discAmt=origItems-discItems;
  var lowmin=LOWMIN[cust];
