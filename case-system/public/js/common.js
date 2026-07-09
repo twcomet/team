@@ -133,11 +133,11 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="dashboard"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
-  // 注入「AI 顧問」選單（老闆/管理者），放在營運日報下方
+  // 注入「AI 顧問（特助）」選單：權限最大(可看金額/毛利)，限老闆
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="ai-advisor"]')) return;
-    if (!(currentUser.role === 'owner' || mu)) return;
+    if (currentUser.role !== 'owner') return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'ai-advisor'; a.href = '/ai-advisor';
     a.innerHTML = '<span class="icon">🤝</span>AI 顧問';

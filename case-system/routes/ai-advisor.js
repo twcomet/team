@@ -13,8 +13,8 @@ const STATUS_LABEL = {
   payment:'完工請款', closed:'結案保存', invalid:'無效保存'
 };
 
-// 只有老闆／管理者能用（涉及全公司經營資料）
-function canUse(me) { return me.role === 'owner' || !!me.manage_users || !!me.is_manager; }
+// 特助顧問權限最大（可看全公司金額/毛利分析）→ 限老闆
+function canUse(me) { return me.role === 'owner'; }
 
 // 彙整現況快照（尊重分店權限範圍）
 function gatherSnapshot(me) {

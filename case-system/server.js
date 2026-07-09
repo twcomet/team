@@ -60,6 +60,11 @@ app.use('/api/estimator', require('./routes/estimator'));
 app.use('/api/gdrive',    require('./routes/gdrive'));
 
 // Google 雲端整合連接頁（只有老闆）— 也是 OAuth 回呼的落地頁
+// 特助 AI 顧問：權限最大（可看金額/毛利分析），限老闆
+app.get('/ai-advisor', requireAuth, requireOwner, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'ai-advisor.html'));
+});
+
 app.get('/gdrive-connect', requireAuth, requireOwner, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'gdrive-connect.html'));
 });
@@ -133,7 +138,6 @@ const PAGE_PERMS = {
   materials:        'page_materials',
   'material-calc':  'page_material_calc',
   reports:          'page_reports',
-  'ai-advisor':     'manage_users',
   performance:      'page_performance',
   'dispatch-pool':  'page_dispatch_pool',
   'quote-settings': 'page_quote_settings',
@@ -240,7 +244,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports', 'ai-advisor'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;
