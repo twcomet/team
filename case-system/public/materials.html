@@ -670,7 +670,7 @@ function switchBranch(b) {
 }
 
 function buildFilters() {
-  const brands    = [...new Set(materials.map(m => m.brand))].sort();
+  const brands    = [...new Set(materials.map(m => m.brand))].sort((a, b) => (brandRank(a) - brandRank(b)) || String(a).localeCompare(String(b), 'zh-Hant'));
   const specs     = [...new Set(materials.map(m => m.spec).filter(Boolean))].sort();
   const models    = [...new Set(materials.map(m => m.model))].sort();
   const locations = [...new Set(materials.map(m => m.location).filter(Boolean))].sort();
