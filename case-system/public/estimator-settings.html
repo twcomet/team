@@ -116,6 +116,7 @@
           <div><label style="font-size:11px;color:#6b7280">亞洲碼</label><br><input id="nf-asia" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">韓國碼</label><br><input id="nf-kr" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:90px"></div>
+          <div><label style="font-size:11px;color:#6b7280">防焰</label><br><select id="nf-fire" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">—</option><option value="防焰">防焰</option><option value="不防焰">不防焰</option></select></div>
           <div><label style="font-size:11px;color:#6b7280">寬cm</label><br><input id="nf-width" type="number" value="122" style="width:60px"></div>
           <div><label style="font-size:11px;color:#6b7280">長度米</label><br><input id="nf-len" type="number" value="50" style="width:60px"></div>
           <div><label style="font-size:11px;color:#6b7280">材料/米</label><br><input id="nf-perm" type="number" style="width:70px"></div>
@@ -196,9 +197,9 @@ function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
-    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>寬度cm</th><th>長度米</th><th>材料價格/米</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
+    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
     + (owner ? '<th style="color:#b45309">成本/米 🔒</th>' : '') + '<th>啟用</th><th></th>';
-  const colspan = owner ? 12 : 11;
+  const colspan = owner ? 14 : 13;
   let lastBrand = '', h = '';
   DATA.filmCat.forEach(f => {
     if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}</td></tr>`; }
@@ -207,9 +208,15 @@ function renderFilms() {
       <td></td>
       <td style="white-space:normal;min-width:130px">${code}</td>
       <td style="white-space:normal">${esc(f.color)}</td>
+      <td><select data-k="fireproof" style="width:auto">
+        <option value=""${!f.fireproof?' selected':''}>—</option>
+        <option value="防焰"${f.fireproof==='防焰'?' selected':''}>防焰</option>
+        <option value="不防焰"${f.fireproof==='不防焰'?' selected':''}>不防焰</option>
+      </select></td>
       <td><input type="number" value="${f.width ?? 122}" data-k="width"></td>
       <td><input type="number" value="${f.roll_len ?? 50}" data-k="roll_len"></td>
       <td><input type="number" value="${f.per_m ?? 0}" data-k="per_m"></td>
+      <td><input type="number" value="${f.ecom_price ?? 0}" readonly title="由牌價自動換算（含稅、進位50）" style="background:#f3f4f6;color:#6b7280"></td>
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
@@ -231,6 +238,7 @@ async function addFilm(){
     asia_code: document.getElementById('nf-asia').value,
     kr_code: document.getElementById('nf-kr').value,
     color: document.getElementById('nf-color').value,
+    fireproof: document.getElementById('nf-fire').value,
     width: document.getElementById('nf-width').value,
     roll_len: document.getElementById('nf-len').value,
     per_m: document.getElementById('nf-perm').value,
@@ -241,7 +249,7 @@ async function addFilm(){
   var ce = document.getElementById('nf-cost'); if(ce) body.cost_per_m = ce.value;
   if(!body.asia_code && !body.color){ alert('請至少填代碼或花色'); return; }
   var r = await fetch(`${API}/film-catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if(r.ok){ ['nf-asia','nf-kr','nf-color','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){document.getElementById(id).value='';}); load(); }
+  if(r.ok){ ['nf-asia','nf-kr','nf-color','nf-fire','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){document.getElementById(id).value='';}); load(); }
   else alert('新增失敗');
 }
 function renderGlass() {

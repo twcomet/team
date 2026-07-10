@@ -3414,8 +3414,8 @@ try {
 db.exec(`
   CREATE TABLE IF NOT EXISTS est_film_catalog (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand TEXT, asia_code TEXT, kr_code TEXT, color TEXT, model_note TEXT,
-    per_m REAL DEFAULT 0, cost_per_m REAL DEFAULT 0,
+    brand TEXT, asia_code TEXT, kr_code TEXT, color TEXT, model_note TEXT, fireproof TEXT DEFAULT '',
+    per_m REAL DEFAULT 0, ecom_price REAL DEFAULT 0, cost_per_m REAL DEFAULT 0,
     plane REAL, cabinet REAL, shape REAL, width INTEGER DEFAULT 122, roll_len REAL DEFAULT 50,
     sort_order INTEGER DEFAULT 0, active INTEGER DEFAULT 1
   );
@@ -3426,20 +3426,31 @@ db.exec(`
   );
 `);
 // 既有 DB 補欄（_addCol 須在 CREATE TABLE 之後；同步寫進上方 CREATE TABLE 定義）
-_addCol('est_film_catalog', 'per_m',      'REAL DEFAULT 0');   // 材料價格/米（牌價）
-_addCol('est_film_catalog', 'cost_per_m', 'REAL DEFAULT 0');   // 成本/米（機密，只老闆）
+_addCol('est_film_catalog', 'per_m',      'REAL DEFAULT 0');   // 未稅牌價/米（＝電商÷1.05；估價材料以此為準）
+_addCol('est_film_catalog', 'ecom_price', 'REAL DEFAULT 0');   // 電商含稅牌價/米（整數進位50；折扣從此往下折）
+_addCol('est_film_catalog', 'cost_per_m', 'REAL DEFAULT 0');   // 完全成本/米（機密，只老闆）
+_addCol('est_film_catalog', 'fireproof',  "TEXT DEFAULT ''");  // 防焰／不防焰（連工帶料不分防焰）
 _addCol('est_film_catalog', 'roll_len',   'REAL DEFAULT 50');  // 長度（米，1米=100cm）
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
-    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,per_m,plane,cabinet,shape,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     let so = 0;
     for (const [brand, b] of Object.entries(_cat.FILMS))
-      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.perM || 0, it.plane, it.cabinet, it.shape, it.width || 122, it.rollLen || 50, so++));
+      b.items.forEach(it => ins.run(brand, it.asia, it.kr, it.color, it.model || '', it.fireproof || '', it.perM || 0, it.ecom || 0, it.cost || 0, it.plane, it.cabinet, it.shape, it.width || 122, it.rollLen || 50, so++));
   }
-  // 補 per_m（既有列 seed 時還沒這欄；只補空值，不覆蓋老闆改動；cost 不補、由老闆自填）
-  { const updPm = db.prepare(`UPDATE est_film_catalog SET per_m=? WHERE brand=? AND asia_code=? AND (per_m IS NULL OR per_m=0)`);
-    for (const [brand, b] of Object.entries(_cat.FILMS)) b.items.forEach(it => updPm.run(it.perM || 0, brand, it.asia)); }
+  // 一次性回填 2026-07 新定價（未稅牌價/電商/完全成本/防焰/花色）到既有列。
+  // 守衛：全表 ecom_price 皆空才跑 → 只在「舊表升級」時執行一次；跑過後（含新 seed）老闆的手改不再被覆蓋。
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog WHERE ecom_price>0`).get().n) {
+    const upd = db.prepare(`UPDATE est_film_catalog SET per_m=?, ecom_price=?, cost_per_m=?, fireproof=?, color=? WHERE brand=? AND asia_code=?`);
+    for (const [brand, b] of Object.entries(_cat.FILMS))
+      b.items.forEach(it => upd.run(it.perM || 0, it.ecom || 0, it.cost || 0, it.fireproof || '', it.color || '', brand, it.asia));
+    console.log('✅ 估價牌價表已回填 2026-07 新定價（成本/電商/防焰/牌價；一次性）');
+  } else {
+    // 日常啟動：只補仍為空的 per_m，不覆蓋老闆手改
+    const updPm = db.prepare(`UPDATE est_film_catalog SET per_m=? WHERE brand=? AND asia_code=? AND (per_m IS NULL OR per_m=0)`);
+    for (const [brand, b] of Object.entries(_cat.FILMS)) b.items.forEach(it => updPm.run(it.perM || 0, brand, it.asia));
+  }
   if (!db.prepare(`SELECT COUNT(*) n FROM est_door_catalog`).get().n) {
     const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
     let so = 0;
