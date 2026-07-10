@@ -231,10 +231,17 @@
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>品牌 *</label>
-          <select id="m_brand"></select>
+          <select id="m_brand" onchange="onBrandChange()"></select>
         </div>
         <div class="form-group"><label>型號 *</label>
           <input type="text" id="m_model" list="dl_model" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row" id="fgCatalogSeries" style="display:none">
+        <div class="form-group" style="flex:1">
+          <label style="color:var(--primary,#e91e8c)">📋 定價表系列（選了自動帶入售價／成本／防焰／膜寬）</label>
+          <select id="m_catalog_series" onchange="autofillFromCatalog()"><option value="">—</option></select>
+          <div style="font-size:11px;color:var(--gray-500);margin-top:3px">型號請自行輸入花色編號（如 AA-801）；此處只帶價格與規格</div>
         </div>
       </div>
       <div class="form-row">
@@ -1049,9 +1056,48 @@ async function saveSell() {
 
 // ── 膜料 CRUD ────────────────────────────────────────────────
 
+// ── 定價表自動帶價（新增膜料時：選品牌→選系列自動帶入售價/成本/防焰/膜寬/花色）──
+let CATALOG_ROWS = null, _autofillColor = '';
+const MAT_BRAND_TO_CAT = { 'BODAQ':'bodaq','Boda':'bodaq','Bodaq':'bodaq','LG':'benif','LX':'benif','BENIF':'benif','PAROI':'paroi','Paroi':'paroi','Para':'paroi','3M':'3m' };
+async function ensureCatalog() {
+  if (CATALOG_ROWS) return;
+  try { const r = await fetch('/api/materials/film-catalog'); CATALOG_ROWS = r.ok ? await r.json() : []; }
+  catch (e) { CATALOG_ROWS = []; }
+}
+function onBrandChange() { populateCatalogSeries(document.getElementById('m_brand').value); }
+function populateCatalogSeries(brand) {
+  const wrap = document.getElementById('fgCatalogSeries');
+  const sel  = document.getElementById('m_catalog_series');
+  const cat  = MAT_BRAND_TO_CAT[brand];
+  const rows = (cat && CATALOG_ROWS) ? CATALOG_ROWS.filter(r => r.brand === cat) : [];
+  if (!rows.length) { wrap.style.display = 'none'; sel.innerHTML = '<option value="">—</option>'; return; }
+  sel.innerHTML = '<option value="">—（不自動帶入）</option>' + rows.map(r => {
+    const i = CATALOG_ROWS.indexOf(r);
+    const cost = (r.cost_per_m != null) ? ` / 成本$${Math.round(r.cost_per_m)}` : '';
+    const label = `${r.asia_code}${r.color ? ' · ' + r.color : ''}　售價$${r.sell_price}${cost}${r.fireproof ? ' · ' + r.fireproof : ''}`;
+    return `<option value="${i}">${label}</option>`;
+  }).join('');
+  wrap.style.display = '';
+}
+function autofillFromCatalog() {
+  const r = CATALOG_ROWS && CATALOG_ROWS[Number(document.getElementById('m_catalog_series').value)];
+  if (!r) return;
+  document.getElementById('m_unit_price').value = r.sell_price || '';
+  if (r.cost_per_m != null && currentUser?.can_see_cost) document.getElementById('m_unit_cost').value = Math.round(r.cost_per_m);
+  if (r.fireproof === '防焰') document.getElementById('m_fire_retardant').value = '1';
+  else if (r.fireproof === '不防焰') document.getElementById('m_fire_retardant').value = '0';
+  if (r.width) document.getElementById('m_width_cm').value = r.width;
+  _autofillColor = r.color || '';
+  if (r.color) { const s = document.getElementById('m_spec'); const hit = [...s.options].map(o => o.value).find(o => o && r.color.includes(o)); if (hit) s.value = hit; }
+}
+
 function openMatModal() {
   editMatId = null;
+  _autofillColor = '';
   document.getElementById('matModalTitle').textContent = '新增膜料型號';
+  document.getElementById('fgCatalogSeries').style.display = 'none';
+  document.getElementById('m_catalog_series').innerHTML = '<option value="">—</option>';
+  ensureCatalog().then(() => populateCatalogSeries(document.getElementById('m_brand').value));
   ['m_model','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
   ['m_unit_cost','m_unit_price','m_stock_meters'].forEach(id => document.getElementById(id).value = '');
   fillBrandSelect('');
@@ -1074,7 +1120,9 @@ function openMatEdit(id) {
   const m = materials.find(x => x.id === id);
   if (!m) return;
   editMatId = id;
+  _autofillColor = '';
   document.getElementById('matModalTitle').textContent = '編輯膜料型號';
+  document.getElementById('fgCatalogSeries').style.display = 'none';   // 編輯時不顯示自動帶價
   fillBrandSelect(m.brand || '');
   document.getElementById('m_model').value     = m.model || '';
   document.getElementById('m_spec').value      = m.spec  || '';
@@ -1141,6 +1189,7 @@ async function saveMat() {
     body.unit_cost = parseFloat(document.getElementById('m_unit_cost').value) || 0;
     body.ec_key    = document.getElementById('m_ec_key').value.trim() || null;
   }
+  if (_autofillColor) body.color = _autofillColor;   // 由定價表帶入的花色
   if (!body.brand || !body.model) { showToast('品牌和型號必填', 'error'); return; }
 
   // 圖片上傳
