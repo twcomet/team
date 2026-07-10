@@ -683,12 +683,14 @@ function renderStats() {
   const lowStock   = materials.filter(m => m.stock_meters < 10).length;
   const totalMeters= materials.reduce((s,m) => s + (m.stock_meters||0), 0);
   const canCost    = currentUser?.can_see_cost;
-  const totalValue = canCost ? materials.reduce((s,m) => s + (m.stock_meters||0)*(m.unit_cost||0), 0) : 0;
+  const priceValue = materials.reduce((s,m) => s + (m.stock_meters||0)*(m.unit_price||0), 0); // 售價價值＝牌價×庫存（全員可見）
+  const costValue  = canCost ? materials.reduce((s,m) => s + (m.stock_meters||0)*(m.unit_cost||0), 0) : 0; // 成本價值（只老闆）
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card"><div class="label">膜料種類</div><div class="value">${total}</div></div>
     <div class="stat-card"><div class="label">庫存偏低（&lt;10米）</div><div class="value ${lowStock?'warning':''}">${lowStock}</div></div>
     <div class="stat-card"><div class="label">總庫存米數</div><div class="value">${totalMeters.toFixed(1)} 米</div></div>
-    ${canCost ? `<div class="stat-card"><div class="label">庫存成本價值</div><div class="value">$${Math.round(totalValue).toLocaleString()}</div></div>` : ''}
+    <div class="stat-card"><div class="label">庫存售價價值</div><div class="value">$${Math.round(priceValue).toLocaleString()}</div></div>
+    ${canCost ? `<div class="stat-card"><div class="label">庫存成本價值 🔒</div><div class="value">$${Math.round(costValue).toLocaleString()}</div></div>` : ''}
   `;
 }
 
