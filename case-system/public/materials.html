@@ -703,13 +703,25 @@ function applyFilters() {
   if (spec)  list = list.filter(m => m.spec === spec);
   if (stock === 'low') list = list.filter(m => m.stock_meters < 10);
   if (stock === 'ok')  list = list.filter(m => m.stock_meters >= 30);
+  // 依指定品牌順序排序（PAROI→LG→BODAQ→3M→AICA→穩得），同品牌內再依型號
+  list = list.slice().sort((a, b) => {
+    const r = brandRank(a.brand) - brandRank(b.brand);
+    return r || String(a.model || '').localeCompare(String(b.model || ''), 'zh-Hant');
+  });
   renderTable(list);
 }
 
 // 官網正式品牌清單（標準化用，下拉選單與分析報表都以此為準）
 const BRANDS = ['LG','BODAQ','3M','PAROI','Protect','Belbien','AICA','穩得','其他'];
-// 舊資料常見拼法 → 正式品牌（只影響色塊判斷與未來分析歸併，不改動原始資料）
-const BRAND_ALIASES = { 'Paroi':'PAROI', 'Para':'PAROI', 'Boda':'BODAQ', 'LX':'LG' };
+// 舊資料常見拼法 → 正式品牌（只影響色塊判斷、排序與未來分析歸併，不改動原始資料）
+const BRAND_ALIASES = { 'Paroi':'PAROI', 'Para':'PAROI', 'Boda':'BODAQ', 'LX':'LG', 'Bodaq':'BODAQ', 'BENIF':'LG', 'LG=LX':'LG', '溫德':'穩得', 'Wunder':'穩得', 'Wunder磨料':'穩得' };
+// 列表品牌排序：PAROI → LG(=LX) → BODAQ → 3M → AICA → 穩得，其餘排最後
+const BRAND_ORDER = ['PAROI','LG','BODAQ','3M','AICA','穩得'];
+function brandRank(brand) {
+  const canon = BRAND_ALIASES[brand] || brand;
+  const i = BRAND_ORDER.indexOf(canon);
+  return i < 0 ? BRAND_ORDER.length : i;
+}
 
 // 填入品牌下拉；編輯舊資料時若品牌不在正式清單，保留原值為一個選項，避免存檔時被誤改
 function fillBrandSelect(selected) {
