@@ -899,7 +899,7 @@ function renderCost(){
 }
 function setCost(i,k,v){items[i][k]=+v||0;renderCost();}
 function setDayRate(v){dayRate=+v||0;renderCost();}
-function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText')renderCust(document.getElementById('mktChk')?.checked);}
+function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText'||k==='note')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){items[i].mode=m;renderRows();recalc();}
 // ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
 function setFilmBrand(i,v){
@@ -1237,7 +1237,7 @@ async function deleteTpl(id){
   }catch(e){ alert('刪除失敗：'+(e.message||e)); }
 }
 
-function toggleCust(on){document.querySelector('.editor-view').classList.toggle('hide',on);document.querySelector('.cust-view').classList.toggle('on',on);window.scrollTo(0,0);}
+function toggleCust(on){if(on){try{renderCust(document.getElementById('mktChk')?.checked);}catch(e){}}document.querySelector('.editor-view').classList.toggle('hide',on);document.querySelector('.cust-view').classList.toggle('on',on);window.scrollTo(0,0);}
 
 boot();
 </script>

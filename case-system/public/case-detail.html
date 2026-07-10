@@ -737,7 +737,10 @@
         <div class="sf-tab-section">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <h4 class="sf-tab-title" style="margin:0">場勘項目紀錄</h4>
-            <button class="btn btn-ghost btn-sm" id="sf_addFindingBtn">＋ 新增項目</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" id="sf_importEstimateBtn">📥 匯入估價單</button>
+              <button class="btn btn-ghost btn-sm" id="sf_addFindingBtn">＋ 新增項目</button>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:1.2fr 1.4fr 72px 72px 72px 32px;gap:8px;margin-bottom:8px;font-size:12px;color:var(--gray-500);font-weight:500">
             <div>施作位置</div><div>材料 / 說明</div><div>寬(cm)</div><div>高(cm)</div><div>數量</div><div></div>
@@ -3324,6 +3327,72 @@ document.getElementById('sf_addFindingBtn').addEventListener('click', () => {
   const rows = document.querySelectorAll('.sf-finding-row');
   if (rows.length) rows[rows.length - 1].querySelector('.f-loc').focus();
 });
+
+// ── 匯入估價單品項到場勘項目紀錄（沿用估價單查詢的顯示映射；金額不帶入）──────
+function sf_estItemToFinding(it) {
+  const K = it.kind || '';
+  if (K === 'fut') return null;                      // 期貨運費非場勘項目，略過
+  let location = '', material = (it.name || '').trim();
+  let width = it.w || '', height = it.h || '';
+  if (K === 'film')            { location = ({plane:'牆面',cabinet:'系統櫃',shape:'造型'}[it.work] || '裝潢膜'); }
+  else if (K === 'glass')      { location = '玻璃'; }
+  else if (K === 'door')       { location = '門片'; material = material || ('門' + (it.cat || '')); width=''; height=''; }
+  else if (K === 'object')     { location = '物件'; material = material || (it.name || '物件'); width=''; height=''; }
+  else if (K === 'other')      { location = (it.name || '其他'); }
+  else if (K.indexOf('elev')===0) { location = '電梯'; material = material || '電梯'; width=''; height=''; }
+  else                         { location = K || '項目'; }
+  return { location, material, width, height, qty: 1 };
+}
+// 合併相同品項並累計數量
+function sf_groupFindings(list) {
+  const map = new Map();
+  list.forEach(f => {
+    if (!f) return;
+    const k = [f.location, f.material, f.width, f.height].join('|');
+    if (map.has(k)) map.get(k).qty = (Number(map.get(k).qty) || 1) + 1;
+    else map.set(k, { ...f, qty: 1 });
+  });
+  return [...map.values()];
+}
+async function sf_importEstimateItems(quoteId) {
+  try {
+    const q = await fetch('/api/estimator/quotes/' + quoteId).then(r => r.ok ? r.json() : null);
+    if (!q) { showToast('讀取估價單失敗', 'error'); return; }
+    const mapped = sf_groupFindings((q.items || []).map(sf_estItemToFinding).filter(Boolean));
+    if (!mapped.length) { showToast('此估價單沒有可匯入的品項', 'error'); return; }
+    const cur = sf_getFindings();
+    sf_renderFindings(cur.concat(mapped));
+    showToast('已匯入 ' + mapped.length + ' 個品項（金額不帶入）');
+  } catch (e) { showToast('匯入失敗：' + (e.message || e), 'error'); }
+}
+async function sf_openImportEstimate() {
+  if (!caseId) { showToast('找不到案件', 'error'); return; }
+  let list = [];
+  try { list = await fetch('/api/estimator/quotes?case_id=' + encodeURIComponent(caseId)).then(r => r.ok ? r.json() : []); } catch (e) {}
+  if (!list.length) { showToast('此案件還沒有估價單', 'error'); return; }
+  if (list.length === 1) { sf_importEstimateItems(list[0].id); return; }
+  let m = document.getElementById('sfEstPicker');
+  if (!m) { m = document.createElement('div'); m.id = 'sfEstPicker'; m.className = 'modal-overlay'; document.body.appendChild(m); }
+  m.innerHTML = `<div class="modal" style="max-width:440px;width:92vw">
+    <div class="modal-header"><h3>選擇要匯入的估價單</h3><button class="modal-close" onclick="document.getElementById('sfEstPicker').classList.remove('open')">×</button></div>
+    <div style="padding:6px 4px;max-height:52vh;overflow:auto">
+      ${list.map(q => `<button class="btn btn-ghost" style="width:100%;text-align:left;margin:4px 0;padding:10px 12px"
+         onclick="sf_pickEstimate(${q.id})">
+         <b>${esc(q.project_name || q.customer_name || ('估價單 #' + q.id))}</b>
+         <span style="color:var(--gray-500);font-size:12px"> · ${esc((q.created_at || '').slice(0,10))}</span>
+       </button>`).join('')}
+    </div>
+    <div style="text-align:right;padding:8px 10px">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sfEstPicker').classList.remove('open')">取消</button>
+    </div>
+  </div>`;
+  m.classList.add('open');
+}
+function sf_pickEstimate(qid) {
+  document.getElementById('sfEstPicker')?.classList.remove('open');
+  sf_importEstimateItems(qid);
+}
+document.getElementById('sf_importEstimateBtn').addEventListener('click', sf_openImportEstimate);
 
 document.getElementById('sf_saveBtn').addEventListener('click', async () => {
   const errors = sf_validateRequired();
