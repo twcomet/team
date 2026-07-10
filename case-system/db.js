@@ -3484,6 +3484,47 @@ try {
   console.log('✅ 估價重設計版牌價表就緒（est_film_catalog/est_door_catalog；空表才 seed）');
 } catch (e) { console.warn('[est catalog seed]', e.message); }
 
+// ── 一次性：依估價定價表更新膜料庫存 售價/成本（2026-07，老闆指示直接更新，不做預覽按鈕）──
+// 售價：有電商價(BODAQ/LX/PAROI)取 ecom_price(含稅)、3M 取 per_m(未稅牌價)；成本=cost_per_m(完全成本)。
+// 只更新「品牌＋系列」精準對到定價表者；對不到的(Carlife 隔熱紙、AICA、穩得…)一律不動。守衛：_migrations 只跑一次。
+db.exec(`CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, ran_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+try {
+  const MIG = 'mat_apply_catalog_price_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    // 庫存品牌 → 定價表品牌鍵（大寫比對；含常見別名）
+    const B2C = { 'BODAQ':'bodaq','BODA':'bodaq','LG':'benif','LX':'benif','BENIF':'benif','PAROI':'paroi','PARA':'paroi','3M':'3m' };
+    const catRows = db.prepare(`SELECT brand, asia_code, per_m, ecom_price, cost_per_m FROM est_film_catalog WHERE active=1`).all();
+    const idx = {};
+    for (const r of catRows) {
+      const codes = String(r.asia_code || '').toUpperCase().split(',').map(s => s.replace(/…/g, '').trim()).filter(Boolean);
+      (idx[r.brand] || (idx[r.brand] = [])).push({ codes, row: r });
+    }
+    const catOf = b => B2C[String(b || '').toUpperCase().trim()];
+    const matchRow = (brand, model) => {
+      const cat = catOf(brand); if (!cat || !idx[cat]) return null;
+      const M = String(model || '').toUpperCase().trim();
+      const lead = (M.match(/^[A-Z]+/) || [''])[0]; if (!lead) return null;
+      const tries = []; if (/MT/.test(M)) tries.push(lead + '-MT'); tries.push(lead);
+      for (const t of tries) { const hit = idx[cat].find(c => c.codes.includes(t)); if (hit) return hit.row; }
+      return null;
+    };
+    const priceOf = row => (row.ecom_price && row.ecom_price > 0) ? Math.round(row.ecom_price) : Math.round(row.per_m || 0);
+    const mats = db.prepare(`SELECT id, brand, model, unit_price, unit_cost FROM materials WHERE category='film' OR category IS NULL`).all();
+    const upd = db.prepare(`UPDATE materials SET unit_price=?, unit_cost=? WHERE id=?`);
+    let n = 0; const sample = [];
+    for (const m of mats) {
+      const row = matchRow(m.brand, m.model); if (!row) continue;
+      const np = priceOf(row), nc = Math.round(row.cost_per_m || 0);
+      if ((m.unit_price || 0) === np && (m.unit_cost || 0) === nc) continue;
+      upd.run(np, nc, m.id); n++;
+      if (sample.length < 80) sample.push(`${m.brand} ${m.model}: 售價 ${m.unit_price || 0}→${np}、成本 ${m.unit_cost || 0}→${nc}`);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 膜料庫存依定價表更新 ${n} 筆售價/成本（一次性）；以下為前 ${sample.length} 筆明細：`);
+    sample.forEach(s => console.log('   ·', s));
+  }
+} catch (e) { console.warn('[mat apply catalog price]', e.message); }
+
 // ── 估價單儲存（新表，獨立模組；items/photos 存 JSON，金額由引擎重算後存）──
 db.exec(`
   CREATE TABLE IF NOT EXISTS est_quotes (
