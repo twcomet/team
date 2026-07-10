@@ -216,7 +216,9 @@ router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
 router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
   const isOwner = req.session.user.role === 'owner';
   const { per_m, plane, cabinet, shape, active, cost_per_m, width, roll_len, fireproof } = req.body;
-  const ecom = Math.round((Number(per_m)||0)*1.05/50)*50; // 電商含稅牌價：由未稅牌價自動推算（進位50）
+  const _row = db.prepare(`SELECT brand FROM est_film_catalog WHERE id=?`).get(req.params.id);
+  // 電商含稅牌價由未稅牌價自動推算（進位50）；3M 不上電商→維持 0（售價以牌價 per_m 為準）
+  const ecom = (_row && _row.brand === '3m') ? 0 : Math.round((Number(per_m)||0)*1.05/50)*50;
   db.prepare(`UPDATE est_film_catalog SET per_m=?,ecom_price=?,fireproof=?,plane=?,cabinet=?,shape=?,width=?,roll_len=?,active=? WHERE id=?`)
     .run(Number(per_m)||0, ecom, fireproof||'', Number(plane)||0, Number(cabinet)||0, Number(shape)||0, Number(width)||122, Number(roll_len)||50, active?1:0, req.params.id);
   if (isOwner && cost_per_m !== undefined) // 成本只有老闆能改；非老闆送來的 cost 一律忽略、不覆蓋

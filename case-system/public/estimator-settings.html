@@ -112,7 +112,7 @@
       </div>
       <div class="es-card"><h3>＋ 新增膜款</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
-          <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option><option value="3m">3M</option></select></div>
           <div><label style="font-size:11px;color:#6b7280">亞洲碼</label><br><input id="nf-asia" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">韓國碼</label><br><input id="nf-kr" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:90px"></div>
@@ -177,7 +177,7 @@ let DATA = {};
 
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI' };
+const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI', '3m':'3M' };
 const DCAT = { main:'大門現貨', room:'房門現貨', fire:'防火門' };
 const DSIZE = { small:'小座', large:'大座', double:'雙開' };
 const DSIDE = { single:'單面', double:'雙面' };

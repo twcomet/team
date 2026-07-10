@@ -3451,6 +3451,15 @@ try {
     const updPm = db.prepare(`UPDATE est_film_catalog SET per_m=? WHERE brand=? AND asia_code=? AND (per_m IS NULL OR per_m=0)`);
     for (const [brand, b] of Object.entries(_cat.FILMS)) b.items.forEach(it => updPm.run(it.perM || 0, brand, it.asia));
   }
+  // 新品牌補列（例：3M 於 2026-07 加入）：某品牌在表中尚無任何列，才整組插入；已存在就不動（idempotent、不覆蓋）
+  { const insNew = db.prepare(`INSERT INTO est_film_catalog (brand,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    for (const [brand, b] of Object.entries(_cat.FILMS)) {
+      if (db.prepare(`SELECT COUNT(*) n FROM est_film_catalog WHERE brand=?`).get(brand).n) continue;
+      let so = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_film_catalog`).get().n;
+      b.items.forEach(it => insNew.run(brand, it.asia, it.kr, it.color || '', it.model || '', it.fireproof || '', it.perM || 0, it.ecom || 0, it.cost || 0, it.plane, it.cabinet, it.shape, it.width || 122, it.rollLen || 50, so++));
+      console.log('✅ est_film_catalog 新增品牌整組：' + brand + '（' + b.items.length + ' 列）');
+    }
+  }
   if (!db.prepare(`SELECT COUNT(*) n FROM est_door_catalog`).get().n) {
     const ins = db.prepare(`INSERT INTO est_door_catalog (cat,size,origin,side,frame,price,sort_order) VALUES (?,?,?,?,?,?,?)`);
     let so = 0;
