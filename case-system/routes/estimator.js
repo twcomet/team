@@ -100,31 +100,9 @@ router.put('/lowmin', requireAuth, requireEdit, (req, res) => {
 });
 
 // ── 回復預設值（清空後重新 seed）────────────────────────────────
+// 已停用：整張還原會覆蓋自訂的玻璃/車馬費/低消等資料
 router.post('/reset-defaults', requireAuth, requireEdit, (req, res) => {
-  const seed = require('../lib/estimator-seed');
-  { // node:sqlite 無 .transaction()，直接執行
-    db.exec(`DELETE FROM est_films; DELETE FROM est_glass; DELETE FROM est_doors; DELETE FROM est_freight;`);
-    const insF = db.prepare(`INSERT INTO est_films (grp_key,grp_label,origin,width,flat_price,sys,per_m,plane,cabinet,shape,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
-    let so = 0;
-    for (const [gk, g] of Object.entries(seed.FILMS))
-      g.items.forEach(it => insF.run(gk, g.label, g.origin, g.width, g.flatPrice ? 1 : 0, it.sys, it.perM, it.plane, it.cabinet, it.shape, so++));
-    const insG = db.prepare(`INSERT INTO est_glass (cat_key,cat_label,sys,owner_price,designer_price,sort_order) VALUES (?,?,?,?,?,?)`);
-    so = 0;
-    for (const [ck, c] of Object.entries(seed.GLASS))
-      c.items.forEach(it => insG.run(ck, c.label, it.sys, it.owner, it.designer, so++));
-    const insD = db.prepare(`INSERT INTO est_doors (door_key,label,frame_only,origin,layers,opt,price,sort_order) VALUES (?,?,?,?,?,?,?,?)`);
-    so = 0;
-    for (const [dk, d] of Object.entries(seed.DOOR)) {
-      if (d.frameOnly) { insD.run(dk, d.label, 1, 'kr', null, null, d.kr, so++); insD.run(dk, d.label, 1, 'jp', null, null, d.jp, so++); }
-      else for (const origin of ['kr', 'jp']) for (const layers of ['1', '2']) for (const opt of [0, 1]) insD.run(dk, d.label, 0, origin, layers, opt, d[origin][layers][opt], so++);
-    }
-    const insFr = db.prepare(`INSERT INTO est_freight (region,survey_fee,amount,overnight_fee,night_surcharge,sort_order) VALUES (?,?,?,?,?,?)`);
-    so = 0;
-    for (const [region, f] of Object.entries(seed.FREIGHT)) insFr.run(region, f.survey_fee, f.amount, f.overnight_fee, f.night_surcharge, so++);
-    db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_owner',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.owner));
-    db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_designer',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(seed.LOWMIN.designer));
-  }
-  res.json({ ok: true });
+  res.status(410).json({ error: '此功能已停用（避免誤刪自訂價目）' });
 });
 
 // ── 估價單儲存（est_quotes）─────────────────────────────────────────
@@ -208,9 +186,9 @@ router.get('/catalog', requireAuth, (req, res) => {
   res.json({ films, doors, isOwner });
 });
 // 匯入/回復 裝潢膜+門 預設牌價（整張重灌）
+// 已停用：整張還原會清掉韓版/公式連工帶料/代碼統一等自訂資料（migration 不會重跑）
 router.post('/reset-catalog-defaults', requireAuth, requireEdit, (req, res) => {
-  seedCatalogDefaults(true);
-  res.json({ ok: true });
+  res.status(410).json({ error: '此功能已停用（避免誤刪自訂價目）' });
 });
 // 改單筆裝潢膜（每米＋三種連工帶料價）
 router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
