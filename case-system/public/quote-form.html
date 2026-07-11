@@ -504,7 +504,7 @@
     <div class="imp-list" id="noticePickList"></div>
     <div class="imp-f" style="gap:14px;flex-wrap:wrap">
       <label><input type="checkbox" id="noticeAll" onchange="noticeToggleAll(this.checked)"> 全選</label>
-      <label style="font-size:12px;color:var(--gray-500)"><input type="checkbox" id="noticeReplace"> 取代現有內容（預設為附加）</label>
+      <label style="font-size:12px;color:var(--gray-500)"><input type="checkbox" id="noticeReplace" checked> 取代現有內容（預設）｜取消勾選＝附加在後面</label>
       <span class="grow" style="flex:1"></span>
       <button class="btn primary sm" onclick="applyNoticePick()">加入所選 <span id="noticePickCount"></span></button>
     </div>
@@ -653,10 +653,50 @@ function bindHeader(q){
   document.getElementById('qTitle').innerHTML=`${esc(num)} <span style="color:var(--gray-400);font-weight:700;font-size:16px">· ${esc(q.client_name||'—')}</span>`;
   const zh={draft:'草稿',sent:'待確認',accepted:'已確認',rejected:'已拒絕'}[q.status]||'草稿';
   document.getElementById('qSub').innerHTML=`<span class="badge draft">${esc(zh)}</span><span>報價日期 ${(q.created_at||'').slice(0,10)} · 有效 ${q.valid_days||30} 天</span>`;
-  const parts=[]; if(q.client_tax_id)parts.push('統編 '+esc(q.client_tax_id)); if(q.client_contact)parts.push(esc(q.client_contact)); if(q.client_phone)parts.push(esc(q.client_phone));
-  document.getElementById('qParty').innerHTML=`<span class="mut">客戶（乙方）</span><b>${esc(q.client_name||'—')}</b>${parts.length?' · '+parts.join(' · '):''}${q.case_location?' <span class="mut">｜案件地址</span> '+esc(q.case_location):''}`;
-  const cp=document.getElementById('custParty'); if(cp) cp.innerHTML=`${esc(q.client_name||'—')}${q.client_tax_id?'　統編 '+esc(q.client_tax_id):''}${q.client_contact?'　'+esc(q.client_contact):''}<br>案件地址：${esc(q.case_location||'—')}`;
+  const p=q.party||{};
+  const pv={
+    client_name:(p.client_name!=null?p.client_name:q.client_name)||'',
+    client_tax_id:(p.client_tax_id!=null?p.client_tax_id:q.client_tax_id)||'',
+    client_contact:(p.client_contact!=null?p.client_contact:q.client_contact)||'',
+    client_phone:(p.client_phone!=null?p.client_phone:q.client_phone)||'',
+    site_address:(p.site_address!=null?p.site_address:q.case_location)||'',
+    site_note:(p.site_note!=null?p.site_note:q.site_note)||''
+  };
+  const fld=(lbl,id,val,ph,wide)=>`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--gray-500,#6b7280);font-weight:700${wide?';grid-column:1/-1':''}">${lbl}<input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" oninput="onPartyInput()" style="font-size:13px;font-weight:600;color:var(--gray-800,#1f2937);border:1px solid var(--gray-300,#d1d5db);border-radius:7px;padding:7px 9px"></label>`;
+  document.getElementById('qParty').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="mut">客戶（乙方）</span><b id="partySummary">${esc(pv.client_name||'—')}</b>
+      <span class="grow" style="flex:1"></span>
+      <button type="button" class="btn sm" id="partyToggleBtn" onclick="togglePartyEdit()">✎ 編輯客戶／案場資訊 ▾</button>
+    </div>
+    <div id="partyEdit" style="display:none;margin-top:12px;padding:14px;background:var(--gray-50,#f9fafb);border:1px solid var(--gray-200,#e5e7eb);border-radius:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${fld('客戶／公司名稱','pfName',pv.client_name)}
+        ${fld('統一編號','pfTax',pv.client_tax_id,'選填')}
+        ${fld('聯絡人','pfContact',pv.client_contact,'選填')}
+        ${fld('聯絡電話','pfPhone',pv.client_phone,'選填')}
+        ${fld('案場地址','pfAddr',pv.site_address,'施工地點',true)}
+        ${fld('案場備註','pfNote',pv.site_note,'樓層／管理室／停車等（選填）',true)}
+      </div>
+      <div style="font-size:11px;color:var(--gray-400,#9ca3af);margin-top:9px">此處修改只套用在「這張報價單」，不會更動客戶主檔與案件資料。</div>
+    </div>`;
+  onPartyInput();
   const cd=document.getElementById('custDate'); if(cd) cd.textContent=`報價日期 ${(q.created_at||'').slice(0,10)}　·　有效 ${q.valid_days||30} 天`;
+}
+function collectParty(){
+  const g=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+  return { client_name:g('pfName'), client_tax_id:g('pfTax'), client_contact:g('pfContact'), client_phone:g('pfPhone'), site_address:g('pfAddr'), site_note:g('pfNote') };
+}
+function togglePartyEdit(){
+  const e=document.getElementById('partyEdit'), b=document.getElementById('partyToggleBtn'); if(!e) return;
+  const open=e.style.display==='none'; e.style.display=open?'block':'none';
+  if(b) b.textContent=open?'✎ 編輯客戶／案場資訊 ▴':'✎ 編輯客戶／案場資訊 ▾';
+}
+function onPartyInput(){
+  const p=collectParty();
+  const s=document.getElementById('partySummary'); if(s) s.textContent=p.client_name||'—';
+  const cp=document.getElementById('custParty'); if(cp) cp.innerHTML=`${esc(p.client_name||'—')}${p.client_tax_id?'　統編 '+esc(p.client_tax_id):''}${p.client_contact?'　'+esc(p.client_contact):''}${p.client_phone?'　'+esc(p.client_phone):''}<br>案場地址：${esc(p.site_address||'—')}${p.site_note?'　（'+esc(p.site_note)+'）':''}`;
+  if(loaded) markDirty();
 }
 // 條款 textarea（a=優惠條款 c=驗收 d=回簽；b=貼膜前須知另有 noticeArea）
 function termArea(w){ const b=document.querySelectorAll('.editor-view .block'); return b[{a:0,c:2,d:3}[w]]?.querySelector('textarea'); }
@@ -676,8 +716,9 @@ let noticePickCtx={block:'notice', ta:'noticeArea'};
 function pickerTemplates(){ return noticeList.filter(t=>(t.block||'notice')===noticePickCtx.block); }
 function openNoticePick(block, ta){
   noticePickCtx={ block:block||'notice', ta:ta||'noticeArea' };
-  noticePick=new Set();
-  const rep=document.getElementById('noticeReplace'); if(rep) rep.checked=false;
+  // 預設勾選該區塊的預設範本；替換模式預設開啟（套範本＝取代現有內容）
+  noticePick=new Set(pickerTemplates().filter(t=>t.is_default).map(t=>t.id));
+  const rep=document.getElementById('noticeReplace'); if(rep) rep.checked=true;
   const tt=document.getElementById('noticePickTitle'); if(tt) tt.textContent='套用「'+(BLOCK_LABEL[noticePickCtx.block]||'')+'」範本（可多選）';
   renderNoticePick();
   document.getElementById('noticeModal').classList.add('on');
@@ -690,13 +731,25 @@ function renderNoticePick(){
   el.innerHTML=L.map(t=>`
     <div class="imp-item ${noticePick.has(t.id)?'pick':''}" onclick="noticePickToggle(${t.id})">
       <input type="checkbox" ${noticePick.has(t.id)?'checked':''} onclick="event.stopPropagation();noticePickToggle(${t.id})">
-      <div style="flex:1;min-width:0"><div class="nm">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}${t.image_url?' 🖼':''}</div><div class="mt" style="white-space:normal;line-height:1.5">${esc((t.content||'').replace(/\n/g,'　').slice(0,70))}${(t.content||'').length>70?'…':''}</div></div>
+      <div style="flex:1;min-width:0"><div class="nm">${esc(t.category?('['+t.category+'] '):'')}${esc(t.name)}${t.image_url?' 🖼':''}${t.is_default?' <span style="font-size:10px;font-weight:700;color:#059669;background:#d1fae5;border-radius:5px;padding:1px 6px;margin-left:4px">預設</span>':''}</div><div class="mt" style="white-space:normal;line-height:1.5">${esc((t.content||'').replace(/\n/g,'　').slice(0,70))}${(t.content||'').length>70?'…':''}</div></div>
+      <button type="button" onclick="event.stopPropagation();setDefaultNotice(${t.id},${t.is_default?0:1})" title="設為此區塊的預設範本" style="flex:none;font-size:11px;font-weight:700;border:1px solid ${t.is_default?'#059669':'var(--gray-300,#d1d5db)'};color:${t.is_default?'#059669':'var(--gray-500,#6b7280)'};background:${t.is_default?'#ecfdf5':'#fff'};border-radius:7px;padding:4px 8px;cursor:pointer;white-space:nowrap">${t.is_default?'★ 預設':'設為預設'}</button>
     </div>`).join('');
   document.getElementById('noticeAll').checked=L.every(t=>noticePick.has(t.id))&&L.length>0;
   document.getElementById('noticePickCount').textContent=noticePick.size?`(${noticePick.size})`:'';
 }
 function noticePickToggle(id){ noticePick.has(id)?noticePick.delete(id):noticePick.add(id); renderNoticePick(); }
 function noticeToggleAll(on){ noticePick=on?new Set(pickerTemplates().map(t=>t.id)):new Set(); renderNoticePick(); }
+async function setDefaultNotice(id, on){
+  try{
+    const r=await fetch(`/api/quote-settings/notices/${id}/default`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on})});
+    if(!r.ok){ alert('設定預設範本失敗'); return; }
+    // 更新本地 noticeList 的 is_default（同 block 只留一個），並重繪
+    const bk=noticePickCtx.block;
+    noticeList.forEach(t=>{ if((t.block||'notice')===bk) t.is_default = (on && t.id===id)?1:0; });
+    if(on) noticePick.add(id);
+    renderNoticePick();
+  }catch(e){ alert('網路錯誤，請稍後再試'); }
+}
 function applyNoticePick(){
   const chosen=pickerTemplates().filter(t=>noticePick.has(t.id));
   if(!chosen.length){ alert('請先勾選要加入的範本'); return; }
@@ -757,6 +810,7 @@ async function saveAll(){
       notes_terms:getTerm('a'), notes_notice:document.getElementById('noticeArea').value||null,
       notes_inspection:getTerm('c'), notes_acceptance:getTerm('d'),
       block_images:JSON.stringify(blockImages||{}),
+      party_json:JSON.stringify(collectParty()),
     };
     await fetch(`/api/quotes/${quoteId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     for(const it of items){

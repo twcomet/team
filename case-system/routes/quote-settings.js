@@ -106,6 +106,16 @@ router.delete('/notices/:id', requireAuth, (req, res) => {
   db.prepare(`UPDATE film_notice_templates SET active=0 WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
+// 設為該區塊(block)的預設範本：套範本時會預先勾選。設 on=0 可取消預設。
+router.post('/notices/:id/default', requireAuth, (req, res) => {
+  const row = db.prepare(`SELECT id, COALESCE(block,'notice') AS block FROM film_notice_templates WHERE id=?`).get(req.params.id);
+  if (!row) return res.status(404).json({ error: '找不到範本' });
+  const on = req.body.on === undefined ? 1 : (req.body.on ? 1 : 0);
+  // 同一 block 只允許一個預設 → 先全部清 0，再設定這一筆
+  db.prepare(`UPDATE film_notice_templates SET is_default=0 WHERE COALESCE(block,'notice')=?`).run(row.block);
+  if (on) db.prepare(`UPDATE film_notice_templates SET is_default=1 WHERE id=?`).run(row.id);
+  res.json({ ok: true, block: row.block, is_default: on });
+});
 
 // ── 折扣規則 ─────────────────────────────────────────────────────
 router.get('/discount-rules', requireAuth, (req, res) => {

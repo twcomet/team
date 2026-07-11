@@ -326,6 +326,15 @@ router.get('/:quoteId', requireAuth, (req, res) => {
     WHERE qs.id=?`).get(req.params.quoteId);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
   q.items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
+  // 合併本報價單的客戶/案場覆寫（per-quote 快照優先於 clients/cases 母檔）
+  try { const p = JSON.parse(q.party_json || '{}') || {};
+    if (p.client_name)    q.client_name    = p.client_name;
+    if (p.client_tax_id)  q.client_tax_id  = p.client_tax_id;
+    if (p.client_contact) q.client_contact = p.client_contact;
+    if (p.client_phone)   q.client_phone   = p.client_phone;
+    if (p.site_address)   q.case_location  = p.site_address;
+    q.site_note = p.site_note || null; q.party = p;
+  } catch (e) {}
   res.json(q);
 });
 
@@ -361,6 +370,12 @@ router.put('/:quoteId', requireAuth, (req, res) => {
   if (v2.block_images !== undefined) {
     const bi = typeof v2.block_images === 'string' ? v2.block_images : JSON.stringify(v2.block_images || {});
     db.prepare(`UPDATE quote_sheets SET block_images=? WHERE id=?`).run(bi, req.params.quoteId);
+  }
+
+  // 本報價單客戶/案場覆寫（per-quote 快照，不動 clients/cases 母檔）
+  if (v2.party_json !== undefined) {
+    const pj = typeof v2.party_json === 'string' ? v2.party_json : JSON.stringify(v2.party_json || {});
+    db.prepare(`UPDATE quote_sheets SET party_json=? WHERE id=?`).run(pj, req.params.quoteId);
   }
 
   recalcQuote(Number(req.params.quoteId));
@@ -585,6 +600,16 @@ router.get('/sign/:token', (req, res) => {
     q.client_viewed_at = new Date().toISOString();
   }
 
+  // 合併本報價單的客戶/案場覆寫（per-quote 快照優先）
+  try { const p = JSON.parse(q.party_json || '{}') || {};
+    if (p.client_name)  q.client_name  = p.client_name;
+    if (p.client_phone) q.client_phone = p.client_phone;
+    if (p.site_address) q.location     = p.site_address;
+    q.client_tax_id = p.client_tax_id || q.client_tax_id || null;
+    q.client_contact = p.client_contact || q.client_contact || null;
+    q.site_note = p.site_note || null;
+  } catch (e) {}
+
   // 優先讀 quote_sheet_items（新版），fallback 到 case_items（舊版相容）
   let items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
   if (!items.length) {
@@ -620,7 +645,8 @@ router.post('/sign/:token', (req, res) => {
 
   const q = db.prepare(`SELECT id, case_id, status, engine, discount_value, marketing_total, tax_amount, tax_rate, final_total FROM quote_sheets WHERE share_token=?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
-  if (q.status === 'accepted') return res.status(400).json({ error: '此報價單已確認' });
+  // 已確認：冪等處理，重複送出（雙擊／網路重試）直接回成功，讓前端重繪成「已確認」畫面而非跳錯
+  if (q.status === 'accepted') return res.json({ ok: true, already: true });
 
   const consent = marketing_consent ? 1 : 0;
   db.prepare(`UPDATE quote_sheets SET status='accepted', client_signature=?,
