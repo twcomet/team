@@ -584,7 +584,8 @@ router.get('/sign/:token', (req, res) => {
   const q = db.prepare(`
     SELECT qs.*, c.title, c.case_number, c.location,
            cl.name as client_name, cl.phone as client_phone,
-           u.name as creator_name, o.name as org_name
+           u.name as creator_name,
+           o.name as org_name, o.tax_id as org_tax_id, o.address as org_address, o.phone as org_phone
     FROM quote_sheets qs
     JOIN cases c ON c.id = qs.case_id
     LEFT JOIN clients cl ON cl.id = c.client_id
@@ -593,6 +594,10 @@ router.get('/sign/:token', (req, res) => {
     WHERE qs.share_token = ?
   `).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
+  // 甲方公司抬頭：若該 org 未填，退回總部(繪新)固定資訊
+  q.org_tax_id  = q.org_tax_id  || '45917816';
+  q.org_address = q.org_address || '新北市鶯歌區中山路166巷2號';
+  q.org_phone   = q.org_phone   || '02-8678-1229';
 
   // 記錄客戶首次開啟（已傳送後才算，避免草稿內部預覽誤標）→ 列表顯示「客戶已打開」
   if (!q.client_viewed_at && q.status !== 'draft') {

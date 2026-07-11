@@ -2951,6 +2951,18 @@ _addCol('film_notice_templates', 'block',     "TEXT DEFAULT 'notice'"); // terms
 _addCol('film_notice_templates', 'image_url', 'TEXT');                    // 範本附圖（例：回簽/付款區塊的銀行帳號圖）
 _addCol('film_notice_templates', 'is_default', 'INTEGER DEFAULT 0');      // 每個 block 的預設範本（套範本時預先勾選）
 
+// ── 甲方（總部）公司抬頭：統編／地址／電話，供報價確認單顯示 ──────────────
+_addCol('orgs', 'tax_id', 'TEXT'); // 統一編號
+try {
+  // 補齊總部(hq)的公司抬頭資訊；只在欄位為空時填入，不覆蓋既有設定
+  db.prepare(`UPDATE orgs SET
+      tax_id  = COALESCE(NULLIF(tax_id,''),  ?),
+      address = COALESCE(NULLIF(address,''), ?),
+      phone   = COALESCE(NULLIF(phone,''),   ?)
+    WHERE type='hq'`)
+    .run('45917816', '新北市鶯歌區中山路166巷2號', '02-8678-1229');
+} catch (e) { /* non-critical */ }
+
 // ── 報價單 v2：貼膜前須知範本種子(若空)──────────────────────────────────
 try {
   const _cnt = db.prepare(`SELECT COUNT(*) n FROM film_notice_templates`).get().n;
