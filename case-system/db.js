@@ -3539,6 +3539,16 @@ try {
   }
 } catch (e) { console.warn('[mat apply catalog price]', e.message); }
 
+// AF(BODAQ 亞洲版 真布紋) 毛利 70%→60% 下修（2026-07-11 老闆決定）：電商含稅 3600→2700、未稅牌價 3429→2571，成本不變。一次性、不覆蓋日後手改。
+try {
+  const MIG = 'bodaq_af_margin60_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const r = db.prepare(`UPDATE est_film_catalog SET ecom_price=2700, per_m=2571 WHERE brand='bodaq' AND asia_code='AF'`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ AF 毛利改 60% 下修：ecom 2700 / per_m 2571（更新 ${r.changes} 筆）`);
+  }
+} catch (e) { console.warn('[bodaq af margin60]', e.message); }
+
 // ── 估價單儲存（新表，獨立模組；items/photos 存 JSON，金額由引擎重算後存）──
 db.exec(`
   CREATE TABLE IF NOT EXISTS est_quotes (

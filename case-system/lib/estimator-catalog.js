@@ -19,7 +19,7 @@ const FILMS = {
     { asia: 'AB,BM,AT', kr: 'PM,SPW,VM', color: '石紋/木紋/絨面金屬', model: '', perM: 1381, ecom: 1450, cost: 414, fireproof: '不防焰', plane: 140, cabinet: 160, shape: 200 },
     { asia: 'AP', kr: 'PNC', color: '塗料·水泥', model: '', perM: 1381, ecom: 1450, cost: 412, fireproof: '不防焰', plane: 140, cabinet: 160, shape: 200 },
     { asia: 'AU', kr: 'UMI', color: '炫彩幻彩', model: '', perM: 2238, ecom: 2350, cost: 678, fireproof: '不防焰', plane: 260, cabinet: 280, shape: 290 },
-    { asia: 'AF', kr: 'RF', color: '真布紋', model: '', perM: 3429, ecom: 3600, cost: 1025, fireproof: '不防焰', plane: 270, cabinet: 290, shape: 300 },
+    { asia: 'AF', kr: 'RF', color: '真布紋', model: '', perM: 2571, ecom: 2700, cost: 1025, fireproof: '不防焰', plane: 270, cabinet: 290, shape: 300 }, // 2026-07-11 毛利改60%下修(原 3429/3600)
   ] },
   benif: { label: 'BENIF', items: [   // 亞洲版 LX/LG·全防焰·目標毛利70%
     { asia: 'WG', kr: 'CW,DW,FW,EW', color: '木紋', model: '', perM: 952, ecom: 1000, cost: 286, fireproof: '防焰', plane: 130, cabinet: 150, shape: 200 },
