@@ -32,7 +32,8 @@ async function getBrowser() {
 }
 
 // url：要轉檔的頁面（本機 http://127.0.0.1:PORT/quote/:token?pdf=1）
-async function renderPdf(url, { waitSelector } = {}) {
+// title：頁尾顯示的文件名稱（＝檔名，繪新報價單-客戶-案名）
+async function renderPdf(url, { waitSelector, title } = {}) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
@@ -63,10 +64,19 @@ async function renderPdf(url, { waitSelector } = {}) {
         ));
       });
     } catch (e) {}
+    const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+    const docTitle = esc(title || '繪新報價單');
+    const footerTemplate = `<div style="font-size:8px;width:100%;box-sizing:border-box;padding:0 8mm;color:#999;font-family:'Noto Sans CJK TC','Noto Sans TC',sans-serif;display:flex;justify-content:space-between;align-items:center;">
+      <span style="max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${docTitle}</span>
+      <span>第 <span class="pageNumber"></span> / <span class="totalPages"></span> 頁</span>
+    </div>`;
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '10mm', bottom: '12mm', left: '8mm', right: '8mm' },
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate,
+      margin: { top: '10mm', bottom: '16mm', left: '8mm', right: '8mm' },
     });
     return pdf;
   } finally {
