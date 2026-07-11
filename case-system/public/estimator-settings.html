@@ -116,7 +116,7 @@
       <div class="es-card"><h3>裝潢膜每才單價（依繪新真實牌價）</h3><p class="es-hint">牆面/系統櫃/造型＝三種連工帶料每才單價。材料價格＝每米牌價。<span style="color:#b45309">成本/米為機密欄，只有老闆看得到、可填寫。</span></p>
         <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="es-btn es-btn-sm" onclick="recalcConnectWork()" style="background:#0e6b5e;color:#fff">🧮 依公式重算連工帶料</button>
-          <span class="es-hint" style="margin:0">公式：牆面+70／系統櫃+100／造型+125（Bodaq・BENIF・PAROI，含韓版）；3M 每才再+20。<span id="rcw-msg" style="color:#0e6b5e;font-weight:600"></span></span>
+          <span class="es-hint" style="margin:0">公式：牆面+70／系統櫃+100／造型+125，牌價/才進位到5（Bodaq・BENIF・PAROI，含韓版）；3M 每才再+20、且不進位（照官方精確值）。<span id="rcw-msg" style="color:#0e6b5e;font-weight:600"></span></span>
         </div>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-films"></tr></thead><tbody id="tb-films"></tbody></table></div>
       </div>
@@ -207,14 +207,16 @@ async function load() {
 // 每米 → 每才 換算（才數/米 = 寬cm × 100 / 900；122cm≈13.56、93cm≈10.33）
 function caiFactor(w){ return (Number(w)||122) * 100 / 900; }
 function ecomOf(perm){ return Math.round((Number(perm)||0) * 1.05 / 50) * 50; } // 未稅牌價→電商含稅(進位50)
+function caiCeil5(v){ return Math.ceil((Number(v)||0) / 5) * 5; }               // 牌價/才 無條件進位到5
 function caiVal(v, w){ const f = caiFactor(w); return f ? '$' + Math.round((Number(v)||0)/f).toLocaleString() : '—'; }
+function caiSell(perm, w, brand){ const f = caiFactor(w); if(!f) return '—'; const raw = ecomOf(perm)/f; return '$' + (brand==='3m' ? Math.round(raw) : caiCeil5(raw)).toLocaleString(); } // 牌價/才：3M精確、其餘進位到5
 function caiMargin(perm, cost){ const p = Number(perm)||0, c = Number(cost)||0; return p>0 ? Math.round((p-c)/p*100) + '%' : '—'; }
 function updCai(inp){
   const tr = inp.closest('tr'); if(!tr) return;
   const w = tr.querySelector('[data-k="width"]')?.value || 122;
   const perm = tr.querySelector('[data-k="per_m"]')?.value || 0;
   const cost = tr.querySelector('[data-k="cost_per_m"]')?.value;
-  const p = tr.querySelector('.caiP'); if(p) p.textContent = caiVal(ecomOf(perm), w);
+  const p = tr.querySelector('.caiP'); if(p) p.textContent = caiSell(perm, w, tr.dataset.brand);
   const c = tr.querySelector('.caiC'); if(c) c.textContent = caiVal(cost, w);
   const m = tr.querySelector('.caiM'); if(m) m.textContent = caiMargin(perm, cost);
 }
@@ -251,7 +253,7 @@ function renderFilms() {
       <td><input type="number" value="${f.roll_len ?? 50}" data-k="roll_len"></td>
       <td><input type="number" value="${f.per_m ?? 0}" data-k="per_m" oninput="updCai(this)"></td>
       <td><input type="number" value="${f.ecom_price ?? 0}" readonly title="由牌價自動換算（含稅、進位50）" style="background:#f3f4f6;color:#6b7280"></td>
-      <td class="es-cai caiP" title="電商含稅牌價換算每才">${caiVal(ecomOf(f.per_m), f.width)}</td>
+      <td class="es-cai caiP" title="電商含稅牌價換算每才（3M精確、其餘進位到5）">${caiSell(f.per_m, f.width, f.brand)}</td>
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
@@ -362,9 +364,11 @@ async function recalcConnectWork(){
     .filter(tr => ['bodaq','benif','paroi','3m'].includes(tr.dataset.brand));
   let n = 0;
   for(const tr of rows){
-    const off = tr.dataset.brand === '3m' ? 20 : 0;
+    const is3m = tr.dataset.brand === '3m';
+    const off = is3m ? 20 : 0;
     const w = tr.querySelector('[data-k="width"]').value, perm = tr.querySelector('[data-k="per_m"]').value;
-    const cai = Math.round(ecomOf(perm) / caiFactor(w));
+    const raw = ecomOf(perm) / caiFactor(w);
+    const cai = is3m ? Math.round(raw) : caiCeil5(raw);  // 3M精確、其餘進位到5
     if(!cai) continue;
     tr.querySelector('[data-k="plane"]').value   = cai + 70 + off;
     tr.querySelector('[data-k="cabinet"]').value = cai + 100 + off;

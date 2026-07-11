@@ -3558,6 +3558,23 @@ try {
     console.log('✅ 3M 連工帶料已重算（牆+90/櫃+120/造型+145）');
   }
 } catch (e) { console.warn('[connect work 3m]', e.message); }
+
+// 連工帶料改用「牌價/才無條件進位到5」為基底重算（韓/PAROI；3M 照官方精確值不進位，維持不動）
+try {
+  const MIG = 'connect_work_round5_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const rows = db.prepare(`SELECT id,per_m,ecom_price,width FROM est_film_catalog WHERE brand IN ('bodaq','benif','paroi') AND (per_m>0 OR ecom_price>0)`).all();
+    const upd = db.prepare(`UPDATE est_film_catalog SET plane=?,cabinet=?,shape=? WHERE id=?`);
+    for (const r of rows) {
+      const ecom = r.ecom_price > 0 ? r.ecom_price : Math.round(r.per_m * 1.05 / 50) * 50;
+      const factor = (r.width || 122) * 100 / 900;
+      const cai5 = Math.ceil((ecom / factor) / 5) * 5;   // 牌價/才 進位到5
+      upd.run(cai5 + 70, cai5 + 100, cai5 + 125, r.id);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 連工帶料改用「牌價/才進位到5」重算 ${rows.length} 筆（3M 不進位）`);
+  }
+} catch (e) { console.warn('[connect work round5]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
