@@ -122,7 +122,7 @@
       <div class="es-card"><h3>裝潢膜每才單價（依繪新真實牌價）</h3><p class="es-hint">牆面/系統櫃/造型＝三種連工帶料每才單價。材料價格＝每米牌價。<span style="color:#b45309">成本/米為機密欄，只有老闆看得到、可填寫。</span></p>
         <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="es-btn es-btn-sm" onclick="recalcConnectWork()" style="background:#0e6b5e;color:#fff">🧮 依公式重算連工帶料</button>
-          <span class="es-hint" style="margin:0">公式：牆面+70／系統櫃+100／造型+125，牌價/才進位到5（Bodaq・BENIF・PAROI，含韓版）；3M 每才再+20、且不進位（照官方精確值）。<span id="rcw-msg" style="color:#0e6b5e;font-weight:600"></span></span>
+          <span class="es-hint" style="margin:0">公式：牆面+70／系統櫃+100／造型+125（牌價/才進位到5）。韓國膜(BODAQ/BENIF)用<b>未稅</b>、PAROI 用<b>含稅</b>抓高、3M 用官方元/才再+20不進位。<span id="rcw-msg" style="color:#0e6b5e;font-weight:600"></span></span>
         </div>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-films"></tr></thead><tbody id="tb-films"></tbody></table></div>
       </div>
@@ -215,7 +215,11 @@ function caiFactor(w){ return (Number(w)||122) * 100 / 900; }
 function ecomOf(perm){ return Math.round((Number(perm)||0) * 1.05 / 50) * 50; } // 未稅牌價→電商含稅(進位50)
 function caiCeil5(v){ v = Number(v)||0; const f10 = Math.floor(v/10)*10; return (v - f10 <= 1) ? f10 : Math.ceil(v/5)*5; } // 進位到5；但剛超過整十≤1→取整十(如151→150)
 function caiVal(v, w){ const f = caiFactor(w); return f ? '$' + Math.round((Number(v)||0)/f).toLocaleString() : '—'; }
-function caiSell(perm, w, brand){ const f = caiFactor(w); if(!f) return '—'; if(brand==='3m') return '$' + Math.round((Number(perm)||0)/f).toLocaleString(); return '$' + caiCeil5(ecomOf(perm)/f).toLocaleString(); } // 3M＝官方元/才(未稅不含電商稅)；其餘＝電商含稅/才進位到5
+function caiSell(perm, w, brand){ const f = caiFactor(w); if(!f) return '—';
+  if(brand==='3m')    return '$' + Math.round((Number(perm)||0)/f).toLocaleString();      // 3M：官方元/才(未稅)
+  if(brand==='paroi') return '$' + caiCeil5(ecomOf(perm)/f).toLocaleString();             // PAROI：含稅(刻意抓高、進位)
+  return '$' + caiCeil5((Number(perm)||0)/f).toLocaleString();                            // 韓國膜(BODAQ/BENIF)：未稅(進位)
+}
 function caiMargin(perm, cost){ const p = Number(perm)||0, c = Number(cost)||0; return p>0 ? Math.round((p-c)/p*100) + '%' : '—'; }
 function updCai(inp){
   const tr = inp.closest('tr'); if(!tr) return;
@@ -377,11 +381,13 @@ async function recalcConnectWork(){
     .filter(tr => ['bodaq','benif','paroi','3m'].includes(tr.dataset.brand));
   let n = 0;
   for(const tr of rows){
-    const is3m = tr.dataset.brand === '3m';
-    const off = is3m ? 20 : 0;
+    const brand = tr.dataset.brand;
     const w = tr.querySelector('[data-k="width"]').value, perm = tr.querySelector('[data-k="per_m"]').value;
     const f = caiFactor(w);
-    const cai = is3m ? Math.round(perm / f) : caiCeil5(ecomOf(perm) / f);  // 3M＝官方元/才(不套電商含稅、不進位)；其餘＝電商含稅進位到5
+    let cai, off = 0;
+    if (brand === '3m')       { cai = Math.round(perm / f); off = 20; }        // 3M：官方元/才、不進位、再+20
+    else if (brand === 'paroi') cai = caiCeil5(ecomOf(perm) / f);              // PAROI：含稅、進位
+    else                        cai = caiCeil5(perm / f);                      // 韓國膜：未稅、進位
     if(!cai) continue;
     tr.querySelector('[data-k="plane"]').value   = cai + 70 + off;
     tr.querySelector('[data-k="cabinet"]').value = cai + 100 + off;

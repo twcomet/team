@@ -3633,6 +3633,22 @@ try {
     console.log(`✅ 韓版 RF/NF 已下修為 60% 毛利（${rf.length} 筆）`);
   }
 } catch (e) { console.warn('[kr rf margin60]', e.message); }
+
+// 韓國膜(BODAQ含韓版/BENIF)牌價/才改用「未稅」為基底重算連工帶料（PAROI維持含稅抓高、3M維持官方，皆不動）
+try {
+  const MIG = 'connect_work_untaxed_kr_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const nice = raw => { const f10 = Math.floor(raw/10)*10; return (raw - f10 <= 1) ? f10 : Math.ceil(raw/5)*5; };
+    const rows = db.prepare(`SELECT id, per_m, width FROM est_film_catalog WHERE brand IN ('bodaq','benif') AND per_m>0`).all();
+    const upd = db.prepare(`UPDATE est_film_catalog SET plane=?,cabinet=?,shape=? WHERE id=?`);
+    for (const r of rows) {
+      const cai = nice(r.per_m / ((r.width || 122) * 100 / 900));   // 未稅牌價/才
+      upd.run(cai + 70, cai + 100, cai + 125, r.id);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 韓國膜連工帶料改用未稅基底重算 ${rows.length} 筆`);
+  }
+} catch (e) { console.warn('[connect work untaxed kr]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
