@@ -342,10 +342,12 @@ app.get('/quote/:token/pdf', async (req, res) => {
     const { renderPdf } = require('./lib/pdf-render');
     const url = `http://127.0.0.1:${PORT}/quote/${encodeURIComponent(req.params.token)}?pdf=1`;
     const pdf = await renderPdf(url, { waitSelector: '.status-bar' });
+    // page.pdf() 在新版回傳 Uint8Array，需轉 Buffer 否則 Express 會 JSON 序列化
+    const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition',
       `attachment; filename="quote.pdf"; filename*=UTF-8''${encodeURIComponent(fname)}.pdf`);
-    res.send(pdf);
+    res.send(buf);
   } catch (e) {
     console.error('[PDF] 產生失敗:', e && e.message);
     res.status(500).json({ error: 'pdf_failed' });

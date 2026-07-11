@@ -41,6 +41,20 @@ async function renderPdf(url, { waitSelector } = {}) {
     if (waitSelector) {
       try { await page.waitForSelector(waitSelector, { timeout: 8000 }); } catch (e) {}
     }
+    // 縮小 Cloudinary 圖片（避免 PDF 動輒十幾 MB）：插入 w_1100,q_auto,f_auto 轉換
+    try {
+      await page.evaluate(() => {
+        document.querySelectorAll('img').forEach(img => {
+          try {
+            const u = new URL(img.src, location.href);
+            if (u.hostname.includes('cloudinary') && u.pathname.includes('/upload/') &&
+                !/\/upload\/[^/]*(?:w_|q_)/.test(u.pathname)) {
+              img.src = img.src.replace('/upload/', '/upload/w_1100,q_auto,f_auto/');
+            }
+          } catch (e) {}
+        });
+      });
+    } catch (e) {}
     // 等所有圖片載入完成（膜料示意圖、現場照、簽名、條款附圖）
     try {
       await page.evaluate(async () => {
