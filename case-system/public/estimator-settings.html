@@ -26,6 +26,7 @@
 .es-table td.es-cai { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
 .es-table td.caiP { color:#0e6b5e; background:#e9f3ef; }
 .es-table td.caiC { color:#b45309; background:#fdf6ea; }
+.es-table td.caiM { color:#6d28d9; background:#f6f4fe; }
 .es-grp td { background:linear-gradient(90deg,#eef2ff,#f6f3ff) !important; font-weight:800; color:#3730a3; letter-spacing:.06em; padding:8px 12px; }
 .es-btn { padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; }
 .es-btn-primary { background:#2563eb; color:#fff; }
@@ -204,6 +205,7 @@ async function load() {
 function caiFactor(w){ return (Number(w)||122) * 100 / 900; }
 function ecomOf(perm){ return Math.round((Number(perm)||0) * 1.05 / 50) * 50; } // 未稅牌價→電商含稅(進位50)
 function caiVal(v, w){ const f = caiFactor(w); return f ? '$' + Math.round((Number(v)||0)/f).toLocaleString() : '—'; }
+function caiMargin(perm, cost){ const p = Number(perm)||0, c = Number(cost)||0; return p>0 ? Math.round((p-c)/p*100) + '%' : '—'; }
 function updCai(inp){
   const tr = inp.closest('tr'); if(!tr) return;
   const w = tr.querySelector('[data-k="width"]')?.value || 122;
@@ -211,14 +213,15 @@ function updCai(inp){
   const cost = tr.querySelector('[data-k="cost_per_m"]')?.value;
   const p = tr.querySelector('.caiP'); if(p) p.textContent = caiVal(ecomOf(perm), w);
   const c = tr.querySelector('.caiC'); if(c) c.textContent = caiVal(cost, w);
+  const m = tr.querySelector('.caiM'); if(m) m.textContent = caiMargin(perm, cost);
 }
 function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
     '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
-    + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th>' : '') + '<th>啟用</th><th></th>';
-  const colspan = owner ? 16 : 14;
+    + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th></th>';
+  const colspan = owner ? 17 : 14;
   let lastBrand = '', h = '';
   DATA.filmCat.forEach(f => {
     if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}</td></tr>`; }
@@ -240,7 +243,7 @@ function renderFilms() {
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
-      ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed" oninput="updCai(this)"></td><td class="es-cai caiC" title="成本換算每才">${caiVal(f.cost_per_m, f.width)}</td>` : ''}
+      ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed" oninput="updCai(this)"></td><td class="es-cai caiC" title="成本換算每才">${caiVal(f.cost_per_m, f.width)}</td><td class="es-cai caiM" title="毛利率＝(牌價−成本)÷牌價">${caiMargin(f.per_m, f.cost_per_m)}</td>` : ''}
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
       <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved"></span></td>
     </tr>`;
