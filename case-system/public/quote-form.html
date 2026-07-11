@@ -552,7 +552,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const rawCai=it=>(it.srvMeters||0)*100*(it.width||0)/900;
 const caiOf=it=>it.cai!=null?it.cai:rawCai(it);
 const caiCalcAmt=it=>Math.round(caiOf(it)*(it.unitCai||0));
-const baseAmt=it=>it.mode==='cai'?caiCalcAmt(it):(it.unitEach||0)*(it.qty||0);
+// 才數計價：才數(每座)×單價/才×數量(座數)；座計價：單價×數量
+const baseAmt=it=>it.mode==='cai'?Math.round(caiCalcAmt(it)*(it.qty||1)):(it.unitEach||0)*(it.qty||0);
 const totOf=it=>it.total!=null?it.total:baseAmt(it);
 const discOf=it=>it.disc!=null?it.disc:80;
 const promoOf=it=>it.promo!=null?it.promo:Math.round(totOf(it)*discOf(it)/100);
@@ -959,7 +960,9 @@ function renderRows(){
       : isCai ? `
         <div class="fld"><label>才數（工務帶入）</label><div class="chip-ro" id="pcai${i}">${caiOf(it).toFixed(2)}</div></div>
         <span class="eq">×</span>
-        <div class="fld"><label>單價/才（給客戶）</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)" style="width:82px"></div>`
+        <div class="fld"><label>單價/才（給客戶）</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)" style="width:82px"></div>
+        <span class="eq">×</span>
+        <div class="fld"><label>數量（座數）</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:64px"></div>`
       : `
         <div class="fld"><label>連工帶料單價</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:104px"></div>
         <span class="eq">×</span>
@@ -1001,7 +1004,7 @@ function renderRows(){
           <span class="eq">=</span>
           <div class="fld"><div class="chip-est" id="estp${i}">${money(caiCalcAmt(it))}</div><div class="cap">建議報價（參考）</div></div>`}
         </div>
-        ${isCai?`<div style="margin-top:8px;font-size:11px;color:#4338ca">才數計價：右邊「客服填」用此才數 × 單價/才 直接算給客戶</div>`:`<div style="margin-top:9px"><button class="btn sm" style="padding:4px 11px;font-size:11.5px" onclick="applyEst(${i})">↑ 套用建議報價為「單價」</button></div>`}
+        ${isCai?`<div style="margin-top:8px;font-size:11px;color:#4338ca">才數計價：右邊「客服填」用 才數(每座) × 單價/才 × 數量(座數) 直接算給客戶</div>`:`<div style="margin-top:9px"><button class="btn sm" style="padding:4px 11px;font-size:11.5px" onclick="applyEst(${i})">↑ 套用建議報價為「單價」</button></div>`}
       </div>`;
     return `<div class="icard">
       <div class="modebar">🧮 計價方式（先選）：${modeToggle}<span style="font-size:11px;font-weight:600;color:var(--violet);opacity:.75;margin-left:4px">選好後下方欄位依模式顯示</span></div>
