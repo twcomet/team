@@ -224,39 +224,37 @@ function filmImg(it){
 }
 const promoOf = it => (it.promo_price!=null?it.promo_price:it.subtotal)||0;
 
-// 存 PDF：優先向伺服器要「直接下載的 PDF」；失敗才退回列印/外部瀏覽器
+// 存 PDF：伺服器端產生的 PDF 直接下載
+// 手機／LINE等App內建瀏覽器：fetch+blob 常失效，改直接開附件連結交給系統下載/預覽
+// 桌機：fetch→blob 乾淨下載（保留在同頁）
 async function savePdf(){
+  const url = `/quote/${token}/pdf`;
+  const ua = navigator.userAgent || '';
+  const useDirect = /Line|FBAN|FBAV|Instagram|MicroMessenger|iPhone|iPad|iPod|Android/i.test(ua);
+  if(useDirect){
+    const w = window.open(url, '_blank');   // 新分頁載入 PDF（附件），系統會提供另存/分享
+    if(!w) location.href = url;
+    return;
+  }
   const btn = document.querySelector('.btn-print');
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled = true; btn.textContent = 'PDF 產生中…'; }
   try{
-    const r = await fetch(`/quote/${token}/pdf`);
+    const r = await fetch(url);
     if(!r.ok) throw new Error('gen');
     const blob = await r.blob();
     if(!blob || blob.size < 1000) throw new Error('empty');
-    const url = URL.createObjectURL(blob);
+    const u = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = u;
     a.download = `${(document.title||'繪新報價單').replace(/[\\/:*?"<>|]+/g,' ').trim()}.pdf`;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 8000);
+    setTimeout(()=>URL.revokeObjectURL(u), 8000);
   }catch(e){
-    savePdfFallback();
+    if(!window.open(url, '_blank')) location.href = url;   // 退而求其次：直接開連結
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = orig; }
   }
-}
-// 後備：伺服器 PDF 不可用時，回到列印/外部瀏覽器
-function savePdfFallback(){
-  const ua = navigator.userAgent || '';
-  if(/Line/i.test(ua)){
-    try{ const u = new URL(location.href); u.searchParams.set('openExternalBrowser','1'); location.href = u.toString(); return; }catch(e){}
-  }
-  if(/FBAN|FBAV|Instagram|MicroMessenger/i.test(ua)){
-    alert('LINE／社群內建瀏覽器無法存 PDF。\n請點右上角「⋯」選單 →「用其他瀏覽器（Safari／Chrome）開啟」，再按「下載 / 列印 PDF」。');
-    return;
-  }
-  window.print();
 }
 
 async function load(){
