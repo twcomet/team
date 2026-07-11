@@ -842,7 +842,20 @@ async function syncPrepay(){
   }
 }
 function openCust(){ toggleCust(true); }
-function openPreview(){ if(!shareToken){ alert('請先儲存'); return; } window.open(`/quote/${shareToken}`,'_blank'); }
+async function openPreview(){
+  if(!shareToken){ alert('請先儲存'); return; }
+  // 還是草稿 → 客戶連結會顯示「草稿」。詢問是否標記為「已發送（待確認）」再開啟。
+  if(quoteId && curQuote && curQuote.status==='draft'){
+    if(confirm('這張報價單目前是「草稿」，客戶開連結會看到「草稿」狀態。\n\n要現在標記為「已發送（待確認）」再開啟嗎？\n（按「取消」則以草稿狀態預覽，不會通知/建立保留）')){
+      try{
+        const r=await fetch(`/api/quotes/${quoteId}/send`,{method:'POST'});
+        if(r.ok){ curQuote.status='sent'; try{ bindHeader(curQuote); }catch(e){} }
+        else alert('標記發送失敗，將以草稿狀態開啟。');
+      }catch(e){ alert('標記發送失敗，將以草稿狀態開啟。'); }
+    }
+  }
+  window.open(`/quote/${shareToken}`,'_blank');
+}
 function openPdf(){ if(!shareToken){ alert('請先儲存'); return; } window.open(`/quote/${shareToken}?print=1`,'_blank'); }
 
 function renderRows(){
