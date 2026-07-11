@@ -3575,6 +3575,23 @@ try {
     console.log(`✅ 連工帶料改用「牌價/才進位到5」重算 ${rows.length} 筆（3M 不進位）`);
   }
 } catch (e) { console.warn('[connect work round5]', e.message); }
+
+// 進位精修：進位到5，但剛超過整十≤1就取整十（如151→150、140.1→140）。韓/PAROI；3M不進位
+try {
+  const MIG = 'connect_work_nice_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const nice = raw => { const f10 = Math.floor(raw/10)*10; return (raw - f10 <= 1) ? f10 : Math.ceil(raw/5)*5; };
+    const rows = db.prepare(`SELECT id,per_m,ecom_price,width FROM est_film_catalog WHERE brand IN ('bodaq','benif','paroi') AND (per_m>0 OR ecom_price>0)`).all();
+    const upd = db.prepare(`UPDATE est_film_catalog SET plane=?,cabinet=?,shape=? WHERE id=?`);
+    for (const r of rows) {
+      const ecom = r.ecom_price > 0 ? r.ecom_price : Math.round(r.per_m * 1.05 / 50) * 50;
+      const cai = nice(ecom / ((r.width || 122) * 100 / 900));
+      upd.run(cai + 70, cai + 100, cai + 125, r.id);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 連工帶料進位精修完成 ${rows.length} 筆（151→150 型）`);
+  }
+} catch (e) { console.warn('[connect work nice]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
