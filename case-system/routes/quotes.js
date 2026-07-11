@@ -390,7 +390,7 @@ router.post('/:quoteId/send', requireAuth, (req, res) => {
   db.prepare(`UPDATE quote_sheets SET status='sent', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(quoteId);
   const q = db.prepare(`SELECT share_token, case_id, final_total, marketing_total FROM quote_sheets WHERE id=?`).get(quoteId);
   if (q) {
-    db.prepare(`UPDATE cases SET contract_amount=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    db.prepare(`UPDATE cases SET final_price=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .run(q.final_total || 0, q.case_id);
   }
   try { syncReservations(quoteId, 'pending'); } catch(e) { /* non-critical */ }
@@ -668,7 +668,7 @@ router.post('/sign/:token', (req, res) => {
   } else {
     finalAmt = consent && q.marketing_total ? q.marketing_total : q.final_total;
   }
-  db.prepare(`UPDATE cases SET status='confirmed', contract_amount=?, contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP),
+  db.prepare(`UPDATE cases SET status='confirmed', final_price=?, contracted_at=COALESCE(contracted_at, CURRENT_TIMESTAMP),
     updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(finalAmt || 0, q.case_id);
 
   // 升級為 committed 保留
