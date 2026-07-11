@@ -164,7 +164,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 <div class="page">
   <div id="app"><div style="text-align:center;padding:80px 20px;color:var(--gray-400);font-size:14px">載入中…</div></div>
   <div class="print-bar" id="printBar" style="display:none">
-    <button class="btn-print" onclick="window.print()">📄 下載 / 列印 PDF</button>
+    <button class="btn-print" onclick="savePdf()">📄 下載 / 列印 PDF</button>
   </div>
 </div>
 <div class="lb" id="lb" onclick="if(event.target.id==='lb')closeLb()">
@@ -211,6 +211,19 @@ function filmImg(it){
     : `<div class="q-film-ph">🎞️</div>`;
 }
 const promoOf = it => (it.promo_price!=null?it.promo_price:it.subtotal)||0;
+
+// 存 PDF：LINE/FB/IG 內建瀏覽器不支援列印，先導到外部瀏覽器再列印/存 PDF
+function savePdf(){
+  const ua = navigator.userAgent || '';
+  if(/Line/i.test(ua)){
+    try{ const u = new URL(location.href); u.searchParams.set('openExternalBrowser','1'); location.href = u.toString(); return; }catch(e){}
+  }
+  if(/FBAN|FBAV|Instagram|MicroMessenger/i.test(ua)){
+    alert('LINE／社群內建瀏覽器無法存 PDF。\n請點右上角「⋯」選單 →「用其他瀏覽器（Safari／Chrome）開啟」，再按「下載 / 列印 PDF」，即可存成 PDF。');
+    return;
+  }
+  window.print();
+}
 
 async function load(){
   const res = await fetch(`/api/quotes/sign/${token}`);
