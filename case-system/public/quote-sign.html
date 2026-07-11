@@ -145,9 +145,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
   .header{background:var(--space)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .qtbl th{background:var(--space)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .amt .total{background:var(--space)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .qwrap{overflow:visible}
-  .qtbl{min-width:0}
-  .q-photo,.q-photo-ph{width:150px;height:200px}
+  /* 表格：A4 自適應版面，避免逐字換行、避免圖片撐爆欄位 */
+  .qwrap{overflow:visible!important;border:none!important}
+  .qtbl{min-width:0!important;width:100%!important;table-layout:auto!important;font-size:10px!important}
+  .qtbl td,.qtbl th{padding:5px 5px!important;word-break:normal!important;overflow-wrap:break-word!important;vertical-align:top}
+  .qtbl th{white-space:normal!important;font-size:9.5px!important;line-height:1.25!important}
+  .qtbl td.num{white-space:nowrap!important;font-size:10px!important}
+  .q-name{font-size:10.5px!important;line-height:1.35!important}
+  .q-note div,.q-film,.q-size{font-size:9px!important;line-height:1.5!important}
+  .q-film-img,.q-film-ph{width:44px!important;height:60px!important}
+  .q-photo,.q-photo-ph{width:78px!important;height:104px!important}
+  .q-gallery img{width:40px!important;height:40px!important}
+  .q-thumbs img{width:26px!important;height:34px!important}
+  .scroll-hint{display:none!important}
   .sig-section .btn-submit,.sig-controls,.print-bar,.mkt label{display:none!important}
   .fold-b{max-height:none!important;padding:8px 15px!important}
   /* 段落盡量不跨頁：每個區塊/表格列/條款/方框整塊留在同一 A4 */
