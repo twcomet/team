@@ -15,12 +15,18 @@
 .es-card h3 { font-size:15px; font-weight:600; color:#111; margin:0 0 6px; }
 .es-hint { font-size:12px; color:#9ca3af; margin-bottom:12px; }
 .es-table { width:100%; border-collapse:collapse; font-size:13px; }
-.es-table th { background:#f8fafc; color:#374151; font-weight:600; padding:7px 8px; text-align:left; border-bottom:2px solid #e5e7eb; white-space:nowrap; position:sticky; top:0; }
-.es-table td { padding:5px 8px; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
-.es-table tr:hover td { background:#f9fafb; }
-.es-table input { border:1px solid #d1d5db; border-radius:6px; padding:4px 6px; font-size:13px; width:84px; box-sizing:border-box; text-align:right; }
-.es-table input:focus { outline:none; border-color:#2563eb; }
-.es-grp { background:#eef2ff !important; font-weight:600; color:#3730a3; }
+.es-table th { background:#eceff5; color:#334155; font-weight:700; padding:9px 8px; text-align:left; border-bottom:2px solid #d5dbe4; white-space:nowrap; position:sticky; top:0; z-index:2; font-size:12px; }
+.es-table th.es-cai { background:#deeae5; color:#0e6b5e; }
+.es-table td { padding:5px 8px; border-bottom:1px solid #eef1f4; vertical-align:middle; }
+.es-table tbody tr:nth-child(even) td { background:#fafbfc; }
+.es-table tbody tr:hover td { background:#eef4fb; }
+.es-table input { border:1px solid #d1d5db; border-radius:6px; padding:5px 6px; font-size:13px; width:78px; box-sizing:border-box; text-align:right; background:#fff; }
+.es-table input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+.es-table input[readonly] { background:#f3f4f6; color:#6b7280; }
+.es-table td.es-cai { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+.es-table td.caiP { color:#0e6b5e; background:#e9f3ef; }
+.es-table td.caiC { color:#b45309; background:#fdf6ea; }
+.es-grp td { background:linear-gradient(90deg,#eef2ff,#f6f3ff) !important; font-weight:800; color:#3730a3; letter-spacing:.06em; padding:8px 12px; }
 .es-btn { padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; }
 .es-btn-primary { background:#2563eb; color:#fff; }
 .es-btn-sm { padding:3px 9px; font-size:12px; }
@@ -194,13 +200,25 @@ async function load() {
   document.getElementById('lm-designer').value = DATA.lowmin.designer;
 }
 
+// 每米 → 每才 換算（才數/米 = 寬cm × 100 / 900；122cm≈13.56、93cm≈10.33）
+function caiFactor(w){ return (Number(w)||122) * 100 / 900; }
+function ecomOf(perm){ return Math.round((Number(perm)||0) * 1.05 / 50) * 50; } // 未稅牌價→電商含稅(進位50)
+function caiVal(v, w){ const f = caiFactor(w); return f ? '$' + Math.round((Number(v)||0)/f).toLocaleString() : '—'; }
+function updCai(inp){
+  const tr = inp.closest('tr'); if(!tr) return;
+  const w = tr.querySelector('[data-k="width"]')?.value || 122;
+  const perm = tr.querySelector('[data-k="per_m"]')?.value || 0;
+  const cost = tr.querySelector('[data-k="cost_per_m"]')?.value;
+  const p = tr.querySelector('.caiP'); if(p) p.textContent = caiVal(ecomOf(perm), w);
+  const c = tr.querySelector('.caiC'); if(c) c.textContent = caiVal(cost, w);
+}
 function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
-    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
-    + (owner ? '<th style="color:#b45309">成本/米 🔒</th>' : '') + '<th>啟用</th><th></th>';
-  const colspan = owner ? 14 : 13;
+    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
+    + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th>' : '') + '<th>啟用</th><th></th>';
+  const colspan = owner ? 16 : 14;
   let lastBrand = '', h = '';
   DATA.filmCat.forEach(f => {
     if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}</td></tr>`; }
@@ -214,14 +232,15 @@ function renderFilms() {
         <option value="防焰"${f.fireproof==='防焰'?' selected':''}>防焰</option>
         <option value="不防焰"${f.fireproof==='不防焰'?' selected':''}>不防焰</option>
       </select></td>
-      <td><input type="number" value="${f.width ?? 122}" data-k="width"></td>
+      <td><input type="number" value="${f.width ?? 122}" data-k="width" oninput="updCai(this)"></td>
       <td><input type="number" value="${f.roll_len ?? 50}" data-k="roll_len"></td>
-      <td><input type="number" value="${f.per_m ?? 0}" data-k="per_m"></td>
+      <td><input type="number" value="${f.per_m ?? 0}" data-k="per_m" oninput="updCai(this)"></td>
       <td><input type="number" value="${f.ecom_price ?? 0}" readonly title="由牌價自動換算（含稅、進位50）" style="background:#f3f4f6;color:#6b7280"></td>
+      <td class="es-cai caiP" title="電商含稅牌價換算每才">${caiVal(ecomOf(f.per_m), f.width)}</td>
       <td><input type="number" value="${f.plane}" data-k="plane"></td>
       <td><input type="number" value="${f.cabinet}" data-k="cabinet"></td>
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
-      ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed"></td>` : ''}
+      ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed" oninput="updCai(this)"></td><td class="es-cai caiC" title="成本換算每才">${caiVal(f.cost_per_m, f.width)}</td>` : ''}
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
       <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved"></span></td>
     </tr>`;
