@@ -323,6 +323,35 @@ app.get('/quote/:token', (req, res) => {
   }
 });
 
+// 客戶報價單 PDF：伺服器端用 Chromium 產生，直接下載（不必跳列印對話框）
+app.get('/quote/:token/pdf', async (req, res) => {
+  const _db = require('./db');
+  const row = _db.prepare(`
+    SELECT qs.party_json, c.title AS case_title, c.case_number, cl.name AS client_name
+    FROM quote_sheets qs
+    JOIN cases c ON c.id = qs.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE qs.share_token = ?`).get(req.params.token);
+  if (!row) return res.status(404).send('找不到報價單');
+  let client = row.client_name || '';
+  const proj = row.case_title || row.case_number || '';
+  try { const p = JSON.parse(row.party_json || '{}') || {}; if (p.client_name) client = p.client_name; } catch (e) {}
+  const parts = ['繪新報價單']; if (client) parts.push(client); if (proj) parts.push(proj);
+  const fname = parts.join('-').replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim() || '繪新報價單';
+  try {
+    const { renderPdf } = require('./lib/pdf-render');
+    const url = `http://127.0.0.1:${PORT}/quote/${encodeURIComponent(req.params.token)}?pdf=1`;
+    const pdf = await renderPdf(url, { waitSelector: '.status-bar' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="quote.pdf"; filename*=UTF-8''${encodeURIComponent(fname)}.pdf`);
+    res.send(pdf);
+  } catch (e) {
+    console.error('[PDF] 產生失敗:', e && e.message);
+    res.status(500).json({ error: 'pdf_failed' });
+  }
+});
+
 // LIFF 打卡頁（不需登入，由 LIFF access_token 驗證身份）
 app.get('/liff/clockin', (req, res) => {
   const liffId = process.env.LIFF_ID || '';

@@ -224,14 +224,36 @@ function filmImg(it){
 }
 const promoOf = it => (it.promo_price!=null?it.promo_price:it.subtotal)||0;
 
-// 存 PDF：LINE/FB/IG 內建瀏覽器不支援列印，先導到外部瀏覽器再列印/存 PDF
-function savePdf(){
+// 存 PDF：優先向伺服器要「直接下載的 PDF」；失敗才退回列印/外部瀏覽器
+async function savePdf(){
+  const btn = document.querySelector('.btn-print');
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'PDF 產生中…'; }
+  try{
+    const r = await fetch(`/quote/${token}/pdf`);
+    if(!r.ok) throw new Error('gen');
+    const blob = await r.blob();
+    if(!blob || blob.size < 1000) throw new Error('empty');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(document.title||'繪新報價單').replace(/[\\/:*?"<>|]+/g,' ').trim()}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 8000);
+  }catch(e){
+    savePdfFallback();
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = orig; }
+  }
+}
+// 後備：伺服器 PDF 不可用時，回到列印/外部瀏覽器
+function savePdfFallback(){
   const ua = navigator.userAgent || '';
   if(/Line/i.test(ua)){
     try{ const u = new URL(location.href); u.searchParams.set('openExternalBrowser','1'); location.href = u.toString(); return; }catch(e){}
   }
   if(/FBAN|FBAV|Instagram|MicroMessenger/i.test(ua)){
-    alert('LINE／社群內建瀏覽器無法存 PDF。\n請點右上角「⋯」選單 →「用其他瀏覽器（Safari／Chrome）開啟」，再按「下載 / 列印 PDF」，即可存成 PDF。');
+    alert('LINE／社群內建瀏覽器無法存 PDF。\n請點右上角「⋯」選單 →「用其他瀏覽器（Safari／Chrome）開啟」，再按「下載 / 列印 PDF」。');
     return;
   }
   window.print();
