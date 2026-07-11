@@ -17,7 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .tnum{font-variant-numeric:tabular-nums}
 
 .header{background:linear-gradient(135deg,var(--space) 0%,#5a1a3a 60%,#7a2450 100%);padding:24px 26px 20px;text-align:center;color:#fff}
-.header-mark{height:52px;width:auto;margin:0 auto 12px;display:block;filter:brightness(0) invert(1)}
+.header-mark{height:15px;width:auto;margin:0 6px 0 0;display:inline-block;vertical-align:-2px;filter:brightness(0) invert(1)}
 .header-logo{font-size:12px;color:rgba(255,255,255,.72);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
 .header-company{font-size:22px;font-weight:800;letter-spacing:.02em;margin-bottom:4px}
 .header-doc{font-size:12px;color:rgba(255,255,255,.8);letter-spacing:.04em}
@@ -154,7 +154,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
   .section-title{break-after:avoid;page-break-after:avoid}
   .section{break-inside:avoid;page-break-inside:avoid;padding:13px 20px}
   .header{padding:16px 22px 14px}
-  .header-mark{height:40px;margin-bottom:8px}
+  .header-mark{height:14px}
   .clause-img,.q-photo img,.q-film-photo{break-inside:avoid}
 }
 </style>
@@ -250,8 +250,7 @@ function render(q){
 
   document.getElementById('app').innerHTML = `
     <div class="header">
-      <img class="header-mark" src="/logo.png" alt="繪新國際" onerror="this.style.display='none'">
-      <div class="header-logo">${esc(q.org_name||'繪新國際有限公司')}</div>
+      <div class="header-logo"><img class="header-mark" src="/logo.png" alt="" onerror="this.style.display='none'">${esc(q.org_name||'繪新國際有限公司')}</div>
       <div class="header-company">報價確認單</div>
       <div class="header-doc">Film &amp; Surface Application Quotation</div>
       <div class="header-num">${quoteNum}</div>
