@@ -230,22 +230,33 @@
       <button class="modal-close" onclick="closeMatModal()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 基本：① 品牌 → ② 系列 → ③ 型號 → ④ 類別/材質 -->
       <div class="form-row">
-        <div class="form-group"><label>品牌 *</label>
+        <div class="form-group"><label>① 品牌 *</label>
           <select id="m_brand" onchange="onBrandChange()"></select>
-        </div>
-        <div class="form-group"><label>型號 *</label>
-          <input type="text" id="m_model" list="dl_model" autocomplete="off">
         </div>
       </div>
       <div class="form-row" id="fgCatalogSeries" style="display:none">
         <div class="form-group" style="flex:1">
-          <label style="color:var(--primary,#e91e8c)">📋 定價表系列（選了自動帶入售價／成本／防焰／膜寬）</label>
+          <label style="color:var(--primary,#e91e8c)">② 定價表系列（選了自動帶入售價／成本／防焰／膜寬）</label>
           <select id="m_catalog_series" onchange="autofillFromCatalog()"><option value="">—</option></select>
-          <div style="font-size:11px;color:var(--gray-500);margin-top:3px">型號請自行輸入花色編號（如 AA-801）；此處只帶價格與規格</div>
+          <div style="font-size:11px;color:var(--gray-500);margin-top:3px">選了系列會自動帶「系列-」到型號欄，再接編號（如 MES-367）</div>
         </div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>③ 型號 *</label>
+          <input type="text" id="m_model" list="dl_model" autocomplete="off" placeholder="系列＋編號，如 MES-367">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>④ 類別</label>
+          <select id="m_category">
+            <option value="film">膜料</option>
+            <option value="tool">工具</option>
+            <option value="consumable">耗材</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
         <div class="form-group"><label>材質/紋路</label>
           <select id="m_spec">
             <option value="">請選擇</option>
@@ -255,45 +266,61 @@
             <option>炫彩虹膜</option><option>長虹玻璃膜</option><option>其他</option>
           </select>
         </div>
-        <div class="form-group"><label>貨架位置</label>
-          <input type="text" id="m_location" list="dl_location" placeholder="N-1、B-3…" autocomplete="off">
+      </div>
+
+      <!-- 規格區 -->
+      <div style="border:1px solid var(--gray-200,#e5e7eb);border-left:3px solid #0e7c6b;border-radius:10px;padding:12px 14px 2px;margin:16px 0;background:#f7faf9">
+        <div style="font-size:12px;font-weight:800;color:#0e7c6b;margin-bottom:8px;letter-spacing:.04em">📐 規格</div>
+        <div class="form-row">
+          <div class="form-group" id="fgMatCost"><label>成本/米（NT$）🔒</label><input type="number" id="m_unit_cost" min="0" step="1" placeholder="0"></div>
+          <div class="form-group"><label>售價/米（NT$）</label><input type="number" id="m_unit_price" min="0" step="1" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>膜寬(cm)</label><input type="number" id="m_width_cm" min="0" step="1" value="122" placeholder="122"></div>
+          <div class="form-group"><label>是否防焰</label>
+            <select id="m_fire_retardant">
+              <option value="0">不防焰</option>
+              <option value="1">防焰</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>類別</label>
-          <select id="m_category">
-            <option value="film">膜料</option>
-            <option value="tool">工具</option>
-            <option value="consumable">耗材</option>
-            <option value="other">其他</option>
-          </select>
-        </div>
-        <div class="form-group" id="fgEcKey"><label>EC 商品 Key</label>
-          <input type="text" id="m_ec_key" placeholder="電商商品代碼">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group" id="fgMatCost"><label>成本/米（NT$）</label><input type="number" id="m_unit_cost" min="0" step="1" placeholder="0"></div>
-        <div class="form-group"><label>售價/米（NT$）</label><input type="number" id="m_unit_price" min="0" step="1" placeholder="0"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>庫存米數</label><input type="number" id="m_stock_meters" min="0" step="0.1" placeholder="0"></div>
-        <div class="form-group"><label>膜寬(cm)</label><input type="number" id="m_width_cm" min="0" step="1" value="122" placeholder="122"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>是否防焰</label>
-          <select id="m_fire_retardant">
-            <option value="0">不防焰</option>
-            <option value="1">防焰</option>
-          </select>
-        </div>
-        <div class="form-group"><label>是否上電商</label>
-          <select id="m_on_ecommerce">
-            <option value="0">不上電商（純內部庫存）</option>
-            <option value="1">上電商（與電商連動）</option>
-          </select>
+
+      <!-- 庫存區 -->
+      <div style="border:1px solid var(--gray-200,#e5e7eb);border-left:3px solid #b45309;border-radius:10px;padding:12px 14px 2px;margin:16px 0;background:#fdf9f2">
+        <div style="font-size:12px;font-weight:800;color:#b45309;margin-bottom:8px;letter-spacing:.04em">📦 庫存</div>
+        <div class="form-row">
+          <div class="form-group"><label style="font-weight:800;color:#111">庫存米數</label>
+            <input type="number" id="m_stock_meters" min="0" step="0.1" placeholder="0" oninput="syncRemaining()" style="font-size:16px;font-weight:700;border-width:2px;border-color:#b45309">
+          </div>
+          <div class="form-group"><label>剩餘米數 <span style="font-size:11px;color:var(--gray-500,#9ca3af);font-weight:400">（庫存−保留）</span></label>
+            <input type="number" id="m_remaining_display" readonly placeholder="—" style="background:#f3f4f6;color:#6b7280">
+          </div>
         </div>
       </div>
+
+      <!-- 電商・貨架區 -->
+      <div style="border:1px solid var(--gray-200,#e5e7eb);border-left:3px solid #2563eb;border-radius:10px;padding:12px 14px 2px;margin:16px 0;background:#f6f8fd">
+        <div style="font-size:12px;font-weight:800;color:#2563eb;margin-bottom:8px;letter-spacing:.04em">🛒 電商・貨架</div>
+        <div class="form-row">
+          <div class="form-group"><label>貨架位置</label>
+            <input type="text" id="m_location" list="dl_location" placeholder="N-1、B-3…" autocomplete="off">
+          </div>
+          <div class="form-group" id="fgEcKey"><label>EC 商品 Key</label>
+            <input type="text" id="m_ec_key" placeholder="電商商品代碼">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>是否上電商</label>
+            <select id="m_on_ecommerce">
+              <option value="0">不上電商（純內部庫存）</option>
+              <option value="1">上電商（與電商連動）</option>
+            </select>
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
       <div class="form-group"><label>備注</label><textarea id="m_notes" rows="2"></textarea></div>
 
       <!-- 圖片上傳 -->
@@ -550,6 +577,14 @@
 <script>
 let materials = [];
 let editMatId = null;
+let _matReserved = 0;   // 目前這一支膜料的保留量（各支獨立，新增時=0）
+function syncRemaining(){
+  const s = parseFloat(document.getElementById('m_stock_meters').value);
+  const el = document.getElementById('m_remaining_display');
+  if (!el) return;
+  if (isNaN(s)) { el.value = ''; return; }
+  el.value = Math.max(0, s - (_matReserved || 0)).toFixed(1);   // 剩餘＝本支庫存−本支保留
+}
 let rollTargetMatId = null;
 let logTargetRollId = null;
 let expandedRows = new Set();
@@ -1125,12 +1160,14 @@ function autofillFromCatalog() {
 function openMatModal() {
   editMatId = null;
   _autofillColor = '';
+  _matReserved = 0;   // 新增：全新獨立的一支，無保留
   document.getElementById('matModalTitle').textContent = '新增膜料型號';
   document.getElementById('fgCatalogSeries').style.display = 'none';
   document.getElementById('m_catalog_series').innerHTML = '<option value="">—</option>';
   ensureCatalog().then(() => populateCatalogSeries(document.getElementById('m_brand').value));
   ['m_model','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
   ['m_unit_cost','m_unit_price','m_stock_meters'].forEach(id => document.getElementById(id).value = '');
+  syncRemaining();
   fillBrandSelect('');
   document.getElementById('m_spec').value = '';
   document.getElementById('m_category').value = 'film';
@@ -1162,6 +1199,8 @@ function openMatEdit(id) {
   document.getElementById('m_unit_cost').value    = currentUser?.can_see_cost ? (m.unit_cost || '') : '';
   document.getElementById('m_unit_price').value   = m.unit_price || '';
   document.getElementById('m_stock_meters').value = m.stock_meters || '';
+  _matReserved = (m.committed_reserved_meters||0) + (m.pending_reserved_meters||0) + (m.case_reserved_meters||0);  // 只算本支保留
+  syncRemaining();
   document.getElementById('m_notes').value        = m.notes || '';
   document.getElementById('m_ec_key').value       = currentUser?.can_see_cost ? (m.ec_key || '') : '';
   document.getElementById('m_fire_retardant').value = m.fire_retardant ? '1' : '0';
