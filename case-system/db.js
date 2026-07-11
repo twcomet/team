@@ -3649,6 +3649,21 @@ try {
     console.log(`✅ 韓國膜連工帶料改用未稅基底重算 ${rows.length} 筆`);
   }
 } catch (e) { console.warn('[connect work untaxed kr]', e.message); }
+
+// 3M 依「牌價/才」由低到高排序，讓同價位的系列排在一起
+try {
+  const MIG = '3m_sort_by_price_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const rows = db.prepare(`SELECT id, asia_code, per_m, width FROM est_film_catalog WHERE brand='3m' AND per_m>0`).all();
+    rows.forEach(r => { r.cai = Math.round(r.per_m / ((r.width || 122) * 100 / 900)); });
+    rows.sort((a, b) => (a.cai - b.cai) || String(a.asia_code || '').localeCompare(String(b.asia_code || '')));
+    const upd = db.prepare(`UPDATE est_film_catalog SET sort_order=? WHERE id=?`);
+    let so = 1;
+    rows.forEach(r => upd.run(so++, r.id));
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 3M 已依牌價/才排序（同價聚在一起）${rows.length} 筆`);
+  }
+} catch (e) { console.warn('[3m sort by price]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
