@@ -346,6 +346,7 @@ app.get('/quote/:token/pdf', async (req, res) => {
     const pdf = await renderPdf(url, { waitSelector: '.status-bar', title: fname });
     // page.pdf() 在新版回傳 Uint8Array，需轉 Buffer 否則 Express 會 JSON 序列化
     const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+    res.setHeader('Cache-Control', 'no-store, max-age=0'); // 報價可能被編輯，PDF 不快取避免給到舊版
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition',
       `attachment; filename="quote.pdf"; filename*=UTF-8''${encodeURIComponent(fname)}.pdf`);

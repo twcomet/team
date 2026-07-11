@@ -64,6 +64,8 @@ async function renderPdf(url, { waitSelector, title } = {}) {
         ));
       });
     } catch (e) {}
+    // 頁面本身的 @page{margin:10mm} 會蓋掉 puppeteer 的邊界，導致頁尾沒有空間 → 這裡歸零，交給 pdf() 的 margin 控制
+    try { await page.addStyleTag({ content: '@page{margin:0 !important}' }); } catch (e) {}
     const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
     const docTitle = esc(title || '繪新報價單');
     const footerTemplate = `<div style="font-size:8px;width:100%;box-sizing:border-box;padding:0 8mm;color:#999;font-family:'Noto Sans CJK TC','Noto Sans TC',sans-serif;display:flex;justify-content:space-between;align-items:center;">

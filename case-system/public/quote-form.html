@@ -292,7 +292,7 @@
     <span id="saveStatus" style="font-size:12px;color:var(--gray-400)"></span>
     <button class="btn sm" onclick="openCust()">👁 客戶檢視</button>
     <button class="btn sm" onclick="openPreview()">🔗 客戶連結</button>
-    <button class="btn sm" onclick="openPdf()">📄 PDF</button>
+    <button class="btn sm" id="pdfBtn" onclick="openPdf()">📄 下載 PDF</button>
     <button class="btn primary sm" onclick="saveAll()">💾 儲存</button>
   </div>
 </div>
@@ -857,7 +857,31 @@ async function openPreview(){
   }
   window.open(`/quote/${shareToken}`,'_blank');
 }
-function openPdf(){ if(!shareToken){ alert('請先儲存'); return; } window.open(`/quote/${shareToken}?print=1`,'_blank'); }
+// 下載報價單 PDF 檔（可直接傳給客戶，不必只給連結）
+async function openPdf(){
+  if(!shareToken){ alert('請先儲存'); return; }
+  const url = `/quote/${shareToken}/pdf`;
+  const ua = navigator.userAgent || '';
+  if(/iPhone|iPad|iPod|Android|Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua)){
+    const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener';
+    document.body.appendChild(a); a.click(); a.remove(); return;
+  }
+  const btn=document.getElementById('pdfBtn'); const orig=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='PDF 產生中…'; }
+  try{
+    const r=await fetch(url); if(!r.ok) throw new Error('gen');
+    const blob=await r.blob(); if(!blob||blob.size<1000) throw new Error('empty');
+    let fn='繪新報價單.pdf';
+    const cd=r.headers.get('Content-Disposition')||'';
+    const m=/filename\*=UTF-8''([^;]+)/i.exec(cd);
+    if(m){ try{ fn=decodeURIComponent(m[1]); }catch(e){} }
+    const u=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=u; a.download=fn;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),8000);
+  }catch(e){ if(!window.open(url,'_blank')) location.href=url; }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
 
 function renderRows(){
   document.getElementById('rows').innerHTML = items.map((it,i)=>{
