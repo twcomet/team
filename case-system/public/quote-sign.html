@@ -102,7 +102,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .fold-h{padding:12px 15px;font-weight:700;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;background:var(--gray-50)}
 .fold-b{padding:0 15px;max-height:0;overflow:hidden;transition:max-height .25s;font-size:12.5px;color:var(--gray-700);line-height:1.85;white-space:pre-line}
 .fold-b .em{color:#d81f1f;font-weight:700}
-.fold-b img.clause-img{display:block;max-width:100%;margin:10px 0 2px;border:1px solid #eee;border-radius:8px}
+.fold-b img.clause-img{display:block;max-width:220px;width:100%;margin:8px 0 4px auto;border:1px solid #eee;border-radius:8px;cursor:zoom-in}
 .fold.open .fold-b{max-height:1200px;padding:12px 15px}
 
 /* 簽名 */
@@ -160,13 +160,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
   .scroll-hint{display:none!important}
   .sig-section .btn-submit,.sig-controls,.print-bar,.mkt label{display:none!important}
   .fold-b{max-height:none!important;padding:8px 15px!important}
-  /* 段落盡量不跨頁：每個區塊/表格列/條款/方框整塊留在同一 A4 */
-  .fold,.qtbl tr,.party,.mkt,.amt,.sig-image-card,.status-bar{break-inside:avoid;page-break-inside:avoid}
+  /* 允許長條款/區塊跨頁流動，填滿頁面、減少大片空白；只有小單元避免被切開 */
+  .qtbl tr,.party,.amt,.mkt .cmp,.sig-image-card,.status-bar{break-inside:avoid;page-break-inside:avoid}
   .section-title{break-after:avoid;page-break-after:avoid}
-  .section{break-inside:avoid;page-break-inside:avoid;padding:13px 20px}
+  .section{padding:10px 20px}
+  .fold{margin-bottom:7px}
   .header{padding:16px 22px 14px}
   .header-mark{height:22px}
-  .clause-img,.q-photo img,.q-film-photo{break-inside:avoid}
+  .clause-img{max-width:200px!important}
+  .q-photo img,.q-film-photo{break-inside:avoid}
 }
 </style>
 </head>
@@ -393,7 +395,7 @@ function foldsHtml(q){
   if(!blocks.length) return '';
   return `<div class="section"><div class="section-title">條款與須知</div>
     ${blocks.map(b=>{
-      const imgHtml=imgsOf(b[2]).map(u=>`<img class="clause-img" src="${esc(u)}" alt="">`).join('');
+      const imgHtml=imgsOf(b[2]).map(u=>`<img class="clause-img" src="${esc(u)}" onclick="event.stopPropagation();openLb('${esc(u)}')" alt="點擊放大">`).join('');
       return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${noteHtml(b[1])}${imgHtml}</div></div>`;
     }).join('')}</div>`;
 }
