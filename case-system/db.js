@@ -3491,6 +3491,51 @@ try {
     console.log('✅ 韓版 BODAQ 已補花色＋成本(70%毛利回推)');
   }
 } catch (e) { console.warn('[bodaq kr fill]', e.message); }
+
+// 韓版 BODAQ 重整：同價系列歸類成分組列（不防焰一組、防焰一組），從~38列縮成23列，較簡潔。成本＝未稅×0.3。
+try {
+  const MIG = 'bodaq_kr_regroup_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`DELETE FROM est_film_catalog WHERE brand='bodaq' AND region='韓國'`).run();
+    // [韓國碼(合併), 防焰, 電商含稅, 卷長, 花色, 備註]
+    const G = [
+      ['W/S/LS/LM','不防焰',1050,50,'素面／木紋','對應亞洲 SS/BA'],['PTW/ZSW','不防焰',1100,50,'木紋','對應亞洲 BC'],
+      ['ZX','不防焰',1150,50,'木紋','韓國限定'],['SMT, NS','不防焰',1200,50,'超霧面／金屬','對應亞洲 ST/AA'],
+      ['HS/RM, CP, SL, SF','不防焰',1250,50,'金屬／皮革（含限定）','對應 AA/SH；CP/SL/SF 限定'],['PNT','不防焰',1250,40,'木紋（油漆）','對應亞洲 BT'],
+      ['PNC','不防焰',1350,40,'塗料／水泥','對應亞洲 AP'],['PM, SPW','不防焰',1350,50,'大理石／木紋','對應亞洲 AB/BM'],
+      ['VM','不防焰',1400,50,'絨面金屬','對應亞洲 AT'],['LW, OGW, APZ','不防焰',1600,50,'限定花色（待補）','韓國限定'],
+      ['UMI, EXF, ECF','不防焰',2100,50,'炫彩（含限定）','對應 AU；EXF/ECF 限定'],['RF/NF','不防焰',3150,30,'真布紋','對應亞洲 AF'],
+      ['W/S/LS/LM','防焰',1450,50,'素面／木紋','對應亞洲 SS/BA'],['PTW/ZSW, ZX','防焰',1500,50,'木紋（含限定）','對應 BC；ZX 限定'],
+      ['SMT','防焰',1550,50,'超霧面','對應亞洲 ST'],['PNT','防焰',1650,40,'木紋（油漆）','對應亞洲 BT'],
+      ['NS, SL','防焰',1700,50,'金屬（含限定）','對應 AA；SL 限定'],['PNC','防焰',1700,40,'塗料／水泥','對應亞洲 AP'],
+      ['HS/RM, CP, SF','防焰',1750,50,'金屬／皮革（含限定）','對應 AA/SH；CP/SF 限定'],['VM, PM, SPW','防焰',1800,50,'石紋／木紋／金屬','對應亞洲 AT/AB/BM'],
+      ['LW','防焰',1900,50,'限定花色（待補）','韓國限定'],['APZ','防焰',2100,50,'限定花色（待補）','韓國限定'],['RF/NF','防焰',3550,30,'真布紋','對應亞洲 AF'],
+    ];
+    let so = db.prepare(`SELECT COALESCE(MAX(sort_order),0) n FROM est_film_catalog`).get().n;
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order,active) VALUES ('bodaq','韓國','',?,?,?,?,?,?,?,0,0,0,122,?,?,1)`);
+    for (const [code, fp, ecom, roll, color, note] of G) {
+      const perm = Math.round(ecom/1.05), cost = Math.round(perm*0.3);
+      so++; ins.run(code, color, note, fp, perm, ecom, cost, roll, so);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 韓版 BODAQ 已重整為 ${G.length} 分組列（同價歸類）`);
+  }
+} catch (e) { console.warn('[bodaq kr regroup]', e.message); }
+
+// 統一成單一「系列/型號」欄：韓國對應碼併進備註，不再分亞洲碼/韓國碼兩欄（避免 PAROI/3M 空欄）
+try {
+  const MIG = 'film_code_unify_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    // 韓版：系列碼＝原韓國碼(kr_code)→移進 asia_code
+    db.prepare(`UPDATE est_film_catalog SET asia_code=kr_code WHERE region='韓國' AND (asia_code IS NULL OR asia_code='') AND kr_code<>''`).run();
+    // 亞洲/一般：韓國對應碼 kr_code→併進備註(model_note)
+    db.prepare(`UPDATE est_film_catalog SET model_note = CASE WHEN model_note IS NULL OR model_note='' THEN '對應韓碼 '||kr_code ELSE model_note||'（韓碼 '||kr_code||'）' END WHERE (region IS NULL OR region='') AND kr_code<>''`).run();
+    // 清空 kr_code（不再使用該欄）
+    db.prepare(`UPDATE est_film_catalog SET kr_code='' WHERE kr_code<>''`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 膜料代碼統一為單一系列欄（韓碼併入備註）');
+  }
+} catch (e) { console.warn('[film code unify]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
