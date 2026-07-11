@@ -3664,6 +3664,31 @@ try {
     console.log(`✅ 3M 已依牌價/才排序（同價聚在一起）${rows.length} 筆`);
   }
 } catch (e) { console.warn('[3m sort by price]', e.message); }
+
+// 3M 同價位（同牌價/才＋同寬＋同卷長）併成一列，型號用「、」串起
+try {
+  const MIG = '3m_merge_same_price_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const rows = db.prepare(`SELECT id, asia_code, per_m, width, roll_len FROM est_film_catalog WHERE brand='3m' AND per_m>0`).all();
+    const groups = {};
+    rows.forEach(r => {
+      const cai = Math.round(r.per_m / ((r.width || 122) * 100 / 900));
+      const key = cai + '|' + (r.width || 122) + '|' + (r.roll_len || 50);
+      (groups[key] = groups[key] || { cai, list: [] }).list.push(r);
+    });
+    const updCode = db.prepare(`UPDATE est_film_catalog SET asia_code=?, sort_order=? WHERE id=?`);
+    const del = db.prepare(`DELETE FROM est_film_catalog WHERE id=?`);
+    let so = 1, merged = 0;
+    Object.values(groups).sort((a, b) => a.cai - b.cai).forEach(g => {
+      g.list.sort((a, b) => String(a.asia_code || '').localeCompare(String(b.asia_code || '')));
+      const codes = g.list.map(r => r.asia_code).join('、');
+      updCode.run(codes, so++, g.list[0].id);
+      g.list.slice(1).forEach(r => { del.run(r.id); merged++; });
+    });
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 3M 同價位已併列（併掉 ${merged} 列、剩 ${Object.keys(groups).length} 列）`);
+  }
+} catch (e) { console.warn('[3m merge same price]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {

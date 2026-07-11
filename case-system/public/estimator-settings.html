@@ -22,6 +22,8 @@
 .es-table tbody tr:hover td { background:#eef4fb; }
 .es-table input { border:1px solid #d1d5db; border-radius:6px; padding:5px 6px; font-size:13px; width:78px; box-sizing:border-box; text-align:right; background:#fff; }
 .es-table input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+.es-table textarea.es-codes { width:150px; resize:none; overflow:hidden; white-space:pre-wrap; overflow-wrap:break-word; line-height:1.5; padding:5px 6px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; text-align:left; box-sizing:border-box; font-family:inherit; background:#fff; min-height:30px; vertical-align:middle; }
+.es-table textarea.es-codes:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.12); }
 .es-table input[readonly] { background:#f3f4f6; color:#6b7280; }
 .es-table td.es-cai { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
 .es-table td.caiP { color:#0e6b5e; background:#e9f3ef; }
@@ -251,7 +253,7 @@ function renderFilms() {
     if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; }
     h += `<tr data-id="${f.id}" data-brand="${esc(f.brand||'')}">
       <td></td>
-      <td><input data-k="asia_code" value="${esc(f.asia_code||'')}" style="width:130px;text-align:left" title="系列/型號碼"></td>
+      <td><textarea data-k="asia_code" class="es-codes" rows="1" oninput="autoGrow(this)" title="系列/型號碼">${esc(f.asia_code||'')}</textarea></td>
       <td><input data-k="color" value="${esc(f.color||'')}" style="width:96px;text-align:left"></td>
       <td><input data-k="model_note" value="${esc(f.model_note||'')}" placeholder="對應/備註" style="width:132px;text-align:left;color:#6b7280"></td>
       <td><select data-k="fireproof" style="width:auto">
@@ -273,7 +275,9 @@ function renderFilms() {
     </tr>`;
   });
   document.getElementById('tb-films').innerHTML = h;
+  document.querySelectorAll('#tb-films textarea.es-codes').forEach(autoGrow);
 }
+function autoGrow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
 async function delFilm(id){
   if(!confirm('確定刪除這個膜款？')) return;
   await fetch(`${API}/film-catalog/${id}`, { method:'DELETE' });
