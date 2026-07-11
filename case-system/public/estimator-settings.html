@@ -28,6 +28,11 @@
 .es-table td.caiC { color:#b45309; background:#fdf6ea; }
 .es-table td.caiM { color:#6d28d9; background:#f6f4fe; }
 .es-grp td { background:linear-gradient(90deg,#eef2ff,#f6f3ff) !important; font-weight:800; color:#3730a3; letter-spacing:.06em; padding:8px 12px; }
+.es-table td.es-actions, .es-table th.es-actions { position:sticky; right:0; background:#fff; box-shadow:-7px 0 8px -6px rgba(0,0,0,.14); z-index:3; }
+.es-table tbody tr:nth-child(even) td.es-actions { background:#fafbfc; }
+.es-table tbody tr:hover td.es-actions { background:#eef4fb; }
+#es-toast { position:fixed; bottom:22px; right:22px; background:#0e6b5e; color:#fff; padding:11px 18px; border-radius:9px; font-size:14px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,.22); opacity:0; transform:translateY(8px); transition:.2s; pointer-events:none; z-index:9999; }
+#es-toast.show { opacity:1; transform:none; }
 .es-btn { padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; }
 .es-btn-primary { background:#2563eb; color:#fff; }
 .es-btn-sm { padding:3px 9px; font-size:12px; }
@@ -101,8 +106,9 @@
     <div class="top-bar"><span class="page-title">估價價目設定</span></div>
 
     <div class="es-toolbar">
-      <div class="es-hint" style="margin:0">系統已帶入預設價目；在這裡改了會立即存檔、估價時自動帶入。改了不會被部署覆蓋。</div>
+      <div class="es-hint" style="margin:0">系統已帶入預設價目；改完欄位（點到別處）就會<b style="color:#0e6b5e">自動儲存</b>，也可按最右邊「儲存」。改了不會被部署覆蓋。</div>
     </div>
+    <div id="es-toast"></div>
 
     <div class="es-tabs">
       <button class="es-tab active" onclick="switchTab('films')">裝潢膜</button>
@@ -225,7 +231,7 @@ function renderFilms() {
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
     '<th></th><th>系列/型號</th><th>花色</th><th>備註<span style="font-weight:400;color:#9ca3af">·對應</span></th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
-    + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th></th>';
+    + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th class="es-actions"></th>';
   const colspan = owner ? 18 : 15;
   // 排序：品牌 PAROI→LG(BENIF)→Bodaq→3M；同品牌 亞洲在前、韓版在後；韓版內 不防焰在前、防焰在後
   const BRANK = { paroi:1, benif:2, bodaq:3, '3m':4 };
@@ -259,7 +265,7 @@ function renderFilms() {
       <td><input type="number" value="${f.shape}" data-k="shape"></td>
       ${owner ? `<td><input type="number" value="${f.cost_per_m ?? 0}" data-k="cost_per_m" style="background:#fff7ed" oninput="updCai(this)"></td><td class="es-cai caiC" title="成本換算每才">${caiVal(f.cost_per_m, f.width)}</td><td class="es-cai caiM" title="毛利率＝(牌價−成本)÷牌價">${caiMargin(f.per_m, f.cost_per_m)}</td>` : ''}
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
-      <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved"></span></td>
+      <td class="es-actions" style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved" style="display:block;font-size:11px"></span></td>
     </tr>`;
   });
   document.getElementById('tb-films').innerHTML = h;
@@ -344,18 +350,25 @@ function renderFreight() {
     </tr>`).join('');
 }
 
-async function saveRow(kind, btn) {
-  const tr = btn.closest('tr');
+function esToast(msg, ok){ const t=document.getElementById('es-toast'); if(!t) return; t.textContent=msg; t.style.background = ok===false ? '#dc2626' : '#0e6b5e'; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), 1800); }
+async function saveRowTr(kind, tr){
   const id = tr.dataset.id;
   const body = {};
-  tr.querySelectorAll('[data-k]').forEach(inp => {
-    body[inp.dataset.k] = inp.type === 'checkbox' ? inp.checked : inp.value;
-  });
-  const r = await fetch(`${API}/${kind}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  tr.querySelectorAll('[data-k]').forEach(inp => { body[inp.dataset.k] = inp.type === 'checkbox' ? inp.checked : inp.value; });
   const span = tr.querySelector('.es-saved');
-  if (r.ok) { span.textContent = '✓ 已存'; setTimeout(()=>span.textContent='', 1500); }
-  else { span.textContent = '✗ ' + ((await r.json().catch(()=>({}))).error || '失敗'); span.style.color='#dc2626'; }
+  if (span) { span.textContent = '儲存中…'; span.style.color = '#6b7280'; }
+  const r = await fetch(`${API}/${kind}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (r.ok) { if(span){ span.textContent='✓ 已存'; span.style.color='#0e6b5e'; setTimeout(()=>{ if(span.textContent==='✓ 已存') span.textContent=''; }, 1500);} esToast('✓ 已儲存'); }
+  else { const e = ((await r.json().catch(()=>({}))).error || '失敗'); if(span){ span.textContent='✗ '+e; span.style.color='#dc2626'; } esToast('✗ '+e, false); }
 }
+async function saveRow(kind, btn){ return saveRowTr(kind, btn.closest('tr')); }
+// 膜料表：改完欄位（離開輸入框）自動儲存，不必找最右邊的儲存鈕
+document.addEventListener('change', e => {
+  const inp = e.target;
+  if (!inp || !inp.matches || !inp.matches('#tb-films [data-k]')) return;
+  const tr = inp.closest('tr[data-id]');
+  if (tr) saveRowTr('film-catalog', tr);
+});
 // 依公式重算連工帶料：系統櫃＝牌價/才+100、牆面+70、造型+125（僅 bodaq/benif/paroi）
 async function recalcConnectWork(){
   if(!confirm('依公式重算連工帶料？\n韓/PAROI：牆面+70、系統櫃+100、造型+125\n3M：每才再+20（牆+90、櫃+120、造型+145）\n\n會覆蓋你目前手動填的牆面/系統櫃/造型數值。')) return;
