@@ -215,7 +215,7 @@ function caiFactor(w){ return (Number(w)||122) * 100 / 900; }
 function ecomOf(perm){ return Math.round((Number(perm)||0) * 1.05 / 50) * 50; } // 未稅牌價→電商含稅(進位50)
 function caiCeil5(v){ v = Number(v)||0; const f10 = Math.floor(v/10)*10; return (v - f10 <= 1) ? f10 : Math.ceil(v/5)*5; } // 進位到5；但剛超過整十≤1→取整十(如151→150)
 function caiVal(v, w){ const f = caiFactor(w); return f ? '$' + Math.round((Number(v)||0)/f).toLocaleString() : '—'; }
-function caiSell(perm, w, brand){ const f = caiFactor(w); if(!f) return '—'; const raw = ecomOf(perm)/f; return '$' + (brand==='3m' ? Math.round(raw) : caiCeil5(raw)).toLocaleString(); } // 牌價/才：3M精確、其餘進位到5
+function caiSell(perm, w, brand){ const f = caiFactor(w); if(!f) return '—'; if(brand==='3m') return '$' + Math.round((Number(perm)||0)/f).toLocaleString(); return '$' + caiCeil5(ecomOf(perm)/f).toLocaleString(); } // 3M＝官方元/才(未稅不含電商稅)；其餘＝電商含稅/才進位到5
 function caiMargin(perm, cost){ const p = Number(perm)||0, c = Number(cost)||0; return p>0 ? Math.round((p-c)/p*100) + '%' : '—'; }
 function updCai(inp){
   const tr = inp.closest('tr'); if(!tr) return;
@@ -380,8 +380,8 @@ async function recalcConnectWork(){
     const is3m = tr.dataset.brand === '3m';
     const off = is3m ? 20 : 0;
     const w = tr.querySelector('[data-k="width"]').value, perm = tr.querySelector('[data-k="per_m"]').value;
-    const raw = ecomOf(perm) / caiFactor(w);
-    const cai = is3m ? Math.round(raw) : caiCeil5(raw);  // 3M精確、其餘進位到5
+    const f = caiFactor(w);
+    const cai = is3m ? Math.round(perm / f) : caiCeil5(ecomOf(perm) / f);  // 3M＝官方元/才(不套電商含稅、不進位)；其餘＝電商含稅進位到5
     if(!cai) continue;
     tr.querySelector('[data-k="plane"]').value   = cai + 70 + off;
     tr.querySelector('[data-k="cabinet"]').value = cai + 100 + off;

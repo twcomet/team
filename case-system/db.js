@@ -3592,6 +3592,28 @@ try {
     console.log(`✅ 連工帶料進位精修完成 ${rows.length} 筆（151→150 型）`);
   }
 } catch (e) { console.warn('[connect work nice]', e.message); }
+
+// 3M 對齊官方牌價表(2026/5/1)：官方是「元/才、未稅」。牌價/才＝官方值；連工帶料＝官方+90/120/145；成本＝牌價×0.8
+try {
+  const MIG = '3m_official_price_2026_05';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const OFF = { AE:170,'AE-MT':235,AM:385,AR:235,CA:235,CH:160,CN:235,'DW-MT':205,ET:460,EX:300,FA:220,FE:235,FW:155,HG:235,HS:235,LE:235,LW:235,LZ:235,ME:160,'ME-MT':235,MW:235,NU:190,'NU-MT':235,PA:155,PC:235,PG:235,PS:140,'PS-MT':235,'PS-MTRC':235,PT:235,'PW-MT':265,RS:235,RT:235,SE:235,SI:235,ST:215,'ST-MT':235,'SU-MT':235,TE:235,VM:375,'VM-MT':460,WG:140,WH:205 };
+    const rows = db.prepare(`SELECT id, asia_code, width FROM est_film_catalog WHERE brand='3m'`).all();
+    const upd = db.prepare(`UPDATE est_film_catalog SET per_m=?, cost_per_m=?, plane=?, cabinet=?, shape=? WHERE id=?`);
+    let n = 0;
+    for (const r of rows) {
+      const off = OFF[r.asia_code];
+      if (off == null) continue;
+      const factor = (r.width || 122) * 100 / 900;
+      const perm = Math.round(off * factor);        // per_m 使 牌價/才(=per_m/factor)=官方元/才
+      const cost = Math.round(perm * 0.8);           // 3M 成本＝牌價×8折
+      upd.run(perm, cost, off + 90, off + 120, off + 145, r.id);
+      n++;
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 3M 已對齊官方元/才 ${n} 筆`);
+  }
+} catch (e) { console.warn('[3m official]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
