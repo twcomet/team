@@ -571,6 +571,27 @@ async function boot(){
 // ── 膜料庫存勾稽 ────────────────────────────────────────────────
 let MATERIALS=[];
 async function loadMaterials(){ try{ const r=await fetch('/api/materials'); MATERIALS=r.ok?await r.json():[]; }catch(e){ MATERIALS=[]; } }
+// ── 定價表（est_film_catalog）：選膜料時自動帶連工帶料每才價（牆面/系統櫃/造型）──
+let CATALOG=[];
+async function loadCatalog(){ try{ const r=await fetch('/api/materials/film-catalog'); CATALOG=r.ok?await r.json():[]; }catch(e){ CATALOG=[]; } }
+const QF_BRAND2CAT={ BODAQ:'bodaq', BODA:'bodaq', LG:'benif', LX:'benif', BENIF:'benif', PAROI:'paroi', PARA:'paroi', '3M':'3m' };
+function matchCatalog(brand,model){
+  const cat=QF_BRAND2CAT[String(brand||'').toUpperCase().trim()]; if(!cat||!CATALOG.length) return null;
+  const M=String(model||'').toUpperCase().trim(); const lead=(M.match(/^[A-Z]+/)||[''])[0]; if(!lead) return null;
+  const tries=[]; if(/MT/.test(M)) tries.push(lead+'-MT'); tries.push(lead);
+  const rows=CATALOG.filter(r=>r.brand===cat);
+  for(const t of tries){ const hit=rows.find(r=>String(r.asia_code||'').toUpperCase().split(',').map(s=>s.replace(/…/g,'').trim()).includes(t)); if(hit) return hit; }
+  return null;
+}
+// 依目前施工類型，把定價表的連工帶料每才價填入 單價/才(unitCai)
+function fillCaiFromCatalog(i){
+  const it=items[i]; if(!it||it.mode==='material') return false;
+  const row=matchCatalog(it.brand,it.model); if(!row) return false;
+  const price=row[it.workType||'plane'];
+  if(price!=null && price!==''){ it.unitCai=Math.round(price); return true; }
+  return false;
+}
+function setWorkType(i,v){ const it=items[i]; it.workType=v; fillCaiFromCatalog(i); markDirty(); renderRows(); recalc(); }
 const brandList=()=>[...new Set(MATERIALS.map(m=>m.brand).filter(Boolean))].sort();
 const modelList=(brand)=>MATERIALS.filter(m=>m.brand===brand);
 const findMat=(brand,model)=>MATERIALS.find(m=>m.brand===brand&&m.model===model);
@@ -621,6 +642,7 @@ async function loadQuote(){
   document.getElementById('flexChk').checked=deducts.length>0;
   document.getElementById('flexBox').style.display=deducts.length>0?'block':'none';
   await loadMaterials();                       // 先載膜料庫存，供品牌/型號勾稽與示意圖帶入
+  await loadCatalog();                          // 載定價表，供選膜料時自動帶連工帶料每才價
   items=(q.items||[]).map(mapDbToProto);
   await Promise.all([loadNotices(), loadPrepay()]);
   renderPrepay(); renderFlex(); renderRows(); recalc(); syncCustNotice();
@@ -808,6 +830,11 @@ function renderRows(){
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
             : `<select class="film-sel" onchange="setFilmModel(${i},this.value)">${modelOpts}</select>`}
           ${stockChip}
+          ${isMat?'':`<select class="film-sel" title="連工帶料施工類型（依定價表帶入單價/才）" onchange="setWorkType(${i},this.value)">
+            <option value="plane" ${(!it.workType||it.workType==='plane')?'selected':''}>🧱 牆面</option>
+            <option value="cabinet" ${it.workType==='cabinet'?'selected':''}>🗄️ 系統櫃</option>
+            <option value="shape" ${it.workType==='shape'?'selected':''}>🌀 造型</option>
+          </select>${(()=>{const r=matchCatalog(it.brand,it.model);return r?`<span class="stk now" title="定價表連工帶料每才價">連工帶料 ${Math.round(r[it.workType||'plane']||0)}/才</span>`:'';})()}`}
         </div>
       </div>`;
     const spec=`<div class="cfields">
@@ -928,6 +955,7 @@ function setFilmModel(i,v){
     if(mat.unit_cost!=null) it.filmCostPerM=mat.unit_cost;   // 帶內部成本
     it.film=[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ');
   }else{ it.materialId=null; }
+  fillCaiFromCatalog(i);   // 依施工類型自動帶入定價表連工帶料每才價
   markDirty(); renderRows(); recalc();
 }
 // ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
