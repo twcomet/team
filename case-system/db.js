@@ -3472,6 +3472,25 @@ try {
     console.log('✅ 韓版 BODAQ 已建入 est_film_catalog（21 系列・不防焰/防焰各自獨立列）');
   }
 } catch (e) { console.warn('[bodaq kr seed]', e.message); }
+
+// 補韓版 BODAQ 花色 + 成本（成本＝未稅牌價×0.3，即以韓國膜目標毛利 70% 回推；老闆可再覆蓋真實進價成本）
+try {
+  const MIG = 'bodaq_kr_fill_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const COLOR = {
+      'W/S/LS/LM':'素面／木紋','PTW/ZSW':'木紋','ZX':'木紋（限定）','HS/RM':'金屬／皮革','CP':'限定花色（待補）',
+      'SMT':'超霧面','PNT':'木紋（油漆）','PNC':'塗料／水泥','NS':'金屬','SL':'限定花色（待補）','SF':'限定花色（待補）',
+      'VM':'絨面金屬','PM':'大理石／石紋','SPW':'木紋','LW':'限定花色（待補）','OGW':'限定花色（待補）',
+      'APZ':'限定花色（待補）','UMI':'炫彩幻彩','RF/NF':'真布紋','EXF':'限定花色（待補）','ECF':'限定花色（待補）',
+    };
+    const upC = db.prepare(`UPDATE est_film_catalog SET color=? WHERE region='韓國' AND kr_code=? AND (color IS NULL OR color='')`);
+    for (const [code, col] of Object.entries(COLOR)) upC.run(col, code);
+    // 成本回推：未稅牌價 × 0.3（70% 毛利）
+    db.prepare(`UPDATE est_film_catalog SET cost_per_m=ROUND(per_m*0.3) WHERE region='韓國' AND (cost_per_m IS NULL OR cost_per_m=0)`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 韓版 BODAQ 已補花色＋成本(70%毛利回推)');
+  }
+} catch (e) { console.warn('[bodaq kr fill]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {

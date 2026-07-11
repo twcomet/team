@@ -224,8 +224,16 @@ function renderFilms() {
     '<th></th><th>亞洲碼</th><th>韓國碼</th><th>花色</th><th>備註<span style="font-weight:400;color:#9ca3af">·對應</span></th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
     + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th></th>';
   const colspan = owner ? 19 : 16;
+  // 排序：品牌 PAROI→LG(BENIF)→Bodaq→3M；同品牌 亞洲在前、韓版在後；韓版內 不防焰在前、防焰在後
+  const BRANK = { paroi:1, benif:2, bodaq:3, '3m':4 };
+  const films = DATA.filmCat.slice().sort((a, b) => {
+    const ra = BRANK[a.brand]||9, rb = BRANK[b.brand]||9; if (ra !== rb) return ra - rb;
+    const ga = a.region?1:0, gb = b.region?1:0; if (ga !== gb) return ga - gb;
+    if (a.region) { const fa = a.fireproof==='防焰'?1:0, fb = b.fireproof==='防焰'?1:0; if (fa !== fb) return fa - fb; }
+    return (a.sort_order||0) - (b.sort_order||0);
+  });
   let lastGrp = '', h = '';
-  DATA.filmCat.forEach(f => {
+  films.forEach(f => {
     const gkey = (f.brand||'') + '|' + (f.region||'');
     if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; }
     h += `<tr data-id="${f.id}">
