@@ -292,8 +292,35 @@ app.get('/survey-worker', (req, res) => {
 });
 
 // 公開報價單頁（客戶用，不需登入）
+// LINE/社群預覽讀的是「伺服器輸出的 HTML <title>/OG」，不會跑 JS，
+// 所以在這裡依報價單帶入標題：繪新報價單-客戶名稱-案名
 app.get('/quote/:token', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'quote-sign.html'));
+  const file = path.join(__dirname, 'public', 'quote-sign.html');
+  try {
+    const _db = require('./db');
+    const row = _db.prepare(`
+      SELECT qs.party_json, c.title AS case_title, c.case_number, cl.name AS client_name
+      FROM quote_sheets qs
+      JOIN cases c ON c.id = qs.case_id
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      WHERE qs.share_token = ?`).get(req.params.token);
+    let client = row?.client_name || '';
+    const proj = row?.case_title || row?.case_number || '';
+    try { const p = JSON.parse(row?.party_json || '{}') || {}; if (p.client_name) client = p.client_name; } catch (e) {}
+    const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const parts = ['繪新報價單']; if (client) parts.push(client); if (proj) parts.push(proj);
+    const title = esc(parts.join('-'));
+    const head = `<title>${title}</title>
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="繪新國際 報價確認單，點開查看並線上確認接受報價。">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">`;
+    let html = fs.readFileSync(file, 'utf8');
+    html = html.replace(/<title>[\s\S]*?<\/title>/, head);
+    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  } catch (e) {
+    res.sendFile(file);
+  }
 });
 
 // LIFF 打卡頁（不需登入，由 LIFF access_token 驗證身份）
