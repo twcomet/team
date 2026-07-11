@@ -250,7 +250,7 @@
   .mkt-sign .cmp .t{font-size:11px;color:var(--gray-500);font-weight:700} .mkt-sign .cmp .v{font-size:18px;font-weight:900;margin-top:3px}
   .fold{border:1px solid var(--gray-200);border-radius:11px;margin-top:10px;overflow:hidden}
   .fold-h{padding:12px 14px;font-weight:700;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;background:var(--gray-50)}
-  .fold-b{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .2s;font-size:12px;color:var(--gray-600);line-height:1.85;white-space:pre-line} .fold.open .fold-b{max-height:400px;padding:12px 14px}
+  .fold-b{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .25s;font-size:12px;color:var(--gray-600);line-height:1.85;white-space:pre-line} .fold.open .fold-b{max-height:6000px;padding:12px 14px}
   .sign-box{border:2px dashed var(--gray-300);border-radius:11px;height:96px;display:grid;place-items:center;color:var(--gray-400);margin-top:8px}
 
   /* import modal */
@@ -437,9 +437,9 @@
           <table class="quote-tbl">
             <thead><tr>
               <th style="width:34px">項目</th><th>貼覆項目</th>
-              <th style="width:98px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:150px">貼覆區域（現場照）</th>
+              <th style="width:98px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
               <th id="cth_unit" style="width:74px">連工帶料單價</th><th style="width:42px">數量</th>
-              <th style="width:80px">連工帶料總價</th><th style="width:82px">連工帶料優惠價</th>
+              <th style="width:108px;white-space:nowrap">連工帶料總價</th><th style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
           </table>
@@ -458,10 +458,7 @@
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照攝影紀錄並授權用於媒體</label>
         </div>
-        <div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">報價單優惠條款 <span>▾</span></div><div class="fold-b">70% 訂金 / 30% 尾款；同意拍攝享優惠價；場勘費成交折抵。</div></div>
-        <div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">貼膜前須知 <span>▾</span></div><div class="fold-b" id="cust_notice">—</div></div>
-        <div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">驗收須知 <span>▾</span></div><div class="fold-b">當天當場驗收；七日內通知；非人為保固一年。</div></div>
-        <div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">回簽 / 付款資訊 <span>▾</span></div><div class="fold-b">回傳即同意條款；有效 7 天；台灣企銀三峽分行 148-12-005937。</div></div>
+        <div id="custFolds"></div>
         <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
         <div class="sign-box">（客戶於此手寫簽名）</div>
         <button class="btn primary" style="width:100%;margin-top:10px;justify-content:center">✓ 確認並簽署報價單</button>
@@ -522,7 +519,20 @@ const NOTICE_TEMPLATES = {
   '電梯':`1. 施工需配合大樓管委會核准之停梯時段。\n2. 轎廂面板轉角、按鈕面板邊緣做細部收邊。\n3. 施工期間電梯暫停使用，請事先公告住戶。`,
   '汽車隔熱紙':`1. 施工後 3–7 天內請勿升降車窗，避免膜料位移。\n2. 短期內玻璃可能出現水霧或小水泡，屬正常乾燥現象。\n3. 清潔請用軟布與中性清潔劑，勿用含氨清潔劑。`,
 };
-function syncCustNotice(){ const e=document.getElementById('cust_notice'); if(e) e.textContent=document.getElementById('noticeArea').value; }
+// 客戶檢視條款：渲染真實條款文字＋區塊附圖（與客戶連結 quote-sign 一致；不再用寫死假字）
+function syncCustNotice(){
+  const box=document.getElementById('custFolds'); if(!box) return;
+  const folds=[
+    ['報價單優惠條款', document.getElementById('termA')?.value, 'terms'],
+    ['貼膜前須知',     document.getElementById('noticeArea')?.value, 'notice'],
+    ['驗收須知',       document.getElementById('termC')?.value, 'inspection'],
+    ['回簽 / 付款資訊', document.getElementById('termD')?.value, 'acceptance'],
+  ];
+  box.innerHTML=folds.filter(f=>(f[1]&&f[1].trim())||((blockImages[f[2]]||[]).length)).map(f=>{
+    const imgs=(blockImages[f[2]]||[]).map(u=>`<img src="${esc(u)}" style="max-width:100%;max-height:340px;border:1px solid var(--gray-200);border-radius:8px;display:block;margin-top:8px">`).join('');
+    return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(f[0])} <span>▾</span></div><div class="fold-b">${noteHtml(f[1]||'')}${imgs}</div></div>`;
+  }).join('');
+}
 
 // v2 編輯狀態（資料由 API 載入）
 let items = [];
