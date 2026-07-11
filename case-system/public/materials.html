@@ -1088,17 +1088,30 @@ function populateCatalogSeries(brand) {
   const cat  = MAT_BRAND_TO_CAT[brand];
   const rows = (cat && CATALOG_ROWS) ? CATALOG_ROWS.filter(r => r.brand === cat) : [];
   if (!rows.length) { wrap.style.display = 'none'; sel.innerHTML = '<option value="">—</option>'; return; }
-  sel.innerHTML = '<option value="">—（不自動帶入）</option>' + rows.map(r => {
+  let opts = '<option value="">—（不自動帶入）</option>';
+  rows.forEach(r => {
     const i = CATALOG_ROWS.indexOf(r);
     const cost = (r.cost_per_m != null) ? ` / 成本$${Math.round(r.cost_per_m)}` : '';
-    const label = `${r.asia_code}${r.color ? ' · ' + r.color : ''}　售價$${r.sell_price}${cost}${r.fireproof ? ' · ' + r.fireproof : ''}`;
-    return `<option value="${i}">${label}</option>`;
-  }).join('');
+    const priceInfo = `售價$${r.sell_price}${cost}${r.fireproof ? ' · ' + r.fireproof : ''}`;
+    // 一列可能含多個系列（如「LE、ME、MES」或「BR,MO,PBR」）→ 拆成單一系列各自一個選項
+    const codes = String(r.asia_code || '').split(/[、,，]/).map(s => s.trim()).filter(s => s && s !== '…' && s !== '...');
+    if (!codes.length) codes.push(String(r.asia_code || '(未命名)'));
+    codes.forEach(code => {
+      const label = `${code}${r.color ? ' · ' + r.color : ''}　${priceInfo}`;
+      opts += `<option value="${i}" data-series="${code}">${label}</option>`;
+    });
+  });
+  sel.innerHTML = opts;
   wrap.style.display = '';
 }
 function autofillFromCatalog() {
-  const r = CATALOG_ROWS && CATALOG_ROWS[Number(document.getElementById('m_catalog_series').value)];
+  const selEl = document.getElementById('m_catalog_series');
+  const r = CATALOG_ROWS && CATALOG_ROWS[Number(selEl.value)];
   if (!r) return;
+  // 選了系列 → 型號欄若為空，帶入「系列-」方便接編號（如 MES- → MES-367）
+  const series = (selEl.options[selEl.selectedIndex] || {}).dataset ? selEl.options[selEl.selectedIndex].dataset.series : '';
+  const modelEl = document.getElementById('m_model');
+  if (series && modelEl && !modelEl.value.trim()) modelEl.value = series + '-';
   document.getElementById('m_unit_price').value = r.sell_price || '';
   if (r.cost_per_m != null && currentUser?.can_see_cost) document.getElementById('m_unit_cost').value = Math.round(r.cost_per_m);
   if (r.fireproof === '防焰') document.getElementById('m_fire_retardant').value = '1';
