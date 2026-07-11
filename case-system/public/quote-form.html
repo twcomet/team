@@ -77,6 +77,10 @@
   .name-inp:hover{border-color:var(--gray-200)} .name-inp:focus{border-color:var(--primary);background:#fff}
   .delrow{color:var(--gray-300);cursor:pointer;font-weight:700;background:none;border:none;font-size:16px;padding:2px 6px;border-radius:6px}
   .delrow:hover{color:#dc2626;background:#fee2e2}
+  .copyrow{color:var(--gray-500);cursor:pointer;font-weight:700;background:none;border:1px solid var(--gray-300);font-size:12px;padding:4px 10px;border-radius:7px;white-space:nowrap;flex-shrink:0}
+  .copyrow:hover{color:var(--primary-dark);border-color:var(--primary);background:var(--primary-bg)}
+  .ic-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+  .cgrp-work{background:#faf8ff;border-color:#e5d5fb} .cgrp-work .cgrp-t{color:var(--violet)}
 
   .prow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:12px}
   .cfields{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
@@ -145,7 +149,7 @@
   .q-orig{text-decoration:line-through;color:var(--gray-400);font-weight:500}
   .q-promo{font-weight:800;color:var(--primary-dark);font-size:14px}
 
-  .modebar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 14px;padding:9px 13px;background:var(--violet-bg);border:1px solid #e5d5fb;border-radius:10px;font-size:13px;font-weight:800;color:var(--violet)}
+  .modebar{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 14px;padding:8px 13px;background:var(--violet-bg);border:1px solid #e5d5fb;border-radius:10px;font-size:13px;font-weight:800;color:var(--violet)}
   .seg{display:inline-flex;border:1px solid var(--gray-300);border-radius:8px;overflow:hidden;background:#fff}
   .seg span{padding:6px 13px;font-size:12.5px;font-weight:700;color:var(--gray-500);cursor:pointer}
   .seg span.on{background:var(--primary);color:#fff}
@@ -439,8 +443,8 @@
           <table class="quote-tbl">
             <thead><tr>
               <th style="width:34px">項目</th><th>貼覆項目</th>
-              <th style="width:98px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
-              <th id="cth_unit" style="width:74px">連工帶料單價</th><th style="width:42px">數量</th>
+              <th style="width:124px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
+              <th id="cth_unit" style="width:88px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
               <th style="width:108px;white-space:nowrap">連工帶料總價</th><th style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
@@ -846,7 +850,7 @@ function renderRows(){
       return `<div class="icard" style="background:var(--gray-50);border-style:dashed">
         <div class="ic-top"><div class="ic-idx" style="background:var(--gray-400)">T</div>
           <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="標題/文字（例：期貨運費、加價選項、區段標題）"></div>
-          <button class="delrow" onclick="delRow(${i})">✕</button></div>
+          <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
         <div class="ic-body">
           <div class="ic-foot" style="margin-top:2px;border-top:none;padding-top:0">
             <div class="note-head"><label>說明文字（會顯示在客戶版・行首加「!」＝紅字重點）</label></div>
@@ -886,11 +890,6 @@ function renderRows(){
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
             : `<select class="film-sel" onchange="setFilmModel(${i},this.value)">${modelOpts}</select>`}
           ${stockChip}
-          ${isMat?'':`<select class="film-sel" title="連工帶料施工類型（依定價表帶入單價/才）" onchange="setWorkType(${i},this.value)">
-            <option value="plane" ${(!it.workType||it.workType==='plane')?'selected':''}>🧱 牆面</option>
-            <option value="cabinet" ${it.workType==='cabinet'?'selected':''}>🗄️ 系統櫃</option>
-            <option value="shape" ${it.workType==='shape'?'selected':''}>🌀 造型</option>
-          </select>${(()=>{const r=matchCatalog(it.brand,it.model);return r?`<span class="stk now" title="定價表連工帶料每才價">連工帶料 ${Math.round(r[it.workType||'plane']||0)}/才</span>`:'';})()}`}
         </div>
       </div>`;
     const spec=`<div class="cfields">
@@ -926,8 +925,25 @@ function renderRows(){
         <div class="fld"><label>連工帶料單價</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:104px"></div>
         <span class="eq">×</span>
         <div class="fld"><label>數量</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:56px"></div>`;
-    // ① 工務回報（只填米數）  ② 客服內部估價（帶入米數＋膜寬 → 才數；座計價再算建議報價）
+    // ① 施工類型＋連工帶料/才（定價表）  ② 工務回報（只填米數）  ③ 客服內部估價
+    const _cat = matchCatalog(it.brand,it.model);
+    const _caiPer = _cat ? Math.round(_cat[it.workType||'plane']||0) : null;
+    const workTypeGrp=`
+      <div class="cgrp cgrp-work" style="flex:0 0 auto">
+        <div class="cgrp-t">🧱 施工類型 · 連工帶料/才</div>
+        <div class="cfields" style="align-items:flex-end">
+          <div class="fld"><label>施工類型</label>
+            <select class="film-sel" title="依定價表帶入連工帶料每才價" onchange="setWorkType(${i},this.value)" style="min-width:112px">
+              <option value="plane" ${(!it.workType||it.workType==='plane')?'selected':''}>🧱 牆面</option>
+              <option value="cabinet" ${it.workType==='cabinet'?'selected':''}>🗄️ 系統櫃</option>
+              <option value="shape" ${it.workType==='shape'?'selected':''}>🌀 造型</option>
+            </select>
+          </div>
+          <div class="fld"><label>連工帶料/才</label><div class="chip-ro" style="min-width:74px" title="${_cat?'來自定價表':'選定價表內的品牌／型號才會帶入'}">${_caiPer!=null?_caiPer:'—'}</div></div>
+        </div>
+      </div>`;
     const worksZone=`
+      ${workTypeGrp}
       <div class="cgrp cgrp-svy" style="flex:0 0 auto">
         <div class="cgrp-t">🔧 工務回報（工務只填米數）</div>
         <div class="cfields"><div class="fld hl-svy"><label>回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:100px"></div><span style="align-self:flex-end;padding-bottom:8px;font-size:12px;color:#1f8a5b;font-weight:700">米</span></div>
@@ -952,7 +968,7 @@ function renderRows(){
       <div class="modebar">🧮 計價方式（先選）：${modeToggle}<span style="font-size:11px;font-weight:600;color:var(--violet);opacity:.75;margin-left:4px">選好後下方欄位依模式顯示</span></div>
       <div class="ic-top"><div class="ic-idx">${i+1}</div>
         <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="${isMat?'材料品項名稱':'貼覆項目名稱'}"></div>
-        <button class="delrow" onclick="delRow(${i})">✕</button></div>
+        <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
       <div class="ic-body">
         <div class="prow">${spec}</div>
         ${isMat?'':`<div class="prow">${worksZone}</div>`}
@@ -1043,6 +1059,8 @@ function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'
 function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));recalc();}
 function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);recalc();}
 function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items.splice(i,1);renderRows();recalc();}
+function copyRow(i){const src=items[i]; if(!src) return; const copy=JSON.parse(JSON.stringify(src)); delete copy.id; if(Array.isArray(src.areaPhotos)) copy.areaPhotos=src.areaPhotos.slice(); items.splice(i+1,0,copy); markDirty(); renderRows(); recalc();
+  const cards=document.querySelectorAll('#rows .icard'); const el=cards[i+1]; if(el) el.scrollIntoView({behavior:'smooth',block:'center'});}
 function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}

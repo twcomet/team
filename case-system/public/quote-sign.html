@@ -280,8 +280,8 @@ function render(q){
         <div class="qwrap"><table class="qtbl">
           <thead><tr>
             <th style="width:34px">項目</th><th>貼覆項目</th>
-            <th style="width:96px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
-            ${hideChi?'':'<th style="width:74px">連工帶料單價</th>'}<th style="width:42px">數量</th>
+            <th style="width:124px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
+            ${hideChi?'':'<th style="width:88px;white-space:normal">連工帶料單價</th>'}<th style="width:42px">數量</th>
             <th style="width:108px;white-space:nowrap">連工帶料總價</th><th style="width:120px;white-space:nowrap">連工帶料優惠價</th>
           </tr></thead>
           <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi)).join('')}</tbody>
