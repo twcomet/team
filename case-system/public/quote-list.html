@@ -363,21 +363,37 @@ function onClientSearch() {
     const q = document.getElementById('nc_client_search').value.trim();
     const drop = document.getElementById('clientAcDrop');
     if (!q) { drop.style.display = 'none'; return; }
-    const r = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`);
-    if (!r.ok) return;
-    const list = await r.json();
-    if (!list.length) {
-      drop.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:13px">找不到符合客戶</div>';
-      drop.style.display = 'block';
-      return;
-    }
-    drop.innerHTML = list.map(c => `
-      <div class="client-ac-item" onclick="selectClient(${c.id},${JSON.stringify(esc(c.name))})">
+    let list = [];
+    try { const r = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`); if (r.ok) list = await r.json(); } catch (e) {}
+    let html = list.map(c => `
+      <div class="client-ac-item" data-id="${c.id}" data-name="${esc(c.name)}">
         <div>${esc(c.name)}</div>
         <div class="sub">${esc(c.phone||'')}${c.contact ? ' · ' + esc(c.contact) : ''}</div>
       </div>`).join('');
+    if (!list.length) html = '<div style="padding:9px 14px;color:#9ca3af;font-size:13px">找不到符合的客戶</div>';
+    // 一律提供「建立新客戶」
+    html += `<div class="client-ac-item" data-create="1" style="color:#be185d;font-weight:600;background:#fdf2f8">＋ 建立新客戶「${esc(q)}」</div>`;
+    drop.innerHTML = html;
     drop.style.display = 'block';
   }, 250);
+}
+// 事件委派：修掉原本 onclick 內嵌 JSON 會提前關閉屬性、導致無法點選的 bug
+document.getElementById('clientAcDrop').addEventListener('click', function (e) {
+  const item = e.target.closest('.client-ac-item');
+  if (!item) return;
+  if (item.dataset.create) { createClientInline(document.getElementById('nc_client_search').value.trim()); return; }
+  if (item.dataset.id) selectClient(Number(item.dataset.id), item.dataset.name);
+});
+async function createClientInline(name) {
+  if (!name) return;
+  const drop = document.getElementById('clientAcDrop');
+  drop.innerHTML = '<div style="padding:9px 14px;color:#9ca3af;font-size:13px">建立客戶中…</div>';
+  try {
+    const r = await fetch('/api/clients', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    const d = await r.json().catch(()=>({}));
+    if (r.ok && d.id) { selectClient(d.id, name); }
+    else { alert('建立客戶失敗：' + (d.error || '請稍後再試')); drop.style.display = 'none'; }
+  } catch (e) { alert('建立客戶失敗，請稍後再試'); drop.style.display = 'none'; }
 }
 
 function selectClient(id, name) {
