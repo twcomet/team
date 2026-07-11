@@ -3614,6 +3614,25 @@ try {
     console.log(`✅ 3M 已對齊官方元/才 ${n} 筆`);
   }
 } catch (e) { console.warn('[3m official]', e.message); }
+
+// 韓版 RF/NF（真布紋）毛利 70%→60%：價格×0.75（成本不變）。不防焰 2400、防焰 2700（電商含稅）
+try {
+  const MIG = 'kr_rf_margin60_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const nice = raw => { const f10 = Math.floor(raw/10)*10; return (raw - f10 <= 1) ? f10 : Math.ceil(raw/5)*5; };
+    const rf = db.prepare(`SELECT id, fireproof, width FROM est_film_catalog WHERE brand='bodaq' AND region='韓國' AND asia_code='RF/NF'`).all();
+    const upd = db.prepare(`UPDATE est_film_catalog SET ecom_price=?, per_m=?, cost_per_m=?, plane=?, cabinet=?, shape=? WHERE id=?`);
+    for (const r of rf) {
+      const ecom = r.fireproof === '防焰' ? 2700 : 2400;
+      const perm = Math.round(ecom / 1.05);
+      const cost = Math.round(perm * 0.4);              // 60% 毛利回推成本
+      const cai = nice(ecom / ((r.width || 122) * 100 / 900));
+      upd.run(ecom, perm, cost, cai + 70, cai + 100, cai + 125, r.id);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log(`✅ 韓版 RF/NF 已下修為 60% 毛利（${rf.length} 筆）`);
+  }
+} catch (e) { console.warn('[kr rf margin60]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
