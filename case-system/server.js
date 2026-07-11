@@ -296,6 +296,8 @@ app.get('/survey-worker', (req, res) => {
 // 所以在這裡依報價單帶入標題：繪新報價單-客戶名稱-案名
 app.get('/quote/:token', (req, res) => {
   const file = path.join(__dirname, 'public', 'quote-sign.html');
+  // 不要讓 LINE/瀏覽器快取這頁 HTML，避免客戶拿到舊版前端（下載邏輯等）
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   try {
     const _db = require('./db');
     const row = _db.prepare(`

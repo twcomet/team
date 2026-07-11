@@ -232,8 +232,10 @@ async function savePdf(){
   const ua = navigator.userAgent || '';
   const useDirect = /Line|FBAN|FBAV|Instagram|MicroMessenger|iPhone|iPad|iPod|Android/i.test(ua);
   if(useDirect){
-    const w = window.open(url, '_blank');   // 新分頁載入 PDF（附件），系統會提供另存/分享
-    if(!w) location.href = url;
+    // 用原生 <a> 點擊開啟 PDF（比 window.open 在 WebView 更可靠）
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
     return;
   }
   const btn = document.querySelector('.btn-print');
