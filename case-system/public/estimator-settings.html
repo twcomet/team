@@ -116,6 +116,10 @@
 
     <div id="panel-films" class="es-panel active">
       <div class="es-card"><h3>裝潢膜每才單價（依繪新真實牌價）</h3><p class="es-hint">牆面/系統櫃/造型＝三種連工帶料每才單價。材料價格＝每米牌價。<span style="color:#b45309">成本/米為機密欄，只有老闆看得到、可填寫。</span></p>
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="es-btn es-btn-sm" onclick="recalcConnectWork()" style="background:#0e6b5e;color:#fff">🧮 依公式重算連工帶料</button>
+          <span class="es-hint" style="margin:0">公式：系統櫃＝牌價/才+100、牆面+70、造型+125（Bodaq／BENIF／PAROI，含韓版；3M 不動）。<span id="rcw-msg" style="color:#0e6b5e;font-weight:600"></span></span>
+        </div>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-films"></tr></thead><tbody id="tb-films"></tbody></table></div>
       </div>
       <div class="es-card"><h3>＋ 新增膜款</h3>
@@ -235,7 +239,7 @@ function renderFilms() {
   films.forEach(f => {
     const gkey = (f.brand||'') + '|' + (f.region||'');
     if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; }
-    h += `<tr data-id="${f.id}">
+    h += `<tr data-id="${f.id}" data-brand="${esc(f.brand||'')}">
       <td></td>
       <td><input data-k="asia_code" value="${esc(f.asia_code||'')}" style="width:130px;text-align:left" title="系列/型號碼"></td>
       <td><input data-k="color" value="${esc(f.color||'')}" style="width:96px;text-align:left"></td>
@@ -351,6 +355,28 @@ async function saveRow(kind, btn) {
   const span = tr.querySelector('.es-saved');
   if (r.ok) { span.textContent = '✓ 已存'; setTimeout(()=>span.textContent='', 1500); }
   else { span.textContent = '✗ ' + ((await r.json().catch(()=>({}))).error || '失敗'); span.style.color='#dc2626'; }
+}
+// 依公式重算連工帶料：系統櫃＝牌價/才+100、牆面+70、造型+125（僅 bodaq/benif/paroi）
+async function recalcConnectWork(){
+  if(!confirm('依公式重算連工帶料？\n系統櫃＝牌價/才+100、牆面+70、造型+125\n（Bodaq／BENIF／PAROI，含韓版；3M 不動）\n\n會覆蓋你目前手動填的牆面/系統櫃/造型數值。')) return;
+  const msg = document.getElementById('rcw-msg'); msg.textContent = '重算中…';
+  const rows = Array.from(document.querySelectorAll('#tb-films tr[data-brand]'))
+    .filter(tr => ['bodaq','benif','paroi'].includes(tr.dataset.brand));
+  let n = 0;
+  for(const tr of rows){
+    const w = tr.querySelector('[data-k="width"]').value, perm = tr.querySelector('[data-k="per_m"]').value;
+    const cai = Math.round(ecomOf(perm) / caiFactor(w));
+    if(!cai) continue;
+    tr.querySelector('[data-k="plane"]').value   = cai + 70;
+    tr.querySelector('[data-k="cabinet"]').value = cai + 100;
+    tr.querySelector('[data-k="shape"]').value   = cai + 125;
+    const body = {};
+    tr.querySelectorAll('[data-k]').forEach(inp => { body[inp.dataset.k] = inp.type==='checkbox' ? inp.checked : inp.value; });
+    const r = await fetch(`${API}/film-catalog/${tr.dataset.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if(r.ok) n++;
+  }
+  msg.textContent = `✓ 已重算並儲存 ${n} 筆`;
+  setTimeout(()=>{ msg.textContent=''; }, 4000);
 }
 async function saveLowmin() {
   const r = await fetch(`${API}/lowmin`, { method:'PUT', headers:{'Content-Type':'application/json'},
