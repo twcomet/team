@@ -556,7 +556,8 @@ const baseAmt=it=>it.mode==='cai'?caiCalcAmt(it):(it.unitEach||0)*(it.qty||0);
 const totOf=it=>it.total!=null?it.total:baseAmt(it);
 const discOf=it=>it.disc!=null?it.disc:80;
 const promoOf=it=>it.promo!=null?it.promo:Math.round(totOf(it)*discOf(it)/100);
-const matCostOf=it=>it.kind==='text'?0:Math.round((it.filmCostPerM||0)*(it.mode==='material'?(it.qty||0):(it.srvMeters||0)));
+// 回報米數為「每一座」→ 非材料販售的膜料成本＝每米成本 × 每座米數 × 數量(座數)
+const matCostOf=it=>it.kind==='text'?0:Math.round((it.filmCostPerM||0)*(it.mode==='material'?(it.qty||0):(it.srvMeters||0)*(it.qty||1)));
 const laborCostOf=it=>(it.kind==='text'||it.mode==='material')?0:Math.round((it.workers||0)*(it.days||0)*dayRate);
 const marginOf=it=>totOf(it)-matCostOf(it)-laborCostOf(it);
 const marginPct=it=>{const t=totOf(it);return t>0?Math.round(marginOf(it)/t*100):0;};
@@ -1051,7 +1052,8 @@ function setNum(i,k,v){const it=items[i];it[k]=+v||0;
   it.total=baseAmt(it);it.promo=null;
   _txt('estm'+i,(it.srvMeters||0));_txt('estc'+i,caiOf(it).toFixed(2));_txt('estp'+i,money(caiCalcAmt(it)));_txt('pcai'+i,caiOf(it).toFixed(2));
   _inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));_inp('din'+i,discOf(it));renderCost();recalc();}
-function applyEst(i){const it=items[i];const q=Math.max(1,(it.qty||1));it.unitEach=Math.round(caiCalcAmt(it)/q);it.total=null;it.promo=null;renderRows();recalc();}
+// 「套用建議報價為單價」：建議報價（才數×單價/才）是「每一座」的價，直接放入單價；總價=單價×數量
+function applyEst(i){const it=items[i];it.unitEach=caiCalcAmt(it);it.total=null;it.promo=null;renderRows();recalc();}
 function setCai(i,v){const it=items[i];it.cai=+v||0;it.total=baseAmt(it);it.promo=null;
   const val=caiOf(it).toFixed(2);['caiv'+i,'caiv2'+i].forEach(id=>{const e=document.getElementById(id);if(e&&e!==document.activeElement)e.value=val;});
   _txt('caic'+i,money(caiCalcAmt(it)));_inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));renderCost();recalc();}
