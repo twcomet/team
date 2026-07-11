@@ -121,9 +121,11 @@
       <div class="es-card"><h3>＋ 新增膜款</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
           <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option><option value="3m">3M</option></select></div>
-          <div><label style="font-size:11px;color:#6b7280">亞洲碼</label><br><input id="nf-asia" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">版本</label><br><select id="nf-region" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">亞洲/一般</option><option value="韓國">韓國</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">亞洲碼</label><br><input id="nf-asia" style="width:64px"></div>
           <div><label style="font-size:11px;color:#6b7280">韓國碼</label><br><input id="nf-kr" style="width:70px"></div>
-          <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:90px"></div>
+          <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:88px"></div>
+          <div><label style="font-size:11px;color:#6b7280">備註·對應</label><br><input id="nf-note" style="width:100px"></div>
           <div><label style="font-size:11px;color:#6b7280">防焰</label><br><select id="nf-fire" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">—</option><option value="防焰">防焰</option><option value="不防焰">不防焰</option></select></div>
           <div><label style="font-size:11px;color:#6b7280">寬cm</label><br><input id="nf-width" type="number" value="122" style="width:60px"></div>
           <div><label style="font-size:11px;color:#6b7280">長度米</label><br><input id="nf-len" type="number" value="50" style="width:60px"></div>
@@ -219,17 +221,19 @@ function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
   document.getElementById('th-films').innerHTML =
-    '<th></th><th>代碼(亞洲/韓國)</th><th>花色</th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
+    '<th></th><th>亞洲碼</th><th>韓國碼</th><th>花色</th><th>備註<span style="font-weight:400;color:#9ca3af">·對應</span></th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
     + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th></th>';
-  const colspan = owner ? 17 : 14;
-  let lastBrand = '', h = '';
+  const colspan = owner ? 19 : 16;
+  let lastGrp = '', h = '';
   DATA.filmCat.forEach(f => {
-    if (f.brand !== lastBrand) { lastBrand = f.brand; h += `<tr class="es-grp"><td colspan="${colspan}">${esc(BRAND[f.brand]||f.brand)}</td></tr>`; }
-    const code = f.kr_code ? `${esc(f.asia_code)} / ${esc(f.kr_code)}` : esc(f.asia_code);
+    const gkey = (f.brand||'') + '|' + (f.region||'');
+    if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; }
     h += `<tr data-id="${f.id}">
       <td></td>
-      <td style="white-space:normal;min-width:130px">${code}</td>
-      <td style="white-space:normal">${esc(f.color)}</td>
+      <td><input data-k="asia_code" value="${esc(f.asia_code||'')}" style="width:64px;text-align:left"></td>
+      <td><input data-k="kr_code" value="${esc(f.kr_code||'')}" style="width:88px;text-align:left"></td>
+      <td><input data-k="color" value="${esc(f.color||'')}" style="width:88px;text-align:left"></td>
+      <td><input data-k="model_note" value="${esc(f.model_note||'')}" placeholder="對應/備註" style="width:112px;text-align:left;color:#6b7280"></td>
       <td><select data-k="fireproof" style="width:auto">
         <option value=""${!f.fireproof?' selected':''}>—</option>
         <option value="防焰"${f.fireproof==='防焰'?' selected':''}>防焰</option>
@@ -258,9 +262,11 @@ async function delFilm(id){
 async function addFilm(){
   var body = {
     brand: document.getElementById('nf-brand').value,
+    region: document.getElementById('nf-region').value,
     asia_code: document.getElementById('nf-asia').value,
     kr_code: document.getElementById('nf-kr').value,
     color: document.getElementById('nf-color').value,
+    model_note: document.getElementById('nf-note').value,
     fireproof: document.getElementById('nf-fire').value,
     width: document.getElementById('nf-width').value,
     roll_len: document.getElementById('nf-len').value,
@@ -272,7 +278,7 @@ async function addFilm(){
   var ce = document.getElementById('nf-cost'); if(ce) body.cost_per_m = ce.value;
   if(!body.asia_code && !body.color){ alert('請至少填代碼或花色'); return; }
   var r = await fetch(`${API}/film-catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if(r.ok){ ['nf-asia','nf-kr','nf-color','nf-fire','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){document.getElementById(id).value='';}); load(); }
+  if(r.ok){ ['nf-asia','nf-kr','nf-color','nf-note','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('nf-fire').value=''; load(); }
   else alert('新增失敗');
 }
 function renderGlass() {
