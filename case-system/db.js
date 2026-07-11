@@ -3547,6 +3547,17 @@ try {
     console.log('✅ 連工帶料已依公式重算（牆+70/櫃+100/造型+125）');
   }
 } catch (e) { console.warn('[connect work formula]', e.message); }
+
+// 3M 連工帶料：比韓/PAROI 公式每才再 +20 → 牆面+90、系統櫃+120、造型+145
+try {
+  const MIG = 'connect_work_3m_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const CAI = `ROUND((CASE WHEN ecom_price>0 THEN ecom_price ELSE ROUND(per_m*1.05/50)*50 END)/(COALESCE(NULLIF(width,0),122)*100.0/900))`;
+    db.prepare(`UPDATE est_film_catalog SET plane=${CAI}+90, cabinet=${CAI}+120, shape=${CAI}+145 WHERE brand='3m' AND (per_m>0 OR ecom_price>0)`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 3M 連工帶料已重算（牆+90/櫃+120/造型+145）');
+  }
+} catch (e) { console.warn('[connect work 3m]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
