@@ -3536,6 +3536,17 @@ try {
     console.log('✅ 膜料代碼統一為單一系列欄（韓碼併入備註）');
   }
 } catch (e) { console.warn('[film code unify]', e.message); }
+
+// 連工帶料（元/才）依公式定義：系統櫃＝牌價/才+100、牆面＝牌價/才+70、造型＝牌價/才+125。牌價/才＝含稅牌價÷才數(寬×100/900)
+try {
+  const MIG = 'connect_work_formula_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const CAI = `ROUND((CASE WHEN ecom_price>0 THEN ecom_price ELSE per_m END)/(COALESCE(NULLIF(width,0),122)*100.0/900))`;
+    db.prepare(`UPDATE est_film_catalog SET plane=${CAI}+70, cabinet=${CAI}+100, shape=${CAI}+125 WHERE brand IN ('bodaq','benif','paroi') AND (per_m>0 OR ecom_price>0)`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 連工帶料已依公式重算（牆+70/櫃+100/造型+125）');
+  }
+} catch (e) { console.warn('[connect work formula]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
