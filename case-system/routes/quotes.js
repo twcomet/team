@@ -648,7 +648,7 @@ router.post('/sign/:token', (req, res) => {
   const { signature, marketing_consent } = req.body;
   if (!signature) return res.status(400).json({ error: '請提供簽名' });
 
-  const q = db.prepare(`SELECT id, case_id, status, engine, discount_value, marketing_total, tax_amount, tax_rate, final_total FROM quote_sheets WHERE share_token=?`).get(req.params.token);
+  const q = db.prepare(`SELECT id, case_id, status, engine, discount_value, marketing_total, tax_amount, tax_rate, final_total, created_by, party_json FROM quote_sheets WHERE share_token=?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
   // 已確認：冪等處理，重複送出（雙擊／網路重試）直接回成功，讓前端重繪成「已確認」畫面而非跳錯
   if (q.status === 'accepted') return res.json({ ok: true, already: true });
@@ -674,17 +674,26 @@ router.post('/sign/:token', (req, res) => {
   // 升級為 committed 保留
   try { syncReservations(q.id, 'committed'); } catch(e) { /* non-critical */ }
 
-  // 通知負責業務
+  // 通知「客戶已回簽」：站內通知 + LINE 推播 → 報價建立者(客服) + 案件負責業務
   try {
-    const caseInfo = db.prepare(`SELECT title, case_number, assigned_to FROM cases WHERE id=?`).get(q.case_id);
-    if (caseInfo?.assigned_to) {
-      const fmtAmt = finalAmt ? 'NT$' + Math.round(finalAmt).toLocaleString('zh-TW') : '';
-      db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'quote','cases',?,?)`)
-        .run(caseInfo.assigned_to,
-          '客戶已確認報價單',
-          `${caseInfo.title||caseInfo.case_number} ${fmtAmt}${consent?' (含行銷同意)':''}`,
-          q.case_id,
-          `/case-detail?id=${q.case_id}`);
+    const { pushMessage } = require('./webhook');
+    const info = db.prepare(`SELECT c.title, c.case_number, c.assigned_to, cl.name AS client_name
+                             FROM cases c LEFT JOIN clients cl ON cl.id=c.client_id WHERE c.id=?`).get(q.case_id);
+    let clientName = info?.client_name || '';
+    try { const p = JSON.parse(q.party_json || '{}') || {}; if (p.client_name) clientName = p.client_name; } catch(e) {}
+    const caseName = info?.title || info?.case_number || '報價單';
+    const fmtAmt = finalAmt ? 'NT$' + Math.round(finalAmt).toLocaleString('zh-TW') : '';
+    const body = `${caseName}${clientName ? '｜' + clientName : ''} ${fmtAmt}${consent ? '（含行銷同意）' : ''}`.trim();
+    const lineMsg = `✅ 客戶已回簽報價單\n案件：${caseName}\n客戶：${clientName || '—'}\n金額：${fmtAmt || '—'}${consent ? '\n（客戶同意行銷拍照）' : ''}`;
+    // 收件人：報價建立者 + 案件負責業務（去重、去空值）
+    const targets = [...new Set([q.created_by, info?.assigned_to].filter(Boolean))];
+    for (const uid of targets) {
+      try {
+        db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'quote','cases',?,?)`)
+          .run(uid, '✅ 客戶已回簽報價單', body, q.case_id, `/case-detail?id=${q.case_id}`);
+        const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(uid);
+        if (u?.line_user_id) pushMessage(u.line_user_id, lineMsg).catch(() => {});
+      } catch(e) { /* per-recipient non-critical */ }
     }
   } catch(e) { /* non-critical */ }
 
