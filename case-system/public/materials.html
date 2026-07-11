@@ -1090,14 +1090,15 @@ function populateCatalogSeries(brand) {
   if (!rows.length) { wrap.style.display = 'none'; sel.innerHTML = '<option value="">—</option>'; return; }
   let opts = '<option value="">—（不自動帶入）</option>';
   rows.forEach(r => {
+    if (!r.sell_price) return;                                   // 跳過無價的雜列
     const i = CATALOG_ROWS.indexOf(r);
-    const cost = (r.cost_per_m != null) ? ` / 成本$${Math.round(r.cost_per_m)}` : '';
-    const priceInfo = `售價$${r.sell_price}${cost}${r.fireproof ? ' · ' + r.fireproof : ''}`;
+    const regionTag = r.brand === 'bodaq' ? (r.region ? '（韓國）' : '（亞洲）') : '';
+    const priceInfo = `售價$${r.sell_price}${r.fireproof ? ' · ' + r.fireproof : ''}`;   // 不顯示成本
     // 一列可能含多個系列（如「LE、ME、MES」或「BR,MO,PBR」）→ 拆成單一系列各自一個選項
     const codes = String(r.asia_code || '').split(/[、,，]/).map(s => s.trim()).filter(s => s && s !== '…' && s !== '...');
-    if (!codes.length) codes.push(String(r.asia_code || '(未命名)'));
+    if (!codes.length) return;                                   // 沒有系列碼就跳過
     codes.forEach(code => {
-      const label = `${code}${r.color ? ' · ' + r.color : ''}　${priceInfo}`;
+      const label = `${code}${regionTag}${r.color ? ' · ' + r.color : ''}　${priceInfo}`;
       opts += `<option value="${i}" data-series="${code}">${label}</option>`;
     });
   });

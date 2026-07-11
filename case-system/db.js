@@ -3689,6 +3689,21 @@ try {
     console.log(`✅ 3M 同價位已併列（併掉 ${merged} 列、剩 ${Object.keys(groups).length} 列）`);
   }
 } catch (e) { console.warn('[3m merge same price]', e.message); }
+
+// PAROI 系列補齊（依 LINTEC 原廠報價表）：綜合層「…」補完整、並補漏掉的 CM/SP(3100)、JH(4500)
+try {
+  const MIG = 'paroi_full_series_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`UPDATE est_film_catalog SET asia_code=? WHERE brand='paroi' AND ecom_price=2550`)
+      .run('GA、GM、LE、ME、MES、PCO、PFM、PGA、PGM、PLE、PME、PMI、PRE、PSE、PSH、PST、PSU、PWH、PWO、PWY、ST、WH、WO、WY');
+    db.prepare(`UPDATE est_film_catalog SET asia_code=? WHERE brand='paroi' AND ecom_price=3100`)
+      .run('PGW、WSP、WHG、CM、SP');
+    db.prepare(`UPDATE est_film_catalog SET asia_code=? WHERE brand='paroi' AND ecom_price=4500`)
+      .run('JS、JH');
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ PAROI 系列已補齊（綜合層完整＋CM/SP/JH）');
+  }
+} catch (e) { console.warn('[paroi full series]', e.message); }
 try {
   const _cat = require('./lib/estimator-catalog');
   if (!db.prepare(`SELECT COUNT(*) n FROM est_film_catalog`).get().n) {
