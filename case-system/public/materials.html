@@ -160,6 +160,7 @@
       <button class="btn btn-primary btn-sm" onclick="openMatModal()">＋ 新增膜料型號</button>
       <button class="btn btn-sm" style="background:#0ea5e9;color:#fff;border:none" onclick="openImportModal()">📥 批次更新庫存</button>
       <button class="btn btn-ghost btn-sm" onclick="exportInventory()">📤 匯出（含捲號）</button>
+      <button id="expandAllBtn" class="btn btn-ghost btn-sm" onclick="toggleAllRolls()">📂 展開所有使用紀錄</button>
     </div>
     <div class="page-body">
       <!-- 膜料庫存（首要顯示，方便更新） -->
@@ -810,6 +811,22 @@ async function toggleRolls(matId) {
   } else {
     expandedRows.add(matId);
   }
+  applyFilters();
+}
+
+// 一鍵展開／收合目前顯示的所有膜料使用紀錄
+function toggleAllRolls() {
+  const ids = [...document.querySelectorAll('#matTbody .mat-row')].map(r => Number(r.id.replace('row-', ''))).filter(Boolean);
+  if (!ids.length) return;
+  const allOpen = ids.every(id => expandedRows.has(id));
+  if (allOpen) {
+    ids.forEach(id => expandedRows.delete(id));
+  } else {
+    if (ids.length > 80 && !confirm(`要一次展開 ${ids.length} 筆的使用紀錄嗎？資料較多時可能需要幾秒。`)) return;
+    ids.forEach(id => expandedRows.add(id));
+  }
+  const btn = document.getElementById('expandAllBtn');
+  if (btn) btn.textContent = allOpen ? '📂 展開所有使用紀錄' : '📁 收合所有使用紀錄';
   applyFilters();
 }
 
