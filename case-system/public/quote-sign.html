@@ -269,7 +269,7 @@ function render(q){
         <div class="section-title">甲乙方資訊</div>
         <div class="party">
           <div><b>${esc(q.org_name||'繪新國際有限公司')}（甲方）</b><div class="r">${q.org_tax_id?'統一編號 '+esc(q.org_tax_id)+'<br>':''}${q.org_phone?'聯絡電話 '+esc(q.org_phone)+'<br>':''}${q.org_address?'公司地址 '+esc(q.org_address)+'<br>':''}業務負責人 ${esc(q.creator_name||'—')}</div></div>
-          <div><b>${esc(q.client_name||'—')}（乙方）</b><div class="r">${q.client_phone?'聯絡電話 '+esc(q.client_phone)+'<br>':''}${q.location?'施工地點 '+esc(q.location):''}</div></div>
+          <div><b>${esc(q.client_name||'—')}（乙方）</b><div class="r">${q.client_tax_id?'統一編號 '+esc(q.client_tax_id)+'<br>':''}${q.client_phone?'聯絡電話 '+esc(q.client_phone)+'<br>':''}${q.location?'施工地點 '+esc(q.location):''}${q.site_note?'<br><span style="color:var(--gray-400);font-size:11px;line-height:1.6">案場備註：'+esc(q.site_note)+'</span>':''}</div></div>
         </div>
         <div style="font-size:12px;color:var(--gray-500);margin-top:8px">報價日期 ${(q.created_at||'').slice(0,10)}${weekdayZh(q.created_at)}${q.title?'　·　專案 '+esc(q.title):''}</div>
       </div>
