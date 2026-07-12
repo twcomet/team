@@ -578,6 +578,8 @@ async function boot(){
   }catch(e){}
   if(!id){ document.querySelector('.wrap').innerHTML='<p style="padding:40px;color:var(--gray-500)">缺少報價單 id。請從報價列表或案件開啟。</p>'; return; }
   try{ const mr=await fetch('/api/auth/me'); if(mr.ok){ const me=await mr.json(); canSeeFullCost=!!(me.can_see_cost&&me.can_see_labor_cost); } }catch(e){}
+  // 日薪成本只有老闆/會計知道 → 非成本可見者隱藏「🔒 內部成本/毛利」表(含日薪、材料/人工成本、毛利)
+  if(!canSeeFullCost){ const cb=document.getElementById('costBox'); if(cb) cb.style.display='none'; }
   quoteId=id; await loadQuote();
 }
 // ── 膜料庫存勾稽 ────────────────────────────────────────────────

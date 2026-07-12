@@ -367,6 +367,10 @@ router.put('/:quoteId', requireAuth, (req, res) => {
            v2.notes_notice ?? null, v2.notes_inspection ?? null,
            v2.client_marketing_consent ? 1 : 0,
            req.params.quoteId);
+    // 日薪(人工成本率)只有成本可見者(老闆/會計)能設定/覆寫；非成本者存檔不動它
+    if (req.session.user?.can_see_cost && v2.day_rate != null && v2.day_rate !== '') {
+      db.prepare(`UPDATE quote_sheets SET day_rate=? WHERE id=?`).run(Number(v2.day_rate), req.params.quoteId);
+    }
   }
 
   // 各條款區塊附圖（如(d)回簽/付款的銀行帳號圖）
