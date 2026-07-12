@@ -941,14 +941,15 @@ function renderRows(){
       : (_mat ? `<span class="stk now" title="架位：${esc(_mat.location||'—')}｜成本：${_mat.unit_cost!=null?_mat.unit_cost+'元/米':'—'}">現貨 ${fmtStock(_mat.stock_meters)} 米</span>`
               : `<span class="stk non">選品牌／型號</span>`);
     const brandOpts=`<option value="">品牌…</option>`+brandList().map(b=>`<option ${b===it.brand?'selected':''}>${esc(b)}</option>`).join('')+`<option value="__custom" ${custom?'selected':''}>其他（期貨/自訂）</option>`;
-    const modelOpts=`<option value="">型號…</option>`+(it.brand?modelList(it.brand).map(m=>`<option ${m.model===it.model?'selected':''}>${esc(m.model)}</option>`).join(''):'');
+    // 選項用膜料 id 當 value（同型號會有多支獨立膜料，須用 id 區分），標籤帶編號/貨架/庫存米數
+    const modelOpts=`<option value="">型號…</option>`+(it.brand?modelList(it.brand).map(m=>`<option value="${m.id}" ${String(m.id)===String(it.materialId)?'selected':''}>${esc(m.model)}${m.sku?' ['+esc(m.sku)+']':''}｜架${esc(m.location||'—')}｜${fmtStock(m.stock_meters)}米</option>`).join(''):'');
     const filmField=`<div class="fld" style="flex:1;min-width:${isMat?300:280}px">
         <label>${isMat?'單買膜料（品牌／型號・勾稽庫存）':'膜料資訊（品牌／型號・勾稽庫存）'}</label>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <select class="film-sel" onchange="setFilmBrand(${i},this.value)">${brandOpts}</select>
           ${custom
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
-            : `<select class="film-sel" onchange="setFilmModel(${i},this.value)">${modelOpts}</select>`}
+            : `<select class="film-sel" onchange="setFilmModelById(${i},this.value)">${modelOpts}</select>`}
           ${stockChip}
         </div>
       </div>`;
@@ -1100,7 +1101,10 @@ function setCost(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
 function setWork(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
 function setDayRate(v){dayRate=+v||0;recalc();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText'||k==='note')renderCust(document.getElementById('mktChk')?.checked);}
-function setMode(i,m){items[i].mode=m;renderRows();recalc();}
+function setMode(i,m){const it=items[i];it.mode=m;
+  // 切到材料販售且已選膜料 → 自動帶該料售價(電商牌價/米)
+  if(m==='material'&&it.materialId){const mat=findMatById(it.materialId);if(mat&&mat.unit_price){it.unitEach=mat.unit_price;it.total=null;it.promo=null;}}
+  renderRows();recalc();}
 // ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
 function setFilmBrand(i,v){
   const it=items[i];
@@ -1119,6 +1123,22 @@ function setFilmModel(i,v){
     it.film=[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ');
   }else{ it.materialId=null; }
   fillCaiFromCatalog(i);   // 依施工類型自動帶入定價表連工帶料每才價
+  markDirty(); renderRows(); recalc();
+}
+// 依膜料 id 選取（同型號多支獨立膜料靠 id 區分，才不會每次都選到第一支）
+function setFilmModelById(i,id){
+  const it=items[i]; it.isFutures=false;
+  const mat=findMatById(id);
+  if(mat){
+    it.materialId=mat.id; it.model=mat.model;
+    it.width=mat.width_cm||it.width||122;
+    if(mat.image_url) it.filmImg=mat.image_url;
+    if(mat.unit_cost!=null) it.filmCostPerM=mat.unit_cost;
+    it.film=[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ');
+    // 材料販售：選好型號自動帶入這支料的售價(電商牌價/米)為每米單價
+    if(it.mode==='material' && mat.unit_price){ it.unitEach=mat.unit_price; it.total=null; it.promo=null; }
+  }else{ it.materialId=null; it.model=''; }
+  fillCaiFromCatalog(i);
   markDirty(); renderRows(); recalc();
 }
 // ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
