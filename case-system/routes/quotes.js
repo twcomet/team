@@ -113,10 +113,13 @@ function applyV2Item(quoteId, itemId, b) {
   const promo = (b.promo_price != null && b.promo_price !== '') ? Number(b.promo_price) : Math.round(subtotal * disc / 100);
   const suggested = (b.suggested_price != null && b.suggested_price !== '') ? Number(b.suggested_price) : Math.round(cai * unitCai);
   const areaPhotos = b.area_photos == null ? '[]' : (typeof b.area_photos === 'string' ? b.area_photos : JSON.stringify(b.area_photos));
+  // 工務回報的人力：人數 × 工作天數（內部成本/毛利/成本地板用；不對客戶顯示）
+  const workers  = (b.workers   != null && b.workers   !== '') ? Number(b.workers)   : null;
+  const workDays = (b.work_days != null && b.work_days !== '') ? Number(b.work_days) : null;
   db.prepare(`UPDATE quote_sheet_items SET
-      calc_mode=?, unit_price_cai=?, item_disc=?, promo_price=?, area_photos=?, row_kind=?, suggested_price=?, area_sqchi=?, subtotal=?
+      calc_mode=?, unit_price_cai=?, item_disc=?, promo_price=?, area_photos=?, row_kind=?, suggested_price=?, area_sqchi=?, subtotal=?, workers=?, work_days=?
       WHERE id=? AND quote_id=?`)
-    .run(mode, unitCai, disc, promo, areaPhotos, kind, suggested, cai, subtotal, itemId, quoteId);
+    .run(mode, unitCai, disc, promo, areaPhotos, kind, suggested, cai, subtotal, workers, workDays, itemId, quoteId);
   db.prepare(`UPDATE quote_sheets SET engine='v2' WHERE id=?`).run(quoteId);
 }
 
@@ -632,7 +635,7 @@ router.get('/sign/:token', (req, res) => {
   //    業主版（client_type='owner'）另外隱藏才數/尺寸/單價，只給項目與金額。
   //    ⚠️ 日後新增任何成本類欄位，務必加進 COST_FIELDS。
   const hideChi = (q.client_type === 'owner');
-  const COST_FIELDS = ['cost_per_meter', 'material_cost', 'estimated_meters', 'material_id'];
+  const COST_FIELDS = ['cost_per_meter', 'material_cost', 'estimated_meters', 'material_id', 'workers', 'work_days', 'suggested_price'];
   const CHI_FIELDS  = ['area_sqchi', 'length_cm', 'width_cm', 'height_cm', 'film_width_cm', 'unit_price', 'surface_type'];
   items = items.map(it => {
     const o = { ...it };

@@ -1000,8 +1000,14 @@ function renderRows(){
     const worksZone=`
       ${workTypeGrp}
       <div class="cgrp cgrp-svy" style="flex:0 0 auto">
-        <div class="cgrp-t">🔧 工務回報（工務只填米數）</div>
-        <div class="cfields"><div class="fld hl-svy"><label>回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:100px"></div><span style="align-self:flex-end;padding-bottom:8px;font-size:12px;color:#1f8a5b;font-weight:700">米</span></div>
+        <div class="cgrp-t">🔧 工務回報（米數＋人力）</div>
+        <div class="cfields">
+          <div class="fld hl-svy"><label>回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:88px"></div><span style="align-self:flex-end;padding-bottom:8px;font-size:12px;color:#1f8a5b;font-weight:700">米</span>
+          <div class="fld hl-svy"><label>人數</label><input type="number" min="0" value="${it.workers||0}" oninput="setWork(${i},'workers',this.value)" style="width:56px"></div>
+          <span class="eq" style="align-self:flex-end;padding-bottom:6px">×</span>
+          <div class="fld hl-svy"><label>工作天數</label><input type="number" min="0" step="0.5" value="${it.days||0}" oninput="setWork(${i},'days',this.value)" style="width:64px"></div>
+        </div>
+        <div style="margin-top:4px;font-size:11px;color:#1f8a5b">填人數×天數即自動算人工成本、跳毛利／成本地板，老闆不必逐筆進成本表填</div>
       </div>
       <div class="cgrp cgrp-est" style="flex:1;min-width:${isCai?'240':'340'}px">
         <div class="cgrp-t">🧮 客服內部估價（參考・不對外）</div>
@@ -1082,8 +1088,10 @@ function renderCost(){
   // 有設行銷優惠才顯示行銷三欄（表頭/每列/合計一起切換，避免欄位錯位）
   document.querySelectorAll('#costBox .mktcol').forEach(el=>{ el.style.display=hasMkt?'':'none'; });
 }
-function setCost(i,k,v){items[i][k]=+v||0;renderCost();}
-function setDayRate(v){dayRate=+v||0;renderCost();}
+function setCost(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
+// 工務回報的人數/工作天數 → 直接算人工成本/毛利/成本地板；不動客戶報價，故不重繪品項卡(不失焦)
+function setWork(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
+function setDayRate(v){dayRate=+v||0;recalc();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText'||k==='note')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){items[i].mode=m;renderRows();recalc();}
 // ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
