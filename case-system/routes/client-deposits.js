@@ -119,6 +119,11 @@ router.patch('/:id/status', requireAuth, (req, res) => {
   const dep = db.prepare(`SELECT * FROM client_deposits WHERE id = ?`).get(req.params.id);
   if (!dep) return res.status(404).json({ error: 'not found' });
 
+  // 折抵(applied)前必須先經會計核銷；與案件頁 /for-case 的可折抵條件一致，杜絕未核銷預收款被折抵
+  if (status === 'applied' && !dep.accounting_verified) {
+    return res.status(400).json({ error: '此預收款尚未經會計核銷，不可折抵' });
+  }
+
   const appliedAt = status === 'applied' ? new Date().toISOString().slice(0, 10) : null;
   const caseId    = status === 'applied' ? (applied_case_id || null) : null;
 
