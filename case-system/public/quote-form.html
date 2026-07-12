@@ -349,6 +349,7 @@
           <tr class="hl"><td>各項優惠價合計（未稅）</td><td class="num" id="b_promo">—</td></tr>
           <tr id="row_mkt"><td>🎁 行銷優惠折抵（同意拍照才享）</td><td class="num" id="b_mkt">—</td></tr>
           <tr id="row_after" class="hl"><td>行銷優惠後（未稅）</td><td class="num" id="b_after">—</td></tr>
+          <tr id="row_floor" style="display:none"><td><span class="lock">🔒 內部</span> 成本地板價（材料＋人工）</td><td class="num" id="b_floor">—</td></tr>
           <tr><td>稅金 5%</td><td class="num" id="b_tax">—</td></tr>
           <tr><td>開發票含稅總額</td><td class="num" id="b_wtax">—</td></tr>
           <tr id="row_deduct"><td>🧾 折抵合計（預付金＋彈性）</td><td class="num" id="b_deduct">—</td></tr>
@@ -547,6 +548,7 @@ let PREPAY_DEPOSITS=[];          // 由 client_deposits 撈本客戶未使用預
 let prepayPick=new Set();
 let deducts=[];                  // 彈性折抵
 let quoteId=null, caseId=null, clientId=null, shareToken=null, curQuote=null, deletedIds=[], noticeList=[], loaded=false;
+let canSeeFullCost=false;   // 材料+人工成本皆可見(老闆/會計) → 才啟用成本地板價
 const money=n=>'NT$ '+Math.round(n).toLocaleString();
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rawCai=it=>(it.srvMeters||0)*100*(it.width||0)/900;
@@ -575,6 +577,7 @@ async function boot(){
     }
   }catch(e){}
   if(!id){ document.querySelector('.wrap').innerHTML='<p style="padding:40px;color:var(--gray-500)">缺少報價單 id。請從報價列表或案件開啟。</p>'; return; }
+  try{ const mr=await fetch('/api/auth/me'); if(mr.ok){ const me=await mr.json(); canSeeFullCost=!!(me.can_see_cost&&me.can_see_labor_cost); } }catch(e){}
   quoteId=id; await loadQuote();
 }
 // ── 膜料庫存勾稽 ────────────────────────────────────────────────
@@ -804,7 +807,13 @@ async function loadPrepay(){
 function setStatus(t){ const e=document.getElementById('saveStatus'); if(e) e.textContent=t; }
 function markDirty(){ if(loaded) setStatus('● 尚未儲存'); }
 async function saveAll(){
-  if(!quoteId) return; setStatus('儲存中…');
+  if(!quoteId) return;
+  // 成本地板價：售價低於成本時擋一道，需確認才放行(擋手誤，刻意降價可覆寫)
+  if(window._cust?.belowCost){
+    const c=window._cust;
+    if(!confirm('⚠️ 售價低於成本\n\n稅前折後售價 '+money(c.afterMkt)+'，低於成本地板價 '+money(c.costFloor)+'（差 '+money(c.costFloor-c.afterMkt)+'）。\n\n這通常不該發生。確定仍要以此價格儲存嗎？')) { setStatus('● 尚未儲存（已取消）'); return; }
+  }
+  setStatus('儲存中…');
   try{
     const body={
       valid_days:curQuote?.valid_days??30, payment_terms:curQuote?.payment_terms??null,
@@ -846,6 +855,10 @@ async function syncPrepay(){
 function openCust(){ toggleCust(true); }
 async function openPreview(){
   if(!shareToken){ alert('請先儲存'); return; }
+  if(window._cust?.belowCost){
+    const c=window._cust;
+    if(!confirm('⚠️ 此報價售價低於成本地板價 '+money(c.costFloor)+'（差 '+money(c.costFloor-c.afterMkt)+'）。\n\n仍要開啟/送出給客戶嗎？')) return;
+  }
   // 還是草稿 → 客戶連結會顯示「草稿」。詢問是否標記為「已發送（待確認）」再開啟。
   if(quoteId && curQuote && curQuote.status==='draft'){
     if(confirm('這張報價單目前是「草稿」，客戶開連結會看到「草稿」狀態。\n\n要現在標記為「已發送（待確認）」再開啟嗎？\n（按「取消」則以草稿狀態預覽，不會通知/建立保留）')){
@@ -1141,15 +1154,26 @@ function recalc(){
   const flex=document.getElementById('flexChk').checked?deducts.reduce((s,d)=>s+(+d.amount||0),0):0;
   const deductTotal=prepay+flex;
   const tax=Math.round(afterMkt*0.05), wtax=afterMkt+tax, pay=wtax-deductTotal;
+  // 成本地板價：稅前折後售價(afterMkt) 不得低於總成本(材料+人工)。僅成本可見者(老闆/會計)啟用
+  const costFloor=items.reduce((s,it)=>s+matCostOf(it)+laborCostOf(it),0);
+  const belowCost=canSeeFullCost && costFloor>0 && afterMkt<costFloor;
   const g=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   g('b_sub',money(sub));g('b_promo',money(promo));
   document.getElementById('row_mkt').style.display=mv>0?'table-row':'none';
   document.getElementById('row_after').style.display=mv>0?'table-row':'none';
+  const rowFloor=document.getElementById('row_floor');
+  if(rowFloor){
+    rowFloor.style.display=canSeeFullCost?'table-row':'none';
+    const bf=document.getElementById('b_floor');
+    if(bf){ bf.textContent=money(costFloor)+(belowCost?('　⚠️ 低於成本 '+money(costFloor-afterMkt)):''); }
+    rowFloor.style.color=belowCost?'#dc2626':'var(--gray-500)';
+    rowFloor.style.fontWeight=belowCost?'800':'';
+  }
   g('b_mkt','− '+money(mktCut));g('b_after',money(afterMkt));g('b_tax',money(tax));g('b_wtax',money(wtax));
   document.getElementById('row_deduct').style.display=deductTotal>0?'table-row':'none';
   g('b_deduct','− '+money(deductTotal));g('b_pay',money(pay));
   const promoPay=Math.round(promo*1.05)-deductTotal;
-  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal};
+  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal,costFloor,belowCost};
   renderCust(document.getElementById('mktChk')?.checked);
   try{ renderCost(); }catch(e){}   // 毛利依優惠價/行銷優惠價，折扣或行銷變動時同步更新
   markDirty();
