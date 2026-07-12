@@ -318,6 +318,7 @@ router.delete('/templates/:tid', requireAuth, (req, res) => {
 
 // 取得單一報價單（含品項），用於版本切換
 router.get('/:quoteId', requireAuth, (req, res) => {
+  const me = req.session.user;
   const q = db.prepare(`
     SELECT qs.*, u.name as creator_name,
            c.case_number, c.title as case_title, c.location as case_location, c.client_id,
@@ -329,6 +330,10 @@ router.get('/:quoteId', requireAuth, (req, res) => {
     WHERE qs.id=?`).get(req.params.quoteId);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
   q.items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
+  // 🔒 成本機密：非成本可見者連 JSON 都不含成本欄（材料成本率／日薪率）；
+  //    但工務要填的 人數/工作天數/回報米數 一律保留（那是操作數字，非成本）
+  if (!me.can_see_cost)       q.items.forEach(it => { it.cost_per_meter = null; it.material_cost = null; });
+  if (!me.can_see_labor_cost) q.day_rate = null;
   // 合併本報價單的客戶/案場覆寫（per-quote 快照優先於 clients/cases 母檔）
   try { const p = JSON.parse(q.party_json || '{}') || {};
     if (p.client_name)    q.client_name    = p.client_name;
@@ -367,8 +372,8 @@ router.put('/:quoteId', requireAuth, (req, res) => {
            v2.notes_notice ?? null, v2.notes_inspection ?? null,
            v2.client_marketing_consent ? 1 : 0,
            req.params.quoteId);
-    // 日薪(人工成本率)只有成本可見者(老闆/會計)能設定/覆寫；非成本者存檔不動它
-    if (req.session.user?.can_see_cost && v2.day_rate != null && v2.day_rate !== '') {
+    // 日薪(人工成本率)只有「人工成本可見者」能設定/覆寫；與 GET 端的 day_rate 遮蔽一致，非此權限者存檔不動它
+    if (req.session.user?.can_see_labor_cost && v2.day_rate != null && v2.day_rate !== '') {
       db.prepare(`UPDATE quote_sheets SET day_rate=? WHERE id=?`).run(Number(v2.day_rate), req.params.quoteId);
     }
   }
@@ -523,6 +528,15 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
     finalNoticeText = tmpl?.content || null;
   }
 
+  // 🔒 非成本可見者存檔時，成本欄一律沿用資料庫舊值（他們的 JSON 本來就沒成本，
+  //    避免把 cost_per_meter/material_cost 洗成 0/null）
+  let costPerMeterToSave = cost_per_meter || null, materialCostToSave = material_cost || null;
+  if (!req.session.user?.can_see_cost) {
+    const cur = db.prepare(`SELECT cost_per_meter, material_cost FROM quote_sheet_items WHERE id=? AND quote_id=?`).get(req.params.itemId, quoteId);
+    costPerMeterToSave = cur ? cur.cost_per_meter : null;
+    materialCostToSave = cur ? cur.material_cost : null;
+  }
+
   db.prepare(`UPDATE quote_sheet_items SET
     item_type=?,location=?,description=?,
     film_brand=?,film_model=?,film_spec=?,film_width_cm=?,surface_type=?,
@@ -541,7 +555,7 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
          unit||'才', quantity||1, unit_price||0, subtotal,
          notice_template_id||null, finalNoticeText??null,
          material_photo_url||null, area_photo_url||null, notes||null,
-         cost_per_meter||null, estimated_meters||null, material_cost||null,
+         costPerMeterToSave, estimated_meters||null, materialCostToSave,
          display_mode||'detail', simple_price||null, material_id||null,
          req.params.itemId, quoteId);
 
