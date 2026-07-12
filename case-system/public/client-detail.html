@@ -273,7 +273,12 @@
         <div class="form-group"><label>電話</label><input type="tel" id="em_phone"></div>
         <div class="form-group"><label>Email</label><input type="email" id="em_email"></div>
       </div>
-      <div class="form-group"><label>地址</label><input type="text" id="em_address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>聯絡人電話</label><input type="tel" id="em_contact_phone" placeholder="市話／公司線"></div>
+        <div class="form-group"><label>手機</label><input type="tel" id="em_contact_mobile" placeholder="0912-345-678"></div>
+      </div>
+      <div class="form-group"><label>公司地址</label><input type="text" id="em_company_address" placeholder="公司／送貨地址（與發票地址可不同）"></div>
+      <div class="form-group"><label>發票地址</label><input type="text" id="em_address"></div>
       <div class="form-row">
         <div class="form-group"><label>來源</label>
           <select id="em_source">
@@ -402,7 +407,8 @@ function renderHeader() {
   if (c.contact_person) metas.push(`👤 ${c.contact_person}`);
   if (c.phone)          metas.push(`📞 ${c.phone}`);
   if (c.email)          metas.push(`✉️ ${c.email}`);
-  if (c.address)        metas.push(`📍 ${c.address}`);
+  if (c.contact_mobile) metas.push(`📱 ${c.contact_mobile}`);
+  if (c.company_address || c.address) metas.push(`📍 ${c.company_address || c.address}`);
   document.getElementById('hdrMeta').innerHTML = metas.map(m => `<span>${m}</span>`).join('');
 
   if (c.tags && c.tags.length) {
@@ -574,7 +580,10 @@ function renderProfileTab() {
       <div><div class="info-label">聯絡人</div><div class="info-val">${g(c.contact_person)}</div></div>
       <div><div class="info-label">電話</div><div class="info-val">${g(c.phone)}</div></div>
       <div><div class="info-label">Email</div><div class="info-val">${g(c.email)}</div></div>
-      <div style="grid-column:span 2"><div class="info-label">地址</div><div class="info-val">${g(c.address)}</div></div>
+      <div><div class="info-label">聯絡人電話</div><div class="info-val">${g(c.contact_phone)}</div></div>
+      <div><div class="info-label">手機</div><div class="info-val">${g(c.contact_mobile)}</div></div>
+      <div style="grid-column:span 2"><div class="info-label">公司地址</div><div class="info-val">${g(c.company_address)}</div></div>
+      <div style="grid-column:span 2"><div class="info-label">發票地址</div><div class="info-val">${g(c.address)}</div></div>
       <div><div class="info-label">來源</div><div class="info-val">${SOURCE_LABELS[c.source] || g(c.source)}</div></div>
       <div><div class="info-label">客戶等級</div><div class="info-val">${c.client_level ? c.client_level + ' 級' : '—'}</div></div>
       <div><div class="info-label">統一編號</div><div class="info-val">${g(c.tax_id)}</div></div>
@@ -595,6 +604,9 @@ function openEditModal() {
   document.getElementById('em_contact_person').value = c.contact_person || '';
   document.getElementById('em_phone').value          = c.phone || '';
   document.getElementById('em_email').value          = c.email || '';
+  document.getElementById('em_contact_phone').value  = c.contact_phone || '';
+  document.getElementById('em_contact_mobile').value = c.contact_mobile || '';
+  document.getElementById('em_company_address').value= c.company_address || '';
   document.getElementById('em_address').value        = c.address || '';
   document.getElementById('em_source').value         = c.source || '';
   document.getElementById('em_client_level').value   = c.client_level || '';
@@ -610,6 +622,8 @@ async function saveEdit() {
   const g = id => document.getElementById(id).value || null;
   const body = {
     name, contact_person: g('em_contact_person'), phone: g('em_phone'),
+    contact_phone: g('em_contact_phone'), contact_mobile: g('em_contact_mobile'),
+    company_address: g('em_company_address'),
     email: g('em_email'), address: g('em_address'), source: g('em_source'),
     client_level: g('em_client_level'), tax_id: g('em_tax_id'),
     invoice_title: g('em_invoice_title'), notes: g('em_notes'),

@@ -12,11 +12,12 @@ router.get('/search', requireAuth, (req, res) => {
   if (!q) return res.json([]);
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');
   const like = `%${q}%`;
-  const where = [`(c.name LIKE ? OR c.phone LIKE ? OR c.contact LIKE ?)`];
-  const params = [like, like, like, ...orgPs];
+  // 修正：clients 無 contact 欄位(正確欄名為 contact_person)，舊查詢引用 c.contact 會 SQL 報錯→搜尋全壞
+  const where = [`(c.name LIKE ? OR c.phone LIKE ? OR c.contact_person LIKE ? OR c.contact_mobile LIKE ? OR c.contact_phone LIKE ?)`];
+  const params = [like, like, like, like, like, ...orgPs];
   if (orgSql) where.push(orgSql);
   const rows = db.prepare(`
-    SELECT c.id, c.name, c.phone, c.contact FROM clients c
+    SELECT c.id, c.name, c.phone, c.contact_person AS contact FROM clients c
     WHERE ${where.join(' AND ')}
     ORDER BY c.name ASC LIMIT 20
   `).all(...params);
@@ -106,19 +107,21 @@ router.post('/', requireAuth, (req, res) => {
   const { name, phone, email, address, source, discount, notes,
           tax_id, contact_person, capital, einvoice_code,
           client_level, payment_terms, discount_terms, referrer, line_group_name, category_id,
-          invoice_email, invoice_needs, invoice_title } = req.body;
+          invoice_email, invoice_needs, invoice_title,
+          contact_phone, contact_mobile, company_address } = req.body;
   if (!name) return res.status(400).json({ error: '請填入客戶姓名' });
   const result = db.prepare(`
     INSERT INTO clients (org_id, name, phone, email, address, source, discount, notes, created_by,
       tax_id, contact_person, capital, einvoice_code, client_level, payment_terms, discount_terms, referrer, line_group_name, category_id,
-      invoice_email, invoice_needs, invoice_title)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      invoice_email, invoice_needs, invoice_title, contact_phone, contact_mobile, company_address)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(me.org_id, name, phone ?? null, email ?? null, address ?? null,
          source ?? null, discount ?? 1.0, notes ?? null, me.id,
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
          line_group_name ?? null, category_id ?? null,
-         invoice_email ?? null, invoice_needs ?? null, invoice_title ?? null);
+         invoice_email ?? null, invoice_needs ?? null, invoice_title ?? null,
+         contact_phone ?? null, contact_mobile ?? null, company_address ?? null);
   const uid = req.session.user.id;
   db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
     .run(uid, 'create', 'clients', result.lastInsertRowid, `新增客戶：${name}`);
@@ -129,16 +132,18 @@ router.put('/:id', requireAuth, (req, res) => {
   const { name, phone, email, address, source, discount, notes,
           tax_id, contact_person, capital, einvoice_code,
           client_level, payment_terms, discount_terms, referrer, line_group_name, category_id,
-          invoice_email, invoice_needs, invoice_title } = req.body;
+          invoice_email, invoice_needs, invoice_title,
+          contact_phone, contact_mobile, company_address } = req.body;
   db.prepare(`UPDATE clients SET name=?, phone=?, email=?, address=?, source=?, discount=?, notes=?,
     tax_id=?, contact_person=?, capital=?, einvoice_code=?, client_level=?, payment_terms=?, discount_terms=?, referrer=?, line_group_name=?, category_id=?,
-    invoice_email=?, invoice_needs=?, invoice_title=?
+    invoice_email=?, invoice_needs=?, invoice_title=?, contact_phone=?, contact_mobile=?, company_address=?
     WHERE id=?`)
     .run(name, phone ?? null, email ?? null, address ?? null, source ?? null, discount ?? 1.0, notes ?? null,
          tax_id ?? null, contact_person ?? null, capital ?? null, einvoice_code ?? null,
          client_level ?? null, payment_terms ?? null, discount_terms ?? null, referrer ?? null,
          line_group_name ?? null, category_id ?? null,
          invoice_email ?? null, invoice_needs ?? null, invoice_title ?? null,
+         contact_phone ?? null, contact_mobile ?? null, company_address ?? null,
          req.params.id);
   db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
     .run(req.session.user.id, 'update', 'clients', req.params.id, `更新客戶：${name}`);

@@ -282,6 +282,11 @@
         <div class="form-group"><label>Email</label><input type="email" id="cm_email"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>聯絡人電話</label><input type="tel" id="cm_contact_phone" placeholder="市話／公司線"></div>
+        <div class="form-group"><label>手機</label><input type="tel" id="cm_contact_mobile" placeholder="0912-345-678"></div>
+      </div>
+      <div class="form-group"><label>公司地址</label><input type="text" id="cm_company_address" placeholder="公司／送貨地址（與發票地址可不同）"></div>
+      <div class="form-row">
         <div class="form-group"><label>客戶分類</label>
           <select id="cm_category_id" onchange="onCategoryChange()">
             <option value="">不指定</option>
@@ -635,7 +640,7 @@ function render() {
             ${c.contact_person ? `👤 ${escHtml(c.contact_person)}　` : ''}${c.client_level ? `[${c.client_level}級]　` : ''}
             ${c.phone ? `📞 ${c.phone}` : ''}
             ${c.email ? `　✉️ ${c.email}` : ''}
-            ${c.address ? `　📍 ${escHtml(c.address)}` : ''}
+            ${(c.company_address || c.address) ? `　📍 ${escHtml(c.company_address || c.address)}` : ''}
             ${c.tags && c.tags.length ? '<br>' + c.tags.map(t=>`<span class="client-tag" style="background:${t.color}">${escHtml(t.name)}</span>`).join(' ') : ''}
             ${c.created_by_name ? `<br><span style="font-size:11px;color:#9ca3af">建立人：${escHtml(c.created_by_name)}</span>` : ''}
           </div>
@@ -878,6 +883,9 @@ function openClientModal(id) {
     document.getElementById('cm_invoice_title').value   = c.invoice_title || '';
     document.getElementById('cm_contact_person').value  = c.contact_person || '';
     document.getElementById('cm_phone').value           = c.phone || '';
+    document.getElementById('cm_contact_phone').value   = c.contact_phone || '';
+    document.getElementById('cm_contact_mobile').value  = c.contact_mobile || '';
+    document.getElementById('cm_company_address').value = c.company_address || '';
     document.getElementById('cm_email').value           = c.email || '';
     document.getElementById('cm_tax_id').value          = c.tax_id || '';
     document.getElementById('cm_einvoice_code').value   = c.einvoice_code || '';
@@ -897,7 +905,7 @@ function openClientModal(id) {
     document.getElementById('cm_line_group_name').value  = c.line_group_name || '';
     document.getElementById('cm_notes').value            = c.notes || '';
   } else {
-    ['cm_name','cm_invoice_title','cm_contact_person','cm_phone','cm_email','cm_tax_id','cm_einvoice_code',
+    ['cm_name','cm_invoice_title','cm_contact_person','cm_phone','cm_contact_phone','cm_contact_mobile','cm_company_address','cm_email','cm_tax_id','cm_einvoice_code',
      'cm_address','cm_invoice_email','cm_payment_terms','cm_discount_terms','cm_capital','cm_referrer','cm_line_group_name','cm_notes']
       .forEach(id => document.getElementById(id).value = '');
     document.querySelector('input[name="cm_invoice_needs"][value=""]').checked = true;
@@ -940,6 +948,9 @@ async function saveClient() {
     name,
     contact_person:  g('cm_contact_person'),
     phone:           g('cm_phone'),
+    contact_phone:   g('cm_contact_phone'),
+    contact_mobile:  g('cm_contact_mobile'),
+    company_address: g('cm_company_address'),
     email:           g('cm_email'),
     tax_id:          g('cm_tax_id'),
     einvoice_code:   g('cm_einvoice_code'),
@@ -1005,7 +1016,7 @@ document.getElementById('cm_ocr_btn').addEventListener('click', async () => {
     fill('cm_contact_person', data.contact_person || data.name);
     fill('cm_phone',          data.phone);
     fill('cm_email',          data.email);
-    fill('cm_address',        data.address);
+    fill('cm_company_address', data.address);   // 名片上的地址＝公司地址
     fill('cm_tax_id',         data.tax_id);
 
     status.textContent = '✅ 辨識完成，請確認並補齊資料';

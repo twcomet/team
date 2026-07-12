@@ -275,6 +275,9 @@ _addCol('clients',    'invoice_email',     'TEXT');
 _addCol('clients',    'invoice_needs',     'TEXT');
 _addCol('clients',    'invoice_title',     'TEXT');  // 公司抬頭（發票用，可與客戶名稱不同）
 _addCol('clients',    'updated_at',        'DATETIME');
+_addCol('clients',    'contact_phone',     'TEXT');  // 聯絡人電話（市話/公司線）
+_addCol('clients',    'contact_mobile',    'TEXT');  // 聯絡人手機
+_addCol('clients',    'company_address',   'TEXT');  // 公司地址/送貨地址（與發票地址可不同）
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
