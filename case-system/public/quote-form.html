@@ -267,6 +267,7 @@
   .fold{border:1px solid var(--gray-200);border-radius:11px;margin-top:10px;overflow:hidden}
   .fold-h{padding:12px 14px;font-weight:700;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;background:var(--gray-50)}
   .fold-b{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .25s;font-size:12px;color:var(--gray-600);line-height:1.85;white-space:pre-line} .fold.open .fold-b{max-height:6000px;padding:12px 14px}
+  .fold-cols{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap} .fold-cols .fold-text{flex:1 1 240px;min-width:0;white-space:pre-line} .fold-cols .fold-imgs{flex:0 0 auto}
   .sign-box{border:2px dashed var(--gray-300);border-radius:11px;height:96px;display:grid;place-items:center;color:var(--gray-400);margin-top:8px}
 
   /* import modal */
@@ -550,8 +551,9 @@ function syncCustNotice(){
   // 內容空白或等同「無」且無附圖 → 整塊隱藏（與客戶版一致）
   const isBlank=t=>{const s=String(t||'').trim().replace(/[。.\s、,，-－—\/]/g,'');return !s||['無','無內容','沒有','NA','NULL','None','none'].includes(s);};
   box.innerHTML=folds.filter(f=>!isBlank(f[1])||((blockImages[f[2]]||[]).length)).map(f=>{
-    const imgs=(blockImages[f[2]]||[]).map(u=>`<img src="${esc(u)}" style="max-width:100%;max-height:340px;border:1px solid var(--gray-200);border-radius:8px;display:block;margin-top:8px">`).join('');
-    return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(f[0])} <span>▾</span></div><div class="fold-b">${noteHtml(f[1]||'')}${imgs}</div></div>`;
+    const imgs=(blockImages[f[2]]||[]).map(u=>`<img src="${esc(u)}" style="max-width:250px;max-height:340px;border:1px solid var(--gray-200);border-radius:8px;display:block">`).join('');
+    const body=imgs?`<div class="fold-cols"><div class="fold-text">${noteHtml(f[1]||'')}</div><div class="fold-imgs">${imgs}</div></div>`:noteHtml(f[1]||'');
+    return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(f[0])} <span>▾</span></div><div class="fold-b">${body}</div></div>`;
   }).join('');
 }
 

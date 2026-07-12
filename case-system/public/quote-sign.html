@@ -104,6 +104,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .fold-b{padding:0 15px;max-height:0;overflow:hidden;transition:max-height .25s;font-size:12.5px;color:var(--gray-700);line-height:1.85;white-space:pre-line}
 .fold-b .em{color:#d81f1f;font-weight:700}
 .fold-b img.clause-img{display:block;max-width:220px;width:100%;margin:8px 0 4px auto;border:1px solid #eee;border-radius:8px;cursor:zoom-in}
+/* 有附圖時：文字左、圖右並排，版面較緊湊 */
+.fold-cols{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.fold-cols .fold-text{flex:1 1 260px;min-width:0;white-space:pre-line}
+.fold-cols .fold-imgs{flex:0 0 auto;display:flex;flex-direction:column;gap:8px}
+.fold-cols .fold-imgs img.clause-img{margin:0;max-width:250px}
 .fold.open .fold-b{max-height:1200px;padding:12px 15px}
 
 /* 簽名 */
@@ -436,7 +441,9 @@ function foldsHtml(q){
   return `<div class="section"><div class="section-title">條款與須知</div>
     ${blocks.map(b=>{
       const imgHtml=imgsOf(b[2]).map(u=>`<img class="clause-img" src="${esc(u)}" onclick="event.stopPropagation();openLb('${esc(u)}')" alt="點擊放大">`).join('');
-      return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${noteHtml(b[1])}${imgHtml}</div></div>`;
+      // 有附圖 → 文字左、圖右並排；沒圖 → 純文字
+      const body=imgHtml?`<div class="fold-cols"><div class="fold-text">${noteHtml(b[1])}</div><div class="fold-imgs">${imgHtml}</div></div>`:noteHtml(b[1]);
+      return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(b[0])} <span>▾</span></div><div class="fold-b">${body}</div></div>`;
     }).join('')}</div>`;
 }
 
