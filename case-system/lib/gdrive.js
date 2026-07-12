@@ -29,14 +29,22 @@ function authUrl(state) {
   return 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
 }
 
+const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function _tokenReq(params) {
-  const r = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error('Google token 失敗：' + (j.error_description || j.error || r.status));
+  // 遇端點節流(429)或暫時性 5xx 自動退避重試；invalid_grant 等永久錯誤直接拋出不重試
+  let j = {};
+  for (let i = 0; i < 5; i++) {
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(params),
+    });
+    j = await r.json().catch(() => ({}));
+    if (r.ok) return j;
+    const transient = r.status === 429 || r.status >= 500 || j.error === 'rate_limit_exceeded';
+    if (!transient || i === 4) throw new Error('Google token 失敗：' + (j.error_description || j.error || r.status));
+    await _sleep(Math.min(1000 * 2 ** i, 15000)); // 1s,2s,4s,8s,15s
+  }
   return j;
 }
 
@@ -47,18 +55,27 @@ async function exchangeCode(code) {
     redirect_uri: REDIRECT_URI, grant_type: 'authorization_code',
   });
   if (j.refresh_token) setS('gdrive_refresh_token', j.refresh_token);
+  _clearTokenCache();   // 重新授權（可能換帳號）→ 丟棄舊 access token 快取
   return j;
 }
 
+// 快取 access token：Google 效期約 1 小時。批次回填數百筆時，若每筆都打 OAuth
+// token 端點換發，會觸發端點節流導致整批失敗——效期內重用同一個 token 即可根治。
+let _tok = { value: null, exp: 0, rt: null };
 async function accessToken() {
   const rt = getS('gdrive_refresh_token');
   if (!rt) throw new Error('尚未連接 Google 雲端');
+  // refresh token 沒變且 access token 未過期 → 直接重用
+  if (_tok.value && _tok.rt === rt && Date.now() < _tok.exp) return _tok.value;
   const j = await _tokenReq({
     client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
     refresh_token: rt, grant_type: 'refresh_token',
   });
+  const ttlMs = (Number(j.expires_in) > 0 ? Number(j.expires_in) : 3600) * 1000;
+  _tok = { value: j.access_token, exp: Date.now() + ttlMs - 5 * 60 * 1000, rt }; // 提前 5 分鐘換發，留安全邊際
   return j.access_token;
 }
+function _clearTokenCache() { _tok = { value: null, exp: 0, rt: null }; }
 
 async function _createFolder(name, parentId, token) {
   const meta = { name, mimeType: 'application/vnd.google-apps.folder' };
@@ -248,6 +265,7 @@ function safeEnsureSurveyFolder(caseId) {
 function disconnect() {
   setS('gdrive_refresh_token', null);
   db.prepare("DELETE FROM settings WHERE key='gdrive_refresh_token'").run();
+  _clearTokenCache();
 }
 
 module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken };
