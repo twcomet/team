@@ -80,6 +80,14 @@
   .copyrow{color:var(--gray-500);cursor:pointer;font-weight:700;background:none;border:1px solid var(--gray-300);font-size:12px;padding:4px 10px;border-radius:7px;white-space:nowrap;flex-shrink:0}
   .copyrow:hover{color:var(--primary-dark);border-color:var(--primary);background:var(--primary-bg)}
   .ic-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+  /* 品項排序：上下箭頭 + 可改順位數字 */
+  .ic-idxwrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;margin-top:1px}
+  .ic-mv{width:26px;height:14px;line-height:1;border:none;background:var(--gray-100);color:var(--gray-500);border-radius:4px;cursor:pointer;font-size:9px;padding:0}
+  .ic-mv:hover{background:var(--gray-200);color:var(--space-900)}
+  .ic-mv:disabled{opacity:.3;cursor:default}
+  .ic-idx-inp{width:30px;height:24px;border-radius:50%;background:var(--space-900);color:#fff;font-size:12px;font-weight:700;text-align:center;border:none;padding:0;-moz-appearance:textfield}
+  .ic-idx-inp::-webkit-inner-spin-button,.ic-idx-inp::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .ic-idx-inp.txt{background:var(--gray-400)}
   .cgrp-work{background:#faf8ff;border-color:#e5d5fb} .cgrp-work .cgrp-t{color:var(--violet)}
 
   .prow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:12px}
@@ -909,7 +917,7 @@ function renderRows(){
   document.getElementById('rows').innerHTML = items.map((it,i)=>{
     if(it.kind==='text'){
       return `<div class="icard" style="background:var(--gray-50);border-style:dashed">
-        <div class="ic-top"><div class="ic-idx" style="background:var(--gray-400)">T</div>
+        <div class="ic-top">${idxCtrl(i,true)}
           <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="標題/文字（例：期貨運費、加價選項、區段標題）"></div>
           <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
         <div class="ic-body">
@@ -1039,7 +1047,7 @@ function renderRows(){
       </div>`;
     return `<div class="icard">
       <div class="modebar">🧮 計價方式（先選）：${modeToggle}<span style="font-size:11px;font-weight:600;color:var(--violet);opacity:.75;margin-left:4px">選好後下方欄位依模式顯示</span></div>
-      <div class="ic-top"><div class="ic-idx">${i+1}</div>
+      <div class="ic-top">${idxCtrl(i,false)}
         <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="${isMat?'材料品項名稱':'貼覆項目名稱'}"></div>
         <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
       <div class="ic-body">
@@ -1187,6 +1195,14 @@ function setCai(i,v){const it=items[i];it.cai=+v||0;it.total=baseAmt(it);it.prom
 function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));renderCost();recalc();}
 function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));recalc();}
 function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);recalc();}
+// 排序控制：▲ 上移 / 可改順位數字 / ▼ 下移（純前端調 items 順序，存檔時送 reorder 持久化）
+function idxCtrl(i,isText){const n=items.length;return `<div class="ic-idxwrap">
+    <button class="ic-mv" onclick="moveRow(${i},-1)" title="上移"${i===0?' disabled':''}>▲</button>
+    <input class="ic-idx-inp${isText?' txt':''}" type="number" min="1" max="${n}" value="${i+1}" onchange="setRowPos(${i},this.value)" onclick="event.stopPropagation()" title="改數字→跳到該順位">
+    <button class="ic-mv" onclick="moveRow(${i},1)" title="下移"${i===n-1?' disabled':''}>▼</button>
+  </div>`;}
+function moveRow(i,dir){const j=i+dir; if(j<0||j>=items.length)return; const t=items[i];items[i]=items[j];items[j]=t; markDirty(); renderRows(); recalc();}
+function setRowPos(i,val){let p=(Math.round(+val)||1); p=Math.max(1,Math.min(items.length,p))-1; if(p===i){renderRows();return;} const [it]=items.splice(i,1); items.splice(p,0,it); markDirty(); renderRows(); recalc();}
 function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items.splice(i,1);renderRows();recalc();}
 function copyRow(i){const src=items[i]; if(!src) return; const copy=JSON.parse(JSON.stringify(src)); delete copy.id; if(Array.isArray(src.areaPhotos)) copy.areaPhotos=src.areaPhotos.slice(); items.splice(i+1,0,copy); markDirty(); renderRows(); recalc();
   const cards=document.querySelectorAll('#rows .icard'); const el=cards[i+1]; if(el) el.scrollIntoView({behavior:'smooth',block:'center'});}
