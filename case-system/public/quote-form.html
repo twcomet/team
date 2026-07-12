@@ -313,7 +313,8 @@
     <div class="toolbar">
       <button class="btn imp sm" onclick="openImp('est')">📥 從估價單帶入</button>
       <button class="btn imp sm" onclick="openImp('svy')">📥 從場勘單帶入</button>
-      <button class="btn primary sm" onclick="addRow()">＋ 新增品項</button>
+      <button class="btn primary sm" onclick="addRow()">＋ 新增連工帶料</button>
+      <button class="btn sm" onclick="addMaterialRow()">＋ 新增膜料販售</button>
       <button class="btn sm" onclick="addTextRow()">＋ 自由文字列</button>
       <button class="btn sm" onclick="openTplModal()">📋 導入範本</button>
       <button class="btn sm" onclick="saveTemplate()">💾 存為範本</button>
@@ -1190,6 +1191,8 @@ function delRow(i){const it=items[i]; if(it&&it.id)deletedIds.push(it.id); items
 function copyRow(i){const src=items[i]; if(!src) return; const copy=JSON.parse(JSON.stringify(src)); delete copy.id; if(Array.isArray(src.areaPhotos)) copy.areaPhotos=src.areaPhotos.slice(); items.splice(i+1,0,copy); markDirty(); renderRows(); recalc();
   const cards=document.querySelectorAll('#rows .icard'); const el=cards[i+1]; if(el) el.scrollIntoView({behavior:'smooth',block:'center'});}
 function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
+// 膜料販售：直接建 material 模式品項（每米單價×米數；選好型號會自動帶售價、客戶版不顯示示意圖/現場照）
+function addMaterialRow(){items.push({name:'膜料販售',mode:'material',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:1000,qty:10,unitCai:180,srvMeters:0,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:0,days:0,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}
 function tgl(h){const bl=h.closest('.block');const t=bl.querySelector('textarea');const show=t.style.display==='none';t.style.display=show?'block':'none';const im=bl.querySelector('.block-imgs');if(im)im.style.display=(show&&im.children.length>0)?'flex':'none';}

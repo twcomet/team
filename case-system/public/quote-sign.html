@@ -165,6 +165,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
   .section-title{break-after:avoid;page-break-after:avoid}
   .section{padding:10px 20px}
   .fold{margin-bottom:7px}
+  .fold-b{padding:8px 15px 13px!important}                 /* 條款內文底部留白，避免跨頁時文字貼著頁緣 */
+  .body{padding-bottom:6mm}                                 /* 內容不要頂到頁尾 */
+  .footer{margin-top:14px;padding:12px 16px 0;border-top:1px solid var(--gray-100);break-inside:avoid}  /* 頁尾與內文分開，不黏在一起 */
   .header{padding:16px 22px 14px}
   .header-mark{height:22px}
   .clause-img{max-width:200px!important}
@@ -294,7 +297,15 @@ function render(q){
   const stateMap = { draft:{dot:'#d1d5db',text:'草稿',c:'#6b7280'}, sent:{dot:'#d6336c',text:'待確認',c:'#a41f52'}, accepted:{dot:'#10b981',text:'已確認接受',c:'#065f46'}, rejected:{dot:'#ef4444',text:'已拒絕',c:'#991b1b'} };
   const st = stateMap[q.status]||stateMap.sent;
 
-  const colspan = hideChi ? 6 : 6; // 貼覆項目起算的合併欄(自由文字列用)
+  // 空欄整欄隱藏：沒有任何品項有膜料示意圖／現場照，就不顯示該欄（材料販售自然沒這兩欄）
+  const _nt = items.filter(it=>it.row_kind!=='text');
+  const showFilmImg = _nt.some(it=>it.material_photo_url);
+  const showSitePhoto = _nt.some(it=>{ let a=[]; try{a=JSON.parse(it.area_photos||'[]')||[];}catch(e){} return !!(it.area_photo_url||a.length); });
+  // 全部品項都是材料販售 → 欄位標題用「材料」而非「連工帶料」
+  const _allMat = _nt.length && _nt.every(it=>it.calc_mode==='material');
+  const lblUnit  = _allMat ? '每米材料單價' : '連工帶料單價';
+  const lblTotal = _allMat ? '材料總價'     : '連工帶料總價';
+  const lblPromo = _allMat ? '材料優惠價'   : '連工帶料優惠價';
 
   document.getElementById('app').innerHTML = `
     <div class="header">
@@ -327,11 +338,13 @@ function render(q){
         <div class="qwrap"><table class="qtbl">
           <thead><tr>
             <th style="width:34px">項目</th><th>貼覆項目</th>
-            <th style="width:124px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
-            ${hideChi?'':'<th style="width:88px;white-space:normal">連工帶料單價</th>'}<th style="width:42px">數量</th>
-            <th style="width:108px;white-space:nowrap">連工帶料總價</th><th style="width:120px;white-space:nowrap">連工帶料優惠價</th>
+            <th style="width:124px">膜料資訊</th>
+            ${showFilmImg?'<th style="width:74px">膜料示意圖</th>':''}
+            ${showSitePhoto?'<th style="width:132px">貼覆區域（現場照）</th>':''}
+            ${hideChi?'':`<th style="width:88px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
+            <th style="width:108px;white-space:nowrap">${lblTotal}</th><th style="width:120px;white-space:nowrap">${lblPromo}</th>
           </tr></thead>
-          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi)).join('')}</tbody>
+          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto)).join('')}</tbody>
         </table></div>
         <div class="scroll-hint">← 左右滑動可看數量與價格 →</div>
       </div>`:''}
@@ -381,11 +394,13 @@ function render(q){
   if(!accepted && !isExpired) setupCanvas();
 }
 
-function rowHtml(it,i,hideChi){
+function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto){
+  // 合併欄跨：貼覆項目 + 膜料資訊 (+ 膜料示意圖) (+ 現場照)
+  const mergeCol = 2 + (showFilmImg?1:0) + (showSitePhoto?1:0);
   if(it.row_kind==='text'){
     const priced=(it.subtotal||0)>0;
     return `<tr><td class="c" style="font-weight:700">${i+1}</td>
-      <td colspan="${hideChi?3:4}" style="background:var(--gray-50)"><div class="q-name">${esc(it.description||it.location||'')}</div><div class="q-note">${noteHtml(it.notes)}</div></td>
+      <td colspan="${mergeCol}" style="background:var(--gray-50)"><div class="q-name">${esc(it.description||it.location||'')}</div><div class="q-note">${noteHtml(it.notes)}</div></td>
       ${hideChi?'':`<td class="num">${priced?fmt(it.unit_price):'—'}</td>`}
       <td class="num">${priced?(it.quantity||1):'—'}</td>
       <td class="num q-orig">${priced?fmt(it.subtotal):'—'}</td>
@@ -395,8 +410,8 @@ function rowHtml(it,i,hideChi){
     <td class="c" style="font-weight:700">${i+1}</td>
     <td><div class="q-name">${esc(it.description||it.location||'')}</div><div class="q-note">${noteHtml(it.notes)}</div>${it.size_text?`<div class="q-size">尺寸：${esc(it.size_text)}</div>`:''}</td>
     <td class="q-film">${filmInfo(it)}</td>
-    <td class="c">${filmImg(it)}</td>
-    <td class="c">${siteThumbs(it)}</td>
+    ${showFilmImg?`<td class="c">${filmImg(it)}</td>`:''}
+    ${showSitePhoto?`<td class="c">${siteThumbs(it)}</td>`:''}
     ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?' /米':''):'—'}</td>`}
     <td class="num">${it.quantity||1}</td>
     <td class="num q-orig">${fmt(it.subtotal)}</td>
