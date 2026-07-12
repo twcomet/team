@@ -446,9 +446,9 @@
           <table class="quote-tbl">
             <thead><tr>
               <th style="width:34px">項目</th><th>貼覆項目</th>
-              <th style="width:124px">膜料資訊</th><th style="width:74px">膜料示意圖</th><th style="width:132px">貼覆區域（現場照）</th>
+              <th style="width:124px">膜料資訊</th><th id="cth_img" style="width:74px">膜料示意圖</th><th id="cth_photo" style="width:132px">貼覆區域（現場照）</th>
               <th id="cth_unit" style="width:88px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
-              <th style="width:108px;white-space:nowrap">連工帶料總價</th><th style="width:120px;white-space:nowrap">連工帶料優惠價</th>
+              <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
           </table>
@@ -1248,11 +1248,22 @@ function renderCust(useMkt){
   const owner=document.getElementById('clientType').value==='owner';   // 業主版：隱藏單價/才數/尺寸
   const uth=document.getElementById('cth_unit'); if(uth) uth.style.display=owner?'none':'';
   const showSz=showSize&&!owner;
+  // 空欄整欄隱藏 + 材料販售字樣：與客戶版(quote-sign)一致
+  const _nt=items.filter(it=>it.kind!=='text');
+  const showFilmImg=_nt.some(it=>it.filmImg);
+  const showSitePhoto=_nt.some(it=>it.areaPhotos&&it.areaPhotos.length);
+  const _allMat=_nt.length&&_nt.every(it=>it.mode==='material');
+  const _tg=(id,show)=>{const e=document.getElementById(id);if(e)e.style.display=show?'':'none';};
+  _tg('cth_img',showFilmImg); _tg('cth_photo',showSitePhoto);
+  _txt('cth_unit',_allMat?'每米材料單價':'連工帶料單價');
+  _txt('cth_total',_allMat?'材料總價':'連工帶料總價');
+  _txt('cth_promo',_allMat?'材料優惠價':'連工帶料優惠價');
+  const mergeCol=2+(showFilmImg?1:0)+(showSitePhoto?1:0);
   document.getElementById('custItems').innerHTML=items.map((it,i)=>{
     if(it.kind==='text'){
       const priced=totOf(it)>0;
       return `<tr><td class="c" style="font-weight:700">${i+1}</td>
-        <td colspan="4" style="background:var(--gray-50)"><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div></td>
+        <td colspan="${mergeCol}" style="background:var(--gray-50)"><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div></td>
         ${owner?'':`<td class="num">${priced?money(it.unitEach):'—'}</td>`}
         <td class="num">${priced?(it.qty||1):'—'}</td>
         <td class="num q-orig">${priced?money(totOf(it)):'—'}</td>
@@ -1263,8 +1274,8 @@ function renderCust(useMkt){
       <td class="c" style="font-weight:700">${i+1}</td>
       <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSz&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
       <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span>${owner?'':`<br>膜料寬度 ${it.width||'—'} 公分`}</td>
-      <td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>
-      <td class="c">${(it.areaPhotos&&it.areaPhotos.length)?`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>
+      ${showFilmImg?`<td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>`:''}
+      ${showSitePhoto?`<td class="c">${(it.areaPhotos&&it.areaPhotos.length)?`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>`:''}
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
