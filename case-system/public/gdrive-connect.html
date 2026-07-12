@@ -57,6 +57,19 @@
       👥 分享給師傅：填上面信箱按分享，或到 Google 日曆網頁版 →「繪新派單」行事曆設定 → 與特定使用者共用。
     </div>
   </div>
+
+  <div class="gd-card" style="margin-top:20px">
+    <div class="gd-h">💾 資料庫異地備份</div>
+    <div class="gd-sub">系統每天 <b>00:00 / 08:00 / 13:00 / 20:00</b>（台灣時間）自動把整個資料庫備份到你的 Google 雲端（資料夾「繪新系統備份（資料庫）」），只保留最近 60 份。程式碼另存於 GitHub，兩者合起來即可完整還原。</div>
+    <div id="bk-status" class="gd-status gd-off">讀取備份狀態中…</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="gd-btn gd-primary" style="width:auto;padding:8px 16px" onclick="runBackup(this)">☁️ 立即備份到雲端</button>
+      <a class="gd-btn" style="width:auto;padding:8px 16px" href="/api/backup/download">⬇️ 下載資料庫到本機</a>
+    </div>
+    <div id="bk-msg"></div>
+    <div id="bk-list" style="margin-top:12px"></div>
+    <div class="gd-note">🔒 僅最高管理者可備份／下載。備份為 SQLite 一致性快照（VACUUM INTO），不影響系統運作。</div>
+  </div>
 </div>
 <script>
 (function(){
@@ -191,6 +204,45 @@
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
   };
 })();
+  function _mb(s){ return (Number(s||0)/1048576).toFixed(2)+' MB'; }
+  function loadBackups(){
+    fetch('/api/backup/list').then(function(x){return x.json();}).then(function(r){
+      var st = document.getElementById('bk-status');
+      var files = (r && r.files) || [];
+      if (files.length){
+        st.className = 'gd-status gd-on';
+        st.textContent = '✓ 已有 ' + files.length + ' 份備份，最近一份：' + files[0].name;
+      } else {
+        st.className = 'gd-status gd-off';
+        st.textContent = '尚無備份（可按「立即備份」馬上做第一份，或等下一個排程時間）';
+      }
+      document.getElementById('bk-list').innerHTML = files.slice(0,10).map(function(f){
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-500);padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>'+f.name+'</span><span>'+_mb(f.size)+'</span></div>';
+      }).join('');
+    }).catch(function(){
+      var st = document.getElementById('bk-status');
+      st.className = 'gd-status gd-off';
+      st.textContent = '讀取備份狀態失敗（請先連接 Google 雲端）';
+    });
+  }
+  function runBackup(btn){
+    var old = btn.textContent; btn.disabled = true; btn.textContent = '備份中…';
+    document.getElementById('bk-msg').innerHTML = '';
+    fetch('/api/backup/run', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      btn.disabled = false; btn.textContent = old;
+      var m = document.getElementById('bk-msg');
+      if (r && r.ok){
+        m.innerHTML = '<div style="color:#12855f;font-size:13px;margin-top:8px">✓ 備份完成：'+r.name+'（'+_mb(r.size)+'）'+(r.pruned?('，清理舊檔 '+r.pruned+' 份'):'')+'</div>';
+        loadBackups();
+      } else {
+        m.innerHTML = '<div style="color:#dc2626;font-size:13px;margin-top:8px">✗ 備份失敗：'+((r&&r.error)||'未知錯誤')+'</div>';
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = old;
+      document.getElementById('bk-msg').innerHTML = '<div style="color:#dc2626;font-size:13px;margin-top:8px">✗ 備份失敗（網路或權限問題）</div>';
+    });
+  }
+  loadBackups();
 </script>
 </body>
 </html>

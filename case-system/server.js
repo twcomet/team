@@ -88,6 +88,7 @@ app.use('/api/my-tasks',        require('./routes/my-tasks'));
 app.use('/api/my-calendar',     require('./routes/my-calendar'));
 app.use('/api/dispatch-detail',   require('./routes/dispatch-detail'));
 app.use('/api/materials',         require('./routes/materials'));
+app.use('/api/backup',            require('./routes/backup'));
 app.use('/api/reports',           require('./routes/reports'));
 app.use('/api/notifications',     require('./routes/notifications'));
 app.use('/api/settings',          require('./routes/settings'));
@@ -774,11 +775,19 @@ init();
 // ── 自動打卡（每分鐘檢查，18:00 台灣時間自動補下班卡）────────
 const db = require('./db');
 let autoClockOutDoneDate = '';
+let backupDoneSlot = '';
 setInterval(() => {
   const now = new Date();
   const twTime = now.toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' });
   const [twDate, twClock] = twTime.split(' ');
   const hm = twClock.slice(0, 5);
+  // 資料庫異地備份：每天 00:00 / 08:00 / 13:00 / 20:00（台灣時間）自動備份到 Google Drive
+  if (['00:00', '08:00', '13:00', '20:00'].includes(hm) && backupDoneSlot !== twDate + ' ' + hm) {
+    backupDoneSlot = twDate + ' ' + hm;
+    require('./lib/db-backup').runBackup()
+      .then(r => console.log(`[backup] ${twDate} ${hm} 已備份到 Google Drive：${r.name}（${(r.size / 1048576).toFixed(2)}MB），清理舊檔 ${r.pruned} 份`))
+      .catch(e => console.error(`[backup] ${twDate} ${hm} 失敗：`, e.message));
+  }
   if (hm === '18:00' && autoClockOutDoneDate !== twDate) {
     autoClockOutDoneDate = twDate;
     const missing = db.prepare(`SELECT id FROM attendance WHERE work_date=? AND clock_in IS NOT NULL AND (clock_out IS NULL OR clock_out='')`).all(twDate);

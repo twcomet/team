@@ -268,4 +268,54 @@ function disconnect() {
   _clearTokenCache();
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken };
+// ── 系統資料庫備份：專屬備份資料夾 + 上傳 + 只保留最近 N 份 ──────────────
+// drive.file 權限：app 只能存取自己建立的檔案/資料夾，備份夾與備份檔皆 app 自建，故可管理。
+async function _ensureBackupFolder(token) {
+  const cached = getS('gdrive_backup_folder_id');
+  if (cached) return cached;
+  const f = await _createFolder('繪新系統備份（資料庫）', null, token);
+  setS('gdrive_backup_folder_id', f.id);
+  return f.id;
+}
+// 上傳一份資料庫備份（buf = 檔案內容 Buffer）
+async function uploadBackup(name, buf) {
+  const token    = await accessToken();
+  const folderId = await _ensureBackupFolder(token);
+  const boundary = 'hxbk' + Math.random().toString(16).slice(2) + Date.now().toString(16);
+  const meta = JSON.stringify({ name, parents: [folderId] });
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/x-sqlite3\r\n\r\n`),
+    buf,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,size', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('備份上傳失敗：' + ((j.error && j.error.message) || r.status));
+  return j;
+}
+// 只保留最近 keep 份（依檔名新到舊排序），較舊的刪除；回傳刪除份數
+async function pruneBackups(keep) {
+  const token    = await accessToken();
+  const folderId = await _ensureBackupFolder(token);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&orderBy=name desc&fields=files(id,name)&pageSize=1000`, { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  const extra = (j.files || []).slice(keep);
+  for (const f of extra) {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(f.id)}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+  }
+  return extra.length;
+}
+// 列出最近備份（後台顯示用）
+async function listBackups(limit) {
+  const token    = await accessToken();
+  const folderId = await _ensureBackupFolder(token);
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&orderBy=name desc&fields=files(id,name,size,createdTime)&pageSize=${Math.min(Number(limit) || 20, 100)}`, { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  return { folderId, files: j.files || [] };
+}
+
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, uploadBackup, pruneBackups, listBackups };
