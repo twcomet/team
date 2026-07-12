@@ -3760,6 +3760,36 @@ try {
   console.log('✅ 估價重設計版牌價表就緒（est_film_catalog/est_door_catalog；空表才 seed）');
 } catch (e) { console.warn('[est catalog seed]', e.message); }
 
+// ── 亞洲 BODAQ 補三個缺的系列 BC/SM/BT（依供應商 RMB×繪新成本公式；牌價回推70%毛利）──
+// 成本/米 = 5.6×供應商RMB + 5050/卷長（此公式完全吻合現有 SS/AU/AP/AF 的成本）。
+// 連工帶料/才 = 牌價/才 + 70/100/125（牆面/系統櫃/造型）；牌價/才 = 未稅牌價/米 ÷ 13.556 進位到5。
+// quote 引擎只吃 plane/cabinet/shape+width，故此三欄必須正確。守衛：_migrations 只跑一次；已存在的系列不重複插。
+db.exec(`CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, ran_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+try {
+  const MIG = 'bodaq_asia_add_bc_sm_bt_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    // 沿用既有亞洲 BODAQ 的 region 值（避免 NULL/'' 不一致造成分區跑掉）
+    const asiaRegion = db.prepare(`SELECT region FROM est_film_catalog WHERE brand='bodaq' AND asia_code='BA' LIMIT 1`).get()?.region ?? null;
+    // asia, kr_code, color, model_note, per_m(未稅), ecom(含稅), cost, plane(牆), cabinet(櫃), shape(造型), roll_len
+    const NEW = [
+      ['BC', 'BZ,HZ,PTW,Z,DW', '木紋',   '對應韓碼 BZ、HZ、PTW、Z、DW', 1063, 1100, 319, 150, 180, 205, 50],
+      ['SM', 'DM',             '素面',   '對應韓碼 DM',                 1120, 1200, 336, 155, 185, 210, 50],
+      ['BT', 'PNT',            '皮革/素面','對應韓碼 PNT（40米/卷）',      1260, 1300, 378, 165, 195, 220, 40],
+    ];
+    const exists = db.prepare(`SELECT 1 FROM est_film_catalog WHERE brand='bodaq' AND asia_code=? AND (region IS NULL OR region<>'韓國') LIMIT 1`);
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order,active) VALUES ('bodaq',?,?,?,?,?,'不防焰',?,?,?,?,?,?,122,?,0,1)`);
+    for (const r of NEW) if (!exists.get(r[0])) ins.run(asiaRegion, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]);
+    // 依牌價/米重排「亞洲 BODAQ」sort_order，讓 BC/SM/BT 落在正確價格順位（只動 bodaq 亞洲，不影響其他品牌）
+    const rows = db.prepare(`SELECT id FROM est_film_catalog WHERE brand='bodaq' AND (region IS NULL OR region<>'韓國') ORDER BY per_m, id`).all();
+    let so = 0; const updSo = db.prepare(`UPDATE est_film_catalog SET sort_order=? WHERE id=?`);
+    for (const row of rows) updSo.run(so++, row.id);
+    // 修 BC903 膜料庫存成本（此前手建打成 480，實為 BC 系列＝319）
+    db.prepare(`UPDATE materials SET unit_cost=319 WHERE UPPER(brand) IN ('BODAQ','BODA') AND model LIKE 'BC903%' AND unit_cost=480`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 亞洲 BODAQ 補入 BC/SM/BT、依價重排，並修 BC903 材料成本 480→319');
+  }
+} catch (e) { console.warn('[bodaq asia add bc/sm/bt]', e.message); }
+
 // ── 一次性：依估價定價表更新膜料庫存 售價/成本（2026-07，老闆指示直接更新，不做預覽按鈕）──
 // 售價：有電商價(BODAQ/LX/PAROI)取 ecom_price(含稅)、3M 取 per_m(未稅牌價)；成本=cost_per_m(完全成本)。
 // 只更新「品牌＋系列」精準對到定價表者；對不到的(Carlife 隔熱紙、AICA、穩得…)一律不動。守衛：_migrations 只跑一次。
