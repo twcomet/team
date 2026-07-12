@@ -455,9 +455,9 @@
         <div class="quote-tbl-wrap">
           <table class="quote-tbl">
             <thead><tr>
-              <th style="width:34px">項目</th><th>貼覆項目</th>
+              <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
               <th style="width:124px">膜料資訊</th><th id="cth_img" style="width:74px">膜料示意圖</th><th id="cth_photo" style="width:132px">貼覆區域（現場照）</th>
-              <th id="cth_unit" style="width:88px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
+              <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
               <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
@@ -547,7 +547,9 @@ function syncCustNotice(){
     ['驗收須知',       document.getElementById('termC')?.value, 'inspection'],
     ['回簽 / 付款資訊', document.getElementById('termD')?.value, 'acceptance'],
   ];
-  box.innerHTML=folds.filter(f=>(f[1]&&f[1].trim())||((blockImages[f[2]]||[]).length)).map(f=>{
+  // 內容空白或等同「無」且無附圖 → 整塊隱藏（與客戶版一致）
+  const isBlank=t=>{const s=String(t||'').trim().replace(/[。.\s、,，-－—\/]/g,'');return !s||['無','無內容','沒有','NA','NULL','None','none'].includes(s);};
+  box.innerHTML=folds.filter(f=>!isBlank(f[1])||((blockImages[f[2]]||[]).length)).map(f=>{
     const imgs=(blockImages[f[2]]||[]).map(u=>`<img src="${esc(u)}" style="max-width:100%;max-height:340px;border:1px solid var(--gray-200);border-radius:8px;display:block;margin-top:8px">`).join('');
     return `<div class="fold open" onclick="this.classList.toggle('open')"><div class="fold-h">${esc(f[0])} <span>▾</span></div><div class="fold-b">${noteHtml(f[1]||'')}${imgs}</div></div>`;
   }).join('');

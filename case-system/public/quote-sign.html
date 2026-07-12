@@ -25,7 +25,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .header-num{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:3px 14px;font-size:12px;font-family:monospace;margin-top:8px;letter-spacing:.06em}
 
 .body{background:#fff;margin:0 12px;border-radius:0 0 16px 16px;box-shadow:0 4px 24px rgba(60,20,40,.1)}
-.status-bar{padding:13px 22px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gray-100)}
+.status-bar{padding:13px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--gray-100)}
+.status-meta{font-size:12px;color:var(--gray-500);line-height:1.5}
 .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .status-text{font-size:13px;font-weight:700}
 .validity-text{font-size:12px;color:var(--gray-400);margin-left:auto}
@@ -317,6 +318,7 @@ function render(q){
       <div class="status-bar">
         <div class="status-dot" style="background:${st.dot}"></div>
         <div class="status-text" style="color:${st.c}">${st.text}</div>
+        <div class="status-meta">報價日期 ${(q.created_at||'').slice(0,10)}${weekdayZh(q.created_at)}${q.title?'　·　專案 '+esc(q.title):''}</div>
         ${!accepted && !isExpired ? `<div class="validity-text">有效至 ${expiryStr}</div>`:''}
         ${isExpired ? `<div class="validity-text" style="color:#dc2626">已於 ${expiryStr} 失效</div>`:''}
       </div>
@@ -329,7 +331,6 @@ function render(q){
           <div><b>${esc(q.org_name||'繪新國際有限公司')}（甲方）</b><div class="r">${q.org_tax_id?'統一編號 '+esc(q.org_tax_id)+'<br>':''}${q.org_phone?'聯絡電話 '+esc(q.org_phone)+'<br>':''}${q.org_address?'公司地址 '+esc(q.org_address)+'<br>':''}業務負責人 ${esc(q.creator_name||'—')}</div></div>
           <div><b>${esc(q.client_name||'—')}（乙方）</b><div class="r">${q.client_tax_id?'統一編號 '+esc(q.client_tax_id)+'<br>':''}${q.client_phone?'聯絡電話 '+esc(q.client_phone)+'<br>':''}${q.location?'施工地點 '+esc(q.location):''}${q.site_note?'<br><span style="color:var(--gray-400);font-size:11px;line-height:1.6">案場備註：'+esc(q.site_note)+'</span>':''}</div></div>
         </div>
-        <div style="font-size:12px;color:var(--gray-500);margin-top:8px">報價日期 ${(q.created_at||'').slice(0,10)}${weekdayZh(q.created_at)}${q.title?'　·　專案 '+esc(q.title):''}</div>
       </div>
 
       ${items.length ? `
@@ -337,11 +338,11 @@ function render(q){
         <div class="section-title">訂單資訊（共 ${items.length} 項）</div>
         <div class="qwrap"><table class="qtbl">
           <thead><tr>
-            <th style="width:34px">項目</th><th>貼覆項目</th>
+            <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
             <th style="width:124px">膜料資訊</th>
             ${showFilmImg?'<th style="width:74px">膜料示意圖</th>':''}
             ${showSitePhoto?'<th style="width:132px">貼覆區域（現場照）</th>':''}
-            ${hideChi?'':`<th style="width:88px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
+            ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
             <th style="width:108px;white-space:nowrap">${lblTotal}</th><th style="width:120px;white-space:nowrap">${lblPromo}</th>
           </tr></thead>
           <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto)).join('')}</tbody>
@@ -422,13 +423,15 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto){
 function foldsHtml(q){
   let bi={}; try{ bi=JSON.parse(q.block_images||'{}')||{}; }catch(e){}
   const imgsOf=k=>(k&&Array.isArray(bi[k]))?bi[k]:[];
+  // 內容空白或等同「無」(無、無。、-、—、N/A…) 且無附圖 → 整塊隱藏
+  const isBlank=t=>{const s=String(t||'').trim().replace(/[。.\s、,，-－—\/]/g,'');return !s||['無','無內容','沒有','NA','NULL','None','none'].includes(s);};
   const blocks = [
     ['報價單優惠條款', q.notes_terms, 'terms'],
     ['貼膜前須知', q.notes_notice, 'notice'],
     ['驗收須知', q.notes_inspection, 'inspection'],
     ['付款條件', q.payment_terms, null],
     ['回簽 / 訂單簽核資訊', q.notes_acceptance, 'acceptance'],
-  ].filter(b=>b[1] || imgsOf(b[2]).length);
+  ].filter(b=>!isBlank(b[1]) || imgsOf(b[2]).length);
   if(!blocks.length) return '';
   return `<div class="section"><div class="section-title">條款與須知</div>
     ${blocks.map(b=>{
