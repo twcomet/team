@@ -198,7 +198,7 @@
                 <th id="thCost">成本/米</th>
                 <th>售價/米</th>
                 <th>庫存（米）</th>
-                <th>備注</th>
+                <th>膜料編號</th>
                 <th></th>
               </tr></thead>
               <tbody id="matTbody"></tbody>
@@ -246,6 +246,9 @@
       <div class="form-row">
         <div class="form-group"><label>③ 型號 *</label>
           <input type="text" id="m_model" list="dl_model" autocomplete="off" placeholder="系列＋編號，如 MES-367">
+        </div>
+        <div class="form-group"><label>膜料編號</label>
+          <input type="text" id="m_sku" autocomplete="off" placeholder="可自訂（留空以系統編號顯示）">
         </div>
       </div>
       <div class="form-row">
@@ -821,7 +824,7 @@ function renderTable(list) {
         ${(m.pending_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px">💬 詢價中 ${m.pending_reserved_meters.toFixed(1)}m</span>` : ''}
         ${(m.case_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px">📋 案件保留 ${m.case_reserved_meters.toFixed(1)}m</span>` : ''}
       </td>
-      <td style="font-size:12px;color:var(--gray-500)">${m.notes||''}</td>
+      <td style="font-size:12px">${m.sku ? `<span style="font-family:monospace;font-weight:600">${m.sku}</span>` : `<span style="color:var(--gray-400)" title="尚未設定膜料編號，暫以系統編號顯示">#${m.id}</span>`}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-primary btn-sm" onclick="openRollModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">＋進貨</button>
         <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="openSellModal(${m.id},'${m.brand} ${m.model}');event.stopPropagation()">銷貨</button>
@@ -1165,7 +1168,7 @@ function openMatModal() {
   document.getElementById('fgCatalogSeries').style.display = 'none';
   document.getElementById('m_catalog_series').innerHTML = '<option value="">—</option>';
   ensureCatalog().then(() => populateCatalogSeries(document.getElementById('m_brand').value));
-  ['m_model','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
+  ['m_model','m_sku','m_notes','m_location','m_ec_key'].forEach(id => document.getElementById(id).value = '');
   ['m_unit_cost','m_unit_price','m_stock_meters'].forEach(id => document.getElementById(id).value = '');
   syncRemaining();
   fillBrandSelect('');
@@ -1193,6 +1196,7 @@ function openMatEdit(id) {
   document.getElementById('fgCatalogSeries').style.display = 'none';   // 編輯時不顯示自動帶價
   fillBrandSelect(m.brand || '');
   document.getElementById('m_model').value     = m.model || '';
+  document.getElementById('m_sku').value       = m.sku || '';
   document.getElementById('m_spec').value      = m.spec  || '';
   document.getElementById('m_location').value  = m.location || '';
   document.getElementById('m_category').value  = m.category || 'film';
@@ -1245,6 +1249,7 @@ async function saveMat() {
   const body = {
     brand:        document.getElementById('m_brand').value.trim(),
     model:        document.getElementById('m_model').value.trim(),
+    sku:          document.getElementById('m_sku').value.trim() || null,
     spec:         document.getElementById('m_spec').value  || null,
     location:     document.getElementById('m_location').value.trim() || null,
     category:       document.getElementById('m_category').value || 'film',
