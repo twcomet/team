@@ -941,15 +941,18 @@ function renderRows(){
       : (_mat ? `<span class="stk now" title="架位：${esc(_mat.location||'—')}｜成本：${_mat.unit_cost!=null?_mat.unit_cost+'元/米':'—'}">現貨 ${fmtStock(_mat.stock_meters)} 米</span>`
               : `<span class="stk non">選品牌／型號</span>`);
     const brandOpts=`<option value="">品牌…</option>`+brandList().map(b=>`<option ${b===it.brand?'selected':''}>${esc(b)}</option>`).join('')+`<option value="__custom" ${custom?'selected':''}>其他（期貨/自訂）</option>`;
-    // 選項用膜料 id 當 value（同型號會有多支獨立膜料，須用 id 區分），標籤帶編號/貨架/庫存米數
-    const modelOpts=`<option value="">型號…</option>`+(it.brand?modelList(it.brand).map(m=>`<option value="${m.id}" ${String(m.id)===String(it.materialId)?'selected':''}>${esc(m.model)}${m.sku?' ['+esc(m.sku)+']':''}｜架${esc(m.location||'—')}｜${fmtStock(m.stock_meters)}米</option>`).join(''):'');
+    // 型號改「可打字搜尋」input + datalist：同型號多支用 id 區分，選項帶編號/貨架/庫存；value 末端夾 #id 供回填比對
+    const matLabel=m=>`${m.model}${m.sku?' ['+m.sku+']':''}｜架${m.location||'—'}｜${fmtStock(m.stock_meters)}米`;
+    const dlOpts=(it.brand?modelList(it.brand).map(m=>`<option value="${esc(matLabel(m))} #${m.id}"></option>`).join(''):'');
+    const _curMat=it.materialId?findMatById(it.materialId):null;
+    const curModelVal=_curMat?`${esc(matLabel(_curMat))} #${_curMat.id}`:'';
     const filmField=`<div class="fld" style="flex:1;min-width:${isMat?300:280}px">
         <label>${isMat?'單買膜料（品牌／型號・勾稽庫存）':'膜料資訊（品牌／型號・勾稽庫存）'}</label>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <select class="film-sel" onchange="setFilmBrand(${i},this.value)">${brandOpts}</select>
           ${custom
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
-            : `<select class="film-sel" onchange="setFilmModelById(${i},this.value)">${modelOpts}</select>`}
+            : `<input class="film-sel" list="mdl${i}" style="min-width:210px" value="${curModelVal}" placeholder="打字搜尋型號／貨架…" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
           ${stockChip}
         </div>
       </div>`;
@@ -1140,6 +1143,19 @@ function setFilmModelById(i,id){
   }else{ it.materialId=null; it.model=''; }
   fillCaiFromCatalog(i);
   markDirty(); renderRows(); recalc();
+}
+// 打字搜尋型號：優先用選項末端 #id 精準選取；否則用型號文字比對；再不中就當自訂型號
+function setFilmModelByText(i,text){
+  const t=String(text||'').trim(); const it=items[i];
+  const m=t.match(/#(\d+)\s*$/);
+  if(m){ setFilmModelById(i,m[1]); return; }
+  const key=t.split('｜')[0].trim();
+  if(!key){ it.materialId=null; it.model=''; markDirty(); renderRows(); recalc(); return; }
+  const cand=modelList(it.brand).filter(x=>x.model===key || (x.model+(x.sku?' ['+x.sku+']':''))===key);
+  if(cand.length){ setFilmModelById(i,cand[0].id); return; }
+  it.isFutures=false; it.materialId=null; it.model=key;   // 比對不到→自訂/期貨型號
+  it.film=[it.brand,key].filter(Boolean).join(' · ');
+  fillCaiFromCatalog(i); markDirty(); renderRows(); recalc();
 }
 // ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
 function pickImage(cb){
