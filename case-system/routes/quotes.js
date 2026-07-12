@@ -216,7 +216,7 @@ router.post('/cases/:id', requireAuth, (req, res) => {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(case_id, token, newVersion,
     valid_days ?? 30, payment_terms ?? null, client_notes ?? null,
-    client_type ?? 'owner',
+    client_type ?? 'designer',   // 新單預設設計師版(顯示單價/才數)，與前端 fallback 一致；業主版藏價由使用者手動切
     discount_rate ?? 1.0, marketing_rate ?? 1.0, tax_rate ?? 0.05,
     travel_fee ?? 0, freight_fee ?? 0,
     notes_terms ?? null, notes_acceptance ?? null,
@@ -348,7 +348,7 @@ router.put('/:quoteId', requireAuth, (req, res) => {
     discount_rate=?,marketing_rate=?,tax_rate=?,travel_fee=?,freight_fee=?,
     notes_terms=?,notes_acceptance=?,discount_rule_id=?,status=?,updated_at=CURRENT_TIMESTAMP
     WHERE id=?`)
-    .run(valid_days??30, payment_terms??null, client_notes??null, client_type??'owner',
+    .run(valid_days??30, payment_terms??null, client_notes??null, client_type??'designer',
          discount_rate??1.0, marketing_rate??1.0, tax_rate??0.05,
          travel_fee??0, freight_fee??0,
          notes_terms??null, notes_acceptance??null, discount_rule_id??null,

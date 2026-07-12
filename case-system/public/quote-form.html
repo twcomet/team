@@ -555,7 +555,7 @@ const caiCalcAmt=it=>Math.round(caiOf(it)*(it.unitCai||0));
 // 才數計價：才數(每座)×單價/才×數量(座數)；座計價：單價×數量
 const baseAmt=it=>it.mode==='cai'?Math.round(caiCalcAmt(it)*(it.qty||1)):(it.unitEach||0)*(it.qty||0);
 const totOf=it=>it.total!=null?it.total:baseAmt(it);
-const discOf=it=>it.disc!=null?it.disc:80;
+const discOf=it=>it.disc!=null?it.disc:100;  // NULL 對齊後端 recalcQuoteV2 的 ??100（舊單顯示=實際收的，不折）
 const promoOf=it=>it.promo!=null?it.promo:Math.round(totOf(it)*discOf(it)/100);
 // 回報米數為「每一座」→ 非材料販售的膜料成本＝每米成本 × 每座米數 × 數量(座數)
 const matCostOf=it=>it.kind==='text'?0:Math.round((it.filmCostPerM||0)*(it.mode==='material'?(it.qty||0):(it.srvMeters||0)*(it.qty||1)));
@@ -617,7 +617,7 @@ function mapDbToProto(d){
     name:d.description||'', film:filmDisp, brand, model, materialId:matId, isFutures:(!matId&&!!(d.film_model||d.film_brand)),
     unitEach:d.unit_price||0, qty:d.quantity||1,
     unitCai:d.unit_price_cai||0, srvMeters:d.estimated_meters||0, width:d.film_width_cm||122,
-    sizeText:d.size_text||'', disc:(d.item_disc!=null?d.item_disc:((d.row_kind==='text')?100:80)),
+    sizeText:d.size_text||'', disc:(d.item_disc!=null?d.item_disc:100),  // 舊資料 item_disc=NULL → 100(不折)，與後端 recalcQuoteV2 一致；避免畫面顯示8折、實際收全額
     promo:(d.promo_price==null?null:d.promo_price), filmCostPerM:d.cost_per_meter||0,
     workers:d.workers||0, days:d.work_days||0, note:d.notes||'', cai:d.area_sqchi,
     filmImg:d.material_photo_url||'', areaPhotos:(()=>{let a=[];try{a=JSON.parse(d.area_photos||'[]')||[];}catch(e){}if(d.area_photo_url&&!a.includes(d.area_photo_url))a.unshift(d.area_photo_url);return a;})() };
