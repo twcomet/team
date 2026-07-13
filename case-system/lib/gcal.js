@@ -105,19 +105,36 @@ async function _reapplyShares(token, calId) {
   }
 }
 
+// 找帳號內既有、且自己是擁有者的「繪新派單」行事曆 id（沿用，避免重複建立）；沒有則回 null
+async function _findOwnedDispatchCalendar(token) {
+  const r = await _fetchRetry(`${CAL_API}/users/me/calendarList?maxResults=250`,
+    { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return null;
+  const owned = (j.items || []).filter(c => c.summary === '繪新派單' && c.accessRole === 'owner');
+  return owned.length ? owned[0].id : null;
+}
+
 async function _ensureCalendar(token) {
   const existing = getS('gcal_dispatch_calendar_id');
   if (existing) return existing;
-  const r = await _fetchRetry(`${CAL_API}/calendars`, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ summary: '繪新派單', description: '繪新管理系統自動同步的派工排程', timeZone: TZ }),
+  // 上鎖 + 進鎖後再查一次 + 先找既有曆沿用：三重防護，杜絕並發/硬重置空窗期建出多本「繪新派單」重複曆
+  return _withLock('__ensureCalendar', async () => {
+    const again = getS('gcal_dispatch_calendar_id');
+    if (again) return again;
+    const found = await _findOwnedDispatchCalendar(token);   // 帳號內已有就沿用，不再另建
+    if (found) { setS('gcal_dispatch_calendar_id', found); await _reapplyShares(token, found); return found; }
+    const r = await _fetchRetry(`${CAL_API}/calendars`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary: '繪新派單', description: '繪新管理系統自動同步的派工排程', timeZone: TZ }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error('建立行事曆失敗：' + ((j.error && j.error.message) || r.status));
+    setS('gcal_dispatch_calendar_id', j.id);
+    await _reapplyShares(token, j.id);   // 新建行事曆 → 自動還原先前記住的分享名單
+    return j.id;
   });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error('建立行事曆失敗：' + ((j.error && j.error.message) || r.status));
-  setS('gcal_dispatch_calendar_id', j.id);
-  await _reapplyShares(token, j.id);   // 新建行事曆 → 自動還原先前記住的分享名單
-  return j.id;
 }
 
 function _loadDispatch(dispatchId) {
@@ -315,7 +332,9 @@ function _buildSurveyEvent(s) {
   const folderUrl = s.photo_upload_url || s.drive_folder_url;
   if (folderUrl)       desc.push(`完工資料夾：${folderUrl}`);
 
-  const ev = { summary, location: s.site_address || s.location || '', description: desc.join('\n'), status: 'confirmed' };
+  // extendedProperties.private.surveyCaseId：蓋上場勘標記，讓同步可「建立前先找既有事件」達成冪等、自癒重複
+  const ev = { summary, location: s.site_address || s.location || '', description: desc.join('\n'), status: 'confirmed',
+    extendedProperties: { private: { surveyCaseId: String(s.case_id) } } };
   const colorId = _colorFor(s.surveyor_name);
   if (colorId) ev.colorId = colorId;
   const _toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
@@ -362,6 +381,27 @@ async function _syncSurvey(caseId) {
       throw new Error('更新場勘事件失敗：' + ((j.error && j.error.message) || r.status));
     }
   }
+
+  // 建立前先找蓋著同 surveyCaseId 標記的既有事件（冪等、自癒重複/孤兒）：
+  //   找到 → 沿用第一個(PATCH 並存回 id)、刪掉其餘重複；都沒有才真的建立新事件。
+  const fr = await _fetchRetry(
+    `${base}?privateExtendedProperty=${encodeURIComponent('surveyCaseId=' + s.case_id)}&showDeleted=false&maxResults=50&singleEvents=false`,
+    { headers });
+  const fj = await fr.json().catch(() => ({}));
+  const dupes = (fr.ok && Array.isArray(fj.items)) ? fj.items.filter(e => e.id && e.status !== 'cancelled') : [];
+  if (dupes.length) {
+    const keep = dupes[0].id;
+    const pr = await _fetchRetry(`${base}/${encodeURIComponent(keep)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (pr.ok) {
+      db.prepare('UPDATE cases SET survey_gcal_event_id=? WHERE id=?').run(keep, caseId);
+      for (let i = 1; i < dupes.length; i++) {   // 清掉多餘的重複場勘事件
+        await _fetchRetry(`${base}/${encodeURIComponent(dupes[i].id)}`, { method: 'DELETE', headers });
+        await _sleep(80);
+      }
+      return;
+    }
+  }
+
   const r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('建立場勘事件失敗：' + ((j.error && j.error.message) || r.status));
@@ -446,6 +486,17 @@ async function _runRebuild() {
   const token = await gdrive.accessToken();
   const calId = await _ensureCalendar(token);
   try { _job.dupCalendars = (await duplicateCalendars()).length; } catch {}
+  // 先刪掉「多出來的」重複繪新派單曆（保留目前使用的這本），否則跨曆重複永遠清不掉
+  _job.phase = '清除重複行事曆';
+  try {
+    const extras = (await duplicateCalendars()).filter(c => c.id !== calId && c.accessRole === 'owner');
+    for (const c of extras) {
+      const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(c.id)}`,
+        { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+      if (r.ok || r.status === 404 || r.status === 410) _job.purged++;
+      await _sleep(120);
+    }
+  } catch (e) { if (!_job.sampleError) _job.sampleError = '清除重複曆：' + e.message; }
   _job.phase = '清除舊事件';
   const ids = await _listAllEventIds(token, calId);
   _job.total = ids.length;
@@ -466,23 +517,30 @@ async function _runRebuild() {
 // 代價：行事曆 id 會變，先前分享給師傅的訂閱需重新分享。
 async function _runHardReset() {
   const token = await gdrive.accessToken();
-  const oldId = getS('gcal_dispatch_calendar_id');
-  _job.phase = '刪除整個舊行事曆';
-  if (oldId) {
+  _job.phase = '刪除所有「繪新派單」行事曆';
+  // 刪掉帳號內「所有」叫繪新派單、且自己是擁有者的行事曆（含重複的多本），一次清乾淨。
+  // 舊版只刪 settings 記的那一本，重複曆會殘留 → 事件永遠重複。這裡改為全刪。
+  const owned = (await duplicateCalendars()).filter(c => c.accessRole === 'owner');
+  const stored = getS('gcal_dispatch_calendar_id');
+  const ids = [...new Set([...owned.map(c => c.id), ...(stored ? [stored] : [])])];
+  for (const id of ids) {
     // DELETE 整個次要行事曆＝連同裡面全部事件一起消失，一次搞定
-    const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(oldId)}`,
+    const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(id)}`,
       { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
-    // 刪不掉(非 404/410)就中止，不要默默往下建立新曆造成兩個並存
-    if (!r.ok && r.status !== 404 && r.status !== 410) {
+    if (r.ok || r.status === 404 || r.status === 410) { _job.purged++; }
+    else {
+      // 刪不掉(非 404/410)就中止，不要默默往下建立新曆造成並存
       const j = await r.json().catch(() => ({}));
       throw new Error('刪除舊行事曆失敗 HTTP ' + r.status + '：' + ((j.error && j.error.message) || '') + '（多半是 Google 速率限制，請等 3–5 分鐘再試）');
     }
+    await _sleep(120);
   }
   setS('gcal_dispatch_calendar_id', null);          // 清掉舊 id，_ensureCalendar 會建新的
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();
   db.prepare('UPDATE cases SET survey_gcal_event_id=NULL').run();
   _job.phase = '建立新行事曆';
   await _ensureCalendar(token);                      // 建立全新空行事曆
+  _job.phase = '重新同步';
   await _runSyncAll();                               // 重新同步派工＋場勘
 }
 
@@ -505,7 +563,7 @@ async function duplicateCalendars() {
     { headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) return [];
-  return (j.items || []).filter(c => c.summary === '繪新派單').map(c => ({ id: c.id, summary: c.summary }));
+  return (j.items || []).filter(c => c.summary === '繪新派單').map(c => ({ id: c.id, summary: c.summary, accessRole: c.accessRole }));
 }
 
 // 把「繪新派單」行事曆分享給指定 email（加入對方 Google 行事曆清單）
