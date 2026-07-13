@@ -125,7 +125,7 @@ function weekdayZh(d){if(!d)return'';const m=String(d).match(/^(\d{4})-(\d{2})-(
 function render(f) {
   const signed   = f.status === 'signed';
   const findings = f.findings || [];
-  const dateStr  = f.survey_date || '—';
+  const dateStr  = f.survey_date || '待確定';
   const timeStr  = f.survey_time || '';
 
   document.getElementById('content').innerHTML = `
@@ -243,7 +243,7 @@ function render(f) {
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
             <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>
-            <span>場勘日期：<strong>${esc(f.survey_date || '—')}${weekdayZh(f.survey_date)}${f.survey_time ? ' ' + esc(f.survey_time) : ''}</strong></span>
+            <span>場勘日期：<strong>${esc(f.survey_date || '待確定')}${weekdayZh(f.survey_date)}${f.survey_time ? ' ' + esc(f.survey_time) : ''}</strong></span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px">
             <span style="color:#1a56db;font-weight:700;flex-shrink:0">✓</span>

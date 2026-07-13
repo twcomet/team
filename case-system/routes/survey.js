@@ -20,7 +20,7 @@ function notifySurveyor(surveyorId, caseData, surveyDate, surveyTime, dispatchNo
   if (!surveyorId) return;
   const tech = db.prepare(`SELECT id, name, line_user_id FROM users WHERE id=?`).get(surveyorId);
   if (!tech) return;
-  const dateStr = [surveyDate, surveyTime].filter(Boolean).join(' ');
+  const dateStr = [surveyDate, surveyTime].filter(Boolean).join(' ') || '待確定';  // 未定日期 → 明確告知待確定
   const systemUrl = `/case-detail?id=${caseData.id}&tab=survey`;
   const workerUrl = workerToken ? `${process.env.APP_URL || ''}/survey-worker?token=${workerToken}` : null;
   const notifUrl = systemUrl;

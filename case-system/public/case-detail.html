@@ -620,7 +620,14 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label class="sf-required">場勘日期</label><input type="date" id="sf_date" onchange="sf_checkConflict()"></div>
+            <div class="form-group"><label>場勘日期</label>
+              <div style="display:flex;gap:10px;align-items:center">
+                <input type="date" id="sf_date" onchange="sf_checkConflict()" style="flex:1">
+                <label style="display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:13px;color:#92400e;cursor:pointer;user-select:none">
+                  <input type="checkbox" id="sf_date_tbd" onchange="sf_toggleTbd()"> 日期待確定
+                </label>
+              </div>
+            </div>
             <div class="form-group"><label>場勘時間</label><input type="text" id="sf_time" placeholder="HH:MM（例：14:30）" maxlength="5" oninput="sf_formatTime(this)" style="letter-spacing:.05em"></div>
           </div>
           <div class="form-group">
@@ -3096,6 +3103,9 @@ function sf_removeChecklistCat(cat) {
 
 function sf_fillForm(f) {
   document.getElementById('sf_date').value              = f.survey_date || '';
+  // 已建表單但沒填日期（且已指定場勘人員或已送出）→ 視為「日期待確定」
+  document.getElementById('sf_date_tbd').checked = !!(f && f.id && !f.survey_date && (f.surveyor_id || f.status === 'sent'));
+  sf_toggleTbd();
   document.getElementById('sf_time').value              = f.survey_time || '';
   document.getElementById('sf_surveyor').value          = f.surveyor_id || '';
   document.getElementById('sf_dispatch_note').value     = f.dispatch_note || '';
@@ -3117,6 +3127,15 @@ function sf_fillForm(f) {
 function sf_formatTime(el) {
   const raw = el.value.replace(/[^0-9]/g, '').slice(0, 4);
   el.value = raw.length >= 3 ? raw.slice(0,2) + ':' + raw.slice(2) : raw;
+}
+
+// 「日期待確定」：勾選時清空並停用場勘日期欄位（存檔會存 null，代表尚未定日期）
+function sf_toggleTbd() {
+  const tbd = document.getElementById('sf_date_tbd').checked;
+  const d = document.getElementById('sf_date');
+  if (tbd) d.value = '';
+  d.disabled = tbd;
+  d.style.opacity = tbd ? '0.45' : '';
 }
 
 function sf_updateMapLink() {
@@ -3155,7 +3174,7 @@ async function sf_checkConflict() {
 function sf_validateRequired() {
   const errors = [];
   const checks = [
-    { id:'sf_date',     label:'場勘日期',  val: () => document.getElementById('sf_date').value },
+    // 場勘日期非必填：可勾「日期待確定」先派場勘、日期之後再定
     { id:'sf_address',  label:'施工地址',  val: () => document.getElementById('sf_address').value.trim() },
     { id:'sf_surveyor', label:'場勘人員',  val: () => document.getElementById('sf_surveyor').value },
   ];
