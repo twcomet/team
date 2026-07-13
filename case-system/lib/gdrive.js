@@ -77,6 +77,18 @@ async function accessToken() {
 }
 function _clearTokenCache() { _tok = { value: null, exp: 0, rt: null }; }
 
+// 同一把鑰匙的建立動作串行化：避免「查有沒有 → 建立(await Google) → 存回網址」
+// 之間的 await 空檔讓兩個並發請求都查到「還沒有」而各建一個（同案件按兩次會出現重複資料夾）。
+// 第一個跑完寫回網址後，排在後面的就會查到已存在、直接回傳現有網址。
+const _folderLocks = new Map();
+function _withLock(key, fn) {
+  const prev = _folderLocks.get(key) || Promise.resolve();
+  const cur = prev.catch(() => {}).then(fn);   // 不論前一個成敗都接著跑
+  _folderLocks.set(key, cur);
+  cur.finally(() => { if (_folderLocks.get(key) === cur) _folderLocks.delete(key); });
+  return cur;
+}
+
 async function _createFolder(name, parentId, token) {
   const meta = { name, mimeType: 'application/vnd.google-apps.folder' };
   if (parentId) meta.parents = [parentId];
@@ -116,8 +128,11 @@ function _yearMonth(createdAt, caseNumber) {
 }
 
 // 確保案件有雲端資料夾（沒有才建立），回傳資料夾網址或 null。未連 Google / 已有資料夾則不動作。
-async function ensureCaseFolder(caseId) {
-  if (!isConnected()) return null;
+function ensureCaseFolder(caseId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return _withLock('case:' + caseId, () => _ensureCaseFolderInner(caseId));
+}
+async function _ensureCaseFolderInner(caseId) {
   const c = db.prepare(`
     SELECT c.id, c.case_number, c.title, c.drive_folder_url, c.created_at, cl.name AS client_name
     FROM cases c LEFT JOIN clients cl ON c.client_id = cl.id WHERE c.id = ?
@@ -167,8 +182,11 @@ async function _renameFile(fileId, name, token) {
 //   命名 YYYYMMDD_類型_師傅名字；場勘/施工/維修才建，材料(裁料)不建。
 //   已建者：改人員/日期 → 同一個資料夾直接改名（ID 不變、內容都在）。
 const _DISPATCH_SUB_LABELS = { survey: '場勘', factory_survey: '場勘', install: '施工', aftersales: '維修' };
-async function ensureDispatchSubfolder(dispatchId) {
-  if (!isConnected()) return null;
+function ensureDispatchSubfolder(dispatchId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return _withLock('dispatch:' + dispatchId, () => _ensureDispatchSubfolderInner(dispatchId));
+}
+async function _ensureDispatchSubfolderInner(dispatchId) {
   const d = db.prepare(`
     SELECT d.id, d.dispatch_type, d.scheduled_date, d.case_id,
            d.drive_subfolder_id, d.drive_subfolder_url, d.drive_subfolder_name,
@@ -225,8 +243,11 @@ function safeEnsureDispatchSubfolder(dispatchId) {
 }
 
 // 場勘單（客服填寫區流程，非派工）→ 在案件資料夾內建「場勘」子資料夾，含場勘人員名字，改人員/日期自動改名
-async function ensureSurveyFolder(caseId) {
-  if (!isConnected()) return null;
+function ensureSurveyFolder(caseId) {
+  if (!isConnected()) return Promise.resolve(null);
+  return _withLock('survey:' + caseId, () => _ensureSurveyFolderInner(caseId));
+}
+async function _ensureSurveyFolderInner(caseId) {
   const sf = db.prepare(`
     SELECT sf.id, sf.survey_date, sf.drive_subfolder_id, sf.drive_subfolder_url, sf.drive_subfolder_name,
            u.name AS surveyor_name

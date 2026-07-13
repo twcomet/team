@@ -1881,7 +1881,11 @@ function copyDispatchFolder(btn) {
   const url = dispatchFolderUrl(); if (!url) return;
   navigator.clipboard.writeText(url).then(() => { const t = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = t, 1500); });
 }
+// 建立資料夾進行中旗標：擋住連點（含兩顆不同按鈕）同時發出多個建立請求
+let _driveFolderBusy = false;
 async function createDispatchFolder(btn) {
+  if (_driveFolderBusy) return;
+  _driveFolderBusy = true;
   btn.disabled = true; btn.textContent = '建立中…';
   try {
     const r = await fetch(`/api/gdrive/case/${caseId}/folder`, { method: 'POST' });
@@ -1889,10 +1893,13 @@ async function createDispatchFolder(btn) {
     if (r.ok && j.url) { caseData.drive_folder_url = j.url; renderDriveBtn(); fillFolderField(j.url); populateDispatchFolder(); }
     else { alert('建立雲端資料夾失敗：' + (j.error || r.status)); btn.disabled = false; btn.textContent = '建立雲端資料夾'; }
   } catch (e) { alert('建立雲端資料夾失敗：' + e.message); btn.disabled = false; btn.textContent = '建立雲端資料夾'; }
+  finally { _driveFolderBusy = false; }
 }
 async function openOrCreateDrive() {
   const btn = document.getElementById('driveBtn');
   if (caseData && caseData.drive_folder_url) { fillFolderField(caseData.drive_folder_url); window.open(caseData.drive_folder_url, '_blank'); return; }
+  if (_driveFolderBusy) return;
+  _driveFolderBusy = true;
   btn.disabled = true; btn.textContent = '建立中…';
   try {
     const r = await fetch(`/api/gdrive/case/${caseId}/folder`, { method: 'POST' });
@@ -1900,7 +1907,7 @@ async function openOrCreateDrive() {
     if (r.ok && j.url) { caseData.drive_folder_url = j.url; renderDriveBtn(); fillFolderField(j.url); window.open(j.url, '_blank'); }
     else alert('建立雲端資料夾失敗：' + (j.error || r.status));
   } catch (e) { alert('建立雲端資料夾失敗：' + e.message); }
-  finally { btn.disabled = false; renderDriveBtn(); }
+  finally { _driveFolderBusy = false; btn.disabled = false; renderDriveBtn(); }
 }
 // 把資料夾連結帶進底下「案件雲端儲存資料夾」欄位（欄位空的才填，不蓋掉手動貼的），並存進 photo_upload_url
 function fillFolderField(url) {

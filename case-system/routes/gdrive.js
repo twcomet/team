@@ -103,20 +103,17 @@ router.post('/gcal/reapply-shares', requireAuth, requireOwner, async (req, res) 
 });
 
 // 為某案件建立（或取得已建立的）雲端資料夾
+// 走 ensureCaseFolder（有同鑰匙串行鎖 + 已存在則不重建），避免同案件按兩次建出重複資料夾
 router.post('/case/:id/folder', requireAuth, async (req, res) => {
   try {
-    const c = db.prepare(`
-      SELECT c.id, c.case_number, c.title, c.drive_folder_url, cl.name AS client_name
-      FROM cases c LEFT JOIN clients cl ON c.client_id = cl.id WHERE c.id = ?
-    `).get(req.params.id);
+    const c = db.prepare('SELECT id, drive_folder_url FROM cases WHERE id = ?').get(req.params.id);
     if (!c) return res.status(404).json({ error: '找不到案件' });
     if (c.drive_folder_url) return res.json({ url: c.drive_folder_url, existed: true });
     if (!gdrive.isConnected()) return res.status(400).json({ error: '系統尚未連接 Google 雲端，請老闆先到「雲端整合」連接' });
 
-    const name = [c.case_number, c.title, c.client_name].filter(Boolean).join(' ');
-    const f = await gdrive.createCaseFolder(name);
-    db.prepare('UPDATE cases SET drive_folder_id = ?, drive_folder_url = ? WHERE id = ?').run(f.id, f.webViewLink, c.id);
-    res.json({ url: f.webViewLink });
+    const url = await gdrive.ensureCaseFolder(c.id);
+    if (!url) return res.status(500).json({ error: '建立雲端資料夾失敗' });
+    res.json({ url });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
