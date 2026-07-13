@@ -19,24 +19,35 @@ router.get('/', requireAuth, (req, res) => {
            cl.name AS client_name, cl.phone AS client_phone,
            sf.worker_token AS survey_worker_token,
            CASE WHEN c.surveyor_id = ? THEN 1 ELSE 0 END AS is_surveyor,
+           -- 挑「該處理的派工」：未來/今天的派工優先（最近的先），
+           -- 若沒有未來派工，則抓最近一筆過去派工（逾期案件也能回報完工）。
+           -- 四個子查詢排序需一致，才會指向同一筆派工。
            (SELECT d.dispatch_type || '|' || d.scheduled_date
             FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ?
               AND d.status NOT IN ('cancelled')
-              AND d.scheduled_date >= date('now','-1 day')
-            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch,
+            ORDER BY CASE WHEN d.scheduled_date >= date('now','-1 day') THEN 0 ELSE 1 END ASC,
+                     CASE WHEN d.scheduled_date >= date('now','-1 day') THEN d.scheduled_date END ASC,
+                     d.scheduled_date DESC
+            LIMIT 1) AS next_dispatch,
            (SELECT d.id FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
-              AND d.scheduled_date >= date('now','-1 day')
-            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_id,
+            ORDER BY CASE WHEN d.scheduled_date >= date('now','-1 day') THEN 0 ELSE 1 END ASC,
+                     CASE WHEN d.scheduled_date >= date('now','-1 day') THEN d.scheduled_date END ASC,
+                     d.scheduled_date DESC
+            LIMIT 1) AS next_dispatch_id,
            (SELECT d.notes FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
-              AND d.scheduled_date >= date('now','-1 day')
-            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_notes,
+            ORDER BY CASE WHEN d.scheduled_date >= date('now','-1 day') THEN 0 ELSE 1 END ASC,
+                     CASE WHEN d.scheduled_date >= date('now','-1 day') THEN d.scheduled_date END ASC,
+                     d.scheduled_date DESC
+            LIMIT 1) AS next_dispatch_notes,
            (SELECT d.scheduled_time FROM dispatches d JOIN dispatch_users du ON du.dispatch_id = d.id
             WHERE d.case_id = c.id AND du.user_id = ? AND d.status NOT IN ('cancelled')
-              AND d.scheduled_date >= date('now','-1 day')
-            ORDER BY d.scheduled_date ASC LIMIT 1) AS next_dispatch_time,
+            ORDER BY CASE WHEN d.scheduled_date >= date('now','-1 day') THEN 0 ELSE 1 END ASC,
+                     CASE WHEN d.scheduled_date >= date('now','-1 day') THEN d.scheduled_date END ASC,
+                     d.scheduled_date DESC
+            LIMIT 1) AS next_dispatch_time,
            c.photo_upload_url, c.drive_folder_url,
            c.entry_info, c.desired_entry_date,
            sf.site_contact, sf.site_phone, cl.contact_person AS client_contact_person,
