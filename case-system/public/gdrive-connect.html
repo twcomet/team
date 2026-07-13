@@ -32,6 +32,7 @@
     <div class="gd-sub">連接後，每個案件都能一鍵在你的 Google 雲端硬碟建立一個專屬資料夾（資料夾集中放在「繪新案件資料」裡）。只需連接這一次。</div>
     <div id="msg"></div>
     <div id="status" class="gd-status gd-off">讀取狀態中…</div>
+    <div id="gd-account" class="gd-note" style="display:none;margin-top:-10px;margin-bottom:16px"></div>
     <div id="actions"></div>
     <div class="gd-note">🔒 系統只會使用最小權限 <b>drive.file</b>（自己建立的資料夾）與 <b>calendar</b>（派單行事曆）。</div>
     <a class="gd-back" href="/dashboard">← 回總覽</a>
@@ -96,6 +97,7 @@
       act.innerHTML = '<a class="gd-btn gd-primary" href="/api/gdrive/connect">重新連接 Google（授權行事曆）</a>'
                     + '<button class="gd-btn gd-ghost" onclick="backfillFolders()">為舊案件補建資料夾</button>'
                     + '<button class="gd-btn gd-ghost" onclick="disc()">中斷連接</button>';
+      loadAccount();
     } else {
       st.className = 'gd-status gd-off';
       st.textContent = '尚未連接';
@@ -105,6 +107,29 @@
   }).catch(function(){
     document.getElementById('status').textContent = '讀取狀態失敗（請確認你是最高管理者）';
   });
+
+  function _fmtGB(bytes){
+    if (bytes == null) return '—';
+    var gb = bytes / 1073741824;
+    return gb >= 10 ? gb.toFixed(1) + ' GB' : gb.toFixed(2) + ' GB';
+  }
+  function loadAccount(){
+    var box = document.getElementById('gd-account');
+    fetch('/api/gdrive/account').then(function(x){return x.json();}).then(function(a){
+      if (!a || !a.connected) { box.style.display='none'; return; }
+      var line = '📧 連接帳號：<b>' + (a.email || '(未知)') + '</b>';
+      if (a.limit == null) {
+        line += '　｜　容量：無上限（Workspace 方案），已用 ' + _fmtGB(a.usage);
+      } else {
+        var warn = a.percent != null && a.percent >= 85;
+        line += '　｜　容量：<b' + (warn ? ' style="color:#dc2626"' : '') + '>已用 ' + _fmtGB(a.usage) + ' / ' + _fmtGB(a.limit)
+              + (a.percent != null ? '（' + a.percent + '%）' : '') + '</b>';
+        if (warn) line += '　⚠️ 空間快滿了';
+      }
+      box.innerHTML = line;
+      box.style.display = '';
+    }).catch(function(){ box.style.display='none'; });
+  }
 
   window.disc = function(){
     if (!confirm('確定中斷 Google 雲端連接？中斷後案件將無法建立新資料夾（已建立的資料夾不受影響）。')) return;

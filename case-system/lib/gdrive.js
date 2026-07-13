@@ -282,6 +282,28 @@ function safeEnsureSurveyFolder(caseId) {
   return ensureSurveyFolder(caseId).catch(e => { console.error('[gdrive] 場勘子資料夾失敗 case#' + caseId + '：', e.message); return null; });
 }
 
+// 目前連接的 Google 帳號 email + 容量（讓老闆確認系統連的是哪個帳號、還剩多少空間）
+async function accountInfo() {
+  if (!isConnected()) return { connected: false };
+  const token = await accessToken();
+  const r = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName),storageQuota(limit,usage,usageInDrive)', {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('查詢帳號資訊失敗：' + ((j.error && j.error.message) || r.status));
+  const q = j.storageQuota || {};
+  const limit = q.limit != null ? Number(q.limit) : null;   // null = 無上限（Workspace 無限方案）
+  const usage = q.usage != null ? Number(q.usage) : null;
+  return {
+    connected: true,
+    email: j.user && j.user.emailAddress || null,
+    name:  j.user && j.user.displayName  || null,
+    limit, usage,
+    usageInDrive: q.usageInDrive != null ? Number(q.usageInDrive) : null,
+    percent: (limit && usage != null) ? Math.round(usage / limit * 100) : null,
+  };
+}
+
 // 中斷連接（清掉 token）
 function disconnect() {
   setS('gdrive_refresh_token', null);
@@ -339,4 +361,4 @@ async function listBackups(limit) {
   return { folderId, files: j.files || [] };
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, uploadBackup, pruneBackups, listBackups };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups };

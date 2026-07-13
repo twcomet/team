@@ -10,6 +10,12 @@ router.get('/status', requireAuth, requireOwner, (req, res) => {
   res.json({ configured: gdrive.isConfigured(), connected: gdrive.isConnected() });
 });
 
+// 目前連接的 Google 帳號 + 容量（只有老闆）—— 讓老闆確認系統連的是哪個帳號、還剩多少空間
+router.get('/account', requireAuth, requireOwner, async (req, res) => {
+  try { res.json(await gdrive.accountInfo()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 開始連接 → 導向 Google 同意畫面（只有老闆）
 router.get('/connect', requireAuth, requireOwner, (req, res) => {
   if (!gdrive.isConfigured()) return res.status(500).send('伺服器尚未設定 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET');
