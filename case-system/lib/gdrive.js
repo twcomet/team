@@ -56,6 +56,10 @@ async function exchangeCode(code) {
   });
   if (j.refresh_token) setS('gdrive_refresh_token', j.refresh_token);
   _clearTokenCache();   // 重新授權（可能換帳號）→ 丟棄舊 access token 快取
+  // 可能換了 Google 帳號：舊帳號的母資料夾/備份夾 ID 對新帳號無效（drive.file 碰不到）。
+  // 清掉快取 ID，讓 _ensureParent / _ensureBackupFolder 用新帳號重新尋找（找得到同名沿用，否則新建）。
+  setS('gdrive_parent_id', null);
+  setS('gdrive_backup_folder_id', null);
   return j;
 }
 
@@ -102,13 +106,25 @@ async function _createFolder(name, parentId, token) {
   return j; // { id, webViewLink }
 }
 
+// 在「我的雲端硬碟」根目錄找 app 建過的同名資料夾（沿用，避免重新連接時建出重複的頂層資料夾）
+async function _findRootFolder(name, token) {
+  const q = `name='${String(name).replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents`;
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,name)&pageSize=10&q=' + encodeURIComponent(q), {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return null;
+  return (j.files && j.files[0]) ? j.files[0].id : null;
+}
+
 // 母資料夾「繪新案件資料」——所有案件資料夾開在裡面（app 自己建，drive.file 才能寫子資料夾）
 async function _ensureParent(token) {
   const pid = getS('gdrive_parent_id');
   if (pid) return pid;
-  const f = await _createFolder('繪新案件資料', null, token);
-  setS('gdrive_parent_id', f.id);
-  return f.id;
+  let id = await _findRootFolder('繪新案件資料', token);   // 先找現有的（同帳號重連可沿用）
+  if (!id) { const f = await _createFolder('繪新案件資料', null, token); id = f.id; }
+  setS('gdrive_parent_id', id);
+  return id;
 }
 
 // 為案件建立資料夾，回傳 { id, webViewLink }
@@ -316,9 +332,10 @@ function disconnect() {
 async function _ensureBackupFolder(token) {
   const cached = getS('gdrive_backup_folder_id');
   if (cached) return cached;
-  const f = await _createFolder('繪新系統備份（資料庫）', null, token);
-  setS('gdrive_backup_folder_id', f.id);
-  return f.id;
+  let id = await _findRootFolder('繪新系統備份（資料庫）', token);   // 先找現有的（同帳號重連可沿用）
+  if (!id) { const f = await _createFolder('繪新系統備份（資料庫）', null, token); id = f.id; }
+  setS('gdrive_backup_folder_id', id);
+  return id;
 }
 // 上傳一份資料庫備份（buf = 檔案內容 Buffer）
 async function uploadBackup(name, buf) {
