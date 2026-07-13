@@ -322,10 +322,12 @@ router.get('/:quoteId', requireAuth, (req, res) => {
   const q = db.prepare(`
     SELECT qs.*, u.name as creator_name,
            c.case_number, c.title as case_title, c.location as case_location, c.client_id,
+           c.sales_id as sales_id, usales.name as sales_name,
            cl.name as client_name, cl.phone as client_phone, cl.tax_id as client_tax_id, cl.contact_person as client_contact
     FROM quote_sheets qs
     LEFT JOIN users u ON u.id=qs.created_by
     LEFT JOIN cases c ON c.id=qs.case_id
+    LEFT JOIN users usales ON usales.id=c.sales_id
     LEFT JOIN clients cl ON cl.id=c.client_id
     WHERE qs.id=?`).get(req.params.quoteId);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
@@ -606,11 +608,13 @@ router.get('/sign/:token', (req, res) => {
     SELECT qs.*, c.title, c.case_number, c.location,
            cl.name as client_name, cl.phone as client_phone,
            u.name as creator_name,
+           c.sales_id as case_sales_id, usales.name as case_sales_name,
            o.name as org_name, o.tax_id as org_tax_id, o.address as org_address, o.phone as org_phone
     FROM quote_sheets qs
     JOIN cases c ON c.id = qs.case_id
     LEFT JOIN clients cl ON cl.id = c.client_id
     LEFT JOIN users u ON u.id = qs.created_by
+    LEFT JOIN users usales ON usales.id = c.sales_id
     LEFT JOIN orgs o ON o.id = c.org_id
     WHERE qs.share_token = ?
   `).get(req.params.token);
@@ -626,6 +630,8 @@ router.get('/sign/:token', (req, res) => {
     q.client_viewed_at = new Date().toISOString();
   }
 
+  // 甲方業務窗口：本報價單選的業務(party_json.sales_id) 優先，否則用案件指定業務，再退回開單人
+  let partySalesId = null;
   // 合併本報價單的客戶/案場覆寫（per-quote 快照優先）
   try { const p = JSON.parse(q.party_json || '{}') || {};
     if (p.client_name)  q.client_name  = p.client_name;
@@ -634,7 +640,14 @@ router.get('/sign/:token', (req, res) => {
     q.client_tax_id = p.client_tax_id || q.client_tax_id || null;
     q.client_contact = p.client_contact || q.client_contact || null;
     q.site_note = p.site_note || null;
+    if (p.sales_id) partySalesId = p.sales_id;
   } catch (e) {}
+  if (partySalesId) {
+    const su = db.prepare('SELECT name FROM users WHERE id=?').get(partySalesId);
+    q.sales_window_name = (su && su.name) || q.case_sales_name || q.creator_name || null;
+  } else {
+    q.sales_window_name = q.case_sales_name || q.creator_name || null;
+  }
 
   // 優先讀 quote_sheet_items（新版），fallback 到 case_items（舊版相容）
   let items = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(q.id);
