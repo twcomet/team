@@ -89,6 +89,23 @@
   .ec-btn{flex:1;padding:13px 16px;border-radius:11px;border:none;cursor:pointer;font-size:14.5px;font-weight:700;transition:filter .12s}
   .ec-btn:hover{filter:brightness(.96)}
   .ec-btn-g{background:#1f2937;color:#fff}
+.ec-ocr{border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;background:#fafafa;overflow:hidden}
+.ec-ocr>summary{list-style:none;cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;color:#D40069}
+.ec-ocr>summary::-webkit-details-marker{display:none}
+.ec-ocr[open]>summary{border-bottom:1px solid #eee}
+.ec-ocr-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ec-ocr-drop{display:block;border:1.5px dashed #f0a; border-color:#f4b8d6;border-radius:10px;background:#fff;padding:16px;text-align:center;font-size:13px;color:#9d174d;cursor:pointer}
+.ec-ocr-drop:hover{background:#fff0f7}
+.ec-ocr-status{font-size:12px;min-height:14px;color:#6b7280}
+.ec-ocr-status.busy{color:#b45309}.ec-ocr-status.ok{color:#15803d}.ec-ocr-status.err{color:#dc2626}
+.ec-ocr-rows{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}
+.ec-ocr-row{display:grid;grid-template-columns:1fr 62px 14px 62px 44px 26px;gap:5px;align-items:center}
+.ec-ocr-row input{width:100%;padding:6px 7px;border:1px solid #e5e7eb;border-radius:6px;font-size:12.5px}
+.ec-ocr-row span{text-align:center;color:#9ca3af;font-size:12px}
+.ec-ocr-row button{border:none;background:transparent;color:#dc2626;font-size:16px;cursor:pointer}
+.ec-ocr-apply{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px solid #eee;padding-top:10px}
+.ec-ocr-apply select{padding:7px 9px;border:1px solid #d1d5db;border-radius:7px;font-size:12.5px;flex:1;min-width:90px}
+.ec-ocr-apply .ec-add{flex:1 0 100%;margin-top:2px}
 </style>
 </head>
 <body>
@@ -168,6 +185,22 @@
       <div class="ec-wrap">
         <!-- 第二區：品項輸入 -->
         <div class="ec-card">
+          <details class="ec-ocr" id="ocrBox">
+            <summary>📄 上傳圖片／PDF 自動辨識尺寸</summary>
+            <div class="ec-ocr-body">
+              <label class="ec-ocr-drop"><input type="file" id="ocrFile" accept="image/*,application/pdf" style="display:none"><span id="ocrDropText">點此選擇 圖片／PDF（尺寸表或場勘圖）</span></label>
+              <div id="ocrStatus" class="ec-ocr-status">辨識出的尺寸為淨尺寸；加入後由估價機依「寬鬆／拼料」計損耗。</div>
+              <div id="ocrResult" style="display:none">
+                <div class="ec-ocr-rows" id="ocrRows"></div>
+                <div class="ec-ocr-apply">
+                  <select id="ocr-work"><option value="plane">牆面</option><option value="cabinet">系統櫃</option><option value="shape">造型</option></select>
+                  <select id="ocr-brand" onchange="ocrFillItems()"></select>
+                  <select id="ocr-item"></select>
+                  <button class="ec-add" onclick="ocrApply()">＋ 全部加入報價</button>
+                </div>
+              </div>
+            </div>
+          </details>
           <div class="ec-itabs">
             <div class="ec-itab" data-tab="object">物件</div>
             <div class="ec-itab on" data-tab="w">牆面</div>
@@ -253,6 +286,13 @@
               <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
               <div class="ec-grand"><span>估價總額（原價·未稅）</span><b id="t-total">$0</b></div>
               <div class="ec-discbar" id="t-discbar"><div class="dl"><span>折扣後應付（未稅）</span><small id="t-saved">省 $0</small></div><b id="t-disctotal">$0</b></div>
+              <div id="t-margin-box" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:13px;font-weight:600">裝潢膜材料毛利 <span id="t-margin-note" style="font-size:10px;font-weight:400;color:#9ca3af"></span></span>
+                  <b id="t-margin-pill" style="padding:3px 12px;border-radius:20px;color:#fff;font-weight:700;font-size:13px"></b>
+                </div>
+                <div id="t-margin-detail" style="font-size:11px;color:#6b7280;margin-top:5px;line-height:1.6"></div>
+              </div>
             </div>
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
@@ -272,7 +312,7 @@ const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統�
 const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型' };
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
-let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false;
+let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false;
 const EPARAMS = new URLSearchParams(location.search);
 
 const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
@@ -285,7 +325,8 @@ function fillSel(id,arr){var s=document.getElementById(id);s.innerHTML='';arr.fo
 async function loadCatalog(){
   const cat = await fetch(API+'/catalog').then(r=>r.json());
   const pr = await fetch(API+'/prices').then(r=>r.json());
-  FILMS={}; (cat.films||[]).forEach(function(r){ if(!FILMS[r.brand])FILMS[r.brand]={label:BRAND[r.brand]||r.brand,items:[]}; FILMS[r.brand].items.push({id:r.id,asia:r.asia_code,kr:r.kr_code,color:r.color,plane:r.plane,cabinet:r.cabinet,shape:r.shape,width:r.width||122}); });
+  IS_OWNER=!!cat.isOwner;
+  FILMS={}; (cat.films||[]).forEach(function(r){ if(!FILMS[r.brand])FILMS[r.brand]={label:BRAND[r.brand]||r.brand,items:[]}; FILMS[r.brand].items.push({id:r.id,asia:r.asia_code,kr:r.kr_code,color:r.color,plane:r.plane,cabinet:r.cabinet,shape:r.shape,width:r.width||122,cost:r.cost_per_m||0}); });
   DOORS={}; (cat.doors||[]).forEach(function(r){ DOORS[r.cat]=DOORS[r.cat]||{}; if(r.cat==='fire'){DOORS.fire.sized=1;DOORS.fire[r.size]=DOORS.fire[r.size]||{};DOORS.fire[r.size][r.origin]=DOORS.fire[r.size][r.origin]||{};DOORS.fire[r.size][r.origin][r.side]=r.price;}else{DOORS[r.cat][r.origin]=DOORS[r.cat][r.origin]||{};DOORS[r.cat][r.origin][r.side]=DOORS[r.cat][r.origin][r.side]||{};DOORS[r.cat][r.origin][r.side][r.frame]=r.price;} });
   GLASS={}; (pr.glass||[]).forEach(function(r){ if(!GLASS[r.cat_key])GLASS[r.cat_key]={label:r.cat_label,items:[]}; GLASS[r.cat_key].items.push({sys:r.sys,owner:r.owner_price,designer:r.designer_price,width:r.width||122}); });
   FREIGHT={}; (pr.freight||[]).forEach(function(r){ FREIGHT[r.region]=r.amount||0; });
@@ -342,7 +383,8 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
  return Object.keys(g).map(function(k){var x=g[k],unit=x.item[x.work];var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
   var title=(x.name?x.name+'｜':'')+workName[x.work]+'｜'+FILMS[x.brand].label;
   var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
-  return {type:'film',work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs};});}
+  var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
+  return {type:'film',work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost};});}
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,W=item.width||122;var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs};});}
 function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
@@ -410,6 +452,26 @@ function render(){
  document.getElementById('mode-comb-amt').textContent=NT(modeOrigTotal(true));
  document.getElementById('mode-loose').classList.toggle('on',!COMBINE);
  document.getElementById('mode-comb').classList.toggle('on',COMBINE);
+ renderMargin(priced,hasDisc);
+}
+/* 裝潢膜材料毛利燈（僅老闆看得到成本；材料成本不含師傅工資） */
+function renderMargin(priced,hasDisc){
+ var box=document.getElementById('t-margin-box'); if(!box)return;
+ var films=priced.filter(function(L){return L.type==='film';});
+ if(!IS_OWNER||!films.length){box.style.display='none';return;}
+ var matCost=0,missing=0,sell=0,sellOrig=0;
+ films.forEach(function(L){ if(L.hasCost)matCost+=L.matCost; else missing++; sell+=L.amount; sellOrig+=(L.base||L.amount); });
+ if(!sell||matCost<=0){box.style.display='none';return;}
+ var mr=(sell-matCost)/sell, p=Math.round(mr*100), col,tx,bg;
+ if(mr>=0.6){tx='🟢 健康';col='#16a34a';bg='#f0fdf4';}
+ else if(mr>=0.5){tx='🟡 正常';col='#d18a1a';bg='#fffbeb';}
+ else{tx='🔴 過低';col='#dc2626';bg='#fef2f2';}
+ box.style.display=''; box.style.background=bg;
+ var pill=document.getElementById('t-margin-pill'); pill.textContent=tx+' '+p+'%'; pill.style.background=col;
+ document.getElementById('t-margin-note').textContent='（材料成本，未含工資）';
+ document.getElementById('t-margin-detail').innerHTML=
+   '材料成本 '+NT(Math.round(matCost))+'　·　裝潢膜'+(hasDisc?'折後':'')+' '+NT(sell)+'　·　毛利 '+NT(sell-matCost)
+   +(missing?'<br>⚠ '+missing+' 項膜款未建成本，毛利僅供參考':'');
 }
 
 async function saveQuote(status){
@@ -429,6 +491,55 @@ async function saveQuote(status){
    }
    else alert('儲存失敗：'+(j.error||('伺服器回應 '+r.status)));
  }catch(e){ alert('儲存失敗：'+e.message); }
+}
+
+/* ── 上傳圖片/PDF 辨識尺寸 → 覆核 → 全部加入報價 ── */
+var OCRROWS=[];
+function ocrFillItems(){var b=v('ocr-brand');if(!FILMS[b])return;fillSel('ocr-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));}
+function ocrInit(){
+  fillSel('ocr-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));
+  ocrFillItems();
+  var f=document.getElementById('ocrFile');
+  if(f)f.addEventListener('change',function(e){var file=e.target.files[0];if(file)ocrUpload(file);e.target.value='';});
+}
+async function ocrUpload(file){
+  var st=document.getElementById('ocrStatus');
+  document.getElementById('ocrDropText').textContent='📄 '+file.name;
+  st.textContent='辨識中…（圖片/PDF 約 5–20 秒）';st.className='ec-ocr-status busy';
+  document.getElementById('ocrResult').style.display='none';
+  try{
+    var fd=new FormData();fd.append('file',file);
+    var r=await fetch(API+'/ocr-sizes',{method:'POST',body:fd});
+    var j=await r.json();
+    if(!r.ok){st.textContent='❌ '+(j.error||('伺服器 '+r.status));st.className='ec-ocr-status err';return;}
+    OCRROWS=(j.rows||[]).map(function(x){return {name:x.name||'',w:+x.w||0,h:+x.h||0,qty:Math.max(1,x.qty|0)};});
+    if(!OCRROWS.length){st.textContent='辨識不到尺寸，請換清晰一點的檔案';st.className='ec-ocr-status err';return;}
+    var pcs=OCRROWS.reduce(function(a,x){return a+x.qty;},0);
+    st.textContent='✓ 辨識 '+OCRROWS.length+' 列、共 '+pcs+' 片，請覆核後選品項/膜款加入';st.className='ec-ocr-status ok';
+    ocrRenderRows();document.getElementById('ocrResult').style.display='';
+  }catch(e){st.textContent='❌ '+e.message;st.className='ec-ocr-status err';}
+}
+function ocrRenderRows(){
+  document.getElementById('ocrRows').innerHTML=OCRROWS.map(function(r,i){
+    return '<div class="ec-ocr-row">'
+      +'<input value="'+String(r.name||'').replace(/"/g,'&quot;')+'" onchange="OCRROWS['+i+'].name=this.value" placeholder="名稱">'
+      +'<input type="number" step="0.1" value="'+r.w+'" onchange="OCRROWS['+i+'].w=+this.value">'
+      +'<span>×</span>'
+      +'<input type="number" step="0.1" value="'+r.h+'" onchange="OCRROWS['+i+'].h=+this.value">'
+      +'<input type="number" value="'+r.qty+'" onchange="OCRROWS['+i+'].qty=Math.max(1,this.value|0)">'
+      +'<button title="移除" onclick="OCRROWS.splice('+i+',1);ocrRenderRows()">×</button></div>';
+  }).join('');
+}
+function ocrApply(){
+  var use=OCRROWS.filter(function(r){return r.w>0&&r.h>0;});
+  if(!use.length){alert('沒有可加入的尺寸');return;}
+  var work=v('ocr-work'),b=v('ocr-brand'),idx=+v('ocr-item');
+  use.forEach(function(r){var q=Math.max(1,r.qty|0);for(var i=0;i<q;i++)CART.push({kind:'film',name:(r.name||'').trim(),brand:b,idx:idx,work:work,h:+r.h,w:+r.w});});
+  render();
+  var st=document.getElementById('ocrStatus');
+  st.textContent='✓ 已加入 '+use.length+' 項到估價明細（可再上傳其他部位）';st.className='ec-ocr-status ok';
+  OCRROWS=[];document.getElementById('ocrResult').style.display='none';
+  document.getElementById('ocrDropText').textContent='點此選擇 圖片／PDF（尺寸表或場勘圖）';
 }
 
 document.querySelectorAll('.ec-itab').forEach(function(t){t.onclick=function(){document.querySelectorAll('.ec-itab').forEach(function(x){x.classList.remove('on');});t.classList.add('on');document.querySelectorAll('.ec-pane').forEach(function(p){p.classList.remove('on');});document.getElementById('pane-'+t.dataset.tab).classList.add('on');};});
@@ -491,6 +602,7 @@ async function prefillFromCase(id){
   await loadCatalog();
   fillSel('b-region',Object.keys(FREIGHT).map(function(k){return {v:k,t:k};}));
   buildFilmPane('w');buildFilmPane('c');buildFilmPane('s');
+  ocrInit();
   fillSel('e-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));fillElevItem();
   fillSel('g-cat',Object.keys(GLASS).map(function(k){return {v:k,t:GLASS[k].label};}));fillGlassSeries();
   fillDoor();

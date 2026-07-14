@@ -1,9 +1,11 @@
 const express = require('express');
+const multer  = require('multer');
 const db = require('../db');
 const eng = require('../lib/estimator');
 const _catData = require('../lib/estimator-catalog');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } }); // 圖片/PDF 上限 25MB
 
 // 把整張真實牌價匯入 est_film_catalog / est_door_catalog（force=清空重灌；否則只在空表時帶入）。
 // 兼作「啟動 seed 沒跑成功」的保險：GET /catalog 會 lazy 呼叫，確保頁面一定有資料。
@@ -228,6 +230,56 @@ router.put('/door-catalog/:id', requireAuth, requireEdit, (req, res) => {
   db.prepare(`UPDATE est_door_catalog SET price=?,active=? WHERE id=?`)
     .run(Number(price)||0, active?1:0, req.params.id);
   res.json({ ok: true });
+});
+
+// ── 尺寸表／場勘圖 OCR（圖片或 PDF）→ 回傳每片 {name,w,h,qty} ──
+// 沿用 clients.js /ocr-card 的 Claude 視覺模式；規則對齊繪新場勘估算系統（淨尺寸寬高各+10、膜寬122、超寬拆塊）
+router.post('/ocr-sizes', requireAuth, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '請上傳圖片或 PDF' });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: '未設定 ANTHROPIC_API_KEY' });
+
+  const b64  = req.file.buffer.toString('base64');
+  const mime = req.file.mimetype || '';
+  const isPdf = mime === 'application/pdf' || /\.pdf$/i.test(req.file.originalname || '');
+  const media = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
+    : { type: 'image',    source: { type: 'base64', media_type: mime || 'image/jpeg', data: b64 } };
+
+  const PROMPT = `這是裝潢貼膜的尺寸表或場勘圖（可能是表格，或手繪標註尺寸）。請辨識每一塊要貼膜的材料，抓出名稱、寬、高（公分）、數量。
+規則：
+- 尺寸多為「寬*高」「寬x高」cm；小數要保留（例 79.5）。原尺寸即可，不用自己加裁切餘裕。
+- 數量：有標示就用該值，沒有則為 1。整批相同的區塊可用數量合併。
+- 名稱：取該列品名（例 大門、#1門片、間隔片、洗手檯旁牆片、便斗隔板…）；沒有就留空字串。
+只回傳 JSON、不要任何說明文字：
+{"rows":[{"name":"大門","w":79.5,"h":203,"qty":1}]}`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: [ media, { type: 'text', text: PROMPT } ] }]
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.type === 'error') {
+      return res.status(500).json({ error: `辨識服務錯誤：${data.error?.message || ('API ' + resp.status)}` });
+    }
+    const text = (data.content || []).map(c => c.text || '').join('').trim();
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return res.status(422).json({ error: `辨識不到尺寸，請確認上傳的是尺寸表/場勘圖${text ? '（' + text.slice(0, 60) + '）' : ''}` });
+    let parsed;
+    try { parsed = JSON.parse(m[0]); } catch (e) { return res.status(422).json({ error: '辨識結果格式異常，請重試或換清晰一點的檔案' }); }
+    const rows = (parsed.rows || []).map(r => ({
+      name: String(r.name || '').slice(0, 40),
+      w: Number(r.w) || 0, h: Number(r.h) || 0,
+      qty: Math.max(1, Math.round(Number(r.qty) || 1))
+    })).filter(r => r.w > 0 && r.h > 0);
+    res.json({ rows, count: rows.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;
