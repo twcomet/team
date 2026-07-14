@@ -6,6 +6,13 @@ const router  = express.Router();
 
 function genToken() { return crypto.randomBytes(16).toString('hex'); }
 
+// 只有「草稿」可直接編輯；已發送/已確認/已拒絕一律唯讀（前端會自動分版後改草稿）。回傳 true=可寫
+function ensureDraft(quoteId, res) {
+  const st = db.prepare(`SELECT status FROM quote_sheets WHERE id=?`).get(quoteId)?.status;
+  if (st && st !== 'draft') { res.status(409).json({ error: '此報價單已發送，請建立新版後再編輯', locked: true }); return false; }
+  return true;
+}
+
 // 同步庫存保留記錄
 function syncReservations(quoteId, newStatus) {
   if (newStatus === 'pending') {
@@ -350,6 +357,7 @@ router.get('/:quoteId', requireAuth, (req, res) => {
 
 // 更新報價單設定（不含品項）
 router.put('/:quoteId', requireAuth, (req, res) => {
+  if (!ensureDraft(req.params.quoteId, res)) return;
   const { valid_days, payment_terms, client_notes, client_type, status,
           discount_rate, marketing_rate, tax_rate,
           travel_fee, freight_fee, notes_terms, notes_acceptance, discount_rule_id } = req.body;
@@ -411,6 +419,52 @@ router.post('/:quoteId/send', requireAuth, (req, res) => {
   res.json({ ok: true, token: q?.share_token });
 });
 
+// 分版：把一張報價單完整複製成「新版草稿」（原版永不覆蓋）
+//   ?items=0 → 只複製表頭設定、不複製品項（前端「發出後編輯自動分版」用，品項會由前端重新 POST）
+//   預設複製全部（表頭 v2 欄位 + 全部品項），供未來「手動建立新版」用
+router.post('/:quoteId/revise', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const src = db.prepare(`SELECT * FROM quote_sheets WHERE id=?`).get(req.params.quoteId);
+  if (!src) return res.status(404).json({ error: '找不到報價單' });
+
+  const lastVersion = db.prepare(`SELECT MAX(version) as v FROM quote_sheets WHERE case_id=?`).get(src.case_id);
+  const newVersion = (lastVersion?.v || 0) + 1;
+  const token = genToken();
+
+  // 動態複製 quote_sheets 全部欄位（含 v2：engine/party_json/mkt_*/flex_deducts/block_images/day_rate…），
+  // 僅覆寫版本/連結/狀態/建立者，並清掉客戶端簽署快照；created_at/updated_at 用當下時間
+  const overrides = {
+    version: newVersion, share_token: token, status: 'draft', created_by: me.id,
+    client_viewed_at: null, client_signature: null, client_accepted_at: null, client_marketing_consent: 0,
+  };
+  const skip = new Set(['id', 'created_at', 'updated_at']);
+  const cols = db.prepare(`PRAGMA table_info(quote_sheets)`).all().map(c => c.name).filter(n => !skip.has(n));
+  const vals = cols.map(c => (c in overrides) ? overrides[c] : src[c]);
+  const r = db.prepare(
+    `INSERT INTO quote_sheets (${cols.join(',')}, created_at, updated_at)
+     VALUES (${cols.map(() => '?').join(',')}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).run(...vals);
+  const newId = r.lastInsertRowid;
+
+  // 複製品項（除非 ?items=0）。回傳 item_map: [[原品項id, 新品項id], …]（依序），
+  // 讓前端把記憶體中的編輯用「更新」而非「重建」寫進新版 → 保留成本等機密欄位
+  const itemMap = [];
+  if (String(req.query.items) !== '0') {
+    const itemCols = db.prepare(`PRAGMA table_info(quote_sheet_items)`).all()
+      .map(c => c.name).filter(n => n !== 'id' && n !== 'quote_id');
+    const srcItems = db.prepare(`SELECT * FROM quote_sheet_items WHERE quote_id=? ORDER BY sort_order, id`).all(src.id);
+    if (srcItems.length) {
+      const ins = db.prepare(`INSERT INTO quote_sheet_items (quote_id, ${itemCols.join(',')}) VALUES (?, ${itemCols.map(() => '?').join(',')})`);
+      for (const it of srcItems) { const ir = ins.run(newId, ...itemCols.map(c => it[c])); itemMap.push([it.id, ir.lastInsertRowid]); }
+    }
+    recalcQuote(newId);
+  }
+
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'quote_revise', 'quote_sheets', newId, `報價單分版 v${src.version}→v${newVersion}`);
+  res.json({ ok: true, id: newId, share_token: token, version: newVersion, from_version: src.version, item_map: itemMap });
+});
+
 // 退回報價（客戶拒絕或客服取消）
 router.post('/:quoteId/reject', requireAuth, (req, res) => {
   const quoteId = Number(req.params.quoteId);
@@ -429,6 +483,7 @@ router.get('/:quoteId/items', requireAuth, (req, res) => {
 
 // 新增品項
 router.post('/:quoteId/items', requireAuth, (req, res) => {
+  if (!ensureDraft(req.params.quoteId, res)) return;
   const quoteId = Number(req.params.quoteId);
   const {
     item_type, location, description,
@@ -497,6 +552,7 @@ router.post('/:quoteId/items', requireAuth, (req, res) => {
 
 // 更新品項
 router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
+  if (!ensureDraft(req.params.quoteId, res)) return;
   const quoteId = Number(req.params.quoteId);
   const {
     item_type, location, description,
@@ -587,6 +643,7 @@ router.delete('/:quoteId', requireAuth, (req, res) => {
 
 // 刪除品項
 router.delete('/:quoteId/items/:itemId', requireAuth, (req, res) => {
+  if (!ensureDraft(req.params.quoteId, res)) return;
   const quoteId = Number(req.params.quoteId);
   db.prepare(`DELETE FROM quote_sheet_items WHERE id=? AND quote_id=?`).run(req.params.itemId, quoteId);
   recalcQuote(quoteId);
@@ -595,6 +652,7 @@ router.delete('/:quoteId/items/:itemId', requireAuth, (req, res) => {
 
 // 品項排序
 router.post('/:quoteId/items/reorder', requireAuth, (req, res) => {
+  if (!ensureDraft(req.params.quoteId, res)) return;
   const { order } = req.body; // array of item ids in new order
   const stmt = db.prepare(`UPDATE quote_sheet_items SET sort_order=? WHERE id=? AND quote_id=?`);
   order.forEach((id, idx) => stmt.run(idx, id, req.params.quoteId));

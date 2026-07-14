@@ -689,7 +689,10 @@ function bindHeader(q){
   const num=`${q.case_number||'報價'} · v${q.version||1}`;
   document.getElementById('qTitle').innerHTML=`${esc(num)} <span style="color:var(--gray-400);font-weight:700;font-size:16px">· ${esc(q.client_name||'—')}</span>`;
   const zh={draft:'草稿',sent:'待確認',accepted:'已確認',rejected:'已拒絕'}[q.status]||'草稿';
-  document.getElementById('qSub').innerHTML=`<span class="badge draft">${esc(zh)}</span><span>報價日期 ${(q.created_at||'').slice(0,10)} · 有效 ${q.valid_days||30} 天</span>`;
+  const lockNote=(q.status&&q.status!=='draft')
+    ? `<span style="font-size:12px;font-weight:700;color:#0f766e;background:#ccfbf1;border:1px solid #99f6e4;border-radius:7px;padding:2px 8px">🔒 此版已發送，編輯後會自動另存新版（原版保留）</span>`
+    : '';
+  document.getElementById('qSub').innerHTML=`<span class="badge draft">${esc(zh)}</span><span>報價日期 ${(q.created_at||'').slice(0,10)} · 有效 ${q.valid_days||30} 天</span>${lockNote}`;
   const p=q.party||{};
   const pv={
     client_name:(p.client_name!=null?p.client_name:q.client_name)||'',
@@ -854,6 +857,21 @@ async function saveAll(){
   }
   setStatus('儲存中…');
   try{
+    // 🔒 已發送/已確認的報價單不可覆蓋 → 自動分版：完整複製為新草稿，本次所有修改都存進新版，原版永不動
+    let forked=null;
+    if(curQuote && curQuote.status && curQuote.status!=='draft'){
+      const fr=await fetch(`/api/quotes/${quoteId}/revise`,{method:'POST'});   // 全複製(含品項)→ 保留成本等機密欄
+      if(!fr.ok){ setStatus('建立新版失敗，未儲存'); alert('建立新版失敗，請稍後再試（原版未被更動）'); return; }
+      forked=await fr.json();
+      quoteId=forked.id; shareToken=forked.share_token;   // 之後所有寫入都導向新版
+      // 把記憶體品項的 id 從「原版」對映到「新版複製出的品項」→ 存檔走 PUT(更新)而非重建，成本欄不被洗掉
+      const map=new Map((forked.item_map||[]).map(p=>[p[0],p[1]]));
+      const keep=new Set();
+      items.forEach(it=>{ if(it.id && map.has(it.id)){ it.id=map.get(it.id); keep.add(it.id); } else { it.id=null; } });
+      // 原版品項已複製到新版，但記憶體中已被刪除的那些 → 從新版一併刪掉
+      deletedIds=(forked.item_map||[]).map(p=>p[1]).filter(nid=>!keep.has(nid));
+      history.replaceState({},'',`/quote-form?id=${quoteId}`);
+    }
     const body={
       valid_days:curQuote?.valid_days??30, payment_terms:curQuote?.payment_terms??null,
       client_notes:curQuote?.client_notes??null, client_type:document.getElementById('clientType').value,
@@ -881,8 +899,23 @@ async function saveAll(){
     if(order.length) await fetch(`/api/quotes/${quoteId}/items/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order})});
     await syncPrepay();
     const rr=await fetch(`/api/quotes/${quoteId}`); if(rr.ok){ curQuote=await rr.json(); }
-    setStatus('已儲存 ✓');
+    if(forked){ try{ bindHeader(curQuote); }catch(e){} setStatus('已儲存 ✓'); showForkBanner(forked.version, forked.from_version); }
+    else setStatus('已儲存 ✓');
   }catch(e){ setStatus('儲存失敗'); alert('儲存失敗：'+(e.message||e)); }
+}
+// 分版成功提示條（非阻擋、自動淡出）：告知已建立新版、原版保留
+function showForkBanner(newV, oldV){
+  let b=document.getElementById('forkBanner');
+  if(!b){ b=document.createElement('div'); b.id='forkBanner';
+    b.style.cssText='position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9999;'
+      +'background:#0f766e;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;'
+      +'box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:92vw;text-align:center;line-height:1.6';
+    document.body.appendChild(b);
+  }
+  b.innerHTML=`📄 此報價單已發送，不覆蓋原版。<br>你的修改已建立為新版 <b>v${newV}</b>，原 v${oldV} 保持不變。`;
+  b.style.opacity='1'; b.style.display='block';
+  clearTimeout(b._t); b._t=setTimeout(()=>{ b.style.transition='opacity .6s'; b.style.opacity='0';
+    setTimeout(()=>{ b.style.display='none'; b.style.transition=''; }, 650); }, 5200);
 }
 async function syncPrepay(){
   for(let i=0;i<PREPAY_DEPOSITS.length;i++){
