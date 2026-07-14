@@ -714,8 +714,37 @@ async function diagnose() {
   return { storedId, storedInList, dispatchCount, surveyCount, namedCount: calendars.length, calendars };
 }
 
+// 只刪「多餘的重複」繪新派單，保留目前使用中(stored)那本 → 訂到正確那本的同事完全不受影響，
+// 訂到舊那本的會自動從清單消失。比硬重置安全：不換行事曆、不需大家重訂、不重同步。
+async function purgeDuplicateCalendars() {
+  if (!isConnected()) throw new Error('尚未連接 Google');
+  const token = await gdrive.accessToken();
+  const stored = getS('gcal_dispatch_calendar_id');
+  const owned = (await duplicateCalendars()).filter(c => c.accessRole === 'owner');
+  // 安全鎖：找不到「使用中」那本、或它不在自己擁有的清單裡 → 不動作，避免誤刪唯一一本
+  if (!stored || !owned.some(c => c.id === stored)) {
+    return { ok: false, needReset: true, keptId: stored || null, ownedCount: owned.length,
+      message: '找不到「使用中」的行事曆，為安全起見未刪除。請先按「同步全部」建立/指定使用中那本，或改用硬重置。' };
+  }
+  const toDelete = owned.filter(c => c.id !== stored);
+  let deleted = 0;
+  for (const c of toDelete) {
+    const r = await _fetchRetry(`${CAL_API}/calendars/${encodeURIComponent(c.id)}`,
+      { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok || r.status === 404 || r.status === 410) { deleted++; }
+    else {
+      const j = await r.json().catch(() => ({}));
+      throw new Error('刪除多餘行事曆失敗 HTTP ' + r.status + '：' + ((j.error && j.error.message) || '') + '（多半是 Google 速率限制，請等 3–5 分鐘再試）');
+    }
+    await _sleep(120);
+  }
+  // 保險：把記住的共用名單重新套用到保留的那本，確保同事都掛在正確那本上
+  try { await _reapplyShares(token, stored); } catch (e) { /* 非關鍵 */ }
+  return { ok: true, deleted, keptId: stored, ownedCountBefore: owned.length };
+}
+
 function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeSyncSurvey, safeSyncAdhoc, safeRemoveAdhoc, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeSyncSurvey, safeSyncAdhoc, safeRemoveAdhoc, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, purgeDuplicateCalendars, syncEnabled, setEnabled, calendarInfo };

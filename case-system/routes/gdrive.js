@@ -108,6 +108,12 @@ router.post('/gcal/reapply-shares', requireAuth, requireOwner, async (req, res) 
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 只刪多餘的重複「繪新派單」，保留目前使用中那本（比硬重置安全，不換曆、不需大家重訂）
+router.post('/gcal/purge-duplicates', requireAuth, requireOwner, async (req, res) => {
+  try { res.json(await gcal.purgeDuplicateCalendars()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 為某案件建立（或取得已建立的）雲端資料夾
 // 走 ensureCaseFolder（有同鑰匙串行鎖 + 已存在則不重建），避免同案件按兩次建出重複資料夾
 router.post('/case/:id/folder', requireAuth, async (req, res) => {
