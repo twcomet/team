@@ -53,6 +53,16 @@
       </div>
       <div id="share-msg"></div>
     </div>
+    <div id="gcal-diag" style="margin-top:12px;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">🔍 診斷：同事看到的顏色不對／有人看不到？</div>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">同步的顏色是每個事件自帶的，所有被共用的人看到的都一樣。若同事看到的顏色不對或整片同色，通常是他訂到「<b>舊的重複那本</b>」。按下方按鈕檢查：帳號裡有幾本「繪新派單」、哪一本是使用中的、目前共用給了誰。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="gd-btn gd-primary" style="width:auto;padding:8px 16px" onclick="diagnoseGcal()">🔍 檢查現況</button>
+        <button class="gd-btn gd-ghost" style="width:auto;padding:8px 16px;color:#b91c1c" onclick="purgeDuplicates()">🗑️ 刪掉多餘的重複（保留使用中）</button>
+        <button class="gd-btn gd-ghost" style="width:auto;padding:8px 16px" onclick="reapplyGcalShares()">🔁 重新共用給全體</button>
+      </div>
+      <div id="diag-result" style="margin-top:10px"></div>
+    </div>
     <div class="gd-note">
       ⚠️ 若你是在此功能上線<b>之前</b>就連接過 Google，請先按上方「重新連接 Google」授權行事曆權限，再回來這裡開啟同步。<br>
       👥 分享給師傅：填上面信箱按分享，或到 Google 日曆網頁版 →「繪新派單」行事曆設定 → 與特定使用者共用。
@@ -174,8 +184,11 @@
           clearInterval(t);
           var warn = s.dupCalendars > 1 ? '<br>⚠️ 偵測到 Google 裡有 '+s.dupCalendars+' 個「繪新派單」行事曆，請到 Google 手動刪掉多餘的那個。' : '';
           var pg = s.purged ? '清掉舊事件 '+s.purged+' 筆，' : '';
+          var fails = (s.failures && s.failures.length)
+            ? '<br><b>失敗明細：</b><br>' + s.failures.map(function(f){ return '• ['+f.kind+'] '+f.label+'：'+f.error; }).join('<br>')
+            : '';
           m.innerHTML = '<div class="gd-msg '+(s.fail?'gd-msg-err':'gd-msg-ok')+'">✓ 完成：'+pg+'成功 '+s.ok+'／失敗 '+s.fail+'（共 '+s.total+'）'
-            + (s.aborted ? '，已提早中止' : '') + (s.sampleError ? '<br>Google 回報：<b>'+s.sampleError+'</b>' : '') + warn + '</div>';
+            + (s.aborted ? '，已提早中止' : '') + (s.sampleError ? '<br>Google 回報：<b>'+s.sampleError+'</b>' : '') + warn + fails + '</div>';
         }
       }).catch(function(){});
     }, 2000);
@@ -227,6 +240,56 @@
       if (r.error){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動失敗：'+r.error+'</div>'; return; }
       pollSync(m, '硬重置');
     }).catch(function(){ m.innerHTML = '<div class="gd-msg gd-msg-err">啟動發生錯誤，請稍後再試。</div>'; });
+  };
+  // 🔍 檢查現況：列出帳號裡有幾本「繪新派單」、哪本使用中、共用給了誰
+  window.diagnoseGcal = function(){
+    var d = document.getElementById('diag-result');
+    d.innerHTML = '<div class="gd-msg gd-msg-ok">檢查中…</div>';
+    Promise.all([
+      fetch('/api/gdrive/gcal/diagnose').then(function(x){return x.json();}),
+      fetch('/api/gdrive/gcal/shares').then(function(x){return x.json();})
+    ]).then(function(res){
+      var g = res[0] || {}, sh = (res[1] && res[1].shares) || [];
+      if (g.error){ d.innerHTML = '<div class="gd-msg gd-msg-err">檢查失敗：'+g.error+'</div>'; return; }
+      var cals = g.calendars || [];
+      var dupWarn = g.namedCount > 1
+        ? '<div class="gd-msg gd-msg-err">⚠️ 帳號裡有 <b>'+g.namedCount+'</b> 本「繪新派單」——重複了！同事若訂到不是「使用中」那本，就會看到舊的／沒顏色的。按「🗑️ 刪掉多餘的重複」清乾淨即可。</div>'
+        : '<div class="gd-msg gd-msg-ok">✓ 帳號裡只有 1 本「繪新派單」，正常。</div>';
+      var rows = cals.map(function(c){
+        var tag = c.isStored ? '<b style="color:#15803d">✓ 使用中（同事該訂這本）</b>' : '<span style="color:#b91c1c">✗ 多餘的舊曆（可刪）</span>';
+        return '<tr><td style="padding:3px 8px">'+tag+'</td><td style="padding:3px 8px;color:#6b7280">事件 '+c.eventCount+' 筆</td><td style="padding:3px 8px;color:#9ca3af;font-size:11px">'+String(c.id).slice(0,20)+'…</td></tr>';
+      }).join('');
+      var calTable = cals.length ? '<table style="border-collapse:collapse;font-size:12px;margin-top:4px">'+rows+'</table>' : '<div style="font-size:12px;color:#9ca3af">（找不到「繪新派單」，可能同步尚未建立）</div>';
+      var shareList = sh.length
+        ? '<ul style="margin:4px 0 0;padding-left:18px;font-size:12px;color:#3c4043">'+sh.map(function(s){return '<li>'+s.email+'（'+(s.role==='writer'?'可編輯':'唯讀')+'）</li>';}).join('')+'</ul>'
+        : '<div style="font-size:12px;color:#b91c1c;margin-top:4px">目前沒有記錄到共用對象。同事要看到的話，用上方「分享行事曆」把他們的 Gmail 加進來。</div>';
+      d.innerHTML = dupWarn
+        + '<div style="margin-top:10px;font-size:12px;font-weight:700">帳號裡的「繪新派單」：</div>' + calTable
+        + '<div style="margin-top:10px;font-size:12px;font-weight:700">目前共用給這些人：</div>' + shareList
+        + '<div style="margin-top:8px;font-size:11px;color:#9ca3af">系統派工 '+g.dispatchCount+' 筆、場勘 '+g.surveyCount+' 筆。</div>';
+    }).catch(function(){ d.innerHTML = '<div class="gd-msg gd-msg-err">檢查發生錯誤，請稍後再試。</div>'; });
+  };
+  // 🗑️ 只刪多餘的重複，保留使用中那本
+  window.purgeDuplicates = function(){
+    if (!confirm('只刪掉「多餘的重複」繪新派單，保留目前使用中的那本。\n\n訂在正確那本的同事不受影響；訂到舊那本的會自動從清單消失。\n\n確定執行？')) return;
+    var d = document.getElementById('diag-result');
+    d.innerHTML = '<div class="gd-msg gd-msg-ok">清理中…</div>';
+    fetch('/api/gdrive/gcal/purge-duplicates', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ d.innerHTML = '<div class="gd-msg gd-msg-err">清理失敗：'+r.error+'</div>'; return; }
+      if (r.ok === false){ d.innerHTML = '<div class="gd-msg gd-msg-err">⚠️ '+(r.message||'未執行')+'</div>'; return; }
+      d.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 已刪掉 '+r.deleted+' 本多餘的重複，保留使用中那本，並重新套用共用名單。<br>請同事把 Google 行事曆左側任何舊的「繪新派單」取消訂閱即可。</div>';
+      setTimeout(diagnoseGcal, 800);   // 自動重新檢查現況
+    }).catch(function(){ d.innerHTML = '<div class="gd-msg gd-msg-err">清理發生錯誤，請稍後再試。</div>'; });
+  };
+  // 🔁 重新共用給全體：把記住的名單重新套用到使用中那本
+  window.reapplyGcalShares = function(){
+    if (!confirm('把記錄到的共用名單重新套用到「目前使用中」那本行事曆？\n（用於有人看不到、或整理後補分享。不影響事件內容。）')) return;
+    var d = document.getElementById('diag-result');
+    d.innerHTML = '<div class="gd-msg gd-msg-ok">重新共用中…</div>';
+    fetch('/api/gdrive/gcal/reapply-shares', {method:'POST'}).then(function(x){return x.json();}).then(function(r){
+      if (r.error){ d.innerHTML = '<div class="gd-msg gd-msg-err">失敗：'+r.error+'</div>'; return; }
+      d.innerHTML = '<div class="gd-msg gd-msg-ok">✓ 已重新共用給 '+r.count+' 人。請同事到 Google 行事曆收邀請／打勾「繪新派單」。</div>';
+    }).catch(function(){ d.innerHTML = '<div class="gd-msg gd-msg-err">發生錯誤，請稍後再試。</div>'; });
   };
 })();
   function _mb(s){ return (Number(s||0)/1048576).toFixed(2)+' MB'; }

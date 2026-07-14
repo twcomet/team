@@ -3,14 +3,16 @@ const db = require('../db');
 const { requireAuth, orgFilterSQL } = require('../middleware/auth');
 const router = express.Router();
 
-const isMgr = (me) => me.role === 'owner' || !!me.manage_users || !!me.is_manager;
+// 客服關懷記錄不設機密：所有人都看得到全部、也都能維護（不鎖權限）
 const nfuOf = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : null);
 
 // GET /api/care-logs?q=&scope=mine|all
-// 跨案件的客服關懷清單。預設 scope=mine（只看自己負責/登記的）；scope=all 僅管理者可用（依分店過濾）
+// 跨案件的客服關懷清單。scope=mine 只看自己（我的任務/LINE 詢問的個人提醒用）；
+// scope=all 看全部（不鎖權限，人人可用；依分店過濾）
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const scope = (req.query.scope === 'all' && isMgr(me)) ? 'all' : 'mine';
+  const canAll = me.role === 'owner' || me.permissions?.page_care_logs === true;   // 有「客服關懷記錄」權限者可看全部
+  const scope = (req.query.scope === 'all' && canAll) ? 'all' : 'mine';
   const q = String(req.query.q || '').trim();
   const where = [];
   const params = [];
@@ -34,7 +36,7 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY cl.created_at DESC
     LIMIT 400
   `).all(...params);
-  res.json({ scope, canSeeAll: isMgr(me), results: rows });
+  res.json({ scope, canSeeAll: canAll, results: rows });
 });
 
 // POST /api/care-logs  { case_id, cs_user_id, action, memo, next_follow_up }  跨案件新增（同步進案件的關懷 Tab）
@@ -57,19 +59,16 @@ router.put('/:logId', requireAuth, (req, res) => {
   const me = req.session.user;
   const cur = db.prepare('SELECT cs_user_id, created_by FROM case_care_logs WHERE id=?').get(req.params.logId);
   if (!cur) return res.status(404).json({ error: '找不到紀錄' });
-  if (!isMgr(me) && cur.created_by !== me.id && cur.cs_user_id !== me.id) return res.status(403).json({ error: '只能編輯自己的紀錄' });
   const { cs_user_id, action, memo, next_follow_up } = req.body;
   db.prepare(`UPDATE case_care_logs SET cs_user_id=?, action=?, memo=?, next_follow_up=? WHERE id=?`)
     .run(cs_user_id || cur.cs_user_id, action || 'other', String(memo || '').trim() || null, nfuOf(next_follow_up), req.params.logId);
   res.json({ ok: true });
 });
 
-// DELETE /api/care-logs/:logId  刪除（本人或管理者）
+// DELETE /api/care-logs/:logId  刪除（不鎖權限）
 router.delete('/:logId', requireAuth, (req, res) => {
-  const me = req.session.user;
-  const cur = db.prepare('SELECT cs_user_id, created_by FROM case_care_logs WHERE id=?').get(req.params.logId);
+  const cur = db.prepare('SELECT id FROM case_care_logs WHERE id=?').get(req.params.logId);
   if (!cur) return res.status(404).json({ error: '找不到紀錄' });
-  if (!isMgr(me) && cur.created_by !== me.id && cur.cs_user_id !== me.id) return res.status(403).json({ error: '只能刪除自己的紀錄' });
   db.prepare('DELETE FROM case_care_logs WHERE id=?').run(req.params.logId);
   res.json({ ok: true });
 });

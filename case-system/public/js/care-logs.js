@@ -28,7 +28,7 @@
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
         <input id="clSearch" placeholder="🔍 搜尋案號／客戶／備註／客服" value="${esc(S.q)}" autocomplete="off"
           style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #dadce0;border-radius:8px;font-size:14px">
-        ${S.canSeeAll ? `<label style="font-size:13px;color:#5f6368;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="clScopeAll" ${S.scope === 'all' ? 'checked' : ''}> 看全部（管理者）</label>` : ''}
+        ${S.canSeeAll ? `<label style="font-size:13px;color:#5f6368;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="clScopeAll" ${S.scope === 'all' ? 'checked' : ''}> 看全部客服</label>` : ''}
         <button id="clAddBtn" class="btn btn-primary btn-sm" style="white-space:nowrap">＋ 新增客服關懷記錄</button>
       </div>`;
     let body;

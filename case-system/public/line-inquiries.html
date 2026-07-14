@@ -142,7 +142,7 @@
   <div class="main-content" style="overflow:hidden;display:flex;flex-direction:column;padding:0">
     <div class="top-bar" style="display:flex;align-items:center;justify-content:space-between">
       <span class="page-title">LINE OA 詢問管理</span>
-      <button class="btn btn-primary btn-sm" onclick="openCareLogs()">💗 客服關懷記錄</button>
+      <button class="btn btn-primary btn-sm" id="careBtn" style="display:none" onclick="openCareLogs()">💗 客服關懷記錄</button>
     </div>
 
     <div class="inq-layout">
@@ -254,6 +254,10 @@ function openCareLogs() {
 async function init() {
   await loadUser();
   window.currentUser = currentUser;   // 供共用元件帶入預設客服人員
+  // 有「客服關懷記錄」權限者才顯示按鈕
+  if (currentUser.role === 'owner' || currentUser.permissions?.page_care_logs === true) {
+    const cb = document.getElementById('careBtn'); if (cb) cb.style.display = '';
+  }
   highlightNav('line-inquiries');
   allUsers = await fetchUsers();
   loadStats();

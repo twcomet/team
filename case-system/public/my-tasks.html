@@ -160,7 +160,7 @@
       <div id="taskContent"></div>
 
       <!-- 客服關懷記錄（含下次關懷提醒） -->
-      <div style="margin-top:30px">
+      <div style="margin-top:30px" id="careSection">
         <div style="font-size:15px;font-weight:700;color:var(--gray-700,#3c4043);margin-bottom:12px;display:flex;align-items:center;gap:8px">
           💗 客服關懷記錄
           <span style="font-size:12px;font-weight:500;color:var(--gray-400,#9ca3af)">下次關懷時間會在這裡提醒你</span>
@@ -551,7 +551,12 @@ async function init() {
   document.getElementById('pageTitle').textContent = `${currentUser.name} 的任務`;
   highlightNav('my-tasks');
   loadAttendance();
-  CareLogs.mount('careLogsBox', { scope: 'mine' });   // 客服關懷記錄（不受下方任務有無影響，先掛載）
+  // 客服關懷記錄：僅「有此權限者」顯示（先掛載，不受下方任務有無影響）
+  if (currentUser.role === 'owner' || currentUser.permissions?.page_care_logs === true) {
+    CareLogs.mount('careLogsBox', { scope: 'mine' });
+  } else {
+    const cs = document.getElementById('careSection'); if (cs) cs.style.display = 'none';
+  }
 
   const res = await fetch('/api/my-tasks');
   const tasks = res.ok ? await res.json() : [];

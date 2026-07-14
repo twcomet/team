@@ -152,6 +152,32 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在 LINE 詢問下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="care-logs"]')) return;   // 本頁已硬寫則略過
+    const p = currentUser.permissions || {};
+    const canCare = currentUser.role === 'owner' || p.page_care_logs === true;   // 依「客服關懷記錄」權限
+    if (!canCare) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'care-logs'; a.href = '/care-logs';
+    a.innerHTML = '<span class="icon">💗</span>客服關懷記錄';
+    const anchor = nav.querySelector('[data-page="line-inquiries"]') || nav.querySelector('[data-page="my-tasks"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
+  // 注入「Google 雲端／備份」選單（僅老闆）：行事曆同步、雲端備份、重複日曆診斷/整理
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="gdrive-connect"]')) return;
+    if (currentUser.role !== 'owner') return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'gdrive-connect'; a.href = '/gdrive-connect';
+    a.innerHTML = '<span class="icon">☁️</span>Google 雲端／備份';
+    const anchor = nav.querySelector('[data-page="admin"]') || nav.querySelector('[data-page="guide"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
