@@ -2142,6 +2142,7 @@ db.exec(`
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+_addCol('case_care_logs', 'next_follow_up', 'TEXT');  // 下次關懷時間(YYYY-MM-DD)，到期顯示在該客服「我的任務」
 
 // ── 自訂處理狀態標籤（內建 4 個寫死，這裡只存客服自訂的）────────
 db.exec(`

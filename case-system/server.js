@@ -54,6 +54,7 @@ app.use('/api/cases',  require('./routes/cases'));
 app.use('/api/intent-tags', require('./routes/intent-tags'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/adhoc-events', require('./routes/adhoc-events'));
+app.use('/api/care-logs', require('./routes/care-logs'));
 app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
 app.use('/api/quote-settings', require('./routes/quote-settings'));

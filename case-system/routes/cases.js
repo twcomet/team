@@ -1358,7 +1358,7 @@ router.get('/:id/documents/:docId/download', requireAuth, async (req, res) => {
 // ── 客服關懷紀錄 ──────────────────────────────────────────────
 router.get('/:id/care-logs', requireAuth, (req, res) => {
   const rows = db.prepare(`
-    SELECT cl.id, cl.cs_user_id, cl.action, cl.memo, cl.created_at,
+    SELECT cl.id, cl.cs_user_id, cl.action, cl.memo, cl.next_follow_up, cl.created_at,
            u.name AS cs_name, cb.name AS created_by_name
     FROM case_care_logs cl
     LEFT JOIN users u  ON u.id  = cl.cs_user_id
@@ -1371,13 +1371,28 @@ router.get('/:id/care-logs', requireAuth, (req, res) => {
 
 router.post('/:id/care-logs', requireAuth, (req, res) => {
   const me = req.session.user;
-  const { cs_user_id, action, memo } = req.body;
+  const { cs_user_id, action, memo, next_follow_up } = req.body;
   if (!memo?.trim() && !action) return res.status(400).json({ error: '請至少填寫處理事項或備註' });
-  const r = db.prepare(`INSERT INTO case_care_logs (case_id, cs_user_id, action, memo, created_by) VALUES (?,?,?,?,?)`)
-    .run(req.params.id, cs_user_id || me.id, action || 'other', memo?.trim() || null, me.id);
+  const nfu = /^\d{4}-\d{2}-\d{2}$/.test(String(next_follow_up || '')) ? next_follow_up : null;
+  const r = db.prepare(`INSERT INTO case_care_logs (case_id, cs_user_id, action, memo, next_follow_up, created_by) VALUES (?,?,?,?,?,?)`)
+    .run(req.params.id, cs_user_id || me.id, action || 'other', memo?.trim() || null, nfu, me.id);
   db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
     .run(me.id, 'care_log', 'cases', req.params.id, `客服關懷：${action || ''}`);
   res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+// 編輯關懷紀錄（本人或管理者）
+router.put('/:id/care-logs/:logId', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const cur = db.prepare(`SELECT cs_user_id, created_by FROM case_care_logs WHERE id=? AND case_id=?`).get(req.params.logId, req.params.id);
+  if (!cur) return res.status(404).json({ error: '找不到紀錄' });
+  const isMgr = me.role === 'owner' || !!me.manage_users || !!me.is_manager;
+  if (!isMgr && cur.created_by !== me.id && cur.cs_user_id !== me.id) return res.status(403).json({ error: '只能編輯自己的紀錄' });
+  const { cs_user_id, action, memo, next_follow_up } = req.body;
+  const nfu = /^\d{4}-\d{2}-\d{2}$/.test(String(next_follow_up || '')) ? next_follow_up : null;
+  db.prepare(`UPDATE case_care_logs SET cs_user_id=?, action=?, memo=?, next_follow_up=? WHERE id=? AND case_id=?`)
+    .run(cs_user_id || cur.cs_user_id, action || 'other', memo?.trim() || null, nfu, req.params.logId, req.params.id);
+  res.json({ ok: true });
 });
 
 router.delete('/:id/care-logs/:logId', requireAuth, (req, res) => {
