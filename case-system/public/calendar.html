@@ -849,9 +849,11 @@ function openAddDispForUnsched(i){
   if (c) openAddDispForCase({ id:c.id, case_number:c.case_number, title:c.title, client_name:c.client_name });
 }
 
+function openAdhocById(id){ const a=(calData.adhoc||[]).find(x=>x.id===id); if(a) openAdhocCard(a); }
 function openDayModal(dateStr) {
   const cases   = calData.cases.filter(c => c.scheduled_date === dateStr);
   const surveys = (calData.surveys || []).filter(s => s.survey_date === dateStr);
+  const adhoc   = (calData.adhoc || []).filter(a => a.event_date === dateStr);
   const leaves  = (calData.leaves || []).filter(lv => {
     const s = lv.leave_date, e = lv.leave_end_date || lv.leave_date;
     return dateStr >= s && dateStr <= e;
@@ -859,9 +861,12 @@ function openDayModal(dateStr) {
   document.getElementById('dayModalTitle').textContent = `${dateStr} 當日記錄`;
 
   let html = '';
+  html += `<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">`;
   if (canDispatchFE()) {
-    html += `<button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="openAddDisp('${dateStr}')">＋ 在這天新增派工</button>`;
+    html += `<button class="btn btn-primary" style="flex:1;min-width:130px" onclick="openAddDisp('${dateStr}')">＋ 新增派工</button>`;
   }
+  html += `<button class="btn" style="flex:1;min-width:130px;background:#00897b;color:#fff;border:none" onclick="openAdhocNew('${dateStr}')">📌 新增暫定事項</button>`;
+  html += `</div>`;
   // 人力空檔（禮拜日不顯示）
   if (new Date(dateStr+'T00:00:00').getDay() !== 0 && (calData.roster||[]).length) {
     const il = idleByDate(dateStr, leavesByDate());
@@ -878,6 +883,16 @@ function openDayModal(dateStr) {
         <div style="font-weight:600;margin-bottom:2px">${s.client_name || ''} — ${s.title || ''}</div>
         <div style="font-size:13px;color:#6b7280">勘場人員：${s.surveyor_name || '未指定'}</div>
         <button onclick="location.href='/case-detail?id=${s.id}&tab=survey'" style="border:none;background:none;font-size:12px;color:#7c3aed;cursor:pointer;padding:0;text-decoration:underline">→ 開啟場勘單</button>
+      </div>`).join('');
+    html += '</div>';
+  }
+  if (adhoc.length) {
+    html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#00695c;margin-bottom:6px">📌 暫定事項</div>`;
+    html += adhoc.map(a => `
+      <div style="border:1px solid #b2dfdb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#e0f2f1;cursor:pointer" onclick="openAdhocById(${a.id})">
+        <div style="font-weight:600;margin-bottom:2px">${esc(a.title||'')}${a.event_time?` <span style="color:#00695c;font-weight:500">${esc(a.event_time)}</span>`:''}</div>
+        ${a.note?`<div style="font-size:13px;color:#5f6368;white-space:pre-wrap">${esc(a.note)}</div>`:''}
+        <div style="font-size:12px;color:#9aa0a6;margin-top:3px">建立者：${esc(a.creator_name||'—')}　·　點擊可編輯／刪除</div>
       </div>`).join('');
     html += '</div>';
   }
@@ -905,7 +920,9 @@ function openDayModal(dateStr) {
       </div>
     `).join('');
   }
-  if (!html) html = '<p style="color:#6b7280">這天沒有排工、場勘或請假記錄</p>';
+  if (!cases.length && !surveys.length && !adhoc.length && !leaves.length) {
+    html += '<p style="color:#6b7280;margin-top:8px">這天沒有排工、場勘、暫定事項或請假記錄</p>';
+  }
   document.getElementById('dayModalBody').innerHTML = html;
   document.getElementById('dayModal').classList.add('open');
 }
