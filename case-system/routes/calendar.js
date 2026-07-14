@@ -182,6 +182,47 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments, adhoc });
 });
 
+// GET /api/calendar/search?q=  行事曆內搜尋（跨月）：找符合關鍵字的派工/場勘/暫定事項，回傳日期供跳轉
+router.get('/search', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (isOutsourced(me.role)) return res.status(403).json({ error: '外包夥伴請改用「我的行事曆」' });
+  if (me.role !== 'owner' && !me.permissions?.page_calendar) return res.status(403).json({ error: '無派單行事曆權限' });
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ results: [] });
+  const like = `%${q}%`;
+  const { sql: orgC, params: orgP } = orgFilterSQL(me, 'c.org_id');
+  const cond  = orgC ? `AND ${orgC}` : '';
+
+  const disp = db.prepare(`
+    SELECT 'dispatch' AS type, d.scheduled_date AS date, c.id AS case_id, c.case_number, c.title,
+           cl.name AS client_name, d.dispatch_type
+    FROM dispatches d JOIN cases c ON c.id = d.case_id LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE d.status != 'cancelled' AND d.scheduled_date IS NOT NULL
+      AND (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ? OR cl.phone LIKE ?) ${cond}
+    ORDER BY d.scheduled_date DESC LIMIT 30
+  `).all(like, like, like, like, ...orgP);
+
+  const surv = db.prepare(`
+    SELECT 'survey' AS type, COALESCE(sf.survey_date, c.survey_date) AS date, c.id AS case_id,
+           c.case_number, c.title, cl.name AS client_name
+    FROM cases c LEFT JOIN survey_forms sf ON sf.case_id = c.id LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE COALESCE(sf.survey_date, c.survey_date) IS NOT NULL AND c.status NOT IN ('closed','invalid')
+      AND (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ?) ${cond}
+    GROUP BY c.id ORDER BY date DESC LIMIT 30
+  `).all(like, like, like, ...orgP);
+
+  const { sql: orgA, params: orgPA } = orgFilterSQL(me, 'a.org_id');
+  const condA = orgA ? `AND ${orgA}` : '';
+  const adhoc = db.prepare(`
+    SELECT 'adhoc' AS type, a.event_date AS date, a.id, a.title, NULL AS client_name, NULL AS case_number
+    FROM adhoc_events a WHERE (a.title LIKE ? OR a.note LIKE ?) ${condA}
+    ORDER BY a.event_date DESC LIMIT 30
+  `).all(like, like, ...orgPA);
+
+  const results = [...disp, ...surv, ...adhoc].filter(r => r.date).sort((a, b) => (b.date > a.date ? 1 : -1)).slice(0, 40);
+  res.json({ results });
+});
+
 // POST /api/daily-target  { date, target_amount }
 router.post('/daily-target', requireAuth, (req, res) => {
   const me = req.session.user;
