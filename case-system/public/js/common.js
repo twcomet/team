@@ -152,6 +152,23 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在 LINE 詢問下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="care-logs"]')) return;   // 本頁已硬寫則略過
+    const p = currentUser.permissions || {};
+    const r = currentUser.role;
+    const canCare = r === 'owner' || mu || currentUser.is_manager
+      || r === 'vp' || r === 'hq_cs' || r === 'hq_cs_manager'
+      || p.page_line_inquiries === true || p.page_calendar === true;
+    if (!canCare) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'care-logs'; a.href = '/care-logs';
+    a.innerHTML = '<span class="icon">💗</span>客服關懷記錄';
+    const anchor = nav.querySelector('[data-page="line-inquiries"]') || nav.querySelector('[data-page="my-tasks"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
