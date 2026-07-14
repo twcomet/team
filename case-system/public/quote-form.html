@@ -903,19 +903,34 @@ async function saveAll(){
     else setStatus('已儲存 ✓');
   }catch(e){ setStatus('儲存失敗'); alert('儲存失敗：'+(e.message||e)); }
 }
-// 分版成功提示條（非阻擋、自動淡出）：告知已建立新版、原版保留
+// 分版成功提示條：告知已建立新版、原版保留，並提供「複製新版連結給客戶」
 function showForkBanner(newV, oldV){
   let b=document.getElementById('forkBanner');
   if(!b){ b=document.createElement('div'); b.id='forkBanner';
     b.style.cssText='position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9999;'
-      +'background:#0f766e;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;'
+      +'background:#0f766e;color:#fff;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:700;'
       +'box-shadow:0 8px 28px rgba(0,0,0,.28);max-width:92vw;text-align:center;line-height:1.6';
     document.body.appendChild(b);
   }
-  b.innerHTML=`📄 此報價單已發送，不覆蓋原版。<br>你的修改已建立為新版 <b>v${newV}</b>，原 v${oldV} 保持不變。`;
-  b.style.opacity='1'; b.style.display='block';
-  clearTimeout(b._t); b._t=setTimeout(()=>{ b.style.transition='opacity .6s'; b.style.opacity='0';
-    setTimeout(()=>{ b.style.display='none'; b.style.transition=''; }, 650); }, 5200);
+  const bt='border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer';
+  b.innerHTML=`<div style="margin-bottom:10px">📄 此報價單已發送，不覆蓋原版。<br>你的修改已建立為新版 <b>v${newV}</b>，原 v${oldV} 保持不變。</div>`
+    +`<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">`
+    +`<button id="forkCopyBtn" onclick="copyForkLink(this)" style="${bt};background:#fff;color:#0f766e">🔗 複製新版連結給客戶</button>`
+    +`<button onclick="document.getElementById('forkBanner').style.display='none'" style="${bt};background:rgba(255,255,255,.18);color:#fff">關閉</button>`
+    +`</div>`;
+  b.style.transition=''; b.style.opacity='1'; b.style.display='block';
+}
+// 複製新版客戶連結：仍是草稿時先標記「已發送(待確認)」→ 客戶點進去不會看到「草稿」
+async function copyForkLink(btn){
+  const url=location.origin+'/quote/'+shareToken;
+  try{
+    if(curQuote && curQuote.status==='draft'){
+      const r=await fetch(`/api/quotes/${quoteId}/send`,{method:'POST'});
+      if(r.ok){ curQuote.status='sent'; try{ bindHeader(curQuote); }catch(e){} }
+    }
+    await navigator.clipboard.writeText(url);
+    if(btn){ btn.textContent='✓ 已複製，可直接貼給客戶'; btn.disabled=true; btn.style.opacity='.85'; }
+  }catch(e){ prompt('請手動複製新版連結：', url); }
 }
 async function syncPrepay(){
   for(let i=0;i<PREPAY_DEPOSITS.length;i++){
