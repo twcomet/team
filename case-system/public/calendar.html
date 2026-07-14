@@ -934,10 +934,13 @@ function openDayModal(dateStr) {
   if (adhoc.length) {
     html += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:#00695c;margin-bottom:6px">📌 暫定事項</div>`;
     html += adhoc.map(a => `
-      <div style="border:1px solid #b2dfdb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#e0f2f1;cursor:pointer" onclick="openAdhocById(${a.id})">
-        <div style="font-weight:600;margin-bottom:2px">${esc(a.title||'')}${a.event_time?` <span style="color:#00695c;font-weight:500">${esc(a.event_time)}</span>`:''}</div>
-        ${a.note?`<div style="font-size:13px;color:#5f6368;white-space:pre-wrap">${esc(a.note)}</div>`:''}
-        <div style="font-size:12px;color:#9aa0a6;margin-top:3px">建立者：${esc(a.creator_name||'—')}　·　點擊可編輯／刪除</div>
+      <div style="border:1px solid #b2dfdb;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#e0f2f1">
+        <div style="cursor:pointer" onclick="openAdhocById(${a.id})">
+          <div style="font-weight:600;margin-bottom:2px">${esc(a.title||'')}${a.event_time?` <span style="color:#00695c;font-weight:500">${esc(a.event_time)}</span>`:''}</div>
+          ${a.note?`<div style="font-size:13px;color:#5f6368;white-space:pre-wrap">${esc(a.note)}</div>`:''}
+          <div style="font-size:12px;color:#9aa0a6;margin-top:3px">建立者：${esc(a.creator_name||'—')}　·　點擊可編輯／刪除</div>
+        </div>
+        ${canDispatchFE()?`<button class="btn btn-sm" style="margin-top:9px;background:#1a73e8;color:#fff;border:none" onclick="event.stopPropagation();document.getElementById('dayModal').classList.remove('open');openAddDisp('${dateStr}')" title="這件談成了？轉成正式派工（會請你選擇案件）">＋ 新增派工</button>`:''}
       </div>`).join('');
     html += '</div>';
   }
