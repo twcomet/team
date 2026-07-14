@@ -91,6 +91,12 @@
         <button class="gcal-today" id="gcalSyncBtn" onclick="syncToGoogle()"
           title="把目前所有派單重新同步到 Google 行事曆。平常新增/修改派工會自動同步，這顆用於一次補齊或手動重整。">🔄 同步到 Google</button>
       </div>
+      <div style="position:relative;margin-bottom:10px">
+        <input id="calSearch" autocomplete="off" oninput="calSearchRun()" onfocus="calSearchRun()"
+          placeholder="🔍 搜尋行事曆內案件（案號／客戶／標題／暫定事項）→ 點結果跳到當天"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #dadce0;border-radius:8px;font-size:14px">
+        <div id="calSearchResults" style="display:none;position:absolute;z-index:50;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #dadce0;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.14);max-height:340px;overflow:auto"></div>
+      </div>
       <div class="gcal-filterbar" id="calFilterBar"></div>
 
       <div id="calView"></div>
@@ -550,6 +556,45 @@ function linkify(s){
 }
 window._calEv = [];
 function regEv(e){ window._calEv.push(e); return window._calEv.length - 1; }
+
+// ── 行事曆內搜尋（跨月）：輸入 → 列出符合項目 → 點擊跳到當天 ──────────
+let _calSearchTimer=null;
+function calSearchRun(){
+  const q=document.getElementById('calSearch').value.trim();
+  const box=document.getElementById('calSearchResults');
+  clearTimeout(_calSearchTimer);
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+  _calSearchTimer=setTimeout(async()=>{
+    let rs=[];
+    try{ const d=await (await fetch('/api/calendar/search?q='+encodeURIComponent(q))).json(); rs=d.results||[]; }catch(e){}
+    if(document.getElementById('calSearch').value.trim()!==q) return;   // 已被更新的輸入蓋過
+    if(!rs.length){ box.innerHTML='<div style="padding:12px;color:#70757a;font-size:13px">找不到符合的行事曆項目</div>'; box.style.display='block'; return; }
+    const DLBL={survey:'場勘',install:'施工',aftersales:'維修',cut_material:'裁料'};
+    box.innerHTML=rs.map(r=>{
+      const wk=['日','一','二','三','四','五','六'][new Date(r.date+'T00:00:00').getDay()];
+      let tag,label;
+      if(r.type==='adhoc'){ tag='📌 暫定'; label=esc(r.title||''); }
+      else if(r.type==='survey'){ tag='🔍 場勘'; label=esc([r.case_number,r.client_name,r.title].filter(Boolean).join(' ')); }
+      else { tag='🔧 '+(DLBL[r.dispatch_type]||'派工'); label=esc([r.case_number,r.client_name,r.title].filter(Boolean).join(' ')); }
+      return `<div onclick="jumpToCalDate('${r.date}')" style="padding:10px 12px;border-bottom:1px solid #f1f3f4;cursor:pointer;display:flex;gap:9px;align-items:center" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:11px;color:#5f6368;white-space:nowrap;width:70px">${esc(r.date.slice(5))}（${wk}）</span>
+        <span style="font-size:11px;background:#eef2ff;color:#3730a3;border-radius:4px;padding:1px 6px;white-space:nowrap">${tag}</span>
+        <span style="flex:1;font-size:13px">${label||'—'}</span>
+      </div>`;
+    }).join('');
+    box.style.display='block';
+  },250);
+}
+function jumpToCalDate(dateStr){
+  document.getElementById('calSearchResults').style.display='none';
+  const d=new Date(dateStr+'T00:00:00');
+  curAnchor=new Date(d); curYear=d.getFullYear(); curMonth=d.getMonth()+1;
+  Promise.resolve(loadCalendar()).then(()=>openDayModal(dateStr));
+}
+document.addEventListener('click',e=>{
+  const w=document.getElementById('calSearch'), b=document.getElementById('calSearchResults');
+  if(w&&b&&!w.contains(e.target)&&!b.contains(e.target)) b.style.display='none';
+});
 function renderCalendar(){
   renderFilterBar();
   window._calEv = [];
