@@ -339,6 +339,7 @@ router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
 router.get('/attendance-daily', requireAuth, requireAttendanceView, (req, res) => {
   const att = require('../lib/attendance-util');
   const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : _todayTW();
+  const workday = att.isWorkday(date);                           // 週末/國定假日 → 不用打卡
   const roster = att.clockRoster();                              // 該打卡名冊
 
   const rows = db.prepare(`SELECT * FROM attendance WHERE work_date=?`).all(date);
@@ -356,6 +357,7 @@ router.get('/attendance-daily', requireAuth, requireAttendanceView, (req, res) =
     let status;
     if (a && a.clock_in) status = a.is_late ? 'late' : 'present';
     else if (onLeave)     status = 'leave';
+    else if (!workday)    status = 'off';      // 週末/國定假日不用打卡，不算沒打卡
     else                  status = 'absent';
     return {
       id: u.id, name: u.name, role: u.role, status,
@@ -369,7 +371,7 @@ router.get('/attendance-daily', requireAuth, requireAttendanceView, (req, res) =
   const lateList   = employees.filter(x => x.status === 'late').map(x => ({ name: x.name, time: x.clock_in }));
   const presentCount = employees.filter(x => x.status === 'present' || x.status === 'late').length;
   res.json({
-    date, workday: att.isWorkday(date), roster_count: roster.length,
+    date, workday, roster_count: roster.length,
     present_count: presentCount, absent_count: absentList.length, late_count: lateList.length,
     leave_count: employees.filter(x => x.status === 'leave').length,
     absentList, lateList, employees,
@@ -384,6 +386,80 @@ router.get('/attendance-roster', requireAuth, requireAttendanceView, (req, res) 
   const exempt = all.filter(u => att.isClockExempt(u))
     .map(u => ({ id: u.id, name: u.name, role: u.role, manual: !!u.clock_exempt }));
   res.json({ roster, exempt });
+});
+
+// GET /api/hr/attendance-candidates — 可調整「該打卡/免打卡」的內部員工（供「打卡設定」頁）
+router.get('/attendance-candidates', requireAuth, requireAttendanceView, (req, res) => {
+  const att = require('../lib/attendance-util');
+  const { isOutsourced } = require('../middleware/auth');
+  const all = db.prepare(`SELECT id, name, role, clock_exempt FROM users WHERE active=1 ORDER BY sort_order, name`).all();
+  const roleForced = u => att.ROLE_EXEMPT.has(u.role) || isOutsourced(u.role);
+  const candidates = all.filter(u => !roleForced(u))
+    .map(u => ({ id: u.id, name: u.name, role: u.role, clock_exempt: u.clock_exempt ? 1 : 0 }));
+  const forced = all.filter(roleForced)
+    .map(u => ({ id: u.id, name: u.name, role: u.role }));   // 角色一律免打卡（唯讀）
+  res.json({ candidates, forced });
+});
+
+// POST /api/hr/attendance-exempt {user_id, exempt} — 直接設定某員工是否免打卡
+router.post('/attendance-exempt', requireAuth, requireHR, (req, res) => {
+  const uid = parseInt(req.body.user_id);
+  const exempt = req.body.exempt ? 1 : 0;
+  if (!uid) return res.status(400).json({ error: 'user_id required' });
+  const u = db.prepare(`SELECT id, role FROM users WHERE id=? AND active=1`).get(uid);
+  if (!u) return res.status(404).json({ error: 'not found' });
+  const att = require('../lib/attendance-util');
+  const { isOutsourced } = require('../middleware/auth');
+  if (att.ROLE_EXEMPT.has(u.role) || isOutsourced(u.role))
+    return res.status(400).json({ error: '此角色（老闆／副總／外包）一律免打卡，無法變更' });
+  db.prepare(`UPDATE users SET clock_exempt=? WHERE id=?`).run(exempt, uid);
+  res.json({ ok: true, user_id: uid, clock_exempt: exempt });
+});
+
+// GET /api/hr/attendance-weekly?start=YYYY-MM-DD — 一週(週一~週日)出勤統計
+router.get('/attendance-weekly', requireAuth, requireAttendanceView, (req, res) => {
+  const att = require('../lib/attendance-util');
+  const today = _todayTW();
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(req.query.start || '') ? req.query.start : today;
+  const sd = new Date(base + 'T00:00:00');
+  const dow = sd.getDay();                        // 0=日
+  sd.setDate(sd.getDate() + (dow === 0 ? -6 : 1 - dow));   // 對齊到當週週一
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const days = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(sd); d.setDate(sd.getDate() + i); days.push(fmt(d)); }
+  const weekStart = days[0], weekEnd = days[6];
+  const workdays = days.filter(d => att.isWorkday(d));
+  const roster = att.clockRoster();
+
+  const rows = db.prepare(`SELECT * FROM attendance WHERE work_date BETWEEN ? AND ?`).all(weekStart, weekEnd);
+  const leaves = db.prepare(`SELECT user_id, leave_date, leave_end_date FROM leave_requests
+    WHERE status='approved' AND leave_date<=? AND COALESCE(leave_end_date, leave_date)>=?`).all(weekEnd, weekStart);
+
+  const employees = roster.map(u => {
+    const mine = rows.filter(r => r.user_id === u.id);
+    const worked = mine.filter(r => r.clock_in);
+    const recByDay = {}; mine.forEach(r => { recByDay[r.work_date] = r; });
+    const leaveDays = new Set();
+    leaves.filter(l => l.user_id === u.id).forEach(l => {
+      days.forEach(d => { if (d >= l.leave_date && d <= (l.leave_end_date || l.leave_date)) leaveDays.add(d); });
+    });
+    // 每天狀態（供週表格）
+    const dayStatus = days.map(d => {
+      const rec = recByDay[d];
+      if (rec && rec.clock_in) return rec.is_late ? 'late' : 'present';
+      if (leaveDays.has(d))    return 'leave';
+      if (!att.isWorkday(d))   return 'off';       // 週末/國定假日
+      if (d > today)           return 'future';
+      return 'absent';
+    });
+    const absentDays = dayStatus.filter(s => s === 'absent').length;
+    return {
+      id: u.id, name: u.name, role: u.role, days: dayStatus,
+      worked_days: worked.length, late_count: mine.filter(r => r.is_late).length,
+      leave_days: dayStatus.filter(s => s === 'leave').length, absent_days: absentDays,
+    };
+  });
+  res.json({ week_start: weekStart, week_end: weekEnd, workday_count: workdays.length, days, employees });
 });
 
 // GET /api/hr/monitoring?year=&month= — 人事監控報表

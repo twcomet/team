@@ -152,7 +152,7 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
-  // 注入「員工打卡記錄」選單（老闆/人資/主管）：放在 員工功能 → 請假管理下方
+  // 注入「員工打卡管理」選單（老闆/人資/主管）：放在 員工功能 → 請假管理下方
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="attendance-records"]')) return;
@@ -161,7 +161,7 @@ async function loadUser() {
     if (!canAtt) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'attendance-records'; a.href = '/attendance-records';
-    a.innerHTML = '<span class="icon">🕒</span>員工打卡記錄';
+    a.innerHTML = '<span class="icon">🕒</span>員工打卡管理';
     const anchor = nav.querySelector('[data-page="leave"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();

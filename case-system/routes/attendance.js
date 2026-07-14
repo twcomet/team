@@ -51,8 +51,15 @@ const CLOCKIN_WINDOWS = [
   { label: '下午時段', start: '13:00', end: '14:30', shiftStart: '14:00', lateAfter: '14:01' },
 ];
 
-function getClockInWindow(now) {
-  return CLOCKIN_WINDOWS.find(w => now >= w.start && now <= w.end) || null;
+// 全天皆可打卡；以中午 12:00 為界判斷早/下午班（僅用於遲到判定）
+function getShift(now) {
+  return now < '12:00' ? CLOCKIN_WINDOWS[0] : CLOCKIN_WINDOWS[1];
+}
+// 上班打卡時間 +N 小時，自動作為下班卡（不跨日，最多 23:59）
+function addHoursHHMM(hhmm, hours) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = Math.min(h * 60 + m + hours * 60, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 // ── 打卡（上班）────────────────────────────────────────────────
@@ -67,15 +74,8 @@ router.post('/clockin', async (req, res) => {
   const today = todayTW();
   const now   = nowTimeTW();
 
-  // 打卡時段檢查
-  const window = getClockInWindow(now);
-  if (!window) {
-    const windowList = CLOCKIN_WINDOWS.map(w => `${w.label} ${w.start}–${w.end}`).join('、');
-    return res.status(400).json({
-      error: 'Outside allowed hours',
-      message: `目前不在打卡時段內。\n允許時段：${windowList}`,
-    });
-  }
+  // 全天皆可打卡，依時間判定早/下午班（用於遲到判定）
+  const window = getShift(now);
 
   // 今天已打卡
   const existing = db.prepare(`SELECT * FROM attendance WHERE user_id=? AND work_date=?`).get(emp.id, today);
@@ -116,13 +116,14 @@ router.post('/clockin', async (req, res) => {
 
   const isLate    = now >= window.lateAfter;
   const workStart = isLate ? now : window.shiftStart;
+  const autoOut   = addHoursHHMM(now, 8);   // 上班打卡時間 +8 小時，自動作為下班卡
 
   if (existing) {
-    db.prepare(`UPDATE attendance SET clock_in=?, work_start=?, is_late=?, clock_in_lat=?, clock_in_lng=?, location_type=? WHERE id=?`)
-      .run(now, workStart, isLate ? 1 : 0, lat, lng, location_type, existing.id);
+    db.prepare(`UPDATE attendance SET clock_in=?, work_start=?, is_late=?, clock_in_lat=?, clock_in_lng=?, location_type=?, clock_out=?, work_end=?, auto_clock_out=1 WHERE id=?`)
+      .run(now, workStart, isLate ? 1 : 0, lat, lng, location_type, autoOut, autoOut, existing.id);
   } else {
-    db.prepare(`INSERT INTO attendance (user_id, work_date, clock_in, work_start, is_late, clock_in_lat, clock_in_lng, location_type) VALUES (?,?,?,?,?,?,?,?)`)
-      .run(emp.id, today, now, workStart, isLate ? 1 : 0, lat, lng, location_type);
+    db.prepare(`INSERT INTO attendance (user_id, work_date, clock_in, work_start, is_late, clock_in_lat, clock_in_lng, location_type, clock_out, work_end, auto_clock_out) VALUES (?,?,?,?,?,?,?,?,?,?,1)`)
+      .run(emp.id, today, now, workStart, isLate ? 1 : 0, lat, lng, location_type, autoOut, autoOut);
   }
 
   // 遲到 → 即時提醒員工（站內通知 + LINE），並告知本月累積次數與全勤獎金影響
@@ -140,7 +141,7 @@ router.post('/clockin', async (req, res) => {
     } catch (e) { /* non-critical */ }
   }
 
-  return res.json({ ok: true, time: now, is_late: isLate, location: location_name });
+  return res.json({ ok: true, time: now, is_late: isLate, location: location_name, clock_out: autoOut });
 });
 
 // ── 打卡（下班）────────────────────────────────────────────────
