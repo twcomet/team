@@ -408,6 +408,73 @@ async function _syncSurvey(caseId) {
   db.prepare('UPDATE cases SET survey_gcal_event_id=? WHERE id=?').run(j.id, caseId);
 }
 
+// ── 暫定事項同步：未關聯案件的行事曆備忘（adhoc_events）→ 同一本「繪新派單」曆。
+//    事件 id 記在 adhoc_events.gcal_event_id；標題加【暫定】、獨立顏色，標記 adhocId 供冪等自癒。──
+function _loadAdhoc(id) {
+  return db.prepare(`
+    SELECT a.id, a.title, a.event_date, a.event_time, a.note, a.gcal_event_id, u.name AS creator_name
+    FROM adhoc_events a LEFT JOIN users u ON u.id = a.created_by WHERE a.id = ?
+  `).get(id);
+}
+function _buildAdhocEvent(a) {
+  const date = a.event_date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
+  const desc = [];
+  if (a.note)          desc.push(a.note);
+  if (a.creator_name)  desc.push(`建立者：${a.creator_name}`);
+  desc.push('（暫定事項：尚未關聯正式案件）');
+  const ev = { summary: `【暫定】${a.title || '暫定事項'}`, description: desc.join('\n'), status: 'confirmed', colorId: '2',
+    extendedProperties: { private: { adhocId: String(a.id) } } };
+  const t = _hhmm(a.event_time);
+  if (t) { ev.start = { dateTime: `${date}T${t}:00`, timeZone: TZ }; ev.end = { dateTime: `${date}T${_plusHours(t, 1)}:00`, timeZone: TZ }; }
+  else   { ev.start = { date }; ev.end = { date: _nextDay(date) }; }
+  return ev;
+}
+async function _removeAdhocEvent(eventId, id) {
+  await _gcalDelete(eventId);
+  if (id) db.prepare('UPDATE adhoc_events SET gcal_event_id=NULL WHERE id=?').run(id);
+}
+async function _syncAdhoc(id) {
+  const a = _loadAdhoc(id);
+  if (!a) return;
+  const ev = _buildAdhocEvent(a);
+  if (!ev) { await _removeAdhocEvent(a.gcal_event_id, id); return; }
+
+  const token   = await gdrive.accessToken();
+  const calId   = await _ensureCalendar(token);
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+  const base    = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events`;
+
+  if (a.gcal_event_id) {
+    const r = await _fetchRetry(`${base}/${encodeURIComponent(a.gcal_event_id)}`,
+      { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (r.ok) return;
+    if (r.status !== 404 && r.status !== 410) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error('更新暫定事項失敗：' + ((j.error && j.error.message) || r.status));
+    }
+  }
+  // 建立前先找同 adhocId 標記的既有事件（冪等、自癒重複）
+  const fr = await _fetchRetry(
+    `${base}?privateExtendedProperty=${encodeURIComponent('adhocId=' + a.id)}&showDeleted=false&maxResults=50&singleEvents=false`,
+    { headers });
+  const fj = await fr.json().catch(() => ({}));
+  const dupes = (fr.ok && Array.isArray(fj.items)) ? fj.items.filter(e => e.id && e.status !== 'cancelled') : [];
+  if (dupes.length) {
+    const keep = dupes[0].id;
+    const pr = await _fetchRetry(`${base}/${encodeURIComponent(keep)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (pr.ok) {
+      db.prepare('UPDATE adhoc_events SET gcal_event_id=? WHERE id=?').run(keep, id);
+      for (let i = 1; i < dupes.length; i++) { await _fetchRetry(`${base}/${encodeURIComponent(dupes[i].id)}`, { method: 'DELETE', headers }); await _sleep(80); }
+      return;
+    }
+  }
+  const r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('建立暫定事項失敗：' + ((j.error && j.error.message) || r.status));
+  db.prepare('UPDATE adhoc_events SET gcal_event_id=? WHERE id=?').run(j.id, id);
+}
+
 // ── 對外 API：best-effort，永不 throw（不阻塞派單流程）──────
 function safeSyncDispatch(dispatchId) {
   if (!syncEnabled() || !isConnected()) return Promise.resolve();
@@ -425,6 +492,18 @@ function safeSyncSurvey(caseId) {
   return _withLock('s' + caseId, () => _syncSurvey(caseId))
     .catch(e => console.error('[gcal] 同步場勘失敗 case#' + caseId + '：', e.message));
 }
+// 同步一筆「暫定事項」。best-effort，永不 throw
+function safeSyncAdhoc(id) {
+  if (!syncEnabled() || !isConnected()) return Promise.resolve();
+  return _withLock('a' + id, () => _syncAdhoc(id))
+    .catch(e => console.error('[gcal] 同步暫定事項失敗 #' + id + '：', e.message));
+}
+// 刪除一筆「暫定事項」的 Google 事件。best-effort，永不 throw
+function safeRemoveAdhoc(eventId, id) {
+  if (!eventId || !isConnected()) return Promise.resolve();
+  return _removeAdhocEvent(eventId, id)
+    .catch(e => console.error('[gcal] 刪除暫定事項失敗 #' + id + '：', e.message));
+}
 
 // ── 背景同步任務：長時間工作(數百筆)不走 HTTP 請求，避免閘道逾時 ──
 // 前端「啟動→輪詢進度」，任務進度存在模組記憶體
@@ -440,7 +519,8 @@ async function _runSyncAll() {
     WHERE c.status NOT IN ('closed','invalid')
       AND COALESCE(sf.survey_date, c.survey_date) IS NOT NULL
   `).all();
-  _job.total = rows.length + surveyRows.length; _job.phase = '同步派工';
+  const adhocRows = db.prepare(`SELECT id FROM adhoc_events`).all();
+  _job.total = rows.length + surveyRows.length + adhocRows.length; _job.phase = '同步派工';
   for (const row of rows) {
     try { await _withLock('d' + row.id, () => _syncDispatch(row.id)); _job.ok++; }
     catch (e) {
@@ -459,6 +539,16 @@ async function _runSyncAll() {
       _job.fail++;
       if (!_job.sampleError) _job.sampleError = e.message;
       console.error('[gcal] 場勘回填失敗 case#' + row.id + '：', e.message);
+    }
+    await _sleep(150);
+  }
+  _job.phase = '同步暫定事項';
+  for (const row of adhocRows) {
+    try { await _withLock('a' + row.id, () => _syncAdhoc(row.id)); _job.ok++; }
+    catch (e) {
+      _job.fail++;
+      if (!_job.sampleError) _job.sampleError = e.message;
+      console.error('[gcal] 暫定事項回填失敗 #' + row.id + '：', e.message);
     }
     await _sleep(150);
   }
@@ -509,6 +599,7 @@ async function _runRebuild() {
   }
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();  // 全部重建
   db.prepare('UPDATE cases SET survey_gcal_event_id=NULL').run(); // 場勘事件也一併重建
+  db.prepare('UPDATE adhoc_events SET gcal_event_id=NULL').run(); // 暫定事項也一併重建
   await _runSyncAll();
 }
 
@@ -538,6 +629,7 @@ async function _runHardReset() {
   setS('gcal_dispatch_calendar_id', null);          // 清掉舊 id，_ensureCalendar 會建新的
   db.prepare('UPDATE dispatches SET gcal_event_id=NULL').run();
   db.prepare('UPDATE cases SET survey_gcal_event_id=NULL').run();
+  db.prepare('UPDATE adhoc_events SET gcal_event_id=NULL').run();
   _job.phase = '建立新行事曆';
   await _ensureCalendar(token);                      // 建立全新空行事曆
   _job.phase = '重新同步';
@@ -626,4 +718,4 @@ function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeSyncSurvey, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeSyncSurvey, safeSyncAdhoc, safeRemoveAdhoc, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, syncEnabled, setEnabled, calendarInfo };

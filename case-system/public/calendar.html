@@ -86,7 +86,9 @@
           <button data-v="week" onclick="setCalView('week')">週</button>
           <button data-v="day" onclick="setCalView('day')">天</button>
         </div>
-        <button class="gcal-today" id="gcalSyncBtn" onclick="syncToGoogle()" style="margin-left:auto"
+        <button class="gcal-today" id="addAdhocBtn" onclick="openAdhocNew()" style="margin-left:auto"
+          title="建立未關聯案件的暫定事項（洽談中/估價中先 memo，會同步到 Google 繪新派單）">📌 暫定事項</button>
+        <button class="gcal-today" id="gcalSyncBtn" onclick="syncToGoogle()"
           title="把目前所有派單重新同步到 Google 行事曆。平常新增/修改派工會自動同步，這顆用於一次補齊或手動重整。">🔄 同步到 Google</button>
       </div>
       <div class="gcal-filterbar" id="calFilterBar"></div>
@@ -257,6 +259,33 @@
   </div>
 </div>
 
+<!-- 暫定事項（未關聯案件的行事曆備忘） -->
+<div class="modal-overlay" id="adhocModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3 id="adhocTitle">📌 新增暫定事項</h3>
+      <button class="modal-close" onclick="closeAdhoc()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:#70757a;margin-bottom:10px">洽談中／估價中、還沒建正式案件的事項，可先 memo 在行事曆上（會同步到 Google 繪新派單，標示【暫定】，全公司可見）。</div>
+      <label class="ad-fld">🏷️ 標題</label>
+      <input id="ahTitle" class="ad-input" placeholder="例：王先生 內湖新案 洽談" maxlength="100">
+      <label class="ad-fld">📅 日期</label>
+      <input type="date" id="ahDate" class="ad-input">
+      <label class="ad-fld">🕘 時間（選填，不填＝整天）</label>
+      <input type="time" id="ahTime" class="ad-input">
+      <label class="ad-fld">📝 備註（選填）</label>
+      <textarea id="ahNote" class="ad-input" rows="3" placeholder="地點、聯絡人、金額估計等" style="resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px 20px;border-top:1px solid #eef0f3">
+      <button class="btn btn-ghost" id="ahDeleteBtn" onclick="deleteAdhoc()" style="color:#d93025;display:none">🗑️ 刪除</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeAdhoc()">取消</button>
+      <button class="btn btn-primary" id="ahSaveBtn" onclick="saveAdhoc()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 就地編輯事件（場勘/派工） -->
 <div class="modal-overlay" id="editEvModal">
   <div class="modal" style="max-width:470px">
@@ -406,8 +435,8 @@ const CAT_OF = (c) => {
   if (t === 'cut_material') return '裁料';
   return '其他';
 };
-const CAT_COLOR = { 場勘:'#8430ce', 施工:'#1a73e8', 維修:'#e8710a', 裁料:'#188038', 其他:'#5f6368', 請假:'#b06000' };
-const CAT_ORDER = ['場勘','施工','維修','裁料','其他'];
+const CAT_COLOR = { 場勘:'#8430ce', 施工:'#1a73e8', 維修:'#e8710a', 裁料:'#188038', 暫定:'#00897b', 其他:'#5f6368', 請假:'#b06000' };
+const CAT_ORDER = ['場勘','施工','維修','裁料','暫定','其他'];
 const CATS = ['全部', ...CAT_ORDER];
 let calView = 'month', calFilter = '全部', showIdle = true;
 
@@ -440,6 +469,8 @@ function buildMaps(){
     dayNo:(c.source==='dispatch' && c.dispatch_type==='install') ? (c.day_no||null) : null }));
   (calData.surveys||[]).forEach(s => push(s.survey_date, { kind:'survey', cat:'場勘', c:s,
     title:`【${_crewGiven([s.surveyor_name])}場勘】`+[s.title, s.client_name].filter(Boolean).join('｜'), dayNo:null }));
+  (calData.adhoc||[]).forEach(a => push(a.event_date, { kind:'adhoc', cat:'暫定', c:a,
+    title:'📌 '+(a.event_time?a.event_time+' ':'')+(a.title||'暫定事項'), dayNo:null }));
   return byDate;
 }
 function filtEv(arr){ return calFilter==='全部' ? (arr||[]) : (arr||[]).filter(e=>e.cat===calFilter); }
@@ -532,6 +563,7 @@ const WEEKD = ['日','一','二','三','四','五','六'];
 function openEvCard(idx){
   const e = window._calEv[idx]; if(!e) return;
   const c = e.c;
+  if (e.kind === 'adhoc') return openAdhocCard(c);   // 暫定事項：專屬資訊卡（可編輯/刪除）
   const col = CAT_COLOR[e.cat] || '#5f6368';
   const dObj = c.scheduled_date || c.survey_date;
   const dateLine = dObj ? `${dObj}（週${WEEKD[new Date(dObj+'T00:00:00').getDay()]}）` : '';
@@ -570,6 +602,63 @@ function openEvCard(idx){
   document.getElementById('evCard').classList.add('open');
 }
 function closeEvCard(){ document.getElementById('evCard').classList.remove('open'); }
+
+// ── 暫定事項：新增/編輯/刪除 ─────────────────────────────────
+let ahEditId = null;
+function openAdhocNew(dateStr){
+  ahEditId = null;
+  document.getElementById('adhocTitle').textContent = '📌 新增暫定事項';
+  document.getElementById('ahTitle').value = '';
+  document.getElementById('ahDate').value  = dateStr || todayStr();
+  document.getElementById('ahTime').value  = '';
+  document.getElementById('ahNote').value  = '';
+  document.getElementById('ahDeleteBtn').style.display = 'none';
+  document.getElementById('adhocModal').classList.add('open');
+  setTimeout(()=>document.getElementById('ahTitle').focus(), 50);
+}
+function openAdhocCard(a){   // 點行事曆上的暫定事項 → 直接進編輯（帶入原內容）
+  ahEditId = a.id;
+  document.getElementById('adhocTitle').textContent = '📌 編輯暫定事項';
+  document.getElementById('ahTitle').value = a.title || '';
+  document.getElementById('ahDate').value  = a.event_date || '';
+  document.getElementById('ahTime').value  = a.event_time || '';
+  document.getElementById('ahNote').value  = a.note || '';
+  document.getElementById('ahDeleteBtn').style.display = canEditCal() ? '' : 'none';
+  document.getElementById('adhocModal').classList.add('open');
+}
+function closeAdhoc(){ document.getElementById('adhocModal').classList.remove('open'); }
+async function saveAdhoc(){
+  const title = document.getElementById('ahTitle').value.trim();
+  const event_date = document.getElementById('ahDate').value;
+  const event_time = document.getElementById('ahTime').value || null;
+  const note = document.getElementById('ahNote').value.trim() || null;
+  if(!title){ showToast('請輸入標題','error'); return; }
+  if(!event_date){ showToast('請選擇日期','error'); return; }
+  const btn = document.getElementById('ahSaveBtn'); btn.disabled = true;
+  try{
+    const url = ahEditId ? `/api/adhoc-events/${ahEditId}` : '/api/adhoc-events';
+    const r = await fetch(url, { method: ahEditId?'PUT':'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title, event_date, event_time, note }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ showToast(j.error||'儲存失敗','error'); btn.disabled=false; return; }
+    closeAdhoc(); closeEvCard();
+    showToast(ahEditId?'已更新暫定事項':'已新增暫定事項','success');
+    await loadCalendar();
+  }catch(e){ showToast('儲存失敗：'+e.message,'error'); }
+  finally{ btn.disabled=false; }
+}
+async function deleteAdhoc(){
+  if(!ahEditId) return;
+  if(!confirm('確定刪除這筆暫定事項？（Google 行事曆上的事件也會一起移除）')) return;
+  const btn=document.getElementById('ahDeleteBtn'); btn.disabled=true;
+  try{
+    const r = await fetch(`/api/adhoc-events/${ahEditId}`, { method:'DELETE' });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ showToast(j.error||'刪除失敗','error'); btn.disabled=false; return; }
+    closeAdhoc(); showToast('已刪除暫定事項','success'); await loadCalendar();
+  }catch(e){ showToast('刪除失敗：'+e.message,'error'); }
+  finally{ btn.disabled=false; }
+}
 
 function renderMonth(){
   const byDate=buildMaps(), leaveMap=leavesByDate(), targetMap={};

@@ -167,7 +167,19 @@ router.get('/', requireAuth, (req, res) => {
       AND d.scheduled_date BETWEEN ? AND ?
   `).all(dateFrom, dateTo);
 
-  res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments });
+  // 暫定事項（未關聯案件的行事曆備忘，全公司/分店可見）
+  const { sql: orgSqlA, params: orgPsA } = orgFilterSQL(me, 'a.org_id');
+  const orgCondA = orgSqlA ? `AND ${orgSqlA}` : '';
+  const adhoc = db.prepare(`
+    SELECT a.id, a.title, a.event_date, a.event_time, a.note, a.created_by,
+           u.name AS creator_name, 'adhoc' AS source
+    FROM adhoc_events a
+    LEFT JOIN users u ON u.id = a.created_by
+    WHERE a.event_date BETWEEN ? AND ? ${orgCondA}
+    ORDER BY a.event_date, a.event_time
+  `).all(dateFrom, dateTo, ...orgPsA);
+
+  res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments, adhoc });
 });
 
 // POST /api/daily-target  { date, target_amount }

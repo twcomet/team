@@ -222,6 +222,22 @@ db.exec(`
   );
 `);
 
+// ── 暫定事項（未關聯案件的行事曆備忘：洽談中/估價中先 memo）──────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS adhoc_events (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    title         TEXT NOT NULL,
+    event_date    DATE NOT NULL,
+    event_time    TEXT,
+    note          TEXT,
+    org_id        INTEGER REFERENCES orgs(id),
+    created_by    INTEGER REFERENCES users(id),
+    gcal_event_id TEXT DEFAULT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // ── 操作日誌 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS audit_logs (
