@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -356,6 +356,64 @@ app.get('/quote/:token/pdf', async (req, res) => {
     res.send(buf);
   } catch (e) {
     console.error('[PDF] 產生失敗:', e && e.message);
+    res.status(500).json({ error: 'pdf_failed' });
+  }
+});
+
+// ── 客戶版估價單頁（公開連結，免登入）────────────────────────────────
+app.get('/estimate/:token', (req, res) => {
+  const file = path.join(__dirname, 'public', 'estimator-sign.html');
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  try {
+    const _db = require('./db');
+    const row = _db.prepare(`
+      SELECT eq.project_name, eq.customer_name, cl.name AS client_name, c.title AS case_title, c.case_number
+      FROM est_quotes eq
+      LEFT JOIN cases c    ON c.id  = eq.case_id
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      WHERE eq.share_token = ?`).get(req.params.token);
+    const client = row?.customer_name || row?.client_name || '';
+    const proj   = row?.project_name || row?.case_title || row?.case_number || '';
+    const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const parts = ['繪新估價單']; if (client) parts.push(client); if (proj) parts.push(proj);
+    const title = esc(parts.join('-'));
+    const head = `<title>${title}</title>
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="繪新國際 估價單，點開查看明細。">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">`;
+    let html = fs.readFileSync(file, 'utf8');
+    html = html.replace(/<title>[\s\S]*?<\/title>/, head);
+    res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  } catch (e) { res.sendFile(file); }
+});
+
+// 客戶版估價單 PDF：伺服器端 Chromium 產生
+app.get('/estimate/:token/pdf', async (req, res) => {
+  const _db = require('./db');
+  const row = _db.prepare(`
+    SELECT eq.project_name, eq.customer_name, cl.name AS client_name, c.title AS case_title, c.case_number
+    FROM est_quotes eq
+    LEFT JOIN cases c    ON c.id  = eq.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE eq.share_token = ?`).get(req.params.token);
+  if (!row) return res.status(404).send('找不到估價單');
+  const client = row.customer_name || row.client_name || '';
+  const proj   = row.project_name || row.case_title || row.case_number || '';
+  const parts = ['繪新估價單']; if (client) parts.push(client); if (proj) parts.push(proj);
+  const fname = parts.join('-').replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim() || '繪新估價單';
+  try {
+    const { renderPdf } = require('./lib/pdf-render');
+    const url = `http://127.0.0.1:${PORT}/estimate/${encodeURIComponent(req.params.token)}?pdf=1`;
+    const pdf = await renderPdf(url, { waitSelector: '.est-ready', title: fname });
+    const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="estimate.pdf"; filename*=UTF-8''${encodeURIComponent(fname)}.pdf`);
+    res.send(buf);
+  } catch (e) {
+    console.error('[EST PDF] 產生失敗:', e && e.message);
     res.status(500).json({ error: 'pdf_failed' });
   }
 });

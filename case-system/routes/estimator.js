@@ -1,11 +1,22 @@
 const express = require('express');
 const multer  = require('multer');
+const crypto  = require('crypto');
 const db = require('../db');
 const eng = require('../lib/estimator');
 const _catData = require('../lib/estimator-catalog');
 const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } }); // 圖片/PDF 上限 25MB
+
+// 估價單客戶分享 token（比照報價單 quote_sheets.share_token）
+function genToken() { return crypto.randomBytes(16).toString('hex'); }
+function ensureToken(id) {
+  const row = db.prepare('SELECT share_token FROM est_quotes WHERE id=?').get(id);
+  if (row && row.share_token) return row.share_token;
+  const t = genToken();
+  db.prepare('UPDATE est_quotes SET share_token=? WHERE id=?').run(t, id);
+  return t;
+}
 
 // 把整張真實牌價匯入 est_film_catalog / est_door_catalog（force=清空重灌；否則只在空表時帶入）。
 // 兼作「啟動 seed 沒跑成功」的保險：GET /catalog 會 lazy 呼叫，確保頁面一定有資料。
@@ -120,15 +131,16 @@ function computeAndPersistFields(b) {
 router.post('/quotes', requireAuth, (req, res) => {
   const b = req.body || {};
   const { items, r } = computeAndPersistFields(b);
+  const token = genToken();
   const info = db.prepare(`INSERT INTO est_quotes
-    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', req.session.user.id);
-  res.json({ ok: true, id: info.lastInsertRowid, total: r.total });
+      b.status || 'draft', req.session.user.id, token);
+  res.json({ ok: true, id: info.lastInsertRowid, total: r.total, share_token: token });
 });
 router.put('/quotes/:id', requireAuth, (req, res) => {
   const b = req.body || {};
@@ -143,7 +155,7 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
       b.status || 'draft', req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
-  res.json({ ok: true, total: r.total });
+  res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
 });
 router.get('/quotes', requireAuth, (req, res) => {
   // 可用 ?case_id= 篩選單一案件（供案件詳情「初步估價紀錄」合併顯示）；不帶則回全部(限200)
@@ -153,9 +165,11 @@ router.get('/quotes', requireAuth, (req, res) => {
   const params = caseId ? [Number(caseId)] : [];
   const rows = db.prepare(`
     SELECT q.id,q.case_id,q.project_name,q.customer_name,q.customer_type,q.region,
-           q.subtotal,q.discount,q.disc,q.total,q.status,q.created_at,
+           q.subtotal,q.discount,q.disc,q.total,q.status,q.created_at,q.updated_at,
+           q.share_token,q.client_viewed_at,
            u.name AS created_by_name,
-           cl.name AS case_client_name
+           cl.name AS case_client_name,
+           c.case_number AS case_number, c.title AS case_title
     FROM est_quotes q
     LEFT JOIN users u    ON u.id = q.created_by
     LEFT JOIN cases c    ON c.id = q.case_id
@@ -175,6 +189,39 @@ router.delete('/quotes/:id', requireAuth, (req, res) => {
   const info = db.prepare(`DELETE FROM est_quotes WHERE id=?`).run(req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true });
+});
+
+// ── 客戶版估價單（公開連結，免登入；比照報價單 /sign）────────────────
+// 金額一律由引擎讀 DB 牌價重算；成本欄不出；業主(owner)另隱藏 才數/尺寸/單價
+router.get('/quotes/sign/:token', (req, res) => {
+  const q = db.prepare(`
+    SELECT eq.*, cl.name AS case_client_name, c.title AS case_title, c.case_number
+    FROM est_quotes eq
+    LEFT JOIN cases c    ON c.id  = eq.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    WHERE eq.share_token = ?`).get(req.params.token);
+  if (!q) return res.status(404).json({ error: '找不到估價單' });
+  if (!q.client_viewed_at) db.prepare(`UPDATE est_quotes SET client_viewed_at=datetime('now','localtime') WHERE id=?`).run(q.id);
+  const items = JSON.parse(q.items_json || '[]');
+  const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc }, eng.buildCatalogFromDb(db));
+  const owner = q.customer_type === 'owner';
+  const lines = r.lines.map(L => ({
+    type: L.type, label: L.label,
+    series: owner ? '' : (L.series || ''),
+    n: L.n,
+    cai:  owner ? null : (L.cai != null ? Math.round(L.cai * 10) / 10 : null),
+    unit: owner ? null : (L.unit || null),
+    base: L.base || null, amount: L.amount
+  }));
+  res.json({
+    project_name: q.project_name,
+    customer_name: q.customer_name || q.case_client_name || '',
+    customer_type: q.customer_type, region: q.region,
+    created_at: q.created_at, updated_at: q.updated_at, customer_note: q.customer_note,
+    disc: q.disc,
+    lines, sub: r.sub, discAmt: r.discAmt, itemsFinal: r.itemsFinal,
+    freight: r.freight, fut: r.fut, total: r.total, lowApplied: r.lowApplied, lowmin: r.lowmin
+  });
 });
 
 // ── 重設計版牌價（est_film_catalog / est_door_catalog）──────────────

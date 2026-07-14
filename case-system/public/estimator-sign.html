@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>繪新估價單</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  :root{--pink:#D40069;--pink-bg:#FFF0F7;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--soft:#f8f9fb}
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef0f3;color:var(--ink);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .sheet{max-width:760px;margin:20px auto;background:#fff;border-radius:14px;box-shadow:0 2px 14px rgba(20,30,50,.09);overflow:hidden}
+  .hd{padding:24px 28px 18px;border-bottom:3px solid var(--pink)}
+  .hd .co{font-size:20px;font-weight:800}
+  .hd .en{font-size:12px;color:var(--muted);letter-spacing:.06em;margin-top:2px}
+  .hd .doc{display:inline-block;margin-top:12px;background:var(--pink-bg);color:var(--pink);font-weight:800;font-size:15px;border-radius:8px;padding:6px 14px}
+  .warn{margin:16px 28px 0;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:9px 13px;font-size:12.5px;color:#c2410c;font-weight:600}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;padding:16px 28px 6px;font-size:13px}
+  .meta .k{color:var(--muted)}
+  .meta .row{display:flex;gap:8px}.meta .row b{font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  thead th{background:var(--soft);font-size:11.5px;color:var(--muted);font-weight:700;text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);letter-spacing:.03em}
+  thead th:first-child{text-align:left}
+  tbody td{padding:10px;font-size:13px;border-bottom:1px solid #f1f2f4;text-align:right;vertical-align:top}
+  tbody td:first-child{text-align:left}
+  tbody .lbl{font-weight:600}
+  tbody .ser{font-size:11.5px;color:var(--muted);margin-top:2px}
+  tbody .amt{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tot{padding:6px 28px 20px}
+  .tr{display:flex;justify-content:space-between;padding:7px 0;font-size:13.5px;border-bottom:1px dashed #eef0f3}
+  .tr .after{color:#059669;font-weight:600}
+  .grand{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:14px 16px;background:var(--pink-bg);border:1px solid #FBCFE2;border-radius:11px}
+  .grand span{font-size:14px;font-weight:800;color:var(--pink)}
+  .grand b{font-size:24px;font-weight:800;color:var(--pink);font-variant-numeric:tabular-nums}
+  .note{margin:4px 28px 0;font-size:12px;color:var(--muted);line-height:1.8}
+  .ft{padding:16px 28px 26px;color:var(--muted);font-size:11.5px;text-align:center;border-top:1px solid var(--line);margin-top:14px}
+  .bar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;max-width:760px;margin:0 auto}
+  .bar button{flex:1;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .bar .pdf{background:var(--pink);color:#fff}
+  .bar .print{background:#111827;color:#fff}
+  .load{text-align:center;color:var(--muted);padding:60px 20px;font-size:14px}
+  @media print{
+    body{background:#fff}
+    .sheet{box-shadow:none;margin:0;max-width:100%;border-radius:0}
+    .bar{display:none}
+    .warn{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .grand,.hd,thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="sheet" id="sheet"><div class="load" id="load">估價單載入中…</div></div>
+<div class="bar" id="bar" style="display:none">
+  <button class="print" onclick="window.print()">🖨 列印</button>
+  <button class="pdf" onclick="dlPdf()">⬇ 下載 PDF</button>
+</div>
+<script>
+var TOKEN = location.pathname.split('/').filter(Boolean)[1] || '';
+var IS_PDF = new URLSearchParams(location.search).get('pdf') === '1';
+var NT = n => 'NT$ ' + Math.round(Number(n)||0).toLocaleString('en-US');
+var esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function dlPdf(){ location.href = '/estimate/' + encodeURIComponent(TOKEN) + '/pdf'; }
+
+(async function(){
+  try{
+    var d = await fetch('/api/estimator/quotes/sign/' + encodeURIComponent(TOKEN)).then(r=>{ if(!r.ok) throw new Error('找不到估價單'); return r.json(); });
+    render(d);
+  }catch(e){
+    document.getElementById('sheet').innerHTML = '<div class="load">😅 ' + esc(e.message||'載入失敗') + '<br><span style="font-size:12px">連結可能已失效，請向繪新客服確認</span></div>';
+  }
+})();
+
+function render(d){
+  var owner = d.customer_type === 'owner';
+  var dt = (d.updated_at || d.created_at || '').slice(0,10);
+  var rows = (d.lines||[]).map(function(L){
+    var mid = '';
+    if(!owner){
+      var bits = [];
+      if(L.series) bits.push(esc(L.series));
+      if(L.cai!=null && L.unit!=null) bits.push(L.cai + ' 才 × ' + NT(L.unit).replace('NT$ ','') );
+      mid = bits.length ? '<div class="ser">' + bits.join('　·　') + '</div>' : '';
+    }
+    var unit = L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='film'?'':' 件'));
+    var priceCell = (L.base && L.base!==L.amount)
+      ? '<span style="text-decoration:line-through;color:#9ca3af;font-size:11px">'+NT(L.base)+'</span><br>'+NT(L.amount)
+      : NT(L.amount);
+    return '<tr><td><div class="lbl">'+esc(L.label)+'</div>'+mid+'</td>'
+      + '<td>'+ (L.n||1) + unit +'</td>'
+      + '<td class="amt">'+priceCell+'</td></tr>';
+  }).join('');
+
+  var totRows = '';
+  totRows += '<div class="tr"><span>連工帶料小計（未稅）</span><b>'+NT(d.sub)+'</b></div>';
+  if(d.discAmt>0) totRows += '<div class="tr"><span>優惠折扣</span><b class="after">-'+NT(d.discAmt)+'</b></div>';
+  if(d.lowApplied) totRows += '<div class="tr"><span>低消調整</span><b>補至 '+NT(d.lowmin)+'</b></div>';
+  if(d.freight>0) totRows += '<div class="tr"><span>車馬費</span><b>'+NT(d.freight)+'</b></div>';
+  if(d.fut>0)     totRows += '<div class="tr"><span>期貨運費</span><b>'+NT(d.fut)+'</b></div>';
+
+  document.getElementById('sheet').innerHTML =
+    '<div class="hd"><div class="co">繪新國際有限公司</div><div class="en">TWCOMET INTERNATIONAL</div><div class="doc">估　價　單</div></div>'
+    + '<div class="warn">⚠ 此為估價，非正式報價單；實際價格以簽約報價單與現場丈量為準。</div>'
+    + '<div class="meta">'
+      + (d.project_name?'<div class="row"><span class="k">專案</span><b>'+esc(d.project_name)+'</b></div>':'')
+      + (d.customer_name?'<div class="row"><span class="k">客戶</span><b>'+esc(d.customer_name)+'</b></div>':'')
+      + '<div class="row"><span class="k">日期</span><b>'+esc(dt)+'</b></div>'
+      + '<div class="row"><span class="k">類型</span><b>'+(owner?'業主':'設計師')+'</b></div>'
+    + '</div>'
+    + '<table><thead><tr><th>品項</th><th>數量</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div class="tot">'+totRows
+      + '<div class="grand"><span>估價總額（未稅）</span><b>'+NT(d.total)+'</b></div>'
+    + '</div>'
+    + (d.customer_note?'<div class="note">備註：'+esc(d.customer_note)+'</div>':'')
+    + '<div class="note">＊本估價單金額為未稅。開立發票另加 5% 營業稅。</div>'
+    + '<div class="ft">繪新國際有限公司　Twcomet International<br>本單由繪新管理系統產生</div>';
+
+  document.title = '繪新估價單' + (d.customer_name?'-'+d.customer_name:'') + (d.project_name?'-'+d.project_name:'');
+  if(!IS_PDF) document.getElementById('bar').style.display = 'flex';
+  // 給伺服器端 PDF 產生器辨識「內容已就緒」
+  var mark = document.createElement('div'); mark.className = 'est-ready'; mark.style.display='none';
+  document.body.appendChild(mark);
+}
+</script>
+</body>
+</html>

@@ -30,6 +30,22 @@
   .eq-st-draft{background:#f1f5f9;color:#475569}
   .eq-st-sent{background:#fef3c7;color:#b45309}
   .eq-st-done{background:#dcfce7;color:#15803d}
+  .eq-caselink{display:inline-flex;align-items:center;gap:2px;color:#2563eb;text-decoration:none;font-size:12px;font-weight:600;background:#eff6ff;border:1px solid #dbeafe;border-radius:7px;padding:2px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eq-caselink:hover{background:#dbeafe;text-decoration:none}
+  .eq-nocase{font-size:11.5px;color:#9ca3af}
+  td.eq-log{white-space:normal;min-width:170px}
+  .eq-log .rl{display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:#374151;padding:1px 0}
+  .eq-log .rk{color:#9ca3af;flex-shrink:0;width:auto}
+  .eq-log .rk-seen{color:#15803d;font-weight:600}
+  .eq-log .rt{color:#9ca3af;margin-left:auto;font-variant-numeric:tabular-nums}
+  td.eq-act{white-space:normal;min-width:250px}
+  .eq-btn{display:inline-flex;align-items:center;gap:2px;font-size:11.5px;font-weight:600;border-radius:7px;padding:4px 9px;margin:2px 4px 2px 0;cursor:pointer;text-decoration:none;border:1px solid transparent;font-family:inherit;line-height:1.3}
+  .eq-btn-edit{background:#FFF0F7;color:#D40069;border-color:#FBCFE2}
+  .eq-btn-edit:hover{background:#ffe0ef}
+  .eq-btn-link{background:#eff6ff;color:#2563eb;border-color:#dbeafe}
+  .eq-btn-link:hover{background:#dbeafe}
+  .eq-btn-pdf{background:#f1f5f9;color:#334155;border-color:#e2e8f0}
+  .eq-btn-pdf:hover{background:#e2e8f0}
 </style>
 </head>
 <body>
@@ -95,8 +111,8 @@
     <div class="top-bar"><span class="page-title">估價單查詢</span><a href="/estimator" style="margin-left:auto;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">＋ 新增估價</a></div>
     <div class="eq-wrap">
       <div class="eq-card">
-        <div class="eq-bar"><input id="eq-q" placeholder="🔍 搜尋 專案名稱／客戶" oninput="renderList()"></div>
-        <table class="eq"><thead><tr><th>#</th><th>專案名稱</th><th>客戶</th><th>類型</th><th>區域</th><th>總額(未稅)</th><th>狀態</th><th>建立人</th><th>建立時間</th><th></th></tr></thead><tbody id="eq-body"></tbody></table>
+        <div class="eq-bar"><input id="eq-q" placeholder="🔍 搜尋 專案名稱／客戶／案號" oninput="renderList()"></div>
+        <table class="eq"><thead><tr><th>#</th><th>專案名稱／案件</th><th>客戶</th><th>類型</th><th>區域</th><th>總額(未稅)</th><th>狀態</th><th>紀錄</th><th>操作</th></tr></thead><tbody id="eq-body"></tbody></table>
       </div>
     </div>
   </div>
@@ -111,21 +127,62 @@ const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;
 async function load(){ ROWS=await fetch(API+'/quotes').then(r=>r.ok?r.json():[]); renderList(); }
 function renderList(){
   const q=(document.getElementById('eq-q').value||'').trim();
-  const rows=ROWS.filter(r=>!q||(r.project_name||'').includes(q)||(r.customer_name||'').includes(q)||(r.case_client_name||'').includes(q));
+  const rows=ROWS.filter(r=>!q||(r.project_name||'').includes(q)||(r.customer_name||'').includes(q)||(r.case_client_name||'').includes(q)||(r.case_number||'').includes(q)||(r.case_title||'').includes(q));
   const b=document.getElementById('eq-body');
-  if(!rows.length){ b.innerHTML='<tr><td colspan="10" class="eq-empty">尚無估價單</td></tr>'; return; }
-  b.innerHTML=rows.map(r=>`<tr>
+  if(!rows.length){ b.innerHTML='<tr><td colspan="9" class="eq-empty">尚無估價單</td></tr>'; return; }
+  b.innerHTML=rows.map(r=>{
+    const caseLink = r.case_id
+      ? `<a class="eq-caselink" href="/case-detail?id=${r.case_id}" title="開啟案件">🔗 ${esc(r.case_number)||('案件#'+r.case_id)}${r.case_title?'　'+esc(r.case_title):''}</a>`
+      : '<span class="eq-nocase">未綁定案件</span>';
+    const hasTok = !!r.share_token;
+    return `<tr>
     <td>#${r.id}</td>
-    <td class="eq-name">${esc(r.project_name)||'—'}${r.case_id?` <span class="eq-badge">案件#${r.case_id}</span>`:''}</td>
+    <td class="eq-name">${esc(r.project_name)||'—'}<div style="margin-top:4px">${caseLink}</div></td>
     <td>${esc(r.customer_name||r.case_client_name)||'—'}</td>
     <td>${CUST[r.customer_type]||r.customer_type||''}</td>
     <td>${esc(r.region)||'—'}</td>
     <td class="eq-total">${NT(r.total)}</td>
     <td>${stBadge(r.status)}</td>
-    <td>${esc(r.created_by_name)||'—'}</td>
-    <td>${esc((r.created_at||'').replace('T',' ').slice(0,16))}</td>
-    <td style="white-space:nowrap"><span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span><span class="eq-del" onclick="deleteQuote(${r.id})">刪除</span></td>
-  </tr>`).join('');
+    <td class="eq-log">${recCell(r)}</td>
+    <td class="eq-act">
+      <a class="eq-btn eq-btn-edit" href="/estimator?edit=${r.id}" title="開啟並編輯此估價單">✏️ 編輯</a>
+      ${hasTok?`<button class="eq-btn eq-btn-link" onclick="copyLink('${r.share_token}',this)" title="複製可發給客戶的估價單連結">🔗 客戶連結</button>
+      <a class="eq-btn eq-btn-pdf" href="/estimate/${r.share_token}/pdf" target="_blank" rel="noopener" title="下載 PDF 估價單">⬇ PDF</a>`
+        :`<button class="eq-btn eq-btn-link" onclick="genLink(${r.id})" title="產生客戶連結">🔗 產生連結</button>`}
+      <span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span>
+      <span class="eq-del" onclick="deleteQuote(${r.id})">刪除</span>
+    </td>
+  </tr>`;
+  }).join('');
+}
+function fmtDt(s){ return s?String(s).replace('T',' ').slice(0,16):''; }
+function recCell(r){
+  const created = fmtDt(r.created_at);
+  const updated = fmtDt(r.updated_at);
+  const parts = [];
+  parts.push(`<div class="rl"><span class="rk">建立</span>${esc(r.created_by_name)||'—'}<span class="rt">${esc(created)||'—'}</span></div>`);
+  if(updated && updated!==created)
+    parts.push(`<div class="rl"><span class="rk">更新</span><span class="rt">${esc(updated)}</span></div>`);
+  if(r.client_viewed_at)
+    parts.push(`<div class="rl"><span class="rk rk-seen">客戶已開啟</span><span class="rt">${esc(fmtDt(r.client_viewed_at))}</span></div>`);
+  return parts.join('');
+}
+async function genLink(id){
+  // 尚無 share_token（舊資料）→ 透過 PUT ensureToken 補發，再重新載入
+  try{
+    const full=await fetch(API+'/quotes/'+id).then(r=>r.ok?r.json():null);
+    if(!full){ alert('讀取失敗'); return; }
+    const r=await fetch(API+'/quotes/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(full)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.share_token){ await load(); copyLink(j.share_token); }
+    else alert('產生連結失敗：'+(j.error||r.status));
+  }catch(e){ alert('產生連結失敗：'+e.message); }
+}
+function copyLink(token,el){
+  const url=location.origin+'/estimate/'+token;
+  const done=()=>{ if(el){ const o=el.innerHTML; el.innerHTML='✅ 已複製'; setTimeout(()=>el.innerHTML=o,1400);} else alert('已複製客戶連結：\n'+url); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done,()=>prompt('複製此連結：',url)); }
+  else prompt('複製此連結：',url);
 }
 const ST={draft:['草稿','eq-st-draft'],sent:['已送出','eq-st-sent'],done:['已成交','eq-st-done'],accepted:['已成交','eq-st-done']};
 function stBadge(s){const m=ST[s]||[s||'draft','eq-st-draft'];return '<span class="eq-st '+m[1]+'">'+esc(m[0])+'</span>';}
@@ -155,7 +212,7 @@ async function toggleDetail(id,el){
     return '<div class="di"><span>'+esc(t)+'</span></div>';
   }).join('')||'<div class="di"><span>（無品項）</span></div>';
   const d=document.createElement('tr'); d.className='eq-detail';
-  d.innerHTML='<td colspan="10"><div style="padding:6px 4px">'
+  d.innerHTML='<td colspan="9"><div style="padding:6px 4px">'
     +'<div style="font-weight:600;margin-bottom:6px">品項明細</div>'+items
     +'<div class="di" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px"><span>小計</span><span>'+NT(q.subtotal)+'</span></div>'
     +'<div class="di"><span>車馬費</span><span>'+NT(q.freight)+'</span></div>'
