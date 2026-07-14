@@ -11,6 +11,15 @@ function requireHR(req, res, next) {
   return res.status(403).json({ error: 'Forbidden' });
 }
 
+// 出勤報表可見：老闆 / 人資 / 主管（看全體）
+function requireAttendanceView(req, res, next) {
+  const u = req.session.user;
+  if (!u) return res.status(401).json({ error: 'Unauthorized' });
+  if (u.role === 'owner' || u.role === 'hq_hr' || u.is_manager || u.manage_users) return next();
+  return res.status(403).json({ error: 'Forbidden' });
+}
+const _todayTW = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+
 // ── 特休天數計算 ──────────────────────────────────────────────────────────────
 function calcAnnualLeave(hireDateStr, year) {
   if (!hireDateStr) return 0;
@@ -324,6 +333,57 @@ router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
   });
 
   res.json({ year, month, employees: result });
+});
+
+// GET /api/hr/attendance-daily?date=YYYY-MM-DD — 當日全體打卡狀態 + 沒打卡/遲到 Summary
+router.get('/attendance-daily', requireAuth, requireAttendanceView, (req, res) => {
+  const att = require('../lib/attendance-util');
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : _todayTW();
+  const roster = att.clockRoster();                              // 該打卡名冊
+
+  const rows = db.prepare(`SELECT * FROM attendance WHERE work_date=?`).all(date);
+  const byUser = {}; rows.forEach(r => { byUser[r.user_id] = r; });
+  // 當日核准的請假（含跨日區間）
+  const leaves = db.prepare(`SELECT user_id, leave_type FROM leave_requests
+    WHERE status='approved' AND ? BETWEEN leave_date AND COALESCE(leave_end_date, leave_date)`).all(date);
+  const leaveByUser = {}; leaves.forEach(l => { leaveByUser[l.user_id] = l.leave_type; });
+  const makeups = db.prepare(`SELECT user_id, status FROM makeup_requests WHERE makeup_date=?`).all(date);
+  const makeupByUser = {}; makeups.forEach(m => { makeupByUser[m.user_id] = m.status; });
+
+  const employees = roster.map(u => {
+    const a = byUser[u.id];
+    const onLeave = leaveByUser[u.id] || null;
+    let status;
+    if (a && a.clock_in) status = a.is_late ? 'late' : 'present';
+    else if (onLeave)     status = 'leave';
+    else                  status = 'absent';
+    return {
+      id: u.id, name: u.name, role: u.role, status,
+      clock_in: a?.clock_in || null, clock_out: a?.clock_out || null,
+      is_late: a?.is_late ? 1 : 0, auto_out: a?.auto_clock_out ? 1 : 0,
+      location_type: a?.location_type || null,
+      leave_type: onLeave, makeup: makeupByUser[u.id] || null,
+    };
+  });
+  const absentList = employees.filter(x => x.status === 'absent').map(x => x.name);
+  const lateList   = employees.filter(x => x.status === 'late').map(x => ({ name: x.name, time: x.clock_in }));
+  const presentCount = employees.filter(x => x.status === 'present' || x.status === 'late').length;
+  res.json({
+    date, workday: att.isWorkday(date), roster_count: roster.length,
+    present_count: presentCount, absent_count: absentList.length, late_count: lateList.length,
+    leave_count: employees.filter(x => x.status === 'leave').length,
+    absentList, lateList, employees,
+  });
+});
+
+// GET /api/hr/attendance-roster — 目前「該打卡名冊」與「免打卡」名單（供頁面/核對）
+router.get('/attendance-roster', requireAuth, requireAttendanceView, (req, res) => {
+  const att = require('../lib/attendance-util');
+  const all = db.prepare(`SELECT id, name, role, is_manager, clock_exempt FROM users WHERE active=1 ORDER BY sort_order, name`).all();
+  const roster = att.clockRoster().map(u => ({ id: u.id, name: u.name, role: u.role }));
+  const exempt = all.filter(u => att.isClockExempt(u))
+    .map(u => ({ id: u.id, name: u.name, role: u.role, manual: !!u.clock_exempt }));
+  res.json({ roster, exempt });
 });
 
 // GET /api/hr/monitoring?year=&month= — 人事監控報表

@@ -3249,6 +3249,7 @@ db.exec(`
 `);
 _addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
 _addCol('users', 'can_layout', 'INTEGER DEFAULT 0');   // 排版工具權限（可開給學員/經銷商）
+_addCol('users', 'clock_exempt', 'INTEGER DEFAULT 0'); // 免打卡（測試/特殊帳號；老闆/副總/外包另由角色自動免）
 
 // ── 排版工具：專案（整包資料以 JSON 存）────────────────────────────────
 db.exec(`

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>員工打卡記錄 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+.att-tabs { display:flex; gap:8px; margin-bottom:16px; }
+.att-tab { padding:8px 18px; border:1px solid var(--gray-200,#e5e7eb); background:#fff; border-radius:999px;
+  font-size:14px; font-weight:600; color:var(--gray-500,#6b7280); cursor:pointer; }
+.att-tab.on { background:var(--primary,#1a56db); color:#fff; border-color:var(--primary,#1a56db); }
+.att-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.att-bar input[type=date], .att-bar select { padding:7px 10px; border:1px solid var(--gray-300,#d1d5db); border-radius:8px; font-size:14px; }
+.att-nav { border:1px solid var(--gray-300,#d1d5db); background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:14px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:16px; }
+.card { background:#fff; border:1px solid var(--gray-200,#e5e7eb); border-radius:12px; padding:14px 16px; }
+.card .n { font-size:26px; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
+.card .l { font-size:12px; color:var(--gray-500,#6b7280); margin-top:3px; }
+.card.warn { border-color:#fecaca; background:#fef2f2; } .card.warn .n { color:#dc2626; }
+.card.late { border-color:#fed7aa; background:#fff7ed; } .card.late .n { color:#c2410c; }
+.card.ok   { border-color:#bbf7d0; background:#f0fdf4; } .card.ok .n { color:#15803d; }
+.summary-box { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+@media(max-width:640px){ .summary-box{ grid-template-columns:1fr; } }
+.sbx { border:1px solid var(--gray-200,#e5e7eb); border-radius:12px; padding:12px 16px; background:#fff; }
+.sbx h4 { margin:0 0 8px; font-size:14px; }
+.chip { display:inline-block; background:var(--gray-100,#f3f4f6); border-radius:6px; padding:3px 9px; margin:3px 4px 0 0; font-size:13px; }
+.chip.red { background:#fee2e2; color:#b91c1c; } .chip.orange { background:#ffedd5; color:#c2410c; }
+table.att { width:100%; border-collapse:collapse; font-size:13px; background:#fff; }
+table.att th { text-align:left; color:var(--gray-500,#6b7280); font-weight:600; padding:9px 10px; border-bottom:1px solid var(--gray-200,#e5e7eb); white-space:nowrap; }
+table.att td { padding:9px 10px; border-bottom:1px solid var(--gray-100,#f3f4f6); white-space:nowrap; }
+.st { font-weight:700; font-size:12px; padding:2px 9px; border-radius:999px; }
+.st-present { background:#dcfce7; color:#15803d; } .st-late { background:#ffedd5; color:#c2410c; }
+.st-absent { background:#fee2e2; color:#b91c1c; } .st-leave { background:#e0e7ff; color:#4338ca; }
+.tbl-wrap { overflow-x:auto; border:1px solid var(--gray-200,#e5e7eb); border-radius:12px; }
+.hint { font-size:12px; color:var(--gray-400,#9ca3af); margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="attendance-records" href="/attendance-records"><span class="icon">🕒</span>員工打卡記錄</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🕒 員工打卡記錄</span></div>
+    <div class="page-body">
+      <div class="att-tabs">
+        <div class="att-tab on" id="tabDaily" onclick="switchTab('daily')">每日出勤</div>
+        <div class="att-tab" id="tabMonth" onclick="switchTab('month')">月統計</div>
+      </div>
+
+      <!-- 每日 -->
+      <div id="viewDaily">
+        <div class="att-bar">
+          <button class="att-nav" onclick="shiftDay(-1)">‹ 前一天</button>
+          <input type="date" id="dDate" onchange="loadDaily()">
+          <button class="att-nav" onclick="shiftDay(1)">後一天 ›</button>
+          <button class="att-nav" onclick="goToday()">今天</button>
+          <span id="dDow" style="font-size:13px;color:var(--gray-500)"></span>
+        </div>
+        <div class="cards" id="dCards"></div>
+        <div class="summary-box" id="dSummary"></div>
+        <div class="tbl-wrap"><table class="att"><thead><tr>
+          <th>姓名</th><th>部門</th><th>狀態</th><th>上班</th><th>下班</th><th>地點</th>
+        </tr></thead><tbody id="dBody"></tbody></table></div>
+        <div class="hint" id="dHint"></div>
+      </div>
+
+      <!-- 月統計 -->
+      <div id="viewMonth" style="display:none">
+        <div class="att-bar">
+          <button class="att-nav" onclick="shiftMonth(-1)">‹ 上個月</button>
+          <span id="mLabel" style="font-size:15px;font-weight:700"></span>
+          <button class="att-nav" onclick="shiftMonth(1)">下個月 ›</button>
+        </div>
+        <div class="tbl-wrap"><table class="att"><thead><tr>
+          <th>姓名</th><th>部門</th><th>出勤天數</th><th>遲到次數</th><th>請假時數</th><th>自動下班</th>
+        </tr></thead><tbody id="mBody"></tbody></table></div>
+        <div class="hint">遲到次數 <b style="color:#dc2626">超過 5 次</b>（紅字）會影響全勤獎金。「自動下班」＝當天忘打下班卡、系統 18:00 自動補。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+const ROLE = { owner:'老闆', vp:'副總', hq_cs:'客服', hq_cs_manager:'客服主管', hq_sales:'業務', hq_tech:'技術', hq_accounting:'會計', hq_hr:'人資', branch_manager:'店長', branch_tech:'分店技術', branch_sales:'分店業務' };
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const DOW = ['日','一','二','三','四','五','六'];
+let curDate, curYear, curMonth;
+
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+function switchTab(t){
+  document.getElementById('tabDaily').classList.toggle('on', t==='daily');
+  document.getElementById('tabMonth').classList.toggle('on', t==='month');
+  document.getElementById('viewDaily').style.display = t==='daily'?'':'none';
+  document.getElementById('viewMonth').style.display = t==='month'?'':'none';
+  if(t==='month') loadMonth();
+}
+function shiftDay(n){ const d=new Date(curDate+'T00:00:00'); d.setDate(d.getDate()+n); curDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; document.getElementById('dDate').value=curDate; loadDaily(); }
+function goToday(){ curDate=todayStr(); document.getElementById('dDate').value=curDate; loadDaily(); }
+
+async function loadDaily(){
+  curDate = document.getElementById('dDate').value || todayStr();
+  const dow = new Date(curDate+'T00:00:00').getDay();
+  const r = await fetch('/api/hr/attendance-daily?date='+curDate);
+  if(!r.ok){ document.getElementById('dBody').innerHTML='<tr><td colspan="6" style="color:#b91c1c;padding:20px">載入失敗（需老闆／人資／主管權限）</td></tr>'; return; }
+  const d = await r.json();
+  document.getElementById('dDow').textContent = `（週${DOW[dow]}）${d.workday?'':'· 非工作日，不列入沒打卡統計'}`;
+  // 卡片
+  document.getElementById('dCards').innerHTML =
+    card('', d.roster_count, '應打卡') +
+    card('ok', d.present_count, '已打卡') +
+    card('late', d.late_count, '遲到') +
+    card('warn', d.absent_count, '沒打卡') +
+    card('', d.leave_count, '請假');
+  // Summary 兩欄
+  const absent = d.absentList.length ? d.absentList.map(n=>`<span class="chip red">${esc(n)}</span>`).join('') : '<span style="color:#15803d;font-size:13px">全員到齊 👍</span>';
+  const late = d.lateList.length ? d.lateList.map(x=>`<span class="chip orange">${esc(x.name)} ${esc(x.time||'')}</span>`).join('') : '<span style="color:#15803d;font-size:13px">今日無人遲到 👍</span>';
+  document.getElementById('dSummary').innerHTML =
+    `<div class="sbx"><h4>❌ 沒打卡（${d.absent_count}）</h4>${absent}</div>`+
+    `<div class="sbx"><h4>⚠️ 遲到（${d.late_count}）</h4>${late}</div>`;
+  // 表格
+  document.getElementById('dBody').innerHTML = d.employees.map(e=>{
+    const stMap = { present:['st-present','✅ 已打卡'], late:['st-late','⚠️ 遲到'], absent:['st-absent','❌ 沒打卡'], leave:['st-leave','🌴 '+(e.leave_type||'請假')] };
+    const st = stMap[e.status]||['','—'];
+    const loc = e.location_type==='company'?'公司':e.location_type==='site'?'案場':'';
+    const out = e.clock_out ? (e.clock_out + (e.auto_out?'（自動）':'')) : '';
+    return `<tr><td><b>${esc(e.name)}</b></td><td style="color:#6b7280">${esc(ROLE[e.role]||e.role)}</td>`+
+      `<td><span class="st ${st[0]}">${st[1]}</span></td>`+
+      `<td>${esc(e.clock_in||'')}</td><td style="color:#6b7280">${esc(out)}</td><td style="color:#6b7280">${esc(loc)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="padding:20px;color:#9ca3af">名冊沒有應打卡的人</td></tr>';
+  document.getElementById('dHint').textContent = `應打卡名冊共 ${d.roster_count} 人（已排除老闆／副總／外包／勾選免打卡者）。`;
+}
+function card(cls,n,l){ return `<div class="card ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`; }
+
+function shiftMonth(n){ curMonth+=n; if(curMonth<1){curMonth=12;curYear--;} if(curMonth>12){curMonth=1;curYear++;} loadMonth(); }
+async function loadMonth(){
+  const now=new Date(); if(!curYear){ curYear=now.getFullYear(); curMonth=now.getMonth()+1; }
+  document.getElementById('mLabel').textContent = `${curYear} 年 ${curMonth} 月`;
+  const r = await fetch(`/api/hr/attendance-summary?year=${curYear}&month=${curMonth}`);
+  if(!r.ok){ document.getElementById('mBody').innerHTML='<tr><td colspan="6" style="color:#b91c1c;padding:20px">載入失敗</td></tr>'; return; }
+  const d = await r.json();
+  document.getElementById('mBody').innerHTML = d.employees.map(e=>{
+    const lateRed = e.late_count>5 ? 'style="color:#dc2626;font-weight:800"' : '';
+    return `<tr><td><b>${esc(e.name)}</b></td><td style="color:#6b7280">${esc(ROLE[e.role]||e.role)}</td>`+
+      `<td>${e.worked_days}</td><td ${lateRed}>${e.late_count}</td>`+
+      `<td>${e.leave_hours||0}</td><td style="color:#6b7280">${e.auto_out||0}</td></tr>`;
+  }).join('');
+}
+
+async function init(){
+  await loadUser();
+  highlightNav('attendance-records');
+  curDate = todayStr();
+  document.getElementById('dDate').value = curDate;
+  loadDaily();
+}
+init();
+</script>
+</body>
+</html>

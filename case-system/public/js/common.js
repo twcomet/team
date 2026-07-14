@@ -152,6 +152,20 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「員工打卡記錄」選單（老闆/人資/主管）：放在 員工功能 → 請假管理下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="attendance-records"]')) return;
+    const canAtt = currentUser.role === 'owner' || currentUser.role === 'hq_hr'
+      || currentUser.is_manager || mu;
+    if (!canAtt) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'attendance-records'; a.href = '/attendance-records';
+    a.innerHTML = '<span class="icon">🕒</span>員工打卡記錄';
+    const anchor = nav.querySelector('[data-page="leave"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在 LINE 詢問下方
   (function() {
     const nav = document.querySelector('.sidebar-nav');

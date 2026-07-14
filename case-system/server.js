@@ -280,6 +280,13 @@ app.get('/staff-performance', requireAuth, requireContract, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'staff-performance.html'));
 });
 
+// 員工打卡記錄（老闆 / 人資 / 主管）
+app.get('/attendance-records', requireAuth, requireContract, (req, res) => {
+  const u = req.session.user;
+  if (!(u?.role === 'owner' || u?.role === 'hq_hr' || u?.is_manager || u?.manage_users)) return res.redirect('/my-tasks');
+  res.sendFile(path.join(__dirname, 'public', 'attendance-records.html'));
+});
+
 // 設計師查詢頁（客戶用，不需登入）
 app.get('/designer', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'designer.html'));
@@ -837,6 +844,7 @@ init();
 const db = require('./db');
 let autoClockOutDoneDate = '';
 let backupDoneSlot = '';
+let attnReminderDate = '';
 setInterval(() => {
   const now = new Date();
   const twTime = now.toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' });
@@ -856,6 +864,46 @@ setInterval(() => {
       db.prepare(`UPDATE attendance SET clock_out='18:00', work_end='18:00', auto_clock_out=1 WHERE id=?`).run(r.id);
     }
     if (missing.length) console.log(`[auto-clockout] ${twDate} 自動補下班卡 ${missing.length} 筆`);
+  }
+  // 每天 10:00（工作日）出勤提醒：沒打卡→提醒本人；沒打卡+遲到名單→彙整給老闆/人資
+  if (hm === '10:00' && attnReminderDate !== twDate) {
+    attnReminderDate = twDate;
+    try {
+      const att = require('./lib/attendance-util');
+      if (att.isWorkday(twDate)) {
+        const { pushMessage } = require('./routes/webhook');
+        const roster = att.clockRoster();
+        const rows = db.prepare(`SELECT user_id, clock_in, is_late FROM attendance WHERE work_date=?`).all(twDate);
+        const byUser = {}; rows.forEach(r => { byUser[r.user_id] = r; });
+        const leaves = db.prepare(`SELECT user_id FROM leave_requests WHERE status='approved' AND ? BETWEEN leave_date AND COALESCE(leave_end_date, leave_date)`).all(twDate);
+        const onLeave = new Set(leaves.map(l => l.user_id));
+        const absent = [], late = [];
+        for (const u of roster) {
+          const a = byUser[u.id];
+          if (a && a.clock_in) { if (a.is_late) late.push(u); }
+          else if (!onLeave.has(u.id)) absent.push(u);
+        }
+        // 提醒沒打卡的員工本人
+        for (const u of absent) {
+          try {
+            db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'attendance','users',?,?)`)
+              .run(u.id, '⏰ 你今天還沒打卡', `你今天（${twDate}）還沒打卡，請確認是否忘記打卡。若已請假可忽略。`, u.id, '/my-tasks');
+            if (u.line_user_id) pushMessage(u.line_user_id, `⏰ 出勤提醒\n你今天（${twDate}）還沒打卡，請確認是否忘記打卡。\n若已請假可忽略。`).catch(() => {});
+          } catch (e) { /* per-recipient */ }
+        }
+        // 彙整給老闆 / 人資
+        const sumBody = `【${twDate} 出勤彙整】\n沒打卡（${absent.length}）：${absent.map(u => u.name).join('、') || '無'}\n遲到（${late.length}）：${late.map(u => u.name).join('、') || '無'}`;
+        const managers = db.prepare(`SELECT id, line_user_id FROM users WHERE active=1 AND (role='owner' OR role='hq_hr')`).all();
+        for (const m of managers) {
+          try {
+            db.prepare(`INSERT INTO notifications (user_id,title,body,type,entity,entity_id,url) VALUES (?,?,?,'attendance','users',?,?)`)
+              .run(m.id, '📋 今日出勤彙整', sumBody, m.id, '/attendance-records');
+            if (m.line_user_id) pushMessage(m.line_user_id, sumBody).catch(() => {});
+          } catch (e) { /* per-recipient */ }
+        }
+        console.log(`[attn] ${twDate} 10:00 出勤提醒：沒打卡 ${absent.length}、遲到 ${late.length}`);
+      }
+    } catch (e) { console.error('[attn] 10:00 提醒失敗：', e.message); }
   }
   // 每天早上 09:00 檢查逾期借用
   if (hm === '09:00' && autoClockOutDoneDate !== twDate + '_asset') {

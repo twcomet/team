@@ -125,6 +125,21 @@ router.post('/clockin', async (req, res) => {
       .run(emp.id, today, now, workStart, isLate ? 1 : 0, lat, lng, location_type);
   }
 
+  // 遲到 → 即時提醒員工（站內通知 + LINE），並告知本月累積次數與全勤獎金影響
+  if (isLate) {
+    try {
+      const ym = today.slice(0, 7);
+      const lateCount = db.prepare(`SELECT COUNT(*) n FROM attendance WHERE user_id=? AND work_date LIKE ? AND is_late=1`).get(emp.id, `${ym}-%`).n;
+      const warn = lateCount > 5 ? '\n⚠️ 本月遲到已超過 5 次，將影響全勤獎金。'
+                 : lateCount === 5 ? '\n⚠️ 本月遲到已達 5 次，再遲到將影響全勤獎金。' : '';
+      const body = `你今天遲到了（${now} 打卡）。本月已遲到 ${lateCount} 次。${warn}\n請注意你的出缺勤。`;
+      db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'attendance','users',?,?)`)
+        .run(emp.id, '⏰ 出勤提醒：今天遲到', body, emp.id, '/my-tasks');
+      const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(emp.id);
+      if (u?.line_user_id) { const { pushMessage } = require('./webhook'); pushMessage(u.line_user_id, `⏰ 出勤提醒\n${body}`).catch(() => {}); }
+    } catch (e) { /* non-critical */ }
+  }
+
   return res.json({ ok: true, time: now, is_late: isLate, location: location_name });
 });
 
