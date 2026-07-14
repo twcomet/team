@@ -84,8 +84,8 @@
     </div>
     <div class="page-body">
       <div class="care-intro" id="careIntro">
-        記錄與客戶的每一次關懷聯繫（電聯／訊息／其他），並設定「下次關懷時間」——到期會出現在
-        <b>你的「我的任務」</b>提醒。這裡的紀錄與案件詳情頁的「客服關懷紀錄」同一份、雙向同步。
+        檢視 <b>全體客服</b> 的關懷處理狀況：可搜尋案號／客戶／客服姓名／備註，或取消勾選「看全部」只看自己登記的。
+        設定「下次關懷時間」後，到期會出現在 <b>你的「我的任務」</b> 提醒；紀錄與案件詳情頁的「客服關懷紀錄」同一份、雙向同步。
       </div>
       <div class="care-box">
         <div id="careLogsBox"></div>
@@ -101,11 +101,8 @@ async function init() {
   await loadUser();
   window.currentUser = currentUser;   // 供共用元件帶入預設客服人員
   highlightNav('care-logs');
-  // 老闆/管理者預設「看全部」客服；一般客服後端自動降為只看自己(scope=mine)
-  const mgr = currentUser.role === 'owner' || currentUser.manage_users || currentUser.is_manager;
-  if (mgr) document.getElementById('careIntro').innerHTML =
-    '以主管視角檢視 <b>全體客服</b> 的關懷處理狀況：可搜尋案號／客戶／客服姓名／備註，或取消勾選「看全部」只看自己登記的。到期的下次關懷時間會標紅提醒。';
-  CareLogs.mount('careLogsBox', { scope: mgr ? 'all' : 'mine' });
+  // 能進到本頁者(有「客服關懷記錄」權限)皆預設看全體；可用「看全部」勾選切回只看自己
+  CareLogs.mount('careLogsBox', { scope: 'all' });
 }
 init();
 </script>

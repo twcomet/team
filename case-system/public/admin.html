@@ -298,6 +298,9 @@
             <input type="checkbox" id="rolePerm_page_line_inquiries"> 💬 LINE 詢問
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_care_logs"> 💗 客服關懷記錄
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_clients"> 👥 客戶管理
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -424,6 +427,9 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_line_inquiries"> 💬 LINE 詢問
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_care_logs"> 💗 客服關懷記錄
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_clients"> 👥 客戶管理
@@ -690,7 +696,7 @@ document.getElementById('orgSaveBtn').addEventListener('click', async () => {
 });
 
 // ── 角色管理 ───────────────────────────────────────────────
-const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_expenses:'費用申請', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_material_calc:'快速報價', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
+const PAGE_NAMES = { page_dashboard:'總覽', page_cases:'案件', page_line_inquiries:'LINE詢問', page_care_logs:'客服關懷', page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款', page_ledger:'收支帳', page_expenses:'費用申請', page_dispatch_pool:'派案池', page_cases_deal:'成交案件', page_materials:'膜料', page_material_calc:'快速報價', page_performance:'業績', page_reports:'財務', page_marketing:'行銷', my_tasks:'我的任務' };
 
 async function loadCustomRoles() {
   const res = await fetch('/api/users/custom-roles');
@@ -699,7 +705,7 @@ async function loadCustomRoles() {
 
   // 系統角色
   const ALL_PAGE_NAMES = {
-    page_dashboard:'總覽', page_cases:'案件管理', page_line_inquiries:'LINE詢問',
+    page_dashboard:'總覽', page_cases:'案件管理', page_line_inquiries:'LINE詢問', page_care_logs:'客服關懷記錄',
     page_clients:'客戶', page_calendar:'行事曆', page_payments:'收款追蹤',
     page_ledger:'收支流水帳', page_dispatch_pool:'派案池', page_cases_deal:'成交案件管理',
     page_materials:'膜料管理', page_material_calc:'快速報價', page_performance:'業績報表', page_reports:'財務報表',
@@ -749,7 +755,7 @@ document.getElementById('newRoleBtn')?.addEventListener('click', () => {
   document.getElementById('roleLabel').value = '';
   ['rolePerm_is_manager','rolePerm_can_see_amounts','rolePerm_view_all_branches',
    'rolePerm_page_dashboard','rolePerm_my_tasks','rolePerm_page_cases',
-   'rolePerm_page_line_inquiries','rolePerm_page_clients','rolePerm_page_calendar',
+   'rolePerm_page_line_inquiries','rolePerm_page_care_logs','rolePerm_page_clients','rolePerm_page_calendar',
    'rolePerm_page_payments','rolePerm_page_ledger','rolePerm_page_expenses','rolePerm_page_dispatch_pool',
    'rolePerm_page_cases_deal','rolePerm_page_materials','rolePerm_page_material_calc',
    'rolePerm_page_performance','rolePerm_page_reports','rolePerm_page_marketing']
@@ -775,6 +781,7 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_my_tasks').checked              = !!p.my_tasks;
   document.getElementById('rolePerm_page_cases').checked            = p.page_cases !== undefined ? !!p.page_cases : true;
   document.getElementById('rolePerm_page_line_inquiries').checked   = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!p.page_cases;
+  document.getElementById('rolePerm_page_care_logs').checked        = p.page_care_logs !== undefined ? !!p.page_care_logs : ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(roleValue);
   document.getElementById('rolePerm_page_clients').checked          = p.page_clients !== undefined ? !!p.page_clients : true;
   document.getElementById('rolePerm_page_calendar').checked         = p.page_calendar !== undefined ? !!p.page_calendar : true;
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
@@ -808,6 +815,7 @@ function openEditRole(id) {
   document.getElementById('rolePerm_my_tasks').checked              = !!p.my_tasks;
   document.getElementById('rolePerm_page_cases').checked            = !!(p.page_cases ?? true);
   document.getElementById('rolePerm_page_line_inquiries').checked   = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!(p.page_cases ?? true);
+  document.getElementById('rolePerm_page_care_logs').checked        = !!p.page_care_logs;
   document.getElementById('rolePerm_page_clients').checked          = !!(p.page_clients ?? true);
   document.getElementById('rolePerm_page_calendar').checked         = !!(p.page_calendar ?? true);
   document.getElementById('rolePerm_page_payments').checked         = !!p.page_payments;
@@ -832,6 +840,7 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     my_tasks:            document.getElementById('rolePerm_my_tasks').checked,
     page_cases:          document.getElementById('rolePerm_page_cases').checked,
     page_line_inquiries: document.getElementById('rolePerm_page_line_inquiries').checked,
+    page_care_logs:      document.getElementById('rolePerm_page_care_logs').checked,
     page_clients:        document.getElementById('rolePerm_page_clients').checked,
     page_calendar:       document.getElementById('rolePerm_page_calendar').checked,
     page_payments:       document.getElementById('rolePerm_page_payments').checked,
@@ -1028,6 +1037,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_my_tasks').checked             = !!p.my_tasks;
     document.getElementById('perm_page_cases').checked           = !!p.page_cases;
     document.getElementById('perm_page_line_inquiries').checked  = p.page_line_inquiries !== undefined ? !!p.page_line_inquiries : !!p.page_cases;
+    document.getElementById('perm_page_care_logs').checked       = p.page_care_logs !== undefined ? !!p.page_care_logs : ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(roleValue);
     document.getElementById('perm_page_clients').checked         = !!p.page_clients;
     document.getElementById('perm_page_calendar').checked        = !!p.page_calendar;
     document.getElementById('perm_page_payments').checked        = !!p.page_payments;
@@ -1058,6 +1068,7 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_dashboard').checked        = !isContractor && !noBiz;
     document.getElementById('perm_page_cases').checked            = !isContractor;
     document.getElementById('perm_page_line_inquiries').checked   = !isContractor;
+    document.getElementById('perm_page_care_logs').checked        = ['owner','vp','hq_cs','hq_cs_manager','hq_sales'].includes(roleValue);
     document.getElementById('perm_page_clients').checked          = !isContractor;
     document.getElementById('perm_page_calendar').checked         = !isContractor;
     document.getElementById('perm_page_payments').checked         = false;
@@ -1160,6 +1171,7 @@ function openEditUser(id) {
   document.getElementById('perm_page_dashboard').checked      = editPerm('page_dashboard');
   document.getElementById('perm_page_cases').checked           = editPerm('page_cases');
   document.getElementById('perm_page_line_inquiries').checked  = editPerm('page_line_inquiries');
+  document.getElementById('perm_page_care_logs').checked       = isOwner ? true : (perms.page_care_logs !== undefined ? !!perms.page_care_logs : ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(u.role));
   document.getElementById('perm_page_clients').checked         = editPerm('page_clients');
   document.getElementById('perm_page_calendar').checked        = editPerm('page_calendar');
   document.getElementById('perm_page_payments').checked        = isOwner ? true : (perms.page_payments !== undefined ? !!perms.page_payments : false);
@@ -1221,6 +1233,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_dashboard:      document.getElementById('perm_page_dashboard').checked,
       page_cases:          document.getElementById('perm_page_cases').checked,
       page_line_inquiries: document.getElementById('perm_page_line_inquiries').checked,
+      page_care_logs:      document.getElementById('perm_page_care_logs').checked,
       page_clients:        document.getElementById('perm_page_clients').checked,
       page_calendar:       document.getElementById('perm_page_calendar').checked,
       page_payments:       document.getElementById('perm_page_payments').checked,
@@ -1464,6 +1477,7 @@ async function promptUpdateRoleUsers(roleCode, label, default_perms) {
       page_dashboard:      !!(p.page_dashboard),
       page_cases:          !!(p.page_cases ?? true),
       page_line_inquiries: p.page_line_inquiries !== undefined ? !!(p.page_line_inquiries) : !!(p.page_cases ?? true),
+      page_care_logs:      !!(p.page_care_logs),
       page_clients:        !!(p.page_clients ?? true),
       page_calendar:       !!(p.page_calendar ?? true),
       page_payments:       !!(p.page_payments),

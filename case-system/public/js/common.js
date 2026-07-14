@@ -157,10 +157,7 @@ async function loadUser() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="care-logs"]')) return;   // 本頁已硬寫則略過
     const p = currentUser.permissions || {};
-    const r = currentUser.role;
-    const canCare = r === 'owner' || mu || currentUser.is_manager
-      || r === 'vp' || r === 'hq_cs' || r === 'hq_cs_manager'
-      || p.page_line_inquiries === true || p.page_calendar === true;
+    const canCare = currentUser.role === 'owner' || p.page_care_logs === true;   // 依「客服關懷記錄」權限
     if (!canCare) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'care-logs'; a.href = '/care-logs';

@@ -139,6 +139,7 @@ const PAGE_PERMS = {
   payments:         'page_payments',
   ledger:           'page_ledger',
   'line-inquiries': 'page_line_inquiries',
+  'care-logs':      'page_care_logs',
   'dispatch-detail':'page_cases',
   'survey-form':    'page_cases',
   'quote-form':     'page_cases',

@@ -66,6 +66,7 @@ router.post('/login', (req, res) => {
       page_dashboard:      !noBiz && perm('page_dashboard',   user.role === 'hq_accounting'),
       page_cases:          perm('page_cases'),
       page_line_inquiries: perm('page_line_inquiries'),
+      page_care_logs:      perm('page_care_logs', ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(user.role)),
       page_clients:        perm('page_clients'),
       page_calendar:       perm('page_calendar'),
       page_payments:       perm('page_payments'),
