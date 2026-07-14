@@ -184,8 +184,11 @@
           clearInterval(t);
           var warn = s.dupCalendars > 1 ? '<br>⚠️ 偵測到 Google 裡有 '+s.dupCalendars+' 個「繪新派單」行事曆，請到 Google 手動刪掉多餘的那個。' : '';
           var pg = s.purged ? '清掉舊事件 '+s.purged+' 筆，' : '';
+          var fails = (s.failures && s.failures.length)
+            ? '<br><b>失敗明細：</b><br>' + s.failures.map(function(f){ return '• ['+f.kind+'] '+f.label+'：'+f.error; }).join('<br>')
+            : '';
           m.innerHTML = '<div class="gd-msg '+(s.fail?'gd-msg-err':'gd-msg-ok')+'">✓ 完成：'+pg+'成功 '+s.ok+'／失敗 '+s.fail+'（共 '+s.total+'）'
-            + (s.aborted ? '，已提早中止' : '') + (s.sampleError ? '<br>Google 回報：<b>'+s.sampleError+'</b>' : '') + warn + '</div>';
+            + (s.aborted ? '，已提早中止' : '') + (s.sampleError ? '<br>Google 回報：<b>'+s.sampleError+'</b>' : '') + warn + fails + '</div>';
         }
       }).catch(function(){});
     }, 2000);
