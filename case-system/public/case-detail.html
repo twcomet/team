@@ -403,6 +403,11 @@
 
       <!-- 初步估價紀錄 -->
       <div class="tab-pane" id="tab-estimate">
+        <!-- 估價紀錄（移到最上方，估價計算機之上）-->
+        <div class="sf-tab-section" id="quickEstHistorySection" style="display:none">
+          <h4 class="sf-tab-title" style="margin-bottom:8px">估價紀錄（快速報價／估價計算機）</h4>
+          <div id="quickEstList"></div>
+        </div>
         <!-- 估價計算機（嵌入，選膜料即時算錢＋可儲存）-->
         <div class="sf-tab-section" style="padding:0;overflow:hidden">
           <div style="padding:10px 14px;font-size:13px;font-weight:700;color:#1d4ed8;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -445,11 +450,6 @@
             style="padding:9px 18px;background:#0ea5e9;color:#fff;font-size:13px;font-weight:700;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0">
             🧮 開啟快速報價
           </a>
-        </div>
-        <!-- 快速估價紀錄 -->
-        <div class="sf-tab-section" id="quickEstHistorySection" style="display:none">
-          <h4 class="sf-tab-title" style="margin-bottom:8px">估價紀錄（快速報價／估價計算機）</h4>
-          <div id="quickEstList"></div>
         </div>
         <div class="sf-tab-section">
           <h4 class="sf-tab-title">客戶需求說明</h4>

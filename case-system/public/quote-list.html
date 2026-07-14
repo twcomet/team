@@ -489,7 +489,8 @@ async function createCaseAndQuote() {
     return;
   }
   const data = await r.json();
-  window.location.href = `/case-detail?id=${data.id}`;
+  // 建完案件直接進「新版報價單編輯器」，省去先跳案件、再點開啟新版的動線
+  window.location.href = `/quote-form?case=${data.id}`;
 }
 
 // Enter on search
