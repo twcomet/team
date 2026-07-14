@@ -166,6 +166,18 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「Google 雲端／備份」選單（僅老闆）：行事曆同步、雲端備份、重複日曆診斷/整理
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="gdrive-connect"]')) return;
+    if (currentUser.role !== 'owner') return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'gdrive-connect'; a.href = '/gdrive-connect';
+    a.innerHTML = '<span class="icon">☁️</span>Google 雲端／備份';
+    const anchor = nav.querySelector('[data-page="admin"]') || nav.querySelector('[data-page="guide"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
