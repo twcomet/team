@@ -41,6 +41,16 @@
   .ec-add:hover{box-shadow:0 5px 14px rgba(255,0,128,.36)}
   .ec-add:active{transform:translateY(1px)}
   .ec-perm{font-size:12.5px;color:var(--ec-accent-dark);background:var(--ec-accent-bg);border:1px solid #FBCFE2;border-radius:9px;padding:9px 12px;margin-top:12px;font-weight:600;text-align:center}
+  .ec-szhd{font-size:12px;color:#6b7280;font-weight:600;margin:14px 0 6px}
+  .ec-szgrid{display:grid;grid-template-columns:1fr 1fr 1fr 30px;gap:8px;align-items:center}
+  .ec-szcap{font-size:11px;color:#9ca3af;font-weight:600;padding:0 2px 2px}
+  .ec-szrow{margin-bottom:8px}
+  .ec-szrow input{width:100%;border:1px solid #d8dce2;border-radius:9px;padding:10px 12px;font-size:13.5px;box-sizing:border-box;font-family:inherit;background:#fff}
+  .ec-szrow input:focus{outline:none;border-color:#FF0080;box-shadow:0 0 0 3px rgba(255,0,128,.12)}
+  .ec-szrm{display:flex;align-items:center;justify-content:center;height:38px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;cursor:pointer;font-size:16px;font-weight:700;user-select:none}
+  .ec-szrm:hover{background:#fee2e2}
+  .ec-addrow{width:100%;margin-top:2px;padding:9px;background:#fff;color:#D40069;border:1.5px dashed #f4b8d6;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .ec-addrow:hover{background:#FFF0F7}
   .ec-qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   .ec-qhead b{font-size:15px}
   .ec-rm{color:#dc2626;font-size:12px;cursor:pointer}
@@ -345,16 +355,46 @@ function buildFilmPane(pfx){
    '<div class="ec-fld"><label>類型</label><input value="'+t.label+'" disabled style="background:#f3f4f6;color:#6b7280"></div>'+
    '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
    '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
-   '<div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="'+pfx+'-h" type="number" value="250"></div><div class="ec-fld"><label>寬 cm</label><input id="'+pfx+'-w" type="number" value="220"></div><div class="ec-fld"><label>數量</label><input id="'+pfx+'-q" type="number" value="1"></div></div>'+
+   '<div class="ec-szhd">尺寸（可加多筆，會歸在同一項目下）</div>'+
+   '<div class="ec-szgrid ec-szcap"><span>高 cm</span><span>寬 cm</span><span>數量</span><span></span></div>'+
+   '<div id="'+pfx+'-rows"></div>'+
+   '<button type="button" class="ec-addrow" onclick="addFilmRow(\''+pfx+'\')">＋ 新增下一個尺寸</button>'+
    '<div class="ec-perm" id="'+pfx+'-perm"></div>'+
    '<button class="ec-add" onclick="addFilm(\''+pfx+'\')">＋ 加入'+t.label+'</button>'+
    '<div class="ec-hint">'+(pfx==='w'?'全平面牆自動<b>併料</b>省料。':'逐片計算。')+'</div>';
   fillSel(pfx+'-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));
   fillFilmP(pfx);
+  addFilmRow(pfx);   // 預設一列尺寸
+}
+function filmRowHtml(pfx){
+  return '<div class="ec-szrow ec-szgrid">'+
+    '<input class="'+pfx+'-h" type="number" placeholder="高" value="250">'+
+    '<input class="'+pfx+'-w" type="number" placeholder="寬" value="220">'+
+    '<input class="'+pfx+'-q" type="number" placeholder="數量" value="1">'+
+    '<span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span>'+
+  '</div>';
+}
+function addFilmRow(pfx){ document.getElementById(pfx+'-rows').insertAdjacentHTML('beforeend', filmRowHtml(pfx)); }
+function rmFilmRow(el){
+  var row=el.closest('.ec-szrow'), box=row.parentNode;
+  if(box.querySelectorAll('.ec-szrow').length<=1){ row.querySelectorAll('input').forEach(function(i){i.value='';}); return; }  // 至少留一列
+  row.remove();
 }
 function fillFilmP(pfx){var b=v(pfx+'-brand');fillSel(pfx+'-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));priceHint(pfx);}
 function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(it[t.work])+'／才　·　膜寬 '+filmW(it)+'cm';}
-function addFilm(pfx){var t=FTAB[pfx],nm=(v(pfx+'-name')||'').trim(),b=v(pfx+'-brand'),idx=+v(pfx+'-item'),h=val(pfx+'-h'),w=val(pfx+'-w'),q=val(pfx+'-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w});render();}
+function addFilm(pfx){
+  var t=FTAB[pfx],nm=(v(pfx+'-name')||'').trim(),b=v(pfx+'-brand'),idx=+v(pfx+'-item');
+  var rows=document.querySelectorAll('#'+pfx+'-rows .ec-szrow'), added=0, partial=false;
+  rows.forEach(function(row){
+    var h=+row.querySelector('.'+pfx+'-h').value||0, w=+row.querySelector('.'+pfx+'-w').value||0, q=+row.querySelector('.'+pfx+'-q').value||1;
+    if(!h||!w){ if(h||w) partial=true; return; }   // 有填一半→提醒；整列空白→略過
+    for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w});
+    added++;
+  });
+  if(!added){ alert('請至少填一列的高與寬'); return; }
+  if(partial) alert('有尺寸列只填了高或寬，該列已略過；其餘已加入。');
+  render();
+}
 
 function fillElevItem(){var b=v('e-brand');fillSel('e-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));}
 function elevToggle(){var p=v('e-part');document.getElementById('e-box').style.display=p==='box'?'block':'none';document.getElementById('e-ceil').style.display=p==='ceil'?'block':'none';}
