@@ -160,6 +160,7 @@
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
             <button class="status-tab" data-status="awaiting" style="border-color:#fca5a5;color:#b91c1c;font-weight:700">🔴 待回覆<span class="cnt" id="cnt-awaiting"></span></button>
+            <button class="status-tab" data-status="needs_human" style="border-color:#c4b5fd;color:#6d28d9;font-weight:700">🤖 轉真人客服<span class="cnt" id="cnt-needs_human"></span></button>
             <button class="status-tab" data-status="new">新詢問<span class="cnt" id="cnt-new"></span></button>
             <button class="status-tab" data-status="in_progress">進行中<span class="cnt" id="cnt-in_progress"></span></button>
             <button class="status-tab" data-status="converted">已轉案<span class="cnt" id="cnt-converted"></span></button>
@@ -294,6 +295,9 @@ async function loadStats() {
   const awEl = document.getElementById('cnt-awaiting');
   awEl.textContent = s.awaiting ? ` ${s.awaiting}` : '';
   awEl.style.cssText = s.awaiting ? 'margin-left:2px;font-size:11px;background:#ef4444;color:#fff;border-radius:8px;padding:0 5px;font-weight:700;opacity:1' : '';
+  const nhEl = document.getElementById('cnt-needs_human');
+  nhEl.textContent = s.needs_human ? ` ${s.needs_human}` : '';
+  nhEl.style.cssText = s.needs_human ? 'margin-left:2px;font-size:11px;background:#6d28d9;color:#fff;border-radius:8px;padding:0 5px;font-weight:700;opacity:1' : '';
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
   document.getElementById('cnt-converted').textContent   = s.converted   ? ` ${s.converted}` : '';
@@ -406,12 +410,14 @@ async function genDraft(id) {
 async function loadList() {
   const q = document.getElementById('searchInput').value.trim();
   const p = new URLSearchParams({ limit: 100, page: 1 });
-  // 「待回覆」是虛擬篩選：抓進行中的，前端再篩「客人最後發言」的
-  if (currentStatus !== 'all' && currentStatus !== 'awaiting') p.set('status', currentStatus);
+  // 「待回覆」「轉真人客服」是虛擬篩選：抓進行中的，前端再篩
+  const virtual = (currentStatus === 'awaiting' || currentStatus === 'needs_human');
+  if (currentStatus !== 'all' && !virtual) p.set('status', currentStatus);
   if (q) p.set('q', q);
   const data = await fetch(`/api/line-inquiries?${p}`).then(r => r.json()).catch(() => ({ rows: [] }));
   let rows = data.rows || [];
-  if (currentStatus === 'awaiting') rows = rows.filter(isAwaiting);
+  if (currentStatus === 'awaiting')    rows = rows.filter(isAwaiting);
+  if (currentStatus === 'needs_human') rows = rows.filter(i => i.ai_needs_human);
   inquiries = rows;
   renderList();
 }

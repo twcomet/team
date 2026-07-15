@@ -57,11 +57,20 @@ function buildSystemPrompt() {
 - 繁體中文、口語、親切有禮，像 LINE 聊天，簡短（通常 1～4 句），可用少量 emoji（😊🙏）。
 - 一次只推進一步，不要一口氣問一堆。
 
-【客服 SOP：依對話目前進度接續】
+【先判斷對方身分，再決定怎麼接洽】
+- 若客人表明是「設計師／室內設計／統包／工班／廠商／同業」，或傳來的是名片、公司資訊 → 用專業窗口口吻招呼（例：「設計師您好！很高興為您服務，請問這邊有什麼可以協助的嗎？😊」），了解他的專案或配合需求。這類通常要業務對接與配合報價 → 設 needs_human=true，reason 註明「設計師／廠商窗口，建議轉業務對接」。不要對他們用一般消費者「請傳案場照片、問尺寸」那套流程。
+- 一般消費者 → 走下面客服 SOP。
+
+【一般消費者 SOP：依對話目前進度接續】
 1. 若還不清楚案場 → 請客人拍幾張要施工位置的照片，並說一下位置（牆面／系統櫃門片／玻璃…）。
 2. 了解需求（想貼哪、想要的花色或效果、大概尺寸範圍）。
 3. 適時請客人留聯絡電話與方便聯繫的時間。
 4. 客人想看實體 → 告知有實體展間可預約參觀，說會請專人提供展間地址與時段（你沒有確切地址，不要自己編）。
+
+【關於照片（你看得到客人傳的圖，請依內容判斷，不要瞎猜）】
+- 名片／公司資訊 → 對方是設計師或廠商窗口，照上面「身分」方式接洽，別當成案場照片問位置。
+- 案場照片 → 簡短說出你看到的重點（例如看起來是系統櫃門片／牆面），再接續了解需求。
+- 看不清或不確定 → 禮貌請對方補充說明，不要亂猜施作內容。
 
 【牌價護欄（非常重要，違反會出事）】
 - 只有「材料每才牌價」可以講（見下方牌價表），且要講清楚是材料參考牌價、實際金額需依面積與現場評估。
@@ -93,16 +102,26 @@ async function generateInquiryDraft(inquiryId) {
   // 只在最後一則是「客人發言」時才擬稿（客服已回過就不用）
   if (msgs[msgs.length - 1].direction !== 'in') return null;
 
-  const transcript = msgs.map(m => {
-    const who  = m.direction === 'in' ? '客人' : '客服';
-    const body = m.msg_type === 'image' ? '[傳了一張照片]' : (m.content || '');
-    return `${who}：${body}`;
-  }).join('\n');
+  // 組多模態內容：文字對話 + 客人傳的圖（讓 AI 真的看得到名片／案場照，不再瞎猜）
+  const content = [{ type: 'text', text: '以下是與客人的 LINE 對話（最新在最後）：' }];
+  let buf = '';
+  const flush = () => { if (buf) { content.push({ type: 'text', text: buf }); buf = ''; } };
+  let imgCount = 0;
+  for (const m of msgs) {
+    const who = m.direction === 'in' ? '客人' : '客服';
+    if (m.msg_type === 'image' && m.content && /^https?:\/\//.test(m.content) && imgCount < 6) {
+      buf += `\n${who}：（傳了以下這張圖）`;
+      flush();
+      content.push({ type: 'image', source: { type: 'url', url: m.content } });
+      imgCount++;
+    } else {
+      buf += `\n${who}：${m.msg_type === 'image' ? '[照片]' : (m.content || '')}`;
+    }
+  }
+  buf += '\n\n請依規則擬一則要回覆客人的草稿，並判斷是否需轉真人。只輸出 JSON。';
+  flush();
 
-  const raw = await callClaude(buildSystemPrompt(), [{
-    role: 'user',
-    content: `以下是與客人的 LINE 對話（最新在最後）：\n\n${transcript}\n\n請依規則擬一則要回覆客人的草稿，並判斷是否需轉真人。只輸出 JSON。`,
-  }]);
+  const raw = await callClaude(buildSystemPrompt(), [{ role: 'user', content }]);
 
   const parsed     = safeParseJson(raw);
   const draft      = (parsed && parsed.draft) ? String(parsed.draft).trim() : raw.trim();
