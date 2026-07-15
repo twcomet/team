@@ -216,6 +216,7 @@
         <div class="tab active" data-tab="basic" data-groups="inquiry,survey,deal">基本資訊</div>
         <div class="tab" data-tab="estimate" data-groups="inquiry,survey,deal">初步估價紀錄</div>
         <div class="tab" data-tab="care" data-groups="inquiry,survey,deal">客服關懷紀錄</div>
+        <div class="tab" data-tab="chat" data-groups="inquiry,survey,deal">客服對話紀錄</div>
         <div class="tab" data-tab="survey" data-groups="inquiry,survey,deal">場勘</div>
         <div class="tab" data-tab="quote" data-groups="inquiry,survey,deal">正式報價單</div>
         <div class="tab" data-tab="documents" data-groups="inquiry,survey,deal">往來文件</div>
@@ -517,6 +518,19 @@
             </div>
           </div>
           <div id="careList"></div>
+        </div>
+      </div>
+
+      <!-- 客服對話紀錄（LINE） -->
+      <div class="tab-pane" id="tab-chat">
+        <div class="sf-tab-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
+            <div style="font-size:14px;font-weight:600;color:var(--gray-700)">💬 客服對話紀錄（LINE）</div>
+            <a id="chatOpenInq" href="/line-inquiries" style="font-size:12px;color:var(--primary);text-decoration:none">到 LINE 詢問回覆 ↗</a>
+          </div>
+          <div id="chatBox" style="max-height:560px;overflow-y:auto;padding:6px 2px">
+            <p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">載入中…</p>
+          </div>
         </div>
       </div>
 
@@ -1619,6 +1633,7 @@ async function init() {
       if (t.dataset.tab === 'documents')  loadCaseDocuments();
       if (t.dataset.tab === 'deficiency') loadCaseDeficiencies();
       if (t.dataset.tab === 'care')       loadCareTab();
+      if (t.dataset.tab === 'chat')       loadChatTab();
     });
   });
 
@@ -2108,6 +2123,38 @@ async function loadCareTab() {
       </div>
       ${canDel ? `<button class="btn btn-ghost btn-sm" style="color:#dc2626;flex-shrink:0;padding:2px 8px;font-size:11px" onclick="deleteCareLog(${l.id})">刪除</button>` : ''}
     </div>`).join('');
+}
+
+// 客服對話紀錄（LINE）：把這位客戶跟我們的 LINE 對話撈進案件
+async function loadChatTab() {
+  const box = document.getElementById('chatBox');
+  box.innerHTML = '<p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">載入中…</p>';
+  const r = await fetch(`/api/line-inquiries/by-case/${caseId}`);
+  if (!r.ok) { box.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:32px">載入失敗</p>'; return; }
+  const { messages, inquiry_ids } = await r.json();
+  if (inquiry_ids && inquiry_ids.length) {
+    const a = document.getElementById('chatOpenInq');
+    if (a) a.href = `/line-inquiries?open=${inquiry_ids[inquiry_ids.length - 1]}`;
+  }
+  if (!messages || !messages.length) {
+    box.innerHTML = '<p style="color:#9ca3af;font-size:14px;text-align:center;padding:32px">這位客戶目前沒有 LINE 對話紀錄</p>';
+    return;
+  }
+  box.innerHTML = messages.map(m => {
+    const inbound = m.direction === 'in';
+    const isImg = m.msg_type === 'image' && m.content && /^https?:\/\//.test(m.content);
+    const bubble = isImg
+      ? `<a href="${esc(m.content)}" target="_blank"><img src="${esc(m.content)}" style="max-width:200px;max-height:200px;border-radius:10px;display:block"></a>`
+      : `<div style="white-space:pre-wrap;word-break:break-word">${esc(m.content || (m.msg_type === 'image' ? '[照片]' : ''))}</div>`;
+    const who = inbound ? esc(m.sender_display || '客人') : esc(m.sender_name || '客服');
+    return `<div style="display:flex;flex-direction:column;align-items:${inbound ? 'flex-start' : 'flex-end'};margin:8px 0">
+      <div style="font-size:10px;color:var(--gray-400);margin-bottom:2px">${who} · ${careTime(m.created_at)}</div>
+      <div style="max-width:76%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.5;${inbound
+        ? 'background:#f3f4f6;color:var(--gray-800);border-top-left-radius:3px'
+        : 'background:#fce7f3;color:#9d174d;border-top-right-radius:3px'}">${bubble}</div>
+    </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
 }
 
 async function submitCareLog() {

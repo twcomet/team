@@ -279,6 +279,29 @@ router.post('/:id/ai-chat', requireAuth, async (req, res) => {
   }
 });
 
+// ── 依案件撈出該客戶的所有 LINE 對話（案件詳情「客服對話紀錄」Tab 用）──
+router.get('/by-case/:caseId', requireAuth, (req, res) => {
+  const c = db.prepare(`SELECT id, client_id, line_source FROM cases WHERE id=?`).get(req.params.caseId);
+  if (!c) return res.status(404).json({ error: 'not found' });
+  const inqs = db.prepare(`
+    SELECT id FROM line_inquiries
+    WHERE converted_case_id = ?
+       OR (client_id    IS NOT NULL AND client_id    = ?)
+       OR (line_user_id  IS NOT NULL AND line_user_id = ?)
+  `).all(c.id, c.client_id, c.line_source);
+  if (!inqs.length) return res.json({ messages: [], inquiry_ids: [] });
+  const ids = inqs.map(i => i.id);
+  const ph  = ids.map(() => '?').join(',');
+  const messages = db.prepare(`
+    SELECT m.*, u.name AS sender_name
+    FROM line_inquiry_messages m
+    LEFT JOIN users u ON m.sent_by = u.id
+    WHERE m.inquiry_id IN (${ph})
+    ORDER BY m.created_at ASC, m.id ASC
+  `).all(...ids);
+  res.json({ messages, inquiry_ids: ids });
+});
+
 // ── AI 估價輔助：從對話＋照片萃取估價品項（草稿，需客服核對）──────
 router.post('/:id/ai-estimate', requireAuth, async (req, res) => {
   try {

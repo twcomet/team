@@ -337,6 +337,10 @@ async function init() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(loadList, 280);
   });
+
+  // 從案件「客服對話紀錄」Tab 帶 ?open=<詢問id> 進來 → 直接開啟該對話
+  const openId = new URLSearchParams(location.search).get('open');
+  if (openId) openInquiry(Number(openId));
 }
 
 // ── 統計 ──────────────────────────────────────────────────
@@ -772,7 +776,8 @@ async function openInquiry(id) {
       ${renderMessages(data.messages)}
     </div>
 
-    ${data.status !== 'converted' && data.status !== 'invalid' ? `
+    ${data.status !== 'invalid' ? `
+    ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
     ${aiDraftCard(data, id)}
     ${quickReplyBar()}
     <div class="reply-box">
