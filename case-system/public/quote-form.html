@@ -877,7 +877,8 @@ async function saveAll(){
       client_notes:curQuote?.client_notes??null, client_type:document.getElementById('clientType').value,
       discount_rate:curQuote?.discount_rate??1.0, marketing_rate:curQuote?.marketing_rate??1.0, tax_rate:0.05,
       travel_fee:curQuote?.travel_fee??0, freight_fee:curQuote?.freight_fee??0, discount_rule_id:curQuote?.discount_rule_id??null,
-      status:curQuote?.status??'draft', engine:'v2',
+      // 分版後新版須維持草稿，本次所有品項修改才寫得進去（若沿用舊狀態會被鎖成已發送→品項更新被擋、資料還是舊的）
+      status: forked ? 'draft' : (curQuote?.status??'draft'), engine:'v2',
       mkt_mode:document.getElementById('mktMode').value,
       mkt_value:(document.getElementById('mktVal').value===''?null:Number(document.getElementById('mktVal').value)),
       flex_deducts:JSON.stringify(document.getElementById('flexChk').checked?deducts:[]),
@@ -887,11 +888,12 @@ async function saveAll(){
       block_images:JSON.stringify(blockImages||{}),
       party_json:JSON.stringify(collectParty()),
     };
-    await fetch(`/api/quotes/${quoteId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const hr=await fetch(`/api/quotes/${quoteId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!hr.ok) throw new Error('報價單更新失敗（'+hr.status+'），可能已被鎖定');
     for(const it of items){
       const b=mapProtoToDb(it);
-      if(it.id){ await fetch(`/api/quotes/${quoteId}/items/${it.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); }
-      else{ const r=await fetch(`/api/quotes/${quoteId}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); if(r.ok){ const d=await r.json(); it.id=d.id; } }
+      if(it.id){ const r=await fetch(`/api/quotes/${quoteId}/items/${it.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); if(!r.ok) throw new Error('品項更新失敗（'+r.status+'），未完整儲存'); }
+      else{ const r=await fetch(`/api/quotes/${quoteId}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); if(r.ok){ const d=await r.json(); it.id=d.id; } else throw new Error('品項新增失敗（'+r.status+'）'); }
     }
     for(const did of deletedIds){ await fetch(`/api/quotes/${quoteId}/items/${did}`,{method:'DELETE'}); }
     deletedIds=[];
