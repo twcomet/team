@@ -1547,6 +1547,11 @@ _addCol('line_inquiries', 'cs_id',      'INTEGER REFERENCES users(id)');
 // 加好友來源管道（從 LINE OAT 追蹤連結識別）
 _addCol('line_inquiries', 'add_source', 'TEXT');
 _addCol('line_inquiries', 'updated_at', 'DATETIME');
+// AI 草稿回覆（草稿模式：AI 擬稿存後台，客服審核後才送）
+_addCol('line_inquiries', 'ai_draft',              'TEXT');
+_addCol('line_inquiries', 'ai_draft_at',           'DATETIME');
+_addCol('line_inquiries', 'ai_needs_human',        'INTEGER DEFAULT 0');
+_addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
 
 // 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
 db.exec(`

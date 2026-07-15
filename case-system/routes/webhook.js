@@ -233,6 +233,11 @@ async function handleClientMessage(event, channel) {
     WHERE id=?
   `).run(preview, displayName, inquiryId);
 
+  // AI 草稿模式：背景擬一則建議回覆存進後台（不主動傳給客人；有設 API key 才跑）
+  if (process.env.ANTHROPIC_API_KEY) {
+    require('../lib/line-ai').generateInquiryDraft(inquiryId).catch(err => console.error('[LINE-AI] 擬稿失敗:', err.message));
+  }
+
   // 自動回覆已關閉：訊息收進系統但不主動回覆客戶
 }
 

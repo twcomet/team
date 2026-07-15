@@ -236,6 +236,7 @@ let searchTimer   = null;
 let inquiries     = [];
 let allUsers      = [];
 let sortDateDir   = 'desc';
+let currentDraftText = '';   // 目前開啟詢問的 AI 草稿文字（給「採用」用）
 
 function toggleInqSort() {
   sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
@@ -351,6 +352,50 @@ function quickReplyBar() {
   </div>`;
 }
 
+// ── AI 建議回覆（草稿模式，不會傳給客人）────────────────────────
+function aiDraftCard(data, id) {
+  const has = !!(data.ai_draft && String(data.ai_draft).trim());
+  const humanBar = data.ai_needs_human
+    ? `<div style="margin-bottom:6px;padding:5px 9px;border-radius:7px;background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:600">⚠️ 建議轉真人客服${data.ai_needs_human_reason ? `：${escHtml(data.ai_needs_human_reason)}` : ''}</div>`
+    : '';
+  if (!has) {
+    return `<div style="padding:8px 12px;background:#fff;border-top:1px solid var(--gray-200)">
+      ${humanBar}
+      <button type="button" class="btn btn-ghost btn-sm" id="aiGenBtn" onclick="genDraft(${id})">🤖 產生 AI 建議回覆</button>
+    </div>`;
+  }
+  return `<div style="padding:9px 12px;background:#f5f3ff;border-top:1px solid var(--gray-200)">
+    ${humanBar}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#6d28d9">🤖 AI 建議回覆</span>
+      <span style="font-size:10px;color:var(--gray-400)">${fmtTime(data.ai_draft_at)}·僅供參考，送出前請確認</span>
+    </div>
+    <div style="font-size:13px;color:var(--gray-800);white-space:pre-wrap;background:#fff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;line-height:1.5">${escHtml(data.ai_draft)}</div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button type="button" class="btn btn-primary btn-sm" onclick="adoptDraft()">採用到回覆框</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="aiGenBtn" onclick="genDraft(${id})">重新產生</button>
+    </div>
+  </div>`;
+}
+function adoptDraft() {
+  const ta = document.getElementById('replyInput');
+  if (!ta || !currentDraftText) return;
+  ta.value = currentDraftText;
+  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
+  ta.focus();
+}
+async function genDraft(id) {
+  const btn = document.getElementById('aiGenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 擬稿中…'; }
+  try {
+    const r = await fetch(`/api/line-inquiries/${id}/ai-draft`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'AI 擬稿失敗', 'error'); if (btn){btn.disabled=false;btn.textContent='🤖 產生 AI 建議回覆';} return; }
+    if (id === currentId) openInquiry(id);   // 重載詳情帶出新草稿
+    loadList();
+  } catch (e) { showToast('AI 擬稿失敗', 'error'); if (btn){btn.disabled=false;} }
+}
+
 // ── 清單 ──────────────────────────────────────────────────
 async function loadList() {
   const q = document.getElementById('searchInput').value.trim();
@@ -388,6 +433,9 @@ function renderList() {
     const awaitBadge = aw
       ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:${overdue?'#fee2e2':'#fef9c3'};color:${overdue?'#b91c1c':'#854d0e'};white-space:nowrap">${overdue?`🔴 待回覆 ${Math.floor(hrs)}h`:'🟡 待回覆'}</span>`
       : '';
+    const aiBadge = i.ai_needs_human
+      ? `<span title="AI 判斷需轉真人客服" style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:#ede9fe;color:#6d28d9;white-space:nowrap">🤖需轉客服</span>`
+      : '';
     const caseBadge   = caseStatusBadge(i.cust_case_status, i.cust_case_number);
     const salesBadge  = i.sales_name  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
     const csBadge     = i.cs_name     ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
@@ -397,6 +445,7 @@ function renderList() {
     <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="${overdue?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
       <div class="ic-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
         ${awaitBadge}
+        ${aiBadge}
         <span style="font-weight:600">${escHtml(i.display_name || 'LINE用戶')}</span>
         <span class="s-badge s-${dispStatus}">${sLabel(dispStatus)}</span>
         ${branchBadge}
@@ -437,6 +486,8 @@ async function openInquiry(id) {
     </div>`;
     return;
   }
+
+  currentDraftText = data.ai_draft || '';   // 給「採用到回覆框」用
 
   const salesOpts = allUsers
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
@@ -513,6 +564,7 @@ async function openInquiry(id) {
     </div>
 
     ${data.status !== 'converted' && data.status !== 'invalid' ? `
+    ${aiDraftCard(data, id)}
     ${quickReplyBar()}
     <div class="reply-box">
       <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息，Enter 傳送，Shift+Enter 換行…" rows="1"

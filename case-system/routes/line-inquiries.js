@@ -243,8 +243,21 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
     VALUES (?, 'out', 'text', ?, ?)
   `).run(inq.id, message.trim(), req.session.user.id);
 
-  db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(inq.id);
+  // 送出後清掉 AI 草稿（已由真人處理）
+  db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP, ai_draft=NULL, ai_draft_at=NULL, ai_needs_human=0, ai_needs_human_reason=NULL WHERE id=?`).run(inq.id);
   res.json({ ok: true });
+});
+
+// ── 產生 / 重新產生 AI 建議回覆（草稿模式，不會傳給客人）──────────
+router.post('/:id/ai-draft', requireAuth, async (req, res) => {
+  try {
+    const { generateInquiryDraft } = require('../lib/line-ai');
+    const result = await generateInquiryDraft(req.params.id);
+    if (!result) return res.status(400).json({ error: '此詢問最後一則不是客人的訊息，或沒有訊息可擬稿' });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: 'AI 擬稿失敗：' + e.message });
+  }
 });
 
 // ── 刪除詢問（僅限已轉案 / 無效）────────────────────────────────
