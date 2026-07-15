@@ -157,6 +157,9 @@
               <option value="oldest">↑ 最舊訊息</option>
             </select>
           </div>
+          <select id="caseFilter" onchange="setCaseFilter(this.value)" title="依案件狀態撈出客戶（跨全部詢問）" style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;color:var(--gray-600)">
+            <option value="">🗂 案件狀態：全部</option>
+          </select>
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
             <button class="status-tab" data-status="awaiting" style="border-color:#fca5a5;color:#b91c1c;font-weight:700">🔴 待回覆<span class="cnt" id="cnt-awaiting"></span></button>
@@ -254,6 +257,27 @@
   </div>
 </div>
 
+<!-- 💲 AI 估價輔助（從對話＋照片萃取品項 → 開估價機草稿） -->
+<div class="modal-overlay" id="aiEstModal">
+  <div class="modal" style="max-width:720px;width:96%;display:flex;flex-direction:column;max-height:86vh">
+    <div class="modal-header">
+      <h3>💲 AI 估價輔助</h3>
+      <button class="modal-close" onclick="document.getElementById('aiEstModal').classList.remove('open')">×</button>
+    </div>
+    <div style="padding:8px 16px;font-size:12px;color:#92400e;background:#fffbeb;border-bottom:1px solid #fde68a">
+      ⚠️ AI 依對話與照片「初步整理」品項，尺寸僅供參考、<b>不會憑空編造</b>；標「未知／AI粗估」者請務必現場丈量後定案。這裡只建立<b>估價草稿</b>，不是正式報價。
+    </div>
+    <div id="aiEstBody" style="flex:1;overflow-y:auto;padding:14px 16px;min-height:160px"></div>
+    <div style="padding:10px 14px;border-top:1px solid var(--gray-200);display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--gray-600);display:flex;align-items:center;gap:5px;margin-right:auto">
+        <input type="checkbox" id="aiEstNewCase"> 同時建立此客戶案件
+      </label>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('aiEstModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary btn-sm" id="aiEstGoBtn" onclick="createEstimateDraft()">建立估價草稿並開啟估價機 →</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script src="/js/care-logs.js"></script>
 <script>
@@ -264,7 +288,12 @@ let inquiries     = [];
 let allUsers      = [];
 let sortDateDir   = 'desc';
 let currentSort   = 'newest';   // 排序：newest 最新 / awaiting 待回覆優先 / oldest 最舊
+let caseFilter    = '';         // 依案件狀態撈客戶（跨全部詢問，不限已轉案）
+let cannedReplies = [];         // 客服知識庫「罐頭訊息」分類 → 常用語快捷
 let currentDraftText = '';   // 目前開啟詢問的 AI 草稿文字（給「採用」用）
+let currentInquiryData = null; // 目前開啟的詢問完整資料
+let aiEstItems = [];         // AI 估價輔助：目前草稿品項
+let aiEstNote  = '';         // AI 估價輔助：整體提醒
 
 function toggleInqSort() {
   sortDateDir = sortDateDir === 'desc' ? 'asc' : 'desc';
@@ -290,6 +319,8 @@ async function init() {
   }
   highlightNav('line-inquiries');
   allUsers = await fetchUsers();
+  initCaseFilter();
+  loadCanned();
   loadStats();
   loadList();
 
@@ -368,19 +399,30 @@ const QUICK_REPLIES = [
   { label:'🏠 展間參觀', text:'我們有實體展間，可以看到實際材質與貼膜效果，很歡迎您預約參觀～需要我提供展間地址與可參觀時段給您嗎？' },
   { label:'🙏 稍候回覆', text:'收到您的訊息了！我們正在為您確認，稍後盡快回覆您，謝謝您的耐心 🙏' },
 ];
-function quickReply(idx) {
+function insertReplyText(t) {
   const ta = document.getElementById('replyInput');
-  if (!ta) return;
-  const t = QUICK_REPLIES[idx]?.text || '';
+  if (!ta || !t) return;
   ta.value = ta.value.trim() ? (ta.value.replace(/\s+$/,'') + '\n' + t) : t;
   ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
   ta.focus();
 }
+function quickReply(idx) { insertReplyText(QUICK_REPLIES[idx]?.text || ''); }
+function cannedReply(idx) { insertReplyText(cannedReplies[idx]?.answer || ''); }
+// 從客服知識庫載入「罐頭訊息」分類 → 常用語快捷
+async function loadCanned() {
+  try {
+    const { rows } = await fetch('/api/cs-knowledge').then(r => r.json());
+    cannedReplies = (rows || []).filter(k => k.active && k.category === '罐頭訊息' && (k.answer || '').trim());
+  } catch (e) { cannedReplies = []; }
+}
 function quickReplyBar() {
+  const canned = cannedReplies.map((q,idx)=>`<button type="button" onclick="cannedReply(${idx})" title="${escHtml(q.answer)}" style="flex:0 0 auto;padding:5px 11px;border:1px solid #bbf7d0;border-radius:16px;background:#f0fdf4;font-size:12px;cursor:pointer;white-space:nowrap;color:#166534">💬 ${escHtml(q.question || q.answer.slice(0,10))}</button>`).join('');
   return `<div style="display:flex;gap:6px;padding:9px 12px 3px;overflow-x:auto;flex-wrap:wrap;background:#fff;border-top:1px solid var(--gray-200)">
     <button type="button" onclick="openAiChat()" style="flex:0 0 auto;padding:5px 11px;border:1px solid #c4b5fd;border-radius:16px;background:#f5f3ff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;color:#6d28d9">🤖 問 AI 助手</button>
+    <button type="button" onclick="openAiEstimate()" style="flex:0 0 auto;padding:5px 11px;border:1px solid #fbcfe8;border-radius:16px;background:#fdf2f8;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;color:#be185d">💲 AI 估價輔助</button>
     <span style="font-size:11px;color:var(--gray-400);align-self:center;white-space:nowrap">常用語</span>
     ${QUICK_REPLIES.map((q,idx)=>`<button type="button" onclick="quickReply(${idx})" style="flex:0 0 auto;padding:5px 11px;border:1px solid var(--gray-300);border-radius:16px;background:#f9fafb;font-size:12px;cursor:pointer;white-space:nowrap;color:var(--gray-700)">${q.label}</button>`).join('')}
+    ${canned}
   </div>`;
 }
 
@@ -428,27 +470,144 @@ async function genDraft(id) {
   } catch (e) { showToast('AI 擬稿失敗', 'error'); if (btn){btn.disabled=false;} }
 }
 
+// ── 💲 AI 估價輔助 ─────────────────────────────────────────
+const SIZE_SRC_STYLE = {
+  '客人提供': { bg:'#dcfce7', c:'#166534' }, '圖上標示': { bg:'#dcfce7', c:'#166534' },
+  'AI粗估':  { bg:'#fef9c3', c:'#854d0e' }, '未知': { bg:'#fee2e2', c:'#b91c1c' },
+};
+async function openAiEstimate() {
+  if (!currentId) return;
+  const modal = document.getElementById('aiEstModal');
+  modal.classList.add('open');
+  document.getElementById('aiEstNewCase').checked = false;
+  const body = document.getElementById('aiEstBody');
+  body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">🤖 AI 正在讀取對話與照片、整理估價品項…</div>`;
+  try {
+    const r = await fetch(`/api/line-inquiries/${currentId}/ai-estimate`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { body.innerHTML = `<div style="padding:20px;color:#dc2626">${escHtml(j.error || 'AI 估價失敗')}</div>`; return; }
+    aiEstItems = (j.items || []).map(it => ({ ...it }));
+    aiEstNote = j.overall_note || '';
+    renderAiEst();
+  } catch (e) { body.innerHTML = `<div style="padding:20px;color:#dc2626">AI 估價失敗，請稍後再試</div>`; }
+}
+function renderAiEst() {
+  const body = document.getElementById('aiEstBody');
+  const note = aiEstNote ? `<div style="margin-bottom:10px;padding:8px 11px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px">📝 AI 提醒：${escHtml(aiEstNote)}</div>` : '';
+  if (!aiEstItems.length) {
+    body.innerHTML = `${note}<div style="padding:18px;text-align:center;color:var(--gray-500);font-size:13px">AI 從這通對話還判斷不出明確的估價品項，建議先請客人補照片／尺寸，或直接手動到估價機建立。</div>`;
+    return;
+  }
+  const rows = aiEstItems.map((it, idx) => {
+    const ss = SIZE_SRC_STYLE[it.size_source] || { bg:'#f3f4f6', c:'#6b7280' };
+    const tsai = (Number(it.w) > 0 && Number(it.h) > 0) ? Math.round(it.w * it.h / 900 * (Number(it.qty)||1) * 10) / 10 : '—';
+    return `<tr style="border-bottom:1px solid var(--gray-100)">
+      <td style="padding:4px"><input value="${escHtml(it.area||'')}" onchange="aiEstEdit(${idx},'area',this.value)" style="width:64px;padding:4px;border:1px solid var(--gray-200);border-radius:5px;font-size:12px"></td>
+      <td style="padding:4px"><input value="${escHtml(it.desc||'')}" onchange="aiEstEdit(${idx},'desc',this.value)" style="width:100%;min-width:120px;padding:4px;border:1px solid var(--gray-200);border-radius:5px;font-size:12px"></td>
+      <td style="padding:4px"><input type="number" value="${it.w||''}" onchange="aiEstEdit(${idx},'w',this.value)" style="width:56px;padding:4px;border:1px solid var(--gray-200);border-radius:5px;font-size:12px" placeholder="cm"></td>
+      <td style="padding:4px"><input type="number" value="${it.h||''}" onchange="aiEstEdit(${idx},'h',this.value)" style="width:56px;padding:4px;border:1px solid var(--gray-200);border-radius:5px;font-size:12px" placeholder="cm"></td>
+      <td style="padding:4px"><input type="number" value="${it.qty||1}" onchange="aiEstEdit(${idx},'qty',this.value)" style="width:44px;padding:4px;border:1px solid var(--gray-200);border-radius:5px;font-size:12px"></td>
+      <td style="padding:4px;text-align:right;font-variant-numeric:tabular-nums;color:var(--gray-500);font-size:12px">${tsai}</td>
+      <td style="padding:4px"><span style="padding:1px 6px;border-radius:9px;font-size:10px;font-weight:700;background:${ss.bg};color:${ss.c};white-space:nowrap">${escHtml(it.size_source||'未知')}</span>${it.note?`<div style="font-size:10px;color:var(--gray-400);margin-top:2px">${escHtml(it.note)}</div>`:''}</td>
+      <td style="padding:4px"><button onclick="aiEstDel(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px">✕</button></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `${note}
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--gray-500);text-align:left;border-bottom:1px solid var(--gray-200)">
+        <th style="padding:4px">部位</th><th style="padding:4px">描述</th><th style="padding:4px">寬</th><th style="padding:4px">高</th><th style="padding:4px">數量</th><th style="padding:4px;text-align:right">才數</th><th style="padding:4px">尺寸來源</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <button onclick="aiEstAdd()" class="btn btn-ghost btn-sm" style="margin-top:8px">＋ 手動加一項</button>`;
+}
+function aiEstEdit(idx, key, val) {
+  if (!aiEstItems[idx]) return;
+  aiEstItems[idx][key] = (key === 'area' || key === 'desc') ? val : (Number(val) || 0);
+  renderAiEst();
+}
+function aiEstDel(idx) { aiEstItems.splice(idx, 1); renderAiEst(); }
+function aiEstAdd() { aiEstItems.push({ area:'', desc:'', w:0, h:0, qty:1, size_source:'未知', note:'' }); renderAiEst(); }
+async function createEstimateDraft() {
+  const withDims = aiEstItems.filter(it => Number(it.w) > 0 && Number(it.h) > 0);
+  if (!withDims.length) { showToast('至少要有一項填寫寬與高才能建立草稿', 'error'); return; }
+  const btn = document.getElementById('aiEstGoBtn');
+  btn.disabled = true; btn.textContent = '建立中…';
+  // 每項依數量展開成估價機的「其他」品項（單價=0，客服到估價機選膜款定價）
+  const items = [];
+  withDims.forEach(it => {
+    const q = Math.max(1, Number(it.qty) || 1);
+    const name = ((it.area ? it.area + ' ' : '') + (it.desc || '')).trim().slice(0, 40) || '品項';
+    for (let k = 0; k < q; k++) items.push({ kind:'other', name, w:Number(it.w), h:Number(it.h), unit:0 });
+  });
+  const d = currentInquiryData || {};
+  const payload = {
+    items,
+    customer_name: d.client_name || d.display_name || '',
+    phone: d.phone || '',
+    project_name: 'LINE 詢問估價（AI 草稿）',
+    community: d.community || '',
+    case_id: d.converted_case_id || null,
+    status: 'draft',
+    customer_note: `來源：LINE 詢問 #${currentId}（AI 估價輔助草稿，尺寸待現場確認）`,
+  };
+  try {
+    // 需要時先建立案件（沿用轉案流程），再把估價掛到該案
+    if (document.getElementById('aiEstNewCase').checked && !payload.case_id) {
+      const cr = await fetch(`/api/line-inquiries/${currentId}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const cj = await cr.json().catch(() => ({}));
+      if (cr.ok && cj.case_id) payload.case_id = cj.case_id;
+    }
+    const r = await fetch('/api/estimator/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.id) { showToast(j.error || '建立估價草稿失敗', 'error'); btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →'; return; }
+    document.getElementById('aiEstModal').classList.remove('open');
+    btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
+    window.open(`/estimator?edit=${j.id}`, '_blank');
+    showToast('已建立估價草稿，於新分頁開啟估價機');
+    openInquiry(currentId);
+  } catch (e) {
+    showToast('建立失敗，請稍後再試', 'error');
+    btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
+  }
+}
+
 // ── 清單 ──────────────────────────────────────────────────
 async function loadList() {
   const q = document.getElementById('searchInput').value.trim();
-  const p = new URLSearchParams({ limit: 100, page: 1 });
+  // 選了「案件狀態」時，跨全部詢問撈（忽略上方分頁、拉大筆數），再依案件狀態前端篩
+  const byCase = !!caseFilter;
+  const p = new URLSearchParams({ limit: byCase ? 300 : 100, page: 1 });
   // 「待回覆」「轉真人客服」是虛擬篩選：抓進行中的，前端再篩
   const virtual = (currentStatus === 'awaiting' || currentStatus === 'needs_human');
-  if (currentStatus !== 'all' && !virtual) p.set('status', currentStatus);
+  if (!byCase && currentStatus !== 'all' && !virtual) p.set('status', currentStatus);
   if (q) p.set('q', q);
   const data = await fetch(`/api/line-inquiries?${p}`).then(r => r.json()).catch(() => ({ rows: [] }));
   let rows = data.rows || [];
-  if (currentStatus === 'awaiting')    rows = rows.filter(isAwaiting);
-  if (currentStatus === 'needs_human') rows = rows.filter(i => i.ai_needs_human);
+  if (!byCase && currentStatus === 'awaiting')    rows = rows.filter(isAwaiting);
+  if (!byCase && currentStatus === 'needs_human') rows = rows.filter(i => i.ai_needs_human);
   inquiries = rows;
   renderList();
 }
 
 function setSort(v) { currentSort = v; renderList(); }
+function setCaseFilter(v) { caseFilter = v; loadList(); }
+// 依 CASE_STATUS 產生案件狀態下拉選項
+function initCaseFilter() {
+  const sel = document.getElementById('caseFilter');
+  if (!sel) return;
+  Object.entries(CASE_STATUS).forEach(([k, s]) => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = '🗂 ' + s.t;
+    sel.appendChild(o);
+  });
+}
 
 function renderList() {
   const el = document.getElementById('inqScroll');
-  const sorted = [...inquiries].sort((a, b) => {
+  const base = caseFilter ? inquiries.filter(i => i.cust_case_status === caseFilter) : inquiries;
+  const sorted = [...base].sort((a, b) => {
     if (currentSort === 'awaiting') {
       const aw = isAwaiting(a), bw = isAwaiting(b);
       if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂
@@ -528,6 +687,7 @@ async function openInquiry(id) {
   }
 
   currentDraftText = data.ai_draft || '';   // 給「採用到回覆框」用
+  currentInquiryData = data;                 // 給 AI 估價輔助等功能取用
 
   const salesOpts = allUsers
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))

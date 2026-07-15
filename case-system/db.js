@@ -1602,6 +1602,14 @@ if (!db.prepare(`SELECT 1 FROM cs_knowledge WHERE keywords='__kbpack_v2__'`).get
 // 把誤植的值搬回 sort_order 並把 active 設回 1（標記列 active=0、正常列 active=1 不受影響）
 db.exec(`UPDATE cs_knowledge SET sort_order=active, active=1 WHERE active NOT IN (0,1)`);
 
+// 罐頭訊息示範（category='罐頭訊息' → LINE 詢問回覆框「常用語」快捷；空缺時才 seed）
+if (!db.prepare(`SELECT 1 FROM cs_knowledge WHERE keywords='__canned_v1__'`).get()) {
+  const kc = db.prepare(`INSERT INTO cs_knowledge (category, question, answer, link_url, link_label, keywords, active, sort_order) VALUES (?,?,?,?,?,?,?,?)`);
+  kc.run('系統', '（罐頭訊息標記，請勿刪除）', '', '', '', '__canned_v1__', 0, 997);
+  kc.run('罐頭訊息', '營業時間', '您好😊 我們的客服服務時間為週一至週五 09:00–18:00，非服務時間收到的訊息會在上班後盡快回覆您，謝謝您的耐心 🙏', '', '', '營業時間,幾點,上班', 1, 1);
+  kc.run('罐頭訊息', '感謝結尾', '感謝您的詢問😊 後續有任何問題都歡迎再告訴我們，很高興為您服務 🙏', '', '', '感謝,謝謝,結尾', 1, 2);
+}
+
 // 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
 db.exec(`
   CREATE TABLE IF NOT EXISTS line_follow_sources (

@@ -74,7 +74,11 @@ function buildSystemPrompt() {
 
 【先判斷對方身分，再決定怎麼接洽】
 - 若客人表明是「設計師／室內設計／統包／工班／廠商／同業」，或傳來的是名片、公司資訊 → 用專業窗口口吻招呼（例：「設計師您好！很高興為您服務，請問這邊有什麼可以協助的嗎？😊」），了解他的專案或配合需求。這類通常要業務對接與配合報價 → 設 needs_human=true，reason 註明「設計師／廠商窗口，建議轉業務對接」。不要對他們用一般消費者「請傳案場照片、問尺寸」那套流程。
+- 設計師若還沒提供名片 → 禮貌請他提供名片，方便我們建立配合資料、後續對接（例：「方便跟您索取一張名片嗎？我們幫您建立配合資料，後續會請專人與您聯繫窗口😊」）。
 - 一般消費者 → 走下面客服 SOP。
+
+【已有成交意願／需要正式詢價報價時】
+- 當客人明確表示要報價、要下訂、要安排施工等「進入實際成交流程」 → 邀請對方加入我們的公務帳號，我們會開專屬服務群組，由專人（業務＋客服）在群組裡服務他、報價與安排（例：「這邊想邀請您加入我們的公務帳號，我們會開一個專屬群組，由專人在群組內為您報價與安排後續，這樣溝通更即時喔😊」）。同時設 needs_human=true，reason 註明「客戶有成交意願，建議轉業務並建立服務群組」。（你沒有公務帳號的實際加入連結，不要自己編；請專人提供。）
 
 【一般消費者 SOP：依對話目前進度接續】
 1. 若還不清楚案場 → 請客人拍幾張要施工位置的照片，並說一下位置（牆面／系統櫃門片／玻璃…）。
@@ -197,4 +201,49 @@ async function chatWithAssistant(inquiryId, chatMessages) {
   return await callClaude(buildAssistantSystemPrompt(transcript), clean, 1024);
 }
 
-module.exports = { generateInquiryDraft, chatWithAssistant };
+// AI 估價輔助：從對話＋照片萃取貼膜估價品項（尺寸只在客人有給/圖上有標時填，否則不編）
+function buildEstimateSystemPrompt() {
+  return `你是台灣「繪新國際」裝潢貼膜公司的估價助理。請從客服與客人的 LINE 對話＋客人傳的照片，萃取「要估價的貼膜品項」。
+【規則】
+- 每個品項給：area（部位：牆面／系統櫃／門片／造型／天花板／玻璃／電梯／其他）、desc（簡短描述，如「臥室系統櫃門片」）、width_cm、height_cm、qty（數量，預設1）、size_source（尺寸來源：客人提供／圖上標示／AI粗估／未知）、note（備註）。
+- 尺寸（width_cm/height_cm）：只有在「客人明確講了」或「照片/尺寸表上有標數字」時才填數字，並把 size_source 設成『客人提供』或『圖上標示』。
+- 若沒有明確尺寸，**絕對不要自己編數字**：width_cm/height_cm 給 null，size_source 設『未知』（或你從照片粗略目測就標『AI粗估』並在 note 註明「需現場丈量」）。
+- 凹凸造型太多、不適合貼的（如立體六格門片）→ 照列出但在 note 標「不建議貼，需評估」。
+- 判斷不出任何品項就回空陣列。
+【輸出】只輸出 JSON：{"items":[{"area":"","desc":"","width_cm":null,"height_cm":null,"qty":1,"size_source":"","note":""}],"overall_note":"給客服的整體提醒（例如缺哪些尺寸、要不要安排現場丈量）"}`;
+}
+
+async function generateEstimateDraft(inquiryId) {
+  const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(inquiryId);
+  if (!inq) throw new Error('詢問不存在');
+  const msgs = db.prepare(`SELECT direction, msg_type, content FROM line_inquiry_messages
+                           WHERE inquiry_id=? ORDER BY created_at ASC, id ASC`).all(inquiryId);
+  if (!msgs.length) throw new Error('這通詢問還沒有訊息');
+
+  const content = [{ type: 'text', text: '以下是與客人的 LINE 對話與照片（最新在最後）：' }];
+  let buf = '';
+  const flush = () => { if (buf) { content.push({ type: 'text', text: buf }); buf = ''; } };
+  let imgCount = 0;
+  for (const m of msgs) {
+    const who = m.direction === 'in' ? '客人' : '客服';
+    if (m.msg_type === 'image' && m.content && /^https?:\/\//.test(m.content) && imgCount < 8) {
+      buf += `\n${who}：（傳了以下這張圖）`; flush();
+      content.push({ type: 'image', source: { type: 'url', url: m.content } }); imgCount++;
+    } else buf += `\n${who}：${m.msg_type === 'image' ? '[照片]' : (m.content || '')}`;
+  }
+  buf += '\n\n請萃取要估價的貼膜品項，只輸出 JSON。'; flush();
+
+  const raw = await callClaude(buildEstimateSystemPrompt(), [{ role: 'user', content }], 1500);
+  const parsed = safeParseJson(raw) || {};
+  const items = (Array.isArray(parsed.items) ? parsed.items : []).map(it => {
+    const w = Number(it.width_cm) || 0, h = Number(it.height_cm) || 0, qty = Math.max(1, Number(it.qty) || 1);
+    return {
+      area: it.area || '其他', desc: it.desc || '', w, h, qty,
+      tsai: (w > 0 && h > 0) ? Math.round(w * h / 900 * qty * 10) / 10 : null,
+      size_source: it.size_source || '未知', note: it.note || '',
+    };
+  });
+  return { items, overall_note: parsed.overall_note || '' };
+}
+
+module.exports = { generateInquiryDraft, chatWithAssistant, generateEstimateDraft };

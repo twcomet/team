@@ -275,6 +275,18 @@ router.post('/:id/ai-chat', requireAuth, async (req, res) => {
   }
 });
 
+// ── AI 估價輔助：從對話＋照片萃取估價品項（草稿，需客服核對）──────
+router.post('/:id/ai-estimate', requireAuth, async (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: '尚未設定 AI 金鑰（ANTHROPIC_API_KEY）' });
+    const { generateEstimateDraft } = require('../lib/line-ai');
+    const result = await generateEstimateDraft(req.params.id);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: 'AI 估價失敗：' + e.message });
+  }
+});
+
 // ── 刪除詢問（僅限已轉案 / 無效）────────────────────────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const inq = db.prepare(`SELECT status, display_name FROM line_inquiries WHERE id=?`).get(req.params.id);
