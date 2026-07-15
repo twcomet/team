@@ -473,6 +473,12 @@ async function openInquiry(id) {
               <option value="">（未指定）</option>${csOpts}
             </select>
           </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:12px;color:var(--gray-500);white-space:nowrap">📞</span>
+            <input id="cf-phone" value="${escHtml(data.phone||'')}" placeholder="電話" onchange="saveClient(${id},true)"
+              style="padding:3px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;width:120px">
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleClientPanel()" style="padding:3px 8px"><span id="clientToggleLabel">客戶資料 ▾</span></button>
         </div>
       </div>
       <div class="det-actions">
@@ -492,11 +498,9 @@ async function openInquiry(id) {
       </div>
     </div>
 
-    <div class="det-client">
-      <div style="font-size:12px;font-weight:600;color:var(--gray-700)">客戶資料</div>
+    <div class="det-client" id="clientPanel" style="display:none">
       <div class="client-grid">
         <div class="cf"><label>官方 LINE 顯示名稱（手動輸入）</label><input id="cf-name" value="${escHtml(data.display_name||'')}" placeholder="LINE 顯示名稱"></div>
-        <div class="cf"><label>電話</label><input id="cf-phone"   value="${escHtml(data.phone||'')}"        placeholder="聯絡電話"></div>
         <div class="cf"><label>LINE 客戶顯示名稱</label><input value="${escHtml(data.line_original_name||data.display_name||'')}" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default"></div>
         <div class="cf"><label>Email</label><input id="cf-email"  value="${escHtml(data.email||'')}"        placeholder="電子信箱"></div>
         <div class="cf"><label>地址</label><input id="cf-address" value="${escHtml(data.address||'')}"      placeholder="施工地址"></div>
@@ -575,7 +579,7 @@ async function deleteInquiry(id) {
   }
 }
 
-async function saveClient(id) {
+async function saveClient(id, silent) {
   await fetch(`/api/line-inquiries/${id}/client`, {
     method:'PUT', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -585,8 +589,16 @@ async function saveClient(id) {
       address: document.getElementById('cf-address')?.value,
     })
   });
-  showToast('客戶資料已儲存');
+  showToast(silent ? '電話已儲存' : '客戶資料已儲存');
   loadList();
+}
+function toggleClientPanel() {
+  const p = document.getElementById('clientPanel');
+  const lbl = document.getElementById('clientToggleLabel');
+  if (!p) return;
+  const open = p.style.display === 'none';
+  p.style.display = open ? '' : 'none';
+  if (lbl) lbl.textContent = open ? '客戶資料 ▴' : '客戶資料 ▾';
 }
 
 async function saveNote(id) {
