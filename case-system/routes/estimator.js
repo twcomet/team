@@ -8,6 +8,10 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } }); // 圖片/PDF 上限 25MB
 
+// 958 回簽歷史行情（成交/報價/明細分開），啟動時載入一次快取
+let DEAL_HISTORY = { deals: [], quotes: [], lines: [], counts: {} };
+try { DEAL_HISTORY = require('../data/deal-history.json'); } catch (e) { console.warn('deal-history.json 未載入:', e.message); }
+
 // 估價單客戶分享 token（比照報價單 quote_sheets.share_token）
 function genToken() { return crypto.randomBytes(16).toString('hex'); }
 function ensureToken(id) {
@@ -207,7 +211,20 @@ router.get('/history', requireAuth, (req, res) => {
     ORDER BY eq.id DESC
     LIMIT 40
   `).all(...(hasQ ? [like, like, like, like, like] : []));
-  res.json({ quotes, estimates });
+  // 958 回簽歷史（成交/報價/明細），伺服器端過濾+限量，不整包回傳
+  const ql = q.toLowerCase();
+  const fhist = (arr, fields, lim) => {
+    const hit = !ql ? arr : arr.filter(r => fields.some(f => {
+      const val = r[f];
+      if (Array.isArray(val)) return val.join(' ').toLowerCase().includes(ql);
+      return val != null && String(val).toLowerCase().includes(ql);
+    }));
+    return hit.slice(0, lim);
+  };
+  const deals = fhist(DEAL_HISTORY.deals || [], ['cust', 'types', 'films', 'loc'], 80);
+  const histQuotes = fhist(DEAL_HISTORY.quotes || [], ['cust', 'cat', 'films'], 80);
+  const lines = fhist(DEAL_HISTORY.lines || [], ['cust', 'type', 'film', 'desc', 'dim'], 120);
+  res.json({ quotes, estimates, deals, histQuotes, lines, histCounts: DEAL_HISTORY.counts || {} });
 });
 router.get('/quotes/:id', requireAuth, (req, res) => {
   const q = db.prepare(`SELECT * FROM est_quotes WHERE id=?`).get(req.params.id);

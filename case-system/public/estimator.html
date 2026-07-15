@@ -78,6 +78,8 @@
   .hb-deal{background:#dcfce7;color:#15803d}
   .hb-quote{background:#dbeafe;color:#1d4ed8}
   .hb-est{background:#fef3c7;color:#b45309}
+  .hb-line{background:#f3e8ff;color:#7c3aed}
+  .hist-detail{font-size:12px;color:#7c3aed;margin-top:3px;font-weight:600;font-variant-numeric:tabular-nums}
   .hist-empty{text-align:center;color:#9ca3af;padding:40px;font-size:13px}
   .hist-ft{padding:10px 20px;border-top:1px solid #eef0f3;font-size:11.5px;color:#9ca3af}
   .hist-open{color:#2563eb;font-size:12px;text-decoration:none;white-space:nowrap;font-weight:600}
@@ -214,7 +216,7 @@
       <div class="hist-box">
         <div class="hist-hd"><b>🔍 歷史報價參考</b><span class="hist-x" onclick="closeHistory()">×</span></div>
         <div class="hist-bar"><input id="hist-q" placeholder="搜尋 案件名稱／客戶／案號／膜款…" oninput="histDebounce()"><span id="hist-count" class="hist-cnt"></span></div>
-        <div class="hist-tabs"><span class="hist-tab on" data-ht="all" onclick="histTab('all')">全部</span><span class="hist-tab" data-ht="deal" onclick="histTab('deal')">已成交</span><span class="hist-tab" data-ht="quote" onclick="histTab('quote')">正式報價單</span><span class="hist-tab" data-ht="estimate" onclick="histTab('estimate')">估價單</span></div>
+        <div class="hist-tabs"><span class="hist-tab on" data-ht="all" onclick="histTab('all')">全部</span><span class="hist-tab" data-ht="deal" onclick="histTab('deal')">成交</span><span class="hist-tab" data-ht="quote" onclick="histTab('quote')">報價</span><span class="hist-tab" data-ht="line" onclick="histTab('line')">明細行情（含尺寸/才數）</span></div>
         <div id="hist-list" class="hist-list"><div class="hist-empty">載入中…</div></div>
         <div class="hist-ft">此為系統內歷史報價/成交紀錄，供估價參考。<span id="hist-note958"></span></div>
       </div>
@@ -737,27 +739,47 @@ function searchHistory(){
     .then(function(d){ HISTDATA=d||{quotes:[],estimates:[]}; renderHistory(); })
     .catch(function(){ document.getElementById('hist-list').innerHTML='<div class="hist-empty">查詢失敗</div>'; });
 }
+function ct(x){ return HCTYPE[x]||x||''; }
 function histRows(){
   var rows=[];
+  // 958 成交回簽
+  (HISTDATA.deals||[]).forEach(function(d){
+    rows.push({group:'deal',badge:'hb-deal',src:'回簽成交',title:d.cust||'—',
+      sub:[(d.types||[]).join('/'),(d.films||[]).join('/'),d.date,d.loc].filter(Boolean).join('　·　'),amount:d.amount}); });
+  // 958 報價
+  (HISTDATA.histQuotes||[]).forEach(function(x){
+    rows.push({group:'quote',badge:'hb-quote',src:'歷史報價',title:x.cust||'—',
+      sub:[x.cat,(x.films||[]).join('/'),x.date].filter(Boolean).join('　·　'),amount:x.value}); });
+  // 958 明細行情（含尺寸/才數/米數/單價）
+  (HISTDATA.lines||[]).forEach(function(l){
+    var det=[]; if(l.dim)det.push('尺寸 '+l.dim); if(l.cai)det.push(l.cai+' 才'); if(l.m)det.push(l.m+' 米'); if(l.up)det.push('單價 $'+l.up);
+    rows.push({group:'line',badge:'hb-line',src:'報價明細',title:(l.type?l.type+'｜':'')+(l.film||'（未填膜款）'),
+      desc:l.desc,detail:det.join('　·　'),sub:l.cust||'',amount:l.amount}); });
+  // 系統既有 報價單/估價單
   (HISTDATA.quotes||[]).forEach(function(x){ var deal=!!(x.status==='accepted'||x.client_accepted_at);
-    rows.push({isQuote:true,deal:deal,total:x.total,case_id:x.case_id,title:x.case_title||('案件#'+x.case_id),client:x.client_name,ctype:x.case_type,date:x.created_at,ver:x.version}); });
+    rows.push({group:deal?'deal':'quote',badge:deal?'hb-deal':'hb-quote',src:deal?'系統成交':'系統報價 v'+(x.version||1),
+      title:x.case_title||('案件#'+x.case_id),sub:[ct(x.case_type),x.client_name,(x.created_at||'').slice(0,10)].filter(Boolean).join('　·　'),
+      amount:x.total,case_id:x.case_id}); });
   (HISTDATA.estimates||[]).forEach(function(x){
-    rows.push({isQuote:false,deal:false,total:x.total,case_id:x.case_id,title:x.project_name||x.case_title||'估價單',client:x.customer_name||x.case_client_name,ctype:x.case_type,date:x.created_at}); });
+    rows.push({group:'quote',badge:'hb-est',src:'系統估價',title:x.project_name||x.case_title||'估價單',
+      sub:[ct(x.case_type),x.customer_name||x.case_client_name,(x.created_at||'').slice(0,10)].filter(Boolean).join('　·　'),
+      amount:x.total,case_id:x.case_id}); });
   return rows;
 }
 function renderHistory(){
   var rows=histRows();
-  if(HISTTAB==='deal') rows=rows.filter(function(r){return r.deal;});
-  else if(HISTTAB==='quote') rows=rows.filter(function(r){return r.isQuote;});
-  else if(HISTTAB==='estimate') rows=rows.filter(function(r){return !r.isQuote;});
+  if(HISTTAB!=='all') rows=rows.filter(function(r){return r.group===HISTTAB;});
   document.getElementById('hist-count').textContent=rows.length+' 筆';
+  var c=HISTDATA.histCounts||{}; var n958=document.getElementById('hist-note958');
+  if(n958) n958.textContent=(c.deals||c.lines)?('　｜ 已匯入 958 回簽：成交 '+(c.deals||0)+'、報價 '+(c.quotes||0)+'、明細 '+(c.lines||0)):'';
   var box=document.getElementById('hist-list');
-  if(!rows.length){ box.innerHTML='<div class="hist-empty">查無歷史報價</div>'; return; }
+  if(!rows.length){ box.innerHTML='<div class="hist-empty">查無資料</div>'; return; }
   box.innerHTML=rows.map(function(r){
-    var badge=r.deal?'<span class="hist-badge hb-deal">已成交</span>':(r.isQuote?'<span class="hist-badge hb-quote">報價單'+(r.ver?' v'+r.ver:'')+'</span>':'<span class="hist-badge hb-est">估價</span>');
-    var sub=[HCTYPE[r.ctype]||r.ctype||'', r.client||'', (r.date||'').slice(0,10)].filter(Boolean).join('　·　');
+    var badge='<span class="hist-badge '+r.badge+'">'+hesc(r.src)+'</span>';
+    var desc=r.desc?'<div class="hist-sub" style="color:#4b5563">'+hesc(r.desc)+'</div>':'';
+    var detail=r.detail?'<div class="hist-detail">'+hesc(r.detail)+'</div>':'';
     var link=r.case_id?'<a class="hist-open" href="/case-detail?id='+r.case_id+'" target="_blank" rel="noopener">開案件 ↗</a>':'';
-    return '<div class="hist-row"><div class="hist-main"><div class="hist-t">'+hesc(r.title)+badge+'</div><div class="hist-sub">'+hesc(sub)+'</div></div><div class="hist-amt">'+NT(r.total||0)+'</div>'+link+'</div>';
+    return '<div class="hist-row"><div class="hist-main"><div class="hist-t">'+hesc(r.title)+badge+'</div>'+desc+detail+(r.sub?'<div class="hist-sub">'+hesc(r.sub)+'</div>':'')+'</div><div class="hist-amt">'+NT(r.amount||0)+'</div>'+link+'</div>';
   }).join('');
 }
 /* 從估價單查詢「開啟編輯」：?edit=<id> 載回明細 */
