@@ -46,7 +46,7 @@ function computeFilms(arr, cat, combine) {
       const H = roundWall(it.h), full = Math.floor(it.w / W), rem = it.w - full * W;
       g.full += full * (H / 100);
       if (rem > 0) g.pieces.push({ h: H, w: rem, comb: rem < (W - 2) });
-    } else { g.looseCai += Math.ceil(it.w / W) * W * it.h / 900; } // 寬鬆：需要幾條×膜寬×高(每條整條膜寬·多報)
+    } else { g.looseCai += Math.ceil(it.w / W) * W * roundWall(it.h) / 900; } // 寬鬆：需要幾條×膜寬×(高+10cm損耗)（每條整條膜寬·多報）
   });
   return Object.keys(groups).map(k => {
     const g = groups[k], unit = workUnit(g.item, g.work);
