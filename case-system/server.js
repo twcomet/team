@@ -193,6 +193,9 @@ function requirePagePerm(page) {
     } else if (key === 'page_line_inquiries') {
       // 舊 session 無此 key 時退回 page_cases
       allowed = p.page_line_inquiries !== undefined ? p.page_line_inquiries === true : p.page_cases === true;
+    } else if (key === 'page_payments') {
+      // 🔒 收款：硬鎖只給 老闆 + 會計 + 客服 + 客服主管（客服可看不可改，見 API 端把關）
+      allowed = ['owner', 'hq_accounting', 'hq_cs', 'hq_cs_manager'].includes(u.role);
     } else if (key === 'page_ledger') {
       allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
     } else if (key === 'page_dispatch_pool') {

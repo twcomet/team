@@ -216,11 +216,11 @@
         <div class="tab active" data-tab="basic" data-groups="inquiry,survey,deal">基本資訊</div>
         <div class="tab" data-tab="estimate" data-groups="inquiry,survey,deal">初步估價紀錄</div>
         <div class="tab" data-tab="care" data-groups="inquiry,survey,deal">客服關懷紀錄</div>
-        <div class="tab" data-tab="survey" data-groups="survey,deal">場勘</div>
-        <div class="tab" data-tab="quote" data-groups="survey,deal">正式報價單</div>
+        <div class="tab" data-tab="survey" data-groups="inquiry,survey,deal">場勘</div>
+        <div class="tab" data-tab="quote" data-groups="inquiry,survey,deal">正式報價單</div>
         <div class="tab" data-tab="documents" data-groups="inquiry,survey,deal">往來文件</div>
         <div class="tab" data-tab="material" data-groups="inquiry,survey,deal">膜料使用</div>
-        <div class="tab" data-tab="dispatch" data-groups="survey,deal">派工記錄</div>
+        <div class="tab" data-tab="dispatch" data-groups="inquiry,survey,deal">派工記錄</div>
         <div class="tab" data-tab="payment" data-groups="deal">收款</div>
         <div class="tab" data-tab="log" data-groups="inquiry,survey,deal">歷程</div>
         <div class="tab" data-tab="outsource" data-groups="deal" data-need="manage_users">派案設定</div>
@@ -1978,9 +1978,14 @@ function applyGroupTabs(group) {
   // B方案：無金額權限者(技術/小組長)隱藏 金額相關分頁（初步估價/正式報價單/收款）
   const MONEY_TABS = ['estimate','quote','payment'];
   const canMoney = !!currentUser?.can_see_amounts;
+  // 🔒 收款：只有 老闆 + 會計 + 客服 + 客服主管 可看（硬鎖）
+  const canPayment = ['owner','hq_accounting','hq_cs','hq_cs_manager'].includes(currentUser?.role);
+  const canManage = !!(currentUser?.manage_users || currentUser?.role === 'owner');
   document.querySelectorAll('.tab[data-groups]').forEach(tab => {
     let show = tab.dataset.groups.split(',').includes(group);
     if (show && !canMoney && MONEY_TABS.includes(tab.dataset.tab)) show = false;
+    if (show && tab.dataset.tab === 'payment' && !canPayment) show = false;         // 收款：老闆+會計限定
+    if (show && tab.dataset.need === 'manage_users' && !canManage) show = false;    // 派案設定：主管限定
     tab.style.display = show ? '' : 'none';
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -1996,6 +2001,24 @@ function applyGroupTabs(group) {
     firstVisible.classList.add('active');
     const pane = document.getElementById('tab-' + firstVisible.dataset.tab);
     if (pane) pane.classList.add('active');
+  }
+  lockPaymentEdit();
+}
+
+// 🔒 收款：客服/客服主管 可看不可改 → 收款頁欄位禁用、藏儲存鈕（僅老闆+會計可編輯）
+function lockPaymentEdit() {
+  const canEdit = currentUser?.role === 'owner' || currentUser?.role === 'hq_accounting';
+  if (canEdit) return;
+  const pane = document.getElementById('tab-payment');
+  if (!pane) return;
+  pane.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+  pane.querySelectorAll('button').forEach(el => { el.style.display = 'none'; });
+  if (!document.getElementById('payReadonlyTip')) {
+    const tip = document.createElement('div');
+    tip.id = 'payReadonlyTip';
+    tip.style.cssText = 'margin:0 0 12px;padding:9px 13px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12.5px;color:#c2410c;font-weight:600';
+    tip.textContent = '🔒 收款資訊僅供檢視，如需修改請由會計或負責人處理。';
+    pane.prepend(tip);
   }
 }
 

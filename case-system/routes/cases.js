@@ -318,6 +318,14 @@ router.get('/:id', requireAuth, (req, res) => {
     matLogs.forEach(m => { m.unit_cost = null; });
   }
 
+  // 🔒 收款金額明細：只有 老闆 + 會計 + 客服 + 客服主管 看得到（比 can_see_amounts 更嚴；保留 payment_status 工作流程狀態）
+  if (!['owner', 'hq_accounting', 'hq_cs', 'hq_cs_manager'].includes(me.role)) {
+    ['payment_received', 'deposit_amount',
+     'balance_paid', 'balance_paid_date', 'balance_paid_note', 'balance_paid_method', 'balance_category',
+     'retention_paid', 'retention_paid_date', 'retention_paid_method', 'needs_invoice',
+     'payment_due_date', 'payment_notes'].forEach(k => { c[k] = null; });
+  }
+
   res.json({ ...c, items, dispatches, logs, matUsage, matLogs });
 });
 
@@ -355,6 +363,12 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 router.put('/:id', requireAuth, (req, res) => { try {
+  // 🔒 收款欄位編輯鎖：只有 老闆 + 會計 可改。其他人(含客服)送來的收款欄位一律用 DB 現值覆蓋 → 等於改不動
+  if (!['owner', 'hq_accounting'].includes(req.session.user.role)) {
+    const PAY_FIELDS = ['payment_status', 'payment_received', 'deposit_amount', 'deposit_date', 'deposit_note', 'deposit_method', 'deposit_category', 'balance_paid', 'balance_paid_date', 'balance_paid_note', 'balance_paid_method', 'balance_category', 'retention_amount', 'retention_due_date', 'retention_invoiced', 'retention_paid', 'retention_paid_date', 'retention_paid_method', 'needs_invoice', 'payment_due_date', 'payment_notes', 'invoice_issued', 'invoice_issued_date'];
+    const cur = db.prepare(`SELECT ${PAY_FIELDS.join(',')} FROM cases WHERE id=?`).get(req.params.id);
+    if (cur) PAY_FIELDS.forEach(k => { req.body[k] = cur[k]; });
+  }
   const {
     client_id, case_type, title, description, location, sales_id,
     final_price, survey_fee, survey_fee_date, survey_fee_note, survey_fee_method, survey_fee_category,
