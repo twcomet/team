@@ -93,6 +93,19 @@ function computeObject(arr) {
   });
   return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'object', label: g.label, series: g.series, n: g.n, amount: g.amount, idxs: g.idxs }; });
 }
+// 其他特殊品項：米數＝米×條；材(才)數＝米數×單才(才/米)；金額＝材數×連工帶料(元/才)→進位百元
+function computeSpecial(arr) {
+  const groups = {};
+  arr.forEach((it, ci) => {
+    const meters = (Number(it.m) || 0) * (Number(it.strips) || 0);
+    const cai = meters * (Number(it.per) || 0);
+    const amt = ceil100(cai * (Number(it.unit) || 0));
+    const key = it.name + '|' + it.m + '|' + it.strips + '|' + it.per + '|' + it.unit;
+    groups[key] = groups[key] || { label: '其他特殊｜' + (it.name || '特殊品項'), series: it.m + '米 × ' + it.strips + '條 = ' + (Math.round(meters * 100) / 100) + '米　' + it.per + ' 才/米', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
+    const g = groups[key]; g.n++; g.amount += amt; g.idxs.push(ci);
+  });
+  return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'special', label: g.label, series: g.series, cai: g.cai, unit: g.unit, n: g.n, amount: g.amount, idxs: g.idxs }; });
+}
 function elevBoxAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), H = roundElev(c.h); let m = 0; if (c.side) m += Math.ceil(c.side / W) * (H / 100); if (c.backw) m += Math.ceil(c.backw / W) * (H / 100); return ceil100(m * Fb * unit); }
 function elevCeilAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), ch = roundElev(c.cl), m = Math.ceil(c.cw / W) * (ch / 100); return ceil100(m * Fb * unit); }
 
@@ -104,6 +117,7 @@ function buildLines(cart, opts, cat) {
   lines = lines.concat(computeGlass(cart.filter(c => c.kind === 'glass'), cat, cust, combine));
   lines = lines.concat(computeOther(cart.filter(c => c.kind === 'other')));
   lines = lines.concat(computeObject(cart.filter(c => c.kind === 'object')));
+  lines = lines.concat(computeSpecial(cart.filter(c => c.kind === 'special')));
   const fixed = {};
   cart.forEach((it, ci) => {
     let sig, label, series, amt, ftype = 'fixed';
@@ -179,6 +193,6 @@ function buildCatalogFromDb(db) {
 
 module.exports = {
   ceil100, roundWall, roundElev, filmW, elevUnit, doorPrice, workName,
-  computeFilms, computeGlass, computeOther, elevBoxAmt, elevCeilAmt, buildLines, quote,
+  computeFilms, computeGlass, computeOther, computeSpecial, elevBoxAmt, elevCeilAmt, buildLines, quote,
   buildCatalogFromDb, catalog: DEFAULT,
 };

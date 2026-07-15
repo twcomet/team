@@ -207,6 +207,7 @@ async function toggleDetail(id,el){
     else if(it.kind==='door')t='門'+(it.cat||'');
     else if(it.kind==='object')t='物件 '+(it.name||'')+' $'+it.price;
     else if(it.kind==='other')t='其他 '+(it.name||'')+'　寬'+it.w+'×高'+it.h;
+    else if(it.kind==='special')t='其他特殊 '+(it.name||'')+'　'+it.m+'米×'+it.strips+'條';
     else if(it.kind&&it.kind.indexOf('elev')===0)t='電梯';
     else if(it.kind==='fut')t='期貨運費';
     return '<div class="di"><span>'+esc(t)+'</span></div>';

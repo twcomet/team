@@ -224,6 +224,7 @@
             <div class="ec-itab" data-tab="elev">電梯</div>
             <div class="ec-itab" data-tab="door">門</div>
             <div class="ec-itab" data-tab="other">其他</div>
+            <div class="ec-itab" data-tab="special">其他特殊</div>
             <div class="ec-itab" data-tab="fut">期貨</div>
           </div>
           <div class="ec-pane" id="pane-object">
@@ -271,6 +272,13 @@
             <div class="ec-fld"><label>單才連工帶料單價（元/才）</label><input id="o-unit" type="number" value="200"></div>
             <button class="ec-add" onclick="addOther()">＋ 加入其他項目</button>
             <div class="ec-hint">才數＝寬×高÷900；金額＝才數×單價（進位百元）。</div>
+          </div>
+          <div class="ec-pane" id="pane-special">
+            <div class="ec-szhd">其他特殊品項（米×條 → 材數）</div>
+            <div id="sp-rows"></div>
+            <button type="button" class="ec-addrow" onclick="addSpecialRow()">＋ 新增下一個特殊品項</button>
+            <button class="ec-add" onclick="addSpecial()">＋ 加入其他特殊</button>
+            <div class="ec-hint">米數＝米×條；材數＝米數×單才(才/米，膜寬自動帶、可改)；金額＝材數×連工帶料（進位百元）。</div>
           </div>
           <div class="ec-pane" id="pane-fut">
             <div class="ec-fld"><label>膜料產地</label><select id="f-origin" onchange="fillFutM()"></select></div>
@@ -510,6 +518,36 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,W=item.width||122;var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs};});}
 function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
+// 其他特殊品項：米數=米×條；材數=米數×單才(才/米)；金額=材數×連工帶料(元/才)→進位百元
+function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
+  var meters=(Number(it.m)||0)*(Number(it.strips)||0);
+  var cai=meters*(Number(it.per)||0);
+  var amt=ceil100(cai*(Number(it.unit)||0));
+  var k=it.name+'|'+it.m+'|'+it.strips+'|'+it.per+'|'+it.unit;
+  g[k]=g[k]||{label:'其他特殊｜'+it.name,series:it.m+'米 × '+it.strips+'條 = '+(Math.round(meters*100)/100)+'米　'+it.per+' 才/米',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};
+  g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);
+});return Object.keys(g).map(function(k){var x=g[k];return {type:'special',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function specialRowHtml(){ return '<div class="ec-elevrow">'+
+  '<div class="ec-fld"><label>項目名稱</label><input class="sp-name" placeholder="例：特殊造型、異材質…"></div>'+
+  '<div class="ec-g2"><div class="ec-fld"><label>米</label><input class="sp-m" type="number" step="0.1" value="2.3"></div><div class="ec-fld"><label>條</label><input class="sp-strips" type="number" value="1"></div></div>'+
+  '<div class="ec-g3"><div class="ec-fld"><label>膜寬 cm</label><input class="sp-width" type="number" value="122" oninput="spSyncPer(this)"></div><div class="ec-fld"><label>單才(才/米)</label><input class="sp-per" type="number" step="0.01" value="13.56"></div><div class="ec-fld"><label>連工帶料(元/才)</label><input class="sp-unit" type="number" value="200"></div></div>'+
+  '<span class="ec-elevrm" onclick="rmSpecialRow(this)" title="刪除">×</span></div>'; }
+function spSyncPer(el){ var row=el.closest('.ec-elevrow'), w=+el.value||0, per=row.querySelector('.sp-per'); if(w>0) per.value=(Math.round(w*100/900*100)/100); }
+function addSpecialRow(){ document.getElementById('sp-rows').insertAdjacentHTML('beforeend', specialRowHtml()); }
+function rmSpecialRow(el){ var row=el.closest('.ec-elevrow'), box=row.parentNode; if(box.querySelectorAll('.ec-elevrow').length<=1){ box.innerHTML=''; addSpecialRow(); return; } row.remove(); }
+function addSpecial(){
+  var rows=document.querySelectorAll('#sp-rows .ec-elevrow'), added=0;
+  rows.forEach(function(row){
+    var name=(row.querySelector('.sp-name').value||'').trim()||'特殊品項';
+    var m=+row.querySelector('.sp-m').value||0, strips=+row.querySelector('.sp-strips').value||0;
+    var per=+row.querySelector('.sp-per').value||0, unit=+row.querySelector('.sp-unit').value||0;
+    if(!m||!strips) return;
+    CART.push({kind:'special',name:name,m:m,strips:strips,per:per,unit:unit});
+    added++;
+  });
+  if(!added){ alert('請至少填一列的米與條'); return; }
+  render();
+}
 function elevUnit(it){return it.shape;}
 function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;if(c.side)m+=Math.ceil(c.side/W)*(H/100);if(c.backw)m+=Math.ceil(c.backw/W)*(H/100);return ceil100(m*Fb*u);}
 function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
@@ -518,6 +556,7 @@ function buildLines(){var lines=[];
  lines=lines.concat(computeGlass(CART.filter(function(c){return c.kind==='glass';})));
  lines=lines.concat(computeOther(CART.filter(function(c){return c.kind==='other';})));
  lines=lines.concat(computeObject(CART.filter(function(c){return c.kind==='object';})));
+ lines=lines.concat(computeSpecial(CART.filter(function(c){return c.kind==='special';})));
  var fixed={};CART.forEach(function(it,ci){var sig,label,series,amt,ftype='fixed';
   if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h;label='電梯內箱';series=fItem(it.brand,it.idx).asia;}
   else if(it.kind==='elev-ceil'){amt=elevCeil(it);sig='EC|'+it.brand+'|'+it.idx+'|'+it.cl+'|'+it.cw;label='電梯天花板';series=fItem(it.brand,it.idx).asia;}
@@ -547,7 +586,7 @@ function render(){
  if(v('g-cat'))fillGlassSeries();
  var lines=buildLines();var box=document.getElementById('lines');
  if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
- else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':' 件'));
+ else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='special'?' 項':' 件')));
    var orig=L.base||L.amount;
    var szHtml='';
    if(L.type==='film'&&L.sizeRows&&L.sizeRows.length){szHtml='<div style="margin-top:5px;padding-left:2px">'+L.sizeRows.map(function(s){return '<div style="font-size:12px;color:#6b7280;line-height:1.8">· 寬'+s.w+'×高'+s.h+' cm　×'+s.n+'　<span style="color:#9ca3af">'+s.caiEach.toFixed(1)+' 才/片</span></div>';}).join('')+'</div>';}
@@ -752,6 +791,7 @@ async function prefillFromCase(id){
   fillSel('e-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));fillElevItem();elevToggle();
   fillSel('g-cat',Object.keys(GLASS).map(function(k){return {v:k,t:GLASS[k].label};}));fillGlassSeries();addGlassRow();
   addObjectRow();
+  addSpecialRow();
   fillDoor();
   fillSel('f-origin',Object.keys(FUT).map(function(k){return {v:k,t:FUT[k].label};}));fillFutM();
   render();
