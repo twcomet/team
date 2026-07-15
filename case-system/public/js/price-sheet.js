@@ -29,7 +29,9 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ecomOf = p => Math.round((Number(p) || 0) * 1.05 / 50) * 50;
   const nt = n => '$' + (Math.round(Number(n) || 0)).toLocaleString('en-US');
-  const priceOf = (r, is3m) => is3m ? (Number(r.per_m) || 0) : (Number(r.ecom_price) || ecomOf(r.per_m));
+  const caiFactor = w => ((Number(w) || 122) * 100) / 900;                 // 每米→每才 換算係數（膜寬 cm × 100 ÷ 900）
+  const perTsai = r => Math.round((Number(r.per_m) || 0) / caiFactor(r.width)); // 3M 每才牌價（未稅，比照報價設定）
+  const priceOf = (r, is3m) => is3m ? perTsai(r) : (Number(r.ecom_price) || ecomOf(r.per_m)); // 3M 以每才、其餘以電商含稅/米
   const todayStr = () => { const d = new Date(); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 
   let cssInjected = false;
@@ -120,7 +122,7 @@
       : '<th style="width:32%">系列／型號</th>';
     const head = `<tr>${showBand ? '<th style="width:3%"></th>' : ''}${codeTh}` +
       `<th style="width:8%">規格<br>(米)</th>` +
-      `<th class="ps-ph" style="width:13%">每米 $</th>` +
+      `<th class="ps-ph" style="width:13%">${is3m ? '每才 $' : '每米 $'}</th>` +
       `<th style="width:15%">連工帶料<br>全平面牆面</th><th style="width:14%">系統櫃<br>門片</th><th style="width:15%">連工帶料<br>造型</th></tr>`;
 
     let bodyRows = '';
