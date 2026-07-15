@@ -891,7 +891,7 @@ function copyLink() {
   if (!quoteData.share_token) { showToast('請先發送報價單', 'error'); return; }
   const link = `${location.origin}/quote/${quoteData.share_token}`;
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(link).then(() => showToast('連結已複製'));
+    navigator.clipboard.writeText(link).then(() => showToast('連結已複製'), () => prompt('請手動複製：', link));
   } else {
     prompt('請手動複製：', link);
   }

@@ -541,9 +541,18 @@ async function saveQuote(status){
 /* 存檔後：客戶連結 / PDF */
 function showSentActions(){ var el=document.getElementById('ec-sent-actions'); if(el&&SHARE_TOKEN) el.style.display='flex'; }
 function estLink(){ return SHARE_TOKEN ? (location.origin+'/estimate/'+SHARE_TOKEN) : ''; }
-function copyEstLink(){ var l=estLink(); if(!l){alert('請先儲存估價單');return;}
-  navigator.clipboard.writeText(l).then(function(){ document.getElementById('ec-status').textContent='🔗 已複製客戶連結：'+l; },
-    function(){ prompt('複製此連結給客戶：', l); }); }
+function copyEstLink(){
+  var l=estLink(); if(!l){alert('請先儲存估價單');return;}
+  function done(){ var s=document.getElementById('ec-status'); if(s) s.textContent='🔗 已複製客戶連結：'+l; }
+  function fallback(){
+    try{ var ta=document.createElement('textarea'); ta.value=l; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.top='0'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var ok=document.execCommand('copy'); document.body.removeChild(ta); if(ok){ done(); return; } }catch(e){}
+    window.prompt('複製此連結給客戶：', l);   // 最後手段：手動複製
+  }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(l).then(done, fallback); }
+    else { fallback(); }
+  }catch(e){ fallback(); }
+}
 function dlEstPdf(){ if(!SHARE_TOKEN){alert('請先儲存估價單');return;} window.open('/estimate/'+SHARE_TOKEN+'/pdf','_blank'); }
 /* 從估價單查詢「開啟編輯」：?edit=<id> 載回明細 */
 async function loadEstQuote(id){
