@@ -110,6 +110,9 @@ function computeSpecial(arr) {
 }
 function elevBoxAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), H = roundElev(c.h); let m = 0; if (c.side) m += Math.ceil(c.side / W) * (H / 100); if (c.backw) m += Math.ceil(c.backw / W) * (H / 100); return ceil100(m * Fb * unit); }
 function elevCeilAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), ch = roundElev(c.cl), m = Math.ceil(c.cw / W) * (ch / 100); return ceil100(m * Fb * unit); }
+// 電梯門（內門/內門框/外門/外門框）：算才數同內箱，單片＝⌈門寬/膜寬⌉×高(米)×Fb×造型價
+const ELEV_DOOR_LABEL = { 'door-in': '內門', 'frame-in': '內門框', 'door-out': '外門', 'frame-out': '外門框' };
+function elevDoorAmt(c, cat) { const it = filmItem(cat, c.brand, c.idx), W = filmW(it), Fb = W * 100 / 900, unit = elevUnit(it), H = roundElev(c.h), m = Math.ceil(c.w / W) * (H / 100); return ceil100(m * Fb * unit); }
 
 function buildLines(cart, opts, cat) {
   const cust = opts.cust || 'owner';
@@ -126,6 +129,7 @@ function buildLines(cart, opts, cat) {
     if (it.kind === 'elev-box') { amt = elevBoxAmt(it, cat); sig = 'EB|' + it.brand + '|' + it.idx + '|' + it.side + '|' + it.backw + '|' + it.h; label = '電梯內箱'; series = filmItem(cat, it.brand, it.idx).asia; }
     else if (it.kind === 'elev-ceil') { amt = elevCeilAmt(it, cat); sig = 'EC|' + it.brand + '|' + it.idx + '|' + it.cl + '|' + it.cw; label = '電梯天花板'; series = filmItem(cat, it.brand, it.idx).asia; }
     else if (it.kind === 'elev-floor') { amt = it.ftype === 'one' ? 12000 : 8000; sig = 'EL|' + it.ftype; label = '電梯地板' + (it.ftype === 'one' ? '·一片式' : '·塑膠地磚'); series = '固定價'; }
+    else if (it.kind === 'elev-door') { amt = elevDoorAmt(it, cat); sig = 'ED|' + it.dpart + '|' + it.brand + '|' + it.idx + '|' + it.w + '|' + it.h; label = '電梯' + (ELEV_DOOR_LABEL[it.dpart] || '門'); series = filmItem(cat, it.brand, it.idx).asia + '　門寬' + it.w + '×門高' + it.h; }
     else if (it.kind === 'door') { amt = doorPrice(cat, it); const dl = cat.DOORS[it.cat].label, sideTxt = it.side === 'single' ? '單面' : '雙面', frameTxt = it.cat === 'fire' ? '含框' : (it.frame === 'yes' ? '含框' : '不含框'), szTxt = it.cat === 'fire' ? ('·' + cat.DOORS.fire[it.size].label) : ''; sig = 'D|' + it.cat + '|' + it.origin + '|' + it.side + '|' + it.size + '|' + it.frame; label = '門｜' + dl; series = (it.origin === 'kr' ? '韓國膜' : '日本膜') + szTxt + '·' + sideTxt + '·' + frameTxt; }
     else if (it.kind === 'fut') { const fm = futMethod(cat, it.origin, it.method); amt = fm.price; sig = 'FUT|' + it.origin + '|' + it.method; label = '期貨運費｜' + cat.FUT[it.origin].label + '·' + fm.name; series = '出貨 ' + fm.lead; ftype = 'fut'; }
     else return;

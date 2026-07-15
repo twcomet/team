@@ -252,7 +252,7 @@
           <div class="ec-pane" id="pane-elev">
             <div class="ec-fld"><label>品牌</label><select id="e-brand" onchange="fillElevItem()"></select></div>
             <div class="ec-fld"><label>膜款</label><select id="e-item"></select></div>
-            <div class="ec-fld"><label>部位</label><select id="e-part" onchange="elevToggle()"><option value="box">內箱（左右牆＋後牆）</option><option value="ceil">天花板</option><option value="floor-plastic">地板·塑膠地磚(8,000)</option><option value="floor-one">地板·一片式(12,000)</option></select></div>
+            <div class="ec-fld"><label>部位</label><select id="e-part" onchange="elevToggle()"><option value="box">內箱（左右牆＋後牆）</option><option value="ceil">天花板</option><option value="door-in">內門</option><option value="frame-in">內門框</option><option value="door-out">外門</option><option value="frame-out">外門框</option><option value="floor-plastic">地板·塑膠地磚(8,000)</option><option value="floor-one">地板·一片式(12,000)</option></select></div>
             <div class="ec-szhd" id="e-szhd">尺寸（可加多筆）</div>
             <div id="e-rows"></div>
             <div class="ec-fld" id="e-floorfld" style="display:none"><label>數量（座/處）</label><input id="e-floorq" type="number" value="1"></div>
@@ -417,9 +417,14 @@ function addFilm(pfx){
 }
 
 function fillElevItem(){var b=v('e-brand');fillSel('e-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));}
+var DOOR_PARTS = { 'door-in':'內門','frame-in':'內門框','door-out':'外門','frame-out':'外門框' };
 function elevRowHtml(part){
   if(part==='ceil') return '<div class="ec-elevrow">'+
     '<div class="ec-g2"><div class="ec-fld"><label>天花長</label><input class="e-cl" type="number" value="150"></div><div class="ec-fld"><label>天花寬</label><input class="e-cw" type="number" value="150"></div></div>'+
+    '<div class="ec-fld"><label>數量（座/處）</label><input class="e-q" type="number" value="1"></div>'+
+    '<span class="ec-elevrm" onclick="rmElevRow(this)" title="刪除">×</span></div>';
+  if(DOOR_PARTS[part]) return '<div class="ec-elevrow">'+
+    '<div class="ec-g2"><div class="ec-fld"><label>門寬 cm</label><input class="e-dw" type="number" value="90"></div><div class="ec-fld"><label>門高 cm</label><input class="e-dh" type="number" value="210"></div></div>'+
     '<div class="ec-fld"><label>數量（座/處）</label><input class="e-q" type="number" value="1"></div>'+
     '<span class="ec-elevrm" onclick="rmElevRow(this)" title="刪除">×</span></div>';
   return '<div class="ec-elevrow">'+
@@ -427,7 +432,7 @@ function elevRowHtml(part){
     '<div class="ec-fld"><label>數量（座/處）</label><input class="e-q" type="number" value="1"></div>'+
     '<span class="ec-elevrm" onclick="rmElevRow(this)" title="刪除">×</span></div>';
 }
-function addElevRow(){ document.getElementById('e-rows').insertAdjacentHTML('beforeend', elevRowHtml(v('e-part')==='ceil'?'ceil':'box')); }
+function addElevRow(){ document.getElementById('e-rows').insertAdjacentHTML('beforeend', elevRowHtml(v('e-part'))); }
 function rmElevRow(el){ var row=el.closest('.ec-elevrow'), box=row.parentNode; if(box.querySelectorAll('.ec-elevrow').length<=1){ box.innerHTML=''; addElevRow(); return; } row.remove(); }
 function elevToggle(){
   var p=v('e-part'), isFloor=p.indexOf('floor')===0;
@@ -472,7 +477,11 @@ function addElev(){
   var rows=document.querySelectorAll('#e-rows .ec-elevrow'), added=0;
   rows.forEach(function(row){
     var q=+row.querySelector('.e-q').value||1;
-    if(part==='ceil'){
+    if(DOOR_PARTS[part]){
+      var dw=+row.querySelector('.e-dw').value||0, dh=+row.querySelector('.e-dh').value||0;
+      if(!dw||!dh) return;
+      for(var i=0;i<q;i++)CART.push({kind:'elev-door',brand:b,idx:idx,dpart:part,w:dw,h:dh});
+    } else if(part==='ceil'){
       var cl=+row.querySelector('.e-cl').value||0, cw=+row.querySelector('.e-cw').value||0;
       if(!cl||!cw) return;
       for(var i=0;i<q;i++)CART.push({kind:'elev-ceil',brand:b,idx:idx,cl:cl,cw:cw});
@@ -554,6 +563,7 @@ function addSpecial(){
 function elevUnit(it){return it.shape;}
 function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;if(c.side)m+=Math.ceil(c.side/W)*(H/100);if(c.backw)m+=Math.ceil(c.backw/W)*(H/100);return ceil100(m*Fb*u);}
 function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
+function elevDoor(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=Math.ceil(c.w/W)*(H/100);return ceil100(m*Fb*u);}
 function buildLines(){var lines=[];
  lines=lines.concat(computeFilms(CART.filter(function(c){return c.kind==='film';})));
  lines=lines.concat(computeGlass(CART.filter(function(c){return c.kind==='glass';})));
@@ -564,6 +574,7 @@ function buildLines(){var lines=[];
   if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h;label='電梯內箱';series=fItem(it.brand,it.idx).asia;}
   else if(it.kind==='elev-ceil'){amt=elevCeil(it);sig='EC|'+it.brand+'|'+it.idx+'|'+it.cl+'|'+it.cw;label='電梯天花板';series=fItem(it.brand,it.idx).asia;}
   else if(it.kind==='elev-floor'){amt=it.ftype==='one'?12000:8000;sig='EL|'+it.ftype;label='電梯地板'+(it.ftype==='one'?'·一片式':'·塑膠地磚');series='固定價';}
+  else if(it.kind==='elev-door'){amt=elevDoor(it);sig='ED|'+it.dpart+'|'+it.brand+'|'+it.idx+'|'+it.w+'|'+it.h;label='電梯'+(DOOR_PARTS[it.dpart]||'門');series=fItem(it.brand,it.idx).asia+'　門寬'+it.w+'×門高'+it.h;}
   else if(it.kind==='door'){amt=doorPriceOf(it);var dl={main:'大門現貨',room:'房門現貨',fire:'防火門'}[it.cat],st=(it.side==='single'?'單面':'雙面'),ft=it.cat==='fire'?'含框':(it.frame==='yes'?'含框':'不含框'),sz=it.cat==='fire'?('·'+{small:'小座',large:'大座',double:'雙開'}[it.size]):'';sig='D|'+it.cat+'|'+it.origin+'|'+it.side+'|'+it.size+'|'+it.frame;label='門｜'+dl;series=(it.origin==='kr'?'韓國膜':'日本膜')+sz+'·'+st+'·'+ft;}
   else if(it.kind==='fut'){var fm=futM(it.origin,it.method);amt=fm.price;sig='FUT|'+it.origin+'|'+it.method;label='期貨運費｜'+FUT[it.origin].label+'·'+fm.name;series='出貨 '+fm.lead;ftype='fut';}
   else return;
