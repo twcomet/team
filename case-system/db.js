@@ -1552,6 +1552,9 @@ _addCol('line_inquiries', 'ai_draft',              'TEXT');
 _addCol('line_inquiries', 'ai_draft_at',           'DATETIME');
 _addCol('line_inquiries', 'ai_needs_human',        'INTEGER DEFAULT 0');
 _addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
+// 群組訊息：詢問是否為 LINE 群組/多人聊天室；訊息記下群組發話者名稱
+_addCol('line_inquiries',         'is_group',       'INTEGER DEFAULT 0');
+_addCol('line_inquiry_messages',  'sender_display', 'TEXT');
 
 // 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
 db.exec(`

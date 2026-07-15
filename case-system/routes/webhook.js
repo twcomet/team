@@ -157,13 +157,14 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   }
 });
 
-// 客戶傳訊 → 建立／追加 LINE 詢問單（收所有訊息類型，一律不丟）
+// 客戶傳訊 → 建立／追加 LINE 詢問單（收所有訊息類型與 1對1／群組，一律不丟）
 async function handleClientMessage(event, channel) {
-  // 只處理個人 1 對 1 訊息；群組 / 多人聊天室訊息暫不處理（之後開放）
-  if (event.source?.type !== 'user') return;
-
-  const userId = event.source?.userId;
-  if (!userId) return;
+  const srcType = event.source?.type;            // 'user' | 'group' | 'room'
+  const isGroup = srcType === 'group' || srcType === 'room';
+  const userId  = event.source?.userId || null;  // 群組裡的發話者（用戶可能關閉分享 → null）
+  const convId  = event.source?.groupId || event.source?.roomId || null;
+  const threadKey = isGroup ? convId : userId;   // 對話線 key：1對1用 userId、群組用 groupId
+  if (!threadKey) return;
 
   const msg = event.message || {};
 
@@ -184,57 +185,70 @@ async function handleClientMessage(event, channel) {
     content = preview;
   }
 
-  const profile     = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
-  const displayName = profile?.displayName || 'LINE用戶';
+  // 顯示名稱 + 群組發話者：1對1抓個人檔案；群組抓群名＋成員名
+  let displayName = 'LINE用戶', senderDisplay = null;
+  if (isGroup) {
+    const summary = srcType === 'group' ? await lineGet(`/v2/bot/group/${convId}/summary`, channel.channel_token) : null;
+    displayName = summary?.groupName || (srcType === 'room' ? 'LINE 多人聊天室' : 'LINE 群組');
+    if (userId) {
+      const base = srcType === 'group' ? `/v2/bot/group/${convId}` : `/v2/bot/room/${convId}`;
+      const mp = await lineGet(`${base}/member/${userId}/profile`, channel.channel_token);
+      senderDisplay = mp?.displayName || '群組成員';
+    } else senderDisplay = '群組成員';
+  } else {
+    const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
+    displayName = profile?.displayName || 'LINE用戶';
+  }
 
   const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
   const orgId   = channel.org_id || null;
   const sysId   = sysUser?.id || null;
 
-  // 確保 clients 記錄存在，並同步最新 LINE 顯示名稱
-  let client = db.prepare(`SELECT * FROM clients WHERE line_user_id=?`).get(userId);
-  if (!client) {
-    const r = db.prepare(`
-      INSERT INTO clients (org_id, name, source, line_user_id, created_by)
-      VALUES (?, ?, 'LINE', ?, ?)
-    `).run(orgId, displayName, userId, sysId);
-    client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(r.lastInsertRowid);
-  } else if (client.name !== displayName) {
-    // LINE 用戶改名 → 同步更新 clients 顯示名稱
-    db.prepare(`UPDATE clients SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(displayName, client.id);
-    client = { ...client, name: displayName };
+  // clients 記錄：只有 1 對 1 才建/同步（群組不建 client）
+  let clientId = null;
+  if (!isGroup) {
+    let client = db.prepare(`SELECT * FROM clients WHERE line_user_id=?`).get(userId);
+    if (!client) {
+      const r = db.prepare(`INSERT INTO clients (org_id, name, source, line_user_id, created_by) VALUES (?, ?, 'LINE', ?, ?)`)
+        .run(orgId, displayName, userId, sysId);
+      client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(r.lastInsertRowid);
+    } else if (client.name !== displayName) {
+      db.prepare(`UPDATE clients SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(displayName, client.id);
+    }
+    clientId = client.id;
   }
 
-  // 掛到哪一筆詢問：優先同頻道進行中的；沒有就開新的（即使客人已有案件，也照顯示、用案件狀態標籤分類）
+  // 掛到哪一筆詢問：優先同頻道進行中的；沒有就開新的
   let inquiryId = db.prepare(`
     SELECT id FROM line_inquiries
     WHERE line_user_id=? AND status IN ('new','in_progress')
       AND (channel_id IS ? OR channel_id IS NULL)
     ORDER BY created_at DESC LIMIT 1
-  `).get(userId, channel.id || null)?.id || null;
+  `).get(threadKey, channel.id || null)?.id || null;
 
   if (!inquiryId) {
-    const followSrc = db.prepare(`SELECT add_source FROM line_follow_sources WHERE line_user_id=?`).get(userId);
-    const addSource = followSrc?.add_source || null;
+    const addSource = !isGroup
+      ? (db.prepare(`SELECT add_source FROM line_follow_sources WHERE line_user_id=?`).get(threadKey)?.add_source || null)
+      : null;
     const r = db.prepare(`
-      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
-    `).run(userId, client.id, displayName, displayName, preview, orgId, channel.id || null, addSource);
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source, is_group)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+    `).run(threadKey, clientId, displayName, displayName, preview, orgId, channel.id || null, addSource, isGroup ? 1 : 0);
     inquiryId = r.lastInsertRowid;
   }
 
-  // 存訊息 + 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
-  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content) VALUES (?, 'in', ?, ?)`)
-    .run(inquiryId, msgType, content);
+  // 存訊息（群組帶發話者）+ 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
+  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sender_display) VALUES (?, 'in', ?, ?, ?)`)
+    .run(inquiryId, msgType, content, senderDisplay);
   db.prepare(`
     UPDATE line_inquiries
     SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
         message_count=message_count+1, display_name=?, updated_at=CURRENT_TIMESTAMP
     WHERE id=?
-  `).run(preview, displayName, inquiryId);
+  `).run(isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview, displayName, inquiryId);
 
-  // AI 草稿模式：背景擬一則建議回覆存進後台（不主動傳給客人；有設 API key 才跑）
-  if (process.env.ANTHROPIC_API_KEY) {
+  // AI 草稿模式：背景擬稿存後台（群組先不自動擬，避免多人對話誤判；1對1才跑）
+  if (!isGroup && process.env.ANTHROPIC_API_KEY) {
     require('../lib/line-ai').generateInquiryDraft(inquiryId).catch(err => console.error('[LINE-AI] 擬稿失敗:', err.message));
   }
 
