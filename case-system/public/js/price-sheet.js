@@ -13,6 +13,52 @@
     kr: ['空運 $6,000／一款（約 2–10 工作天，不含假日）', '海運 $3,000／一款（約 20–30 工作天，不含假日）'],
     jp: ['空運 $6,000／一款（約 3–4 週，不含假日）'],
   };
+  // 3M DI-NOC 官方牌價（2026/5/1）——建議售價「元/才」(未稅)、現貨供應色號、規格、才(支)。單一真實來源。
+  const OFFICIAL_3M = [
+    { code: 'AE', colors: 'AE-1643、AE-2154、AE-2160、AE-2161、AE-2503、AE-2508、AE-2509', w: 122, roll: 50, tsai: 656, price: 170 },
+    { code: 'AE-MT', colors: 'AE-1917MT', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'AM', colors: 'AM-1696', w: 122, roll: 50, tsai: 656, price: 385 },
+    { code: 'AR', label: 'AR 耐磨系列', colors: 'ME-2284AR、ME-2285AR、ME-2292AR、ME-2293AR、ME-2295AR、PS-055AR', w: 122, roll: 25, tsai: 328, price: 235 },
+    { code: 'CA', colors: 'CA-420、CA-421', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'CH', colors: 'CH-1629、CH-1630、CH-1631、CH-2116、CH-2118', w: 122, roll: 50, tsai: 656, price: 160 },
+    { code: 'CN', colors: 'CN-1622、CN-1623', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'DW-MT', colors: 'DW-1873MT、DW-1881MT、DW-1883MT、DW-2200MT、DW-2202MT、DW-2218MT、DW-2223MT', w: 122, roll: 50, tsai: 656, price: 205 },
+    { code: 'ET', colors: '', w: 122, roll: 25, tsai: 328, price: 460 },
+    { code: 'EX', label: 'EX 外牆系列', colors: 'FW-1805EX、ME-005EX、PS-959EX、WG-1143EX', w: 122, roll: 50, tsai: 656, price: 300 },
+    { code: 'FA', colors: '', w: 122, roll: 50, tsai: 656, price: 220 },
+    { code: 'FE', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'FW', colors: 'FW-236、FW-336、FW-337、FW-338、FW-1022、FW-1122、FW-1125、FW-1129、FW-1212、FW-1217、FW-1218、FW-1256、FW-1257、FW-1272、FW-1273、FW-1275、FW-1276、FW-1285、FW-1304、FW-1757、FW-1761、FW-1974、FW-1978、FW-1979、FW-7008、FW-7011', w: 122, roll: 50, tsai: 656, price: 155 },
+    { code: 'HG', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'HS', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'LE', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'LW', colors: 'LW-1081', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'LZ', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'ME', colors: 'ME-147、ME-379、ME-380、ME-1225、ME-1434、ME-2024、ME-2027、ME-2172、ME-2173、ME-2273、ME-2274、ME-2275、ME-2554、ME-2558、ME-2564', w: 122, roll: 50, tsai: 656, price: 160 },
+    { code: 'ME-MT', colors: '', w: 122, roll: 25, tsai: 328, price: 235 },
+    { code: 'MW', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'NU', colors: 'NU-1240、NU-1786、NU-1789、NU-2008、NU-2010', w: 122, roll: 50, tsai: 656, price: 190 },
+    { code: 'NU-MT', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PA', colors: 'PA-180、PA-181、PA-183、PA-185、PA-187、PA-320、PA-390', w: 122, roll: 50, tsai: 656, price: 155 },
+    { code: 'PC', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PG', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PS', colors: 'PS-503、PS-504、PS-900、PS-1183', w: 122, roll: 50, tsai: 656, price: 140 },
+    { code: 'PS-MT', colors: 'PS-3095MT、PS-3099MT、PS-3864MT、PS-3866MT', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PS-MTRC', colors: 'PS-2400MTRC、PS-2401MTRC、PS-2402MTRC、PS-2403MTRC、PS-2405MTRC', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PT', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'PW-MT', colors: '', w: 122, roll: 50, tsai: 656, price: 265 },
+    { code: 'RS', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'RT', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'SE', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'SI', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'ST', colors: 'ST-1831、ST-2539', w: 122, roll: 50, tsai: 656, price: 215 },
+    { code: 'ST-MT', colors: 'ST-1914MT、ST-1916MT、ST-2171MT', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'SU-MT', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'TE', colors: '', w: 122, roll: 50, tsai: 656, price: 235 },
+    { code: 'VM', colors: 'VM-305、VM-1487、VM-1691、VM-1692、VM-2090、VM-2364、VM-2365、VM-2366', w: 122, roll: 25, tsai: 328, price: 375 },
+    { code: 'VM-MT', colors: '', w: 122, roll: 25, tsai: 328, price: 460 },
+    { code: 'WG', colors: 'WG-157、WG-247、WG-256、WG-453、WG-467、WG-664、WG-835、WG-836、WG-854、WG-865、WG-1044、WG-1046、WG-1067、WG-1140、WG-1141、WG-1196、WG-1708、WG-1837', w: 122, roll: 50, tsai: 656, price: 140 },
+    { code: 'WH', label: '白板貼膜 WH-111', colors: 'WH-111', w: 125, roll: 30, tsai: 408, price: 205 },
+  ];
   const NOTES_WORK = [
     '膜料寬度皆為 122 公分（PS 石膏 93 公分）。',
     '電梯／消防栓／門（消防門、大門等）／窗框等物件皆以「座」計價。',
@@ -65,6 +111,7 @@
     td.ps-perm{background:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important;font-weight:900;font-size:15px}
     td.ps-perm small{display:block;font-weight:600;font-size:10px;opacity:.9;margin-top:2px}
     .ps-code{font-weight:800;letter-spacing:.3px;text-align:left!important}
+    .ps-codes{text-align:left!important;font-size:11.5px;color:#5f5866;line-height:1.7;word-break:break-word;white-space:normal}
     .ps-kr{color:#8a8390;font-weight:700}
     .ps-color{color:#5f5866}
     .ps-cai{font-weight:700;color:#3a3540}
@@ -104,37 +151,60 @@
       `<td class="ps-cai">${nt(r.plane)}</td><td class="ps-cai">${nt(r.cabinet)}</td><td class="ps-cai">${nt(r.shape)}</td>`;
   }
 
-  // 產生單一品牌的牌價表 HTML
-  function renderSheet(brand, rows, opts) {
-    injectCss();
-    opts = opts || {};
-    const b = BRANDS[brand]; if (!b) return '';
-    const is3m = brand === '3m';
-    // 濾掉沒有價格的空列（避免 $0 佔位列）
+  // 標準品牌表格（PAROI/BENIF/BODAQ，每米價）
+  function tableStd(brand, rows, opts) {
     rows = (rows || []).filter(r => (Number(r.per_m) || 0) > 0 || (Number(r.ecom_price) || 0) > 0);
     const hasKr = rows.some(r => (r.kr_code || '').trim());      // 有韓碼才顯示「韓國系列」欄
-    const groups = groupRows(rows, is3m);
+    const groups = groupRows(rows, false);
     const showBand = groups.length > 1 || (groups[0] && groups[0].fireproof);
     const cols = 6 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
-
     const codeTh = hasKr
       ? '<th style="width:20%">亞洲系列</th><th style="width:12%">韓國系列</th>'
       : '<th style="width:32%">系列／型號</th>';
     const head = `<tr>${showBand ? '<th style="width:3%"></th>' : ''}${codeTh}` +
-      `<th style="width:8%">規格<br>(米)</th>` +
-      `<th class="ps-ph" style="width:13%">${is3m ? '每才 $' : '每米 $'}</th>` +
+      `<th style="width:8%">規格<br>(米)</th><th class="ps-ph" style="width:13%">每米 $</th>` +
       `<th style="width:15%">連工帶料<br>全平面牆面</th><th style="width:14%">系統櫃<br>門片</th><th style="width:15%">連工帶料<br>造型</th></tr>`;
-
     let bodyRows = '';
     groups.forEach(g => {
       g.rows.forEach((r, i) => {
         const band = (showBand && i === 0)
           ? `<td class="ps-band ${g.fireproof === '防焰' ? '' : 'nf'}" rowspan="${g.rows.length}">${esc(g.fireproof || '')}</td>` : '';
-        bodyRows += `<tr>${band}${rowCells(r, is3m, hasKr, opts.customer)}</tr>`;
+        bodyRows += `<tr>${band}${rowCells(r, false, hasKr, opts.customer)}</tr>`;
       });
     });
     const body = bodyRows || `<tr><td colspan="${cols}" style="padding:36px;color:#9ca3af">此品牌尚無牌價資料</td></tr>`;
+    return `<table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
 
+  // 3M 表格（依 3M 官方牌價表：系列/現貨供應色號/規格/才(支)/每才建議售價；連工帶料取報價設定或公式回推）
+  function table3m(dbRows) {
+    const dbMap = {}; (dbRows || []).forEach(r => { dbMap[(r.asia_code || '').trim()] = r; });
+    const head = `<tr>
+      <th style="width:9%">系列</th><th style="width:37%">現貨供應色號</th>
+      <th style="width:11%">規格</th><th style="width:7%">才(支)</th>
+      <th class="ps-ph" style="width:11%">每才 $</th>
+      <th style="width:8%">連工帶料<br>全平面牆面</th><th style="width:9%">系統櫃<br>門片</th><th style="width:8%">連工帶料<br>造型</th></tr>`;
+    const body = OFFICIAL_3M.map(o => {
+      const db = dbMap[o.code] || {};
+      const plane = db.plane || o.price + 90, cabinet = db.cabinet || o.price + 120, shape = db.shape || o.price + 145;
+      return `<tr>
+        <td class="ps-code">${esc(o.label || o.code)}</td>
+        <td class="ps-codes">${esc(o.colors || '—')}</td>
+        <td>${o.w}cm×${o.roll}M</td>
+        <td>${o.tsai}</td>
+        <td class="ps-perm">${nt(o.price)}<small>未稅/才</small></td>
+        <td class="ps-cai">${nt(plane)}</td><td class="ps-cai">${nt(cabinet)}</td><td class="ps-cai">${nt(shape)}</td>
+      </tr>`;
+    }).join('');
+    return `<table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
+
+  // 產生單一品牌的牌價表 HTML
+  function renderSheet(brand, rows, opts) {
+    injectCss();
+    opts = opts || {};
+    const b = BRANDS[brand]; if (!b) return '';
+    const tableHtml = (brand === '3m') ? table3m(rows) : tableStd(brand, rows, opts);
     return `<div class="ps-sheet" style="--c1:${b.c1};--c2:${b.c2};--soft:${b.soft}" data-brand="${brand}">
       <div class="ps-head">
         <img src="/logo.png" alt="繪新">
@@ -142,15 +212,28 @@
         <div class="title">裝潢貼膜價格表</div>
         <div class="date">繪新國際<br>更新日 ${todayStr()}</div>
       </div>
-      <div class="ps-scroll"><table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+      <div class="ps-scroll">${tableHtml}</div>
       ${notesHtml(brand)}
     </div>`;
   }
 
+  const NOTES_3M = [
+    '建議售價為「元／才」未稅，比照 3M 官方牌價表（2026/5/1）。',
+    '現貨供應最低出貨 32 才；規格 122cm×50M（部分系列 25M、WH 白板膜 125cm×30M）。',
+    '底漆 WP-2000 $6,500／瓶（3.75L）、助黏劑 UPUV $2,150／瓶（946ml），依施工需求另計。',
+    'Fasara 玻璃裝飾貼膜（SH2 系列）屬玻璃膜，另列報價。',
+  ];
   function notesHtml(brand) {
     const f = BRANDS[brand].freight;
-    const freight = f ? FREIGHT_NOTE[f] : ['3M 為現貨供應，無期貨運費。'];
     const blk = (lb, arr) => `<div class="ps-note"><div class="lb">${lb}</div><ul>${arr.map(x => `<li>${x}</li>`).join('')}</ul></div>`;
+    if (brand === '3m') {
+      return `<div class="ps-notes">
+        ${blk('低消說明', LOWMIN_NOTE)}
+        ${blk('3M 說明', NOTES_3M)}
+        ${blk('施工費<br>說明', NOTES_WORK)}
+      </div>`;
+    }
+    const freight = f ? FREIGHT_NOTE[f] : [];
     return `<div class="ps-notes">
       ${blk('低消說明', LOWMIN_NOTE)}
       ${blk('期貨運費<br>說明', freight)}
