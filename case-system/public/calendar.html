@@ -488,6 +488,7 @@ function leavesByDate(){
   });
   return m;
 }
+function lateByDate(){ const m={}; (calData.lateList||[]).forEach(x=>{ m[x.date]=x.names||[]; }); return m; }
 function idleByDate(dateStr, leaveMap){
   const roster=calData.roster||[];
   if(!roster.length) return null;
@@ -706,7 +707,7 @@ async function deleteAdhoc(){
 }
 
 function renderMonth(){
-  const byDate=buildMaps(), leaveMap=leavesByDate(), targetMap={};
+  const byDate=buildMaps(), leaveMap=leavesByDate(), lateMap=lateByDate(), targetMap={};
   (calData.targets||[]).forEach(t=>targetMap[t.date]=t.target_amount);
   const today=todayStr();
   const startDow=new Date(curYear,curMonth-1,1).getDay();
@@ -728,16 +729,18 @@ function renderMonth(){
     const shown=ev.slice(0,3).map(e=>{const dayB=e.dayNo&&e.dayNo>=2?`<span class="daybadge">D${e.dayNo}</span>`:'';const ix=regEv(e);let style;if(e.cat==='施工'){style=getPillStyle(e.c);}else{const col=e.reported?'#16a34a':(CAT_COLOR[e.cat]||'#5f6368');style=`background:${col}${e.reported?'2e':'1f'};color:${col};${e.reported?'font-weight:600':''}`;}return `<div class="gcal-ev" style="${style}" title="${e.title}" onclick="event.stopPropagation();openEvCard(${ix})">${dayB}${e.title}</div>`;}).join('');
     const lv=((calFilter==='全部'||calFilter==='請假')?(leaveMap[ds]||[]):[]).map(l=>`<div class="gcal-ev" style="background:#fef7e0;color:#b06000" title="${l.user_name} ${l.leave_type}">🏖️ ${l.user_name} ${l.leave_type}</div>`).join('');
     const more=ev.length>3?`<div class="gcal-more">還有 ${ev.length-3} 個</div>`:'';
+    const lateNames=(lateMap[ds]||[]);
+    const lateB=lateNames.length?`<div class="gcal-ev" style="background:#fce8e6;color:#c5221f;font-weight:600" title="今日遲到：${lateNames.join('、')}">⚠️ 遲到：${lateNames.join('、')}</div>`:'';
     let idleB='';
     if(showIdle && !other && d.getDay()!==0){ const il=idleByDate(ds,leaveMap); if(il) idleB=`<div class="gcal-idle ${il.length?'':'zero'}">🟢 空 ${il.length} 人</div>`; }
     const addB=canDispatchFE()?`<button class="gcal-addbtn" onclick="event.stopPropagation();openAddDisp('${ds}')">＋</button>`:'';
-    html+=`<div class="gcal-cell ${other?'other':''} ${ds===today?'today':''}" onclick="openDayModal('${ds}')">${revHtml}${addB}<div class="gcal-dnum">${d.getDate()}</div>${shown}${lv}${more}${idleB}</div>`;
+    html+=`<div class="gcal-cell ${other?'other':''} ${ds===today?'today':''}" onclick="openDayModal('${ds}')">${revHtml}${addB}<div class="gcal-dnum">${d.getDate()}</div>${shown}${lv}${lateB}${more}${idleB}</div>`;
   }
   document.getElementById('calView').innerHTML=html+'</div>';
 }
 
 function renderGrouped(isDay){
-  const byDate=buildMaps(), leaveMap=leavesByDate(), today=todayStr();
+  const byDate=buildMaps(), leaveMap=leavesByDate(), lateMap=lateByDate(), today=todayStr();
   let days=[];
   if(isDay){ days=[ new Date(curAnchor) ]; }
   else { const s=new Date(curAnchor); s.setDate(curAnchor.getDate()-curAnchor.getDay()); for(let i=0;i<7;i++){const x=new Date(s);x.setDate(s.getDate()+i);days.push(x);} }
@@ -754,6 +757,10 @@ function renderGrouped(isDay){
     const lvs=(leaveMap[ds]||[]);
     if((calFilter==='全部'||calFilter==='請假')&&lvs.length){
       body+=`<div class="gsec"><div class="gsec-h" style="color:#b06000"><span class="dot" style="background:#b06000"></span>請假(${lvs.length})</div>`+lvs.map(l=>`<div class="gchip" style="background:#b0600018;color:#b06000">${l.user_name} ${l.leave_type}</div>`).join('')+`</div>`;
+    }
+    const lateNames=(lateMap[ds]||[]);
+    if(lateNames.length){
+      body+=`<div class="gsec"><div class="gsec-h" style="color:#c5221f"><span class="dot" style="background:#c5221f"></span>遲到(${lateNames.length})</div>`+lateNames.map(n=>`<div class="gchip" style="background:#c5221f18;color:#c5221f">⚠️ ${n}</div>`).join('')+`</div>`;
     }
     if(!body)body='<div style="color:#bdc1c6;text-align:center;padding:14px;font-size:11px">無</div>';
     let idle='';

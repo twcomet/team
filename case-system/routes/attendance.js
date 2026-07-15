@@ -45,14 +45,34 @@ function nowTimeTW() {
   return new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour12: false }).slice(0, 5);
 }
 
-// 允許打卡的時段設定
-const CLOCKIN_WINDOWS = [
-  { label: '早班',     start: '06:30', end: '12:00', shiftStart: '09:00', lateAfter: '09:01' },
-  { label: '下午時段', start: '13:00', end: '14:30', shiftStart: '14:00', lateAfter: '14:01' },
+// 四個固定班別。準時窗 = 表定上班前 15 分鐘那一段；下班 = 基準 +9 小時（含午休 1h、實際工時 8h）
+const ONTIME_LEAD = 15;       // 準時窗長度（分鐘）
+const WORK_SPAN   = 9 * 60;   // 上班基準 +9 小時 = 下班
+const SHIFTS = [
+  { key: 'early',  label: '提早班', start: '08:00' },   // 07:45–08:00 準時，下班 17:00
+  { key: 'normal', label: '正常班', start: '09:00' },   // 08:45–09:00 準時，下班 18:00
+  { key: 'noon',   label: '下午班', start: '14:00' },   // 13:45–14:00 準時，下班 23:00
+  { key: 'night',  label: '晚班',   start: '20:00' },   // 19:45–20:00 準時，下班 隔日 05:00
 ];
+const _toMin = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
+// 分鐘 → {time:'HH:MM', next_day:是否跨日}
+const _fmtMin = mins => {
+  const next_day = mins >= 1440;
+  const m = ((mins % 1440) + 1440) % 1440;
+  return { time: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`, next_day };
+};
 
-function getClockInWindow(now) {
-  return CLOCKIN_WINDOWS.find(w => now >= w.start && now <= w.end) || null;
+// 依打卡時間分類：歸到「時間最接近」的班別，早到=特殊、準時、晚到=遲到（全天皆可打卡）
+function classifyPunch(now) {
+  const t = _toMin(now);
+  let shift = SHIFTS[0], best = Infinity;
+  for (const s of SHIFTS) { const d = Math.abs(t - _toMin(s.start)); if (d <= best) { best = d; shift = s; } } // 平手取較晚的班（早到）
+  const st = _toMin(shift.start);
+  let type, isLate, outMin, workStartMin;
+  if (t >= st - ONTIME_LEAD && t <= st) { type = 'ontime';  isLate = false; workStartMin = st; outMin = st + WORK_SPAN; }  // 準時 → 下班用表定
+  else if (t > st)                       { type = 'late';    isLate = true;  workStartMin = t;  outMin = t  + WORK_SPAN; }  // 晚到 → 遲到，下班用實際 +9h
+  else                                   { type = 'special'; isLate = false; workStartMin = t;  outMin = t  + WORK_SPAN; }  // 早到/離峰 → 特殊，不算遲到
+  return { shift, type, isLate, out: _fmtMin(outMin), workStart: _fmtMin(workStartMin).time };
 }
 
 // ── 打卡（上班）────────────────────────────────────────────────
@@ -67,15 +87,8 @@ router.post('/clockin', async (req, res) => {
   const today = todayTW();
   const now   = nowTimeTW();
 
-  // 打卡時段檢查
-  const window = getClockInWindow(now);
-  if (!window) {
-    const windowList = CLOCKIN_WINDOWS.map(w => `${w.label} ${w.start}–${w.end}`).join('、');
-    return res.status(400).json({
-      error: 'Outside allowed hours',
-      message: `目前不在打卡時段內。\n允許時段：${windowList}`,
-    });
-  }
+  // 全天皆可打卡，依打卡時間自動判定班別／準時／遲到／特殊時段
+  const cls = classifyPunch(now);
 
   // 今天已打卡
   const existing = db.prepare(`SELECT * FROM attendance WHERE user_id=? AND work_date=?`).get(emp.id, today);
@@ -114,18 +127,40 @@ router.post('/clockin', async (req, res) => {
     });
   }
 
-  const isLate    = now >= window.lateAfter;
-  const workStart = isLate ? now : window.shiftStart;
+  const isLate    = cls.isLate;
+  const workStart = cls.workStart;
+  const autoOut   = cls.out.time;           // 下班 = 基準 +9 小時（晚班會跨日）
+  const clockType = cls.type;               // ontime / late / special
 
   if (existing) {
-    db.prepare(`UPDATE attendance SET clock_in=?, work_start=?, is_late=?, clock_in_lat=?, clock_in_lng=?, location_type=? WHERE id=?`)
-      .run(now, workStart, isLate ? 1 : 0, lat, lng, location_type, existing.id);
+    db.prepare(`UPDATE attendance SET clock_in=?, work_start=?, is_late=?, clock_in_lat=?, clock_in_lng=?, location_type=?, clock_out=?, work_end=?, auto_clock_out=1, clock_type=? WHERE id=?`)
+      .run(now, workStart, isLate ? 1 : 0, lat, lng, location_type, autoOut, autoOut, clockType, existing.id);
   } else {
-    db.prepare(`INSERT INTO attendance (user_id, work_date, clock_in, work_start, is_late, clock_in_lat, clock_in_lng, location_type) VALUES (?,?,?,?,?,?,?,?)`)
-      .run(emp.id, today, now, workStart, isLate ? 1 : 0, lat, lng, location_type);
+    db.prepare(`INSERT INTO attendance (user_id, work_date, clock_in, work_start, is_late, clock_in_lat, clock_in_lng, location_type, clock_out, work_end, auto_clock_out, clock_type) VALUES (?,?,?,?,?,?,?,?,?,?,1,?)`)
+      .run(emp.id, today, now, workStart, isLate ? 1 : 0, lat, lng, location_type, autoOut, autoOut, clockType);
   }
 
-  return res.json({ ok: true, time: now, is_late: isLate, location: location_name });
+  // 遲到 → 即時提醒員工（站內通知 + LINE），並告知本月累積次數與全勤獎金影響
+  if (isLate) {
+    try {
+      const ym = today.slice(0, 7);
+      const lateCount = db.prepare(`SELECT COUNT(*) n FROM attendance WHERE user_id=? AND work_date LIKE ? AND is_late=1`).get(emp.id, `${ym}-%`).n;
+      const warn = lateCount > 5 ? '\n⚠️ 本月遲到已超過 5 次，將影響全勤獎金。'
+                 : lateCount === 5 ? '\n⚠️ 本月遲到已達 5 次，再遲到將影響全勤獎金。' : '';
+      const body = `你今天遲到了（${now} 打卡）。本月已遲到 ${lateCount} 次。${warn}\n請注意你的出缺勤。`;
+      db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'attendance','users',?,?)`)
+        .run(emp.id, '⏰ 出勤提醒：今天遲到', body, emp.id, '/my-tasks');
+      const u = db.prepare(`SELECT line_user_id FROM users WHERE id=?`).get(emp.id);
+      if (u?.line_user_id) { const { pushMessage } = require('./webhook'); pushMessage(u.line_user_id, `⏰ 出勤提醒\n${body}`).catch(() => {}); }
+    } catch (e) { /* non-critical */ }
+  }
+
+  const outDisp = cls.out.next_day ? `隔日 ${autoOut}` : autoOut;
+  return res.json({
+    ok: true, time: now, is_late: isLate, location: location_name,
+    clock_out: autoOut, clock_out_display: outDisp, next_day: cls.out.next_day,
+    shift: cls.shift.label, clock_type: clockType,
+  });
 });
 
 // ── 打卡（下班）────────────────────────────────────────────────

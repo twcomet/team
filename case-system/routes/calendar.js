@@ -179,7 +179,19 @@ router.get('/', requireAuth, (req, res) => {
     ORDER BY a.event_date, a.event_time
   `).all(dateFrom, dateTo, ...orgPsA);
 
-  res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments, adhoc });
+  // 遲到名單（每天在行事曆上全體可見）：當天有遲到打卡記錄者
+  const lateRows = db.prepare(`
+    SELECT a.work_date AS date, u.name
+    FROM attendance a
+    JOIN users u ON u.id = a.user_id
+    WHERE a.is_late=1 AND a.work_date BETWEEN ? AND ?
+    ORDER BY a.work_date, u.sort_order, u.name
+  `).all(dateFrom, dateTo);
+  const lateMap = {};
+  for (const r of lateRows) { (lateMap[r.date] ||= []).push(r.name); }
+  const lateList = Object.entries(lateMap).map(([date, names]) => ({ date, names }));
+
+  res.json({ cases, surveys, targets, leaves, caseInstallWeight, roster, assignments, adhoc, lateList });
 });
 
 // GET /api/calendar/search?q=  行事曆內搜尋（跨月）：找符合關鍵字的派工/場勘/暫定事項，回傳日期供跳轉

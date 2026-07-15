@@ -402,6 +402,9 @@
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="可使用排版工具（可開給學員/經銷商）">
           <input type="checkbox" id="userCanLayout"> 📐 排版工具
         </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer" title="勾選＝此帳號免打卡、不列入出勤/遲到統計與提醒（測試或特殊帳號用）。老闆／副總／外包會自動免打卡，不必勾。">
+          <input type="checkbox" id="userClockExempt"> 🕒 免打卡（測試/特殊帳號）
+        </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px">
           每日工費（元/天）$<input type="number" id="userDailyCost" placeholder="0" min="0" style="width:90px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px">
         </label>
@@ -985,6 +988,7 @@ document.getElementById('newUserBtn').addEventListener('click', () => {
   document.getElementById('userCanLayout').checked = false;
   document.getElementById('userAcceptDispatch').checked = false;
   document.getElementById('userIsSales').checked = false;
+  document.getElementById('userClockExempt').checked = false;
   document.getElementById('userDailyCost').value = '';
   document.getElementById('lineBindStatus').innerHTML = '<span style="color:var(--gray-400)">新增帳號後員工自行綁定</span>';
   document.getElementById('userUsername').disabled = false;
@@ -1152,6 +1156,7 @@ function openEditUser(id) {
   document.getElementById('userCanShip').checked        = !!u.can_ship;
   document.getElementById('userCanLayout').checked      = !!u.can_layout;
   document.getElementById('userIsSales').checked = !!u.is_sales;
+  document.getElementById('userClockExempt').checked = !!u.clock_exempt;
   document.getElementById('userDailyCost').value = u.daily_cost != null ? u.daily_cost : '';
   const bindEl = document.getElementById('lineBindStatus');
   if (u.line_user_id) {
@@ -1226,6 +1231,7 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
     can_ship:        document.getElementById('userCanShip').checked,
     can_layout:      document.getElementById('userCanLayout').checked,
     is_sales: document.getElementById('userIsSales').checked,
+    clock_exempt: document.getElementById('userClockExempt').checked,
     daily_cost: parseFloat(document.getElementById('userDailyCost').value) || null,
     active: id ? (allUsers.find(u => u.id === parseInt(id))?.active ?? 1) : 1,
     service_areas: id ? JSON.parse(allUsers.find(u => u.id === parseInt(id))?.service_areas || '[]') : [],

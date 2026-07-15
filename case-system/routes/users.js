@@ -13,7 +13,7 @@ router.get('/', requireAuth, (req, res) => {
                       u.is_manager, u.can_see_amounts, u.can_see_cost, u.can_see_labor_cost,
                       u.can_manage_assets, u.can_delete, u.can_ship, u.can_layout, u.service_areas, u.active,
                       u.permissions, u.sort_order, u.daily_cost, u.line_user_id, u.hire_date,
-                      u.accept_dispatch, u.is_sales, o.name as org_name
+                      u.accept_dispatch, u.is_sales, u.clock_exempt, o.name as org_name
                FROM users u LEFT JOIN orgs o ON u.org_id = o.id`;
   const params = [];
   const where = [];
@@ -42,7 +42,7 @@ router.post('/', requireCanManageUsers, (req, res) => {
   const { name, username, password, role, org_id, department, is_manager,
           can_see_amounts, can_see_cost, can_see_labor_cost, can_delete,
           can_manage_assets, can_ship, can_layout, service_areas, allowed_org_ids,
-          permissions, daily_cost, accept_dispatch, is_sales } = req.body;
+          permissions, daily_cost, accept_dispatch, is_sales, clock_exempt } = req.body;
 
   // 非 owner 只能建立自己分店的人
   if (me.role !== 'owner' && org_id != me.org_id) {
@@ -58,8 +58,8 @@ router.post('/', requireCanManageUsers, (req, res) => {
       INSERT INTO users (name, username, password, role, org_id, department,
                          is_manager, can_see_amounts, can_see_cost, can_see_labor_cost,
                          can_delete, can_manage_assets, can_ship, can_layout, service_areas, allowed_org_ids,
-                         permissions, daily_cost, accept_dispatch, is_sales)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         permissions, daily_cost, accept_dispatch, is_sales, clock_exempt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(name, username, hash, role,
            org_id || me.org_id,
            department || null,
@@ -76,7 +76,8 @@ router.post('/', requireCanManageUsers, (req, res) => {
            JSON.stringify(permissions || {}),
            daily_cost ?? null,
            accept_dispatch ? 1 : 0,
-           is_sales ? 1 : 0);
+           is_sales ? 1 : 0,
+           clock_exempt ? 1 : 0);
 
     db.prepare(`INSERT INTO audit_logs (user_id, action, entity, entity_id, detail) VALUES (?, 'create_user', 'users', ?, ?)`)
       .run(me.id, result.lastInsertRowid, `新增帳號：${username} (${role})`);
@@ -99,7 +100,7 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
     if (target.role === 'owner') return res.status(403).json({ error: '無法修改最高管理者' });
   }
 
-  const { name, role, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, can_ship, can_layout, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales } = req.body;
+  const { name, role, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, can_ship, can_layout, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales, clock_exempt } = req.body;
   const newAllowed = 'allowed_org_ids' in req.body
     ? (req.body.allowed_org_ids?.length ? JSON.stringify(req.body.allowed_org_ids) : null)
     : target.allowed_org_ids;
@@ -114,10 +115,11 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   const canAmountsVal    = can_see_amounts    !== undefined ? (can_see_amounts    ? 1 : 0) : (target.can_see_amounts    ?? 0);
   const activeVal        = active             !== undefined ? (active             ? 1 : 0) : (target.active             ?? 1);
   const serviceAreasVal  = service_areas      !== undefined ? JSON.stringify(service_areas || []) : (target.service_areas || '[]');
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, can_layout=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=? WHERE id=?`)
+  const clockExemptVal   = clock_exempt       !== undefined ? (clock_exempt       ? 1 : 0) : (target.clock_exempt        ?? 0);
+  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, can_layout=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=?, clock_exempt=? WHERE id=?`)
     .run(name, role, department, is_manager ? 1 : 0, canAmountsVal, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal, canLayoutVal,
          serviceAreasVal, activeVal,
-         JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, isSalesVal, req.params.id);
+         JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, isSalesVal, clockExemptVal, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）
   if ('line_user_id' in req.body) {
     db.prepare(`UPDATE users SET line_user_id=? WHERE id=?`).run(req.body.line_user_id || null, req.params.id);

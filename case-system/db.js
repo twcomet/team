@@ -1983,6 +1983,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS makeup_requests (
 
 // attendance 補欄位
 _addCol('attendance', 'location_type', "TEXT DEFAULT NULL"); // 'company' | 'site'
+_addCol('attendance', 'clock_type', "TEXT DEFAULT NULL");    // 'ontime' | 'late' | 'special'
 
 // ── 客戶預收款（膜料本、其他預收）─────────────────────────────
 db.exec(`
@@ -3249,6 +3250,7 @@ db.exec(`
 `);
 _addCol('users', 'can_ship', 'INTEGER DEFAULT 0');
 _addCol('users', 'can_layout', 'INTEGER DEFAULT 0');   // 排版工具權限（可開給學員/經銷商）
+_addCol('users', 'clock_exempt', 'INTEGER DEFAULT 0'); // 免打卡（測試/特殊帳號；老闆/副總/外包另由角色自動免）
 
 // ── 排版工具：專案（整包資料以 JSON 存）────────────────────────────────
 db.exec(`
