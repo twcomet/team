@@ -281,7 +281,7 @@
             <div class="ec-fld"><label>玻璃膜種類</label><select id="g-cat" onchange="fillGlassSeries()"></select></div>
             <div class="ec-fld"><label>型號</label><select id="g-series"></select></div>
             <div class="ec-szhd">尺寸（可加多筆）</div>
-            <div class="ec-szgrid ec-szcap"><span>高 cm</span><span>寬 cm</span><span>數量</span><span></span></div>
+            <div class="ec-szgrid ec-szcap"><span>寬 cm</span><span>高 cm</span><span>數量</span><span></span></div>
             <div id="g-rows"></div>
             <button type="button" class="ec-addrow" onclick="addGlassRow()">＋ 新增下一個尺寸</button>
             <button class="ec-add" onclick="addGlass()">＋ 加入玻璃</button>
@@ -308,7 +308,7 @@
           </div>
           <div class="ec-pane" id="pane-other">
             <div class="ec-fld"><label>項目名稱</label><input id="o-name" placeholder="例：天花造型、樑柱包覆…"></div>
-            <div class="ec-g3"><div class="ec-fld"><label>高 cm</label><input id="o-h" type="number" value="240"></div><div class="ec-fld"><label>寬 cm</label><input id="o-w" type="number" value="120"></div><div class="ec-fld"><label>數量</label><input id="o-q" type="number" value="1"></div></div>
+            <div class="ec-g3"><div class="ec-fld"><label>寬 cm</label><input id="o-w" type="number" value="120"></div><div class="ec-fld"><label>高 cm</label><input id="o-h" type="number" value="240"></div><div class="ec-fld"><label>數量</label><input id="o-q" type="number" value="1"></div></div>
             <div class="ec-fld"><label>單才連工帶料單價（元/才）</label><input id="o-unit" type="number" value="200"></div>
             <button class="ec-add" onclick="addOther()">＋ 加入其他項目</button>
             <div class="ec-hint">才數＝寬×高÷900；金額＝才數×單價（進位百元）。</div>
@@ -414,7 +414,7 @@ function buildFilmPane(pfx){
    '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
    '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
    '<div class="ec-szhd">尺寸（可加多筆，會歸在同一項目下）</div>'+
-   '<div class="ec-szgrid ec-szcap"><span>高 cm</span><span>寬 cm</span><span>數量</span><span></span></div>'+
+   '<div class="ec-szgrid ec-szcap"><span>寬 cm</span><span>高 cm</span><span>數量</span><span></span></div>'+
    '<div id="'+pfx+'-rows"></div>'+
    '<button type="button" class="ec-addrow" onclick="addFilmRow(\''+pfx+'\')">＋ 新增下一個尺寸</button>'+
    '<div class="ec-perm" id="'+pfx+'-perm"></div>'+
@@ -426,8 +426,8 @@ function buildFilmPane(pfx){
 }
 function filmRowHtml(pfx){
   return '<div class="ec-szrow ec-szgrid">'+
-    '<input class="'+pfx+'-h" type="number" placeholder="高" value="250">'+
     '<input class="'+pfx+'-w" type="number" placeholder="寬" value="220">'+
+    '<input class="'+pfx+'-h" type="number" placeholder="高" value="250">'+
     '<input class="'+pfx+'-q" type="number" placeholder="數量" value="1">'+
     '<span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span>'+
   '</div>';
@@ -449,8 +449,8 @@ function addFilm(pfx){
     for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w});
     added++;
   });
-  if(!added){ alert('請至少填一列的高與寬'); return; }
-  if(partial) alert('有尺寸列只填了高或寬，該列已略過；其餘已加入。');
+  if(!added){ alert('請至少填一列的寬與高'); return; }
+  if(partial) alert('有尺寸列只填了寬或高，該列已略過；其餘已加入。');
   render();
 }
 
@@ -481,7 +481,7 @@ function elevToggle(){
   document.getElementById('e-floorfld').style.display=isFloor?'block':'none';
   if(!isFloor) addElevRow();
 }
-function glassRowHtml(){ return '<div class="ec-szrow ec-szgrid"><input class="g-h" type="number" placeholder="高" value="180"><input class="g-w" type="number" placeholder="寬" value="90"><input class="g-q" type="number" placeholder="數量" value="1"><span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span></div>'; }
+function glassRowHtml(){ return '<div class="ec-szrow ec-szgrid"><input class="g-w" type="number" placeholder="寬" value="90"><input class="g-h" type="number" placeholder="高" value="180"><input class="g-q" type="number" placeholder="數量" value="1"><span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span></div>'; }
 function addGlassRow(){ document.getElementById('g-rows').insertAdjacentHTML('beforeend', glassRowHtml()); }
 function objectRowHtml(){ return '<div class="ec-elevrow"><div class="ec-fld"><label>項目名稱</label><input class="ob-name" placeholder="例：造型物件、特殊項目…"></div>'+
     '<div class="ec-g2"><div class="ec-fld"><label>數量</label><input class="ob-q" type="number" value="1"></div><div class="ec-fld"><label>單價（元）</label><input class="ob-price" type="number"></div></div>'+
@@ -505,8 +505,8 @@ function addGlass(){
     for(var i=0;i<q;i++)CART.push({kind:'glass',cat:c,idx:idx,h:h,w:w});
     added++;
   });
-  if(!added){ alert('請至少填一列的高與寬'); return; }
-  if(partial) alert('有尺寸列只填了高或寬，該列已略過；其餘已加入。');
+  if(!added){ alert('請至少填一列的寬與高'); return; }
+  if(partial) alert('有尺寸列只填了寬或高，該列已略過；其餘已加入。');
   render();
 }
 function addElev(){
@@ -534,7 +534,7 @@ function addElev(){
   render();
 }
 function addDoor(){var cat=v('d-cat'),o=v('d-origin'),side=v('d-side'),q=val('d-q')||1,sz=cat==='fire'?v('d-size'):null,frame=cat==='fire'?null:v('d-frame');for(var i=0;i<q;i++)CART.push({kind:'door',cat:cat,origin:o,side:side,size:sz,frame:frame});render();}
-function addOther(){var name=v('o-name').trim()||'其他項目',h=val('o-h'),w=val('o-w'),unit=val('o-unit'),q=val('o-q')||1;if(!h||!w){alert('請填高與寬');return;}for(var i=0;i<q;i++)CART.push({kind:'other',name:name,h:h,w:w,unit:unit});render();}
+function addOther(){var name=v('o-name').trim()||'其他項目',h=val('o-h'),w=val('o-w'),unit=val('o-unit'),q=val('o-q')||1;if(!h||!w){alert('請填寬與高');return;}for(var i=0;i<q;i++)CART.push({kind:'other',name:name,h:h,w:w,unit:unit});render();}
 function addObject(){
   var rows=document.querySelectorAll('#ob-rows .ec-elevrow'), added=0;
   rows.forEach(function(row){
