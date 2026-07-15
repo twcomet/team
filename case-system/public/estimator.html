@@ -55,6 +55,32 @@
   .ec-elevrow .ec-fld{margin-bottom:10px}
   .ec-elevrm{position:absolute;top:-8px;right:-8px;height:24px;width:24px;display:flex;align-items:center;justify-content:center;color:#dc2626;background:#fff;border:1px solid #fecaca;border-radius:50%;cursor:pointer;font-size:14px;font-weight:700;box-shadow:0 1px 3px rgba(16,24,40,.12);user-select:none}
   .ec-elevrm:hover{background:#fee2e2}
+  .hist-mask{position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+  .hist-box{background:#fff;border-radius:14px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:85vh;overflow:hidden}
+  .hist-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #eef0f3;font-size:16px}
+  .hist-x{cursor:pointer;font-size:24px;color:#9ca3af;line-height:1;user-select:none}
+  .hist-x:hover{color:#374151}
+  .hist-bar{display:flex;align-items:center;gap:10px;padding:12px 20px 6px}
+  .hist-bar input{flex:1;border:1px solid #d8dce2;border-radius:9px;padding:10px 13px;font-size:13.5px;font-family:inherit}
+  .hist-bar input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .hist-cnt{font-size:12px;color:#9ca3af;white-space:nowrap}
+  .hist-tabs{display:flex;gap:6px;padding:6px 20px 12px;border-bottom:1px solid #eef0f3;flex-wrap:wrap}
+  .hist-tab{font-size:12.5px;padding:5px 12px;border-radius:999px;background:#f4f5f7;color:#6b7280;cursor:pointer;font-weight:500}
+  .hist-tab.on{background:#2563eb;color:#fff;font-weight:600}
+  .hist-list{overflow:auto;padding:8px 12px 12px}
+  .hist-row{display:flex;align-items:center;gap:12px;padding:11px 10px;border-bottom:1px solid #f3f4f6}
+  .hist-row:hover{background:#f8fafc}
+  .hist-main{flex:1;min-width:0}
+  .hist-t{font-size:13.5px;font-weight:600;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hist-sub{font-size:11.5px;color:#9ca3af;margin-top:2px}
+  .hist-amt{font-weight:700;color:#D40069;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+  .hist-badge{display:inline-block;font-size:10.5px;border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px}
+  .hb-deal{background:#dcfce7;color:#15803d}
+  .hb-quote{background:#dbeafe;color:#1d4ed8}
+  .hb-est{background:#fef3c7;color:#b45309}
+  .hist-empty{text-align:center;color:#9ca3af;padding:40px;font-size:13px}
+  .hist-ft{padding:10px 20px;border-top:1px solid #eef0f3;font-size:11.5px;color:#9ca3af}
+  .hist-open{color:#2563eb;font-size:12px;text-decoration:none;white-space:nowrap;font-weight:600}
   .ec-qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   .ec-qhead b{font-size:15px}
   .ec-rm{color:#dc2626;font-size:12px;cursor:pointer}
@@ -182,7 +208,17 @@
     </div>
   </aside>
   <div class="main-content">
-    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><a href="/estimator-quotes" style="margin-left:auto;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">🗂️ 估價單查詢</a></div>
+    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><button type="button" onclick="openHistory()" style="margin-left:auto;font-size:13px;color:#2563eb;font-weight:600;background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit">🔍 查歷史報價</button><a href="/estimator-quotes" style="margin-left:12px;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">🗂️ 估價單查詢</a></div>
+    <!-- 歷史報價彈窗 -->
+    <div id="histModal" class="hist-mask" style="display:none" onclick="if(event.target===this)closeHistory()">
+      <div class="hist-box">
+        <div class="hist-hd"><b>🔍 歷史報價參考</b><span class="hist-x" onclick="closeHistory()">×</span></div>
+        <div class="hist-bar"><input id="hist-q" placeholder="搜尋 案件名稱／客戶／案號／膜款…" oninput="histDebounce()"><span id="hist-count" class="hist-cnt"></span></div>
+        <div class="hist-tabs"><span class="hist-tab on" data-ht="all" onclick="histTab('all')">全部</span><span class="hist-tab" data-ht="deal" onclick="histTab('deal')">已成交</span><span class="hist-tab" data-ht="quote" onclick="histTab('quote')">正式報價單</span><span class="hist-tab" data-ht="estimate" onclick="histTab('estimate')">估價單</span></div>
+        <div id="hist-list" class="hist-list"><div class="hist-empty">載入中…</div></div>
+        <div class="hist-ft">此為系統內歷史報價/成交紀錄，供估價參考。<span id="hist-note958"></span></div>
+      </div>
+    </div>
 
     <div class="ec-shell">
       <!-- 第一區：基本資料 -->
@@ -685,6 +721,45 @@ function copyEstLink(){
   }catch(e){ fallback(); }
 }
 function dlEstPdf(){ if(!SHARE_TOKEN){alert('請先儲存估價單');return;} window.open('/estimate/'+SHARE_TOKEN+'/pdf','_blank'); }
+
+/* 歷史報價彈窗（系統內既有 報價單+估價單；958 回簽之後可再併入） */
+var HISTDATA={quotes:[],estimates:[]}, HISTTAB='all', HISTTMR=null;
+var HCTYPE={home:'住家',commercial:'商空',elevator:'電梯',glass:'玻璃',extra:'加購',outsource:'外包',output:'出圖',material_sale:'售料',other:'其他'};
+function hesc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function openHistory(){ document.getElementById('histModal').style.display='flex'; searchHistory(); }
+function closeHistory(){ document.getElementById('histModal').style.display='none'; }
+function histDebounce(){ clearTimeout(HISTTMR); HISTTMR=setTimeout(searchHistory,300); }
+function histTab(t){ HISTTAB=t; document.querySelectorAll('.hist-tab').forEach(function(x){x.classList.toggle('on',x.dataset.ht===t);}); renderHistory(); }
+function searchHistory(){
+  var q=document.getElementById('hist-q').value.trim();
+  document.getElementById('hist-list').innerHTML='<div class="hist-empty">查詢中…</div>';
+  fetch('/api/estimator/history'+(q?('?q='+encodeURIComponent(q)):'')).then(function(r){return r.ok?r.json():{quotes:[],estimates:[]};})
+    .then(function(d){ HISTDATA=d||{quotes:[],estimates:[]}; renderHistory(); })
+    .catch(function(){ document.getElementById('hist-list').innerHTML='<div class="hist-empty">查詢失敗</div>'; });
+}
+function histRows(){
+  var rows=[];
+  (HISTDATA.quotes||[]).forEach(function(x){ var deal=!!(x.status==='accepted'||x.client_accepted_at);
+    rows.push({isQuote:true,deal:deal,total:x.total,case_id:x.case_id,title:x.case_title||('案件#'+x.case_id),client:x.client_name,ctype:x.case_type,date:x.created_at,ver:x.version}); });
+  (HISTDATA.estimates||[]).forEach(function(x){
+    rows.push({isQuote:false,deal:false,total:x.total,case_id:x.case_id,title:x.project_name||x.case_title||'估價單',client:x.customer_name||x.case_client_name,ctype:x.case_type,date:x.created_at}); });
+  return rows;
+}
+function renderHistory(){
+  var rows=histRows();
+  if(HISTTAB==='deal') rows=rows.filter(function(r){return r.deal;});
+  else if(HISTTAB==='quote') rows=rows.filter(function(r){return r.isQuote;});
+  else if(HISTTAB==='estimate') rows=rows.filter(function(r){return !r.isQuote;});
+  document.getElementById('hist-count').textContent=rows.length+' 筆';
+  var box=document.getElementById('hist-list');
+  if(!rows.length){ box.innerHTML='<div class="hist-empty">查無歷史報價</div>'; return; }
+  box.innerHTML=rows.map(function(r){
+    var badge=r.deal?'<span class="hist-badge hb-deal">已成交</span>':(r.isQuote?'<span class="hist-badge hb-quote">報價單'+(r.ver?' v'+r.ver:'')+'</span>':'<span class="hist-badge hb-est">估價</span>');
+    var sub=[HCTYPE[r.ctype]||r.ctype||'', r.client||'', (r.date||'').slice(0,10)].filter(Boolean).join('　·　');
+    var link=r.case_id?'<a class="hist-open" href="/case-detail?id='+r.case_id+'" target="_blank" rel="noopener">開案件 ↗</a>':'';
+    return '<div class="hist-row"><div class="hist-main"><div class="hist-t">'+hesc(r.title)+badge+'</div><div class="hist-sub">'+hesc(sub)+'</div></div><div class="hist-amt">'+NT(r.total||0)+'</div>'+link+'</div>';
+  }).join('');
+}
 /* 從估價單查詢「開啟編輯」：?edit=<id> 載回明細 */
 async function loadEstQuote(id){
   try{

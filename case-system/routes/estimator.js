@@ -178,6 +178,37 @@ router.get('/quotes', requireAuth, (req, res) => {
   `).all(...params);
   res.json(rows);
 });
+// 歷史報價查詢（估價機彈窗參考）：系統內既有 正式報價單(quote_sheets)+估價機估價單(est_quotes)。
+// 之後 958 回簽成交行情匯入後，可在此再 union 一段外部資料源。
+router.get('/history', requireAuth, (req, res) => {
+  const q = (req.query.q || '').trim();
+  const hasQ = q.length > 0;
+  const like = '%' + q + '%';
+  const qsWhere = hasQ ? `WHERE (c.title LIKE ? OR cl.name LIKE ? OR c.case_number LIKE ?)` : '';
+  const quotes = db.prepare(`
+    SELECT qs.id, qs.case_id, qs.version, qs.final_total AS total, qs.status, qs.client_accepted_at, qs.created_at,
+           c.case_number, c.title AS case_title, c.case_type, cl.name AS client_name
+    FROM quote_sheets qs
+    LEFT JOIN cases c   ON c.id  = qs.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    ${qsWhere}
+    ORDER BY (qs.status='accepted' OR qs.client_accepted_at IS NOT NULL) DESC, qs.id DESC
+    LIMIT 40
+  `).all(...(hasQ ? [like, like, like] : []));
+  const eqWhere = hasQ ? `WHERE (c.title LIKE ? OR cl.name LIKE ? OR c.case_number LIKE ? OR eq.project_name LIKE ? OR eq.customer_name LIKE ?)` : '';
+  const estimates = db.prepare(`
+    SELECT eq.id, eq.case_id, eq.total, eq.status, eq.created_at,
+           eq.project_name, eq.customer_name, eq.customer_type,
+           c.case_number, c.title AS case_title, c.case_type, cl.name AS case_client_name
+    FROM est_quotes eq
+    LEFT JOIN cases c   ON c.id  = eq.case_id
+    LEFT JOIN clients cl ON cl.id = c.client_id
+    ${eqWhere}
+    ORDER BY eq.id DESC
+    LIMIT 40
+  `).all(...(hasQ ? [like, like, like, like, like] : []));
+  res.json({ quotes, estimates });
+});
 router.get('/quotes/:id', requireAuth, (req, res) => {
   const q = db.prepare(`SELECT * FROM est_quotes WHERE id=?`).get(req.params.id);
   if (!q) return res.status(404).json({ error: '找不到估價單' });
