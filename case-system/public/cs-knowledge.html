@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客服知識庫 — 繪新管理系統</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <style>
+    .kb-wrap { padding:16px 20px; max-width:1000px; }
+    .kb-intro { font-size:13px; color:var(--gray-600); background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 14px; margin-bottom:14px; line-height:1.6; }
+    .kb-cat { margin-top:18px; }
+    .kb-cat h3 { font-size:13px; color:var(--gray-500); font-weight:700; margin:0 0 6px; letter-spacing:.5px; }
+    .kb-card { background:#fff; border:1px solid var(--gray-200); border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+    .kb-card.off { opacity:.5; }
+    .kb-q { font-size:14px; font-weight:700; color:var(--gray-900); }
+    .kb-a { font-size:13px; color:var(--gray-700); margin-top:4px; white-space:pre-wrap; line-height:1.55; }
+    .kb-link { display:inline-block; margin-top:6px; font-size:12px; color:var(--primary); text-decoration:none; word-break:break-all; }
+    .kb-card-actions { display:flex; gap:6px; margin-top:8px; }
+    .kb-field { display:flex; flex-direction:column; gap:3px; margin-bottom:10px; }
+    .kb-field label { font-size:12px; font-weight:600; color:var(--gray-600); }
+    .kb-field input, .kb-field textarea, .kb-field select { padding:7px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; font-family:inherit; }
+    .kb-field textarea { resize:vertical; min-height:70px; }
+    .kb-suggest { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
+    .modal-overlay.open { display:flex; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2>
+      <p id="sidebarOrgName"></p>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label">業務</span>
+      <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+      <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+      <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+      <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+      <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+      <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+      <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+      <span class="nav-group-label">系統設定</span>
+      <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+      <a class="nav-item" data-page="admin"          href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content" style="display:flex;flex-direction:column;padding:0">
+    <div class="top-bar" style="display:flex;align-items:center;justify-content:space-between">
+      <span class="page-title">📚 客服知識庫</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" style="background:#6d28d9;color:#fff" onclick="mine()" id="mineBtn">🤖 AI 挖常見問題</button>
+        <button class="btn btn-primary btn-sm" onclick="openEdit()">＋ 新增條目</button>
+      </div>
+    </div>
+    <div class="kb-wrap" style="overflow-y:auto">
+      <div class="kb-intro">
+        這裡的內容會<b>餵給 LINE AI 客服</b>，讓它回答有依據——例如客人問「有電商嗎」，AI 就會給正確賣場連結，而不是亂答。
+        每筆＝一個常見問題／主題＋制式回覆，可附電商、官網、YouTube 影片等連結。你改了，AI 下次就照新的答。
+      </div>
+      <div id="suggestBox"></div>
+      <div id="list"><div style="color:var(--gray-400);padding:20px;text-align:center">載入中…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:540px;width:92%">
+    <div class="modal-header"><h3 id="editTitle">新增知識條目</h3><button class="modal-close" onclick="closeEdit()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="f-id">
+      <div class="kb-field">
+        <label>分類</label>
+        <input id="f-category" list="catList" placeholder="例如：電商、官網／資源、常見問題、服務範圍、材質、施工、展間、公司資訊">
+        <datalist id="catList">
+          <option value="電商"><option value="官網／資源"><option value="常見問題"><option value="服務範圍">
+          <option value="材質"><option value="施工"><option value="展間"><option value="自媒體／影片"><option value="公司資訊">
+        </datalist>
+      </div>
+      <div class="kb-field"><label>主題 / 常見問題</label><input id="f-question" placeholder="客人會怎麼問，例如：有沒有電商／線上購買？"></div>
+      <div class="kb-field"><label>制式回覆內容</label><textarea id="f-answer" placeholder="AI 會依這段回答客人（繁中、親切、簡短）"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="kb-field"><label>資源連結（選填）</label><input id="f-link_url" placeholder="https://…（電商/官網/影片）"></div>
+        <div class="kb-field"><label>連結顯示文字</label><input id="f-link_label" placeholder="例如：繪新電商賣場"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <div class="kb-field"><label>關鍵字（選填，逗號分隔）</label><input id="f-keywords" placeholder="電商,網購,線上,賣場"></div>
+        <div class="kb-field"><label>排序（小的在前）</label><input id="f-sort_order" type="number" value="50"></div>
+      </div>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-top:2px"><input type="checkbox" id="f-active" checked style="width:auto"> 啟用（餵給 AI）</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEdit()">取消</button>
+      <button class="btn btn-primary" onclick="save()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let items = [];
+
+async function init() {
+  await loadUser();
+  highlightNav('cs-knowledge');
+  await load();
+}
+
+async function load() {
+  const d = await fetch('/api/cs-knowledge').then(r => r.json()).catch(() => ({ rows: [] }));
+  items = d.rows || [];
+  render();
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render() {
+  const el = document.getElementById('list');
+  if (!items.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">還沒有任何條目，按右上角「＋ 新增條目」或「🤖 AI 挖常見問題」開始。</div>`; return; }
+  const cats = {};
+  items.forEach(i => { (cats[i.category || '未分類'] = cats[i.category || '未分類'] || []).push(i); });
+  el.innerHTML = Object.entries(cats).map(([cat, list]) => `
+    <div class="kb-cat">
+      <h3>${esc(cat)}</h3>
+      ${list.map(i => `
+        <div class="kb-card${i.active ? '' : ' off'}">
+          <div class="kb-q">${esc(i.question) || '（無主題）'} ${i.active ? '' : '<span style="font-size:11px;color:#b91c1c">（已停用）</span>'}</div>
+          ${i.answer ? `<div class="kb-a">${esc(i.answer)}</div>` : ''}
+          ${i.link_url ? `<a class="kb-link" href="${esc(i.link_url)}" target="_blank" rel="noopener">🔗 ${esc(i.link_label) || esc(i.link_url)}</a>` : ''}
+          <div class="kb-card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEdit(${i.id})">編輯</button>
+            <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none" onclick="del(${i.id})">刪除</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function openEdit(id, preset) {
+  const it = id ? items.find(x => x.id === id) : (preset || {});
+  document.getElementById('editTitle').textContent = id ? '編輯知識條目' : '新增知識條目';
+  document.getElementById('f-id').value       = id || '';
+  document.getElementById('f-category').value  = it.category || '常見問題';
+  document.getElementById('f-question').value  = it.question || '';
+  document.getElementById('f-answer').value    = it.answer || '';
+  document.getElementById('f-link_url').value  = it.link_url || '';
+  document.getElementById('f-link_label').value= it.link_label || '';
+  document.getElementById('f-keywords').value  = it.keywords || '';
+  document.getElementById('f-sort_order').value= it.sort_order != null ? it.sort_order : 50;
+  document.getElementById('f-active').checked  = it.active === undefined ? true : !!it.active;
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
+
+async function save() {
+  const id = document.getElementById('f-id').value;
+  const body = {
+    category:   document.getElementById('f-category').value.trim(),
+    question:   document.getElementById('f-question').value.trim(),
+    answer:     document.getElementById('f-answer').value.trim(),
+    link_url:   document.getElementById('f-link_url').value.trim(),
+    link_label: document.getElementById('f-link_label').value.trim(),
+    keywords:   document.getElementById('f-keywords').value.trim(),
+    sort_order: parseInt(document.getElementById('f-sort_order').value) || 0,
+    active:     document.getElementById('f-active').checked ? 1 : 0,
+  };
+  if (!body.question && !body.answer) { showToast('請至少填主題或回覆', 'error'); return; }
+  const r = await fetch(id ? `/api/cs-knowledge/${id}` : '/api/cs-knowledge', {
+    method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); showToast(e.error || '儲存失敗', 'error'); return; }
+  showToast('已儲存'); closeEdit(); load();
+}
+
+async function del(id) {
+  if (!confirm('確定刪除這筆知識條目？')) return;
+  const r = await fetch(`/api/cs-knowledge/${id}`, { method: 'DELETE' });
+  if (r.ok) { showToast('已刪除'); load(); } else showToast('刪除失敗', 'error');
+}
+
+async function mine() {
+  const btn = document.getElementById('mineBtn');
+  btn.disabled = true; btn.textContent = 'AI 分析歷史對話中…';
+  try {
+    const r = await fetch('/api/cs-knowledge/mine', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'AI 分析失敗', 'error'); return; }
+    const box = document.getElementById('suggestBox');
+    const sug = j.suggestions || [];
+    if (!sug.length) { box.innerHTML = `<div class="kb-suggest">AI 沒有從歷史對話找到明顯的常見問題（或訊息量還太少）。</div>`; return; }
+    window._sug = sug;
+    box.innerHTML = `<div style="font-size:13px;font-weight:700;color:#6d28d9;margin:6px 0">🤖 AI 從歷史對話歸納的常見問題（挑要的按「採用」，可再編輯）</div>` +
+      sug.map((s, idx) => `
+        <div class="kb-suggest">
+          <div style="font-size:13px;font-weight:700">[${esc(s.category||'常見問題')}] ${esc(s.question||'')}</div>
+          <div style="font-size:12px;color:var(--gray-600);margin-top:3px;white-space:pre-wrap">${esc(s.answer||'')}</div>
+          <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="adoptSuggestion(${idx})">採用並編輯</button>
+        </div>`).join('');
+  } catch (e) { showToast('AI 分析失敗', 'error'); }
+  finally { btn.disabled = false; btn.textContent = '🤖 AI 挖常見問題'; }
+}
+function adoptSuggestion(idx) {
+  const s = (window._sug || [])[idx]; if (!s) return;
+  openEdit(null, { category: s.category, question: s.question, answer: s.answer, sort_order: 50 });
+}
+
+init();
+</script>
+</body>
+</html>

@@ -48,6 +48,21 @@ function buildFilmPricing() {
   }).join('\n');
 }
 
+// 客服知識庫摘要（公司事實／常見問答／資源連結）
+function buildKnowledge() {
+  let rows = [];
+  try {
+    rows = db.prepare(`SELECT category, question, answer, link_url, link_label FROM cs_knowledge WHERE active=1 ORDER BY sort_order, id`).all();
+  } catch { /* 表不存在 */ }
+  if (!rows.length) return '（知識庫尚無資料，遇到公司相關問題不確定就標需轉真人）';
+  return rows.map(r => {
+    let s = `- [${r.category || '常見問題'}] ${r.question || ''}`;
+    if (r.answer)   s += `\n  回答：${r.answer}`;
+    if (r.link_url) s += `\n  連結：${(r.link_label || '') + ' '}${r.link_url}`;
+    return s;
+  }).join('\n');
+}
+
 function buildSystemPrompt() {
   return `你是台灣「繪新國際」的 LINE 官方帳號客服助理。繪新是專業裝潢貼膜公司（牆面、系統櫃門片、造型、玻璃、電梯等貼膜施工）。
 你的工作：讀客人與客服的 LINE 對話，擬「一則要傳給客人的回覆草稿」，並判斷這通是否需要轉真人客服。
@@ -71,6 +86,10 @@ function buildSystemPrompt() {
 - 名片／公司資訊 → 對方是設計師或廠商窗口，照上面「身分」方式接洽，別當成案場照片問位置。
 - 案場照片 → 簡短說出你看到的重點（例如看起來是系統櫃門片／牆面），再接續了解需求。
 - 看不清或不確定 → 禮貌請對方補充說明，不要亂猜施作內容。
+
+【公司知識庫（回答公司相關事實／常見問題時，一律以此為準；有連結就自然地附給客人）】
+${buildKnowledge()}
+※ 公司是否有電商／官網／某項服務等事實，一律依知識庫回答。知識庫沒寫、你不確定的，**不要自己說「有」或「沒有」**，改用「我幫您確認一下」並標記需轉真人。
 
 【牌價護欄（非常重要，違反會出事）】
 - 只有「材料每才牌價」可以講（見下方牌價表），且要講清楚是材料參考牌價、實際金額需依面積與現場評估。

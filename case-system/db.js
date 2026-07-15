@@ -1556,6 +1556,31 @@ _addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
 _addCol('line_inquiries',         'is_group',       'INTEGER DEFAULT 0');
 _addCol('line_inquiry_messages',  'sender_display', 'TEXT');
 
+// ── 客服知識庫（常見問答 / 制式回覆 / 資源連結，餵給 LINE AI）──────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cs_knowledge (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    category   TEXT DEFAULT '常見問題',
+    question   TEXT,
+    answer     TEXT,
+    link_url   TEXT,
+    link_label TEXT,
+    keywords   TEXT,
+    active     INTEGER DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    updated_by INTEGER REFERENCES users(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+// 空表才 seed 起始資料（使用者改動不覆蓋）
+if (db.prepare(`SELECT COUNT(*) c FROM cs_knowledge`).get().c === 0) {
+  const seed = db.prepare(`INSERT INTO cs_knowledge (category, question, answer, link_url, link_label, keywords, sort_order) VALUES (?,?,?,?,?,?,?)`);
+  seed.run('電商', '有沒有電商／線上購買／網購／賣場？', '有的！我們有線上電商賣場，可以直接選購喔～有需要也可以再幫您介紹適合的膜料 😊', 'https://shop.twcomet.com/', '繪新電商賣場', '電商,網購,線上,賣場,購買,商城', 10);
+  seed.run('官網／資源', '想看產品介紹／型錄／更多資訊', '這邊有我們的產品指南，各種材質與應用都有介紹，您可以先參考看看～', 'https://twcomet-guide.pages.dev/', '繪新產品指南', '型錄,產品,介紹,官網,資訊,指南', 20);
+  seed.run('常見問題', '（範例）營業時間／聯絡方式 — 請編輯成實際內容', '（這是範例條目，請點編輯改成你們實際的營業時間與聯絡方式，或直接刪除。）', '', '', '營業時間,電話,聯絡', 90);
+}
+
 // 暫存 follow 事件的 OAT 來源（在首則訊息建立詢問前橋接用）
 db.exec(`
   CREATE TABLE IF NOT EXISTS line_follow_sources (

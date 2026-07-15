@@ -91,6 +91,7 @@ async function loadUser() {
     deposits:         p.page_deposits !== undefined ? p.page_deposits : p.page_payments,
     contracts:        true,
     'line-inquiries': p.page_line_inquiries !== undefined ? p.page_line_inquiries : p.page_cases,
+    'cs-knowledge':   p.page_line_inquiries !== undefined ? p.page_line_inquiries : p.page_cases,
     'dispatch-detail':p.page_cases,
     'my-tasks':       p.my_tasks,
     'my-calendar':    true,   // 所有人可見
@@ -123,6 +124,17 @@ async function loadUser() {
     a.className = 'nav-item'; a.dataset.page = 'work-reports'; a.href = '/work-reports';
     a.innerHTML = '<span class="icon">📋</span>完工回報';
     const anchor = nav.querySelector('[data-page="calendar"]') || nav.querySelector('[data-page="my-tasks"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+  // 注入「客服知識庫」選單（跟 LINE 詢問同群人），放在 LINE 詢問下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="cs-knowledge"]')) return;
+    if (!pageMap['line-inquiries']) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'cs-knowledge'; a.href = '/cs-knowledge';
+    a.innerHTML = '<span class="icon">📚</span>客服知識庫';
+    const anchor = nav.querySelector('[data-page="line-inquiries"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
   // 注入「營運日報」選單（老闆/管理者），放在總覽下方
