@@ -127,7 +127,7 @@ function calcItem(item) {
 
 // ── 案件 CRUD ─────────────────────────────────────────────────
 const STATUS_GROUP_MAP = {
-  inquiry: 'inquiry', initial_estimate: 'inquiry', quote_needed: 'inquiry', quote_sent: 'inquiry',
+  inquiry: 'inquiry', initial_estimate: 'inquiry', cared_waiting: 'inquiry', quote_needed: 'inquiry', quote_sent: 'inquiry',
   survey_pending: 'survey', survey_scheduled: 'survey', surveyed: 'survey',
   quote_draft: 'survey', quoted: 'survey',
   contracted: 'deal', dispatched: 'deal', constructing: 'deal', payment: 'deal', closed: 'deal', aftersales: 'deal',
@@ -974,7 +974,7 @@ router.patch('/:id/advance', requireAuth, (req, res) => {
 });
 
 // ── 標記無效 PATCH /:id/invalidate ──────────────────────────
-const INVALIDATABLE = new Set(['inquiry','initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
+const INVALIDATABLE = new Set(['inquiry','initial_estimate','cared_waiting','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
 router.patch('/:id/invalidate', requireAuth, (req, res) => {
   const me = req.session.user;
   const { reason, tags } = req.body;

@@ -9,7 +9,7 @@ const router = express.Router();
 const MODEL = 'claude-sonnet-5';
 
 const STATUS_LABEL = {
-  inquiry:'詢價需初步估價', initial_estimate:'已初步估價', quote_needed:'需出估價單', quote_sent:'已出估價單',
+  inquiry:'詢價需初步估價', initial_estimate:'已初步估價', cared_waiting:'已關懷，等待客戶回覆', quote_needed:'需出估價單', quote_sent:'已出估價單',
   survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘', quote_draft:'已建報價資料',
   quoted:'已發報價單', contracted:'成交待派工', dispatched:'已派工待施工', constructing:'施工中',
   payment:'完工請款', closed:'結案保存', invalid:'無效保存'

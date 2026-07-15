@@ -115,6 +115,7 @@
           <option value="">全部狀態</option>
           <option value="inquiry">詢價需初步估價</option>
           <option value="initial_estimate">已初步估價</option>
+          <option value="cared_waiting">已關懷，等待客戶回覆</option>
           <option value="quote_needed">需出估價單</option>
           <option value="quote_sent">已出估價單</option>
           <option value="invalid">已估價無效保存</option>
@@ -474,8 +475,8 @@ const CFG = {
     title: '詢價管理',
     nav: 'cases-inquiry',
     group: 'inquiry',
-    stages: ['inquiry', 'initial_estimate', 'quote_needed', 'quote_sent', 'invalid'],
-    stageNames: { inquiry: '詢價需初步估價', initial_estimate: '已初步估價', quote_needed: '需出估價單', quote_sent: '已出估價單', invalid: '已估價無效保存' },
+    stages: ['inquiry', 'initial_estimate', 'cared_waiting', 'quote_needed', 'quote_sent', 'invalid'],
+    stageNames: { inquiry: '詢價需初步估價', initial_estimate: '已初步估價', cared_waiting: '已關懷，等待客戶回覆', quote_needed: '需出估價單', quote_sent: '已出估價單', invalid: '已估價無效保存' },
     hiddenByDefault: new Set(['invalid']),
     showAmounts: false,
     showTypeTabs: false,
@@ -812,6 +813,7 @@ const DEAL_STAGE_COLORS = {
 const INQUIRY_STAGE_COLORS = {
   inquiry:          { bg:'#fef3c7', active:'#d97706', text:'#92400e' },
   initial_estimate: { bg:'#e0f2fe', active:'#0284c7', text:'#0369a1' },
+  cared_waiting:    { bg:'#ffedd5', active:'#ea580c', text:'#9a3412' },
   quote_needed:     { bg:'#fdf4ff', active:'#c026d3', text:'#a21caf' },
   quote_sent:       { bg:'#d1fae5', active:'#16a34a', text:'#065f46' },
   invalid:          { bg:'#f3f4f6', active:'#6b7280', text:'#374151' },
