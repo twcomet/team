@@ -151,6 +151,11 @@
         <div class="inq-toolbar">
           <div style="display:flex;gap:6px;align-items:center">
             <input class="inq-search" id="searchInput" type="text" placeholder="搜尋姓名、訊息…" style="flex:1;margin:0">
+            <select id="sortSelect" onchange="setSort(this.value)" title="排序方式" style="padding:6px 8px;border:1px solid var(--gray-300);border-radius:8px;font-size:12px;background:#fff;color:var(--gray-600);flex-shrink:0">
+              <option value="newest">↓ 最新訊息</option>
+              <option value="awaiting">🔴 待回覆優先</option>
+              <option value="oldest">↑ 最舊訊息</option>
+            </select>
           </div>
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
@@ -236,6 +241,7 @@ let searchTimer   = null;
 let inquiries     = [];
 let allUsers      = [];
 let sortDateDir   = 'desc';
+let currentSort   = 'newest';   // 排序：newest 最新 / awaiting 待回覆優先 / oldest 最舊
 let currentDraftText = '';   // 目前開啟詢問的 AI 草稿文字（給「採用」用）
 
 function toggleInqSort() {
@@ -410,13 +416,18 @@ async function loadList() {
   renderList();
 }
 
+function setSort(v) { currentSort = v; renderList(); }
+
 function renderList() {
   const el = document.getElementById('inqScroll');
   const sorted = [...inquiries].sort((a, b) => {
-    const aw = isAwaiting(a), bw = isAwaiting(b);
-    if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂
-    if (aw) return (a.last_message_at || '').localeCompare(b.last_message_at || ''); // 等最久的在最上面
-    return (b.last_message_at || '').localeCompare(a.last_message_at || '');         // 其餘最新優先
+    if (currentSort === 'awaiting') {
+      const aw = isAwaiting(a), bw = isAwaiting(b);
+      if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂
+      if (aw) return (a.last_message_at || '').localeCompare(b.last_message_at || ''); // 等最久的在最上面
+    }
+    const va = a.last_message_at || '', vb = b.last_message_at || '';
+    return currentSort === 'oldest' ? va.localeCompare(vb) : vb.localeCompare(va);   // 最舊↑ / 其餘最新↓
   });
   if (!sorted.length) {
     el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px">沒有符合的詢問</div>`;
