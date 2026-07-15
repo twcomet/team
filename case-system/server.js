@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html', 'price-view.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -288,6 +288,29 @@ app.get('/attendance-records', requireAuth, requireContract, (req, res) => {
   const u = req.session.user;
   if (!(u?.role === 'owner' || u?.role === 'hq_hr' || u?.is_manager || u?.manage_users)) return res.redirect('/my-tasks');
   res.sendFile(path.join(__dirname, 'public', 'attendance-records.html'));
+});
+
+// 膜料牌價表（業務／客服查閱；不含成本毛利）
+app.get('/price-list', requireAuth, requireContract, (req, res) => {
+  const u = req.session.user;
+  const ok = u?.role === 'owner' || u?.manage_users ||
+    ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role);
+  if (!ok) return res.redirect('/my-tasks');
+  res.sendFile(path.join(__dirname, 'public', 'price-list.html'));
+});
+// 對外分享牌價（單一品牌，不需登入）
+app.get('/price/:brand', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'price-view.html'));
+});
+// 牌價資料（公開；一律不含成本/毛利，僅啟用中膜款）
+app.get('/api/price-list', (req, res) => {
+  try {
+    const db = require('./db');
+    const films = db.prepare(`SELECT id, brand, region, asia_code, kr_code, color, model_note, fireproof,
+      per_m, ecom_price, plane, cabinet, shape, width, roll_len, sort_order
+      FROM est_film_catalog WHERE active=1 ORDER BY sort_order, id`).all();
+    res.json({ films });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // 設計師查詢頁（客戶用，不需登入）

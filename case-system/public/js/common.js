@@ -167,6 +167,20 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「膜料牌價表」選單（業務／客服／老闆）：放在 進銷存 → 膜料使用紀錄下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="price-list"]')) return;
+    const canPrice = currentUser.role === 'owner' || mu
+      || ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(currentUser.role);
+    if (!canPrice) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'price-list'; a.href = '/price-list';
+    a.innerHTML = '<span class="icon">🏷️</span>膜料牌價表';
+    const anchor = nav.querySelector('[data-page="material-usage"]') || nav.querySelector('[data-page="materials"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在 LINE 詢問下方
   (function() {
     const nav = document.querySelector('.sidebar-nav');

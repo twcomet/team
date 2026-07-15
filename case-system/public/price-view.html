@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>裝潢貼膜價格表 — 繪新國際</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#efeaf0;color:#241f29;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",sans-serif;line-height:1.5}
+  .pv-wrap{max-width:1040px;margin:0 auto;padding:22px 14px 60px}
+  .pv-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px}
+  .pv-btn{border:1px solid #d1c7d6;background:#fff;border-radius:9px;padding:9px 16px;cursor:pointer;
+    font-size:13px;font-weight:700;color:#5b1a6a;display:inline-flex;align-items:center;gap:6px}
+  .pv-foot{text-align:center;color:#8a8390;font-size:12px;margin-top:20px}
+  @media print{ .pv-actions{display:none!important} body{background:#fff!important} .pv-wrap{padding:0} .ps-sheet{box-shadow:none!important} }
+</style>
+</head>
+<body>
+<div class="pv-wrap">
+  <div class="pv-actions"><button class="pv-btn" onclick="window.print()">⬇ 下載 PDF ／ 列印</button></div>
+  <div id="sheet"><p style="text-align:center;color:#8a8390;padding:40px">載入中…</p></div>
+  <div class="pv-foot">繪新國際 Twcomet International · 本表為參考牌價，實際報價依現場為準</div>
+</div>
+<script src="/js/price-sheet.js"></script>
+<script>
+(async function(){
+  const m=(location.pathname.match(/\/price\/([a-z0-9]+)/i)||[])[1];
+  const brand=(m||'paroi').toLowerCase();
+  const el=document.getElementById('sheet');
+  if(!PriceSheet.BRANDS[brand]){ el.innerHTML='<p style="text-align:center;color:#b91c1c;padding:40px">查無此品牌牌價</p>'; return; }
+  document.title='繪新 '+PriceSheet.BRANDS[brand].name+' 裝潢貼膜價格表';
+  try{
+    const data=await PriceSheet.fetchData();
+    el.innerHTML=PriceSheet.renderSheet(brand, data[brand]||[], {customer:true});
+  }catch(e){ el.innerHTML='<p style="text-align:center;color:#b91c1c;padding:40px">牌價載入失敗</p>'; }
+})();
+</script>
+</body>
+</html>
