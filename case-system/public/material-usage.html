@@ -244,7 +244,7 @@ table td, table th { font-size:13px; }
 <script>
 let isWarehouse=false, meId=null;
 let rows=[], reserves=[];
-const fmtM = v => (v==null||v==='') ? null : (Math.round(Number(v)*100)/100);   // 米數顯示：去浮點雜訊(25.7999→25.8)
+const fmtM = v => (v==null||v==='') ? null : (Math.round(Number(v)*10)/10);   // 米數顯示：只到小數第1位、第2位以後隱藏(1.40000→1.4)
 const SB = { pending_pickup:['s-pp','待核准'], picked:['s-pk','已帶出待歸還'], pending_return:['s-pr','待歸還核准'], archived:['s-ar','已完成'], rejected:['s-rj','已駁回'], reserve:['s-rsv','保留材料'], reserved:['s-rsv','保留中'] };
 const TAB_STATUS = { pp:['pending_pickup','rejected'], pk:['picked'], pr:['pending_return'], ar:['archived'] };
 let curTab='all', returnId=null, editId=null, _caseTimer=null, allPage=1;
@@ -319,7 +319,7 @@ function onSeriesChange(){
   const list=_allRolls.filter(r=>r.brand===b && seriesOf(r.model)===s);
   document.getElementById('n_roll_sel').innerHTML='<option value="">選型號 / 那一支…</option>'+list.map(r=>{
     const cost=(r.unit_cost!=null)?` $${Math.round(r.unit_cost)}/米`:'';
-    return `<option value="${r.roll_id}">${esc(r.model||'')} ${esc(r.color||'')}｜架位${esc(r.location||'—')}｜剩${r.remaining_meters}米${r.roll_no?' #'+esc(r.roll_no):''}${cost}</option>`;
+    return `<option value="${r.roll_id}">${esc(r.model||'')} ${esc(r.color||'')}｜架位${esc(r.location||'—')}｜剩${fmtM(r.remaining_meters)??0}米${r.roll_no?' #'+esc(r.roll_no):''}${cost}</option>`;
   }).join('');
   clearRollSel();
 }

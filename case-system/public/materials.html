@@ -1026,7 +1026,7 @@ async function loadRolls(matId) {
             <span class="status-pill ${r.status}">${{active:'使用中',finished:'用完',lost:'遺失'}[r.status]||r.status}</span>
             <span class="branch-badge">🏪 ${r.branch||'總部'}</span>
             <span style="color:var(--gray-500)">進貨 ${r.purchase_date||'—'}${weekdayZh(r.purchase_date)}</span>
-            <span>初始 <strong>${r.initial_meters}</strong> 米 → 剩餘 <strong class="${stockClass(r.remaining_meters)}">${(r.remaining_meters||0).toFixed(1)}</strong> 米</span>
+            <span>初始 <strong>${Math.round((r.initial_meters||0)*10)/10}</strong> 米 → 剩餘 <strong class="${stockClass(r.remaining_meters)}">${(r.remaining_meters||0).toFixed(1)}</strong> 米</span>
             ${r.unit_cost && currentUser?.can_see_cost ? `<span style="color:var(--gray-500)">$${r.unit_cost}/米</span>` : ''}
             ${r.location ? `<span style="font-size:11px;color:var(--gray-500)">📍${r.location}</span>` : ''}
             ${r.created_by_name ? `<span style="font-size:11px;color:var(--gray-400)">登錄：${r.created_by_name}</span>` : ''}
@@ -1059,7 +1059,7 @@ async function loadRolls(matId) {
               ${isCancelled ? '<span style="font-size:10px;color:var(--gray-400)">（已沖銷）</span>' : ''}
             </td>
             <td style="font-weight:600;color:${isIn?'var(--success)':'var(--danger)'}">
-              ${isIn?'+':''}${l.meters} 米
+              ${isIn?'+':''}${Math.round(l.meters*10)/10} 米
             </td>
             <td style="font-size:12px;line-height:1.5">${caseLabel}</td>
             <td style="font-size:12px">${l.logger_name||'—'}</td>
