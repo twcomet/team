@@ -426,6 +426,35 @@
   </div>
 </div>
 
+<!-- 編輯異動紀錄 Modal（改米數/備註/案件）-->
+<div class="modal-overlay" id="editLogModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>編輯異動紀錄</h3>
+      <button class="modal-close" onclick="closeEditLogModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="el_id">
+      <div class="form-group"><label>用量（米）*</label><input type="number" id="el_meters" min="0.1" step="0.1"></div>
+      <div class="form-group">
+        <label>關聯案件</label>
+        <input type="text" id="el_case_search" placeholder="輸入案件編號、客戶或名稱搜尋…" oninput="searchElCase()" autocomplete="off">
+        <div id="el_case_results" style="border:1px solid var(--gray-200);border-radius:6px;max-height:160px;overflow-y:auto;display:none;margin-top:4px"></div>
+        <input type="hidden" id="el_case_id">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <span id="el_case_selected" style="font-size:12px;color:var(--primary)"></span>
+          <a href="#" onclick="clearElCase();return false" style="font-size:12px;color:#dc2626;text-decoration:none">清除案件</a>
+        </div>
+      </div>
+      <div class="form-group"><label>備注</label><textarea id="el_notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditLogModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveLogEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 銷貨／扣庫 Modal -->
 <div class="modal-overlay" id="sellModal">
   <div class="modal" style="max-width:520px">
@@ -874,16 +903,69 @@ function toggleFinished(matId) {
   loadRolls(matId);
 }
 
-// 編輯/刪除使用紀錄（限倉管/老闆；後端亦擋）
-async function editLog(id, absMeters, matId) {
-  const m = prompt('修改用量（米）', absMeters);
-  if (m === null) return;
-  const val = parseFloat(m);
+// 編輯使用紀錄（改米數/備註/案件；限倉管/老闆；後端亦擋）
+let _editLogMatId = null;
+function editLog(id, matId) {
+  const l = (window.LOG_CACHE || {})[id];
+  if (!l) { showToast('讀取紀錄失敗，請重新整理', 'error'); return; }
+  _editLogMatId = matId;
+  document.getElementById('el_id').value = id;
+  document.getElementById('el_meters').value = Math.abs(l.meters);
+  document.getElementById('el_notes').value = l.notes || '';
+  document.getElementById('el_case_search').value = '';
+  document.getElementById('el_case_id').value = (l.case_id != null ? l.case_id : '');
+  document.getElementById('el_case_selected').textContent = l.case_number
+    ? `目前：${l.case_number}${l.case_title ? ' ' + l.case_title : ''}` : '目前：未綁定案件';
+  document.getElementById('el_case_results').style.display = 'none';
+  document.getElementById('editLogModal').classList.add('open');
+}
+function closeEditLogModal() { document.getElementById('editLogModal').classList.remove('open'); }
+function clearElCase() {
+  document.getElementById('el_case_id').value = '';
+  document.getElementById('el_case_search').value = '';
+  document.getElementById('el_case_selected').textContent = '已清除案件（存檔後變未綁定）';
+  document.getElementById('el_case_results').style.display = 'none';
+}
+let elCaseTimer;
+function searchElCase() {
+  clearTimeout(elCaseTimer);
+  const q = document.getElementById('el_case_search').value.trim();
+  const el = document.getElementById('el_case_results');
+  if (!q) { el.style.display = 'none'; return; }
+  elCaseTimer = setTimeout(async () => {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) { el.style.display = 'none'; return; }
+    const items = (await res.json()).results || [];
+    if (!items.length) { el.style.display = 'none'; return; }
+    el.innerHTML = items.slice(0, 6).map(r => {
+      const c = r.case;
+      return `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-100)"
+        onmousedown="selectElCase(${c.id},'${(c.case_number||'').replace(/'/g,"\\'")}','${(c.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+        <span style="font-family:monospace;color:var(--gray-500)">${c.case_number||''}</span>
+        ${c.client_name ? `<span style="color:var(--gray-400)"> · ${c.client_name}</span>` : ''}
+        ${c.title ? `<span> ${c.title}</span>` : ''}</div>`;
+    }).join('');
+    el.style.display = 'block';
+  }, 300);
+}
+function selectElCase(id, num, title) {
+  document.getElementById('el_case_id').value = id;
+  document.getElementById('el_case_search').value = '';
+  document.getElementById('el_case_selected').textContent = `✓ ${num} ${title}`;
+  document.getElementById('el_case_results').style.display = 'none';
+}
+async function saveLogEdit() {
+  const id = document.getElementById('el_id').value;
+  const val = parseFloat(document.getElementById('el_meters').value);
   if (!val || val <= 0) { showToast('請輸入正確米數', 'error'); return; }
-  const nt = prompt('修改備註（可留空）', '');
-  if (nt === null) return;
-  const r = await fetch(`/api/materials/logs/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ meters: val, notes: nt }) });
+  const body = {
+    meters: val,
+    notes: document.getElementById('el_notes').value || '',
+    case_id: document.getElementById('el_case_id').value || null,
+  };
+  const r = await fetch(`/api/materials/logs/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (!r.ok) { showToast((await r.json().catch(()=>({}))).error || '修改失敗', 'error'); return; }
+  document.getElementById('editLogModal').classList.remove('open');
   showToast('已修改', 'success');
   await loadMaterials();
 }
@@ -960,6 +1042,7 @@ async function loadRolls(matId) {
             <thead><tr><th>時間</th><th>用途</th><th>米數</th><th>案件</th><th>記錄人</th><th>備注</th>${canMngLog?'<th></th>':''}</tr></thead>
             <tbody>`;
         rLogs.forEach(l => {
+          window.LOG_CACHE = window.LOG_CACHE || {}; window.LOG_CACHE[l.id] = l;
           const isIn = l.meters > 0;
           const isCancelled = l.status === 'cancelled';
           const caseLabel = l.case_number
@@ -981,7 +1064,7 @@ async function loadRolls(matId) {
             <td style="font-size:12px;line-height:1.5">${caseLabel}</td>
             <td style="font-size:12px">${l.logger_name||'—'}</td>
             <td style="font-size:12px;color:var(--gray-500)">${l.notes||''}</td>
-            ${canMngLog ? `<td style="white-space:nowrap">${isCancelled?'':`<a href="#" onclick="editLog(${l.id},${Math.abs(l.meters)},${matId});return false" style="color:#0369a1;margin-right:8px;text-decoration:none">編輯</a>`}<a href="#" onclick="deleteLog(${l.id},${matId});return false" style="color:#dc2626;text-decoration:none">刪除</a></td>` : ''}
+            ${canMngLog ? `<td style="white-space:nowrap">${isCancelled?'':`<a href="#" onclick="editLog(${l.id},${matId});return false" style="color:#0369a1;margin-right:8px;text-decoration:none">編輯</a>`}<a href="#" onclick="deleteLog(${l.id},${matId});return false" style="color:#dc2626;text-decoration:none">刪除</a></td>` : ''}
           </tr>`;
         });
         html += `</tbody></table></div>`;

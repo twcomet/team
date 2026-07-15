@@ -470,9 +470,10 @@ router.put('/logs/:id', requireAuth, (req, res) => {
   const log = db.prepare(`SELECT * FROM material_logs WHERE id=? AND org_id=?`).get(req.params.id, org_id);
   if (!log) return res.status(404).json({ error: '找不到記錄' });
   if (log.status === 'cancelled') return res.status(400).json({ error: '已取消的紀錄無法編輯' });
-  const { meters, notes } = req.body;
+  const { meters, notes, case_id } = req.body;
   const newAbs = Math.abs(parseFloat(meters));
   if (!newAbs || newAbs <= 0) return res.status(400).json({ error: '請填寫用量（米）' });
+  const newCaseId = (case_id === undefined) ? log.case_id : (case_id ? Number(case_id) : null);
   const isOut = log.log_type !== 'purchase';
   const newDelta = isOut ? -newAbs : newAbs;
 
@@ -492,9 +493,13 @@ router.put('/logs/:id', requireAuth, (req, res) => {
   db.prepare(`UPDATE materials SET stock_meters = MAX(0, stock_meters + ?) WHERE id=?`)
     .run(newDelta - log.meters, log.material_id);
 
-  db.prepare(`UPDATE material_logs SET meters=?, notes=? WHERE id=?`)
-    .run(newDelta, notes !== undefined ? (notes || null) : log.notes, req.params.id);
-  if (log.case_id && ['case_cut','case_loss'].includes(log.log_type)) syncCaseMaterialCost(log.case_id);
+  db.prepare(`UPDATE material_logs SET meters=?, notes=?, case_id=? WHERE id=?`)
+    .run(newDelta, notes !== undefined ? (notes || null) : log.notes, newCaseId, req.params.id);
+  // 案件成本連動：舊案件與新案件都重算（限案件裁料/損失）
+  if (['case_cut','case_loss'].includes(log.log_type)) {
+    if (log.case_id) syncCaseMaterialCost(log.case_id);
+    if (newCaseId && newCaseId !== log.case_id) syncCaseMaterialCost(newCaseId);
+  }
   res.json({ ok: true });
 });
 

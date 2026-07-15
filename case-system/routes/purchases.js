@@ -405,8 +405,9 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
   const pending = receipts.filter(r => !r.material_roll_id);
   if (!pending.length) return res.status(400).json({ error: '此採購單到貨已全部入庫，無需轉庫存' });
 
-  const { material_id, new_material, meters } = req.body;
+  const { material_id, new_material, meters, case_id } = req.body;
   let matId = material_id ? Number(material_id) : (po.material_id || null);
+  const caseId = case_id ? Number(case_id) : null;   // 關聯案件（僅記錄於進貨流水，不保留庫存）
 
   // 轉入總米數：預設＝各待入庫到貨批次米數總和；使用者可覆寫。
   // 為保留「一到貨批次＝一捲」結構（刪除回退依此逐捲扣庫存），覆寫的總數按各批原始米數等比例分攤；
@@ -452,8 +453,8 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
       const roll = db.prepare(`INSERT INTO material_rolls (material_id, org_id, roll_no, initial_meters, remaining_meters, purchase_date, unit_cost, branch, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)`)
         .run(matId, po.org_id, rollNo, m, m, rc.received_date, po.unit_cost || 0, orgName, `採購單#${po.id} 轉庫存`, me.id);
       db.prepare(`UPDATE purchase_receipts SET material_roll_id=? WHERE id=?`).run(roll.lastInsertRowid, rc.id);
-      db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, logged_by) VALUES (?,?,?,'purchase',?,?,?)`)
-        .run(roll.lastInsertRowid, matId, po.org_id, m, `採購單#${po.id} 轉庫存`, me.id);
+      db.prepare(`INSERT INTO material_logs (roll_id, material_id, org_id, log_type, meters, notes, case_id, logged_by) VALUES (?,?,?,'purchase',?,?,?,?)`)
+        .run(roll.lastInsertRowid, matId, po.org_id, m, `採購單#${po.id} 轉庫存`, caseId, me.id);
       db.prepare(`UPDATE materials SET stock_meters = stock_meters + ? WHERE id=?`).run(m, matId);
       totalMeters += m; rollIds.push(roll.lastInsertRowid);
     }
