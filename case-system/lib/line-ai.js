@@ -162,4 +162,39 @@ async function generateInquiryDraft(inquiryId) {
   return { draft, needsHuman, reason };
 }
 
-module.exports = { generateInquiryDraft };
+// 客服的 AI 助手（co-pilot）：客服跟 AI 對話，產生更正確的回覆
+function buildAssistantSystemPrompt(transcript) {
+  return `你是台灣「繪新國際」LINE 客服的 AI 助手（co-pilot）。客服正在處理一位客人的詢問，會來問你「怎麼回比較好／幫我擬一則訊息／幫我把語氣改客氣／客人問X該怎麼回」等。
+你的任務：幫客服產生「可以直接傳給客人的訊息」或給實用建議。
+- 若客服是要一則回覆 → 直接產出可傳給客人的訊息（繁體中文、親切、簡短、LINE 口吻）。
+- 若客服是在問你問題／請你判斷 → 正常回答、給建議即可。
+- 嚴格遵守下面知識庫與所有護欄。
+
+【機密守則（絕對遵守）】公司內部人員／組織（有哪些人、老闆是誰、團隊多大）、成本、毛利、分潤、進貨來源、派工、收款、其他客戶資料 → 一律不可寫進要傳給客人的訊息；客服若問你這些機密的『對客講法』，提醒他這不能對外。
+【牌價護欄】只可提「材料每才牌價」（見下）；連工帶料／整體施工報價一律回「需現場丈量、由專人報價」，不可自報數字；不洩成本毛利。
+【不確定不要編】知識庫沒有的公司事實不要自己說有或沒有，請客服自行確認。
+
+【公司知識庫（回答一律以此為準，有連結就附上）】
+${buildKnowledge()}
+
+【材料每才牌價（僅供回答材料牌價）】
+${buildFilmPricing()}
+
+【這通客人目前的對話（供你參考語境，最新在最後）】
+${transcript || '（尚無對話）'}`;
+}
+
+async function chatWithAssistant(inquiryId, chatMessages) {
+  const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(inquiryId);
+  if (!inq) throw new Error('詢問不存在');
+  const msgs = db.prepare(`SELECT direction, msg_type, content FROM line_inquiry_messages
+                           WHERE inquiry_id=? ORDER BY created_at ASC, id ASC`).all(inquiryId);
+  const transcript = msgs.map(m => `${m.direction === 'in' ? '客人' : '客服'}：${m.msg_type === 'image' ? '[照片]' : (m.content || '')}`).join('\n');
+  const clean = (chatMessages || [])
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+    .map(m => ({ role: m.role, content: m.content.trim() }));
+  if (!clean.length) throw new Error('沒有訊息');
+  return await callClaude(buildAssistantSystemPrompt(transcript), clean, 1024);
+}
+
+module.exports = { generateInquiryDraft, chatWithAssistant };

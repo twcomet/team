@@ -233,6 +233,27 @@
   </div>
 </div>
 
+<!-- 🤖 問 AI 助手（co-pilot 對話） -->
+<div class="modal-overlay" id="aiChatModal">
+  <div class="modal" style="max-width:560px;width:94%;display:flex;flex-direction:column;max-height:82vh">
+    <div class="modal-header">
+      <h3>🤖 AI 助手</h3>
+      <button class="modal-close" onclick="document.getElementById('aiChatModal').classList.remove('open')">×</button>
+    </div>
+    <div style="padding:6px 16px;font-size:12px;color:var(--gray-500);border-bottom:1px solid var(--gray-100)">
+      跟 AI 討論這位客人怎麼回比較好。它知道這通對話＋知識庫＋所有護欄。例：「幫我擬一則回覆」「把語氣改客氣」「這個怎麼回」。
+    </div>
+    <div id="aiChatLog" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;background:#f3f4f6;min-height:180px"></div>
+    <div style="padding:10px 14px;border-top:1px solid var(--gray-200);display:flex;gap:8px;align-items:flex-end">
+      <textarea id="aiChatInput" placeholder="輸入你的問題／指示，Enter 送出…" rows="1"
+        style="flex:1;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;resize:none;max-height:100px;font-family:inherit"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiChat()}"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="sendAiChat()" id="aiChatSend">送出</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script src="/js/care-logs.js"></script>
 <script>
@@ -357,6 +378,7 @@ function quickReply(idx) {
 }
 function quickReplyBar() {
   return `<div style="display:flex;gap:6px;padding:9px 12px 3px;overflow-x:auto;flex-wrap:wrap;background:#fff;border-top:1px solid var(--gray-200)">
+    <button type="button" onclick="openAiChat()" style="flex:0 0 auto;padding:5px 11px;border:1px solid #c4b5fd;border-radius:16px;background:#f5f3ff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;color:#6d28d9">🤖 問 AI 助手</button>
     <span style="font-size:11px;color:var(--gray-400);align-self:center;white-space:nowrap">常用語</span>
     ${QUICK_REPLIES.map((q,idx)=>`<button type="button" onclick="quickReply(${idx})" style="flex:0 0 auto;padding:5px 11px;border:1px solid var(--gray-300);border-radius:16px;background:#f9fafb;font-size:12px;cursor:pointer;white-space:nowrap;color:var(--gray-700)">${q.label}</button>`).join('')}
   </div>`;
@@ -590,6 +612,7 @@ async function openInquiry(id) {
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendReply(${id})}"
       ></textarea>
+      <button class="btn btn-sm" id="aiPolishBtn" style="padding:8px 12px;background:#f5f3ff;color:#6d28d9;border:1px solid #c4b5fd" onclick="aiPolish()">✨ AI 潤飾</button>
       <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="sendReply(${id})">📨 傳送</button>
     </div>` : `
     <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
@@ -762,6 +785,75 @@ function fmtTime(ts) {
   if (diff < 3600000)  return `${Math.floor(diff/60000)} 分鐘前`;
   if (diff < 86400000) return `${Math.floor(diff/3600000)} 小時前`;
   return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ── ✨ AI 潤飾：把回覆框的關鍵字/草稿潤飾成完整回覆 ────────────
+async function aiPolish() {
+  if (!currentId) return;
+  const ta = document.getElementById('replyInput');
+  const rough = (ta?.value || '').trim();
+  if (!rough) { showToast('先在回覆框打上關鍵字或草稿，再按潤飾', 'error'); return; }
+  const btn = document.getElementById('aiPolishBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '潤飾中…'; }
+  try {
+    const r = await fetch(`/api/line-inquiries/${currentId}/ai-chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: `請把我下面想跟客人講的內容，潤飾成一則完整、得體、可以直接傳給客人的訊息（繁體中文、親切、簡短、LINE 口吻），只回訊息本身、不要多餘說明：\n\n${rough}` }] }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'AI 潤飾失敗', 'error'); return; }
+    ta.value = j.reply || rough;
+    ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
+    ta.focus();
+  } catch (e) { showToast('AI 潤飾失敗', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '✨ AI 潤飾'; } }
+}
+
+// ── 🤖 問 AI 助手（co-pilot 對話）────────────────────────────
+let aiChatLog = [];
+function openAiChat() {
+  if (!currentId) return;
+  aiChatLog = [];
+  renderAiChat();
+  document.getElementById('aiChatModal').classList.add('open');
+  setTimeout(() => document.getElementById('aiChatInput')?.focus(), 60);
+}
+function renderAiChat() {
+  const box = document.getElementById('aiChatLog');
+  if (!aiChatLog.length) { box.innerHTML = `<div style="color:var(--gray-400);font-size:13px;text-align:center;margin:auto">問我怎麼回這位客人吧～例如「幫我擬一則回覆」</div>`; return; }
+  box.innerHTML = aiChatLog.map((m, i) => m.role === 'user'
+    ? `<div style="align-self:flex-end;max-width:80%;background:var(--primary);color:#fff;padding:8px 12px;border-radius:12px 4px 12px 12px;font-size:13px;white-space:pre-wrap">${escHtml(m.content)}</div>`
+    : `<div style="align-self:flex-start;max-width:88%;background:#fff;padding:8px 12px;border-radius:4px 12px 12px 12px;font-size:13px;white-space:pre-wrap;box-shadow:0 1px 3px rgba(0,0,0,.07)">${escHtml(m.content)}<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="adoptAiMsg(${i})">採用到回覆框</button></div></div>`
+  ).join('');
+  box.scrollTop = box.scrollHeight;
+}
+function adoptAiMsg(i) {
+  const m = aiChatLog[i]; if (!m) return;
+  const ta = document.getElementById('replyInput');
+  if (ta) { ta.value = m.content; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+  document.getElementById('aiChatModal').classList.remove('open');
+  ta?.focus();
+}
+async function sendAiChat() {
+  const input = document.getElementById('aiChatInput');
+  const text = (input?.value || '').trim();
+  if (!text || !currentId) return;
+  aiChatLog.push({ role: 'user', content: text });
+  input.value = ''; input.style.height = 'auto';
+  renderAiChat();
+  const btn = document.getElementById('aiChatSend');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/line-inquiries/${currentId}/ai-chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: aiChatLog }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'AI 回覆失敗', 'error'); aiChatLog.pop(); renderAiChat(); return; }
+    aiChatLog.push({ role: 'assistant', content: j.reply || '（沒有回覆）' });
+    renderAiChat();
+  } catch (e) { showToast('AI 回覆失敗', 'error'); aiChatLog.pop(); renderAiChat(); }
+  finally { btn.disabled = false; btn.textContent = '送出'; }
 }
 
 init();

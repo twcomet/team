@@ -262,6 +262,19 @@ router.post('/:id/ai-draft', requireAuth, async (req, res) => {
   }
 });
 
+// ── 客服跟 AI 助手對話（co-pilot，幫忙擬/改訊息、找輔助資訊）─────
+router.post('/:id/ai-chat', requireAuth, async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: '缺少訊息' });
+    const { chatWithAssistant } = require('../lib/line-ai');
+    const reply = await chatWithAssistant(req.params.id, messages.slice(-20));
+    res.json({ ok: true, reply });
+  } catch (e) {
+    res.status(500).json({ error: 'AI 回覆失敗：' + e.message });
+  }
+});
+
 // ── 刪除詢問（僅限已轉案 / 無效）────────────────────────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const inq = db.prepare(`SELECT status, display_name FROM line_inquiries WHERE id=?`).get(req.params.id);
