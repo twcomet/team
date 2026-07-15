@@ -50,7 +50,9 @@ router.get('/', requireAuth, (req, res) => {
            o.type  AS org_type,
            (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1) AS last_dir,
            COALESCE(cc.status,      (SELECT status      FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_status,
-           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number
+           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number,
+           COALESCE(cc.id,          (SELECT id          FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_id,
+           COALESCE(cc.title,       (SELECT title       FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_title
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
@@ -104,7 +106,9 @@ router.get('/:id', requireAuth, (req, res) => {
            o.name  AS org_name,
            o.type  AS org_type,
            COALESCE(cc.status,      (SELECT status      FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_status,
-           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number
+           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number,
+           COALESCE(cc.id,          (SELECT id          FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_id,
+           COALESCE(cc.title,       (SELECT title       FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_title
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
