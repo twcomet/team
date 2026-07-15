@@ -6,13 +6,17 @@ const { requireAuth } = require('../middleware/auth');
 
 // ── 列表（含分頁、狀態篩選、關鍵字搜尋）──────────────────────────
 router.get('/', requireAuth, (req, res) => {
-  const { status, q, page = 1, limit = 40 } = req.query;
+  const { status, q, page = 1, limit = 40, case_status } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   const where  = [];
   const params = [];
 
-  if (!status || status === 'all') {
+  if (case_status) {
+    // 依「關聯案件狀態」撈：跨全部詢問（不限詢問本身狀態），比對該客戶的案件階段
+    where.push(`COALESCE(cc.status, (SELECT status FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) = ?`);
+    params.push(case_status);
+  } else if (!status || status === 'all') {
     // 全部：只顯示活躍中的詢問
     where.push(`i.status IN ('new','in_progress')`);
   } else if (status === 'converted') {

@@ -580,9 +580,10 @@ async function createEstimateDraft() {
 // ── 清單 ──────────────────────────────────────────────────
 async function loadList() {
   const q = document.getElementById('searchInput').value.trim();
-  // 選了「案件狀態」時，跨全部詢問撈（忽略上方分頁、拉大筆數），再依案件狀態前端篩
+  // 選了「案件狀態」時，交給後端跨全部詢問依案件狀態撈（不受上方分頁限制）
   const byCase = !!caseFilter;
   const p = new URLSearchParams({ limit: byCase ? 300 : 100, page: 1 });
+  if (byCase) p.set('case_status', caseFilter);
   // 「待回覆」「轉真人客服」是虛擬篩選：抓進行中的，前端再篩
   const virtual = (currentStatus === 'awaiting' || currentStatus === 'needs_human');
   if (!byCase && currentStatus !== 'all' && !virtual) p.set('status', currentStatus);
