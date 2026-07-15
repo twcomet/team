@@ -6,7 +6,9 @@ const ceil100   = n => Math.ceil(n / 100) * 100;
 const roundWall = h => Math.round((+h + 10) / 10) * 10;   // 牆面高 +10cm 損耗→四捨五入到 10
 const roundElev = h => Math.ceil((+h + 20) / 10) * 10;   // 電梯高 +20cm 損耗→無條件進位到 10
 const filmW = it => it.width || 122;                      // 膜寬，預設 122（PS 石膏 93）
-const workName = { plane: '牆面', cabinet: '系統櫃', shape: '造型' };
+const workName = { plane: '牆面', cabinet: '系統櫃', shape: '造型', ceiling: '天花板' };
+// 天花板每才單價 = 造型(shape) + 20；其餘工法直接讀該欄價
+function workUnit(it, work) { return work === 'ceiling' ? (Number(it.shape) || 0) + 20 : it[work]; }
 
 function filmItem(cat, brand, idx) { return cat.FILMS[brand].items[idx]; }
 // 電梯每才單價：用該膜款「造型(shape)」連工帶料價（防焰不分後，無每米區間可判，取造型價為基準）
@@ -47,7 +49,7 @@ function computeFilms(arr, cat, combine) {
     } else { g.looseCai += Math.ceil(it.w / W) * W * it.h / 900; } // 寬鬆：需要幾條×膜寬×高(每條整條膜寬·多報)
   });
   return Object.keys(groups).map(k => {
-    const g = groups[k], unit = g.item[g.work];
+    const g = groups[k], unit = workUnit(g.item, g.work);
     const r = g.isComb ? _combCai(g) : { cai: g.looseCai, comb: 0 };
     const title = (g.name ? g.name + '｜' : '') + workName[g.work] + '｜' + cat.FILMS[g.brand].label;
     return { type: 'film', work: g.work, brand: g.brand, label: title, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, idxs: g.idxs };

@@ -220,6 +220,7 @@
             <div class="ec-itab on" data-tab="w">牆面</div>
             <div class="ec-itab" data-tab="c">系統櫃</div>
             <div class="ec-itab" data-tab="s">造型</div>
+            <div class="ec-itab" data-tab="t">天花板</div>
             <div class="ec-itab" data-tab="glass">玻璃</div>
             <div class="ec-itab" data-tab="elev">電梯</div>
             <div class="ec-itab" data-tab="door">門</div>
@@ -237,6 +238,7 @@
           <div class="ec-pane on" id="pane-w"></div>
           <div class="ec-pane" id="pane-c"></div>
           <div class="ec-pane" id="pane-s"></div>
+          <div class="ec-pane" id="pane-t"></div>
           <div class="ec-pane" id="pane-glass">
             <div class="ec-fld"><label>玻璃膜種類</label><select id="g-cat" onchange="fillGlassSeries()"></select></div>
             <div class="ec-fld"><label>型號</label><select id="g-series"></select></div>
@@ -339,8 +341,9 @@
 <script>
 const API = '/api/estimator';
 const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI' };
-const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統櫃'}, s:{work:'shape',label:'造型'} };
-const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型' };
+const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統櫃'}, s:{work:'shape',label:'造型'}, t:{work:'ceiling',label:'天花板'} };
+const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型', ceiling:'天花板' };
+function workUnit(it,work){ return work==='ceiling' ? (Number(it.shape)||0)+20 : it[work]; }  // 天花板=造型(shape)+20/才
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
@@ -398,7 +401,7 @@ function rmFilmRow(el){
   row.remove();
 }
 function fillFilmP(pfx){var b=v(pfx+'-brand');fillSel(pfx+'-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));priceHint(pfx);}
-function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(it[t.work])+'／才　·　膜寬 '+filmW(it)+'cm';}
+function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(workUnit(it,t.work))+'／才　·　膜寬 '+filmW(it)+'cm'+(t.work==='ceiling'?'（造型+20）':'');}
 function addFilm(pfx){
   var t=FTAB[pfx],nm=(v(pfx+'-name')||'').trim(),b=v(pfx+'-brand'),idx=+v(pfx+'-item');
   var rows=document.querySelectorAll('#'+pfx+'-rows .ec-szrow'), added=0, partial=false;
@@ -510,7 +513,7 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
   g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,isComb:isComb,full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{}};var x=g[k];x.n++;x.idxs.push(ci);
   var sk='寬'+it.w+'×高'+it.h;x.rows[sk]=x.rows[sk]||{w:it.w,h:it.h,n:0,caiEach:Math.ceil(it.w/W)*W*it.h/900};x.rows[sk].n++;
   if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});
- return Object.keys(g).map(function(k){var x=g[k],unit=x.item[x.work];var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
+ return Object.keys(g).map(function(k){var x=g[k],unit=workUnit(x.item,x.work);var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
   var title=(x.name?x.name+'｜':'')+workName[x.work]+'｜'+FILMS[x.brand].label;
   var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
   var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
@@ -786,7 +789,7 @@ async function prefillFromCase(id){
   if(window.highlightNav)highlightNav('estimator');
   await loadCatalog();
   fillSel('b-region',Object.keys(FREIGHT).map(function(k){return {v:k,t:k};}));
-  buildFilmPane('w');buildFilmPane('c');buildFilmPane('s');
+  buildFilmPane('w');buildFilmPane('c');buildFilmPane('s');buildFilmPane('t');
   ocrInit();
   fillSel('e-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));fillElevItem();elevToggle();
   fillSel('g-cat',Object.keys(GLASS).map(function(k){return {v:k,t:GLASS[k].label};}));fillGlassSeries();addGlassRow();
