@@ -4,10 +4,10 @@
 (function () {
   const ORDER = ['paroi', 'benif', 'bodaq', '3m'];
   const BRANDS = {
-    paroi: { name: 'PAROI', sub: '日本 LINTEC', c1: '#6f5122', c2: '#b58a45', soft: '#f6efe2', freight: 'jp' },
-    benif: { name: 'BENIF', sub: 'LX Hausys（LG）', c1: '#41560f', c2: '#7f9d33', soft: '#eef3df', freight: 'kr' },
-    bodaq: { name: 'Bodaq', sub: 'HYUNDAI', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
-    '3m': { name: '3M', sub: 'DI-NOC 特耐軟片', c1: '#9c0f22', c2: '#e11f33', soft: '#fbe7e9', freight: null },
+    paroi: { name: 'PAROI', sub: '日本 LINTEC', c1: '#6f5122', c2: '#b58a45', soft: '#f6efe2', freight: 'jp', korean: false },
+    benif: { name: 'BENIF', sub: 'LX Hausys（LG）· 韓國', c1: '#41560f', c2: '#7f9d33', soft: '#eef3df', freight: 'kr', korean: true },
+    bodaq: { name: 'Bodaq', sub: 'HYUNDAI · 韓國', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr', korean: true },
+    '3m': { name: '3M', sub: 'DI-NOC 特耐軟片', c1: '#9c0f22', c2: '#e11f33', soft: '#fbe7e9', freight: null, korean: false },
   };
   const FREIGHT_NOTE = {
     kr: ['空運 $6,000／一款（約 2–10 工作天，不含假日）', '海運 $3,000／一款（約 20–30 工作天，不含假日）'],
@@ -73,32 +73,31 @@
     const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
 
-  // 依品牌把 rows 分組：region（亞洲前/韓版後）→ 防焰（不防焰前/防焰後）
+  // 只依「防焰／不防焰」分組（韓國/亞洲版是同一列的兩套代碼，用欄位呈現，不另分區）
   function groupRows(rows) {
     const groups = [];
-    const key = r => (r.region || '') + '|' + (r.fireproof || '');
     const order = {};
     rows.slice().sort((a, b) => {
-      const ra = a.region ? 1 : 0, rb = b.region ? 1 : 0; if (ra !== rb) return ra - rb;
       const fa = a.fireproof === '防焰' ? 1 : 0, fb = b.fireproof === '防焰' ? 1 : 0; if (fa !== fb) return fa - fb;
       return (a.sort_order || 0) - (b.sort_order || 0);
     }).forEach(r => {
-      const k = key(r);
-      if (!(k in order)) { order[k] = groups.length; groups.push({ region: r.region || '', fireproof: r.fireproof || '', rows: [] }); }
+      const k = r.fireproof || '';
+      if (!(k in order)) { order[k] = groups.length; groups.push({ fireproof: k, rows: [] }); }
       groups[order[k]].rows.push(r);
     });
     return groups;
   }
 
-  function rowHtml(r, brand, customer) {
+  function rowHtml(r, brand, customer, korean) {
     const is3m = brand === '3m';
     const ecom = is3m ? (Number(r.per_m) || 0) : (Number(r.ecom_price) || ecomOf(r.per_m));
     const permCell = is3m
       ? `<td class="ps-perm">${nt(ecom)}<small>未稅</small></td>`
       : `<td class="ps-perm">${nt(ecom)}${customer ? '' : `<small>未稅 ${nt(r.per_m)}</small>`}</td>`;
+    const krCol = korean ? `<td class="ps-code ps-kr">${esc(r.kr_code || '—')}</td>` : '';
     return `<tr>
       <td class="ps-code">${esc(r.asia_code || '—')}</td>
-      <td class="ps-code ps-kr">${esc(r.kr_code || '—')}</td>
+      ${krCol}
       <td class="ps-color">${esc(r.color || '—')}</td>
       <td>${r.roll_len || 50}</td>
       ${permCell}
@@ -108,11 +107,13 @@
     </tr>`;
   }
 
-  function tblHtml(rows, brand, customer) {
+  function tblHtml(rows, brand, customer, korean) {
+    const krTh = korean ? '<th>韓國系列</th>' : '';
+    const codeTh = korean ? '亞洲系列' : '系列／型號';
     return `<table class="ps-tbl"><thead><tr>
-      <th>亞洲系列</th><th>韓國系列</th><th>花色</th><th>規格<br>(米)</th>
+      <th>${codeTh}</th>${krTh}<th>花色</th><th>規格<br>(米)</th>
       <th>每米 $</th><th>連工帶料<br>全平面牆面</th><th>系統櫃<br>門片</th><th>連工帶料<br>造型</th>
-    </tr></thead><tbody>${rows.map(r => rowHtml(r, brand, customer)).join('')}</tbody></table>`;
+    </tr></thead><tbody>${rows.map(r => rowHtml(r, brand, customer, korean)).join('')}</tbody></table>`;
   }
 
   function notesHtml(brand) {
@@ -131,13 +132,15 @@
     injectCss();
     opts = opts || {};
     const b = BRANDS[brand]; if (!b) return '';
+    const korean = !!b.korean;
     const groups = groupRows(rows);
     const body = groups.map(g => {
+      const tbl = tblHtml(g.rows, brand, opts.customer, korean);
+      if (!g.fireproof) return `<div class="ps-grp"><div class="ps-gtbl">${tbl}</div></div>`;  // 無防焰分類→整塊不加側欄
       const nf = g.fireproof !== '防焰';
-      const bandTxt = (g.region ? g.region + '版 ' : '') + (g.fireproof || '一般');
       return `<div class="ps-grp">
-        <div class="ps-band ${nf ? 'nf' : ''}">${esc(bandTxt)}</div>
-        <div class="ps-gtbl">${tblHtml(g.rows, brand, opts.customer)}</div>
+        <div class="ps-band ${nf ? 'nf' : ''}">${esc(g.fireproof)}</div>
+        <div class="ps-gtbl">${tbl}</div>
       </div>`;
     }).join('');
     return `<div class="ps-sheet" style="--c1:${b.c1};--c2:${b.c2};--soft:${b.soft}" data-brand="${brand}">
