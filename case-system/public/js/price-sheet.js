@@ -46,7 +46,9 @@
     .ps-head .title{font-size:25px;font-weight:900;letter-spacing:5px;margin-left:8px}
     .ps-head .date{margin-left:auto;text-align:right;font-size:12px;opacity:.92;font-weight:600;letter-spacing:1px;line-height:1.6}
     .ps-scroll{overflow-x:auto}
-    table.ps-tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:600px}
+    .ps-sheet ::selection{background:#3a3340;color:#fff}
+    .ps-sheet ::-moz-selection{background:#3a3340;color:#fff}
+    table.ps-tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px;table-layout:fixed}
     table.ps-tbl thead th{background:var(--soft);color:var(--c1);font-weight:800;font-size:12px;letter-spacing:.4px;
       padding:12px 8px;text-align:center;border-bottom:2px solid var(--c1);line-height:1.35;white-space:nowrap}
     table.ps-tbl thead th.ps-ph{background:linear-gradient(120deg,var(--c1),var(--c2));color:#fff;border-bottom-color:#fff}
@@ -96,7 +98,7 @@
       : `<td class="ps-perm">${nt(price)}${customer ? '' : `<small>未稅 ${nt(r.per_m)}</small>`}</td>`;
     const krCol = hasKr ? `<td class="ps-code ps-kr">${esc(r.kr_code || '—')}</td>` : '';
     return `<td class="ps-code">${esc(r.asia_code || '—')}</td>${krCol}` +
-      `<td class="ps-color">${esc(r.color || '—')}</td><td>${r.roll_len || 50}</td>${permCell}` +
+      `<td>${r.roll_len || 50}</td>${permCell}` +
       `<td class="ps-cai">${nt(r.plane)}</td><td class="ps-cai">${nt(r.cabinet)}</td><td class="ps-cai">${nt(r.shape)}</td>`;
   }
 
@@ -113,9 +115,13 @@
     const showBand = groups.length > 1 || (groups[0] && groups[0].fireproof);
     const cols = 6 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
 
-    const codeTh = hasKr ? '<th>亞洲系列</th><th>韓國系列</th>' : '<th>系列／型號</th>';
-    const head = `<tr>${showBand ? '<th></th>' : ''}${codeTh}<th>花色</th><th>規格<br>(米)</th>` +
-      `<th class="ps-ph">每米 $</th><th>連工帶料<br>全平面牆面</th><th>系統櫃<br>門片</th><th>連工帶料<br>造型</th></tr>`;
+    const codeTh = hasKr
+      ? '<th style="width:20%">亞洲系列</th><th style="width:12%">韓國系列</th>'
+      : '<th style="width:32%">系列／型號</th>';
+    const head = `<tr>${showBand ? '<th style="width:3%"></th>' : ''}${codeTh}` +
+      `<th style="width:8%">規格<br>(米)</th>` +
+      `<th class="ps-ph" style="width:13%">每米 $</th>` +
+      `<th style="width:15%">連工帶料<br>全平面牆面</th><th style="width:14%">系統櫃<br>門片</th><th style="width:15%">連工帶料<br>造型</th></tr>`;
 
     let bodyRows = '';
     groups.forEach(g => {
