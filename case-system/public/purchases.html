@@ -653,9 +653,21 @@ async function saveConvert() {
   const btn = document.getElementById('saveConvertBtn');
   btn.disabled = true;
   try {
-    const r = await fetch(`/api/purchases/${convertPoId}/convert-to-stock`, {
+    let r = await fetch(`/api/purchases/${convertPoId}/convert-to-stock`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
+    // 防重複：已有同品牌+型號 → 提醒使用者，通常應加捲料到既有型號而非再開新型號
+    if (r.status === 409) {
+      const info = await r.json().catch(() => ({}));
+      const dups = info.duplicates || [];
+      const lines = dups.map(d => `　• #${d.id} ${d.brand} ${d.model}${d.color ? '（'+d.color+'）' : ''}｜${d.fire_retardant ? '防焰' : '不防焰'}｜架位 ${d.location || '未設'}｜庫存 ${Math.round((d.stock_meters||0)*10)/10} 米`).join('\n');
+      const ok = confirm(`已有相同品牌＋型號的膜料：\n\n${lines}\n\n通常同型號應該轉入既有型號（會多一支捲料），而不是再開一個新型號（會造成庫存分散、領用選錯）。\n\n仍要建立一個新的型號嗎？`);
+      if (!ok) return;
+      body.force = true;
+      r = await fetch(`/api/purchases/${convertPoId}/convert-to-stock`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+    }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { alert(j.error || '轉庫存失敗'); return; }
     closeModal('convertModal');

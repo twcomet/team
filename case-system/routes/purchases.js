@@ -416,6 +416,15 @@ router.post('/:id/convert-to-stock', requireAuth, (req, res) => {
   const targetTotal  = (meters != null && meters !== '' && parseFloat(meters) > 0) ? parseFloat(meters) : defaultTotal;
   const scale = defaultTotal > 0 ? (targetTotal / defaultTotal) : 0;
 
+  // 防重複：轉庫存要新建型號時，若已有同品牌+型號 → 回 409 提醒（force 由使用者確認後強制）
+  if (!matId && !req.body.force) {
+    const nm = new_material || {};
+    if (nm.brand && nm.model) {
+      const dup = db.prepare(`SELECT id, brand, model, color, fire_retardant, location, stock_meters FROM materials WHERE org_id=? AND TRIM(LOWER(brand))=TRIM(LOWER(?)) AND TRIM(LOWER(model))=TRIM(LOWER(?))`).all(po.org_id, String(nm.brand), String(nm.model));
+      if (dup.length) return res.status(409).json({ error: 'duplicate', duplicates: dup });
+    }
+  }
+
   try {
     db.exec('BEGIN');
     // 需要新建型號

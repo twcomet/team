@@ -1369,7 +1369,17 @@ async function saveMat() {
   }
 
   const url = editMatId ? `/api/materials/${editMatId}` : '/api/materials';
-  const res = await fetch(url, { method: editMatId ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  let res = await fetch(url, { method: editMatId ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  // 防重複：後端偵測到同品牌+型號 → 提醒，讓使用者選擇是否仍要新建
+  if (res.status === 409) {
+    const info = await res.json().catch(() => ({}));
+    const dups = info.duplicates || [];
+    const lines = dups.map(d => `　• #${d.id} ${d.brand} ${d.model}${d.color ? '（'+d.color+'）' : ''}｜${d.fire_retardant ? '防焰' : '不防焰'}｜架位 ${d.location || '未設'}｜庫存 ${Math.round((d.stock_meters||0)*10)/10} 米`).join('\n');
+    const ok = confirm(`已有相同品牌＋型號的膜料：\n\n${lines}\n\n通常同型號應該用「加一支捲料」到既有型號，而不是再開一個新型號（會造成庫存分散、領用選錯）。\n\n仍要建立一個新的型號嗎？`);
+    if (!ok) return;   // 使用者取消 → 建議改用既有型號加捲料
+    body.force = true;
+    res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  }
   if (res.ok) {
     const data = await res.json();
     showToast(editMatId ? '膜料已更新' : '膜料已新增');

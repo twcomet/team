@@ -71,8 +71,13 @@ router.post('/', requireAuth, (req, res) => {
   const me     = req.session.user;
   const org_id = me.org_id;
   const uid    = me.id;
-  const { brand, model, sku, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce } = req.body;
+  const { brand, model, sku, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce, force } = req.body;
   if (!brand || !model) return res.status(400).json({ error: '品牌和型號必填' });
+  // 防重複：同品牌+型號已存在 → 回 409 讓前端提醒（force=true 由使用者確認後強制新增）
+  if (!force) {
+    const dup = db.prepare(`SELECT id, brand, model, color, fire_retardant, location, stock_meters FROM materials WHERE org_id=? AND TRIM(LOWER(brand))=TRIM(LOWER(?)) AND TRIM(LOWER(model))=TRIM(LOWER(?))`).all(org_id, String(brand), String(model));
+    if (dup.length) return res.status(409).json({ error: 'duplicate', duplicates: dup });
+  }
   // 只有 can_see_cost 才能寫入成本
   const safeCost = me.can_see_cost ? (unit_cost || 0) : 0;
 
