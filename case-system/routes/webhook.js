@@ -1,7 +1,35 @@
 const express = require('express');
 const crypto  = require('crypto');
 const db      = require('../db');
+const cloudinary = require('cloudinary').v2;
 const router  = express.Router();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// 訊息類型 → 清單預覽用的標籤
+const MSG_LABEL = { image:'[照片]', sticker:'[貼圖]', video:'[影片]', audio:'[語音]', file:'[檔案]', location:'[位置]' };
+
+// 下載 LINE 訊息的圖片內容 → 上傳 Cloudinary，回傳網址（失敗回 null）
+async function fetchLineImageToCloudinary(messageId, token) {
+  try {
+    const res = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+      headers: { Authorization: `Bearer ${(token||'').replace(/\s/g,'')}` }
+    });
+    if (!res.ok) { console.error(`[LINE-IMG] 下載失敗 msg=${messageId} status=${res.status}`); return null; }
+    const buf = Buffer.from(await res.arrayBuffer());
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'line-inquiries', resource_type: 'image', transformation: [{ width: 1600, crop: 'limit', quality: 'auto' }] },
+        (err, r) => err ? reject(err) : resolve(r)
+      ).end(buf);
+    });
+    return result.secure_url;
+  } catch (e) { console.error('[LINE-IMG] 例外', e.message); return null; }
+}
 
 // ── 繪新國際（客戶用）────────────────────────────────────────
 const CLIENT_SECRET = () => process.env.LINE_CHANNEL_SECRET || '';
@@ -119,8 +147,9 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   console.log(`[LINE-WEBHOOK] 收到 ${payload.events?.length || 0} 個事件，頻道: ${matchedChannel.channel_name || 'env-fallback'}`);
 
   for (const event of (payload.events || [])) {
-    if (event.type === 'message' && event.message?.type === 'text') {
-      handleClientText(event, matchedChannel).catch(err => console.error('CLIENT webhook error:', err));
+    if (event.type === 'message') {
+      // 收所有訊息類型（文字/照片/貼圖/影片/檔案/定位），不再只收文字
+      handleClientMessage(event, matchedChannel).catch(err => console.error('CLIENT webhook error:', err));
     }
     if (event.type === 'follow') {
       handleClientFollow(event, matchedChannel).catch(err => console.error('CLIENT follow error:', err));
@@ -128,14 +157,32 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   }
 });
 
-// 客戶傳訊 → 建立／追加 LINE 詢問單
-async function handleClientText(event, channel) {
-  // 只處理個人 1 對 1 訊息；群組 / 多人聊天室訊息一律忽略
+// 客戶傳訊 → 建立／追加 LINE 詢問單（收所有訊息類型，一律不丟）
+async function handleClientMessage(event, channel) {
+  // 只處理個人 1 對 1 訊息；群組 / 多人聊天室訊息暫不處理（之後開放）
   if (event.source?.type !== 'user') return;
 
   const userId = event.source?.userId;
   if (!userId) return;
-  const text = event.message.text.trim();
+
+  const msg = event.message || {};
+
+  // 依訊息類型決定：儲存型別 / 內容 / 清單預覽字
+  let msgType = 'text', content = null, preview = '';
+  if (msg.type === 'text') {
+    content = (msg.text || '').trim();
+    if (!content) return;
+    preview = content.slice(0, 200);
+  } else if (msg.type === 'image') {
+    const url = await fetchLineImageToCloudinary(msg.id, channel.channel_token);
+    if (url) { msgType = 'image'; content = url; }
+    else     { msgType = 'text'; content = '[照片]（系統未能下載，請於 LINE 查看或請客戶重傳）'; }
+    preview = '[照片]';
+  } else {
+    // 貼圖 / 影片 / 語音 / 檔案 / 定位：存佔位文字，讓時間軸不斷、客服知道有東西進來
+    preview = MSG_LABEL[msg.type] || `[${msg.type || '訊息'}]`;
+    content = preview;
+  }
 
   const profile     = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
   const displayName = profile?.displayName || 'LINE用戶';
@@ -158,63 +205,33 @@ async function handleClientText(event, channel) {
     client = { ...client, name: displayName };
   }
 
-  // 找同一頻道最近一筆開放中的詢問，若無則建新的
-  const openInquiry = db.prepare(`
-    SELECT * FROM line_inquiries
+  // 掛到哪一筆詢問：優先同頻道進行中的；沒有就開新的（即使客人已有案件，也照顯示、用案件狀態標籤分類）
+  let inquiryId = db.prepare(`
+    SELECT id FROM line_inquiries
     WHERE line_user_id=? AND status IN ('new','in_progress')
       AND (channel_id IS ? OR channel_id IS NULL)
     ORDER BY created_at DESC LIMIT 1
-  `).get(userId, channel.id || null);
+  `).get(userId, channel.id || null)?.id || null;
 
-  let inquiryId;
-  if (openInquiry) {
-    // 既有進行中詢問 → 追加訊息
-    inquiryId = openInquiry.id;
-    db.prepare(`
-      UPDATE line_inquiries
-      SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
-          message_count=message_count+1, display_name=?, updated_at=CURRENT_TIMESTAMP
-      WHERE id=?
-    `).run(text.slice(0, 200), displayName, inquiryId);
-  } else {
-    // 檢查是否已有尚未結案的案件（透過 line_source 或 client_id 關聯）
-    const activeCase = db.prepare(`
-      SELECT id FROM cases
-      WHERE status NOT IN ('closed','invalid')
-        AND (line_source=? OR client_id=?)
-      LIMIT 1
-    `).get(userId, client.id);
-
-    if (activeCase) {
-      // 已有進行中案件，不建立新詢問，訊息附掛到最近一筆已轉案的詢問
-      const convertedInquiry = db.prepare(`
-        SELECT id FROM line_inquiries
-        WHERE line_user_id=? AND status='converted'
-        ORDER BY updated_at DESC LIMIT 1
-      `).get(userId);
-      if (convertedInquiry) {
-        db.prepare(`
-          INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content)
-          VALUES (?, 'in', 'text', ?)
-        `).run(convertedInquiry.id, text);
-      }
-      return; // 不建立新詢問
-    }
-
-    // 真正的新詢問 → 建立（帶入 OAT 來源管道）
+  if (!inquiryId) {
     const followSrc = db.prepare(`SELECT add_source FROM line_follow_sources WHERE line_user_id=?`).get(userId);
     const addSource = followSrc?.add_source || null;
     const r = db.prepare(`
       INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
-    `).run(userId, client.id, displayName, displayName, text.slice(0, 200), orgId, channel.id || null, addSource);
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+    `).run(userId, client.id, displayName, displayName, preview, orgId, channel.id || null, addSource);
     inquiryId = r.lastInsertRowid;
   }
 
+  // 存訊息 + 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
+  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content) VALUES (?, 'in', ?, ?)`)
+    .run(inquiryId, msgType, content);
   db.prepare(`
-    INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content)
-    VALUES (?, 'in', 'text', ?)
-  `).run(inquiryId, text);
+    UPDATE line_inquiries
+    SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
+        message_count=message_count+1, display_name=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(preview, displayName, inquiryId);
 
   // 自動回覆已關閉：訊息收進系統但不主動回覆客戶
 }

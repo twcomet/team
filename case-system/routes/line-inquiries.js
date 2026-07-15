@@ -47,7 +47,10 @@ router.get('/', requireAuth, (req, res) => {
            su.name AS sales_name,
            cu.name AS cs_name,
            o.name  AS org_name,
-           o.type  AS org_type
+           o.type  AS org_type,
+           (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1) AS last_dir,
+           COALESCE(cc.status,      (SELECT status      FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_status,
+           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
@@ -71,7 +74,10 @@ router.get('/stats', requireAuth, (req, res) => {
       SUM(CASE WHEN i.status='converted'   AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid')) THEN 1 ELSE 0 END) as converted,
       SUM(CASE WHEN i.status='invalid'     OR  (i.status='converted' AND cc.status='invalid') THEN 1 ELSE 0 END) as invalid,
       SUM(CASE WHEN i.status='hidden'      THEN 1 ELSE 0 END) as hidden,
-      SUM(CASE WHEN i.status='converted'   AND cc.status='closed' THEN 1 ELSE 0 END) as case_closed
+      SUM(CASE WHEN i.status='converted'   AND cc.status='closed' THEN 1 ELSE 0 END) as case_closed,
+      SUM(CASE WHEN i.status IN ('new','in_progress')
+                AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
+               THEN 1 ELSE 0 END) as awaiting
     FROM line_inquiries i
     LEFT JOIN cases cc ON i.converted_case_id = cc.id
   `).get();
@@ -82,6 +88,7 @@ router.get('/stats', requireAuth, (req, res) => {
     invalid:     row.invalid     || 0,
     hidden:      row.hidden      || 0,
     case_closed: row.case_closed || 0,
+    awaiting:    row.awaiting     || 0,
   });
 });
 
@@ -93,7 +100,9 @@ router.get('/:id', requireAuth, (req, res) => {
            su.name AS sales_name, su.id AS sales_id_val,
            cu.name AS cs_name,    cu.id AS cs_id_val,
            o.name  AS org_name,
-           o.type  AS org_type
+           o.type  AS org_type,
+           COALESCE(cc.status,      (SELECT status      FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_status,
+           COALESCE(cc.case_number, (SELECT case_number FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) AS cust_case_number
     FROM line_inquiries i
     LEFT JOIN clients c  ON i.client_id = c.id
     LEFT JOIN cases   cc ON i.converted_case_id = cc.id
@@ -109,7 +118,7 @@ router.get('/:id', requireAuth, (req, res) => {
     FROM line_inquiry_messages m
     LEFT JOIN users u ON m.sent_by = u.id
     WHERE m.inquiry_id=?
-    ORDER BY m.created_at ASC
+    ORDER BY m.created_at ASC, m.id ASC
   `).all(req.params.id);
 
   res.json({ ...inq, messages });

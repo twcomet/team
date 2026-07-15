@@ -154,6 +154,7 @@
           </div>
           <div class="status-tabs" id="statusTabs">
             <button class="status-tab active" data-status="all">全部<span class="cnt" id="cnt-all"></span></button>
+            <button class="status-tab" data-status="awaiting" style="border-color:#fca5a5;color:#b91c1c;font-weight:700">🔴 待回覆<span class="cnt" id="cnt-awaiting"></span></button>
             <button class="status-tab" data-status="new">新詢問<span class="cnt" id="cnt-new"></span></button>
             <button class="status-tab" data-status="in_progress">進行中<span class="cnt" id="cnt-in_progress"></span></button>
             <button class="status-tab" data-status="converted">已轉案<span class="cnt" id="cnt-converted"></span></button>
@@ -283,6 +284,9 @@ async function loadStats() {
   const s = await fetch('/api/line-inquiries/stats').then(r => r.json()).catch(() => ({}));
   const total = (s.new || 0) + (s.in_progress || 0);
   document.getElementById('cnt-all').textContent         = total     ? ` ${total}` : '';
+  const awEl = document.getElementById('cnt-awaiting');
+  awEl.textContent = s.awaiting ? ` ${s.awaiting}` : '';
+  awEl.style.cssText = s.awaiting ? 'margin-left:2px;font-size:11px;background:#ef4444;color:#fff;border-radius:8px;padding:0 5px;font-weight:700;opacity:1' : '';
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
   document.getElementById('cnt-converted').textContent   = s.converted   ? ` ${s.converted}` : '';
@@ -291,22 +295,83 @@ async function loadStats() {
   document.getElementById('cnt-hidden').textContent      = s.hidden      ? ` ${s.hidden}` : '';
 }
 
+// ── 案件狀態標籤 / 漏接判斷 ─────────────────────────────────
+const CASE_STATUS = {
+  inquiry:          { t:'詢價·需初步估價', bg:'#eff6ff', c:'#1d4ed8' },
+  initial_estimate: { t:'已初步估價',       bg:'#eff6ff', c:'#1d4ed8' },
+  cared_waiting:    { t:'已關懷·待回覆',    bg:'#eff6ff', c:'#1d4ed8' },
+  quote_needed:     { t:'需出估價單',       bg:'#eff6ff', c:'#1d4ed8' },
+  quote_sent:       { t:'已出估價單',       bg:'#eff6ff', c:'#1d4ed8' },
+  survey_pending:   { t:'待場勘',           bg:'#fef3c7', c:'#92400e' },
+  survey_scheduled: { t:'已排場勘',         bg:'#fef3c7', c:'#92400e' },
+  surveyed:         { t:'已場勘',           bg:'#fef3c7', c:'#92400e' },
+  quote_draft:      { t:'報價草稿',         bg:'#fef3c7', c:'#92400e' },
+  quoted:           { t:'已發報價單',       bg:'#fef3c7', c:'#92400e' },
+  contracted:       { t:'✅成交·待派工',    bg:'#dcfce7', c:'#166534' },
+  dispatched:       { t:'✅已派工·待施工',  bg:'#dcfce7', c:'#166534' },
+  constructing:     { t:'🔨施工中',         bg:'#dcfce7', c:'#166534' },
+  payment:          { t:'完工·請款中',      bg:'#dcfce7', c:'#166534' },
+  aftersales:       { t:'售後維修',         bg:'#dcfce7', c:'#166534' },
+};
+function caseStatusBadge(status, num) {
+  if (!status) return '';
+  const s = CASE_STATUS[status] || { t: status, bg:'#f3f4f6', c:'#6b7280' };
+  const tip = num ? ` title="案件 ${escHtml(num)}"` : '';
+  return `<span${tip} style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:${s.bg};color:${s.c};white-space:nowrap">${s.t}</span>`;
+}
+// 等待客服回覆＝客人最後發言、且詢問仍在處理中
+function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.status === 'in_progress'); }
+function hoursSince(ts) {
+  if (!ts) return 0;
+  const d = new Date(ts.replace(' ','T') + (ts.includes('T') && ts.includes('Z') ? '' : 'Z'));
+  return isNaN(d) ? 0 : (Date.now() - d) / 3600000;
+}
+const OVERDUE_HOURS = 2;
+
+// ── 常用語快捷（依客服 SOP：先要照片 → 問需求 → 留電話 → 展間）──
+const QUICK_REPLIES = [
+  { label:'📷 請傳照片', text:'您好😊 方便先拍幾張要施工位置的照片給我們嗎？這樣可以更準確為您評估喔 🙏' },
+  { label:'📐 問需求',   text:'請問您想施工的位置是哪裡呢？（例如：系統櫃門片／牆面／玻璃）方便的話也先跟我們說一下大概的尺寸或範圍～' },
+  { label:'📞 留電話',   text:'為了方便安排後續服務，可以留一下您的聯絡電話與方便聯繫的時間嗎？我們會請專人與您聯繫😊' },
+  { label:'🏠 展間參觀', text:'我們有實體展間，可以看到實際材質與貼膜效果，很歡迎您預約參觀～需要我提供展間地址與可參觀時段給您嗎？' },
+  { label:'🙏 稍候回覆', text:'收到您的訊息了！我們正在為您確認，稍後盡快回覆您，謝謝您的耐心 🙏' },
+];
+function quickReply(idx) {
+  const ta = document.getElementById('replyInput');
+  if (!ta) return;
+  const t = QUICK_REPLIES[idx]?.text || '';
+  ta.value = ta.value.trim() ? (ta.value.replace(/\s+$/,'') + '\n' + t) : t;
+  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
+  ta.focus();
+}
+function quickReplyBar() {
+  return `<div style="display:flex;gap:6px;padding:9px 12px 3px;overflow-x:auto;flex-wrap:wrap;background:#fff;border-top:1px solid var(--gray-200)">
+    <span style="font-size:11px;color:var(--gray-400);align-self:center;white-space:nowrap">常用語</span>
+    ${QUICK_REPLIES.map((q,idx)=>`<button type="button" onclick="quickReply(${idx})" style="flex:0 0 auto;padding:5px 11px;border:1px solid var(--gray-300);border-radius:16px;background:#f9fafb;font-size:12px;cursor:pointer;white-space:nowrap;color:var(--gray-700)">${q.label}</button>`).join('')}
+  </div>`;
+}
+
 // ── 清單 ──────────────────────────────────────────────────
 async function loadList() {
   const q = document.getElementById('searchInput').value.trim();
   const p = new URLSearchParams({ limit: 100, page: 1 });
-  if (currentStatus !== 'all') p.set('status', currentStatus);
+  // 「待回覆」是虛擬篩選：抓進行中的，前端再篩「客人最後發言」的
+  if (currentStatus !== 'all' && currentStatus !== 'awaiting') p.set('status', currentStatus);
   if (q) p.set('q', q);
   const data = await fetch(`/api/line-inquiries?${p}`).then(r => r.json()).catch(() => ({ rows: [] }));
-  inquiries = data.rows || [];
+  let rows = data.rows || [];
+  if (currentStatus === 'awaiting') rows = rows.filter(isAwaiting);
+  inquiries = rows;
   renderList();
 }
 
 function renderList() {
   const el = document.getElementById('inqScroll');
   const sorted = [...inquiries].sort((a, b) => {
-    const va = a.last_message_at || '', vb = b.last_message_at || '';
-    return vb.localeCompare(va); // 固定最新訊息優先
+    const aw = isAwaiting(a), bw = isAwaiting(b);
+    if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂
+    if (aw) return (a.last_message_at || '').localeCompare(b.last_message_at || ''); // 等最久的在最上面
+    return (b.last_message_at || '').localeCompare(a.last_message_at || '');         // 其餘最新優先
   });
   if (!sorted.length) {
     el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px">沒有符合的詢問</div>`;
@@ -317,18 +382,27 @@ function renderList() {
     const dispStatus = i.status === 'converted' && i.converted_case_status === 'closed'   ? 'case_closed' :
                        i.status === 'converted' && i.converted_case_status === 'invalid'  ? 'case_invalid' :
                        i.status;
+    const aw       = isAwaiting(i);
+    const hrs      = hoursSince(i.last_message_at);
+    const overdue  = aw && hrs >= OVERDUE_HOURS;
+    const awaitBadge = aw
+      ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:${overdue?'#fee2e2':'#fef9c3'};color:${overdue?'#b91c1c':'#854d0e'};white-space:nowrap">${overdue?`🔴 待回覆 ${Math.floor(hrs)}h`:'🟡 待回覆'}</span>`
+      : '';
+    const caseBadge   = caseStatusBadge(i.cust_case_status, i.cust_case_number);
     const salesBadge  = i.sales_name  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#ede9fe;color:#6d28d9">${escHtml(i.sales_name)}</span>` : '';
     const csBadge     = i.cs_name     ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">${escHtml(i.cs_name)}</span>` : '';
     const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
     const branchBadge = i.org_type === 'branch' && i.org_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(i.org_name)}</span>` : '';
     return `
-    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})">
-      <div class="ic-name">
-        ${escHtml(i.display_name || 'LINE用戶')}
+    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="${overdue?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
+      <div class="ic-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+        ${awaitBadge}
+        <span style="font-weight:600">${escHtml(i.display_name || 'LINE用戶')}</span>
         <span class="s-badge s-${dispStatus}">${sLabel(dispStatus)}</span>
         ${branchBadge}
         ${i.message_count > 1 ? `<span style="font-size:11px;color:var(--gray-400)">${i.message_count} 則</span>` : ''}
       </div>
+      ${caseBadge ? `<div style="margin:3px 0 1px">${caseBadge}</div>` : ''}
       <div class="ic-snippet">${escHtml(i.last_message || '')}</div>
       <div class="ic-meta">
         <span>${escHtml(i.phone || '')}</span>
@@ -376,6 +450,9 @@ async function openInquiry(id) {
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:16px;font-weight:700;color:var(--gray-900)">${escHtml(data.display_name || 'LINE用戶')}</span>
+          ${data.cust_case_status ? (data.converted_case_id
+              ? `<a href="/case-detail?id=${data.converted_case_id}" target="_blank" style="text-decoration:none">${caseStatusBadge(data.cust_case_status, data.cust_case_number)}</a>`
+              : caseStatusBadge(data.cust_case_status, data.cust_case_number)) : ''}
           ${data.org_type === 'branch' && data.org_name ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(data.org_name)}</span>` : ''}
           ${data.add_source ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af">${escHtml(data.add_source)}</span>` : ''}
         </div>
@@ -432,12 +509,13 @@ async function openInquiry(id) {
     </div>
 
     ${data.status !== 'converted' && data.status !== 'invalid' ? `
+    ${quickReplyBar()}
     <div class="reply-box">
       <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息，Enter 傳送，Shift+Enter 換行…" rows="1"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendReply(${id})}"
       ></textarea>
-      <button class="btn btn-primary btn-sm" onclick="sendReply(${id})">傳送</button>
+      <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="sendReply(${id})">📨 傳送</button>
     </div>` : `
     <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
       此詢問已${sLabel(data.status)}，不可回覆
@@ -455,15 +533,19 @@ async function openInquiry(id) {
 function renderMessages(msgs) {
   if (!msgs?.length)
     return `<div style="text-align:center;color:var(--gray-400);font-size:13px;padding:20px">尚無訊息記錄</div>`;
-  return msgs.map(m => `
+  return msgs.map(m => {
+    const body = (m.msg_type === 'image' && m.content)
+      ? `<a href="${escHtml(m.content)}" target="_blank" rel="noopener"><img src="${escHtml(m.content)}" loading="lazy" style="max-width:210px;max-height:260px;border-radius:10px;display:block;border:1px solid var(--gray-200)"></a>`
+      : `<div class="msg-bubble">${escHtml(m.content||'')}</div>`;
+    return `
     <div class="msg-row ${m.direction}">
       <div style="display:flex;flex-direction:column;${m.direction==='out'?'align-items:flex-end':''}">
         ${m.direction === 'out' ? `<div class="msg-sender">${escHtml(m.sender_name||'客服')}</div>` : ''}
-        <div class="msg-bubble">${escHtml(m.content||'')}</div>
+        ${body}
         <div class="msg-time">${fmtTime(m.created_at)}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function scrollChat() {
