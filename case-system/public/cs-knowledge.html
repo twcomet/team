@@ -116,6 +116,9 @@ let items = [];
 async function init() {
   await loadUser();
   highlightNav('cs-knowledge');
+  // 🤖 AI 挖常見問題：最耗 API 額度，僅老闆可見可用（避免同事誤按）
+  const mineBtn = document.getElementById('mineBtn');
+  if (mineBtn && (currentUser?.role !== 'owner')) mineBtn.style.display = 'none';
   await load();
 }
 

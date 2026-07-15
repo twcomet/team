@@ -247,10 +247,8 @@ async function handleClientMessage(event, channel) {
     WHERE id=?
   `).run(isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview, displayName, inquiryId);
 
-  // AI 草稿模式：背景擬稿存後台（群組先不自動擬，避免多人對話誤判；1對1才跑）
-  if (!isGroup && process.env.ANTHROPIC_API_KEY) {
-    require('../lib/line-ai').generateInquiryDraft(inquiryId).catch(err => console.error('[LINE-AI] 擬稿失敗:', err.message));
-  }
+  // AI 草稿改為「手動觸發」以節省 API credit：客服在 LINE 詢問按「🤖 產生 AI 建議回覆」才跑
+  // （原本每則客人私訊都自動擬稿，是最大的背景消耗來源；改成按鈕才跑）
 
   // 自動回覆已關閉：訊息收進系統但不主動回覆客戶
 }

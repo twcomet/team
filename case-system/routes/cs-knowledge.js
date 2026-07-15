@@ -47,8 +47,10 @@ router.delete('/:id', requireAuth, canEdit, (req, res) => {
 });
 
 // AI 從歷史對話挖常見問題 → 回傳建議條目（不直接存，讓使用者挑）
-router.post('/mine', requireAuth, canEdit, async (req, res) => {
+// 限老闆使用：此功能一次讀 600 則對話，最耗 API credit，避免同事誤按
+router.post('/mine', requireAuth, async (req, res) => {
   try {
+    if (req.session.user?.role !== 'owner') return res.status(403).json({ error: '此功能僅開放給老闆使用（避免誤用消耗 API 額度）' });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: '未設定 ANTHROPIC_API_KEY' });
     // 取近期客人發言（文字），量大時抽樣
     const msgs = db.prepare(`SELECT content FROM line_inquiry_messages
