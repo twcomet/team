@@ -418,7 +418,7 @@
             <div style="font-size:13px;color:#92400e;margin-bottom:10px">此瀏覽器在內嵌框架內擋掉了登入狀態，估價計算機無法直接顯示。</div>
             <a id="estCalcFallbackBtn" href="#" target="_blank" style="display:inline-block;font-size:13px;font-weight:700;background:#f59e0b;color:#fff;border-radius:8px;padding:9px 18px;text-decoration:none">🧮 在新分頁開啟估價計算機 ↗</a>
           </div>
-          <iframe id="estCalcFrame" style="width:100%;height:1180px;border:none;display:block"></iframe>
+          <iframe id="estCalcFrame" allow="clipboard-write" style="width:100%;height:1180px;border:none;display:block"></iframe>
         </div>
         <script>
         (function(){
@@ -1487,6 +1487,7 @@ const STAGES_BY_GROUP = {
   inquiry: [
     {key:'inquiry',          label:'詢價需初步估價'},
     {key:'initial_estimate', label:'已初步估價'},
+    {key:'cared_waiting',    label:'已關懷，等待客戶回覆'},
     {key:'quote_needed',     label:'需出估價單'},
     {key:'quote_sent',       label:'已出估價單'},
     {key:'invalid',          label:'已估價無效保存'},
@@ -1512,6 +1513,7 @@ const STAGES_BY_GROUP = {
 const STATUS_OPTIONS_BY_GROUP = {
   inquiry: [
     ['inquiry','詢價需初步估價'],['initial_estimate','已初步估價'],
+    ['cared_waiting','已關懷，等待客戶回覆'],
     ['quote_needed','需出估價單'],['quote_sent','已出估價單'],
     ['invalid','已估價無效保存'],
   ],
@@ -2121,7 +2123,7 @@ function applyConvertButtons(group) {
   toDeal.style.display    = 'none';
   toInvalid.style.display = 'none';
 
-  const INVALIDATABLE = new Set(['inquiry','initial_estimate','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
+  const INVALIDATABLE = new Set(['inquiry','initial_estimate','cared_waiting','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft','quoted','contracted','dispatched','constructing']);
   const invalidBtn = INVALIDATABLE.has(status)
     ? `<button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="openDetailInvalidModal()">✕ 標記無效</button>` : '';
 
