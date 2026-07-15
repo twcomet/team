@@ -1983,6 +1983,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS makeup_requests (
 
 // attendance 補欄位
 _addCol('attendance', 'location_type', "TEXT DEFAULT NULL"); // 'company' | 'site'
+_addCol('attendance', 'clock_type', "TEXT DEFAULT NULL");    // 'ontime' | 'late' | 'special'
 
 // ── 客戶預收款（膜料本、其他預收）─────────────────────────────
 db.exec(`

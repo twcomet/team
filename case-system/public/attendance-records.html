@@ -21,8 +21,7 @@
 .card.warn { border-color:#fecaca; background:#fef2f2; } .card.warn .n { color:#dc2626; }
 .card.late { border-color:#fed7aa; background:#fff7ed; } .card.late .n { color:#c2410c; }
 .card.ok   { border-color:#bbf7d0; background:#f0fdf4; } .card.ok .n { color:#15803d; }
-.summary-box { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
-@media(max-width:640px){ .summary-box{ grid-template-columns:1fr; } }
+.summary-box { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
 .sbx { border:1px solid var(--gray-200,#e5e7eb); border-radius:12px; padding:12px 16px; background:#fff; }
 .sbx h4 { margin:0 0 8px; font-size:14px; }
 .chip { display:inline-block; background:var(--gray-100,#f3f4f6); border-radius:6px; padding:3px 9px; margin:3px 4px 0 0; font-size:13px; }
@@ -34,7 +33,8 @@ table.att td.c, table.att th.c { text-align:center; }
 .st { font-weight:700; font-size:12px; padding:2px 9px; border-radius:999px; }
 .st-present { background:#dcfce7; color:#15803d; } .st-late { background:#ffedd5; color:#c2410c; }
 .st-absent { background:#fee2e2; color:#b91c1c; } .st-leave { background:#e0e7ff; color:#4338ca; }
-.st-off { background:#f1f5f9; color:#64748b; }
+.st-off { background:#f1f5f9; color:#64748b; } .st-special { background:#e0f2fe; color:#0369a1; }
+.chip.blue { background:#e0f2fe; color:#0369a1; }
 .tbl-wrap { overflow-x:auto; border:1px solid var(--gray-200,#e5e7eb); border-radius:12px; }
 .hint { font-size:12px; color:var(--gray-400,#9ca3af); margin-top:10px; }
 .holiday-banner { background:#f1f5f9; border:1px solid #e2e8f0; color:#475569; border-radius:12px; padding:16px 18px; font-size:15px; font-weight:600; margin-bottom:16px; }
@@ -154,7 +154,7 @@ table.att td.c, table.att th.c { text-align:center; }
           <thead><tr id="wHead"></tr></thead>
           <tbody id="wBody"></tbody>
         </table></div>
-        <div class="hint">✅ 已打卡　⚠️ 遲到　❌ 沒打卡　🌴 請假　🌙 假日免打卡（週六日與國定假日）。「沒打卡」欄 = 本週應打卡卻沒打的天數。</div>
+        <div class="hint">✅ 已打卡　⚠️ 遲到　⭐ 特殊時段（早到／離峰，不算遲到）　❌ 沒打卡　🌴 請假　🌙 假日免打卡（週六日與國定假日）。「沒打卡」欄 = 本週應打卡卻沒打的天數。</div>
       </div>
 
       <!-- 月統計 -->
@@ -165,9 +165,9 @@ table.att td.c, table.att th.c { text-align:center; }
           <button class="att-nav" onclick="shiftMonth(1)">下個月 ›</button>
         </div>
         <div class="tbl-wrap"><table class="att"><thead><tr>
-          <th>姓名</th><th>部門</th><th>出勤天數</th><th>遲到次數</th><th>請假時數</th><th>自動下班</th>
+          <th>姓名</th><th>部門</th><th>出勤天數</th><th>遲到次數</th><th>特殊時段</th><th>請假時數</th><th>自動下班</th>
         </tr></thead><tbody id="mBody"></tbody></table></div>
-        <div class="hint">遲到次數 <b style="color:#dc2626">超過 5 次</b>（紅字）會影響全勤獎金。「自動下班」＝上班打卡後系統自動 +8 小時補的下班卡。</div>
+        <div class="hint">遲到次數 <b style="color:#dc2626">超過 5 次</b>（紅字）會影響全勤獎金。「特殊時段」＝早到／離峰時段打卡（不算遲到，供主管檢視）。「自動下班」＝上班打卡後系統自動 +9 小時補的下班卡。</div>
       </div>
 
       <!-- 打卡設定 -->
@@ -227,20 +227,23 @@ async function loadDaily(){
     card('ok', d.present_count, '已打卡') +
     card('late', d.late_count, '遲到') +
     card('warn', d.absent_count, '沒打卡') +
+    card('', d.special_count||0, '特殊時段') +
     card('', d.leave_count, '請假');
-  // Summary 兩欄（假日不顯示沒打卡）
+  // Summary（假日不顯示沒打卡）
   const absent = !d.workday ? '<span style="color:#64748b;font-size:13px">假日免打卡</span>'
     : d.absentList.length ? d.absentList.map(n=>`<span class="chip red">${esc(n)}</span>`).join('') : '<span style="color:#15803d;font-size:13px">全員到齊 👍</span>';
   const late = d.lateList.length ? d.lateList.map(x=>`<span class="chip orange">${esc(x.name)} ${esc(x.time||'')}</span>`).join('') : '<span style="color:#15803d;font-size:13px">今日無人遲到 👍</span>';
+  const special = (d.specialList&&d.specialList.length) ? d.specialList.map(x=>`<span class="chip blue">${esc(x.name)} ${esc(x.time||'')}</span>`).join('') : '<span style="color:#15803d;font-size:13px">無 👍</span>';
   document.getElementById('dSummary').innerHTML =
     `<div class="sbx"><h4>❌ 沒打卡（${d.workday?d.absent_count:0}）</h4>${absent}</div>`+
-    `<div class="sbx"><h4>⚠️ 遲到（${d.late_count}）</h4>${late}</div>`;
+    `<div class="sbx"><h4>⚠️ 遲到（${d.late_count}）</h4>${late}</div>`+
+    `<div class="sbx"><h4>⭐ 特殊時段（${d.special_count||0}）</h4>${special}</div>`;
   // 表格
   document.getElementById('dBody').innerHTML = d.employees.map(e=>{
-    const stMap = { present:['st-present','✅ 已打卡'], late:['st-late','⚠️ 遲到'], absent:['st-absent','❌ 沒打卡'], leave:['st-leave','🌴 '+(e.leave_type||'請假')], off:['st-off','🌙 假日免打卡'] };
+    const stMap = { present:['st-present','✅ 已打卡'], late:['st-late','⚠️ 遲到'], absent:['st-absent','❌ 沒打卡'], leave:['st-leave','🌴 '+(e.leave_type||'請假')], off:['st-off','🌙 假日免打卡'], special:['st-special','⭐ 特殊時段'] };
     const st = stMap[e.status]||['','—'];
     const loc = e.location_type==='company'?'公司':e.location_type==='site'?'案場':'';
-    const out = e.clock_out ? (e.clock_out + (e.auto_out?'（自動）':'')) : '';
+    const out = e.clock_out ? ((e.out_next_day?'隔日 ':'')+e.clock_out + (e.auto_out?'（自動）':'')) : '';
     return `<tr><td><b>${esc(e.name)}</b></td><td style="color:#6b7280">${esc(rn(e.role))}</td>`+
       `<td><span class="st ${st[0]}">${st[1]}</span></td>`+
       `<td>${esc(e.clock_in||'')}</td><td style="color:#6b7280">${esc(out)}</td><td style="color:#6b7280">${esc(loc)}</td></tr>`;
@@ -265,7 +268,7 @@ async function loadWeek(){
     head += `<th class="c wk-hd ${wend?'wend':''}">週${DOW[w]}<small>${dd.getMonth()+1}/${dd.getDate()}</small></th>`; });
   head += '<th class="c">出勤</th><th class="c">遲到</th><th class="c">請假</th><th class="c">沒打卡</th>';
   document.getElementById('wHead').innerHTML = head;
-  const ICON = { present:'✅', late:'⚠️', absent:'❌', leave:'🌴', off:'🌙', future:'·' };
+  const ICON = { present:'✅', late:'⚠️', absent:'❌', leave:'🌴', off:'🌙', special:'⭐', future:'·' };
   document.getElementById('wBody').innerHTML = d.employees.map(emp=>{
     const cells = emp.days.map(s=>`<td class="c wk-cell">${ICON[s]||''}</td>`).join('');
     const lateRed = emp.late_count>0 ? 'style="color:#c2410c;font-weight:700"' : '';
@@ -288,6 +291,7 @@ async function loadMonth(){
     const lateRed = e.late_count>5 ? 'style="color:#dc2626;font-weight:800"' : '';
     return `<tr><td><b>${esc(e.name)}</b></td><td style="color:#6b7280">${esc(rn(e.role))}</td>`+
       `<td>${e.worked_days}</td><td ${lateRed}>${e.late_count}</td>`+
+      `<td style="color:#0369a1">${e.special_count||0}</td>`+
       `<td>${e.leave_hours||0}</td><td style="color:#6b7280">${e.auto_out||0}</td></tr>`;
   }).join('');
 }

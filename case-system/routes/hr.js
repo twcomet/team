@@ -321,13 +321,14 @@ router.get('/attendance-summary', requireAuth, requireHR, (req, res) => {
     const lateCount    = records.filter(r => r.is_late).length;
     const workedDays   = records.filter(r => r.clock_in).length;
     const autoOut      = records.filter(r => r.auto_clock_out).length;
+    const specialCount = records.filter(r => r.clock_type === 'special').length;
     // 請假天數
     const leaveHours   = db.prepare(`SELECT COALESCE(SUM(hours),0) AS h FROM leave_requests WHERE user_id=? AND status='approved' AND leave_date LIKE ?`)
       .get(emp.id, `${ym}-%`)?.h || 0;
     return {
       id: emp.id, name: emp.name, role: emp.role,
       worked_days: workedDays, late_count: lateCount, auto_out: autoOut,
-      leave_hours: leaveHours,
+      special_count: specialCount, leave_hours: leaveHours,
       records,
     };
   });
@@ -355,26 +356,30 @@ router.get('/attendance-daily', requireAuth, requireAttendanceView, (req, res) =
     const a = byUser[u.id];
     const onLeave = leaveByUser[u.id] || null;
     let status;
-    if (a && a.clock_in) status = a.is_late ? 'late' : 'present';
+    if (a && a.clock_in) status = a.is_late ? 'late' : (a.clock_type === 'special' ? 'special' : 'present');
     else if (onLeave)     status = 'leave';
     else if (!workday)    status = 'off';      // 週末/國定假日不用打卡，不算沒打卡
     else                  status = 'absent';
+    // 下班若早於上班（跨日，例如晚班隔日 05:00）→ 標記隔日
+    const nextDay = a?.clock_in && a?.clock_out && a.clock_out < a.clock_in;
     return {
       id: u.id, name: u.name, role: u.role, status,
-      clock_in: a?.clock_in || null, clock_out: a?.clock_out || null,
-      is_late: a?.is_late ? 1 : 0, auto_out: a?.auto_clock_out ? 1 : 0,
+      clock_in: a?.clock_in || null, clock_out: a?.clock_out || null, out_next_day: nextDay ? 1 : 0,
+      is_late: a?.is_late ? 1 : 0, auto_out: a?.auto_clock_out ? 1 : 0, clock_type: a?.clock_type || null,
       location_type: a?.location_type || null,
       leave_type: onLeave, makeup: makeupByUser[u.id] || null,
     };
   });
   const absentList = employees.filter(x => x.status === 'absent').map(x => x.name);
   const lateList   = employees.filter(x => x.status === 'late').map(x => ({ name: x.name, time: x.clock_in }));
-  const presentCount = employees.filter(x => x.status === 'present' || x.status === 'late').length;
+  const specialList = employees.filter(x => x.status === 'special').map(x => ({ name: x.name, time: x.clock_in }));
+  const presentCount = employees.filter(x => x.status === 'present' || x.status === 'late' || x.status === 'special').length;
   res.json({
     date, workday, roster_count: roster.length,
     present_count: presentCount, absent_count: absentList.length, late_count: lateList.length,
+    special_count: specialList.length,
     leave_count: employees.filter(x => x.status === 'leave').length,
-    absentList, lateList, employees,
+    absentList, lateList, specialList, employees,
   });
 });
 
@@ -446,7 +451,7 @@ router.get('/attendance-weekly', requireAuth, requireAttendanceView, (req, res) 
     // 每天狀態（供週表格）
     const dayStatus = days.map(d => {
       const rec = recByDay[d];
-      if (rec && rec.clock_in) return rec.is_late ? 'late' : 'present';
+      if (rec && rec.clock_in) return rec.is_late ? 'late' : (rec.clock_type === 'special' ? 'special' : 'present');
       if (leaveDays.has(d))    return 'leave';
       if (!att.isWorkday(d))   return 'off';       // 週末/國定假日
       if (d > today)           return 'future';
