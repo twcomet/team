@@ -277,6 +277,23 @@
   </div>
 </div>
 
+<!-- 估價機彈跳視窗（在這頁疊一層，估完關掉就回對話，不跳走）-->
+<div class="modal-overlay" id="estFrameModal">
+  <div class="modal" style="max-width:1080px;width:97%;height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-header" style="padding:10px 16px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:10px">
+      <h3 style="margin:0;font-size:15px">🧮 估價計算機</h3>
+      <a id="estFrameOpenTab" href="#" target="_blank" style="font-size:12px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 10px;text-decoration:none;white-space:nowrap">在新分頁開啟 ↗</a>
+      <span style="font-size:11px;color:var(--gray-400)">估好按估價機內的「儲存」，再關掉這個視窗回到對話</span>
+      <button class="modal-close" style="margin-left:auto" onclick="closeEstFrame()">×</button>
+    </div>
+    <div id="estFrameFallback" style="display:none;padding:26px 20px;text-align:center;background:#fff8f0">
+      <div style="font-size:13px;color:#92400e;margin-bottom:12px">此瀏覽器在彈跳視窗內擋掉了登入狀態，估價機無法直接顯示。</div>
+      <a id="estFrameFallbackBtn" href="#" target="_blank" style="display:inline-block;font-size:13px;font-weight:700;background:#f59e0b;color:#fff;border-radius:8px;padding:10px 20px;text-decoration:none">🧮 在新分頁開啟估價機 ↗</a>
+    </div>
+    <iframe id="estFrame" allow="clipboard-write" style="flex:1;width:100%;border:none;display:block"></iframe>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script src="/js/care-logs.js"></script>
 <script>
@@ -591,13 +608,36 @@ async function createEstimateDraft() {
     if (!r.ok || !j.id) { showToast(j.error || '建立估價草稿失敗', 'error'); btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →'; return; }
     document.getElementById('aiEstModal').classList.remove('open');
     btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
-    window.open(`/estimator?edit=${j.id}`, '_blank');
-    showToast('已建立估價草稿，於新分頁開啟估價機');
-    openInquiry(currentId);
+    openEstFrame(j.id);
+    showToast('已建立估價草稿，於彈跳視窗開啟估價機');
   } catch (e) {
     showToast('建立失敗，請稍後再試', 'error');
     btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
   }
+}
+// 在彈跳視窗內開估價機（不跳走本頁）；iframe 被登入擋掉時退回「在新分頁開啟」
+function openEstFrame(quoteId) {
+  const url = `/estimator?edit=${quoteId}`;
+  const fr = document.getElementById('estFrame');
+  const fb = document.getElementById('estFrameFallback');
+  document.getElementById('estFrameOpenTab').href = url;
+  document.getElementById('estFrameFallbackBtn').href = url;
+  fb.style.display = 'none'; fr.style.display = 'block';
+  fr.onload = function () {
+    try {
+      const p = fr.contentWindow.location.pathname;
+      if (p === '/' || /login/i.test(p)) { fb.style.display = ''; fr.style.display = 'none'; }
+      else { fb.style.display = 'none'; fr.style.display = 'block'; }
+    } catch (e) { /* 跨源讀不到就當正常顯示 */ }
+  };
+  fr.src = `${url}&embed=1`;
+  document.getElementById('estFrameModal').classList.add('open');
+}
+function closeEstFrame() {
+  document.getElementById('estFrameModal').classList.remove('open');
+  const fr = document.getElementById('estFrame');
+  if (fr) fr.src = 'about:blank';
+  if (currentId) openInquiry(currentId);   // 回對話並刷新（估價紀錄可能已更新）
 }
 
 // ── 清單 ──────────────────────────────────────────────────
