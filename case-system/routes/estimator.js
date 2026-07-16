@@ -363,6 +363,7 @@ router.post('/ocr-sizes', requireAuth, upload.single('file'), async (req, res) =
     if (!resp.ok || data.type === 'error') {
       return res.status(500).json({ error: `辨識服務錯誤：${data.error?.message || ('API ' + resp.status)}` });
     }
+    require('../lib/ai-usage').logUsage(db, { feature: 'estimator_ocr', userId: req.session.user?.id, model: 'claude-sonnet-5', data });
     const text = (data.content || []).map(c => c.text || '').join('').trim();
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) return res.status(422).json({ error: `辨識不到尺寸，請確認上傳的是尺寸表/場勘圖${text ? '（' + text.slice(0, 60) + '）' : ''}` });

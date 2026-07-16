@@ -88,6 +88,7 @@ router.post('/ocr-card', requireAuth, upload.single('card'), async (req, res) =>
       const msg = apiData.error?.message || `API 錯誤 ${resp.status}`;
       return res.status(500).json({ error: `辨識服務錯誤：${msg}` });
     }
+    require('../lib/ai-usage').logUsage(db, { feature: 'client_ocr_card', userId: req.session.user?.id, model: 'claude-haiku-4-5-20251001', data: apiData });
     const text = apiData.content?.[0]?.text?.trim() || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {

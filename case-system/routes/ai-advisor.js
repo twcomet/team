@@ -278,7 +278,7 @@ const ADVISORS = {
   },
 };
 
-async function callClaude(system, messages, maxTokens = 2000) {
+async function callClaude(system, messages, maxTokens = 2000, meta = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('系統尚未設定 ANTHROPIC_API_KEY，請老闆到 Zeabur 環境變數設定');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -288,6 +288,7 @@ async function callClaude(system, messages, maxTokens = 2000) {
   });
   const data = await resp.json();
   if (!resp.ok || data.type === 'error') throw new Error(data.error?.message || `API 錯誤 ${resp.status}`);
+  require('../lib/ai-usage').logUsage(db, { feature: meta.feature || 'ai_advisor_chat', userId: meta.userId || null, model: MODEL, data });
   // 掃描所有 text 區塊（新模型第一個 block 可能不是 text）
   const text = Array.isArray(data.content)
     ? data.content.filter(b => b && b.type === 'text' && b.text).map(b => b.text).join('\n').trim()
@@ -328,7 +329,7 @@ router.post('/:advisor/brief', requireAuth, async (req, res) => {
   try {
     const snap = adv.gather(req.session.user);
     const text = await callClaude(adv.system, [{ role: 'user', content:
-      `${adv.briefPrompt}\n\n${JSON.stringify(snap)}` }]);
+      `${adv.briefPrompt}\n\n${JSON.stringify(snap)}` }], 2000, { feature: 'ai_advisor_brief', userId: req.session.user?.id });
     res.json({ ok: true, brief: text, snapshot: snap });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -343,7 +344,7 @@ router.post('/:advisor/chat', requireAuth, async (req, res) => {
     const msgs = [{ role: 'user', content: `【${adv.snapLabel}，供你參考回答】\n${JSON.stringify(snap)}` },
                   { role: 'assistant', content: adv.chatIntro },
                   ...history.slice(-12).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))];
-    const text = await callClaude(adv.system, msgs);
+    const text = await callClaude(adv.system, msgs, 2000, { feature: 'ai_advisor_chat', userId: req.session.user?.id });
     res.json({ ok: true, reply: text });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

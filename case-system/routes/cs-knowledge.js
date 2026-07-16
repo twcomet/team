@@ -65,7 +65,7 @@ router.post('/mine', requireAuth, async (req, res) => {
 - 合併相似問題，最多 12 題，由高頻到低頻。
 - 已存在的題目不要重複：${existing.join('、') || '（無）'}
 只輸出 JSON：{"suggestions":[{"category":"","question":"","answer":""}]}`;
-    const raw = await callClaude(system, [{ role: 'user', content: `客人訊息集合：\n${corpus}\n\n請歸納常見問題，只輸出 JSON。` }], 2000);
+    const raw = await callClaude(system, [{ role: 'user', content: `客人訊息集合：\n${corpus}\n\n請歸納常見問題，只輸出 JSON。` }], 2000, { feature: 'cs_knowledge_mine', userId: req.session.user?.id });
     const parsed = safeParseJson(raw);
     res.json({ suggestions: Array.isArray(parsed?.suggestions) ? parsed.suggestions.slice(0, 12) : [] });
   } catch (e) {
@@ -74,7 +74,7 @@ router.post('/mine', requireAuth, async (req, res) => {
 });
 
 // 內部：呼叫 Claude（與 line-ai 相同寫法，避免循環相依而各自保留）
-async function callClaude(system, messages, maxTokens = 1024) {
+async function callClaude(system, messages, maxTokens = 1024, meta = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -83,6 +83,7 @@ async function callClaude(system, messages, maxTokens = 1024) {
   });
   const data = await resp.json();
   if (!resp.ok || data.type === 'error') throw new Error(data.error?.message || `API 錯誤 ${resp.status}`);
+  require('../lib/ai-usage').logUsage(db, { feature: meta.feature || 'cs_knowledge_mine', userId: meta.userId || null, model: 'claude-sonnet-5', data });
   return Array.isArray(data.content) ? data.content.filter(b => b?.type === 'text' && b.text).map(b => b.text).join('\n').trim() : '';
 }
 function safeParseJson(raw) {

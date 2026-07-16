@@ -219,13 +219,44 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「AI 用量監控」選單（僅老闆）：放在 Google 雲端／備份 或 系統管理 下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="ai-usage"]')) return;
+    if (currentUser.role !== 'owner') return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'ai-usage'; a.href = '/ai-usage';
+    a.innerHTML = '<span class="icon">📊</span>AI 用量監控';
+    const anchor = nav.querySelector('[data-page="gdrive-connect"]') || nav.querySelector('[data-page="admin"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   if (!mu) {
     document.querySelectorAll('[data-need="manage_users"]').forEach(el => el.style.display = 'none');
   }
   if (currentUser.role !== 'owner') {
     document.querySelectorAll('[data-need="owner"]').forEach(el => el.style.display = 'none');
   }
+  // 主動提醒：老闆每次載入任何頁面時，若今日 AI 花費已超過門檻 → 跳一次紅色橫幅提醒
+  if (currentUser.role === 'owner') {
+    fetch('/api/ai-usage/alert').then(r => r.json()).then(j => {
+      if (j && j.over) showAiUsageAlert(j);
+    }).catch(() => {});
+  }
   return currentUser;
+}
+
+// 顯示「AI 用量超過門檻」的紅色橫幅（頂端，可關閉；點擊進監控頁）
+function showAiUsageAlert(j) {
+  if (sessionStorage.getItem('aiUsageAlertDismissed') === new Date().toDateString()) return;
+  if (document.getElementById('aiUsageAlertBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'aiUsageAlertBar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;padding:10px 16px;font-size:14px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  bar.innerHTML = `<span style="flex:1">⚠️ 今日 AI 用量已達 <b>約 US$${(j.today_usd||0).toFixed(2)}</b>，超過你設定的門檻 US$${(j.limit_usd||0).toFixed(2)}。<a href="/ai-usage" style="color:#fff;text-decoration:underline">看用量明細</a></span>
+    <button style="background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer">今日不再提醒</button>`;
+  bar.querySelector('button').onclick = () => { sessionStorage.setItem('aiUsageAlertDismissed', new Date().toDateString()); bar.remove(); };
+  document.body.appendChild(bar);
 }
 
 function highlightNav(page) {

@@ -1619,6 +1619,44 @@ db.exec(`
   );
 `);
 
+// ── AI 用量監控：每次呼叫 Anthropic API 記一筆（功能、使用者、token、估算花費）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_usage_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    feature       TEXT,
+    user_id       INTEGER,
+    model         TEXT,
+    input_tokens  INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    est_cost_usd  REAL    DEFAULT 0,
+    created_at    DATETIME DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage_log(created_at);
+  CREATE INDEX IF NOT EXISTS idx_ai_usage_feature ON ai_usage_log(feature);
+  CREATE TABLE IF NOT EXISTS ai_usage_settings (
+    id             INTEGER PRIMARY KEY CHECK (id=1),
+    daily_limit_usd REAL   DEFAULT 5,
+    alert_enabled   INTEGER DEFAULT 1
+  );
+`);
+if (!db.prepare(`SELECT 1 FROM ai_usage_settings WHERE id=1`).get()) {
+  db.prepare(`INSERT INTO ai_usage_settings (id, daily_limit_usd, alert_enabled) VALUES (1, 5, 1)`).run();
+}
+
+// ── AI 顧問對話保存（純文字，很小；跳頁不再消失）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_advisor_chats (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER,
+    advisor      TEXT,
+    title        TEXT,
+    messages_json TEXT,
+    created_at   DATETIME DEFAULT (datetime('now','localtime')),
+    updated_at   DATETIME DEFAULT (datetime('now','localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_advisor_chats_user ON ai_advisor_chats(user_id, advisor);
+`);
+
 // 系統內建角色的預設權限設定
 db.exec(`
   CREATE TABLE IF NOT EXISTS role_defaults (

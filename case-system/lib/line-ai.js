@@ -5,7 +5,7 @@ const db = require('../db');
 
 const MODEL = 'claude-sonnet-5';
 
-async function callClaude(system, messages, maxTokens = 1024) {
+async function callClaude(system, messages, maxTokens = 1024, meta = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('未設定 ANTHROPIC_API_KEY');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -15,6 +15,7 @@ async function callClaude(system, messages, maxTokens = 1024) {
   });
   const data = await resp.json();
   if (!resp.ok || data.type === 'error') throw new Error(data.error?.message || `API 錯誤 ${resp.status}`);
+  require('./ai-usage').logUsage(db, { feature: meta.feature || 'line_ai_draft', userId: meta.userId || null, model: MODEL, data });
   const text = Array.isArray(data.content)
     ? data.content.filter(b => b && b.type === 'text' && b.text).map(b => b.text).join('\n').trim()
     : '';
@@ -152,7 +153,7 @@ async function generateInquiryDraft(inquiryId) {
   buf += '\n\n請依規則擬一則要回覆客人的草稿，並判斷是否需轉真人。只輸出 JSON。';
   flush();
 
-  const raw = await callClaude(buildSystemPrompt(), [{ role: 'user', content }]);
+  const raw = await callClaude(buildSystemPrompt(), [{ role: 'user', content }], 1024, { feature: 'line_ai_draft' });
 
   const parsed     = safeParseJson(raw);
   const draft      = (parsed && parsed.draft) ? String(parsed.draft).trim() : raw.trim();
@@ -198,7 +199,7 @@ async function chatWithAssistant(inquiryId, chatMessages) {
     .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
     .map(m => ({ role: m.role, content: m.content.trim() }));
   if (!clean.length) throw new Error('沒有訊息');
-  return await callClaude(buildAssistantSystemPrompt(transcript), clean, 1024);
+  return await callClaude(buildAssistantSystemPrompt(transcript), clean, 1024, { feature: 'line_ai_assistant' });
 }
 
 // AI 估價輔助：從對話＋照片萃取貼膜估價品項（尺寸只在客人有給/圖上有標時填，否則不編）
@@ -233,7 +234,7 @@ async function generateEstimateDraft(inquiryId) {
   }
   buf += '\n\n請萃取要估價的貼膜品項，只輸出 JSON。'; flush();
 
-  const raw = await callClaude(buildEstimateSystemPrompt(), [{ role: 'user', content }], 1500);
+  const raw = await callClaude(buildEstimateSystemPrompt(), [{ role: 'user', content }], 1500, { feature: 'line_ai_estimate' });
   const parsed = safeParseJson(raw) || {};
   const items = (Array.isArray(parsed.items) ? parsed.items : []).map(it => {
     const w = Number(it.width_cm) || 0, h = Number(it.height_cm) || 0, qty = Math.max(1, Number(it.qty) || 1);

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 用量監控 — 繪新管理系統</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <style>
+    .au-wrap { padding:16px 20px; max-width:1040px; overflow-y:auto; }
+    .au-intro { font-size:13px; color:var(--gray-600); background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 14px; margin-bottom:14px; line-height:1.6; }
+    .au-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:16px; }
+    .au-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px 16px; }
+    .au-card .lbl { font-size:12px; color:var(--gray-500); }
+    .au-card .val { font-size:26px; font-weight:800; color:var(--gray-900); margin-top:4px; font-variant-numeric:tabular-nums; }
+    .au-card .sub { font-size:11px; color:var(--gray-400); margin-top:2px; }
+    .au-card.warn { background:#fef2f2; border-color:#fecaca; }
+    .au-card.warn .val { color:#b91c1c; }
+    .au-sec { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+    .au-sec h3 { font-size:14px; margin:0 0 10px; color:var(--gray-700); }
+    table.au-tb { width:100%; border-collapse:collapse; font-size:13px; }
+    table.au-tb th { text-align:left; color:var(--gray-500); font-size:11px; font-weight:600; padding:6px 8px; border-bottom:1px solid var(--gray-200); white-space:nowrap; }
+    table.au-tb td { padding:6px 8px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+    table.au-tb td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .bar-wrap { background:var(--gray-100); border-radius:5px; height:8px; overflow:hidden; min-width:60px; }
+    .bar { height:100%; background:#be185d; border-radius:5px; }
+    .spark { display:flex; align-items:flex-end; gap:3px; height:60px; }
+    .spark .col { flex:1; background:#fbcfe8; border-radius:3px 3px 0 0; min-height:2px; position:relative; }
+    .spark .col.today { background:#be185d; }
+    .set-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+    .set-row input[type=number] { width:90px; padding:6px 8px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; }
+    .pill { display:inline-block; font-size:11px; padding:1px 7px; border-radius:9px; background:#fce7f3; color:#9d174d; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2>
+      <p id="sidebarOrgName"></p>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label">業務</span>
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
+      <span class="nav-group-label">系統設定</span>
+      <a class="nav-item" data-page="admin" href="/admin" data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main-content" style="display:flex;flex-direction:column;padding:0">
+    <div class="top-bar" style="display:flex;align-items:center;justify-content:space-between">
+      <span class="page-title">📊 AI 用量監控</span>
+      <button class="btn btn-ghost btn-sm" onclick="load()">🔄 重新整理</button>
+    </div>
+    <div class="au-wrap">
+      <div class="au-intro">
+        這裡記錄系統每一次呼叫 AI（Anthropic API）的用量與<b>估算</b>花費——花費是依公開單價換算的估計值，<b>實際金額以 Anthropic 帳單為準</b>。
+        設定每日門檻後，只要當日估算花費超過門檻，老闆登入任何頁面都會跳紅色橫幅提醒。
+      </div>
+      <div id="auBody"><div style="padding:40px;text-align:center;color:var(--gray-400)">載入中…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let SUM = null;
+
+async function init() {
+  await loadUser();
+  highlightNav('ai-usage');
+  await load();
+}
+
+async function load() {
+  const body = document.getElementById('auBody');
+  try {
+    SUM = await fetch('/api/ai-usage/summary').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  } catch (e) {
+    body.innerHTML = `<div style="padding:30px;color:#dc2626">載入失敗（${e.message}）。此頁僅限老闆。</div>`;
+    return;
+  }
+  render();
+}
+
+function usd(n) { return 'US$' + (Number(n) || 0).toFixed(n < 1 ? 3 : 2); }
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTime(s) { if (!s) return ''; return String(s).slice(5, 16); }
+
+function render() {
+  const s = SUM;
+  const over = s.over_limit;
+  const maxFeat = Math.max(1, ...s.byFeatureMonth.map(f => f.c));
+  const maxDay = Math.max(0.0001, ...s.last14.map(d => d.c));
+  const today = new Date().toISOString().slice(0, 10);
+
+  document.getElementById('auBody').innerHTML = `
+    <div class="au-cards">
+      <div class="au-card ${over ? 'warn' : ''}">
+        <div class="lbl">今日估算花費</div>
+        <div class="val">${usd(s.today.cost)}</div>
+        <div class="sub">${s.today.count} 次呼叫　門檻 ${usd(s.settings.daily_limit_usd)}${over ? ' · ⚠️ 已超過' : ''}</div>
+      </div>
+      <div class="au-card">
+        <div class="lbl">本月估算花費</div>
+        <div class="val">${usd(s.month.cost)}</div>
+        <div class="sub">${s.month.count} 次呼叫</div>
+      </div>
+      <div class="au-card">
+        <div class="lbl">今日呼叫最多的功能</div>
+        <div class="val" style="font-size:18px">${s.byFeatureToday[0] ? esc(s.byFeatureToday[0].label) : '—'}</div>
+        <div class="sub">${s.byFeatureToday[0] ? usd(s.byFeatureToday[0].c) + ' · ' + s.byFeatureToday[0].n + ' 次' : '今日尚無用量'}</div>
+      </div>
+    </div>
+
+    <div class="au-sec">
+      <h3>⚙️ 提醒設定</h3>
+      <div class="set-row">
+        <label><input type="checkbox" id="setEnabled" ${s.settings.alert_enabled ? 'checked' : ''}> 開啟每日門檻提醒</label>
+        <span>每日門檻 US$ <input type="number" id="setLimit" min="0" step="0.5" value="${s.settings.daily_limit_usd}"></span>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">儲存</button>
+        <span id="setMsg" style="font-size:12px;color:#166534"></span>
+      </div>
+    </div>
+
+    <div class="au-sec">
+      <h3>📈 近 14 天每日花費（估算）</h3>
+      <div class="spark">
+        ${s.last14.length ? s.last14.map(d => `
+          <div class="col ${d.d === today ? 'today' : ''}" style="height:${Math.max(3, d.c / maxDay * 100)}%"
+               title="${d.d}　${usd(d.c)}　${d.n} 次"></div>`).join('') : '<div style="color:var(--gray-400);font-size:13px">尚無資料</div>'}
+      </div>
+    </div>
+
+    <div class="au-sec">
+      <h3>🧩 本月各功能花費排行</h3>
+      <table class="au-tb">
+        <thead><tr><th>功能</th><th class="num">次數</th><th class="num">估算花費</th><th style="width:30%">占比</th></tr></thead>
+        <tbody>
+          ${s.byFeatureMonth.length ? s.byFeatureMonth.map(f => `
+            <tr>
+              <td>${esc(f.label)}</td>
+              <td class="num">${f.n}</td>
+              <td class="num">${usd(f.c)}</td>
+              <td><div class="bar-wrap"><div class="bar" style="width:${f.c / maxFeat * 100}%"></div></div></td>
+            </tr>`).join('') : '<tr><td colspan="4" style="color:var(--gray-400);padding:16px;text-align:center">本月尚無用量</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="au-sec">
+      <h3>👤 本月各人員用量</h3>
+      <table class="au-tb">
+        <thead><tr><th>人員</th><th class="num">次數</th><th class="num">估算花費</th></tr></thead>
+        <tbody>
+          ${s.byUserMonth.length ? s.byUserMonth.map(u => `
+            <tr><td>${esc(u.name || '（系統／自動）')}</td><td class="num">${u.n}</td><td class="num">${usd(u.c)}</td></tr>`).join('')
+            : '<tr><td colspan="3" style="color:var(--gray-400);padding:16px;text-align:center">本月尚無用量</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="au-sec">
+      <h3>🕘 最近 60 筆呼叫</h3>
+      <div style="overflow-x:auto">
+      <table class="au-tb">
+        <thead><tr><th>時間</th><th>功能</th><th>人員</th><th>模型</th><th class="num">輸入</th><th class="num">輸出</th><th class="num">估算</th></tr></thead>
+        <tbody>
+          ${s.recent.length ? s.recent.map(r => `
+            <tr>
+              <td>${fmtTime(r.created_at)}</td>
+              <td><span class="pill">${esc(r.label)}</span></td>
+              <td>${esc(r.user_name || '—')}</td>
+              <td style="font-size:11px;color:var(--gray-400)">${esc((r.model || '').replace('claude-', '').replace('-20251001', ''))}</td>
+              <td class="num">${r.input_tokens}</td>
+              <td class="num">${r.output_tokens}</td>
+              <td class="num">${usd(r.est_cost_usd)}</td>
+            </tr>`).join('') : '<tr><td colspan="7" style="color:var(--gray-400);padding:16px;text-align:center">尚無呼叫紀錄</td></tr>'}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  `;
+}
+
+async function saveSettings() {
+  const daily_limit_usd = Number(document.getElementById('setLimit').value) || 0;
+  const alert_enabled = document.getElementById('setEnabled').checked;
+  const msg = document.getElementById('setMsg');
+  try {
+    const r = await fetch('/api/ai-usage/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily_limit_usd, alert_enabled }),
+    });
+    if (!r.ok) throw new Error();
+    msg.textContent = '已儲存 ✓';
+    setTimeout(() => msg.textContent = '', 2000);
+    load();
+  } catch (e) { msg.style.color = '#b91c1c'; msg.textContent = '儲存失敗'; }
+}
+
+init();
+</script>
+</body>
+</html>

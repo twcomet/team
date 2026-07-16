@@ -97,6 +97,7 @@ app.use('/api/settings',          require('./routes/settings'));
 app.use('/api/marketplace',       require('./routes/marketplace'));
 app.use('/api/line-inquiries',    require('./routes/line-inquiries'));
 app.use('/api/cs-knowledge',      require('./routes/cs-knowledge'));
+app.use('/api/ai-usage',          require('./routes/ai-usage'));
 app.use('/api/marketing',             require('./routes/marketing'));
 app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 app.use('/api/hr',                    require('./routes/hr'));
@@ -141,6 +142,7 @@ const PAGE_PERMS = {
   ledger:           'page_ledger',
   'line-inquiries': 'page_line_inquiries',
   'cs-knowledge':   'page_line_inquiries',
+  'ai-usage':       'owner_only',
   'care-logs':      'page_care_logs',
   'dispatch-detail':'page_cases',
   'survey-form':    'page_cases',
@@ -190,7 +192,9 @@ function requirePagePerm(page) {
     }
     const p = u.permissions || {};
     let allowed;
-    if (key === 'manage_users') {
+    if (key === 'owner_only') {
+      allowed = u.role === 'owner';   // owner 已於上方短路；此處確保其他人一律擋
+    } else if (key === 'manage_users') {
       allowed = !!u.manage_users;
     } else if (key === 'page_line_inquiries') {
       // 舊 session 無此 key 時退回 page_cases
@@ -263,7 +267,7 @@ function requireContract(req, res, next) {
   next();
 }
 
-const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'cs-knowledge', 'care-logs', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports'];
+const pages = ['dashboard', 'cases', 'cases-inquiry', 'cases-survey', 'cases-deal', 'case-detail', 'quote-list', 'estimator', 'estimator-quotes', 'calendar', 'payments', 'ledger', 'performance', 'reports', 'marketing', 'admin', 'clients', 'client-detail', 'survey-form', 'quote-form', 'my-tasks', 'my-calendar', 'dispatch-detail', 'materials', 'material-calc', 'marketplace', 'line-inquiries', 'cs-knowledge', 'ai-usage', 'care-logs', 'dispatch-pool', 'hr', 'profile', 'contracts', 'guide', 'expenses', 'quote-settings', 'estimator-settings', 'vendors', 'assets', 'purchases', 'shipments', 'shipment-form', 'deposits', 'deficiencies', 'leave', 'feedback', 'layout', 'subcontract', 'material-usage', 'work-reports'];
 pages.forEach(page => {
   // cases-inquiry / cases-survey / cases-deal 都共用 cases.html
   const htmlFile = ['cases-inquiry','cases-survey','cases-deal'].includes(page) ? 'cases.html' : `${page}.html`;

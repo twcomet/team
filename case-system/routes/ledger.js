@@ -271,6 +271,7 @@ router.post('/scan', requireAuth, async (req, res) => {
       return res.status(502).json({ error: `AI API error ${response.status}`, detail: errBody.slice(0, 300) });
     }
     const data = await response.json();
+    require('../lib/ai-usage').logUsage(db, { feature: 'ledger_scan', userId: req.session.user?.id, model: 'claude-haiku-4-5-20251001', data });
     const text = data.content?.[0]?.text?.trim() || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return res.status(422).json({ error: 'parse error' });
