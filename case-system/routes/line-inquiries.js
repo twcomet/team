@@ -97,7 +97,10 @@ router.get('/stats', requireAuth, (req, res) => {
       SUM(CASE WHEN i.status IN ('new','in_progress')
                 AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
                THEN 1 ELSE 0 END) as awaiting,
-      SUM(CASE WHEN i.status IN ('new','in_progress') AND i.ai_needs_human=1 THEN 1 ELSE 0 END) as needs_human
+      SUM(CASE WHEN i.status IN ('new','in_progress') AND i.ai_needs_human=1 THEN 1 ELSE 0 END) as needs_human,
+      SUM(CASE WHEN i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))
+                AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
+               THEN 1 ELSE 0 END) as converted_awaiting
     FROM line_inquiries i
     LEFT JOIN cases cc ON i.converted_case_id = cc.id
   `).get();
@@ -110,6 +113,7 @@ router.get('/stats', requireAuth, (req, res) => {
     case_closed: row.case_closed || 0,
     awaiting:    row.awaiting     || 0,
     needs_human: row.needs_human || 0,
+    converted_awaiting: row.converted_awaiting || 0,
   });
 });
 

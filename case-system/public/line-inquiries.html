@@ -166,7 +166,7 @@
             <button class="status-tab" data-status="needs_human" title="AI 判斷「這通不該只由 AI 回、需要真人接手」而標記的詢問，集中在這裡優先處理。常見：問到公司機密（人數/成本/報價底價）、有成交意願要報價下訂、設計師/廠商窗口、殺價/客訴/催進度、或 AI 不確定的事。" style="border-color:#c4b5fd;color:#6d28d9;font-weight:700">🤖 轉真人客服<span class="cnt" id="cnt-needs_human"></span></button>
             <button class="status-tab" data-status="new">新詢問<span class="cnt" id="cnt-new"></span></button>
             <button class="status-tab" data-status="in_progress">進行中<span class="cnt" id="cnt-in_progress"></span></button>
-            <button class="status-tab" data-status="converted">已轉案<span class="cnt" id="cnt-converted"></span></button>
+            <button class="status-tab" data-status="converted">已轉案<span class="cnt" id="cnt-converted"></span><span class="cnt" id="cnt-converted_await" title="已轉案客戶又傳新訊息、還沒回覆"></span></button>
             <button class="status-tab" data-status="invalid">無效<span class="cnt" id="cnt-invalid"></span></button>
             <button class="status-tab" data-status="case_closed">結案<span class="cnt" id="cnt-case_closed"></span></button>
             <button class="status-tab" data-status="hidden">隱藏<span class="cnt" id="cnt-hidden"></span></button>
@@ -356,6 +356,9 @@ async function loadStats() {
   document.getElementById('cnt-new').textContent         = s.new     ? ` ${s.new}` : '';
   document.getElementById('cnt-in_progress').textContent = s.in_progress ? ` ${s.in_progress}` : '';
   document.getElementById('cnt-converted').textContent   = s.converted   ? ` ${s.converted}` : '';
+  const caEl = document.getElementById('cnt-converted_await');
+  caEl.textContent = s.converted_awaiting ? ` 🔴${s.converted_awaiting}` : '';
+  caEl.style.cssText = s.converted_awaiting ? 'margin-left:3px;font-size:11px;background:#ef4444;color:#fff;border-radius:8px;padding:0 5px;font-weight:700;opacity:1' : '';
   document.getElementById('cnt-invalid').textContent     = s.invalid     ? ` ${s.invalid}` : '';
   document.getElementById('cnt-case_closed').textContent = s.case_closed ? ` ${s.case_closed}` : '';
   document.getElementById('cnt-hidden').textContent      = s.hidden      ? ` ${s.hidden}` : '';
@@ -387,6 +390,10 @@ function caseStatusBadge(status, num) {
 }
 // 等待客服回覆＝客人最後發言、且詢問仍在處理中
 function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.status === 'in_progress'); }
+// 已轉案客戶又傳新訊息、還沒回（案件尚未結案/作廢）
+function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid'; }
+// 任一種「等我方回覆」
+function needsReply(i) { return isAwaiting(i) || isConvAwaiting(i); }
 function hoursSince(ts) {
   if (!ts) return 0;
   const d = new Date(ts.replace(' ','T') + (ts.includes('T') && ts.includes('Z') ? '' : 'Z'));
@@ -613,8 +620,8 @@ function renderList() {
   const base = caseFilter ? inquiries.filter(i => i.cust_case_status === caseFilter) : inquiries;
   const sorted = [...base].sort((a, b) => {
     if (currentSort === 'awaiting') {
-      const aw = isAwaiting(a), bw = isAwaiting(b);
-      if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂
+      const aw = needsReply(a), bw = needsReply(b);
+      if (aw !== bw) return aw ? -1 : 1;                                             // 待回覆一律置頂（含已轉案未回）
       if (aw) return (a.last_message_at || '').localeCompare(b.last_message_at || ''); // 等最久的在最上面
     }
     const va = a.last_message_at || '', vb = b.last_message_at || '';
@@ -629,11 +636,12 @@ function renderList() {
     const dispStatus = i.status === 'converted' && i.converted_case_status === 'closed'   ? 'case_closed' :
                        i.status === 'converted' && i.converted_case_status === 'invalid'  ? 'case_invalid' :
                        i.status;
-    const aw       = isAwaiting(i);
+    const aw       = needsReply(i);
+    const conv     = isConvAwaiting(i);
     const hrs      = hoursSince(i.last_message_at);
     const overdue  = aw && hrs >= OVERDUE_HOURS;
     const awaitBadge = aw
-      ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:${overdue?'#fee2e2':'#fef9c3'};color:${overdue?'#b91c1c':'#854d0e'};white-space:nowrap">${overdue?`🔴 待回覆 ${Math.floor(hrs)}h`:'🟡 待回覆'}</span>`
+      ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:${overdue?'#fee2e2':'#fef9c3'};color:${overdue?'#b91c1c':'#854d0e'};white-space:nowrap">${conv?'🔴 轉案未回':overdue?`🔴 待回覆 ${Math.floor(hrs)}h`:'🟡 待回覆'}${conv&&overdue?` ${Math.floor(hrs)}h`:''}</span>`
       : '';
     const aiBadge = i.ai_needs_human
       ? `<span title="AI 判斷需轉真人客服" style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:#ede9fe;color:#6d28d9;white-space:nowrap">🤖需轉客服</span>`
@@ -644,7 +652,7 @@ function renderList() {
     const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
     const branchBadge = i.org_type === 'branch' && i.org_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(i.org_name)}</span>` : '';
     return `
-    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="${overdue?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
+    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="${(overdue||conv)?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
       <div class="ic-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
         ${awaitBadge}
         ${aiBadge}
