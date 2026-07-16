@@ -189,15 +189,101 @@
   </div>
 </div>
 
+<!-- 歷史對話 Modal -->
+<div id="histModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:14px;width:92%;max-width:440px;max-height:76vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee">
+      <h3 id="histTitle" style="margin:0;font-size:16px">歷史對話</h3>
+      <button onclick="document.getElementById('histModal').style.display='none'" style="border:none;background:none;font-size:22px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div id="histList" style="overflow-y:auto;padding:6px 12px"></div>
+  </div>
+</div>
+
 <script src="/js/common.js"></script>
 <script>
 const AVATAR = { assistant:'🧑‍💼', accounting:'🧾', dispatch:'🚚' };
 const state = {   // 每個顧問各自的對話串與狀態
-  assistant:  { messages:[], busy:false, loaded:false },
-  accounting: { messages:[], busy:false, loaded:false },
-  dispatch:   { messages:[], busy:false, loaded:false },
+  assistant:  { messages:[], busy:false, loaded:false, chatId:null },
+  accounting: { messages:[], busy:false, loaded:false, chatId:null },
+  dispatch:   { messages:[], busy:false, loaded:false, chatId:null },
 };
 let current = 'assistant';
+
+// ── 對話保存（跳頁不再消失）───────────────────────────────
+async function autoSave(adv){
+  const s = state[adv];
+  if (!s.messages.some(m => m.role === 'user')) return;   // 至少要有一句提問才存
+  try{
+    const r = await fetch('/api/ai-advisor/'+adv+'/save',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ chat_id:s.chatId, messages:s.messages })});
+    const j = await r.json();
+    if (r.ok && j.id){ s.chatId = j.id; setSavedFlag(adv,true); }
+  }catch(e){}
+}
+function setSavedFlag(adv,on){
+  const el = document.getElementById('saved-'+adv);
+  if (el) el.textContent = on ? '💾 已自動保存' : '';
+}
+function newChat(adv){
+  const s = state[adv];
+  s.messages = []; s.chatId = null;
+  renderThread(adv);
+  const chips = document.getElementById('chips-'+adv); if (chips) chips.style.display='none';
+  setSavedFlag(adv,false);
+}
+async function openHistory(adv){
+  const box = document.getElementById('histList');
+  document.getElementById('histTitle').textContent = '歷史對話';
+  box.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af">載入中…</div>';
+  document.getElementById('histModal').style.display = 'flex';
+  window._histAdv = adv;
+  try{
+    const { chats } = await fetch('/api/ai-advisor/'+adv+'/chats').then(r=>r.json());
+    if (!chats || !chats.length){ box.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af">還沒有保存的對話</div>'; return; }
+    box.innerHTML = chats.map(c=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 8px;border-bottom:1px solid #f1f1f4">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="loadChat(${c.id})">
+          <div style="font-size:14px;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(c.title||'對話').replace(/</g,'&lt;')}</div>
+          <div style="font-size:11px;color:#9ca3af">${(c.updated_at||'').slice(0,16)}　${c.msg_count} 則</div>
+        </div>
+        <button onclick="delChat(${c.id})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:13px">刪除</button>
+      </div>`).join('');
+  }catch(e){ box.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626">載入失敗</div>'; }
+}
+async function loadChat(id){
+  try{
+    const j = await fetch('/api/ai-advisor/chat/'+id).then(r=>r.json());
+    const adv = j.advisor || window._histAdv;
+    if (!state[adv]) return;
+    switchAdv(adv);
+    state[adv].messages = j.messages || [];
+    state[adv].chatId = j.id;
+    renderThread(adv);
+    const chips = document.getElementById('chips-'+adv); if (chips) chips.style.display='flex';
+    setSavedFlag(adv,true);
+    document.getElementById('histModal').style.display='none';
+  }catch(e){}
+}
+async function delChat(id){
+  if (!confirm('確定刪除這段對話？')) return;
+  await fetch('/api/ai-advisor/chat/'+id,{method:'DELETE'});
+  openHistory(window._histAdv);
+}
+function injectAdvisorToolbars(){
+  ['assistant','accounting','dispatch'].forEach(adv=>{
+    const panel = document.getElementById('panel-'+adv);
+    if (!panel || panel.querySelector('.adv-toolbar')) return;
+    const hero = panel.querySelector('.ai-hero');
+    const bar = document.createElement('div');
+    bar.className = 'adv-toolbar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;margin:10px 0 2px';
+    bar.innerHTML = `<button class="ai-btn ghost" style="padding:6px 12px;font-size:13px;margin:0" onclick="openHistory('${adv}')">📁 歷史對話</button>
+      <button class="ai-btn ghost" style="padding:6px 12px;font-size:13px;margin:0" onclick="newChat('${adv}')">✏️ 新對話</button>
+      <span id="saved-${adv}" style="font-size:12px;color:#16a34a"></span>`;
+    if (hero) hero.insertAdjacentElement('afterend', bar); else panel.insertBefore(bar, panel.firstChild);
+  });
+}
 
 function switchAdv(a){
   current = a;
@@ -252,7 +338,7 @@ async function loadBrief(adv){
     const r = await fetch('/api/ai-advisor/'+adv+'/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const j = await r.json(); showLoading(adv,false);
     if(!r.ok){ showErr(adv,j.error||('錯誤 '+r.status)); }
-    else { s.messages.push({role:'assistant',content:j.brief}); renderThread(adv); document.getElementById('chips-'+adv).style.display='flex'; }
+    else { s.messages.push({role:'assistant',content:j.brief}); renderThread(adv); document.getElementById('chips-'+adv).style.display='flex'; autoSave(adv); }
   }catch(e){ showLoading(adv,false); showErr(adv,e.message); }
   finally{ s.busy=false; if(btn){ btn.disabled=false; btn.textContent=(adv==='accounting'?'🔄 重新產生財務洞察':adv==='dispatch'?'🔄 重新產生派工洞察':'🔄 重新產生洞察'); } }
 }
@@ -267,7 +353,7 @@ async function sendChat(adv){
     const r=await fetch('/api/ai-advisor/'+adv+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:s.messages})});
     const j=await r.json(); showLoading(adv,false);
     if(!r.ok){ showErr(adv,j.error||('錯誤 '+r.status)); }
-    else { s.messages.push({role:'assistant',content:j.reply}); renderThread(adv); }
+    else { s.messages.push({role:'assistant',content:j.reply}); renderThread(adv); autoSave(adv); }
   }catch(e){ showLoading(adv,false); showErr(adv,e.message); }
   finally{ s.busy=false; }
 }
@@ -288,6 +374,7 @@ async function initAdvisors(){
   document.querySelectorAll('.ai-tab[data-real]').forEach(t=>{ if(keys.includes(t.dataset.adv)) t.style.display=''; });
   // 規劃中頁籤：只給看得到特助顧問的人（老闆）看路線圖
   if(keys.includes('assistant')) document.querySelectorAll('.ai-tab.soon-tab').forEach(t=>t.style.display='');
+  injectAdvisorToolbars();
   const first = keys[0];
   if(first) switchAdv(first);
   else document.querySelector('.ai-wrap').innerHTML='<div class="ai-soon-box">目前您沒有可使用的 AI 顧問，若需要請洽管理者開通權限。</div>';
