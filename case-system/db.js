@@ -2368,6 +2368,44 @@ db.prepare(`
   cats.forEach((n, i) => ins.run(n, i + 1));
 }
 
+// ── 請購單（辦公用品／耗材採購申請；與膜料採購 purchase_orders 不同）──────────
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS purchase_requests (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id         INTEGER REFERENCES orgs(id),
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    title          TEXT,
+    need_date      DATE,
+    status         TEXT DEFAULT 'draft',
+    est_total      REAL DEFAULT 0,
+    actual_total   REAL DEFAULT 0,
+    reviewer_id    INTEGER REFERENCES users(id),
+    reviewed_at    DATETIME,
+    review_note    TEXT,
+    reject_reason  TEXT,
+    rejected_by    INTEGER REFERENCES users(id),
+    rejected_at    DATETIME,
+    purchaser_id   INTEGER REFERENCES users(id),
+    purchasing_at  DATETIME,
+    received_at    DATETIME,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS purchase_request_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id   INTEGER NOT NULL REFERENCES purchase_requests(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    quantity     REAL DEFAULT 1,
+    unit         TEXT,
+    est_price    REAL,
+    actual_price REAL,
+    note         TEXT,
+    sort_order   INTEGER DEFAULT 0
+  )
+`).run();
+
 // ── 廠商資料表 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS vendors (

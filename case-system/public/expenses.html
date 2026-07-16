@@ -22,6 +22,17 @@
 .settle-user { font-weight:600; font-size:14px; margin-bottom:8px; }
 .settle-row  { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid var(--gray-100); }
 .settle-total { font-weight:700; color:#dc2626; }
+.sb-approved   { background:#dbeafe; color:#1e40af; }
+.sb-purchasing { background:#ede9fe; color:#5b21b6; }
+.sb-received   { background:#d1fae5; color:#065f46; }
+.mode-switch { display:flex; gap:8px; margin-bottom:18px; }
+.mode-btn { padding:8px 20px; border-radius:10px; border:1.5px solid var(--gray-200); background:#fff; font-size:14px; font-weight:600; cursor:pointer; color:var(--gray-500); }
+.mode-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+.pitem-head, .pitem-row { display:grid; grid-template-columns:1fr 66px 56px 96px 1fr 24px; gap:6px; align-items:center; }
+.pitem-head { font-size:11px; color:var(--gray-500); margin:2px 0 4px; }
+.pitem-row { margin-bottom:6px; }
+.pitem-row input { width:100%; padding:6px 8px; border:1px solid var(--gray-300); border-radius:7px; font-size:13px; }
+.pi-rm { cursor:pointer; color:#dc2626; text-align:center; font-size:16px; }
 </style>
 </head>
 <body>
@@ -94,6 +105,12 @@
     </div>
     <div class="page-body">
 
+      <div class="mode-switch">
+        <button class="mode-btn active" data-mode="expense">🧾 費用申請</button>
+        <button class="mode-btn" data-mode="purchase">🛒 請購單</button>
+      </div>
+
+      <div id="expenseSection">
       <div class="tabs-bar">
         <div class="tab active" data-tab="my">我的申請</div>
         <div class="tab" data-tab="review" id="reviewTab" style="display:none">待審核</div>
@@ -169,7 +186,135 @@
           </table></div>
         </div></div>
       </div>
+      </div><!-- /expenseSection -->
 
+      <!-- ══════════ 請購單 ══════════ -->
+      <div id="purchaseSection" style="display:none">
+        <div class="tabs-bar">
+          <div class="tab active" data-ptab="my">我的請購</div>
+          <div class="tab" data-ptab="review" id="pReviewTab" style="display:none">待審核</div>
+          <div class="tab" data-ptab="track"  id="pTrackTab"  style="display:none">採購追蹤</div>
+          <div class="tab" data-ptab="all"    id="pAllTab"    style="display:none">全部記錄</div>
+        </div>
+
+        <!-- 我的請購 -->
+        <div id="ppane-my">
+          <div class="card"><div class="card-body" style="padding:0">
+            <div class="table-wrap"><table>
+              <thead><tr><th>建立日</th><th>主旨</th><th>品項</th><th>預估</th><th>狀態</th><th></th></tr></thead>
+              <tbody id="pMyBody"></tbody>
+            </table></div>
+          </div></div>
+        </div>
+
+        <!-- 待審核 -->
+        <div id="ppane-review" style="display:none">
+          <div class="filter-bar"><span style="font-size:13px;color:var(--gray-500)">顯示待您審核的請購單</span></div>
+          <div class="card"><div class="card-body" style="padding:0">
+            <div class="table-wrap"><table>
+              <thead><tr><th>建立日</th><th>申請人</th><th>主旨</th><th>品項</th><th>預估</th><th>狀態</th><th></th></tr></thead>
+              <tbody id="pReviewBody"></tbody>
+            </table></div>
+          </div></div>
+        </div>
+
+        <!-- 採購追蹤 -->
+        <div id="ppane-track" style="display:none">
+          <div class="filter-bar"><span style="font-size:13px;color:var(--gray-500)">已核准 → 待採購／採購中，更新進度或標記到貨</span></div>
+          <div class="card"><div class="card-body" style="padding:0">
+            <div class="table-wrap"><table>
+              <thead><tr><th>建立日</th><th>申請人</th><th>主旨</th><th>品項</th><th>狀態</th><th></th></tr></thead>
+              <tbody id="pTrackBody"></tbody>
+            </table></div>
+          </div></div>
+        </div>
+
+        <!-- 全部記錄 -->
+        <div id="ppane-all" style="display:none">
+          <div class="filter-bar">
+            <select id="pAllStatusFilter" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+              <option value="">全部狀態</option>
+              <option value="submitted">待審核</option>
+              <option value="approved">待採購</option>
+              <option value="purchasing">採購中</option>
+              <option value="received">已到貨</option>
+              <option value="rejected">已退回</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadPAll()">查詢</button>
+          </div>
+          <div class="card"><div class="card-body" style="padding:0">
+            <div class="table-wrap"><table>
+              <thead><tr><th>建立日</th><th>申請人</th><th>主旨</th><th>品項</th><th>金額</th><th>狀態</th><th></th></tr></thead>
+              <tbody id="pAllBody"></tbody>
+            </table></div>
+          </div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 新增/編輯請購單 Modal -->
+<div class="modal-overlay" id="preqModal">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-header">
+      <h3 id="preqModalTitle">新增請購單</h3>
+      <button class="modal-close" onclick="closeModal('preqModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editPreqId">
+      <div class="form-row">
+        <div class="form-group"><label>主旨／用途</label><input type="text" id="pf_title" placeholder="例：客服辦公耗材補貨"></div>
+        <div class="form-group"><label>希望到貨日（可選）</label><input type="date" id="pf_need"></div>
+      </div>
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px">採購品項</label>
+      <div class="pitem-head"><span>品項名稱 *</span><span>數量</span><span>單位</span><span>預估單價</span><span>備註</span><span></span></div>
+      <div id="pItemRows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addPItemRow()" style="margin-top:6px">＋ 新增品項</button>
+      <p style="font-size:12px;color:var(--gray-400);margin-top:8px">預估單價可留空；實際金額由採購人於到貨時補填。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="savePreq('draft')">儲存草稿</button>
+      <button class="btn btn-primary" onclick="savePreq('submit')">儲存並送出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 審核請購單 Modal -->
+<div class="modal-overlay" id="preqReviewModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="preqReviewTitle">審核請購單</h3>
+      <button class="modal-close" onclick="closeModal('preqReviewModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="preqReviewingId">
+      <div id="preqReviewInfo" style="background:var(--gray-50);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px"></div>
+      <div class="form-group"><label>備註（退回時請填原因）</label><input type="text" id="preqReviewNote" placeholder="備註／退回原因"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="color:#e02424" onclick="pReject()">✕ 退回</button>
+      <button class="btn btn-primary" onclick="pApprove()">✓ 核准</button>
+    </div>
+  </div>
+</div>
+
+<!-- 到貨/採購 Modal -->
+<div class="modal-overlay" id="preqReceiveModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3 id="preqReceiveTitle">標記到貨</h3>
+      <button class="modal-close" onclick="closeModal('preqReceiveModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="preqReceivingId">
+      <p style="font-size:13px;color:var(--gray-500);margin-top:0">可補填實際單價（選填），確認後標記為「已到貨」。</p>
+      <div id="preqReceiveItems"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('preqReceiveModal')">取消</button>
+      <button class="btn btn-primary" onclick="pDoReceive()">✓ 確認到貨</button>
     </div>
   </div>
 </div>
@@ -271,7 +416,9 @@ const STATUS_NAMES = {
 };
 let categories = [], dealCases = [];  // currentUser 由 common.js 全域提供
 let currentTab = 'my';
+let currentMode = 'expense', currentPTab = 'my';
 let pendingSettleIds = [];
+const PSTATUS = { draft:'草稿', submitted:'待審核', approved:'待採購', purchasing:'採購中', received:'已到貨', rejected:'已退回' };
 
 async function init() {
   currentUser = await loadUser();
@@ -289,10 +436,22 @@ async function init() {
   }
 
   // 先掛好所有事件，不讓 API 失敗阻斷互動
-  document.querySelectorAll('.tabs-bar .tab').forEach(t => {
+  document.querySelectorAll('#expenseSection .tabs-bar .tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
-  document.getElementById('newExpenseBtn').addEventListener('click', () => openExpenseModal());
+  document.getElementById('newExpenseBtn').addEventListener('click', () => {
+    if (currentMode === 'purchase') openPreqModal(); else openExpenseModal();
+  });
+
+  // 請購單：管理層可見的分頁 + 模式/分頁事件
+  const canManagePurchase = ['owner','branch_manager','hq_cs_manager','hq_accounting'].includes(currentUser.role);
+  if (canManagePurchase) {
+    document.getElementById('pReviewTab').style.display = '';
+    document.getElementById('pTrackTab').style.display = '';
+    document.getElementById('pAllTab').style.display = '';
+  }
+  document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => switchMode(b.dataset.mode)));
+  document.querySelectorAll('#purchaseSection .tabs-bar .tab').forEach(t => t.addEventListener('click', () => switchPTab(t.dataset.ptab)));
   document.getElementById('expenseModalClose').addEventListener('click', () => closeModal('expenseModal'));
   document.getElementById('reviewModalClose').addEventListener('click', () => closeModal('reviewModal'));
   document.getElementById('settleModalClose').addEventListener('click', () => closeModal('settleModal'));
@@ -317,7 +476,7 @@ async function init() {
 
 function switchTab(tab) {
   currentTab = tab;
-  document.querySelectorAll('.tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('#expenseSection .tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   ['my','review','settle','all'].forEach(p => {
     document.getElementById(`pane-${p}`).style.display = p === tab ? '' : 'none';
   });
@@ -590,6 +749,235 @@ async function doSettle() {
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ══════════════════ 請購單 ══════════════════
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('expenseSection').style.display = mode === 'expense' ? '' : 'none';
+  document.getElementById('purchaseSection').style.display = mode === 'purchase' ? '' : 'none';
+  document.querySelector('.page-title').textContent = mode === 'purchase' ? '請購單' : '費用申請管理';
+  document.getElementById('newExpenseBtn').textContent = mode === 'purchase' ? '＋ 新增請購單' : '＋ 新增申請';
+  if (mode === 'purchase') switchPTab(currentPTab || 'my'); else switchTab(currentTab || 'my');
+}
+
+function switchPTab(tab) {
+  currentPTab = tab;
+  document.querySelectorAll('#purchaseSection .tabs-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.ptab === tab));
+  ['my','review','track','all'].forEach(p => { document.getElementById(`ppane-${p}`).style.display = p === tab ? '' : 'none'; });
+  if (tab === 'my') loadPMy();
+  if (tab === 'review') loadPReview();
+  if (tab === 'track') loadPTrack();
+  if (tab === 'all') loadPAll();
+}
+
+function pItemsCell(items) {
+  if (!items || !items.length) return '—';
+  const first = items.slice(0,2).map(i => `${i.name} ×${i.quantity}${i.unit||''}`).join('、');
+  return first + (items.length > 2 ? ` …等${items.length}項` : '');
+}
+function pMoney(n) { return '$' + Number(n||0).toLocaleString(); }
+
+async function loadPMy() {
+  const rows = await (await fetch('/api/purchase-requests?scope=mine')).json();
+  document.getElementById('pMyBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${(r.created_at||'').slice(0,10)}</td>
+      <td>${r.title||'—'}</td>
+      <td style="font-size:12px;max-width:220px">${pItemsCell(r.items)}</td>
+      <td>${r.est_total ? pMoney(r.est_total) : '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${PSTATUS[r.status]||r.status}</span>
+          ${r.reject_reason ? `<div style="font-size:11px;color:#e02424;margin-top:2px">退回：${r.reject_reason}</div>` : ''}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        ${['draft','rejected'].includes(r.status)
+          ? `<button class="btn btn-ghost btn-sm" onclick="openPreqModal(${r.id})">編輯</button>
+             <button class="btn btn-ghost btn-sm" style="color:#dc2626" onclick="deletePreq(${r.id})">刪除</button>
+             <button class="btn btn-primary btn-sm" onclick="submitPreq(${r.id})">${r.status==='rejected'?'重新送出':'送出'}</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="openPreqModal(${r.id},true)">檢視</button>`}
+      </td>
+    </tr>`).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">尚無請購單</td></tr>`;
+}
+
+async function loadPReview() {
+  const rows = await (await fetch('/api/purchase-requests?status=submitted')).json();
+  document.getElementById('pReviewBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${(r.created_at||'').slice(0,10)}</td>
+      <td>${r.user_name||'—'}</td>
+      <td>${r.title||'—'}</td>
+      <td style="font-size:12px;max-width:200px">${pItemsCell(r.items)}</td>
+      <td>${r.est_total ? pMoney(r.est_total) : '—'}</td>
+      <td><span class="status-badge sb-${r.status}">${PSTATUS[r.status]}</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="openPReviewModal(${r.id})">審核</button></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:32px">目前無待審核請購單</td></tr>`;
+}
+
+async function loadPTrack() {
+  const rows = await (await fetch('/api/purchase-requests?status=approved,purchasing')).json();
+  document.getElementById('pTrackBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${(r.created_at||'').slice(0,10)}</td>
+      <td>${r.user_name||'—'}</td>
+      <td>${r.title||'—'}</td>
+      <td style="font-size:12px;max-width:200px">${pItemsCell(r.items)}</td>
+      <td><span class="status-badge sb-${r.status}">${PSTATUS[r.status]}</span></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        ${r.status==='approved' ? `<button class="btn btn-ghost btn-sm" onclick="pMarkPurchasing(${r.id})">標記採購中</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="openPReceiveModal(${r.id})">標記到貨</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:32px">目前無待採購項目</td></tr>`;
+}
+
+async function loadPAll() {
+  const status = document.getElementById('pAllStatusFilter').value;
+  const rows = await (await fetch('/api/purchase-requests' + (status ? `?status=${status}` : ''))).json();
+  document.getElementById('pAllBody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${(r.created_at||'').slice(0,10)}</td>
+      <td>${r.user_name||'—'}</td>
+      <td>${r.title||'—'}</td>
+      <td style="font-size:12px;max-width:200px">${pItemsCell(r.items)}</td>
+      <td>${r.status==='received' && r.actual_total ? pMoney(r.actual_total) : (r.est_total ? '~'+pMoney(r.est_total) : '—')}</td>
+      <td><span class="status-badge sb-${r.status}">${PSTATUS[r.status]}</span></td>
+      <td></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:32px">尚無記錄</td></tr>`;
+}
+
+function pAttr(v) { return v == null ? '' : String(v).replace(/"/g,'&quot;'); }
+function pItemRowHtml(it) {
+  it = it || {};
+  return `<div class="pitem-row">
+    <input class="pi-name" placeholder="品項名稱" value="${pAttr(it.name)}">
+    <input class="pi-qty" type="number" min="0" placeholder="數量" value="${it.quantity!=null?it.quantity:1}">
+    <input class="pi-unit" placeholder="單位" value="${pAttr(it.unit)}">
+    <input class="pi-price" type="number" min="0" placeholder="選填" value="${it.est_price!=null?it.est_price:''}">
+    <input class="pi-note" placeholder="備註" value="${pAttr(it.note)}">
+    <span class="pi-rm" onclick="this.closest('.pitem-row').remove()">×</span>
+  </div>`;
+}
+function addPItemRow(it) { document.getElementById('pItemRows').insertAdjacentHTML('beforeend', pItemRowHtml(it)); }
+
+async function openPreqModal(id = null, readonly = false) {
+  document.getElementById('editPreqId').value = id || '';
+  document.getElementById('preqModalTitle').textContent = id ? (readonly ? '請購單明細' : '編輯請購單') : '新增請購單';
+  document.getElementById('pf_title').value = '';
+  document.getElementById('pf_need').value = '';
+  document.getElementById('pItemRows').innerHTML = '';
+  if (id) {
+    const r = await (await fetch(`/api/purchase-requests/${id}`)).json();
+    document.getElementById('pf_title').value = r.title || '';
+    document.getElementById('pf_need').value = r.need_date || '';
+    (r.items||[]).forEach(it => addPItemRow(it));
+    if (!(r.items||[]).length) addPItemRow();
+  } else { addPItemRow(); addPItemRow(); }
+  const addBtn = document.querySelector('#preqModal button[onclick="addPItemRow()"]');
+  const footer = document.querySelector('#preqModal .modal-footer');
+  document.querySelectorAll('#preqModal input').forEach(i => i.disabled = readonly);
+  document.querySelectorAll('#preqModal .pi-rm').forEach(x => x.style.display = readonly ? 'none' : '');
+  if (addBtn) addBtn.style.display = readonly ? 'none' : '';
+  footer.style.display = readonly ? 'none' : '';
+  document.getElementById('preqModal').classList.add('open');
+}
+
+async function savePreq(action) {
+  const id = document.getElementById('editPreqId').value;
+  const items = [...document.querySelectorAll('#pItemRows .pitem-row')].map(row => ({
+    name: row.querySelector('.pi-name').value.trim(),
+    quantity: row.querySelector('.pi-qty').value || 1,
+    unit: row.querySelector('.pi-unit').value.trim(),
+    est_price: row.querySelector('.pi-price').value,
+    note: row.querySelector('.pi-note').value.trim(),
+  })).filter(it => it.name);
+  if (!items.length) return showToast('請至少填一項品項', 'error');
+  const body = { title: document.getElementById('pf_title').value.trim(), need_date: document.getElementById('pf_need').value || null, items };
+  let res, d;
+  if (id) {
+    res = await fetch(`/api/purchase-requests/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    d = await res.json();
+    if (!res.ok) return showToast(d.error || '儲存失敗', 'error');
+    if (action === 'submit') {
+      const r2 = await fetch(`/api/purchase-requests/${id}/submit`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+      const d2 = await r2.json();
+      if (!d2.ok) return showToast(d2.error || '送出失敗', 'error');
+    }
+  } else {
+    body.submit = action === 'submit';
+    res = await fetch('/api/purchase-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    d = await res.json();
+    if (!res.ok) return showToast(d.error || '儲存失敗', 'error');
+  }
+  closeModal('preqModal');
+  showToast(action === 'submit' ? '已送出請購單' : '已儲存草稿');
+  loadPMy();
+}
+
+async function submitPreq(id) {
+  if (!confirm('確定送出此請購單？')) return;
+  const res = await fetch(`/api/purchase-requests/${id}/submit`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  const d = await res.json();
+  if (d.ok) { showToast('已送出'); loadPMy(); } else showToast(d.error || '送出失敗', 'error');
+}
+async function deletePreq(id) {
+  if (!confirm('確定刪除此請購單？')) return;
+  const res = await fetch(`/api/purchase-requests/${id}`, { method:'DELETE' });
+  const d = await res.json();
+  if (d.ok) { showToast('已刪除'); loadPMy(); } else showToast(d.error || '刪除失敗', 'error');
+}
+
+async function openPReviewModal(id) {
+  const r = await (await fetch(`/api/purchase-requests/${id}`)).json();
+  document.getElementById('preqReviewingId').value = id;
+  document.getElementById('preqReviewTitle').textContent = `審核 — ${r.user_name}`;
+  document.getElementById('preqReviewInfo').innerHTML = `
+    <div><strong>${r.title||'（未填主旨）'}</strong>${r.need_date?`　<span style="color:var(--gray-500)">希望到貨：${r.need_date}</span>`:''}</div>
+    <div style="margin-top:8px">${(r.items||[]).map(i=>`<div style="padding:3px 0;border-bottom:1px solid var(--gray-100)">・${i.name}　×${i.quantity}${i.unit||''}${i.est_price?`　預估 ${pMoney(i.est_price)}`:''}${i.note?`　<span style="color:var(--gray-400)">(${i.note})</span>`:''}</div>`).join('')}</div>
+    ${r.est_total?`<div style="margin-top:8px;font-weight:600">預估合計：${pMoney(r.est_total)}</div>`:''}`;
+  document.getElementById('preqReviewNote').value = '';
+  document.getElementById('preqReviewModal').classList.add('open');
+}
+async function pApprove() {
+  const id = document.getElementById('preqReviewingId').value;
+  const note = document.getElementById('preqReviewNote').value;
+  const res = await fetch(`/api/purchase-requests/${id}/approve`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ note }) });
+  const d = await res.json();
+  if (d.ok) { showToast('已核准'); closeModal('preqReviewModal'); loadPReview(); } else showToast(d.error || '操作失敗', 'error');
+}
+async function pReject() {
+  const id = document.getElementById('preqReviewingId').value;
+  const reason = document.getElementById('preqReviewNote').value;
+  if (!reason.trim()) return showToast('請填寫退回原因', 'error');
+  const res = await fetch(`/api/purchase-requests/${id}/reject`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason }) });
+  const d = await res.json();
+  if (d.ok) { showToast('已退回'); closeModal('preqReviewModal'); loadPReview(); } else showToast(d.error || '操作失敗', 'error');
+}
+
+async function pMarkPurchasing(id) {
+  const res = await fetch(`/api/purchase-requests/${id}/purchasing`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+  const d = await res.json();
+  if (d.ok) { showToast('已標記採購中'); loadPTrack(); } else showToast(d.error || '操作失敗', 'error');
+}
+async function openPReceiveModal(id) {
+  const r = await (await fetch(`/api/purchase-requests/${id}`)).json();
+  document.getElementById('preqReceivingId').value = id;
+  document.getElementById('preqReceiveTitle').textContent = `標記到貨 — ${r.title || r.user_name}`;
+  document.getElementById('preqReceiveItems').innerHTML = `
+    <div class="pitem-head" style="grid-template-columns:1fr 66px 120px"><span>品項</span><span>數量</span><span>實際單價</span></div>
+    ${(r.items||[]).map(i=>`<div class="pitem-row" style="grid-template-columns:1fr 66px 120px" data-iid="${i.id}">
+      <div style="font-size:13px;padding:6px 0">${i.name}${i.unit?`（${i.unit}）`:''}</div>
+      <div style="font-size:13px;padding:6px 0">×${i.quantity}</div>
+      <input class="pi-actual" type="number" min="0" placeholder="選填" value="${i.actual_price!=null?i.actual_price:''}">
+    </div>`).join('')}`;
+  document.getElementById('preqReceiveModal').classList.add('open');
+}
+async function pDoReceive() {
+  const id = document.getElementById('preqReceivingId').value;
+  const items = [...document.querySelectorAll('#preqReceiveItems .pitem-row')].map(row => ({
+    id: Number(row.dataset.iid), actual_price: row.querySelector('.pi-actual').value,
+  }));
+  const res = await fetch(`/api/purchase-requests/${id}/receive`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ items }) });
+  const d = await res.json();
+  if (d.ok) { showToast('已標記到貨'); closeModal('preqReceiveModal'); loadPTrack(); } else showToast(d.error || '操作失敗', 'error');
+}
 
 init();
 </script>

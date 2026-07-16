@@ -105,6 +105,7 @@ app.use('/api/attendance',            require('./routes/attendance'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
+app.use('/api/purchase-requests',     require('./routes/purchase-requests'));
 app.use('/api/subcontract',           require('./routes/subcontract'));
 app.use('/api/material-usage',        require('./routes/material-usage'));
 app.use('/api/work-reports',          require('./routes/work-reports'));
