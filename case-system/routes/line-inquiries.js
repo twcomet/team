@@ -20,8 +20,9 @@ router.get('/', requireAuth, (req, res) => {
     // 搜尋 + 全部：跨「所有狀態」搜（含已轉案 / 無效 / 結案 / 隱藏），確保任何客戶都找得到
     // 不加任何狀態限制
   } else if (!status || status === 'all') {
-    // 全部（瀏覽）：活躍中的詢問 + 已轉案（案件尚未結案/作廢）
-    where.push(`(i.status IN ('new','in_progress') OR (i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))))`);
+    // 全部（瀏覽，未搜尋）：待處理收件匣 = 新詢問 + 進行中，與上方「全部」badge 一致
+    // 已轉案有自己的分頁；要找已轉案客戶請用搜尋（搜尋會跨所有狀態）
+    where.push(`i.status IN ('new','in_progress')`);
   } else if (status === 'converted') {
     // 已轉案：排除案件已結案或已設為無效保存的
     where.push(`i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))`);
