@@ -771,6 +771,7 @@ async function openInquiry(id) {
           </div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="toggleClientPanel()" style="padding:3px 8px"><span id="clientToggleLabel">客戶資料 ▾</span></button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="toggleNotePanel()" style="padding:3px 8px"><span id="noteToggleLabel">📝 內部備註${(data.staff_note||'').trim() ? ' ●' : ''} ▾</span></button>
+          ${data.converted_case_id ? `<button type="button" class="btn btn-ghost btn-sm" onclick="toggleCarePanel(${data.converted_case_id})" style="padding:3px 8px"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>` : ''}
         </div>
       </div>
       <div class="det-actions">
@@ -809,6 +810,19 @@ async function openInquiry(id) {
         <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="saveNote(${id})">儲存備註</button>
       </div>
     </div>
+
+    ${data.converted_case_id ? `
+    <div class="det-client" id="carePanel" style="display:none">
+      <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px">客服關懷紀錄（存到案件 ${escHtml(data.converted_case_number||'')}，與案件頁同步）</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <select id="careAction" style="padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;flex:0 0 auto">
+          <option value="message">💬 訊息</option><option value="call">📞 電聯</option><option value="other">📝 其他</option>
+        </select>
+        <textarea id="careMemo" rows="2" placeholder="例如：已電聯客戶，確認要轉場勘" style="flex:1;min-width:180px;font-size:13px;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+        <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="submitInquiryCare(${data.converted_case_id})">儲存關懷</button>
+      </div>
+      <div id="careMiniList" style="margin-top:10px"></div>
+    </div>` : ''}
 
     ${(data.cust_cases && data.cust_cases.length) ? `
     <div style="padding:8px 16px;background:#fdf2f8;border-top:1px solid var(--gray-200);border-bottom:1px solid #fbcfe8;display:flex;flex-direction:column;gap:6px">
@@ -922,6 +936,42 @@ function toggleNotePanel() {
   const dot = (document.getElementById('noteInput')?.value || '').trim() ? ' ●' : '';
   if (lbl) lbl.textContent = `📝 內部備註${dot} ${open ? '▴' : '▾'}`;
   if (open) document.getElementById('noteInput')?.focus();
+}
+
+// ── 客服關懷紀錄（在 LINE 詢問這頁直接存，同步到案件，不用跳回案件頁）──
+const CARE_ACTION_LABEL = { message: '💬 訊息', call: '📞 電聯', other: '📝 其他' };
+function toggleCarePanel(caseId) {
+  const p = document.getElementById('carePanel');
+  const lbl = document.getElementById('careToggleLabel');
+  if (!p) return;
+  const open = p.style.display === 'none';
+  p.style.display = open ? '' : 'none';
+  if (lbl) lbl.textContent = open ? '📞 關懷紀錄 ▴' : '📞 關懷紀錄 ▾';
+  if (open) { loadInquiryCare(caseId); document.getElementById('careMemo')?.focus(); }
+}
+async function loadInquiryCare(caseId) {
+  const box = document.getElementById('careMiniList');
+  if (!box) return;
+  box.innerHTML = `<div style="font-size:12px;color:var(--gray-400)">載入中…</div>`;
+  try {
+    const logs = await fetch(`/api/cases/${caseId}/care-logs`).then(r => r.json());
+    if (!Array.isArray(logs) || !logs.length) { box.innerHTML = `<div style="font-size:12px;color:var(--gray-400)">尚無關懷紀錄</div>`; return; }
+    box.innerHTML = logs.slice(0, 6).map(m => `<div style="border-top:1px solid var(--gray-100);padding:6px 0;font-size:12px">
+      <span style="color:#9d174d;font-weight:600">${CARE_ACTION_LABEL[m.action] || escHtml(m.action || '')}</span>
+      <span style="color:var(--gray-400);margin-left:6px">${fmtTime(m.created_at)}${m.cs_name ? ' · ' + escHtml(m.cs_name) : ''}</span>
+      ${m.memo ? `<div style="color:var(--gray-700);margin-top:2px;white-space:pre-wrap">${escHtml(m.memo)}</div>` : ''}
+    </div>`).join('');
+  } catch (e) { box.innerHTML = `<div style="font-size:12px;color:#dc2626">載入失敗</div>`; }
+}
+async function submitInquiryCare(caseId) {
+  const action = document.getElementById('careAction').value;
+  const memo = document.getElementById('careMemo').value.trim();
+  if (!memo) { showToast('請填寫關懷內容', 'error'); return; }
+  const r = await fetch(`/api/cases/${caseId}/care-logs`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, memo })
+  });
+  if (r.ok) { showToast('已存關懷紀錄（同步到案件）'); document.getElementById('careMemo').value = ''; loadInquiryCare(caseId); }
+  else { const d = await r.json().catch(() => ({})); showToast(d.error || '儲存失敗', 'error'); }
 }
 
 async function saveNote(id) {
