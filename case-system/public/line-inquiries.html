@@ -58,7 +58,7 @@
     .chat-area { flex:1; overflow-y:auto; padding:14px 20px; display:flex; flex-direction:column; gap:10px; background:#f3f4f6; }
     .msg-row   { display:flex; align-items:flex-end; gap:8px; }
     .msg-row.out { flex-direction:row-reverse; }
-    .msg-bubble { max-width:68%; padding:9px 13px; border-radius:12px; font-size:13px; line-height:1.5; word-break:break-word; white-space:pre-wrap; }
+    .msg-bubble { max-width:68%; padding:9px 13px; border-radius:12px; font-size:13px; line-height:1.5; word-break:break-word; white-space:pre-wrap; font-variant-emoji:emoji; }
     .msg-row.in  .msg-bubble { background:#fff; color:var(--gray-900); border-radius:4px 12px 12px 12px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
     .msg-row.out .msg-bubble { background:var(--primary); color:#fff; border-radius:12px 4px 12px 12px; }
     .msg-time   { font-size:11px; color:var(--gray-400); flex-shrink:0; }
@@ -66,7 +66,7 @@
 
     /* ── 回覆框 ── */
     .reply-box { padding:10px 14px; background:#fff; border-top:1px solid var(--gray-200); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
-    .reply-ta  { flex:1; padding:8px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; resize:none; min-height:38px; max-height:110px; font-family:inherit; }
+    .reply-ta  { flex:1; padding:8px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px; resize:none; min-height:38px; max-height:110px; font-family:inherit; font-variant-emoji:emoji; }
     .reply-ta:focus { outline:none; border-color:var(--primary); }
 
     /* ── 備註區 ── */
@@ -822,12 +822,14 @@ async function openInquiry(id) {
     ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
     ${aiDraftCard(data, id)}
     ${quickReplyBar()}
-    <div class="reply-box">
+    <div class="reply-box" style="position:relative">
+      <button type="button" class="btn btn-sm" id="emojiBtn" style="padding:8px 11px;background:#fff;border:1px solid var(--gray-300);font-size:16px;line-height:1" onclick="toggleEmoji(event)" title="插入 emoji 表情符號">😊</button>
       <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息…（換行請直接按 Enter，送出請按右邊按鈕）" rows="1"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
       ></textarea>
       <button class="btn btn-sm" id="aiPolishBtn" style="padding:8px 12px;background:#f5f3ff;color:#6d28d9;border:1px solid #c4b5fd" onclick="aiPolish()">✨ AI 潤飾</button>
       <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="sendReply(${id})">📨 傳送</button>
+      <div id="emojiPanel" style="display:none;position:absolute;bottom:calc(100% + 8px);left:6px;z-index:60;background:#fff;border:1px solid var(--gray-300);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px;width:296px;max-height:220px;overflow-y:auto"></div>
     </div>` : `
     <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
       此詢問已${sLabel(data.status)}，不可回覆
@@ -950,6 +952,35 @@ async function markReplied(id) {
     showToast(err.error || '操作失敗', 'error');
   }
 }
+
+// ── Emoji 表情符號選擇器 ──────────────────────────────────
+const EMOJI_LIST = ['😊','😄','😁','😆','🥰','😍','😌','🙂','😉','😎','🤗','😅','😳','🥺','🙈','😢','🙏','👍','👌','🙌','👏','💪','🤝','✌️','🫶','🤙','👋','🎉','🎊','🎁','✨','🌟','⭐️','🔥','💯','💐','🌸','🌈','☀️','❤️','🧡','💛','💚','💙','💜','🤍','💕','💗','😊','📷','📸','📝','📌','💬','📞','🏠','🚪','🪟','🛋️','🕐','⏰','✅','☑️'];
+function toggleEmoji(ev) {
+  if (ev) ev.stopPropagation();
+  const p = document.getElementById('emojiPanel');
+  if (!p) return;
+  if (!p.dataset.built) {
+    p.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:1px">` +
+      EMOJI_LIST.map(e => `<button type="button" onclick="insertEmoji('${e}')" style="font-size:21px;line-height:1.3;border:none;background:none;cursor:pointer;padding:3px 5px;border-radius:8px" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">${e}</button>`).join('') +
+      `</div>`;
+    p.dataset.built = '1';
+  }
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+function insertEmoji(ch) {
+  const ta = document.getElementById('replyInput');
+  if (!ta) return;
+  const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? ta.value.length;
+  ta.value = ta.value.slice(0, s) + ch + ta.value.slice(e);
+  const pos = s + ch.length;
+  ta.focus(); ta.setSelectionRange(pos, pos);
+  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';   // 維持自動長高
+}
+// 點面板外面就收起來（插入 emoji 時點在面板內，維持開著可連續點）
+document.addEventListener('click', (ev) => {
+  const p = document.getElementById('emojiPanel'), b = document.getElementById('emojiBtn');
+  if (p && p.style.display !== 'none' && !p.contains(ev.target) && ev.target !== b && !(b && b.contains(ev.target))) p.style.display = 'none';
+});
 
 // ── 指派負責業務 / 負責客服 ───────────────────────────────
 async function saveSalesCs(id) {
