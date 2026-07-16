@@ -290,6 +290,30 @@ router.post('/:id/ai-chat', requireAuth, async (req, res) => {
   }
 });
 
+// ── 合併重複視窗結果報告（老闆）：存下的合併統計 + 現況即時複查 ──────
+router.get('/dup-report', requireAuth, (req, res) => {
+  if (req.session.user?.role !== 'owner') return res.status(403).json({ error: '僅限老闆' });
+  let merge = null;
+  try {
+    const row = db.prepare(`SELECT detail, applied_at FROM _migrations WHERE name='merge_dup_inquiries_v1'`).get();
+    if (row) merge = { ...(row.detail ? JSON.parse(row.detail) : {}), applied_at: row.applied_at };
+  } catch (e) {}
+  // 即時複查：合併後應該「沒有任何客人還有 >1 個視窗」
+  const dupGroups = db.prepare(`
+    SELECT COUNT(*) n FROM (
+      SELECT line_user_id FROM line_inquiries WHERE line_user_id IS NOT NULL
+      GROUP BY line_user_id, COALESCE(channel_id,-1) HAVING COUNT(*) > 1
+    )`).get().n;
+  const totalInquiries   = db.prepare(`SELECT COUNT(*) n FROM line_inquiries`).get().n;
+  const distinctCustomers = db.prepare(`SELECT COUNT(DISTINCT line_user_id) n FROM line_inquiries WHERE line_user_id IS NOT NULL`).get().n;
+  res.json({
+    ran: !!merge,
+    merge,                                   // { mergedGroups, deletedThreads, movedMsgs, applied_at }
+    live: { dupGroups, totalInquiries, distinctCustomers },
+    ok: dupGroups === 0,                     // true = 已無重複視窗（合併成功）
+  });
+});
+
 // ── 依案件撈出該客戶的所有 LINE 對話（案件詳情「客服對話紀錄」Tab 用）──
 router.get('/by-case/:caseId', requireAuth, (req, res) => {
   const c = db.prepare(`SELECT id, client_id, line_source FROM cases WHERE id=?`).get(req.params.caseId);

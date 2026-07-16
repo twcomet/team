@@ -1662,6 +1662,7 @@ db.exec(`
 // 這裡把每個 (line_user_id, channel_id) 群組收斂成一條：保留「狀態最進階、最近有活動」
 // 的那筆當主視窗，其餘視窗的訊息全部搬進去後刪除（先搬再刪，避免 CASCADE 連帶刪訊息）。
 db.exec(`CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT (datetime('now','localtime')))`);
+_addCol('_migrations', 'detail', 'TEXT');   // 存遷移結果（合併統計等），供事後查詢
 if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get('merge_dup_inquiries_v1')) {
   try {
     const groups = db.prepare(`
@@ -1699,7 +1700,8 @@ if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get('merge_dup_inquiri
         WHERE id=?`).run(id, id, id, id);
     }
     db.exec('COMMIT');
-    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run('merge_dup_inquiries_v1');
+    db.prepare(`INSERT INTO _migrations (name, detail) VALUES (?, ?)`)
+      .run('merge_dup_inquiries_v1', JSON.stringify({ mergedGroups, deletedThreads, movedMsgs }));
     console.log(`✅ 合併重複詢問視窗：${mergedGroups} 位客人、刪 ${deletedThreads} 個重複視窗、搬移 ${movedMsgs} 則訊息`);
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch {}
