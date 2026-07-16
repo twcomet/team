@@ -16,9 +16,12 @@ router.get('/', requireAuth, (req, res) => {
     // 依「關聯案件狀態」撈：跨全部詢問（不限詢問本身狀態），比對該客戶的案件階段
     where.push(`COALESCE(cc.status, (SELECT status FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) = ?`);
     params.push(case_status);
+  } else if (q && (!status || status === 'all')) {
+    // 搜尋 + 全部：跨「所有狀態」搜（含已轉案 / 無效 / 結案 / 隱藏），確保任何客戶都找得到
+    // 不加任何狀態限制
   } else if (!status || status === 'all') {
-    // 全部：只顯示活躍中的詢問
-    where.push(`i.status IN ('new','in_progress')`);
+    // 全部（瀏覽）：活躍中的詢問 + 已轉案（案件尚未結案/作廢）
+    where.push(`(i.status IN ('new','in_progress') OR (i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))))`);
   } else if (status === 'converted') {
     // 已轉案：排除案件已結案或已設為無效保存的
     where.push(`i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))`);
@@ -33,8 +36,17 @@ router.get('/', requireAuth, (req, res) => {
   }
 
   if (q) {
-    where.push(`(i.display_name LIKE ? OR i.last_message LIKE ? OR i.staff_note LIKE ?)`);
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    // 搜尋範圍：暱稱 / 最後訊息 / 客服備註 / 該客戶所有案件的編號與案名 / 所有對話內容
+    where.push(`(
+      i.display_name LIKE ? OR i.last_message LIKE ? OR i.staff_note LIKE ?
+      OR EXISTS (SELECT 1 FROM cases xc
+                 WHERE (xc.client_id = i.client_id OR xc.line_source = i.line_user_id)
+                   AND (xc.case_number LIKE ? OR xc.title LIKE ?))
+      OR EXISTS (SELECT 1 FROM line_inquiry_messages m
+                 WHERE m.inquiry_id = i.id AND m.content LIKE ?)
+    )`);
+    const like = `%${q}%`;
+    params.push(like, like, like, like, like, like);
   }
   const ws = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
