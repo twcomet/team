@@ -20,8 +20,8 @@
 .sp-line.done { background:var(--primary); }
 
 /* Tab */
-.tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:24px; gap:0; }
-.tab  { padding:10px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tabs { display:flex; border-bottom:2px solid var(--gray-200); margin-bottom:24px; gap:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.tab  { padding:10px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; flex-shrink:0; }
 .tab:hover  { color:var(--gray-700); }
 .tab.active { color:var(--primary); border-bottom-color:var(--primary); }
 .tab-pane   { display:none; }

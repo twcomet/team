@@ -11,6 +11,15 @@
     .inq-layout  { display:flex; gap:0; height:calc(100vh - 52px); overflow:hidden; }
     .inq-list    { width:320px; min-width:260px; border-right:1px solid var(--gray-200); display:flex; flex-direction:column; flex-shrink:0; background:#fff; }
     .inq-detail  { flex:1; display:flex; flex-direction:column; overflow:hidden; background:#f9fafb; }
+    .det-back { display:none; }
+    /* 手機：改單欄，清單↔詳情切換 */
+    @media (max-width: 768px) {
+      .inq-list   { width:100%; min-width:0; border-right:none; }
+      .inq-detail { display:none; }
+      .inq-layout.show-detail .inq-list   { display:none; }
+      .inq-layout.show-detail .inq-detail { display:flex; }
+      .det-back { display:inline-flex; align-items:center; gap:4px; margin:8px 0 0 12px; }
+    }
 
     /* ── 左側工具列 ── */
     .inq-toolbar { padding:10px 12px; border-bottom:1px solid var(--gray-200); display:flex; flex-direction:column; gap:8px; }
@@ -748,12 +757,16 @@ function renderList() {
 }
 
 // ── 詳情 ──────────────────────────────────────────────────
+function detBackBtn() { return `<button class="det-back btn btn-ghost btn-sm" onclick="backToList()">← 返回列表</button>`; }
+function backToList() { document.querySelector('.inq-layout')?.classList.remove('show-detail'); }
+
 async function openInquiry(id) {
   currentId = id;
   renderList();
+  document.querySelector('.inq-layout')?.classList.add('show-detail');   // 手機：切到詳情全螢幕
 
   const panel = document.getElementById('detailPanel');
-  panel.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gray-400)">載入中…</div>`;
+  panel.innerHTML = `${detBackBtn()}<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--gray-400)">載入中…</div>`;
 
   let data = null, httpStatus = null;
   try {
@@ -762,7 +775,7 @@ async function openInquiry(id) {
     if (r.ok) data = await r.json().catch(() => null);
   } catch (e) { /* network error */ }
   if (!data) {
-    panel.innerHTML = `<div style="padding:24px;color:#dc2626">
+    panel.innerHTML = `${detBackBtn()}<div style="padding:24px;color:#dc2626">
       載入失敗${httpStatus ? `（HTTP ${httpStatus}）` : '（網路錯誤）'}
       <button class="btn btn-ghost btn-sm" style="margin-left:10px" onclick="openInquiry(${id})">重試</button>
     </div>`;
@@ -786,6 +799,7 @@ async function openInquiry(id) {
     .map(u => `<option value="${u.id}"${data.cs_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
 
   panel.innerHTML = `
+    ${detBackBtn()}
     <div class="det-header">
       ${avatarHtml(data.avatar_url, data.display_name, 44)}
       <div style="flex:1">
