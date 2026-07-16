@@ -126,7 +126,7 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="calendar"]') || nav.querySelector('[data-page="my-tasks"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
-  // 注入「客服知識庫」選單（跟 LINE 詢問同群人），放在 LINE 詢問下方
+  // 注入「客服知識庫」選單（跟 LINE 詢問同群人）：放在「業務」區最下面（較常用的在上面）
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="cs-knowledge"]')) return;
@@ -134,8 +134,8 @@ async function loadUser() {
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'cs-knowledge'; a.href = '/cs-knowledge';
     a.innerHTML = '<span class="icon">📚</span>客服知識庫';
-    const anchor = nav.querySelector('[data-page="line-inquiries"]');
-    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+    const before = nav.querySelectorAll('.nav-group-label')[1];   // 第 2 個群組標題（客戶）＝業務區結尾
+    if (before) nav.insertBefore(a, before); else nav.appendChild(a);
   })();
   // 注入「營運日報」選單（老闆/管理者），放在總覽下方
   (function() {
@@ -193,7 +193,7 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
-  // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在 LINE 詢問下方
+  // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在「業務」區最下面
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="care-logs"]')) return;   // 本頁已硬寫則略過
@@ -203,8 +203,8 @@ async function loadUser() {
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'care-logs'; a.href = '/care-logs';
     a.innerHTML = '<span class="icon">💗</span>客服關懷記錄';
-    const anchor = nav.querySelector('[data-page="line-inquiries"]') || nav.querySelector('[data-page="my-tasks"]');
-    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+    const before = nav.querySelectorAll('.nav-group-label')[1];   // 業務區結尾（客戶群組標題前）
+    if (before) nav.insertBefore(a, before); else nav.appendChild(a);
   })();
 
   // 注入「Google 雲端／備份」選單（僅老闆）：行事曆同步、雲端備份、重複日曆診斷/整理
