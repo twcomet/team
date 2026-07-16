@@ -260,10 +260,12 @@ router.post('/cases/:id', requireAuth, (req, res) => {
     }
   }
 
-  // 升案件狀態
+  // 升案件狀態：開始建立報價單 → 「已建報價資料」(quote_draft)。
+  // 「已發報價單」(quoted) 一律不自動判別；改由客服在案件狀態手動變更（stage 機制 quote_draft→quoted）。
   const c = db.prepare(`SELECT status FROM cases WHERE id=?`).get(case_id);
-  if (c?.status === 'inquiry' || c?.status === 'surveyed') {
-    db.prepare(`UPDATE cases SET status='quoted', updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(case_id);
+  const PRE_QUOTE = ['inquiry','initial_estimate','cared_waiting','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed'];
+  if (PRE_QUOTE.includes(c?.status)) {
+    db.prepare(`UPDATE cases SET status='quote_draft', quote_draft_at=COALESCE(quote_draft_at,CURRENT_TIMESTAMP), quote_drafted_by=COALESCE(quote_drafted_by,?), updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, case_id);
   }
 
   res.json({ ok: true, id: quoteId, token, version: newVersion });
