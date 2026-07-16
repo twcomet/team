@@ -444,7 +444,7 @@ async function loadCanned() {
 }
 function quickReplyBar() {
   const canned = cannedReplies.map((q,idx)=>`<button type="button" onclick="cannedReply(${idx})" title="${escHtml(q.answer)}" style="flex:0 0 auto;padding:5px 11px;border:1px solid #bbf7d0;border-radius:16px;background:#f0fdf4;font-size:12px;cursor:pointer;white-space:nowrap;color:#166534">💬 ${escHtml(q.question || q.answer.slice(0,10))}</button>`).join('');
-  return `<div style="display:flex;gap:6px;padding:9px 12px 3px;overflow-x:auto;flex-wrap:wrap;background:#fff;border-top:1px solid var(--gray-200)">
+  return `<div style="display:flex;gap:6px;padding:9px 12px;overflow-x:auto;flex-wrap:nowrap;background:#fff;border-top:1px solid var(--gray-200);scrollbar-width:thin">
     <button type="button" onclick="openAiChat()" style="flex:0 0 auto;padding:5px 11px;border:1px solid #c4b5fd;border-radius:16px;background:#f5f3ff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;color:#6d28d9">🤖 問 AI 助手</button>
     <button type="button" onclick="openAiEstimate()" style="flex:0 0 auto;padding:5px 11px;border:1px solid #fbcfe8;border-radius:16px;background:#fdf2f8;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;color:#be185d">💲 AI 估價輔助</button>
     <span style="font-size:11px;color:var(--gray-400);align-self:center;white-space:nowrap">常用語</span>
@@ -804,8 +804,10 @@ async function openInquiry(id) {
 
     <div class="det-client" id="notePanel" style="display:none">
       <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:4px">內部備註（只有內部看得到，客人看不到）</div>
-      <textarea class="form-control" id="noteInput" rows="3" style="width:100%;font-size:13px;resize:vertical;box-sizing:border-box">${escHtml(data.staff_note||'')}</textarea>
-      <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveNote(${id})">儲存備註</button>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea class="form-control" id="noteInput" rows="2" style="flex:1;font-size:13px;resize:vertical;box-sizing:border-box">${escHtml(data.staff_note||'')}</textarea>
+        <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="saveNote(${id})">儲存備註</button>
+      </div>
     </div>
 
     ${(data.cust_cases && data.cust_cases.length) ? `
