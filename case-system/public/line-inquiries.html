@@ -770,6 +770,7 @@ async function openInquiry(id) {
               style="padding:3px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;width:120px">
           </div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="toggleClientPanel()" style="padding:3px 8px"><span id="clientToggleLabel">客戶資料 ▾</span></button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleNotePanel()" style="padding:3px 8px"><span id="noteToggleLabel">📝 內部備註${(data.staff_note||'').trim() ? ' ●' : ''} ▾</span></button>
         </div>
       </div>
       <div class="det-actions">
@@ -799,6 +800,12 @@ async function openInquiry(id) {
         <div class="cf"><label>地址</label><input id="cf-address" value="${escHtml(data.address||'')}"      placeholder="施工地址"></div>
       </div>
       <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="saveClient(${id})">儲存資料</button>
+    </div>
+
+    <div class="det-client" id="notePanel" style="display:none">
+      <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:4px">內部備註（只有內部看得到，客人看不到）</div>
+      <textarea class="form-control" id="noteInput" rows="3" style="width:100%;font-size:13px;resize:vertical;box-sizing:border-box">${escHtml(data.staff_note||'')}</textarea>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveNote(${id})">儲存備註</button>
     </div>
 
     ${(data.cust_cases && data.cust_cases.length) ? `
@@ -834,12 +841,6 @@ async function openInquiry(id) {
     <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
       此詢問已${sLabel(data.status)}，不可回覆
     </div>`}
-
-    <div class="note-section">
-      <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:4px">內部備註</div>
-      <textarea class="form-control" id="noteInput" rows="2" style="width:100%;font-size:13px;resize:vertical;box-sizing:border-box">${escHtml(data.staff_note||'')}</textarea>
-      <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveNote(${id})">儲存備註</button>
-    </div>
   `;
   scrollChat();
 }
@@ -909,6 +910,16 @@ function toggleClientPanel() {
   const open = p.style.display === 'none';
   p.style.display = open ? '' : 'none';
   if (lbl) lbl.textContent = open ? '客戶資料 ▴' : '客戶資料 ▾';
+}
+function toggleNotePanel() {
+  const p = document.getElementById('notePanel');
+  const lbl = document.getElementById('noteToggleLabel');
+  if (!p) return;
+  const open = p.style.display === 'none';
+  p.style.display = open ? '' : 'none';
+  const dot = (document.getElementById('noteInput')?.value || '').trim() ? ' ●' : '';
+  if (lbl) lbl.textContent = `📝 內部備註${dot} ${open ? '▴' : '▾'}`;
+  if (open) document.getElementById('noteInput')?.focus();
 }
 
 async function saveNote(id) {
