@@ -107,6 +107,7 @@
           style="width:100%;padding:9px 12px;border:1px solid var(--gray-300);border-radius:10px;font-size:14px;box-sizing:border-box">
         <span id="kbSearchCount" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--gray-400)"></span>
       </div>
+      <div id="catChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
       <div id="list"><div style="color:var(--gray-400);padding:20px;text-align:center">載入中…</div></div>
     </div>
   </div>
@@ -120,12 +121,8 @@
       <input type="hidden" id="f-id">
       <div class="kb-field">
         <label>分類</label>
-        <input id="f-category" list="catList" placeholder="例如：罐頭訊息、電商、常見問題、服務範圍、材質、施工、展間" oninput="onCatInput()">
-        <datalist id="catList">
-          <option value="罐頭訊息">
-          <option value="電商"><option value="官網／資源"><option value="常見問題"><option value="服務範圍">
-          <option value="材質"><option value="施工"><option value="展間"><option value="自媒體／影片"><option value="公司資訊">
-        </datalist>
+        <select id="f-category" onchange="onCatChange()"></select>
+        <input id="f-category-custom" placeholder="輸入自訂分類名稱" style="display:none;margin-top:6px" oninput="onCatChange()">
         <div id="cannedHint" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;line-height:1.6">
           💬 <b>罐頭訊息</b>：存好後會出現在「LINE 詢問」回覆框上方的「常用語」快捷鈕，客服點一下就把內容填入、按傳送即可。<br>
           ・<b>主題</b> = 按鈕上顯示的短標籤（例如「營業時間」「請傳照片」）<br>
@@ -178,14 +175,36 @@ function onSearch() {
   kbQuery = (document.getElementById('kbSearch').value || '').trim().toLowerCase();
   render();
 }
+let catFilter = '';
+let _chipCats = [''];
+function setCatFilterIdx(idx) { catFilter = _chipCats[idx] || ''; render(); }
+function renderCatChips(list) {
+  const chips = document.getElementById('catChips');
+  if (!chips) return;
+  const counts = {};
+  list.forEach(i => { const c = i.category || '未分類'; counts[c] = (counts[c] || 0) + 1; });
+  const cats = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  _chipCats = ['', ...cats];
+  const chip = (idx, label, n, active) =>
+    `<button type="button" onclick="setCatFilterIdx(${idx})" style="padding:5px 12px;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid ${active ? '#be185d' : 'var(--gray-300)'};background:${active ? '#be185d' : '#fff'};color:${active ? '#fff' : 'var(--gray-600)'};font-weight:${active ? '700' : '500'};white-space:nowrap">${esc(label)} <span style="opacity:.65">${n}</span></button>`;
+  chips.innerHTML = chip(0, '全部', list.length, !catFilter)
+    + cats.map((c, i) => chip(i + 1, c, counts[c], catFilter === c)).join('');
+}
 function render() {
   const el = document.getElementById('list');
   const cnt = document.getElementById('kbSearchCount');
-  if (!items.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">還沒有任何條目，按右上角「＋ 新增條目」或「🤖 AI 挖常見問題」開始。</div>`; if (cnt) cnt.textContent=''; return; }
-  const shown = kbQuery
-    ? items.filter(i => [i.category, i.question, i.answer, i.keywords, i.link_label].map(x => String(x||'').toLowerCase()).join(' ').includes(kbQuery))
-    : items;
-  if (cnt) cnt.textContent = kbQuery ? `${shown.length} 筆符合` : '';
+  const chips = document.getElementById('catChips');
+  // 隱藏「罐頭訊息種子標記」那筆系統條目
+  const all = items.filter(i => i.keywords !== '__canned_v1__');
+  if (!all.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">還沒有任何條目，按右上角「＋ 新增條目」或「🤖 AI 挖常見問題」開始。</div>`; if (cnt) cnt.textContent=''; if (chips) chips.innerHTML=''; return; }
+  const searched = kbQuery
+    ? all.filter(i => [i.category, i.question, i.answer, i.keywords, i.link_label].map(x => String(x||'').toLowerCase()).join(' ').includes(kbQuery))
+    : all;
+  renderCatChips(searched);
+  // 若目前選的分類在搜尋後不存在，退回「全部」
+  if (catFilter && !searched.some(i => (i.category || '未分類') === catFilter)) catFilter = '';
+  const shown = catFilter ? searched.filter(i => (i.category || '未分類') === catFilter) : searched;
+  if (cnt) cnt.textContent = kbQuery ? `${searched.length} 筆符合` : '';
   if (!shown.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">沒有符合「${esc(kbQuery)}」的條目</div>`; return; }
   const cats = {};
   shown.forEach(i => { (cats[i.category || '未分類'] = cats[i.category || '未分類'] || []).push(i); });
@@ -209,7 +228,7 @@ function openEdit(id, preset) {
   const it = id ? items.find(x => x.id === id) : (preset || {});
   document.getElementById('editTitle').textContent = id ? '編輯知識條目' : '新增知識條目';
   document.getElementById('f-id').value       = id || '';
-  document.getElementById('f-category').value  = it.category || '常見問題';
+  buildCategoryOptions(it.category || '常見問題');
   document.getElementById('f-question').value  = it.question || '';
   document.getElementById('f-answer').value    = it.answer || '';
   document.getElementById('f-link_url').value  = it.link_url || '';
@@ -217,13 +236,36 @@ function openEdit(id, preset) {
   document.getElementById('f-keywords').value  = it.keywords || '';
   document.getElementById('f-sort_order').value= it.sort_order != null ? it.sort_order : 50;
   document.getElementById('f-active').checked  = it.active === undefined ? true : !!it.active;
-  onCatInput();
   document.getElementById('editModal').classList.add('open');
 }
 function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
-// 分類=罐頭訊息時，顯示說明提示（讓同事知道這會變成回覆框快捷鈕）
-function onCatInput() {
-  const isCanned = document.getElementById('f-category').value.trim() === '罐頭訊息';
+
+// 分類下拉選單的固定選項（真正的 <select>，一點就展開、永遠列出全部）
+const BASE_CATS = ['罐頭訊息','常見問題','電商','官網／資源','服務範圍','材質','施工','展間','自媒體／影片','公司資訊'];
+// 建立下拉選項：固定分類 + 現有條目用過的分類（去重）+ 自訂分類
+function buildCategoryOptions(selected) {
+  const sel = document.getElementById('f-category');
+  const extras = [...new Set(items.map(i => i.category).filter(c => c && c !== '系統' && !BASE_CATS.includes(c)))];
+  const cats = [...BASE_CATS, ...extras];
+  if (selected && !cats.includes(selected)) cats.push(selected);
+  sel.innerHTML = cats.map(c => `<option value="${esc(c)}"${c === selected ? ' selected' : ''}>${esc(c)}</option>`).join('')
+    + `<option value="__custom__">➕ 自訂分類…</option>`;
+  document.getElementById('f-category-custom').value = '';
+  onCatChange();
+}
+// 取目前選定的分類（自訂時取文字框）
+function currentCategory() {
+  const sel = document.getElementById('f-category');
+  return sel.value === '__custom__' ? document.getElementById('f-category-custom').value.trim() : sel.value;
+}
+// 選單變動：自訂→顯示文字框；罐頭訊息→顯示說明提示
+function onCatChange() {
+  const sel = document.getElementById('f-category');
+  const custom = document.getElementById('f-category-custom');
+  const isCustom = sel.value === '__custom__';
+  custom.style.display = isCustom ? 'block' : 'none';
+  if (isCustom) custom.focus();
+  const isCanned = currentCategory() === '罐頭訊息';
   document.getElementById('cannedHint').style.display  = isCanned ? 'block' : 'none';
   document.getElementById('qHintCanned').style.display = isCanned ? 'inline' : 'none';
 }
@@ -231,7 +273,7 @@ function onCatInput() {
 async function save() {
   const id = document.getElementById('f-id').value;
   const body = {
-    category:   document.getElementById('f-category').value.trim(),
+    category:   currentCategory(),
     question:   document.getElementById('f-question').value.trim(),
     answer:     document.getElementById('f-answer').value.trim(),
     link_url:   document.getElementById('f-link_url').value.trim(),
