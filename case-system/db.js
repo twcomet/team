@@ -3118,6 +3118,7 @@ _addCol('quote_sheets', 'day_rate',    'REAL DEFAULT 2800');  // 內部成本：
 _addCol('quote_sheets', 'client_viewed_at', 'DATETIME');     // 客戶首次開啟報價單連結的時間（列表顯示「客戶已打開」）
 _addCol('quote_sheets', 'block_images', "TEXT DEFAULT '{}'"); // 各條款區塊附圖 JSON：{terms:[url],notice:[],inspection:[],acceptance:[銀行帳號圖]}
 _addCol('quote_sheets', 'party_json', 'TEXT'); // 本報價單客戶/案場覆寫(per-quote 快照，不動 clients/cases 母檔)：{client_name,client_tax_id,client_contact,client_phone,site_address,site_note}
+_addCol('quote_sheets', 'no_invoice', 'INTEGER DEFAULT 0'); // 1=不開發票（免 5% 稅金，應付＝未稅金額）
 
 // ── 報價單條款/須知範本：擴充成四大區塊都能套範本，並可帶一張圖(如(d)銀行帳號圖)──
 _addCol('film_notice_templates', 'block',     "TEXT DEFAULT 'notice'"); // terms(a)/notice(b)/inspection(c)/acceptance(d)

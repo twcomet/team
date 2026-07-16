@@ -61,7 +61,7 @@ function recalcQuote(quoteId) {
   const marketingRate = q.marketing_rate || 1.0;
   const marketingTotal = Math.round(subtotal * marketingRate);
 
-  const taxRate = q.tax_rate || 0.05;
+  const taxRate = q.no_invoice ? 0 : (q.tax_rate || 0.05);   // 不開發票 → 免稅
   const taxAmount = Math.round(discountedTotal * taxRate);
   const finalTotal = discountedTotal + taxAmount;
 
@@ -85,7 +85,7 @@ function recalcQuoteV2(quoteId, q) {
   if (q.mkt_value) {
     afterMkt = q.mkt_mode === 'amt' ? Math.max(0, promoTotal - q.mkt_value) : Math.round(promoTotal * q.mkt_value / 100);
   }
-  const taxRate = q.tax_rate || 0.05;
+  const taxRate = q.no_invoice ? 0 : (q.tax_rate || 0.05);   // 不開發票 → 免稅
   const taxAmount = Math.round(afterMkt * taxRate);
   const withTax = afterMkt + taxAmount;
   // 折抵：預付金(已套用到本案的 client_deposits) + 彈性折抵(JSON)
@@ -375,12 +375,13 @@ router.put('/:quoteId', requireAuth, (req, res) => {
   // v2 欄位（行銷優惠 PAROI / 彈性折抵 / 須知；前端 v2 存檔會整包帶）
   const v2 = req.body;
   if (v2.engine === 'v2' || v2.mkt_mode !== undefined || v2.flex_deducts !== undefined) {
-    db.prepare(`UPDATE quote_sheets SET mkt_mode=?, mkt_value=?, flex_deducts=?, notes_notice=?, notes_inspection=?, engine='v2', client_marketing_consent=? WHERE id=?`)
+    db.prepare(`UPDATE quote_sheets SET mkt_mode=?, mkt_value=?, flex_deducts=?, notes_notice=?, notes_inspection=?, engine='v2', client_marketing_consent=?, no_invoice=? WHERE id=?`)
       .run(v2.mkt_mode || 'pct',
            (v2.mkt_value === '' || v2.mkt_value == null) ? null : Number(v2.mkt_value),
            v2.flex_deducts != null ? (typeof v2.flex_deducts === 'string' ? v2.flex_deducts : JSON.stringify(v2.flex_deducts)) : '[]',
            v2.notes_notice ?? null, v2.notes_inspection ?? null,
            v2.client_marketing_consent ? 1 : 0,
+           v2.no_invoice ? 1 : 0,
            req.params.quoteId);
     // 日薪(人工成本率)只有「人工成本可見者」能設定/覆寫；與 GET 端的 day_rate 遮蔽一致，非此權限者存檔不動它
     if (req.session.user?.can_see_labor_cost && v2.day_rate != null && v2.day_rate !== '') {

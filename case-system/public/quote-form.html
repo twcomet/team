@@ -353,7 +353,12 @@
       </div>
     </div>
 
-    <div class="sec-title">💵 金額試算</div>
+    <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>💵 金額試算</span>
+      <label style="font-size:13px;font-weight:500;color:var(--gray-600);display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="noInvoiceChk" onchange="recalc()" style="width:auto"> 不開發票（免 5% 稅金）
+      </label>
+    </div>
     <div class="foot">
       <div class="amt-tbl">
         <table><thead><tr><th>金額明細</th><th>金額</th></tr></thead><tbody>
@@ -362,8 +367,8 @@
           <tr id="row_mkt"><td>🎁 行銷優惠折抵（同意拍照才享）</td><td class="num" id="b_mkt">—</td></tr>
           <tr id="row_after" class="hl"><td>行銷優惠後（未稅）</td><td class="num" id="b_after">—</td></tr>
           <tr id="row_floor" style="display:none"><td><span class="lock">🔒 內部</span> 成本地板價（材料＋人工）</td><td class="num" id="b_floor">—</td></tr>
-          <tr><td>稅金 5%</td><td class="num" id="b_tax">—</td></tr>
-          <tr><td>開發票含稅總額</td><td class="num" id="b_wtax">—</td></tr>
+          <tr id="row_tax"><td id="b_tax_label">稅金 5%</td><td class="num" id="b_tax">—</td></tr>
+          <tr><td id="b_wtax_label">開發票含稅總額</td><td class="num" id="b_wtax">—</td></tr>
           <tr id="row_deduct"><td>🧾 折抵合計（預付金＋彈性）</td><td class="num" id="b_deduct">—</td></tr>
           <tr class="final"><td>應付總金額（同意拍照）</td><td class="num"><span class="mkt" id="b_pay">—</span></td></tr>
         </tbody></table>
@@ -466,7 +471,7 @@
         </div>
         <div style="margin-top:14px;font-size:13px;text-align:right;line-height:2">
           連工帶料原價（未稅）：<span id="cv_sub"></span><br>
-          <b>優惠後（未稅）：<span id="cv_promo"></span></b><br>稅金 5%：<span id="cv_tax"></span>
+          <b>優惠後（未稅）：<span id="cv_promo"></span></b><br><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
           <span id="cv_deduct_line"></span></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
         <div class="mkt-sign">
@@ -671,6 +676,7 @@ async function loadQuote(){
   document.getElementById('mktMode').value=q.mkt_mode||'pct';
   document.getElementById('mktVal').value=(q.mkt_value!=null?q.mkt_value:'');
   document.getElementById('clientType').value=q.client_type||'designer';
+  { const ni=document.getElementById('noInvoiceChk'); if(ni) ni.checked=!!q.no_invoice; }
   setTerm('a',q.notes_terms); setTerm('c',q.notes_inspection); setTerm('d',q.notes_acceptance);
   if(q.notes_notice){ const na=document.getElementById('noticeArea'); na.value=q.notes_notice; }
   try{ const bi=JSON.parse(q.block_images||'{}')||{}; blockImages={terms:bi.terms||[],notice:bi.notice||[],inspection:bi.inspection||[],acceptance:bi.acceptance||[]}; }catch(e){ blockImages={terms:[],notice:[],inspection:[],acceptance:[]}; }
@@ -876,6 +882,7 @@ async function saveAll(){
       valid_days:curQuote?.valid_days??30, payment_terms:curQuote?.payment_terms??null,
       client_notes:curQuote?.client_notes??null, client_type:document.getElementById('clientType').value,
       discount_rate:curQuote?.discount_rate??1.0, marketing_rate:curQuote?.marketing_rate??1.0, tax_rate:0.05,
+      no_invoice:document.getElementById('noInvoiceChk')?.checked?1:0,
       travel_fee:curQuote?.travel_fee??0, freight_fee:curQuote?.freight_fee??0, discount_rule_id:curQuote?.discount_rule_id??null,
       // 分版後新版須維持草稿，本次所有品項修改才寫得進去（若沿用舊狀態會被鎖成已發送→品項更新被擋、資料還是舊的）
       status: forked ? 'draft' : (curQuote?.status??'draft'), engine:'v2',
@@ -1297,7 +1304,9 @@ function recalc(){
   const prepay=[...prepayPick].reduce((s,i)=>s+(PREPAY_DEPOSITS[i]?.amount||0),0);
   const flex=document.getElementById('flexChk').checked?deducts.reduce((s,d)=>s+(+d.amount||0),0):0;
   const deductTotal=prepay+flex;
-  const tax=Math.round(afterMkt*0.05), wtax=afterMkt+tax, pay=wtax-deductTotal;
+  const noInvoice=document.getElementById('noInvoiceChk')?.checked;
+  const taxRate=noInvoice?0:0.05;
+  const tax=Math.round(afterMkt*taxRate), wtax=afterMkt+tax, pay=wtax-deductTotal;
   // 成本地板價：稅前折後售價(afterMkt) 不得低於總成本(材料+人工)。僅成本可見者(老闆/會計)啟用
   const costFloor=items.reduce((s,it)=>s+matCostOf(it)+laborCostOf(it),0);
   const belowCost=canSeeFullCost && costFloor>0 && afterMkt<costFloor;
@@ -1314,10 +1323,13 @@ function recalc(){
     rowFloor.style.fontWeight=belowCost?'800':'';
   }
   g('b_mkt','− '+money(mktCut));g('b_after',money(afterMkt));g('b_tax',money(tax));g('b_wtax',money(wtax));
+  // 不開發票：隱藏稅金列、把「開發票含稅總額」改成「不開發票總額（免稅）」
+  const rowTax=document.getElementById('row_tax'); if(rowTax) rowTax.style.display=noInvoice?'none':'table-row';
+  g('b_wtax_label',noInvoice?'不開發票總額（免稅）':'開發票含稅總額');
   document.getElementById('row_deduct').style.display=deductTotal>0?'table-row':'none';
   g('b_deduct','− '+money(deductTotal));g('b_pay',money(pay));
-  const promoPay=Math.round(promo*1.05)-deductTotal;
-  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal,costFloor,belowCost};
+  const promoPay=Math.round(promo*(1+taxRate))-deductTotal;
+  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal,costFloor,belowCost,taxRate,noInvoice};
   renderCust(document.getElementById('mktChk')?.checked);
   try{ renderCost(); }catch(e){}   // 毛利依優惠價/行銷優惠價，折扣或行銷變動時同步更新
   markDirty();
@@ -1372,8 +1384,9 @@ function renderCust(useMkt){
       <td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>
     </tr>`;
   }).join('');
-  const agree=!!useMkt, promoShown=agree?c.afterMkt:c.promo, tax=agree?c.tax:Math.round(c.promo*0.05), pay=agree?c.pay:c.promoPay;
+  const agree=!!useMkt, promoShown=agree?c.afterMkt:c.promo, tax=agree?c.tax:Math.round(c.promo*(c.taxRate??0.05)), pay=agree?c.pay:c.promoPay;
   _txt('cv_sub',money(c.sub));_txt('cv_promo',money(promoShown));_txt('cv_tax',money(tax));_txt('cv_pay',money(pay));
+  { const tl=document.getElementById('cv_tax_line'); if(tl) tl.style.display=c.noInvoice?'none':''; }
   _txt('ms_normal',money(c.promoPay));_txt('ms_mkt',money(c.pay));
   const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=c.deductTotal>0?`<br>折抵合計：− ${money(c.deductTotal)}`:'';
   document.getElementById('col_normal').classList.toggle('on',!agree);

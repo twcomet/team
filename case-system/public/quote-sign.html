@@ -294,7 +294,7 @@ function render(q){
   const subtotal = q.subtotal||0;
   const promoTotal = q.discount_value!=null?q.discount_value:subtotal;
   const afterMkt = q.marketing_total!=null?q.marketing_total:promoTotal;
-  const taxRate = q.tax_rate||0.05;
+  const taxRate = q.no_invoice ? 0 : (q.tax_rate||0.05);   // 不開發票 → 免稅
   const mktCut = Math.max(0, promoTotal-afterMkt);
   const hasMkt = mktCut>0;
   const deduction = Math.max(0, (afterMkt + (q.tax_amount||0)) - (q.final_total||0));
@@ -362,7 +362,7 @@ function render(q){
           <div class="row disc"><span class="l">各項優惠價合計（未稅）</span><span class="v">${fmt(promoTotal)}</span></div>
           ${hasMkt?`<div class="row disc"><span class="l">🎁 行銷優惠折抵（同意拍照才享）</span><span class="v">− ${fmt(mktCut)}</span></div>`:''}
           <hr>
-          <div class="row"><span class="l">稅金（${Math.round(taxRate*100)}%）</span><span class="v">${fmt(Math.round((hasMkt?afterMkt:promoTotal)*taxRate))}</span></div>
+          ${q.no_invoice ? '' : `<div class="row"><span class="l">稅金（${Math.round(taxRate*100)}%）</span><span class="v">${fmt(Math.round((hasMkt?afterMkt:promoTotal)*taxRate))}</span></div>`}
           ${deduction>0?`<div class="row disc"><span class="l">🧾 折抵合計（預付金／彈性）</span><span class="v">− ${fmt(deduction)}</span></div>`:''}
         </div>
         <div class="amt"><div class="total"><span class="l">應付總金額${hasMkt?'（同意拍照）':''}</span><span class="v">${fmt(hasMkt?payAgree:payNormal)}</span></div></div>
