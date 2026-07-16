@@ -566,7 +566,35 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
   var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
   return {type:'film',work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost};});}
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],unit=cust==='owner'?item.owner:item.designer,W=item.width||122;var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs};});}
-function computeOther(arr){var g={};arr.forEach(function(it,ci){var cai=it.w*it.h/900,amt=ceil100(cai*it.unit),k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit;g[k]=g[k]||{label:'其他｜'+it.name,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeOther(arr){var g={};arr.forEach(function(it,ci){
+  var cai=(it.caiM!=null&&it.caiM!=='')?Number(it.caiM):it.w*it.h/900;   // 才數可手動覆寫，否則寬×高÷900
+  var amt=ceil100(cai*it.unit);
+  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM);
+  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};
+  g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);
+});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+// 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算
+function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
+  if(field==='name'){it.name=val;}
+  else if(field==='w'){it.w=Number(val)||0;it.caiM=null;}      // 改寬高→才數回自動
+  else if(field==='h'){it.h=Number(val)||0;it.caiM=null;}
+  else if(field==='cai'){it.caiM=(val===''?null:(Number(val)||0));} // 手動覆寫才數
+  else if(field==='unit'){it.unit=Number(val)||0;}
+});render();}
+function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
+  var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
+  return '<div class="ec-grp"><div class="ec-gh"><b>其他｜<input value="'+escAttr(L.name)+'" onchange="editOther(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
+   +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#6b7280">'
+   +'<label>寬<input type="number" value="'+L.w+'" onchange="editOther(\''+csv+'\',\'w\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
+   +'<label>高<input type="number" value="'+L.h+'" onchange="editOther(\''+csv+'\',\'h\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
+   +'<label title="預設寬×高÷900，可手動覆寫">才數<input type="number" step="0.1" value="'+(Math.round(L.cai*10)/10)+'" onchange="editOther(\''+csv+'\',\'cai\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
+   +'<label>一材單價<input type="number" value="'+L.unit+'" onchange="editOther(\''+csv+'\',\'unit\',this.value)" style="'+inp+';width:70px;margin-left:3px"></label>'
+   +'<span style="color:#111827;font-weight:600">單價 '+NT(per)+'</span>'
+   +(L.n>1?'<span>×'+L.n+' 件</span>':'')
+   +(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>':'')
+   +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
+   +'</div></div>';}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
 // 其他特殊品項：米數=米×條；材數=米數×單才(才/米)；金額=材數×連工帶料(元/才)→進位百元
 function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
@@ -638,7 +666,9 @@ function render(){
  if(v('g-cat'))fillGlassSeries();
  var lines=buildLines();var box=document.getElementById('lines');
  if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
- else{var h='';lines.forEach(function(L){var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='special'?' 項':' 件')));
+ else{var h='';lines.forEach(function(L){
+   if(L.type==='other'){h+=otherRowHtml(L);return;}   // 其他品項：行內可編輯列
+   var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='special'?' 項':' 件')));
    var orig=L.base||L.amount;
    var szHtml='';
    if(L.type==='film'&&L.sizeRows&&L.sizeRows.length){szHtml='<div style="margin-top:5px;padding-left:2px">'+L.sizeRows.map(function(s){return '<div style="font-size:12px;color:#6b7280;line-height:1.8">· 寬'+s.w+'×高'+s.h+' cm　×'+s.n+'　<span style="color:#9ca3af">'+s.caiEach.toFixed(1)+' 才/片</span></div>';}).join('')+'</div>';}
