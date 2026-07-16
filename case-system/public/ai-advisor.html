@@ -136,7 +136,7 @@
           <span class="ai-chip" onclick="askChip('assistant',this)">幫我列出最有機會成交的前 5 名</span>
         </div>
         <div class="ai-inputbar">
-          <textarea id="input-assistant" rows="1" placeholder="問特助顧問任何關於案件現況的問題…（Enter 送出）"></textarea>
+          <textarea id="input-assistant" rows="1" placeholder="問特助顧問任何關於案件現況的問題…（按「送出」鈕）"></textarea>
           <button class="ai-send" onclick="sendChat('assistant')">送出</button>
         </div>
       </div>
@@ -156,7 +156,7 @@
           <span class="ai-chip" onclick="askChip('accounting',this)">有哪些預收訂金還沒沖銷？</span>
         </div>
         <div class="ai-inputbar">
-          <textarea id="input-accounting" rows="1" placeholder="問會計顧問任何關於財務的問題…（Enter 送出）"></textarea>
+          <textarea id="input-accounting" rows="1" placeholder="問會計顧問任何關於財務的問題…（按「送出」鈕）"></textarea>
           <button class="ai-send" onclick="sendChat('accounting')">送出</button>
         </div>
       </div>
@@ -176,7 +176,7 @@
           <span class="ai-chip" onclick="askChip('dispatch',this)">有沒有師傅同一天被排到撞班？</span>
         </div>
         <div class="ai-inputbar">
-          <textarea id="input-dispatch" rows="1" placeholder="問派單顧問任何關於排工的問題…（Enter 送出）"></textarea>
+          <textarea id="input-dispatch" rows="1" placeholder="問派單顧問任何關於排工的問題…（按「送出」鈕）"></textarea>
           <button class="ai-send" onclick="sendChat('dispatch')">送出</button>
         </div>
       </div>
@@ -275,7 +275,7 @@ function askChip(adv,el){ const inp=document.getElementById('input-'+adv); inp.v
 
 ['assistant','accounting','dispatch'].forEach(adv=>{
   const inp=document.getElementById('input-'+adv); if(!inp) return;
-  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(adv); } });
+  // 不用 Enter 送出（Enter＝換行）；改按「送出」鈕，避免語音輸入誤送
   inp.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
 });
 

@@ -71,6 +71,11 @@
         每筆＝一個常見問題／主題＋制式回覆，可附電商、官網、YouTube 影片等連結。你改了，AI 下次就照新的答。
       </div>
       <div id="suggestBox"></div>
+      <div style="position:relative;margin-bottom:12px">
+        <input id="kbSearch" type="text" placeholder="🔍 搜尋關鍵字（主題／內容／分類／關鍵字）…" oninput="onSearch()"
+          style="width:100%;padding:9px 12px;border:1px solid var(--gray-300);border-radius:10px;font-size:14px;box-sizing:border-box">
+        <span id="kbSearchCount" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--gray-400)"></span>
+      </div>
       <div id="list"><div style="color:var(--gray-400);padding:20px;text-align:center">載入中…</div></div>
     </div>
   </div>
@@ -130,11 +135,22 @@ async function load() {
 
 function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+let kbQuery = '';
+function onSearch() {
+  kbQuery = (document.getElementById('kbSearch').value || '').trim().toLowerCase();
+  render();
+}
 function render() {
   const el = document.getElementById('list');
-  if (!items.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">還沒有任何條目，按右上角「＋ 新增條目」或「🤖 AI 挖常見問題」開始。</div>`; return; }
+  const cnt = document.getElementById('kbSearchCount');
+  if (!items.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">還沒有任何條目，按右上角「＋ 新增條目」或「🤖 AI 挖常見問題」開始。</div>`; if (cnt) cnt.textContent=''; return; }
+  const shown = kbQuery
+    ? items.filter(i => [i.category, i.question, i.answer, i.keywords, i.link_label].map(x => String(x||'').toLowerCase()).join(' ').includes(kbQuery))
+    : items;
+  if (cnt) cnt.textContent = kbQuery ? `${shown.length} 筆符合` : '';
+  if (!shown.length) { el.innerHTML = `<div style="color:var(--gray-400);padding:24px;text-align:center">沒有符合「${esc(kbQuery)}」的條目</div>`; return; }
   const cats = {};
-  items.forEach(i => { (cats[i.category || '未分類'] = cats[i.category || '未分類'] || []).push(i); });
+  shown.forEach(i => { (cats[i.category || '未分類'] = cats[i.category || '未分類'] || []).push(i); });
   el.innerHTML = Object.entries(cats).map(([cat, list]) => `
     <div class="kb-cat">
       <h3>${esc(cat)}</h3>

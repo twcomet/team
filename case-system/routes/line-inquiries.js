@@ -131,7 +131,14 @@ router.get('/:id', requireAuth, (req, res) => {
     ORDER BY m.created_at ASC, m.id ASC
   `).all(req.params.id);
 
-  res.json({ ...inq, messages });
+  // 這位客人名下的所有案件（一個客人可有多筆訂單 → 多顆「進案場」按鈕）
+  const custCases = db.prepare(`
+    SELECT id, case_number, title, status FROM cases
+    WHERE (client_id = ? OR line_source = ?) AND status NOT IN ('invalid')
+    ORDER BY id DESC LIMIT 12
+  `).all(inq.client_id, inq.line_user_id);
+
+  res.json({ ...inq, messages, cust_cases: custCases });
 });
 
 // ── 指派負責業務 / 負責客服 ───────────────────────────────────

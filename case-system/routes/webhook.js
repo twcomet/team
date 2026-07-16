@@ -218,13 +218,28 @@ async function handleClientMessage(event, channel) {
     clientId = client.id;
   }
 
-  // 掛到哪一筆詢問：優先同頻道進行中的；沒有就開新的
-  let inquiryId = db.prepare(`
-    SELECT id FROM line_inquiries
-    WHERE line_user_id=? AND status IN ('new','in_progress')
-      AND (channel_id IS ? OR channel_id IS NULL)
-    ORDER BY created_at DESC LIMIT 1
-  `).get(threadKey, channel.id || null)?.id || null;
+  // 每個客人只有「一個對話視窗」：一律掛到這位客人（同頻道）最近的那一筆詢問，
+  // 不論狀態（new / in_progress / converted 都直接接續），避免轉案後又多開一筆。
+  const existing = db.prepare(`
+    SELECT id, status, converted_case_id FROM line_inquiries
+    WHERE line_user_id=? AND (channel_id IS ? OR channel_id IS NULL)
+    ORDER BY id DESC LIMIT 1
+  `).get(threadKey, channel.id || null);
+
+  let inquiryId = existing?.id || null;
+
+  if (existing) {
+    // 這條先前被結束（無效／隱藏，或已轉案但案件已結案/無效）→ 收到新訊息就「復活」回新詢問，
+    // 用同一個視窗、不另開；已轉案且案件仍進行中 → 維持已轉案，直接接續訊息。
+    let revive = existing.status === 'invalid' || existing.status === 'hidden';
+    if (!revive && existing.status === 'converted' && existing.converted_case_id) {
+      const cc = db.prepare(`SELECT status FROM cases WHERE id=?`).get(existing.converted_case_id);
+      if (cc && (cc.status === 'closed' || cc.status === 'invalid')) revive = true;
+    }
+    if (revive) {
+      db.prepare(`UPDATE line_inquiries SET status='new', converted_case_id=NULL, converted_at=NULL WHERE id=?`).run(inquiryId);
+    }
+  }
 
   if (!inquiryId) {
     const addSource = !isGroup

@@ -355,4 +355,58 @@ router.get('/snapshot', requireAuth, (req, res) => {
   res.json(gatherAssistantSnapshot(req.session.user));
 });
 
+// ── AI 顧問對話保存（純文字，很小；跳頁不再消失）────────────────
+// 儲存/更新一段對話（自動存）。body: { chat_id?, messages:[{role,content}], title? }
+router.post('/:advisor/save', requireAuth, (req, res) => {
+  const adv = resolveAdvisor(req, res); if (!adv) return;
+  const messages = Array.isArray(req.body.messages) ? req.body.messages
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && String(m.content || '').trim())
+    .map(m => ({ role: m.role, content: String(m.content) })) : [];
+  if (!messages.length) return res.status(400).json({ error: '沒有可儲存的對話' });
+  const firstUser = messages.find(m => m.role === 'user');
+  const title = (req.body.title || firstUser?.content || '對話').replace(/\s+/g, ' ').trim().slice(0, 40);
+  const uid = req.session.user.id;
+  const json = JSON.stringify(messages);
+  const chatId = Number(req.body.chat_id) || 0;
+  if (chatId) {
+    const own = db.prepare(`SELECT id FROM ai_advisor_chats WHERE id=? AND user_id=?`).get(chatId, uid);
+    if (own) {
+      db.prepare(`UPDATE ai_advisor_chats SET messages_json=?, title=?, updated_at=datetime('now','localtime') WHERE id=?`)
+        .run(json, title, chatId);
+      return res.json({ ok: true, id: chatId });
+    }
+  }
+  const r = db.prepare(`INSERT INTO ai_advisor_chats (user_id, advisor, title, messages_json) VALUES (?,?,?,?)`)
+    .run(uid, req.params.advisor, title, json);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+// 我在這個顧問的歷史對話清單
+router.get('/:advisor/chats', requireAuth, (req, res) => {
+  const adv = resolveAdvisor(req, res); if (!adv) return;
+  const rows = db.prepare(`SELECT id, title, updated_at,
+                             (SELECT COUNT(*) FROM json_each(messages_json)) AS msg_count
+                           FROM ai_advisor_chats
+                           WHERE user_id=? AND advisor=? ORDER BY updated_at DESC LIMIT 100`)
+    .all(req.session.user.id, req.params.advisor);
+  res.json({ chats: rows });
+});
+
+// 讀取單一對話（限本人）
+router.get('/chat/:id', requireAuth, (req, res) => {
+  const row = db.prepare(`SELECT id, advisor, title, messages_json FROM ai_advisor_chats WHERE id=? AND user_id=?`)
+    .get(req.params.id, req.session.user.id);
+  if (!row) return res.status(404).json({ error: '找不到對話' });
+  let messages = [];
+  try { messages = JSON.parse(row.messages_json) || []; } catch (e) {}
+  res.json({ id: row.id, advisor: row.advisor, title: row.title, messages });
+});
+
+// 刪除對話（限本人）
+router.delete('/chat/:id', requireAuth, (req, res) => {
+  const r = db.prepare(`DELETE FROM ai_advisor_chats WHERE id=? AND user_id=?`).run(req.params.id, req.session.user.id);
+  if (!r.changes) return res.status(404).json({ error: '找不到對話' });
+  res.json({ ok: true });
+});
+
 module.exports = router;
