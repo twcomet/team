@@ -120,13 +120,20 @@
       <input type="hidden" id="f-id">
       <div class="kb-field">
         <label>分類</label>
-        <input id="f-category" list="catList" placeholder="例如：電商、官網／資源、常見問題、服務範圍、材質、施工、展間、公司資訊">
+        <input id="f-category" list="catList" placeholder="例如：罐頭訊息、電商、常見問題、服務範圍、材質、施工、展間" oninput="onCatInput()">
         <datalist id="catList">
+          <option value="罐頭訊息">
           <option value="電商"><option value="官網／資源"><option value="常見問題"><option value="服務範圍">
           <option value="材質"><option value="施工"><option value="展間"><option value="自媒體／影片"><option value="公司資訊">
         </datalist>
+        <div id="cannedHint" style="display:none;margin-top:6px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;line-height:1.6">
+          💬 <b>罐頭訊息</b>：存好後會出現在「LINE 詢問」回覆框上方的「常用語」快捷鈕，客服點一下就把內容填入、按傳送即可。<br>
+          ・<b>主題</b> = 按鈕上顯示的短標籤（例如「營業時間」「請傳照片」）<br>
+          ・<b>制式回覆內容</b> = 點下去會填入的完整訊息<br>
+          ・記得勾「啟用」，快捷鈕才會出現。
+        </div>
       </div>
-      <div class="kb-field"><label>主題 / 常見問題</label><input id="f-question" placeholder="客人會怎麼問，例如：有沒有電商／線上購買？"></div>
+      <div class="kb-field"><label>主題 / 常見問題　<span id="qHintCanned" style="display:none;color:#166534;font-size:12px">（罐頭訊息：這是「按鈕上的短標籤」）</span></label><input id="f-question" placeholder="客人會怎麼問，例如：有沒有電商／線上購買？"></div>
       <div class="kb-field"><label>制式回覆內容</label><textarea id="f-answer" placeholder="AI 會依這段回答客人（繁中、親切、簡短）"></textarea></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="kb-field"><label>資源連結（選填）</label><input id="f-link_url" placeholder="https://…（電商/官網/影片）"></div>
@@ -210,9 +217,16 @@ function openEdit(id, preset) {
   document.getElementById('f-keywords').value  = it.keywords || '';
   document.getElementById('f-sort_order').value= it.sort_order != null ? it.sort_order : 50;
   document.getElementById('f-active').checked  = it.active === undefined ? true : !!it.active;
+  onCatInput();
   document.getElementById('editModal').classList.add('open');
 }
 function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
+// 分類=罐頭訊息時，顯示說明提示（讓同事知道這會變成回覆框快捷鈕）
+function onCatInput() {
+  const isCanned = document.getElementById('f-category').value.trim() === '罐頭訊息';
+  document.getElementById('cannedHint').style.display  = isCanned ? 'block' : 'none';
+  document.getElementById('qHintCanned').style.display = isCanned ? 'inline' : 'none';
+}
 
 async function save() {
   const id = document.getElementById('f-id').value;
