@@ -3466,6 +3466,10 @@ _addCol('client_deposits', 'owner_confirmed',    'INTEGER DEFAULT 0');
 _addCol('client_deposits', 'owner_confirmed_at', 'DATETIME DEFAULT NULL');
 _addCol('client_deposits', 'owner_confirmed_by', 'INTEGER DEFAULT NULL');
 _addCol('client_deposits', 'owner_signature',    'TEXT DEFAULT NULL');
+// 核銷款項流向勾稽：經手人(現金 給誰)／入帳帳戶(匯款)／其他收款狀況
+_addCol('client_deposits', 'settle_handler',     'TEXT DEFAULT NULL');
+_addCol('client_deposits', 'settle_account',     'TEXT DEFAULT NULL');
+_addCol('client_deposits', 'settle_note',        'TEXT DEFAULT NULL');
 
 // ── 缺失管理 ────────────────────────────────────────────────
 db.exec(`

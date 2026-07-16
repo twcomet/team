@@ -140,12 +140,12 @@
         <table class="dep-table" id="depTable">
           <colgroup>
             <col style="width:92px">    <!-- 日期 -->
-            <col>                        <!-- 客戶 -->
-            <col style="width:92px">    <!-- 類型（縮小） -->
+            <col style="width:150px">   <!-- 客戶／關聯案件 -->
+            <col>                        <!-- 案件名稱 -->
+            <col style="width:82px">    <!-- 類型 -->
             <col style="width:92px">    <!-- 金額 -->
-            <col style="width:90px">    <!-- 狀態（放大） -->
-            <col style="width:160px">   <!-- 核銷（放大） -->
-            <col style="width:120px">   <!-- 關聯案件（放大） -->
+            <col style="width:90px">    <!-- 狀態 -->
+            <col style="width:160px">   <!-- 核銷 -->
             <col>                        <!-- 備註 -->
             <col style="width:80px">    <!-- 登記人 -->
             <col style="width:120px">   <!-- 操作 -->
@@ -153,12 +153,12 @@
           <thead>
             <tr>
               <th>日期</th>
-              <th>客戶</th>
+              <th>客戶／關聯案件</th>
+              <th>案件名稱</th>
               <th>類型</th>
               <th>金額</th>
               <th>狀態</th>
               <th>核銷</th>
-              <th>關聯案件</th>
               <th>備註</th>
               <th>登記人</th>
               <th>操作</th>
@@ -243,6 +243,29 @@
     </div>
     <div class="modal-body">
       <div id="verifyInfo" style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#374151"></div>
+      <style>
+        .flow-chips{display:flex;gap:6px;flex-wrap:wrap}
+        .flow-chip{padding:6px 15px;border:1.5px solid var(--gray-300);border-radius:20px;font-size:13px;cursor:pointer;color:var(--gray-600);user-select:none}
+        .flow-chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+      </style>
+      <div class="form-group">
+        <label style="font-weight:600">款項流向 <span style="color:#e02424">*</span></label>
+        <div style="font-size:11px;color:var(--gray-400);margin:2px 0 8px">記錄這筆錢最後給了誰／入到哪個帳戶（給 Ken 的場勘費會列入日後獎金勾稽）</div>
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px">💵 經手人（現金）</div>
+        <div class="flow-chips" id="flowHandler" data-group="handler">
+          <span class="flow-chip" data-val="Dan">Dan</span>
+          <span class="flow-chip" data-val="Flora">Flora</span>
+          <span class="flow-chip" data-val="Ken">Ken</span>
+        </div>
+        <div style="font-size:12px;color:var(--gray-500);margin:12px 0 4px">🏦 入帳帳戶（匯款）</div>
+        <div class="flow-chips" id="flowAccount" data-group="account">
+          <span class="flow-chip" data-val="華南">華南</span>
+          <span class="flow-chip" data-val="合庫">合庫</span>
+          <span class="flow-chip" data-val="臺企">臺企</span>
+        </div>
+        <div style="font-size:12px;color:var(--gray-500);margin:12px 0 4px">📝 其他／收款狀況（選填）</div>
+        <input type="text" id="flowNote" placeholder="例：客戶尚未匯款、Ken 代收現金…" style="width:100%;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">
+      </div>
       <div class="form-group">
         <label style="font-weight:600">收款人簽名 <span style="color:#e02424">*</span></label>
         <div style="position:relative;border:1.5px solid var(--gray-300);border-radius:8px;overflow:hidden;background:#fff;touch-action:none">
@@ -469,8 +492,14 @@ function renderTableRows(rows) {
   tbody.innerHTML = rows.map(d => {
     const typeLabel = d.type === 'sample' ? `樣本${d.product_name ? '｜' + d.product_name : ''}` : (DEP_TYPE_LABEL[d.type] || d.type);
     const statusHtml = `<span class="badge-dep-${d.status}">${DEP_STATUS_LABEL[d.status] || d.status}</span>`;
+    const flowBits = [];
+    if (d.settle_handler) flowBits.push(`經手：${d.settle_handler}`);
+    if (d.settle_account) flowBits.push(`入帳：${d.settle_account}`);
+    if (d.settle_note) flowBits.push(d.settle_note);
+    const flowLine = flowBits.length
+      ? `<br><span style="font-size:11px;color:#0f766e">💰 ${flowBits.join('・')}</span>` : '';
     const verifyHtml = d.accounting_verified
-      ? `<span class="badge-verified">✓ 已核銷</span><br><span style="font-size:11px;color:var(--gray-400)">${(d.accounting_verified_at || '').slice(0,10)}${weekdayZh((d.accounting_verified_at || '').slice(0,10))} ${d.verified_by_name || ''}</span>`
+      ? `<span class="badge-verified">✓ 已核銷</span><br><span style="font-size:11px;color:var(--gray-400)">${(d.accounting_verified_at || '').slice(0,10)}${weekdayZh((d.accounting_verified_at || '').slice(0,10))} ${d.verified_by_name || ''}</span>${flowLine}`
       : `<span class="badge-unverified">待核銷</span>`;
     const caseId  = d.linked_case_id || d.applied_case_id;
     const caseNum = d.applied_case_number || d.linked_case_number;
@@ -492,14 +521,17 @@ function renderTableRows(rows) {
     const clientLink = d.client_id
       ? `<a href="/client-detail?id=${d.client_id}" style="color:var(--primary);text-decoration:none;font-weight:500">${d.client_name || '—'}</a>`
       : (d.client_name || '—');
+    const clientCaseCell = clientLink + (caseRef !== '—'
+      ? `<br><span style="font-size:11px">${caseRef}</span>` : '');
+    const caseTitle = d.applied_case_title || d.linked_case_title || '';
     return `<tr>
       <td style="white-space:nowrap">${d.collected_at || '—'}${weekdayZh(d.collected_at)}</td>
-      <td>${clientLink}</td>
-      <td style="max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${typeLabel}">${typeLabel}</td>
+      <td style="line-height:1.5">${clientCaseCell}</td>
+      <td style="font-size:12px;color:var(--gray-600);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${caseTitle}">${caseTitle || '—'}</td>
+      <td style="max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${typeLabel}">${typeLabel}</td>
       <td style="font-weight:600;color:${d.amount > 0 ? 'var(--primary)' : 'var(--gray-400)'}">${amtText}</td>
       <td style="white-space:nowrap">${statusHtml}</td>
       <td style="white-space:nowrap;line-height:1.6">${verifyHtml}${ownerConfirmBadge}</td>
-      <td style="font-size:12px">${caseRef}</td>
       <td style="font-size:12px;color:var(--gray-500);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.note || ''}">${d.note || '—'}</td>
       <td style="font-size:12px;color:var(--gray-500)">${d.created_by_name || '—'}</td>
       <td style="white-space:nowrap">${verifyBtn}${ownerConfirmBtn}${deleteBtn}</td>
@@ -524,8 +556,25 @@ function verifyRow(id) {
   document.getElementById('verifyInfo').innerHTML =
     `<strong>${dep.client_name || '—'}</strong>　${typeLabel}　<strong style="color:var(--primary)">NT$${Math.round(dep.amount).toLocaleString()}</strong>` +
     (dep.linked_case_number ? `<br><span style="font-size:12px;color:var(--gray-500)">關聯案件：${dep.linked_case_number}</span>` : '');
+  // 重置款項流向
+  document.querySelectorAll('#verifyModal .flow-chip').forEach(c => c.classList.remove('on'));
+  document.getElementById('flowNote').value = '';
+  bindFlowChips();
   clearSig();
   document.getElementById('verifyModal').classList.add('open');
+}
+
+// 款項流向：經手人/帳戶互斥單選（一筆錢只去一個地方）
+let _flowBound = false;
+function bindFlowChips() {
+  if (_flowBound) return; _flowBound = true;
+  document.querySelectorAll('#verifyModal .flow-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const wasOn = chip.classList.contains('on');
+      document.querySelectorAll('#verifyModal .flow-chip').forEach(c => c.classList.remove('on'));
+      if (!wasOn) chip.classList.add('on');
+    });
+  });
 }
 
 function closeVerifyModal() {
@@ -535,6 +584,12 @@ function closeVerifyModal() {
 
 async function submitVerify() {
   if (!_verifyId) return;
+  const settle_handler = document.querySelector('#flowHandler .flow-chip.on')?.dataset.val || '';
+  const settle_account = document.querySelector('#flowAccount .flow-chip.on')?.dataset.val || '';
+  const settle_note = document.getElementById('flowNote').value.trim();
+  if (!settle_handler && !settle_account && !settle_note) {
+    showToast('請選擇款項流向（經手人／帳戶）或填寫其他狀況', 'error'); return;
+  }
   const canvas = document.getElementById('sigCanvas');
   if (isSigEmpty(canvas)) { showToast('請先簽名後再核銷', 'error'); return; }
   const signature = canvas.toDataURL('image/png');
@@ -542,7 +597,7 @@ async function submitVerify() {
   btn.disabled = true;
   const r = await fetch(`/api/client-deposits/${_verifyId}/verify`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ signature })
+    body: JSON.stringify({ signature, settle_handler, settle_account, settle_note })
   });
   btn.disabled = false;
   if (r.ok) {

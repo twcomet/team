@@ -21,6 +21,8 @@ router.get('/all', requireAuth, (req, res) => {
            cl.name AS client_name,
            ac.case_number AS applied_case_number,
            lc.case_number AS linked_case_number,
+           ac.title AS applied_case_title,
+           lc.title AS linked_case_title,
            u.name  AS created_by_name,
            av.name AS verified_by_name
     FROM client_deposits cd
@@ -142,12 +144,15 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
   if (!dep) return res.status(404).json({ error: 'not found' });
   if (dep.accounting_verified) return res.status(400).json({ error: '此筆預收款已核銷' });
 
-  const { signature } = req.body;
+  const { signature, settle_handler, settle_account, settle_note } = req.body;
   db.prepare(`
     UPDATE client_deposits
-    SET accounting_verified=1, accounting_verified_at=?, accounting_verified_by=?, verify_signature=?
+    SET accounting_verified=1, accounting_verified_at=?, accounting_verified_by=?, verify_signature=?,
+        settle_handler=?, settle_account=?, settle_note=?
     WHERE id=?
-  `).run(new Date().toISOString(), req.session.user.id, signature || null, req.params.id);
+  `).run(new Date().toISOString(), req.session.user.id, signature || null,
+    (settle_handler || '').trim() || null, (settle_account || '').trim() || null, (settle_note || '').trim() || null,
+    req.params.id);
 
   // 核銷後寫入流水帳（場勘費在此時才正式入帳）
   if (dep.amount > 0) {
