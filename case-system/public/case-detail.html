@@ -409,39 +409,17 @@
           <h4 class="sf-tab-title" style="margin-bottom:8px">估價紀錄（快速報價／估價計算機）</h4>
           <div id="quickEstList"></div>
         </div>
-        <!-- 估價計算機（嵌入，選膜料即時算錢＋可儲存）-->
-        <div class="sf-tab-section" style="padding:0;overflow:hidden">
-          <div style="padding:10px 14px;font-size:13px;font-weight:700;color:#1d4ed8;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <span>🧮 估價計算機（選膜料即時算錢、可直接儲存估價單）</span>
-            <a id="estCalcOpenBtn" href="#" target="_blank" style="font-size:12px;color:#1d4ed8;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;text-decoration:none;white-space:nowrap">在新分頁開啟 ↗</a>
+        <!-- 估價計算機：改成「彈跳視窗」開啟（不再一直嵌著，動線與 LINE 詢問一致）-->
+        <div class="sf-tab-section" style="background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#1d4ed8">🧮 估價計算機</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">選膜料即時算錢、可直接儲存估價單到此案件。彈跳視窗開啟，估完關掉回案件頁，上方「估價紀錄」會更新。</div>
           </div>
-          <div id="estCalcFallback" style="display:none;padding:22px 16px;text-align:center;background:#fff8f0;border-bottom:1px solid #fde68a">
-            <div style="font-size:13px;color:#92400e;margin-bottom:10px">此瀏覽器在內嵌框架內擋掉了登入狀態，估價計算機無法直接顯示。</div>
-            <a id="estCalcFallbackBtn" href="#" target="_blank" style="display:inline-block;font-size:13px;font-weight:700;background:#f59e0b;color:#fff;border-radius:8px;padding:9px 18px;text-decoration:none">🧮 在新分頁開啟估價計算機 ↗</a>
-          </div>
-          <iframe id="estCalcFrame" allow="clipboard-write" style="width:100%;height:1180px;border:none;display:block"></iframe>
+          <button type="button" onclick="openEstFrameCase()"
+            style="padding:9px 18px;background:#1d4ed8;color:#fff;font-size:13px;font-weight:700;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            🧮 開啟估價計算機
+          </button>
         </div>
-        <script>
-        (function(){
-          var tab=document.querySelector('.tab[data-tab="estimate"]'), fr=document.getElementById('estCalcFrame');
-          if(!tab||!fr) return;
-          var id=new URLSearchParams(location.search).get('id')||'';
-          var openUrl='/estimator?case_id='+encodeURIComponent(id);
-          var ob=document.getElementById('estCalcOpenBtn'), fb=document.getElementById('estCalcFallback'), fbb=document.getElementById('estCalcFallbackBtn');
-          if(ob) ob.href=openUrl; if(fbb) fbb.href=openUrl;
-          // iframe 被導到登入頁（同源可讀）→ 顯示後備、隱藏空白 iframe
-          fr.addEventListener('load', function(){
-            try {
-              var p = fr.contentWindow.location.pathname;
-              if (p === '/' || /login/i.test(p)) { if(fb) fb.style.display=''; fr.style.display='none'; }
-              else { if(fb) fb.style.display='none'; fr.style.display='block'; }
-            } catch(e) {}
-          });
-          var loaded=false; function L(){ if(loaded)return; loaded=true; fr.src='/estimator?embed=1&case_id='+encodeURIComponent(id); }
-          tab.addEventListener('click', L);
-          if(tab.classList.contains('active')) L();
-        })();
-        </script>
         <div class="sf-tab-section" style="background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
           <div>
             <div style="font-size:13px;font-weight:600;color:#1d4ed8">🧮 快速報價工具</div>
@@ -2650,6 +2628,31 @@ document.getElementById('saveEstimateBtn').addEventListener('click', async () =>
 });
 
 // ── 估價紀錄（合併：快速報價 initial_estimates + 估價計算機 est_quotes）────
+// 估價計算機彈跳視窗：帶 case_id 開啟，估完關掉刷新估價紀錄；iframe 被登入擋掉時退回新分頁
+function openEstFrameCase() {
+  const url = `/estimator?case_id=${encodeURIComponent(caseId)}`;
+  const fr = document.getElementById('estFrame');
+  const fb = document.getElementById('estFrameFallback');
+  document.getElementById('estFrameOpenTab').href = url;
+  document.getElementById('estFrameFallbackBtn').href = url;
+  fb.style.display = 'none'; fr.style.display = 'block';
+  fr.onload = function () {
+    try {
+      const p = fr.contentWindow.location.pathname;
+      if (p === '/' || /login/i.test(p)) { fb.style.display = ''; fr.style.display = 'none'; }
+      else { fb.style.display = 'none'; fr.style.display = 'block'; }
+    } catch (e) { /* 跨源讀不到就當正常顯示 */ }
+  };
+  fr.src = `${url}&embed=1`;
+  document.getElementById('estFrameModal').classList.add('open');
+}
+function closeEstFrameCase() {
+  document.getElementById('estFrameModal').classList.remove('open');
+  const fr = document.getElementById('estFrame');
+  if (fr) fr.src = 'about:blank';
+  if (typeof loadQuickEstimates === 'function') loadQuickEstimates();   // 刷新估價紀錄清單
+}
+
 async function loadQuickEstimates() {
   const section = document.getElementById('quickEstHistorySection');
   const list    = document.getElementById('quickEstList');
@@ -5693,6 +5696,23 @@ init().catch(err => {
   if (t && t.textContent === '載入中…') t.textContent = '載入失敗，請重新整理';
 });
 </script>
+
+<!-- 估價計算機彈跳視窗（估完關掉回案件頁，不再一直嵌著）-->
+<div class="modal-overlay" id="estFrameModal">
+  <div class="modal" style="max-width:1080px;width:97%;height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-header" style="padding:10px 16px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:10px">
+      <h3 style="margin:0;font-size:15px">🧮 估價計算機</h3>
+      <a id="estFrameOpenTab" href="#" target="_blank" style="font-size:12px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 10px;text-decoration:none;white-space:nowrap">在新分頁開啟 ↗</a>
+      <span style="font-size:11px;color:var(--gray-400)">估好按估價機內的「儲存」，再關掉這個視窗回到案件</span>
+      <button class="modal-close" style="margin-left:auto" onclick="closeEstFrameCase()">×</button>
+    </div>
+    <div id="estFrameFallback" style="display:none;padding:26px 20px;text-align:center;background:#fff8f0">
+      <div style="font-size:13px;color:#92400e;margin-bottom:12px">此瀏覽器在彈跳視窗內擋掉了登入狀態，估價機無法直接顯示。</div>
+      <a id="estFrameFallbackBtn" href="#" target="_blank" style="display:inline-block;font-size:13px;font-weight:700;background:#f59e0b;color:#fff;border-radius:8px;padding:10px 20px;text-decoration:none">🧮 在新分頁開啟估價機 ↗</a>
+    </div>
+    <iframe id="estFrame" allow="clipboard-write" style="flex:1;width:100%;border:none;display:block"></iframe>
+  </div>
+</div>
 
 <!-- 新增膜料使用紀錄 Modal -->
 <div class="modal-overlay" id="matLogModal">
