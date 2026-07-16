@@ -606,8 +606,11 @@ async function createEstimateDraft() {
     for (let k = 0; k < q; k++) items.push({ kind:'other', name, w:Number(it.w), h:Number(it.h), unit:0 });
   });
   const d = currentInquiryData || {};
+  // 客人在對話裡提供的照片 → 一起帶進估價單（存 photos_json）
+  const custPhotos = (d.messages || []).filter(m => m.msg_type === 'image' && m.content).map(m => m.content);
   const payload = {
     items,
+    photos: custPhotos,
     customer_name: d.client_name || d.display_name || '',
     phone: d.phone || '',
     project_name: 'LINE 詢問估價（AI 草稿）',
@@ -622,6 +625,17 @@ async function createEstimateDraft() {
       const cr = await fetch(`/api/line-inquiries/${currentId}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
       const cj = await cr.json().catch(() => ({}));
       if (cr.ok && cj.case_id) payload.case_id = cj.case_id;
+    }
+    // 一案一張：若此案已有估價單，直接開最新那張（不重複新建）
+    if (payload.case_id) {
+      const existing = await fetch(`/api/estimator/quotes?case_id=${payload.case_id}`).then(x => x.json()).catch(() => []);
+      if (Array.isArray(existing) && existing.length) {
+        document.getElementById('aiEstModal').classList.remove('open');
+        btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
+        openEstFrame(existing[0].id);
+        showToast('此案已有估價單，直接開啟編輯（一案一張）');
+        return;
+      }
     }
     const r = await fetch('/api/estimator/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const j = await r.json().catch(() => ({}));

@@ -2628,9 +2628,13 @@ document.getElementById('saveEstimateBtn').addEventListener('click', async () =>
 });
 
 // ── 估價紀錄（合併：快速報價 initial_estimates + 估價計算機 est_quotes）────
-// 估價計算機彈跳視窗：帶 case_id 開啟，估完關掉刷新估價紀錄；iframe 被登入擋掉時退回新分頁
-function openEstFrameCase() {
-  const url = `/estimator?case_id=${encodeURIComponent(caseId)}`;
+// 估價計算機彈跳視窗：一案一張主估價單——若此案已有估價單就開最新那張來編輯，沒有才新建
+async function openEstFrameCase() {
+  let url = `/estimator?case_id=${encodeURIComponent(caseId)}`;
+  try {
+    const rows = await fetch(`/api/estimator/quotes?case_id=${encodeURIComponent(caseId)}`).then(r => r.json());
+    if (Array.isArray(rows) && rows.length) url = `/estimator?edit=${rows[0].id}`;   // 最新一張＝主估價單
+  } catch (e) { /* 撈不到就用空白帶 case_id */ }
   const fr = document.getElementById('estFrame');
   const fb = document.getElementById('estFrameFallback');
   document.getElementById('estFrameOpenTab').href = url;
