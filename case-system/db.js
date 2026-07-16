@@ -1657,6 +1657,56 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_advisor_chats_user ON ai_advisor_chats(user_id, advisor);
 `);
 
+// ── 一次性遷移：合併同一客人的重複詢問視窗（每客一視窗）──────────────
+// 過去轉案後新訊息會另開一筆，導致同一 line_user_id 有多個視窗、也難以統計客人數。
+// 這裡把每個 (line_user_id, channel_id) 群組收斂成一條：保留「狀態最進階、最近有活動」
+// 的那筆當主視窗，其餘視窗的訊息全部搬進去後刪除（先搬再刪，避免 CASCADE 連帶刪訊息）。
+db.exec(`CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT (datetime('now','localtime')))`);
+if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get('merge_dup_inquiries_v1')) {
+  try {
+    const groups = db.prepare(`
+      SELECT line_user_id, COALESCE(channel_id,-1) AS chan, COUNT(*) n
+      FROM line_inquiries WHERE line_user_id IS NOT NULL
+      GROUP BY line_user_id, COALESCE(channel_id,-1) HAVING n > 1
+    `).all();
+    let mergedGroups = 0, deletedThreads = 0, movedMsgs = 0;
+    const keepIds = [];
+    db.exec('BEGIN');
+    for (const g of groups) {
+      const rows = db.prepare(`
+        SELECT id FROM line_inquiries
+        WHERE line_user_id=? AND COALESCE(channel_id,-1)=?
+        ORDER BY CASE status WHEN 'converted' THEN 5 WHEN 'in_progress' THEN 4 WHEN 'new' THEN 3
+                             WHEN 'hidden' THEN 2 WHEN 'invalid' THEN 1 ELSE 0 END DESC,
+                 COALESCE(last_message_at, created_at) DESC, id DESC
+      `).all(g.line_user_id, g.chan);
+      if (rows.length < 2) continue;
+      const keep = rows[0].id;
+      const dups = rows.slice(1).map(r => r.id);
+      const ph = dups.map(() => '?').join(',');
+      movedMsgs += db.prepare(`UPDATE line_inquiry_messages SET inquiry_id=? WHERE inquiry_id IN (${ph})`).run(keep, ...dups).changes;
+      db.prepare(`DELETE FROM line_inquiries WHERE id IN (${ph})`).run(...dups);
+      deletedThreads += dups.length; mergedGroups++; keepIds.push(keep);
+    }
+    // 重算保留視窗的彙總（訊息數、最後訊息文字與時間）
+    for (const id of keepIds) {
+      db.prepare(`
+        UPDATE line_inquiries SET
+          message_count = (SELECT COUNT(*) FROM line_inquiry_messages m WHERE m.inquiry_id=?),
+          last_message_at = COALESCE((SELECT MAX(created_at) FROM line_inquiry_messages m WHERE m.inquiry_id=?), last_message_at),
+          last_message = COALESCE((SELECT CASE WHEN m.msg_type='image' THEN '[照片]' ELSE substr(m.content,1,200) END
+                                   FROM line_inquiry_messages m WHERE m.inquiry_id=? ORDER BY m.id DESC LIMIT 1), last_message)
+        WHERE id=?`).run(id, id, id, id);
+    }
+    db.exec('COMMIT');
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run('merge_dup_inquiries_v1');
+    console.log(`✅ 合併重複詢問視窗：${mergedGroups} 位客人、刪 ${deletedThreads} 個重複視窗、搬移 ${movedMsgs} 則訊息`);
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch {}
+    console.error('⚠️ 合併重複詢問視窗失敗（已回滾，不影響系統）:', e.message);
+  }
+}
+
 // 系統內建角色的預設權限設定
 db.exec(`
   CREATE TABLE IF NOT EXISTS role_defaults (
