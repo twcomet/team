@@ -1555,6 +1555,8 @@ _addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
 // 群組訊息：詢問是否為 LINE 群組/多人聊天室；訊息記下群組發話者名稱
 _addCol('line_inquiries',         'is_group',       'INTEGER DEFAULT 0');
 _addCol('line_inquiry_messages',  'sender_display', 'TEXT');
+// 「✓ 已回覆」標記時間：同事在官方帳號後台回覆、系統收不到時，人工清掉待回覆紅燈
+_addCol('line_inquiries',         'replied_at',     'DATETIME');
 
 // ── 客服知識庫（常見問答 / 制式回覆 / 資源連結，餵給 LINE AI）──────
 db.exec(`

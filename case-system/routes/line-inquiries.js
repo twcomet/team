@@ -95,11 +95,14 @@ router.get('/stats', requireAuth, (req, res) => {
       SUM(CASE WHEN i.status='hidden'      THEN 1 ELSE 0 END) as hidden,
       SUM(CASE WHEN i.status='converted'   AND cc.status='closed' THEN 1 ELSE 0 END) as case_closed,
       SUM(CASE WHEN i.status IN ('new','in_progress')
+                AND i.last_message_at >= datetime('now','-7 days')
+                AND (i.replied_at IS NULL OR i.replied_at < i.last_message_at)
                 AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
                THEN 1 ELSE 0 END) as awaiting,
       SUM(CASE WHEN i.status IN ('new','in_progress') AND i.ai_needs_human=1 THEN 1 ELSE 0 END) as needs_human,
       SUM(CASE WHEN i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))
                 AND i.last_message_at >= datetime('now','-7 days')
+                AND (i.replied_at IS NULL OR i.replied_at < i.last_message_at)
                 AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
                THEN 1 ELSE 0 END) as converted_awaiting
     FROM line_inquiries i
@@ -280,6 +283,17 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
 
   // 送出後清掉 AI 草稿（已由真人處理）
   db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP, ai_draft=NULL, ai_draft_at=NULL, ai_needs_human=0, ai_needs_human_reason=NULL WHERE id=?`).run(inq.id);
+  res.json({ ok: true });
+});
+
+// ── 標記已回覆（清掉待回覆紅燈）─────────────────────────────
+// 用於同事在 LINE 官方帳號後台回覆、系統收不到那則回覆的情況。
+// 設 replied_at=現在；當 replied_at >= last_message_at 即視為已回，紅燈熄滅。
+// 若客人之後再傳新訊息，last_message_at 會更新超過 replied_at → 自動再次亮燈。
+router.post('/:id/mark-replied', requireAuth, (req, res) => {
+  const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq) return res.status(404).json({ error: 'not found' });
+  db.prepare(`UPDATE line_inquiries SET replied_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ai_needs_human=0 WHERE id=?`).run(inq.id);
   res.json({ ok: true });
 });
 

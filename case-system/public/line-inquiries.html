@@ -389,11 +389,14 @@ function caseStatusBadge(status, num) {
   return `<span${tip} style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:${s.bg};color:${s.c};white-space:nowrap">${s.t}</span>`;
 }
 // 等待客服回覆＝客人最後發言、且詢問仍在處理中
-function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.status === 'in_progress'); }
+// 待回覆窗口：超過 7 天沒新訊息就不再亮紅燈（多半已在官方帳號後台回過、系統看不到）
+const AWAIT_WINDOW_HOURS = 7 * 24;
+const CONV_AWAIT_HOURS   = 7 * 24;
+// 已按「✓ 已回覆」清掉（標記時間 >= 最後一則訊息時間 → 客人之後沒再傳 → 視為已回）
+function isReplied(i) { return !!(i.replied_at && i.last_message_at && i.replied_at >= i.last_message_at); }
+function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.status === 'in_progress') && hoursSince(i.last_message_at) <= AWAIT_WINDOW_HOURS && !isReplied(i); }
 // 已轉案客戶「最近 7 天內」又傳新訊息、還沒回（案件尚未結案/作廢）
-// 7 天窗口：過濾掉幾個月前早就處理完、尾巴剛好是客人講的舊對話
-const CONV_AWAIT_HOURS = 7 * 24;
-function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid' && hoursSince(i.last_message_at) <= CONV_AWAIT_HOURS; }
+function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid' && hoursSince(i.last_message_at) <= CONV_AWAIT_HOURS && !isReplied(i); }
 // 任一種「等我方回覆」
 function needsReply(i) { return isAwaiting(i) || isConvAwaiting(i); }
 function hoursSince(ts) {
@@ -703,6 +706,12 @@ async function openInquiry(id) {
   currentDraftText = data.ai_draft || '';   // 給「採用到回覆框」用
   currentInquiryData = data;                 // 給 AI 估價輔助等功能取用
 
+  // 「✓ 已回覆」按鈕：最後一則是客人傳的、且尚未標記已回、且可回覆時才顯示
+  const _msgs = data.messages || [];
+  const _lastMsgIn = _msgs.length && _msgs[_msgs.length - 1].direction === 'in';
+  const _repliedCleared = data.replied_at && data.replied_at >= data.last_message_at;
+  const _showMarkReplied = _lastMsgIn && !_repliedCleared && data.status !== 'invalid' && data.status !== 'hidden';
+
   const salesOpts = allUsers
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
     .map(u => `<option value="${u.id}"${data.sales_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
@@ -748,6 +757,8 @@ async function openInquiry(id) {
         </div>
       </div>
       <div class="det-actions">
+        ${_showMarkReplied
+          ? `<button class="btn btn-sm" style="background:#dcfce7;color:#166534;border:none;cursor:pointer;font-weight:700" onclick="markReplied(${id})" title="已在 LINE 官方帳號後台回覆過了？點這裡清掉「待回覆」紅燈">✓ 已回覆</button>` : ''}
         ${data.status !== 'in_progress' && data.status !== 'converted'
           ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'in_progress')">標記進行中</button>` : ''}
         ${data.status !== 'converted'
@@ -909,6 +920,18 @@ async function sendReply(id) {
   } else {
     const err = await r.json().catch(() => ({}));
     showToast(err.error || '傳送失敗', 'error');
+  }
+}
+
+// 「✓ 已回覆」：標記為已回覆（清掉待回覆紅燈）。用於同事在官方帳號後台回覆、系統看不到的情況
+async function markReplied(id) {
+  const r = await fetch(`/api/line-inquiries/${id}/mark-replied`, { method: 'POST' });
+  if (r.ok) {
+    showToast('已標記為已回覆，清掉待回覆紅燈');
+    loadStats(); loadList(); openInquiry(id);
+  } else {
+    const err = await r.json().catch(() => ({}));
+    showToast(err.error || '操作失敗', 'error');
   }
 }
 
