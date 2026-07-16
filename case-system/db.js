@@ -1557,6 +1557,9 @@ _addCol('line_inquiries',         'is_group',       'INTEGER DEFAULT 0');
 _addCol('line_inquiry_messages',  'sender_display', 'TEXT');
 // 「✓ 已回覆」標記時間：同事在官方帳號後台回覆、系統收不到時，人工清掉待回覆紅燈
 _addCol('line_inquiries',         'replied_at',     'DATETIME');
+// LINE 大頭照：詢問層級（1對1=客人頭像、群組=群組圖示）＋訊息層級（群組發話者頭像）
+_addCol('line_inquiries',         'avatar_url',     'TEXT');
+_addCol('line_inquiry_messages',  'sender_avatar',  'TEXT');
 
 // ── 客服知識庫（常見問答 / 制式回覆 / 資源連結，餵給 LINE AI）──────
 db.exec(`

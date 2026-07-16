@@ -185,19 +185,22 @@ async function handleClientMessage(event, channel) {
     content = preview;
   }
 
-  // 顯示名稱 + 群組發話者：1對1抓個人檔案；群組抓群名＋成員名
-  let displayName = 'LINE用戶', senderDisplay = null;
+  // 顯示名稱 + 大頭照 + 群組發話者：1對1抓個人檔案；群組抓群名＋成員名
+  let displayName = 'LINE用戶', senderDisplay = null, avatarUrl = null, senderAvatar = null;
   if (isGroup) {
     const summary = srcType === 'group' ? await lineGet(`/v2/bot/group/${convId}/summary`, channel.channel_token) : null;
     displayName = summary?.groupName || (srcType === 'room' ? 'LINE 多人聊天室' : 'LINE 群組');
+    avatarUrl   = summary?.pictureUrl || null;   // 群組大頭照
     if (userId) {
       const base = srcType === 'group' ? `/v2/bot/group/${convId}` : `/v2/bot/room/${convId}`;
       const mp = await lineGet(`${base}/member/${userId}/profile`, channel.channel_token);
       senderDisplay = mp?.displayName || '群組成員';
+      senderAvatar  = mp?.pictureUrl || null;    // 群組發話者大頭照
     } else senderDisplay = '群組成員';
   } else {
     const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
     displayName = profile?.displayName || 'LINE用戶';
+    avatarUrl   = profile?.pictureUrl || null;   // 客人大頭照
   }
 
   const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
@@ -246,21 +249,21 @@ async function handleClientMessage(event, channel) {
       ? (db.prepare(`SELECT add_source FROM line_follow_sources WHERE line_user_id=?`).get(threadKey)?.add_source || null)
       : null;
     const r = db.prepare(`
-      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source, is_group)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
-    `).run(threadKey, clientId, displayName, displayName, preview, orgId, channel.id || null, addSource, isGroup ? 1 : 0);
+      INSERT INTO line_inquiries (line_user_id, client_id, display_name, line_original_name, last_message, message_count, org_id, channel_id, add_source, is_group, avatar_url)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+    `).run(threadKey, clientId, displayName, displayName, preview, orgId, channel.id || null, addSource, isGroup ? 1 : 0, avatarUrl);
     inquiryId = r.lastInsertRowid;
   }
 
-  // 存訊息（群組帶發話者）+ 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
-  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sender_display) VALUES (?, 'in', ?, ?, ?)`)
-    .run(inquiryId, msgType, content, senderDisplay);
+  // 存訊息（群組帶發話者＋發話者大頭照）+ 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
+  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sender_display, sender_avatar) VALUES (?, 'in', ?, ?, ?, ?)`)
+    .run(inquiryId, msgType, content, senderDisplay, senderAvatar);
   db.prepare(`
     UPDATE line_inquiries
     SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
-        message_count=message_count+1, display_name=?, updated_at=CURRENT_TIMESTAMP
+        message_count=message_count+1, display_name=?, avatar_url=COALESCE(?, avatar_url), updated_at=CURRENT_TIMESTAMP
     WHERE id=?
-  `).run(isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview, displayName, inquiryId);
+  `).run(isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview, displayName, avatarUrl, inquiryId);
 
   // AI 草稿改為「手動觸發」以節省 API credit：客服在 LINE 詢問按「🤖 產生 AI 建議回覆」才跑
   // （原本每則客人私訊都自動擬稿，是最大的背景消耗來源；改成按鈕才跑）

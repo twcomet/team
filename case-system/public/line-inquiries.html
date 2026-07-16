@@ -399,6 +399,18 @@ function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.
 function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid' && hoursSince(i.last_message_at) <= CONV_AWAIT_HOURS && !isReplied(i); }
 // 任一種「等我方回覆」
 function needsReply(i) { return isAwaiting(i) || isConvAwaiting(i); }
+
+// 大頭照：有照片就顯示，載入失敗或無照片時退回「名字首字＋固定底色」圓形
+function avatarHtml(url, name, size) {
+  const s = size || 36;
+  const nm = String(name || '').trim();
+  const initial = escHtml(nm.charAt(0) || '?');
+  const colors = ['#f472b6','#fb923c','#facc15','#34d399','#22d3ee','#818cf8','#c084fc','#f87171'];
+  let h = 0; for (let k = 0; k < nm.length; k++) h = (h * 31 + nm.charCodeAt(k)) >>> 0;
+  const bg = colors[h % colors.length];
+  const img = url ? `<img src="${escHtml(url)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">` : '';
+  return `<span style="position:relative;width:${s}px;height:${s}px;flex:0 0 auto;border-radius:50%;background:${bg};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(s*0.42)}px;font-weight:700;overflow:hidden">${initial}${img}</span>`;
+}
 function hoursSince(ts) {
   if (!ts) return 0;
   const d = new Date(ts.replace(' ','T') + (ts.includes('T') && ts.includes('Z') ? '' : 'Z'));
@@ -657,7 +669,9 @@ function renderList() {
     const sourceBadge = i.add_source  ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46">${escHtml(i.add_source)}</span>` : '';
     const branchBadge = i.org_type === 'branch' && i.org_name ? `<span style="padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa">${escHtml(i.org_name)}</span>` : '';
     return `
-    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="${(overdue||conv)?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
+    <div class="inq-card${i.id === currentId ? ' selected' : ''}" onclick="openInquiry(${i.id})" style="display:flex;gap:10px;align-items:flex-start;${(overdue||conv)?'border-left:3px solid #ef4444;':aw?'border-left:3px solid #f5c518;':''}">
+      ${avatarHtml(i.avatar_url, i.display_name, 40)}
+      <div style="flex:1;min-width:0">
       <div class="ic-name" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
         ${awaitBadge}
         ${aiBadge}
@@ -676,6 +690,7 @@ function renderList() {
           ${salesBadge || csBadge ? `<div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${salesBadge}${csBadge}</div>` : ''}
           <span>${fmtTime(i.last_message_at)}</span>
         </div>
+      </div>
       </div>
     </div>`;
   }).join('');
@@ -721,6 +736,7 @@ async function openInquiry(id) {
 
   panel.innerHTML = `
     <div class="det-header">
+      ${avatarHtml(data.avatar_url, data.display_name, 44)}
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${data.is_group ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#e0f2fe;color:#0369a1">👥 群組</span>` : ''}
@@ -836,7 +852,7 @@ function renderMessages(msgs) {
     return `
     <div class="msg-row ${m.direction}">
       <div style="display:flex;flex-direction:column;${m.direction==='out'?'align-items:flex-end':''}">
-        ${m.direction === 'out' ? `<div class="msg-sender">${escHtml(m.sender_name||'客服')}</div>` : (m.sender_display ? `<div class="msg-sender">${escHtml(m.sender_display)}</div>` : '')}
+        ${m.direction === 'out' ? `<div class="msg-sender">${escHtml(m.sender_name||'客服')}</div>` : (m.sender_display ? `<div class="msg-sender" style="display:flex;align-items:center;gap:5px">${avatarHtml(m.sender_avatar, m.sender_display, 18)}${escHtml(m.sender_display)}</div>` : '')}
         ${body}
         <div class="msg-time">${fmtTime(m.created_at)}</div>
       </div>
