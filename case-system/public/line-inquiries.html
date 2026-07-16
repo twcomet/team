@@ -535,11 +535,22 @@ async function openAiEstimate() {
     renderAiEst();
   } catch (e) { body.innerHTML = `<div style="padding:20px;color:#dc2626">AI 估價失敗，請稍後再試</div>`; }
 }
+// 客人在對話裡提供的照片（估價參考圖），顯示在 AI 估價輔助 modal 頂端
+function aiEstPhotoStrip() {
+  const msgs = (currentInquiryData?.messages || []).filter(m => m.msg_type === 'image' && m.content);
+  if (!msgs.length) return '';
+  const thumbs = msgs.map(m => `<a href="${escHtml(m.content)}" target="_blank" rel="noopener" title="點看大圖"><img src="${escHtml(m.content)}" loading="lazy" style="height:78px;width:78px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-200);flex:0 0 auto;display:block"></a>`).join('');
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">📷 客人提供的照片（${msgs.length} 張，點看大圖）</div>
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">${thumbs}</div>
+  </div>`;
+}
 function renderAiEst() {
   const body = document.getElementById('aiEstBody');
+  const photos = aiEstPhotoStrip();
   const note = aiEstNote ? `<div style="margin-bottom:10px;padding:8px 11px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px">📝 AI 提醒：${escHtml(aiEstNote)}</div>` : '';
   if (!aiEstItems.length) {
-    body.innerHTML = `${note}<div style="padding:18px;text-align:center;color:var(--gray-500);font-size:13px">AI 從這通對話還判斷不出明確的估價品項，建議先請客人補照片／尺寸，或直接手動到估價機建立。</div>`;
+    body.innerHTML = `${photos}${note}<div style="padding:18px;text-align:center;color:var(--gray-500);font-size:13px">AI 從這通對話還判斷不出明確的估價品項，建議先請客人補照片／尺寸，或直接手動到估價機建立。</div>`;
     return;
   }
   const rows = aiEstItems.map((it, idx) => {
@@ -556,7 +567,7 @@ function renderAiEst() {
       <td style="padding:4px"><button onclick="aiEstDel(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:14px">✕</button></td>
     </tr>`;
   }).join('');
-  body.innerHTML = `${note}
+  body.innerHTML = `${photos}${note}
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead><tr style="color:var(--gray-500);text-align:left;border-bottom:1px solid var(--gray-200)">
