@@ -390,8 +390,10 @@ function caseStatusBadge(status, num) {
 }
 // 等待客服回覆＝客人最後發言、且詢問仍在處理中
 function isAwaiting(i) { return i.last_dir === 'in' && (i.status === 'new' || i.status === 'in_progress'); }
-// 已轉案客戶又傳新訊息、還沒回（案件尚未結案/作廢）
-function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid'; }
+// 已轉案客戶「最近 7 天內」又傳新訊息、還沒回（案件尚未結案/作廢）
+// 7 天窗口：過濾掉幾個月前早就處理完、尾巴剛好是客人講的舊對話
+const CONV_AWAIT_HOURS = 7 * 24;
+function isConvAwaiting(i) { return i.last_dir === 'in' && i.status === 'converted' && i.converted_case_status !== 'closed' && i.converted_case_status !== 'invalid' && hoursSince(i.last_message_at) <= CONV_AWAIT_HOURS; }
 // 任一種「等我方回覆」
 function needsReply(i) { return isAwaiting(i) || isConvAwaiting(i); }
 function hoursSince(ts) {

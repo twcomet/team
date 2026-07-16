@@ -99,6 +99,7 @@ router.get('/stats', requireAuth, (req, res) => {
                THEN 1 ELSE 0 END) as awaiting,
       SUM(CASE WHEN i.status IN ('new','in_progress') AND i.ai_needs_human=1 THEN 1 ELSE 0 END) as needs_human,
       SUM(CASE WHEN i.status='converted' AND (cc.status IS NULL OR cc.status NOT IN ('closed','invalid'))
+                AND i.last_message_at >= datetime('now','-7 days')
                 AND (SELECT m.direction FROM line_inquiry_messages m WHERE m.inquiry_id=i.id ORDER BY m.id DESC LIMIT 1)='in'
                THEN 1 ELSE 0 END) as converted_awaiting
     FROM line_inquiries i
