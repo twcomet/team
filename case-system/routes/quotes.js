@@ -629,7 +629,8 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
 // 刪除整張報價單
 router.delete('/:quoteId', requireAuth, (req, res) => {
   const me = req.session.user;
-  if (me.role !== 'owner' && !me.manage_users) return res.status(403).json({ error: '僅限老闆或管理員可刪除報價單' });
+  const canDel = me.role === 'owner' || me.manage_users || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);
+  if (!canDel) return res.status(403).json({ error: '無刪除報價單權限' });
   const qs = db.prepare(`SELECT qs.id, qs.status, c.status as case_status, c.case_number
     FROM quote_sheets qs JOIN cases c ON c.id=qs.case_id
     WHERE qs.id=?`).get(req.params.quoteId);

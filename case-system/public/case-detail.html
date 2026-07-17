@@ -4386,6 +4386,9 @@ function renderQuoteVerList() {
     const signUrl = v.share_token ? `/quote/${v.share_token}` : null;
     const linkBtn = signUrl ? `<a href="${signUrl}" target="_blank" style="padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;font-size:12px;text-decoration:none">客戶連結</a>` : '';
     const signBtn = (accepted && signUrl) ? `<a href="${signUrl}" target="_blank" title="查看客戶回簽畫面" style="padding:4px 10px;background:#16a34a;color:#fff;border-radius:6px;font-size:12px;text-decoration:none">回簽畫面 →</a>` : '';
+    // 已回簽/已簽署的版本不可刪（後端也擋）
+    const delBtn = (!accepted && v.status !== 'signed')
+      ? `<button onclick="deleteQuoteVer(${v.id},'v${v.version}')" style="padding:4px 10px;background:#fff;border:1px solid #ef4444;color:#dc2626;border-radius:6px;font-size:12px;cursor:pointer">🗑 刪除</button>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--gray-200);border-radius:10px;margin-bottom:8px">
       <span style="font-weight:700;color:#374151">v${v.version}</span>
       <span style="font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:20px;${cls}">${badge}</span>
@@ -4394,9 +4397,18 @@ function renderQuoteVerList() {
       <span style="font-size:12px;color:#9ca3af">${date}</span>
       <div style="flex:1"></div>
       <a href="/quote-form?id=${v.id}" style="padding:4px 10px;background:#db2777;color:#fff;border-radius:6px;font-size:12px;text-decoration:none">開啟編輯</a>
-      ${linkBtn}${signBtn}
+      ${linkBtn}${signBtn}${delBtn}
     </div>`;
   }).join('');
+}
+async function deleteQuoteVer(id, label){
+  if(!confirm(`確定刪除報價單 ${label}？此動作無法復原。`)) return;
+  try{
+    const r = await fetch(`/api/quotes/${id}`, { method:'DELETE' });
+    const d = await r.json().catch(()=>({}));
+    if(r.ok){ (typeof showToast==='function'?showToast('已刪除 '+label):alert('已刪除 '+label)); renderQuoteVerList(); }
+    else { alert(d.error || '刪除失敗'); }
+  }catch(e){ alert('刪除失敗，請稍後再試'); }
 }
 function renderQuotePanel() {
   renderQuoteVerList();
