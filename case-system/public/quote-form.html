@@ -472,17 +472,13 @@
         </div>
         <div style="margin-top:14px;font-size:13px;text-align:right;line-height:2">
           連工帶料原價（未稅）：<span id="cv_sub"></span><br>
-          <b>優惠後（未稅）：<span id="cv_promo"></span></b><br><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
+          <span id="cv_promo_line"><b>優惠後（未稅）：<span id="cv_promo"></span></b><br></span><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
           <span id="cv_deduct_line"></span></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
         <div class="mkt-sign">
           <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
           <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <div class="cmp">
-            <div class="col" id="col_normal"><div class="t">不同意拍照（優惠價）</div><div class="v" id="ms_normal"></div></div>
-            <div class="col" id="col_mkt"><div class="t">同意拍照（行銷優惠價）</div><div class="v" style="color:var(--primary-dark)" id="ms_mkt"></div></div>
-          </div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:18px;height:18px"> 我同意拍照攝影紀錄並授權用於媒體</label>
+          <label style="display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:12px;padding:12px 14px;background:#fff;border:2px solid #6d28d9;border-radius:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:26px;height:26px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
         </div>
         <div id="custFolds"></div>
         <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
@@ -1361,6 +1357,9 @@ function renderCust(useMkt){
   _txt('cth_unit',_allMat?'每米材料單價':'連工帶料單價');
   _txt('cth_total',_allMat?'材料總價':'連工帶料總價');
   _txt('cth_promo',_allMat?'材料優惠價':'連工帶料優惠價');
+  const hasDisc=((c.sub||0)-(c.promo||0))>0.5;   // 有設一般優惠折數才顯示優惠價欄
+  _tg('cth_promo',hasDisc);
+  { const pl=document.getElementById('cv_promo_line'); if(pl) pl.style.display=hasDisc?'':'none'; }
   const mergeCol=2+(showFilmImg?1:0)+(showSitePhoto?1:0);
   document.getElementById('custItems').innerHTML=items.map((it,i)=>{
     if(it.kind==='text'){
@@ -1370,7 +1369,7 @@ function renderCust(useMkt){
         ${owner?'':`<td class="num">${priced?money(it.unitEach):'—'}</td>`}
         <td class="num">${priced?(it.qty||1):'—'}</td>
         <td class="num q-orig">${priced?money(totOf(it)):'—'}</td>
-        <td class="num">${priced?`<span class="q-promo">${money(promoOf(it))}</span>`:'—'}</td></tr>`;
+        ${hasDisc?`<td class="num">${priced?`<span class="q-promo">${money(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
     }
     const f=parseFilm(it);
     return `<tr>
@@ -1382,16 +1381,13 @@ function renderCust(useMkt){
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
-      <td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>
+      ${hasDisc?`<td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>`:''}
     </tr>`;
   }).join('');
   const agree=!!useMkt, promoShown=agree?c.afterMkt:c.promo, tax=agree?c.tax:Math.round(c.promo*(c.taxRate??0.05)), pay=agree?c.pay:c.promoPay;
   _txt('cv_sub',money(c.sub));_txt('cv_promo',money(promoShown));_txt('cv_tax',money(tax));_txt('cv_pay',money(pay));
   { const tl=document.getElementById('cv_tax_line'); if(tl) tl.style.display=c.noInvoice?'none':''; }
-  _txt('ms_normal',money(c.promoPay));_txt('ms_mkt',money(c.pay));
   const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=c.deductTotal>0?`<br>折抵合計：− ${money(c.deductTotal)}`:'';
-  document.getElementById('col_normal').classList.toggle('on',!agree);
-  document.getElementById('col_mkt').classList.toggle('on',agree);
   syncCustNotice();
 }
 let PGAL=[], PGALI=0, PGCAP='';

@@ -95,8 +95,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .mkt .cmp .col.on{border-color:var(--primary);box-shadow:0 0 0 3px rgba(214,51,108,.14)}
 .mkt .cmp .t{font-size:11px;color:var(--gray-500);font-weight:700}
 .mkt .cmp .val{font-size:19px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums}
-.mkt label{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;cursor:pointer;color:var(--gray-900)}
-.mkt label input{width:18px;height:18px;accent-color:var(--primary)}
+.mkt label{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;color:var(--gray-900)}
+.mkt label input{width:26px;height:26px;flex-shrink:0;accent-color:var(--primary);cursor:pointer}
+.mkt .mkt-agree{margin-top:12px;padding:12px 14px;background:#fff;border:2px solid var(--primary);border-radius:10px}
 
 /* 條款 fold */
 .fold{border:1px solid var(--gray-200);border-radius:10px;margin-bottom:9px;overflow:hidden}
@@ -199,7 +200,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 <script>
 const token   = location.pathname.split('/quote/')[1]?.split('?')[0];
 const isPrint = new URLSearchParams(location.search).get('print') === '1';
-let quoteData = null, agreeMkt = false;
+let quoteData = null, agreeMkt = false, AMT = {};
 
 const fmt = n => 'NT$ ' + Math.round(n||0).toLocaleString('zh-TW');
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -297,9 +298,11 @@ function render(q){
   const taxRate = q.no_invoice ? 0 : (q.tax_rate||0.05);   // 不開發票 → 免稅
   const mktCut = Math.max(0, promoTotal-afterMkt);
   const hasMkt = mktCut>0;
+  const hasDiscount = (subtotal - promoTotal) > 0.5;                   // 後台有設「一般優惠折數」才顯示優惠價欄
   const deduction = Math.max(0, (afterMkt + (q.tax_amount||0)) - (q.final_total||0));
-  const payAgree = q.final_total||0;                                   // 同意拍照
-  const payNormal = Math.round(promoTotal*(1+taxRate)) - deduction;    // 不同意拍照
+  const payAgree = q.final_total||0;                                   // 同意拍照（含行銷優惠）
+  const payNormal = Math.round(promoTotal*(1+taxRate)) - deduction;    // 預設：未同意行銷拍照
+  AMT = { payNormal, payAgree, mktCut, promoTotal, afterMkt, taxRate, hasMkt, noInvoice:q.no_invoice };
   const stateMap = { draft:{dot:'#d1d5db',text:'草稿',c:'#6b7280'}, sent:{dot:'#d6336c',text:'待確認',c:'#a41f52'}, accepted:{dot:'#10b981',text:'已確認接受',c:'#065f46'}, rejected:{dot:'#ef4444',text:'已拒絕',c:'#991b1b'} };
   const st = stateMap[q.status]||stateMap.sent;
 
@@ -348,9 +351,9 @@ function render(q){
             ${showFilmImg?'<th style="width:74px">膜料示意圖</th>':''}
             ${showSitePhoto?'<th style="width:132px">貼覆區域（現場照）</th>':''}
             ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
-            <th style="width:108px;white-space:nowrap">${lblTotal}</th><th style="width:120px;white-space:nowrap">${lblPromo}</th>
+            <th style="width:108px;white-space:nowrap">${lblTotal}</th>${hasDiscount?`<th style="width:120px;white-space:nowrap">${lblPromo}</th>`:''}
           </tr></thead>
-          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto)).join('')}</tbody>
+          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount)).join('')}</tbody>
         </table></div>
         <div class="scroll-hint">← 左右滑動可看數量與價格 →</div>
       </div>`:''}
@@ -359,23 +362,19 @@ function render(q){
         <div class="section-title">金額合計</div>
         <div class="amt">
           <div class="row"><span class="l">各項總價合計（未稅）</span><span class="v">${fmt(subtotal)}</span></div>
-          <div class="row disc"><span class="l">各項優惠價合計（未稅）</span><span class="v">${fmt(promoTotal)}</span></div>
-          ${hasMkt?`<div class="row disc"><span class="l">🎁 行銷優惠折抵（同意拍照才享）</span><span class="v">− ${fmt(mktCut)}</span></div>`:''}
+          ${hasDiscount?`<div class="row disc"><span class="l">各項優惠價合計（未稅）</span><span class="v">${fmt(promoTotal)}</span></div>`:''}
+          ${hasMkt?`<div class="row disc" id="mktRow" style="display:${agreeMkt?'':'none'}"><span class="l">🎁 行銷優惠折抵（同意拍照才享）</span><span class="v">− ${fmt(mktCut)}</span></div>`:''}
           <hr>
-          ${q.no_invoice ? '' : `<div class="row"><span class="l">稅金（${Math.round(taxRate*100)}%）</span><span class="v">${fmt(Math.round((hasMkt?afterMkt:promoTotal)*taxRate))}</span></div>`}
+          ${q.no_invoice ? '' : `<div class="row"><span class="l">稅金（${Math.round(taxRate*100)}%）</span><span class="v" id="taxV">${fmt(Math.round((agreeMkt?afterMkt:promoTotal)*taxRate))}</span></div>`}
           ${deduction>0?`<div class="row disc"><span class="l">🧾 折抵合計（預付金／彈性）</span><span class="v">− ${fmt(deduction)}</span></div>`:''}
         </div>
-        <div class="amt"><div class="total"><span class="l">應付總金額${hasMkt?'（同意拍照）':''}</span><span class="v">${fmt(hasMkt?payAgree:payNormal)}</span></div></div>
+        <div class="amt"><div class="total"><span class="l" id="grandTotalL">應付總金額${agreeMkt?'（同意拍照）':''}</span><span class="v" id="grandTotalV">${fmt(agreeMkt?payAgree:payNormal)}</span></div></div>
 
         ${hasMkt && !accepted ? `
         <div class="mkt">
           <h4>🎁 行銷優惠方案</h4>
           <div class="desc">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <div class="cmp">
-            <div class="col ${agreeMkt?'':'on'}" id="colNormal"><div class="t">不同意拍照（優惠價）</div><div class="val">${fmt(payNormal)}</div></div>
-            <div class="col ${agreeMkt?'on':''}" id="colMkt"><div class="t">同意拍照（行銷優惠價）</div><div class="val" style="color:var(--primary-dark)">${fmt(payAgree)}</div></div>
-          </div>
-          <label><input type="checkbox" id="mktCheck" ${agreeMkt?'checked':''} onchange="onMkt(this.checked)"> 我同意拍照攝影紀錄並授權用於媒體，選擇行銷優惠價</label>
+          <label class="mkt-agree"><input type="checkbox" id="mktCheck" ${agreeMkt?'checked':''} onchange="onMkt(this.checked)"> 我同意拍照攝影授權予繪新媒體</label>
         </div>`:''}
       </div>
 
@@ -400,7 +399,7 @@ function render(q){
   if(!accepted && !isExpired) setupCanvas();
 }
 
-function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto){
+function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount){
   // 合併欄跨：貼覆項目 + 膜料資訊 (+ 膜料示意圖) (+ 現場照)
   const mergeCol = 2 + (showFilmImg?1:0) + (showSitePhoto?1:0);
   if(it.row_kind==='text'){
@@ -410,7 +409,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto){
       ${hideChi?'':`<td class="num">${priced?fmt(it.unit_price):'—'}</td>`}
       <td class="num">${priced?(it.quantity||1):'—'}</td>
       <td class="num q-orig">${priced?fmt(it.subtotal):'—'}</td>
-      <td class="num">${priced?`<span class="q-promo">${fmt(promoOf(it))}</span>`:'—'}</td></tr>`;
+      ${hasDiscount?`<td class="num">${priced?`<span class="q-promo">${fmt(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
   }
   return `<tr>
     <td class="c" style="font-weight:700">${i+1}</td>
@@ -421,7 +420,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto){
     ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?' /米':''):'—'}</td>`}
     <td class="num">${it.quantity||1}</td>
     <td class="num q-orig">${fmt(it.subtotal)}</td>
-    <td class="num"><span class="q-promo">${fmt(promoOf(it))}</span></td>
+    ${hasDiscount?`<td class="num"><span class="q-promo">${fmt(promoOf(it))}</span></td>`:''}
   </tr>`;
 }
 
@@ -447,8 +446,14 @@ function foldsHtml(q){
     }).join('')}</div>`;
 }
 
-function onMkt(on){ agreeMkt=on; document.getElementById('colNormal')?.classList.toggle('on',!on); document.getElementById('colMkt')?.classList.toggle('on',on);
-  const b=document.getElementById('submitBtn'); if(b) b.textContent = on?'確認接受報價（享行銷優惠價）':'確認接受報價'; }
+function onMkt(on){
+  agreeMkt=on;
+  const g=document.getElementById('grandTotalV'); if(g) g.textContent=fmt(on?AMT.payAgree:AMT.payNormal);
+  const gl=document.getElementById('grandTotalL'); if(gl) gl.textContent='應付總金額'+(on?'（同意拍照）':'');
+  const mr=document.getElementById('mktRow'); if(mr) mr.style.display=on?'':'none';
+  const tv=document.getElementById('taxV'); if(tv && !AMT.noInvoice) tv.textContent=fmt(Math.round((on?AMT.afterMkt:AMT.promoTotal)*(AMT.taxRate||0)));
+  const b=document.getElementById('submitBtn'); if(b) b.textContent = on?'確認接受報價（享行銷優惠價）':'確認接受報價';
+}
 let GAL=[], GALI=0;
 function showGal(){
   document.getElementById('lbImg').src=GAL[GALI]||'';
