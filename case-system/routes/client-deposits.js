@@ -231,17 +231,19 @@ router.get('/for-case/:case_id', requireAuth, (req, res) => {
   const c = db.prepare(`SELECT client_id, survey_fee, survey_fee_paid, survey_fee_actual, survey_fee_credited FROM cases WHERE id = ?`).get(req.params.case_id);
   if (!c) return res.status(404).json({ error: 'not found' });
 
-  const deposits = c.client_id ? db.prepare(`
+  // 本客戶的可折抵預收款；另納入「明確關聯到本案」的預收款(如場勘費)，避免客戶記錄變動導致 client_id 對不上而漏帶
+  const deposits = db.prepare(`
     SELECT cd.*, cc.case_number AS applied_case_number
     FROM client_deposits cd
     LEFT JOIN cases cc ON cd.applied_case_id = cc.id
-    WHERE cd.client_id = ?
+    WHERE ( (? IS NOT NULL AND cd.client_id = ?) OR cd.linked_case_id = ? )
       AND (
         (cd.status = 'pending' AND cd.accounting_verified = 1)
         OR cd.applied_case_id = ?
       )
+    GROUP BY cd.id
     ORDER BY cd.collected_at DESC
-  `).all(c.client_id, req.params.case_id) : [];
+  `).all(c.client_id, c.client_id, req.params.case_id, req.params.case_id);
 
   res.json({
     deposits,
