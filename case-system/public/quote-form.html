@@ -171,6 +171,15 @@
   .cgrp-cs{background:#fdf4f8;border-color:#f6d3e5} .cgrp-cs .cgrp-t{color:var(--primary-dark)}
   .cgrp-svy{background:#eefaf3;border-color:#bfe6cf} .cgrp-svy .cgrp-t{color:#1f8a5b}
   .cgrp-est{background:#eef1ff;border-color:#c9d2f7} .cgrp-est .cgrp-t{color:#4338ca}
+  .ic-note-top{margin:10px 0 2px}
+  .ic-note-top .note-head label{font-size:11px;color:var(--gray-500);font-weight:600}
+  .ic-note-top textarea{width:100%;border:1px solid var(--gray-200);background:var(--gray-50);border-radius:9px;padding:8px 10px;font-size:12px;line-height:1.7;min-height:38px;resize:vertical;color:var(--gray-600);margin-top:4px}
+  .calc-collapse{border:1px solid #d9d0f7;border-radius:11px;margin-top:12px;overflow:hidden;background:#faf9ff}
+  .calc-head{padding:9px 14px;font-size:12px;font-weight:800;color:var(--violet);cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:#f3f0ff;user-select:none}
+  .calc-arrow{transition:transform .2s;font-size:13px}
+  .calc-collapse.open .calc-arrow{transform:rotate(180deg)}
+  .calc-body{display:none;padding:12px 14px}
+  .calc-collapse.open .calc-body{display:block}
   .fld.hl-svy > label{color:#1f8a5b} .fld.hl-svy input{border-color:#8ed3ab;background:#eefaf3;font-weight:800;color:#1f8a5b}
   .chip-ro{border-radius:8px;padding:7px 11px;font-size:13px;font-weight:800;text-align:center;background:#fff;border:1px solid var(--gray-300);color:var(--gray-700);min-width:56px}
   .chip-est{border-radius:8px;padding:7px 12px;font-size:13.5px;font-weight:800;text-align:center;background:#e0e7ff;color:#4338ca}
@@ -1095,9 +1104,8 @@ function renderRows(){
           <div class="fld"><label>連工帶料/才</label><div class="chip-ro" style="min-width:74px" title="${_cat?'來自定價表':'選定價表內的品牌／型號才會帶入'}">${_caiPer!=null?_caiPer:'—'}</div></div>
         </div>
       </div>`;
-    const worksZone=`
-      ${workTypeGrp}
-      <div class="cgrp cgrp-svy" style="flex:0 0 auto">
+    const svyGrp=`
+      <div class="cgrp cgrp-svy" style="flex:1 1 auto">
         <div class="cgrp-t">🔧 工務回報（米數＋人力）</div>
         <div class="cfields">
           <div class="fld hl-svy"><label>回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:88px"></div><span style="align-self:flex-end;padding-bottom:8px;font-size:12px;color:#1f8a5b;font-weight:700">米</span>
@@ -1105,8 +1113,9 @@ function renderRows(){
           <span class="eq" style="align-self:flex-end;padding-bottom:6px">×</span>
           <div class="fld hl-svy"><label>工作天數</label><input type="number" min="0" step="0.5" value="${it.days||0}" oninput="setWork(${i},'days',this.value)" style="width:64px"></div>
         </div>
-        <div style="margin-top:4px;font-size:11px;color:#1f8a5b">填人數×天數即自動算人工成本、跳毛利／成本地板，老闆不必逐筆進成本表填</div>
-      </div>
+        <div style="margin-top:4px;font-size:11px;color:#1f8a5b">填人數×天數即自動算人工成本、跳毛利／成本地板；填完下方「客服內部計算公式」會自動展開帶出數值</div>
+      </div>`;
+    const estGrp=`
       <div class="cgrp cgrp-est" style="flex:1;min-width:${isCai?'240':'340'}px">
         <div class="cgrp-t">🧮 客服內部估價（參考・不對外）</div>
         <div class="cfields">
@@ -1123,6 +1132,13 @@ function renderRows(){
         </div>
         ${isCai?`<div style="margin-top:8px;font-size:11px;color:#4338ca">才數計價：右邊「客服填」用 才數(每座) × 單價/才 × 數量(座數) 直接算給客戶</div>`:`<div style="margin-top:9px"><button class="btn sm" style="padding:4px 11px;font-size:11.5px" onclick="applyEst(${i})">↑ 套用建議報價為「單價」</button></div>`}
       </div>`;
+    // 施工類型 + 客服內部估價 → 收合成「客服內部計算公式」；平時隱藏，有工務回報就自動展開
+    const _hasSvy=(Number(it.srvMeters)||0)>0||(Number(it.workers)||0)>0;
+    const calcBlock=`
+      <div class="calc-collapse ${_hasSvy?'open':''}" id="calc${i}">
+        <div class="calc-head" onclick="this.parentElement.classList.toggle('open')">🧮 客服內部計算公式（施工類型・才數・參考報價）<span class="calc-arrow">▾</span></div>
+        <div class="calc-body"><div class="prow" style="margin-top:0">${workTypeGrp}${estGrp}</div></div>
+      </div>`;
     return `<div class="irow">${railCtrl(i,false)}<div class="icard">
       ${isMat
         ? `<div class="modebar" style="background:#fdf2f8;border-color:#f7c9de;color:var(--primary-dark)">🧾 膜料販售（每米單價 × 米數）</div>`
@@ -1130,9 +1146,14 @@ function renderRows(){
       <div class="ic-top">
         <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="${isMat?'材料品項名稱':'貼覆項目名稱'}"></div>
         <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
+      <div class="ic-note-top">
+        <div class="note-head"><label>${isMat?'材料說明':'貼覆項目說明'}（會顯示在客戶版項目欄・行首加「!」＝紅字重點）</label></div>
+        <textarea oninput="setF(${i},'note',this.value,true)" placeholder="每行一項說明；重要提醒行首加 ! 會在客戶版顯示紅字…">${esc(it.note)}</textarea>
+      </div>
       <div class="ic-body">
         <div class="prow">${spec}</div>
-        ${isMat?'':`<div class="prow">${worksZone}</div>`}
+        ${isMat?'':`<div class="prow">${svyGrp}</div>`}
+        ${isMat?'':calcBlock}
         <div class="prow">
           <div class="cgrp cgrp-cs" style="flex:1;min-width:280px"><div class="cgrp-t">🎧 ${isMat?'材料售價（客服填）':'客戶報價（客服填）'}</div><div class="cfields">${csFields}</div></div>
           <div class="pricebox">
@@ -1142,10 +1163,6 @@ function renderRows(){
             <div class="pb-row"><span>${promoLabel}</span><input class="price-in promo" id="pin${i}" type="number" value="${promoOf(it)}" oninput="setPromo(${i},this.value)"></div>
           </div>
         </div>
-      </div>
-      <div class="ic-foot">
-        <div class="note-head"><label>貼覆項目說明（會顯示在客戶版項目欄・行首加「!」＝紅字重點）</label></div>
-        <textarea oninput="setF(${i},'note',this.value,true)" placeholder="每行一項說明；重要提醒行首加 ! 會在客戶版顯示紅字…">${esc(it.note)}</textarea>
       </div>
     </div></div>`;
   }).join('');
@@ -1190,7 +1207,7 @@ function renderCost(){
 }
 function setCost(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
 // 工務回報的人數/工作天數 → 直接算人工成本/毛利/成本地板；不動客戶報價，故不重繪品項卡(不失焦)
-function setWork(i,k,v){items[i][k]=+v||0;markDirty();recalc();}
+function setWork(i,k,v){items[i][k]=+v||0;if((+v||0)>0)document.getElementById('calc'+i)?.classList.add('open');markDirty();recalc();}
 function setDayRate(v){dayRate=+v||0;recalc();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText'||k==='note')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){const it=items[i];it.mode=m;
@@ -1266,7 +1283,9 @@ function setNum(i,k,v){const it=items[i];it[k]=+v||0;
   if(k==='srvMeters'||k==='width')it.cai=Math.round(rawCai(it)*100)/100;
   it.total=baseAmt(it);it.promo=null;
   _txt('estm'+i,(it.srvMeters||0));_txt('estc'+i,caiOf(it).toFixed(2));_txt('estp'+i,money(caiCalcAmt(it)));_txt('pcai'+i,caiOf(it).toFixed(2));
-  _inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));_inp('din'+i,discOf(it));renderCost();recalc();}
+  _inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));_inp('din'+i,discOf(it));
+  if(k==='srvMeters'&&(+v||0)>0)document.getElementById('calc'+i)?.classList.add('open');
+  renderCost();recalc();}
 // 「套用建議報價為單價」：建議報價（才數×單價/才）是「每一座」的價，直接放入單價；總價=單價×數量
 function applyEst(i){const it=items[i];it.unitEach=caiCalcAmt(it);it.total=null;it.promo=null;renderRows();recalc();}
 function setCai(i,v){const it=items[i];it.cai=+v||0;it.total=baseAmt(it);it.promo=null;
