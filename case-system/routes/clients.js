@@ -24,6 +24,27 @@ router.get('/search', requireAuth, (req, res) => {
   res.json(rows);
 });
 
+// 報價單「儲存並建檔」：建立或更新客戶主檔，並把該案件連到此客戶（一步到位）
+router.post('/upsert-for-case', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { case_id, client_id, name, tax_id, contact_person, contact_phone, address } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: '請填客戶／公司名稱' });
+  const nm = String(name).trim();
+  let id = client_id ? Number(client_id) : null;
+  if (id) {
+    db.prepare(`UPDATE clients SET name=?, tax_id=?, contact_person=?, contact_phone=?, phone=COALESCE(NULLIF(?,''),phone), address=COALESCE(NULLIF(?,''),address) WHERE id=?`)
+      .run(nm, tax_id || null, contact_person || null, contact_phone || null, contact_phone || '', address || '', id);
+  } else {
+    const r = db.prepare(`INSERT INTO clients (org_id, name, tax_id, contact_person, contact_phone, phone, address, created_by) VALUES (?,?,?,?,?,?,?,?)`)
+      .run(me.org_id, nm, tax_id || null, contact_person || null, contact_phone || null, contact_phone || null, address || null, me.id);
+    id = r.lastInsertRowid;
+  }
+  if (case_id) db.prepare(`UPDATE cases SET client_id=? WHERE id=?`).run(id, case_id);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, client_id ? 'update' : 'create', 'clients', id, `報價單建檔客戶：${nm}`);
+  res.json({ ok: true, id, name: nm });
+});
+
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
   const { sql: orgSql, params: orgPs } = orgFilterSQL(me, 'c.org_id');

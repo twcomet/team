@@ -681,7 +681,7 @@ async function loadQuote(){
   const r=await fetch(`/api/quotes/${quoteId}`);
   if(!r.ok){ document.querySelector('.wrap').innerHTML='<p style="padding:40px">載入報價單失敗</p>'; return; }
   const q=await r.json(); curQuote=q;
-  caseId=q.case_id; clientId=q.client_id; shareToken=q.share_token;
+  caseId=q.case_id; clientId=q.client_id; shareToken=q.share_token; pfSelClientId=q.client_id||null;
   await loadSales();                            // 載業務名單，供甲方「業務窗口」下拉
   bindHeader(q);
   dayRate=q.day_rate||2800; const dr=document.getElementById('dayRate'); if(dr) dr.value=dayRate;
@@ -700,6 +700,7 @@ async function loadQuote(){
   await loadCatalog();                          // 載定價表，供選膜料時自動帶連工帶料每才價
   items=(q.items||[]).map(mapDbToProto);
   await Promise.all([loadNotices(), loadPrepay()]);
+  applyDefaultTemplatesIfEmpty(q);             // (a)(b)(c)(d) 沒存檔內容時，直接套該區塊「預設範本」
   renderPrepay(); renderFlex(); renderRows(); recalc(); syncCustNotice();
   loaded=true; setStatus('已載入');
 }
@@ -743,7 +744,12 @@ function bindHeader(q){
         ${fld('案場地址','pfAddr',pv.site_address,'施工地點',true)}
         ${fld('案場備註','pfNote',pv.site_note,'樓層／管理室／停車等（選填）',true)}
       </div>
-      <div style="font-size:11px;color:var(--gray-400,#9ca3af);margin-top:9px">此處修改只套用在「這張報價單」，不會更動客戶主檔與案件資料。</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px;position:relative">
+        <input id="pfClientSearch" placeholder="🔍 搜尋既有客戶（名稱／電話／聯絡人）帶入" oninput="searchClientForParty()" autocomplete="off" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--gray-300,#d1d5db);border-radius:7px;font-size:13px">
+        <button type="button" class="btn sm" style="background:var(--primary,#d6336c);color:#fff;white-space:nowrap" onclick="saveClientMaster()">💾 儲存並建檔到客戶主檔</button>
+        <div id="pfClientResults" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:40;background:#fff;border:1px solid var(--gray-200,#e5e7eb);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow:auto;margin-top:4px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--gray-400,#9ca3af);margin-top:9px">此處修改<b>預設只套用在這張報價單</b>；按「💾 儲存並建檔」才會寫入<b>客戶主檔</b>並把此案件連到該客戶（可先「搜尋既有客戶」帶入再修改）。<span id="pfClientStatus" style="color:var(--ok,#1f8a5b);font-weight:700"></span></div>
     </div>`;
   onPartyInput();
   const cd=document.getElementById('custDate'); if(cd) cd.textContent=`報價日期 ${(q.created_at||'').slice(0,10)}　·　有效 ${q.valid_days||30} 天`;
@@ -751,6 +757,47 @@ function bindHeader(q){
 function collectParty(){
   const g=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   return { client_name:g('pfName'), client_tax_id:g('pfTax'), client_contact:g('pfContact'), client_phone:g('pfPhone'), site_address:g('pfAddr'), site_note:g('pfNote'), sales_id:g('pfSales')||null };
+}
+// ── 客戶主檔：搜尋既有客戶帶入 ＋ 儲存並建檔（連到此案件）──
+let pfSelClientId=null, _pfSearchTmr=null;
+function searchClientForParty(){ clearTimeout(_pfSearchTmr); _pfSearchTmr=setTimeout(_doSearchClient,250); }
+async function _doSearchClient(){
+  const q=(document.getElementById('pfClientSearch')?.value||'').trim();
+  const box=document.getElementById('pfClientResults'); if(!box) return;
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+  try{
+    const rows=await fetch('/api/clients/search?q='+encodeURIComponent(q)).then(r=>r.json());
+    if(!Array.isArray(rows)||!rows.length){ box.innerHTML='<div style="padding:9px 11px;font-size:12px;color:#9ca3af">找不到，可直接按「儲存並建檔」新增</div>'; box.style.display='block'; return; }
+    box.innerHTML=rows.map(c=>`<div onclick="pickClientForParty(${c.id})" style="padding:9px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-100,#f3f4f6)"><b>${esc(c.name)}</b>${c.phone?'　'+esc(c.phone):''}${c.contact?'　'+esc(c.contact):''}</div>`).join('');
+    box.style.display='block';
+  }catch(e){ box.style.display='none'; }
+}
+async function pickClientForParty(id){
+  try{
+    const c=await fetch('/api/clients/'+id).then(r=>r.ok?r.json():null);
+    if(c){ pfSelClientId=id;
+      const set=(fid,val)=>{const e=document.getElementById(fid);if(e)e.value=val||'';};
+      set('pfName',c.name); set('pfTax',c.tax_id); set('pfContact',c.contact_person); set('pfPhone',c.contact_phone||c.phone);
+      onPartyInput();
+    }
+  }catch(e){}
+  const box=document.getElementById('pfClientResults'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  const s=document.getElementById('pfClientSearch'); if(s) s.value='';
+  const st=document.getElementById('pfClientStatus'); if(st) st.textContent='　已帶入既有客戶（可再修改，按建檔更新主檔）';
+}
+async function saveClientMaster(){
+  const p=collectParty();
+  if(!p.client_name){ alert('請先填「客戶／公司名稱」'); return; }
+  const st=document.getElementById('pfClientStatus'); if(st) st.textContent='　建檔中…';
+  try{
+    const r=await fetch('/api/clients/upsert-for-case',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      case_id:caseId, client_id:pfSelClientId||clientId||null,
+      name:p.client_name, tax_id:p.client_tax_id, contact_person:p.client_contact, contact_phone:p.client_phone, address:p.site_address
+    })});
+    const j=await r.json();
+    if(r.ok&&j.ok){ pfSelClientId=j.id; clientId=j.id; if(st) st.textContent='　✓ 已建檔並連到此案件（客戶 #'+j.id+'）'; }
+    else { if(st) st.textContent=''; alert('建檔失敗：'+(j.error||('伺服器回應 '+r.status))); }
+  }catch(e){ if(st) st.textContent=''; alert('建檔失敗：'+e.message); }
 }
 function togglePartyEdit(){
   const e=document.getElementById('partyEdit'), b=document.getElementById('partyToggleBtn'); if(!e) return;
@@ -775,6 +822,25 @@ async function loadNotices(){
   try{ const r=await fetch('/api/quote-settings/notices'); if(!r.ok) return;
     noticeList=await r.json();
   }catch(e){}
+}
+// (a)(b)(c)(d) 若尚無存檔內容 → 直接套用該區塊「預設範本」(is_default)，讓客服不用再手動點套用範本
+function applyDefaultTemplatesIfEmpty(q){
+  const blocks=[
+    {block:'terms',      saved:q.notes_terms,      set:v=>setTerm('a',v)},
+    {block:'notice',     saved:q.notes_notice,     set:v=>{const na=document.getElementById('noticeArea'); if(na){na.value=v; na.style.display='block';}}},
+    {block:'inspection', saved:q.notes_inspection, set:v=>setTerm('c',v)},
+    {block:'acceptance', saved:q.notes_acceptance, set:v=>setTerm('d',v)},
+  ];
+  blocks.forEach(b=>{
+    if((b.saved!=null) && String(b.saved).trim()) return;          // 已有存檔內容→不覆蓋
+    const defs=(noticeList||[]).filter(t=>(t.block||'notice')===b.block && t.is_default);
+    if(!defs.length) return;                                        // 該區塊沒設預設範本→保留原本硬預設
+    const content=defs.map(t=>(t.content||'').trim()).filter(Boolean).join('\n\n');
+    if(content) b.set(content);
+    const imgs=defs.map(t=>t.image_url).filter(Boolean);
+    if(imgs.length) blockImages[b.block]=(blockImages[b.block]||[]).concat(imgs);
+  });
+  renderBlockImages();
 }
 // ── 貼膜前須知：可多選套用範本 ──────────────────────────────
 // ── 四區塊條款/須知：可多選套用範本（範本可帶圖，如(d)銀行帳號圖）──────────
