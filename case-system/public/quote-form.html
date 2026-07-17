@@ -1466,7 +1466,7 @@ function renderCust(useMkt){
         ${owner?'':`<td class="num">${priced?money(it.unitEach):'—'}</td>`}
         ${showCai?`<td class="num">—</td>`:''}
         <td class="num">${priced?(it.qty||1):'—'}</td>
-        <td class="num q-orig">${priced?money(totOf(it)):'—'}</td>
+        <td class="num${hasDisc?' q-orig':''}">${priced?money(totOf(it)):'—'}</td>
         ${hasDisc?`<td class="num">${priced?`<span class="q-promo">${money(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
     }
     const f=parseFilm(it);
@@ -1479,7 +1479,7 @@ function renderCust(useMkt){
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       ${showCai?`<td class="num">${it.mode==='cai'?caiOf(it).toFixed(1):'—'}</td>`:''}
       <td class="num">${it.qty||1}</td>
-      <td class="num q-orig">${money(totOf(it))}</td>
+      <td class="num${hasDisc?' q-orig':''}">${money(totOf(it))}</td>
       ${hasDisc?`<td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>`:''}
     </tr>`;
   }).join('');

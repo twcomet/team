@@ -432,7 +432,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount,showCai){
       ${hideChi?'':`<td class="num">${priced?fmt(it.unit_price):'—'}</td>`}
       ${showCai?`<td class="num">—</td>`:''}
       <td class="num">${priced?(it.quantity||1):'—'}</td>
-      <td class="num q-orig">${priced?fmt(it.subtotal):'—'}</td>
+      <td class="num${hasDiscount?' q-orig':''}">${priced?fmt(it.subtotal):'—'}</td>
       ${hasDiscount?`<td class="num">${priced?`<span class="q-promo">${fmt(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
   }
   return `<tr>
@@ -444,7 +444,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount,showCai){
     ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?' /米':''):'—'}</td>`}
     ${showCai?`<td class="num">${it.calc_mode==='cai'&&it.area_sqchi!=null?Number(it.area_sqchi).toFixed(1):'—'}</td>`:''}
     <td class="num">${it.quantity||1}</td>
-    <td class="num q-orig">${fmt(it.subtotal)}</td>
+    <td class="num${hasDiscount?' q-orig':''}">${fmt(it.subtotal)}</td>
     ${hasDiscount?`<td class="num"><span class="q-promo">${fmt(promoOf(it))}</span></td>`:''}
   </tr>`;
 }
