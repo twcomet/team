@@ -45,9 +45,11 @@ router.get('/', requireAuth, (req, res) => {
                    AND (xc.case_number LIKE ? OR xc.title LIKE ?))
       OR EXISTS (SELECT 1 FROM line_inquiry_messages m
                  WHERE m.inquiry_id = i.id AND m.content LIKE ?)
+      OR EXISTS (SELECT 1 FROM line_inquiry_notes n
+                 WHERE n.inquiry_id = i.id AND n.content LIKE ?)
     )`);
     const like = `%${q}%`;
-    params.push(like, like, like, like, like, like);
+    params.push(like, like, like, like, like, like, like);
   }
   const ws = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -188,6 +190,44 @@ router.put('/:id/note', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 記事本（多筆內部備註，客人看不到）───────────────────────────
+router.get('/:id/notes', requireAuth, (req, res) => {
+  // 舊的單筆「內部備註」(staff_note) 首次載入時自動搬進記事本，並清空原欄位（冪等）
+  const inq = db.prepare(`SELECT staff_note FROM line_inquiries WHERE id=?`).get(req.params.id);
+  const cnt = db.prepare(`SELECT COUNT(*) AS n FROM line_inquiry_notes WHERE inquiry_id=?`).get(req.params.id);
+  if (inq && (inq.staff_note || '').trim() && cnt.n === 0) {
+    const u = req.session.user;
+    db.prepare(`INSERT INTO line_inquiry_notes (inquiry_id, content, created_by, created_by_name) VALUES (?,?,?,?)`)
+      .run(req.params.id, inq.staff_note, u.id, u.name);
+    db.prepare(`UPDATE line_inquiries SET staff_note='' WHERE id=?`).run(req.params.id);
+  }
+  const rows = db.prepare(`SELECT id, content, created_by_name, created_at, updated_at
+    FROM line_inquiry_notes WHERE inquiry_id=? ORDER BY id DESC`).all(req.params.id);
+  res.json(rows);
+});
+router.post('/:id/notes', requireAuth, (req, res) => {
+  const content = (req.body && req.body.content || '').toString();
+  const u = req.session.user;
+  const info = db.prepare(`INSERT INTO line_inquiry_notes (inquiry_id, content, created_by, created_by_name)
+    VALUES (?,?,?,?)`).run(req.params.id, content, u.id, u.name);
+  const row = db.prepare(`SELECT id, content, created_by_name, created_at, updated_at
+    FROM line_inquiry_notes WHERE id=?`).get(info.lastInsertRowid);
+  res.json({ ok: true, note: row });
+});
+router.put('/:id/notes/:noteId', requireAuth, (req, res) => {
+  const content = (req.body && req.body.content || '').toString();
+  const info = db.prepare(`UPDATE line_inquiry_notes SET content=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=? AND inquiry_id=?`).run(content, req.params.noteId, req.params.id);
+  if (!info.changes) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+router.delete('/:id/notes/:noteId', requireAuth, (req, res) => {
+  const info = db.prepare(`DELETE FROM line_inquiry_notes WHERE id=? AND inquiry_id=?`)
+    .run(req.params.noteId, req.params.id);
+  if (!info.changes) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+
 // ── 更新客戶資料 ──────────────────────────────────────────────
 router.put('/:id/client', requireAuth, (req, res) => {
   const { name, phone, email, address } = req.body;
@@ -294,6 +334,15 @@ router.post('/:id/mark-replied', requireAuth, (req, res) => {
   const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(req.params.id);
   if (!inq) return res.status(404).json({ error: 'not found' });
   db.prepare(`UPDATE line_inquiries SET replied_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, ai_needs_human=0 WHERE id=?`).run(inq.id);
+  res.json({ ok: true });
+});
+
+// ── 轉真人客服（設定 ai_needs_human 旗標；即使已轉案也可標記）──────
+router.post('/:id/needs-human', requireAuth, (req, res) => {
+  const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq) return res.status(404).json({ error: 'not found' });
+  const val = (req.body && req.body.value === 0) ? 0 : 1;
+  db.prepare(`UPDATE line_inquiries SET ai_needs_human=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(val, inq.id);
   res.json({ ok: true });
 });
 

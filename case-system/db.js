@@ -1496,6 +1496,20 @@ db.exec(`
   );
 `);
 
+// 記事本：與該 LINE 用戶之間的內部多筆備註（比照 LINE OA「記事本」；客人看不到）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS line_inquiry_notes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    inquiry_id INTEGER NOT NULL REFERENCES line_inquiries(id) ON DELETE CASCADE,
+    content    TEXT DEFAULT '',
+    created_by INTEGER REFERENCES users(id),
+    created_by_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME
+  );
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_linq_notes ON line_inquiry_notes(inquiry_id, id)`);
+
 // 案件所屬模組（用於 invalid 案件的歸屬）
 _addCol('cases', 'case_group', 'TEXT DEFAULT NULL');
 // 依現有狀態補值（冪等）
