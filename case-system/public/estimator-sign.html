@@ -97,6 +97,9 @@ function render(d){
   if(d.freight>0) totRows += '<div class="tr"><span>車馬費</span><b>'+NT(d.freight)+'</b></div>';
   if(d.fut>0)     totRows += '<div class="tr"><span>期貨運費</span><b>'+NT(d.fut)+'</b></div>';
 
+  var estTax = Math.round((d.total||0) * 0.05);   // 5% 營業稅
+  var estWithTax = (d.total||0) + estTax;
+
   document.getElementById('sheet').innerHTML =
     '<div class="hd"><div class="co">繪新國際有限公司</div><div class="en">TWCOMET INTERNATIONAL</div><div class="doc">估　價　單</div></div>'
     + '<div class="warn">⚠ 此為估價，非正式報價單；實際價格以簽約報價單與現場丈量為準。</div>'
@@ -108,10 +111,12 @@ function render(d){
     + '</div>'
     + '<table><thead><tr><th>品項</th><th>數量</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>'
     + '<div class="tot">'+totRows
-      + '<div class="grand"><span>估價總額（未稅）</span><b>'+NT(d.total)+'</b></div>'
+      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價未稅金額</span><b>'+NT(d.total)+'</b></div>'
+      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(estTax)+'</b></div>'
+      + '<div class="grand"><span>估價總額（含稅）</span><b>'+NT(estWithTax)+'</b></div>'
     + '</div>'
     + (d.customer_note?'<div class="note">備註：'+esc(d.customer_note)+'</div>':'')
-    + '<div class="note">＊本估價單金額為未稅。開立發票另加 5% 營業稅。</div>'
+    + '<div class="note">＊本估價單「估價總額（含稅）」已含 5% 營業稅。</div>'
     + '<div class="note">＊若享優惠價，需同意行銷優惠方案，並同意照片拍攝及發布到繪新相關社群媒體上。</div>'
     + '<div class="note">＊以上估價以現貨估價；若選期貨，期貨運費另計。</div>'
     + '<div class="ft">繪新國際有限公司　Twcomet International<br>本單由繪新管理系統產生</div>';
