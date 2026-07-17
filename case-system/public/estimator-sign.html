@@ -112,6 +112,8 @@ function render(d){
     + '</div>'
     + (d.customer_note?'<div class="note">備註：'+esc(d.customer_note)+'</div>':'')
     + '<div class="note">＊本估價單金額為未稅。開立發票另加 5% 營業稅。</div>'
+    + '<div class="note">＊若享優惠價，需同意行銷優惠方案，並同意照片拍攝及發布到繪新相關社群媒體上。</div>'
+    + '<div class="note">＊以上估價以現貨估價；若選期貨，期貨運費另計。</div>'
     + '<div class="ft">繪新國際有限公司　Twcomet International<br>本單由繪新管理系統產生</div>';
 
   document.title = '繪新估價單' + (d.customer_name?'-'+d.customer_name:'') + (d.project_name?'-'+d.project_name:'');
