@@ -100,7 +100,12 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
     if (target.role === 'owner') return res.status(403).json({ error: '無法修改最高管理者' });
   }
 
-  const { name, role, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, can_ship, can_layout, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales, clock_exempt } = req.body;
+  const { name, role, org_id, department, is_manager, can_see_amounts, can_see_cost, can_see_labor_cost, can_delete, can_manage_assets, can_ship, can_layout, service_areas, active, permissions, daily_cost, accept_dispatch, is_sales, clock_exempt } = req.body;
+  // 所屬組織：只有 owner 可改；未傳/空值/非 owner 一律保留原值（避免非 owner 把人移到別的分店）
+  let orgVal = target.org_id;
+  if (me.role === 'owner' && org_id !== undefined && org_id !== null && String(org_id).trim() !== '') {
+    orgVal = Number(org_id);
+  }
   const newAllowed = 'allowed_org_ids' in req.body
     ? (req.body.allowed_org_ids?.length ? JSON.stringify(req.body.allowed_org_ids) : null)
     : target.allowed_org_ids;
@@ -116,8 +121,8 @@ router.put('/:id', requireCanManageUsers, (req, res) => {
   const activeVal        = active             !== undefined ? (active             ? 1 : 0) : (target.active             ?? 1);
   const serviceAreasVal  = service_areas      !== undefined ? JSON.stringify(service_areas || []) : (target.service_areas || '[]');
   const clockExemptVal   = clock_exempt       !== undefined ? (clock_exempt       ? 1 : 0) : (target.clock_exempt        ?? 0);
-  db.prepare(`UPDATE users SET name=?, role=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, can_layout=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=?, clock_exempt=? WHERE id=?`)
-    .run(name, role, department, is_manager ? 1 : 0, canAmountsVal, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal, canLayoutVal,
+  db.prepare(`UPDATE users SET name=?, role=?, org_id=?, department=?, is_manager=?, can_see_amounts=?, can_see_cost=?, can_see_labor_cost=?, can_manage_assets=?, can_delete=?, can_ship=?, can_layout=?, service_areas=?, active=?, permissions=?, daily_cost=?, allowed_org_ids=?, accept_dispatch=?, is_sales=?, clock_exempt=? WHERE id=?`)
+    .run(name, role, orgVal, department, is_manager ? 1 : 0, canAmountsVal, canCostVal, canLaborVal, canAssetsVal, canDeleteVal, canShipVal, canLayoutVal,
          serviceAreasVal, activeVal,
          JSON.stringify(permissions || {}), daily_cost ?? null, newAllowed, dispatchVal, isSalesVal, clockExemptVal, req.params.id);
   // line_user_id 只在明確傳入時才更新（unbind 用）
