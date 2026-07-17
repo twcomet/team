@@ -154,6 +154,7 @@
   .lb-x{position:fixed;top:18px;right:22px;color:#fff;font-size:26px;cursor:pointer;background:rgba(255,255,255,.14);width:42px;height:42px;border-radius:50%;display:grid;place-items:center}
   .q-gallery{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
   .q-gallery img{width:62px;height:62px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--gray-300)}
+  .q-single{width:100%;height:auto;border-radius:8px;cursor:zoom-in;display:block;border:1px solid var(--gray-300)}
   .lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:30px;display:grid;place-items:center;cursor:pointer;user-select:none}
   .lb-nav.prev{left:18px} .lb-nav.next{right:18px}
   .q-orig{text-decoration:line-through;color:var(--gray-400);font-weight:500}
@@ -463,7 +464,7 @@
           <table class="quote-tbl">
             <thead><tr>
               <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
-              <th style="width:124px">膜料資訊</th><th id="cth_img" style="width:74px">膜料示意圖</th><th id="cth_photo" style="width:132px">貼覆區域（現場照）</th>
+              <th style="width:124px">膜料資訊</th><th id="cth_img" style="width:74px">膜料示意圖</th><th id="cth_photo" style="width:172px">貼覆區域（現場照）</th>
               <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
               <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
@@ -1377,7 +1378,7 @@ function renderCust(useMkt){
       <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSz&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
       <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span>${owner?'':`<br>膜料寬度 ${it.width||'—'} 公分`}</td>
       ${showFilmImg?`<td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>`:''}
-      ${showSitePhoto?`<td class="c">${(it.areaPhotos&&it.areaPhotos.length)?`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`:`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>`:''}
+      ${showSitePhoto?`<td class="c">${(it.areaPhotos&&it.areaPhotos.length)?(it.areaPhotos.length===1?`<img class="q-single" src="${esc(it.areaPhotos[0])}" onclick="openPhoto(${i},0)" alt="現場照">`:`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`):`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>`:''}
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>

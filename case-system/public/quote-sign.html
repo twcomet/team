@@ -69,6 +69,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .q-thumbs img{width:34px;height:44px;object-fit:cover;border-radius:4px;cursor:zoom-in;border:1px solid var(--gray-200)}
 .q-gallery{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
 .q-gallery img{width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--gray-200)}
+.q-single{width:100%;height:auto;border-radius:8px;cursor:zoom-in;display:block;border:1px solid var(--gray-200)}
 .lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:30px;display:grid;place-items:center;cursor:pointer;user-select:none}
 .lb-nav.prev{left:16px} .lb-nav.next{right:16px}
 .lb-count{position:fixed;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-size:14px;font-weight:600;letter-spacing:.05em}
@@ -224,7 +225,8 @@ function siteThumbs(it){
   const all=[]; const seen=new Set();
   [it.area_photo_url,...arr].forEach(u=>{ if(u&&!seen.has(u)){ seen.add(u); all.push(u); } });
   if(!all.length) return `<div class="q-photo-ph"><div class="em">📷</div>現場照</div>`;
-  // 全部照片整齊排成縮圖牆，點任一張開燈箱可翻頁
+  // 只有一張 → 滿版顯示、放最大；多張才排縮圖牆
+  if(all.length===1) return `<img class="q-single" src="${esc(all[0])}" onclick="openGal(this)" alt="現場照">`;
   return `<div class="q-gallery">${all.map(u=>`<img src="${esc(u)}" onclick="openGal(this)" alt="現場照">`).join('')}</div>`;
 }
 function filmImg(it){
@@ -349,7 +351,7 @@ function render(q){
             <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
             <th style="width:124px">膜料資訊</th>
             ${showFilmImg?'<th style="width:74px">膜料示意圖</th>':''}
-            ${showSitePhoto?'<th style="width:132px">貼覆區域（現場照）</th>':''}
+            ${showSitePhoto?'<th style="width:172px">貼覆區域（現場照）</th>':''}
             ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
             <th style="width:108px;white-space:nowrap">${lblTotal}</th>${hasDiscount?`<th style="width:120px;white-space:nowrap">${lblPromo}</th>`:''}
           </tr></thead>
