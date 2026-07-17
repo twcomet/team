@@ -53,7 +53,13 @@
 
     /* ── 詳情 header ── */
     .det-header  { padding:14px 20px; border-bottom:1px solid var(--gray-200); background:#fff; display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; flex-shrink:0; }
-    .det-actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+    .det-actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    /* 狀態燈號按鈕：目前狀態亮燈(有色)，其他淡化(白底灰字) */
+    .stat-pill { background:#fff; color:var(--gray-400); border:1px solid var(--gray-200); cursor:pointer; font-weight:500; }
+    .stat-pill:hover { border-color:var(--gray-300); color:var(--gray-600); }
+    .stat-pill.on { font-weight:800; cursor:default; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .stat-pill.on:hover { color:inherit; }
+    .det-sep { width:1px; height:20px; background:var(--gray-200); margin:0 2px; }
 
     /* ── header 控制列（負責業務/客服/電話/客戶資料/關懷）：整齊不亂斷行、手機好看 ── */
     .det-controls { display:flex; gap:8px 10px; margin-top:8px; flex-wrap:wrap; align-items:center; }
@@ -845,6 +851,24 @@ async function openInquiry(id) {
   const _repliedCleared = data.replied_at && data.replied_at >= data.last_message_at;
   const _showMarkReplied = _lastMsgIn && !_repliedCleared && data.status !== 'invalid' && data.status !== 'hidden';
 
+  // 狀態燈號列：目前狀態亮燈，其他淡化可點擊切換
+  const S = data.status;
+  const _pill = (active, litStyle, onclick, label, title, alwaysClick) =>
+    `<button class="btn btn-sm stat-pill${active ? ' on' : ''}" style="${active ? litStyle : ''}${active && alwaysClick ? ';cursor:pointer' : ''}"${onclick && (!active || alwaysClick) ? ` onclick="${onclick}"` : ''}${title ? ` title="${title}"` : ''}>${label}</button>`;
+  const statusBar = `
+    ${_pill(S === 'new',         'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd', `setStatus(${id},'new')`,         '新詢問',   '設為新詢問')}
+    ${_pill(S === 'in_progress', 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d', `setStatus(${id},'in_progress')`, '進行中',   '標記進行中')}
+    ${_pill(S === 'converted',   'background:#dcfce7;color:#166534;border:1px solid #86efac', `openConvert(${id})`,             '已轉案',   S === 'converted' ? '此詢問已轉為案件' : '轉為案件')}
+    ${_pill(S === 'invalid',     'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5', `setStatus(${id},'invalid')`,     '無效',     '標記無效')}
+    ${_pill(S === 'hidden',      'background:#e5e7eb;color:#374151;border:1px solid #d1d5db', `setStatus(${id},'hidden')`,      '隱藏',     '隱藏此詢問')}
+    <span class="det-sep"></span>
+    ${(S !== 'invalid' && S !== 'hidden')
+      ? _pill(!!_repliedCleared, 'background:#dcfce7;color:#166534;border:1px solid #86efac', `markReplied(${id})`, _repliedCleared ? '✓ 已回覆' : '✓ 標記已回覆', '已在 LINE 官方後台回覆過了？點這清掉待回覆紅燈', true)
+      : ''}
+    ${_pill(!!data.ai_needs_human, 'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd', data.ai_needs_human ? `markNeedsHuman(${id},0)` : `markNeedsHuman(${id},1)`, '🤖 轉真人客服', data.ai_needs_human ? '目前在「轉真人客服」分頁，點此取消' : '標記需要真人客服接手', true)}
+    ${(S === 'converted' || S === 'invalid')
+      ? `<button class="btn btn-sm" style="background:#fff;color:#dc2626;border:1px solid #fecaca;cursor:pointer" onclick="deleteInquiry(${id})" title="刪除此詢問">🗑️ 刪除</button>` : ''}`;
+
   const salesOpts = allUsers
     .filter(u => !['hq_tech','branch_tech','contractor_install'].includes(u.role))
     .map(u => `<option value="${u.id}"${data.sales_id == u.id ? ' selected' : ''}>${escHtml(u.name)}</option>`).join('');
@@ -883,40 +907,18 @@ async function openInquiry(id) {
               <option value="">（未指定）</option>${csOpts}
             </select>
           </div>
-          <div class="ctl">
-            <span class="ctl-lb">📞</span>
-            <input id="cf-phone" value="${escHtml(data.phone||'')}" placeholder="電話" onchange="saveClient(${id},true)" class="ctl-inp">
-          </div>
           <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleClientPanel()"><span id="clientToggleLabel">客戶資料 ▾</span></button>
           <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleCarePanel()"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>
         </div>
       </div>
-      <div class="det-actions">
-        ${_showMarkReplied
-          ? `<button class="btn btn-sm" style="background:#dcfce7;color:#166534;border:none;cursor:pointer;font-weight:700" onclick="markReplied(${id})" title="已在 LINE 官方帳號後台回覆過了？點這裡清掉「待回覆」紅燈">✓ 已回覆</button>` : ''}
-        ${data.status !== 'in_progress'
-          ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'in_progress')">標記進行中</button>` : ''}
-        ${data.status === 'hidden'
-          ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'new')">取消隱藏</button>`
-          : (data.status === 'converted' || data.status === 'invalid')
-            ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'new')">設為新詢問</button>` : ''}
-        ${!data.ai_needs_human && data.status !== 'invalid' && data.status !== 'hidden'
-          ? `<button class="btn btn-sm" style="background:#ede9fe;color:#6d28d9;border:none;cursor:pointer;font-weight:600" onclick="markNeedsHuman(${id})" title="標記需要真人客服接手，會出現在「轉真人客服」分頁">🤖 轉真人客服</button>` : ''}
-        ${data.status !== 'converted'
-          ? `<button class="btn btn-primary btn-sm" onclick="openConvert(${id})">轉為案件</button>` : ''}
-        ${data.status !== 'invalid'
-          ? `<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;cursor:pointer" onclick="setStatus(${id},'invalid')">標記無效</button>` : ''}
-        ${data.status !== 'hidden' && data.status !== 'invalid' && data.status !== 'converted'
-          ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'hidden')">隱藏</button>` : ''}
-        ${data.status === 'converted' || data.status === 'invalid'
-          ? `<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;cursor:pointer" onclick="deleteInquiry(${id})">刪除</button>` : ''}
-      </div>
+      <div class="det-actions">${statusBar}</div>
     </div>
 
     <div class="det-client" id="clientPanel" style="display:none">
       <div class="client-grid">
         <div class="cf"><label>官方 LINE 顯示名稱（手動輸入）</label><input id="cf-name" value="${escHtml(data.display_name||'')}" placeholder="LINE 顯示名稱"></div>
         <div class="cf"><label>LINE 客戶顯示名稱</label><input value="${escHtml(data.line_original_name||data.display_name||'')}" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default"></div>
+        <div class="cf"><label>📞 電話</label><input id="cf-phone" value="${escHtml(data.phone||'')}" placeholder="聯絡電話"></div>
         <div class="cf"><label>Email</label><input id="cf-email"  value="${escHtml(data.email||'')}"        placeholder="電子信箱"></div>
         <div class="cf"><label>地址</label><input id="cf-address" value="${escHtml(data.address||'')}"      placeholder="施工地址"></div>
       </div>
@@ -1214,13 +1216,14 @@ async function markReplied(id) {
     showToast(err.error || '操作失敗', 'error');
   }
 }
-// 轉真人客服：即使已轉案也可標記，會進「轉真人客服」分頁
-async function markNeedsHuman(id) {
+// 轉真人客服：即使已轉案也可標記/取消，會進「轉真人客服」分頁
+async function markNeedsHuman(id, value) {
+  const v = value === 0 ? 0 : 1;
   const r = await fetch(`/api/line-inquiries/${id}/needs-human`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: 1 })
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: v })
   });
   if (r.ok) {
-    showToast('已標記轉真人客服');
+    showToast(v ? '已標記轉真人客服' : '已取消轉真人客服');
     loadStats(); loadList(); openInquiry(id);
   } else {
     const err = await r.json().catch(() => ({}));
