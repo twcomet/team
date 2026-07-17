@@ -151,11 +151,11 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const info = db.prepare(`UPDATE est_quotes SET
     case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
-    items_json=?,photos_json=?,customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,updated_at=datetime('now','localtime')
+    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,updated_at=datetime('now','localtime')
     WHERE id=?`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
-      JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
+      JSON.stringify(items), (Array.isArray(b.photos) ? JSON.stringify(b.photos) : null), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
       b.status || 'draft', req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
