@@ -409,6 +409,13 @@
                 <div id="t-margin-detail" style="font-size:11px;color:#6b7280;margin-top:5px;line-height:1.6"></div>
               </div>
             </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:13px;flex-wrap:wrap">
+              <span style="color:#6b7280;white-space:nowrap">🔎 客戶可見明細</span>
+              <select id="q-showdetail" onchange="QSHOW=+this.value" style="flex:1;min-width:150px;padding:7px 10px;border:1px solid var(--ec-border);border-radius:8px;font-size:13px;font-family:inherit">
+                <option value="1">含明細（材料／寬高／才數）</option>
+                <option value="0">只顯示總額（隱藏明細）</option>
+              </select>
+            </div>
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
               <button class="ec-btn" style="background:#fff;border:1px solid var(--ec-border)" onclick="openVersions()">🗂️ 版本</button>
@@ -435,6 +442,7 @@ const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,l
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
 let QPHOTOS=[];   // 這張估價單的照片庫（客人導入＋上傳），供各品項挑選掛照片
+let QSHOW=1;      // 客戶可見明細：1=含明細、0=只顯示總額（分享連結/PDF 跟著走）
 const EPARAMS = new URLSearchParams(location.search);
 
 const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
@@ -852,7 +860,7 @@ async function saveQuote(status,opts){
    var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
    var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
      customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
-     items:CART, photos:QPHOTOS, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
+     items:CART, photos:QPHOTOS, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, show_detail:QSHOW, status:status||'draft' };
    var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    var j=await r.json();
@@ -993,6 +1001,8 @@ async function loadEstQuote(id){
     editId=q.id; SHARE_TOKEN=q.share_token||null; ECASE=q.case_id||null;
     CART=Array.isArray(q.items)?q.items:[];
     QPHOTOS=Array.isArray(q.photos)?q.photos:[];
+    QSHOW=(q.show_detail===0?0:1);
+    if(document.getElementById('q-showdetail')) document.getElementById('q-showdetail').value=String(QSHOW);
     document.getElementById('b-project').value=q.project_name||'';
     if(document.getElementById('b-cust')) document.getElementById('b-cust').value=q.customer_type||'owner';
     if(q.region && document.getElementById('b-region')) document.getElementById('b-region').value=q.region;

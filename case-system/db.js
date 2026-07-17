@@ -4103,6 +4103,8 @@ db.exec(`
 // 估價單客戶連結／PDF：分享 token（比照 quote_sheets.share_token）＋客戶開啟時間
 _addCol('est_quotes', 'share_token',      'TEXT');
 _addCol('est_quotes', 'client_viewed_at', 'DATETIME');
+// 客戶可見明細：1=含明細（材料/寬高/才），0=只顯示總額。分享連結＋PDF＋客戶檢視都跟著走
+_addCol('est_quotes', 'show_detail',      'INTEGER DEFAULT 1');
 // token 唯一（允許多筆 NULL：舊資料未產生前為空）
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_est_quotes_token ON est_quotes(share_token) WHERE share_token IS NOT NULL`);
 

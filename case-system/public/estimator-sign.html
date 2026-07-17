@@ -109,7 +109,9 @@ function render(d){
       + '<div class="row"><span class="k">日期</span><b>'+esc(dt)+'</b></div>'
       + '<div class="row"><span class="k">類型</span><b>'+(owner?'業主':'設計師')+'</b></div>'
     + '</div>'
-    + '<table><thead><tr><th>品項</th><th>數量</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + (d.show_detail === 0
+        ? '<div class="note" style="text-align:center;padding:14px;background:#f9fafb;border-radius:8px;margin:6px 0">本估價單依需求僅呈現總額，明細不逐項列出（共 '+(d.item_count||0)+' 項）。</div>'
+        : '<table><thead><tr><th>品項</th><th>數量</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>')
     + '<div class="tot">'+totRows
       + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價未稅金額</span><b>'+NT(d.total)+'</b></div>'
       + '<div class="tr"><span>稅金（5%）</span><b>'+NT(estTax)+'</b></div>'

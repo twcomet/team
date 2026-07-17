@@ -137,13 +137,13 @@ router.post('/quotes', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const token = genToken();
   const info = db.prepare(`INSERT INTO est_quotes
-    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token,show_detail)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', req.session.user.id, token);
+      b.status || 'draft', req.session.user.id, token, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1);
   res.json({ ok: true, id: info.lastInsertRowid, total: r.total, share_token: token });
 });
 router.put('/quotes/:id', requireAuth, (req, res) => {
@@ -151,13 +151,13 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const info = db.prepare(`UPDATE est_quotes SET
     case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
-    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,updated_at=datetime('now','localtime')
+    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,updated_at=datetime('now','localtime')
     WHERE id=?`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), (Array.isArray(b.photos) ? JSON.stringify(b.photos) : null), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', req.params.id);
+      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
 });
@@ -299,20 +299,21 @@ router.get('/quotes/sign/:token', (req, res) => {
   const items = JSON.parse(q.items_json || '[]');
   const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc }, eng.buildCatalogFromDb(db));
   const owner = q.customer_type === 'owner';
-  const lines = r.lines.map(L => ({
+  const showDetail = q.show_detail !== 0;   // 0=只顯示總額（不外洩任何明細）
+  const lines = showDetail ? r.lines.map(L => ({
     type: L.type, label: L.label,
     series: owner ? '' : (L.series || ''),
     n: L.n,
     cai:  owner ? null : (L.cai != null ? Math.round(L.cai * 10) / 10 : null),
     unit: owner ? null : (L.unit || null),
     base: L.base || null, amount: L.amount
-  }));
+  })) : [];
   res.json({
     project_name: q.project_name,
     customer_name: q.customer_name || q.case_client_name || '',
     customer_type: q.customer_type, region: q.region,
     created_at: q.created_at, updated_at: q.updated_at, customer_note: q.customer_note,
-    disc: q.disc,
+    disc: q.disc, show_detail: showDetail ? 1 : 0, item_count: r.lines.length,
     lines, sub: r.sub, discAmt: r.discAmt, itemsFinal: r.itemsFinal,
     freight: r.freight, fut: r.fut, total: r.total, lowApplied: r.lowApplied, lowmin: r.lowmin
   });
