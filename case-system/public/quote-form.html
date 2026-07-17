@@ -482,14 +482,16 @@
         </div>
         <div style="margin-top:14px;font-size:13px;text-align:right;line-height:2">
           連工帶料原價（未稅）：<span id="cv_sub"></span><br>
-          <span id="cv_promo_line"><b>優惠後（未稅）：<span id="cv_promo"></span></b><br></span><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
+          <span id="cv_promo_line"><b>優惠後（未稅）：<span id="cv_promo"></span></b><br></span><span id="cv_mkt_line"></span><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
           <span id="cv_deduct_line"></span></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
         <div class="mkt-sign">
           <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
           <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <div id="cv_mkt_incentive" style="margin-top:10px;font-size:14px;font-weight:700;color:var(--gray-700)"></div>
-          <label style="display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:10px;padding:12px 14px;background:#fff;border:2px solid #6d28d9;border-radius:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:26px;height:26px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:10px">
+            <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:24px;height:24px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
+            <div id="cv_mkt_incentive" style="font-size:14px;font-weight:700;color:var(--gray-700)"></div>
+          </div>
         </div>
         <div id="custFolds"></div>
         <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
@@ -1409,11 +1411,12 @@ function renderCust(useMkt){
       ${hasDisc?`<td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>`:''}
     </tr>`;
   }).join('');
-  const agree=!!useMkt, promoShown=agree?c.afterMkt:c.promo, tax=agree?c.tax:Math.round(c.promo*(c.taxRate??0.05)), pay=agree?c.pay:c.promoPay;
-  _txt('cv_sub',money(c.sub));_txt('cv_promo',money(promoShown));_txt('cv_tax',money(tax));_txt('cv_pay',money(pay));
+  const agree=!!useMkt, tax=agree?c.tax:Math.round(c.promo*(c.taxRate??0.05)), pay=agree?c.pay:c.promoPay;
+  _txt('cv_sub',money(c.sub));_txt('cv_promo',money(c.promo));_txt('cv_tax',money(tax));_txt('cv_pay',money(pay));
+  { const ml=document.getElementById('cv_mkt_line'); if(ml) ml.innerHTML=(agree&&c.mktCut>0)?`🎁 行銷優惠折減（同意拍照）：− ${money(c.mktCut)}<br>`:''; }
   { const tl=document.getElementById('cv_tax_line'); if(tl) tl.style.display=c.noInvoice?'none':''; }
   const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=(c.deductList&&c.deductList.length)?c.deductList.map(d=>`<br>折抵：${esc(d.label)}　− ${money(d.amount)}`).join(''):'';
-  const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`勾選同意即享行銷優惠 <b>− ${money(c.mktCut)}</b>　→　優惠價 <b style="color:var(--primary-dark);font-size:17px">${money(c.pay)}</b>`:'';
+  const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`行銷優惠折 <b>− ${money(c.mktCut)}</b>　→　優惠價 <b style="color:var(--primary-dark);font-size:18px">${money(c.pay)}</b>`:'';
   syncCustNotice();
 }
 let PGAL=[], PGALI=0, PGCAP='';

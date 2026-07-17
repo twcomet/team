@@ -100,10 +100,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .mkt .cmp .val{font-size:19px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums}
 .mkt label{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;color:var(--gray-900)}
 .mkt label input{width:26px;height:26px;flex-shrink:0;accent-color:var(--primary);cursor:pointer}
-.mkt .mkt-incentive{margin-top:10px;font-size:14px;color:var(--gray-700);font-weight:700}
-.mkt .mkt-incentive b{font-variant-numeric:tabular-nums}
-.mkt .mkt-incentive b.hl{color:var(--primary-dark);font-size:18px}
-.mkt .mkt-agree{margin-top:10px;padding:12px 14px;background:#fff;border:2px solid var(--primary);border-radius:10px}
+.mkt .mkt-row2{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:10px}
+.mkt .mkt-figures{font-size:14px;font-weight:700;color:var(--gray-700)}
+.mkt .mkt-figures b{font-variant-numeric:tabular-nums}
+.mkt .mkt-figures b.hl{color:var(--primary-dark);font-size:18px}
 
 /* 條款 fold */
 .fold{border:1px solid var(--gray-200);border-radius:10px;margin-bottom:9px;overflow:hidden}
@@ -386,8 +386,10 @@ function render(q){
         <div class="mkt">
           <h4>🎁 行銷優惠方案</h4>
           <div class="desc">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <div class="mkt-incentive">勾選同意即享行銷優惠 <b>− ${fmt(mktCut)}</b>　→　優惠價 <b class="hl">${fmt(payAgree)}</b></div>
-          <label class="mkt-agree"><input type="checkbox" id="mktCheck" ${agreeMkt?'checked':''} onchange="onMkt(this.checked)"> 我同意拍照攝影授權予繪新媒體</label>
+          <div class="mkt-row2">
+            <label class="mkt-agree"><input type="checkbox" id="mktCheck" ${agreeMkt?'checked':''} onchange="onMkt(this.checked)"> 我同意拍照攝影授權予繪新媒體</label>
+            <div class="mkt-figures">行銷優惠折 <b>− ${fmt(mktCut)}</b>　→　優惠價 <b class="hl">${fmt(payAgree)}</b></div>
+          </div>
         </div>`:''}
       </div>
 
