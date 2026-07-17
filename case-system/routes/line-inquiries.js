@@ -243,8 +243,16 @@ router.put('/:id/client', requireAuth, (req, res) => {
     if (cols.length)
       db.prepare(`UPDATE clients SET ${cols.join(',')} WHERE id=?`).run(...vals, inq.client_id);
   }
-  if (name)
-    db.prepare(`UPDATE line_inquiries SET display_name=? WHERE id=?`).run(name, req.params.id);
+  if (name !== undefined) {
+    const trimmed = (name || '').trim();
+    if (trimmed) {
+      // 手動輸入名稱 → 鎖定，之後新訊息不再覆蓋
+      db.prepare(`UPDATE line_inquiries SET display_name=?, name_locked=1 WHERE id=?`).run(trimmed, req.params.id);
+    } else {
+      // 清空手動名稱 → 解鎖，恢復顯示 LINE 原始名稱
+      db.prepare(`UPDATE line_inquiries SET display_name=COALESCE(NULLIF(line_original_name,''), display_name), name_locked=0 WHERE id=?`).run(req.params.id);
+    }
+  }
   res.json({ ok: true });
 });
 

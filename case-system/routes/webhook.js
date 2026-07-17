@@ -261,9 +261,16 @@ async function handleClientMessage(event, channel) {
   db.prepare(`
     UPDATE line_inquiries
     SET last_message=?, last_message_at=CURRENT_TIMESTAMP,
-        message_count=message_count+1, display_name=?, avatar_url=COALESCE(?, avatar_url), updated_at=CURRENT_TIMESTAMP
+        message_count=message_count+1,
+        line_original_name=?,
+        display_name=CASE WHEN name_locked=1 THEN display_name ELSE ? END,
+        avatar_url=COALESCE(?, avatar_url), updated_at=CURRENT_TIMESTAMP
     WHERE id=?
-  `).run(isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview, displayName, avatarUrl, inquiryId);
+  `).run(
+    isGroup && senderDisplay ? `${senderDisplay}：${preview}`.slice(0, 200) : preview,
+    displayName,   // 一律更新「LINE 原始名稱」(唯讀欄)
+    displayName,   // 只有未鎖定時才覆蓋手動輸入的 display_name
+    avatarUrl, inquiryId);
 
   // AI 草稿改為「手動觸發」以節省 API credit：客服在 LINE 詢問按「🤖 產生 AI 建議回覆」才跑
   // （原本每則客人私訊都自動擬稿，是最大的背景消耗來源；改成按鈕才跑）

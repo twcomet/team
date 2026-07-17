@@ -1555,6 +1555,8 @@ _addCol('line_inquiries', 'channel_id',         'INTEGER REFERENCES line_channel
 _addCol('line_inquiries', 'line_original_name', 'TEXT');
 // 舊紀錄補寫 line_original_name（只補 NULL 且 display_name 有值的）
 db.exec(`UPDATE line_inquiries SET line_original_name=display_name WHERE line_original_name IS NULL AND display_name IS NOT NULL`);
+// 客服手動改過顯示名稱後鎖定：新訊息進來不再用 LINE 名稱覆蓋 display_name
+_addCol('line_inquiries', 'name_locked', 'INTEGER DEFAULT 0');
 // 負責業務 / 負責客服
 _addCol('line_inquiries', 'sales_id',   'INTEGER REFERENCES users(id)');
 _addCol('line_inquiries', 'cs_id',      'INTEGER REFERENCES users(id)');
