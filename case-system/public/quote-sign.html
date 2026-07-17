@@ -98,7 +98,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .mkt .cmp .val{font-size:19px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums}
 .mkt label{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;color:var(--gray-900)}
 .mkt label input{width:26px;height:26px;flex-shrink:0;accent-color:var(--primary);cursor:pointer}
-.mkt .mkt-agree{margin-top:12px;padding:12px 14px;background:#fff;border:2px solid var(--primary);border-radius:10px}
+.mkt .mkt-incentive{margin-top:10px;font-size:14px;color:var(--gray-700);font-weight:700}
+.mkt .mkt-incentive b{font-variant-numeric:tabular-nums}
+.mkt .mkt-incentive b.hl{color:var(--primary-dark);font-size:18px}
+.mkt .mkt-agree{margin-top:10px;padding:12px 14px;background:#fff;border:2px solid var(--primary);border-radius:10px}
 
 /* 條款 fold */
 .fold{border:1px solid var(--gray-200);border-radius:10px;margin-bottom:9px;overflow:hidden}
@@ -301,9 +304,14 @@ function render(q){
   const mktCut = Math.max(0, promoTotal-afterMkt);
   const hasMkt = mktCut>0;
   const hasDiscount = (subtotal - promoTotal) > 0.5;                   // 後台有設「一般優惠折數」才顯示優惠價欄
-  const deduction = Math.max(0, (afterMkt + (q.tax_amount||0)) - (q.final_total||0));
-  const payAgree = q.final_total||0;                                   // 同意拍照（含行銷優惠）
-  const payNormal = Math.round(promoTotal*(1+taxRate)) - deduction;    // 預設：未同意行銷拍照
+  // 折抵明細（名目＋金額）：彈性折抵 + 已套用預付金；總額用實際明細加總，避免依 final_total 反推而時有時無
+  const DEP_NAME = { survey_fee:'場勘費', catalog:'膜料本', sample:'樣本費', other:'其他預收款' };
+  const deductions = [];
+  try{ (JSON.parse(q.flex_deducts||'[]')||[]).forEach(d=>{ const a=Number(d.amount)||0; if(a>0) deductions.push({label:(d.label||'折抵'), amount:a}); }); }catch(e){}
+  (q.applied_deposits||[]).forEach(d=>{ const a=Number(d.amount)||0; if(a>0) deductions.push({label:(DEP_NAME[d.type]||'預收款')+' 預付金'+(d.product_name?`（${d.product_name}）`:''), amount:a}); });
+  const deduction = deductions.reduce((s,d)=>s+d.amount,0);
+  const payAgree  = afterMkt   + Math.round(afterMkt*taxRate)   - deduction;   // 同意拍照（含稅、扣折抵）
+  const payNormal = promoTotal + Math.round(promoTotal*taxRate) - deduction;   // 預設：未同意行銷拍照
   AMT = { payNormal, payAgree, mktCut, promoTotal, afterMkt, taxRate, hasMkt, noInvoice:q.no_invoice };
   const stateMap = { draft:{dot:'#d1d5db',text:'草稿',c:'#6b7280'}, sent:{dot:'#d6336c',text:'待確認',c:'#a41f52'}, accepted:{dot:'#10b981',text:'已確認接受',c:'#065f46'}, rejected:{dot:'#ef4444',text:'已拒絕',c:'#991b1b'} };
   const st = stateMap[q.status]||stateMap.sent;
@@ -368,7 +376,7 @@ function render(q){
           ${hasMkt?`<div class="row disc" id="mktRow" style="display:${agreeMkt?'':'none'}"><span class="l">🎁 行銷優惠折抵（同意拍照才享）</span><span class="v">− ${fmt(mktCut)}</span></div>`:''}
           <hr>
           ${q.no_invoice ? '' : `<div class="row"><span class="l">稅金（${Math.round(taxRate*100)}%）</span><span class="v" id="taxV">${fmt(Math.round((agreeMkt?afterMkt:promoTotal)*taxRate))}</span></div>`}
-          ${deduction>0?`<div class="row disc"><span class="l">🧾 折抵合計（預付金／彈性）</span><span class="v">− ${fmt(deduction)}</span></div>`:''}
+          ${deductions.map(d=>`<div class="row disc"><span class="l">🧾 折抵：${esc(d.label)}</span><span class="v">− ${fmt(d.amount)}</span></div>`).join('')}
         </div>
         <div class="amt"><div class="total"><span class="l" id="grandTotalL">應付總金額${agreeMkt?'（同意拍照）':''}</span><span class="v" id="grandTotalV">${fmt(agreeMkt?payAgree:payNormal)}</span></div></div>
 
@@ -376,6 +384,7 @@ function render(q){
         <div class="mkt">
           <h4>🎁 行銷優惠方案</h4>
           <div class="desc">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
+          <div class="mkt-incentive">勾選同意即享行銷優惠 <b>− ${fmt(mktCut)}</b>　→　優惠價 <b class="hl">${fmt(payAgree)}</b></div>
           <label class="mkt-agree"><input type="checkbox" id="mktCheck" ${agreeMkt?'checked':''} onchange="onMkt(this.checked)"> 我同意拍照攝影授權予繪新媒體</label>
         </div>`:''}
       </div>

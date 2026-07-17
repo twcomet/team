@@ -479,7 +479,8 @@
         <div class="mkt-sign">
           <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
           <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <label style="display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:12px;padding:12px 14px;background:#fff;border:2px solid #6d28d9;border-radius:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:26px;height:26px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
+          <div id="cv_mkt_incentive" style="margin-top:10px;font-size:14px;font-weight:700;color:var(--gray-700)"></div>
+          <label style="display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:10px;padding:12px 14px;background:#fff;border:2px solid #6d28d9;border-radius:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:26px;height:26px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
         </div>
         <div id="custFolds"></div>
         <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
@@ -1327,7 +1328,11 @@ function recalc(){
   document.getElementById('row_deduct').style.display=deductTotal>0?'table-row':'none';
   g('b_deduct','− '+money(deductTotal));g('b_pay',money(pay));
   const promoPay=Math.round(promo*(1+taxRate))-deductTotal;
-  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal,costFloor,belowCost,taxRate,noInvoice};
+  // 折抵明細（名目＋金額）供客戶檢視逐筆顯示
+  const deductList=[];
+  [...prepayPick].forEach(i=>{ const d=PREPAY_DEPOSITS[i]; if(d && (d.amount||0)>0) deductList.push({label:(d.tag||'預收款')+' 預付金', amount:d.amount}); });
+  if(document.getElementById('flexChk').checked) deducts.forEach(d=>{ const a=+d.amount||0; if(a>0) deductList.push({label:d.label||'折抵', amount:a}); });
+  window._cust={sub,promo,afterMkt,mktCut,tax,wtax,pay,promoPay,deductTotal,deductList,costFloor,belowCost,taxRate,noInvoice};
   renderCust(document.getElementById('mktChk')?.checked);
   try{ renderCost(); }catch(e){}   // 毛利依優惠價/行銷優惠價，折扣或行銷變動時同步更新
   markDirty();
@@ -1388,7 +1393,8 @@ function renderCust(useMkt){
   const agree=!!useMkt, promoShown=agree?c.afterMkt:c.promo, tax=agree?c.tax:Math.round(c.promo*(c.taxRate??0.05)), pay=agree?c.pay:c.promoPay;
   _txt('cv_sub',money(c.sub));_txt('cv_promo',money(promoShown));_txt('cv_tax',money(tax));_txt('cv_pay',money(pay));
   { const tl=document.getElementById('cv_tax_line'); if(tl) tl.style.display=c.noInvoice?'none':''; }
-  const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=c.deductTotal>0?`<br>折抵合計：− ${money(c.deductTotal)}`:'';
+  const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=(c.deductList&&c.deductList.length)?c.deductList.map(d=>`<br>折抵：${esc(d.label)}　− ${money(d.amount)}`).join(''):'';
+  const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`勾選同意即享行銷優惠 <b>− ${money(c.mktCut)}</b>　→　優惠價 <b style="color:var(--primary-dark);font-size:17px">${money(c.pay)}</b>`:'';
   syncCustNotice();
 }
 let PGAL=[], PGALI=0, PGCAP='';

@@ -686,6 +686,9 @@ router.get('/sign/:token', (req, res) => {
   q.org_address = q.org_address || '新北市鶯歌區中山路166巷2號';
   q.org_phone   = q.org_phone   || '02-8678-1229';
 
+  // 折抵明細：已套用到本案的預付金（含名目/型別）＋彈性折抵（flex_deducts JSON），供客戶頁逐筆顯示名目
+  q.applied_deposits = db.prepare(`SELECT type, amount, product_name FROM client_deposits WHERE applied_case_id=? AND status='applied' ORDER BY collected_at, id`).all(q.case_id);
+
   // 記錄客戶首次開啟（已傳送後才算，避免草稿內部預覽誤標）→ 列表顯示「客戶已打開」
   if (!q.client_viewed_at && q.status !== 'draft') {
     db.prepare(`UPDATE quote_sheets SET client_viewed_at=CURRENT_TIMESTAMP WHERE id=? AND client_viewed_at IS NULL`).run(q.id);
