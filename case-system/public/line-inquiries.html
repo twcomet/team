@@ -850,7 +850,7 @@ async function openInquiry(id) {
           </div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="toggleClientPanel()" style="padding:3px 8px"><span id="clientToggleLabel">客戶資料 ▾</span></button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="toggleNotePanel()" style="padding:3px 8px"><span id="noteToggleLabel">📝 內部備註${(data.staff_note||'').trim() ? ' ●' : ''} ▾</span></button>
-          ${data.converted_case_id ? `<button type="button" class="btn btn-ghost btn-sm" onclick="toggleCarePanel(${data.converted_case_id})" style="padding:3px 8px"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>` : ''}
+          ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm" onclick="toggleCarePanel()" style="padding:3px 8px"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>` : ''}
         </div>
       </div>
       <div class="det-actions">
@@ -859,8 +859,7 @@ async function openInquiry(id) {
         ${data.status !== 'in_progress' && data.status !== 'converted'
           ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${id},'in_progress')">標記進行中</button>` : ''}
         ${data.status !== 'converted'
-          ? `<button class="btn btn-primary btn-sm" onclick="openConvert(${id})">轉為案件</button>`
-          : `<a href="/case-detail?id=${data.converted_case_id}" target="_blank" class="btn btn-ghost btn-sm">查看案件 ${escHtml(data.converted_case_number||'')} ↗</a>`}
+          ? `<button class="btn btn-primary btn-sm" onclick="openConvert(${id})">轉為案件</button>` : ''}
         ${data.status !== 'invalid' && data.status !== 'converted'
           ? `<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;cursor:pointer" onclick="setStatus(${id},'invalid')">標記無效</button>` : ''}
         ${data.status === 'hidden'
@@ -890,29 +889,31 @@ async function openInquiry(id) {
       </div>
     </div>
 
-    ${data.converted_case_id ? `
+    ${(data.cust_cases && data.cust_cases.length) ? `
     <div class="det-client" id="carePanel" style="display:none">
-      <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px">客服關懷紀錄（存到案件 ${escHtml(data.converted_case_number||'')}，與案件頁同步）</div>
+      <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px">客服關懷紀錄（選擇要存到哪個案件，與案件頁同步）</div>
       <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <select id="careCase" onchange="onCareCaseChange()" title="選擇這筆關懷要存到哪個案件" style="padding:8px 10px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;flex:0 0 auto;background:#fdf2f8;color:#9d174d;font-weight:600;max-width:220px">
+          ${data.cust_cases.map(c => `<option value="${c.id}"${c.id==data.converted_case_id?' selected':''}>🏠 ${escHtml(c.case_number||'')}　${escHtml(c.title||'（未命名）')}</option>`).join('')}
+        </select>
         <select id="careAction" style="padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;flex:0 0 auto">
           <option value="message">💬 訊息</option><option value="call">📞 電聯</option><option value="other">📝 其他</option>
         </select>
         <textarea id="careMemo" rows="2" placeholder="例如：已電聯客戶，確認要轉場勘" style="flex:1;min-width:180px;font-size:13px;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
-        <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="submitInquiryCare(${data.converted_case_id})">儲存關懷</button>
+        <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="submitInquiryCare()">儲存關懷</button>
       </div>
       <div id="careMiniList" style="margin-top:10px"></div>
     </div>` : ''}
 
     ${(data.cust_cases && data.cust_cases.length) ? `
-    <div style="padding:8px 16px;background:#fdf2f8;border-top:1px solid var(--gray-200);border-bottom:1px solid #fbcfe8;display:flex;flex-direction:column;gap:6px">
-      ${data.cust_cases.length > 1 ? `<div style="font-size:11px;color:#9d174d;font-weight:700">這位客人共 ${data.cust_cases.length} 筆案件，點按鈕進各案場：</div>` : ''}
+    <div style="padding:6px 16px;background:#fdf2f8;border-top:1px solid #fbcfe8;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:#9d174d;font-weight:700;white-space:nowrap">🏠 案場${data.cust_cases.length > 1 ? `（${data.cust_cases.length}）` : ''}</span>
       ${data.cust_cases.map(c => `
-      <a href="/case-detail?id=${c.id}" target="_blank"
-         style="display:flex;align-items:center;gap:9px;text-decoration:none">
-        <span style="flex:0 0 auto;font-size:11px;font-weight:800;padding:2px 9px;border-radius:9px;background:#be185d;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap">🏠 ${escHtml(c.case_number||'案件')}</span>
-        <span style="flex:1;min-width:0;font-size:13px;font-weight:600;color:#9d174d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title||'（未命名案場）')}</span>
-        ${caseStatusBadge(c.status, c.case_number)}
-        <span style="flex:0 0 auto;font-size:12px;color:#be185d;white-space:nowrap">進案場 ↗</span>
+      <a href="/case-detail?id=${c.id}" target="_blank" title="進入案場 ${escHtml(c.case_number||'')} ${escHtml(c.title||'')}"
+         style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:4px 11px;background:#fff;border:1px solid #fbcfe8;border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+        <span style="font-size:12px;font-weight:800;color:#be185d;font-variant-numeric:tabular-nums;white-space:nowrap">${escHtml(c.case_number||'案件')}</span>
+        <span style="font-size:12px;font-weight:600;color:#9d174d;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.title||'（未命名）')}</span>
+        <span style="font-size:12px;color:#be185d">↗</span>
       </a>`).join('')}
     </div>` : ''}
 
@@ -1019,22 +1020,29 @@ function toggleNotePanel() {
 
 // ── 客服關懷紀錄（在 LINE 詢問這頁直接存，同步到案件，不用跳回案件頁）──
 const CARE_ACTION_LABEL = { message: '💬 訊息', call: '📞 電聯', other: '📝 其他' };
-function toggleCarePanel(caseId) {
+// 目前選定要存到哪個案件（關懷紀錄可同步到這位客人名下任一案件）
+function currentCareCaseId() {
+  const s = document.getElementById('careCase');
+  return s && s.value ? Number(s.value) : null;
+}
+function toggleCarePanel() {
   const p = document.getElementById('carePanel');
   const lbl = document.getElementById('careToggleLabel');
   if (!p) return;
   const open = p.style.display === 'none';
   p.style.display = open ? '' : 'none';
   if (lbl) lbl.textContent = open ? '📞 關懷紀錄 ▴' : '📞 關懷紀錄 ▾';
-  if (open) { loadInquiryCare(caseId); document.getElementById('careMemo')?.focus(); }
+  if (open) { loadInquiryCare(); document.getElementById('careMemo')?.focus(); }
 }
-async function loadInquiryCare(caseId) {
+function onCareCaseChange() { loadInquiryCare(); }   // 切換案件→載入該案件的關懷紀錄
+async function loadInquiryCare() {
+  const caseId = currentCareCaseId();
   const box = document.getElementById('careMiniList');
-  if (!box) return;
+  if (!box || !caseId) return;
   box.innerHTML = `<div style="font-size:12px;color:var(--gray-400)">載入中…</div>`;
   try {
     const logs = await fetch(`/api/cases/${caseId}/care-logs`).then(r => r.json());
-    if (!Array.isArray(logs) || !logs.length) { box.innerHTML = `<div style="font-size:12px;color:var(--gray-400)">尚無關懷紀錄</div>`; return; }
+    if (!Array.isArray(logs) || !logs.length) { box.innerHTML = `<div style="font-size:12px;color:var(--gray-400)">此案件尚無關懷紀錄</div>`; return; }
     box.innerHTML = logs.slice(0, 6).map(m => `<div style="border-top:1px solid var(--gray-100);padding:6px 0;font-size:12px">
       <span style="color:#9d174d;font-weight:600">${CARE_ACTION_LABEL[m.action] || escHtml(m.action || '')}</span>
       <span style="color:var(--gray-400);margin-left:6px">${fmtTime(m.created_at)}${m.cs_name ? ' · ' + escHtml(m.cs_name) : ''}</span>
@@ -1042,14 +1050,16 @@ async function loadInquiryCare(caseId) {
     </div>`).join('');
   } catch (e) { box.innerHTML = `<div style="font-size:12px;color:#dc2626">載入失敗</div>`; }
 }
-async function submitInquiryCare(caseId) {
+async function submitInquiryCare() {
+  const caseId = currentCareCaseId();
+  if (!caseId) { showToast('請先選擇要存到哪個案件', 'error'); return; }
   const action = document.getElementById('careAction').value;
   const memo = document.getElementById('careMemo').value.trim();
   if (!memo) { showToast('請填寫關懷內容', 'error'); return; }
   const r = await fetch(`/api/cases/${caseId}/care-logs`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, memo })
   });
-  if (r.ok) { showToast('已存關懷紀錄（同步到案件）'); document.getElementById('careMemo').value = ''; loadInquiryCare(caseId); }
+  if (r.ok) { showToast('已存關懷紀錄（同步到案件）'); document.getElementById('careMemo').value = ''; loadInquiryCare(); }
   else { const d = await r.json().catch(() => ({})); showToast(d.error || '儲存失敗', 'error'); }
 }
 
