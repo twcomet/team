@@ -270,6 +270,7 @@
       </div>
     </div>
 
+    <datalist id="estMatModels"></datalist>
     <div class="ec-shell">
       <!-- 第一區：基本資料 -->
       <div class="ec-card ec-basic-card">
@@ -440,6 +441,18 @@ const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型', ceiling:
 function workUnit(it,work){ return work==='ceiling' ? (Number(it.shape)||0)+20 : it[work]; }  // 天花板=造型(shape)+20/才
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
+let MATERIALS=[];   // 物料管理庫存（供「其他」品項型號現貨查詢：現貨/期貨＋幾米）
+async function loadMaterials(){ try{ var r=await fetch('/api/materials'); MATERIALS=r.ok?await r.json():[]; }catch(e){ MATERIALS=[]; } buildMatDatalist(); }
+function fmtStock(v){ var n=Math.round((Number(v)||0)*10)/10; return Number.isInteger(n)?String(n):n.toFixed(1); }
+// 依型號找料（不分大小寫、去空白）；同型號多支加總現貨米數
+function findMatByModel(model){ var m=(model||'').trim().toLowerCase(); if(!m)return null;
+  var hits=MATERIALS.filter(function(x){return String(x.model||'').trim().toLowerCase()===m;});
+  if(!hits.length)return null;
+  return { model:hits[0].model, brand:hits[0].brand, location:hits[0].location, stock:hits.reduce(function(a,x){return a+(Number(x.stock_meters)||0);},0), rows:hits.length };
+}
+function buildMatDatalist(){ var dl=document.getElementById('estMatModels'); if(!dl)return;
+  dl.innerHTML=MATERIALS.map(function(m){return '<option value="'+escAttr(m.model||'')+'">'+escAttr((m.brand?m.brand+' ':'')+(m.sku?'['+m.sku+'] ':'')+'現貨'+fmtStock(m.stock_meters)+'米')+'</option>';}).join('');
+}
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
 let QPHOTOS=[];   // 這張估價單的照片庫（客人導入＋上傳），供各品項挑選掛照片
 let QSHOW=1;      // 客戶可見明細：1=含明細、0=只顯示總額（分享連結/PDF 跟著走）
@@ -662,8 +675,8 @@ function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[i
 function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var W=(it.mBrand&&FILMS[it.mBrand]&&FILMS[it.mBrand].items[it.mIdx||0])?filmW(FILMS[it.mBrand].items[it.mIdx||0]):122;   // 有選膜料用其膜寬，否則預設122
   var wL=(Number(it.w)||0)+10, hL=(Number(it.h)||0)+10;   // 含損耗尺寸：寬+10、高+10
-  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM)+'|'+(it.mBrand||'')+'|'+(it.mIdx==null?'':it.mIdx)+'|'+(it.mWork||'')+'|'+(COMBINE?'C':'L');
-  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,W:W,series:'寬'+it.w+'×高'+it.h+' cm',caiRaw:it.w*it.h/900,caiM:(it.caiM==null?null:Number(it.caiM)),unit:it.unit,photo:'',mBrand:it.mBrand||'',mIdx:(it.mIdx==null?0:it.mIdx),mWork:it.mWork||'',n:0,full:0,pieces:[],looseCai:0,idxs:[]};
+  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM)+'|'+(it.mBrand||'')+'|'+(it.mIdx==null?'':it.mIdx)+'|'+(it.mWork||'')+'|'+(it.model||'')+'|'+(COMBINE?'C':'L');
+  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,W:W,series:'寬'+it.w+'×高'+it.h+' cm',caiRaw:it.w*it.h/900,caiM:(it.caiM==null?null:Number(it.caiM)),unit:it.unit,photo:'',mBrand:it.mBrand||'',mIdx:(it.mIdx==null?0:it.mIdx),mWork:it.mWork||'',model:it.model||'',n:0,full:0,pieces:[],looseCai:0,idxs:[]};
   var x=g[k];
   if(COMBINE){var full=Math.floor(wL/W),rem=wL-full*W;x.full+=full*(hL/100);if(rem>0)x.pieces.push({h:hL,w:rem,comb:rem<(W-2)});}   // 拼料省料
   else{x.looseCai+=Math.ceil(wL/W)*W*hL/900;}   // 寬鬆(多報)：寬進位到整幅膜寬
@@ -674,7 +687,7 @@ function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var lossGroup=r.cai, lossEach=x.n?lossGroup/x.n:lossGroup;         // 含損耗才數（全組／每件）
   var priceEach=(x.caiM!=null)?x.caiM:lossEach;                      // 計價才數(每件)：手動覆寫優先
   var amount=(x.caiM!=null)?ceil100(x.caiM*x.unit)*x.n:ceil100(lossGroup*x.unit);
-  return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:priceEach,caiRaw:x.caiRaw,caiLoss:lossEach,over:(x.caiM!=null),unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,n:x.n,amount:amount,idxs:x.idxs};});}
+  return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:priceEach,caiRaw:x.caiRaw,caiLoss:lossEach,over:(x.caiM!=null),unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,model:x.model,n:x.n,amount:amount,idxs:x.idxs};});}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 // 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算
 function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -683,6 +696,7 @@ function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEa
   else if(field==='h'){it.h=Number(val)||0;it.caiM=null;}
   else if(field==='cai'){it.caiM=(val===''?null:(Number(val)||0));} // 手動覆寫才數
   else if(field==='unit'){it.unit=Number(val)||0;}
+  else if(field==='model'){it.model=val;}   // 型號（非必填）→現貨查詢
 });render();}
 // 選材料（品牌/膜款/工法）→ 自動帶連工帶料 元/才 到 unit（仍可手動覆寫一材單價）
 function editOtherMat(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -698,11 +712,21 @@ function otherMatHtml(L,csv){var sel='padding:4px 6px;border:1px solid var(--ec-
   var items=(L.mBrand&&FILMS[L.mBrand])?FILMS[L.mBrand].items:[];
   var iopt=items.map(function(it,i){return '<option value="'+i+'"'+(i===L.mIdx?' selected':'')+'>'+escAttr(fmtItem(it))+'</option>';}).join('');
   var wopt=Object.keys(workName).map(function(w){return '<option value="'+w+'"'+(w===(L.mWork||'plane')?' selected':'')+'>'+workName[w]+'</option>';}).join('');
+  // 型號現貨查詢（非必填）：輸入/選型號→顯示現貨幾米(現貨/期貨)
+  var mat=findMatByModel(L.model);
+  var stockChip=(!L.model||!L.model.trim())
+    ? '<span style="color:#9ca3af;font-size:11px">（非必填）</span>'
+    : (mat
+        ? '<span title="架位：'+escAttr(mat.location||'—')+'" style="font-size:11px;font-weight:700;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:1px 8px;white-space:nowrap">🟢 現貨 '+fmtStock(mat.stock)+' 米</span>'
+        : '<span title="庫存查無此型號＝期貨，需採購" style="font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:1px 8px;white-space:nowrap">🟡 期貨（庫存查無）</span>');
   return '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#6b7280">'
    +'<span style="color:#9ca3af">材料</span>'
    +'<select onchange="editOtherMat(\''+csv+'\',\'brand\',this.value)" style="'+sel+'">'+bopt+'</select>'
    +(L.mBrand?'<select onchange="editOtherMat(\''+csv+'\',\'idx\',this.value)" style="'+sel+'">'+iopt+'</select>':'')
    +(L.mBrand?'<select onchange="editOtherMat(\''+csv+'\',\'work\',this.value)" style="'+sel+'">'+wopt+'</select>':'')
+   +'<span style="color:#9ca3af;margin-left:6px">型號</span>'
+   +'<input list="estMatModels" value="'+escAttr(L.model||'')+'" onchange="editOther(\''+csv+'\',\'model\',this.value)" placeholder="輸入/選型號 如 WP-02" style="padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px;width:150px">'
+   +stockChip
    +'</div>';}
 function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
   var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
@@ -1129,6 +1153,7 @@ async function prefillFromCase(id){
   if(window.loadUser)await loadUser();
   if(window.highlightNav)highlightNav('estimator');
   await loadCatalog();
+  await loadMaterials();   // 載庫存供型號現貨查詢
   fillSel('b-region',Object.keys(FREIGHT).map(function(k){return {v:k,t:k};}));
   buildFilmPane('w');buildFilmPane('c');buildFilmPane('s');buildFilmPane('t');
   ocrInit();
