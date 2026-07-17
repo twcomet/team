@@ -222,6 +222,25 @@
       </div>
     </div>
 
+    <!-- 品項照片選擇器：從估價單照片庫挑，或上傳新照片 -->
+    <div id="estPhotoPicker" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closePhotoPicker()">
+      <div style="background:#fff;border-radius:14px;width:min(520px,94vw);max-height:86vh;overflow:auto;padding:16px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <b style="font-size:15px">📷 品項照片</b>
+          <span style="cursor:pointer;font-size:20px;color:#9ca3af" onclick="closePhotoPicker()">×</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px">從照片庫（含客人提供的照片）挑一張，或上傳新的：</div>
+        <div id="photoPickerGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--ec-border);padding-top:12px">
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#1d4ed8;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+            ⬆️ 上傳照片<input type="file" accept="image/*" style="display:none" onchange="uploadOtherPhoto(this)">
+          </label>
+          <button type="button" onclick="clearOtherPhoto()" style="padding:8px 14px;background:#fff;border:1px solid var(--ec-border);border-radius:8px;font-size:13px;cursor:pointer;color:#dc2626">移除此品項照片</button>
+          <span id="photoUpStatus" style="font-size:12px;color:#6b7280"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="ec-shell">
       <!-- 第一區：基本資料 -->
       <div class="ec-card ec-basic-card">
@@ -332,7 +351,7 @@
         <!-- 第三區：估價明細(放大) | 金額計算(靠右) -->
         <div class="ec-result">
           <div class="ec-card ec-detail">
-            <div class="ec-qhead"><b>📋 估價明細（顯示原價）</b><span class="ec-rm" onclick="clearAll()">清空全部</span></div>
+            <div class="ec-qhead"><b>📋 估價明細（顯示原價）</b><span style="display:flex;gap:10px;align-items:center"><button type="button" onclick="openHistory()" style="font-size:12px;color:#2563eb;font-weight:600;background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:4px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">🔍 查歷史報價</button><span class="ec-rm" onclick="clearAll()">清空全部</span></span></div>
             <div id="lines"><div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div></div>
           </div>
           <div class="ec-side">
@@ -385,6 +404,7 @@ function workUnit(it,work){ return work==='ceiling' ? (Number(it.shape)||0)+20 :
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
 let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
+let QPHOTOS=[];   // 這張估價單的照片庫（客人導入＋上傳），供各品項挑選掛照片
 const EPARAMS = new URLSearchParams(location.search);
 
 const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
@@ -570,9 +590,10 @@ function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var cai=(it.caiM!=null&&it.caiM!=='')?Number(it.caiM):it.w*it.h/900;   // 才數可手動覆寫，否則寬×高÷900
   var amt=ceil100(cai*it.unit);
   var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM);
-  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};
+  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,photo:'',n:0,amount:0,idxs:[]};
+  if(it.photo&&!g[k].photo)g[k].photo=it.photo;
   g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);
-});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:x.cai,unit:x.unit,photo:x.photo,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 // 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算
 function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -584,7 +605,13 @@ function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEa
 });render();}
 function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
   var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
-  return '<div class="ec-grp"><div class="ec-gh"><b>其他｜<input value="'+escAttr(L.name)+'" onchange="editOther(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
+  var ph=L.photo
+    ? '<img src="'+escAttr(L.photo)+'" onclick="openOtherPhoto(\''+csv+'\')" title="點擊更換/移除照片" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--ec-border);cursor:pointer;flex:0 0 auto">'
+    : '<button type="button" onclick="openOtherPhoto(\''+csv+'\')" title="加照片" style="width:54px;height:54px;border:1px dashed var(--ec-border);border-radius:8px;background:#fafafa;cursor:pointer;font-size:18px;color:#9ca3af;flex:0 0 auto;line-height:1">📷</button>';
+  return '<div class="ec-grp"><div style="display:flex;gap:10px;align-items:flex-start">'
+   +ph
+   +'<div style="flex:1;min-width:0">'
+   +'<div class="ec-gh"><b>其他｜<input value="'+escAttr(L.name)+'" onchange="editOther(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#6b7280">'
    +'<label>寬<input type="number" value="'+L.w+'" onchange="editOther(\''+csv+'\',\'w\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
    +'<label>高<input type="number" value="'+L.h+'" onchange="editOther(\''+csv+'\',\'h\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
@@ -594,7 +621,23 @@ function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?
    +(L.n>1?'<span>×'+L.n+' 件</span>':'')
    +(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>':'')
    +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
-   +'</div></div>';}
+   +'</div></div></div></div>';}
+// 每個「其他」品項的照片：從估價單照片庫(客人導入)挑，或上傳新的
+function setOtherPhoto(csv,url){csv.split(',').map(Number).forEach(function(i){if(CART[i]&&CART[i].kind==='other')CART[i].photo=url||'';});render();}
+var _photoTarget=null;
+function openOtherPhoto(csv){_photoTarget=csv;renderPhotoPicker();document.getElementById('estPhotoPicker').style.display='flex';}
+function closePhotoPicker(){document.getElementById('estPhotoPicker').style.display='none';}
+function renderPhotoPicker(){var box=document.getElementById('photoPickerGrid');
+  box.innerHTML=QPHOTOS.length?QPHOTOS.map(function(u,i){return '<img src="'+escAttr(u)+'" onclick="pickOtherPhotoIdx('+i+')" title="選這張" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--ec-border);cursor:pointer">';}).join(''):'<div style="color:#9ca3af;font-size:13px;padding:10px">尚無照片，請用下方「上傳照片」新增。</div>';}
+function pickOtherPhotoIdx(i){setOtherPhoto(_photoTarget,QPHOTOS[i]);closePhotoPicker();}
+function clearOtherPhoto(){setOtherPhoto(_photoTarget,'');closePhotoPicker();}
+async function uploadOtherPhoto(input){var file=input.files[0];if(!file)return;input.value='';
+  var st=document.getElementById('photoUpStatus');st.textContent='上傳中…';
+  try{var fd=new FormData();fd.append('image',file);
+    var r=await fetch('/api/storage/upload',{method:'POST',body:fd});var j=await r.json();
+    if(r.ok&&j.url){if(QPHOTOS.indexOf(j.url)<0)QPHOTOS.push(j.url);setOtherPhoto(_photoTarget,j.url);st.textContent='';closePhotoPicker();}
+    else st.textContent='上傳失敗：'+(j.error||r.status);
+  }catch(e){st.textContent='上傳失敗：'+e.message;}}
 function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
 // 其他特殊品項：米數=米×條；材數=米數×單才(才/米)；金額=材數×連工帶料(元/才)→進位百元
 function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
@@ -723,7 +766,7 @@ async function saveQuote(status){
    var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
    var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
      customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
-     items:CART, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
+     items:CART, photos:QPHOTOS, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, status:status||'draft' };
    var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    var j=await r.json();
@@ -819,6 +862,7 @@ async function loadEstQuote(id){
     if(!q){alert('找不到估價單 #'+id);return;}
     editId=q.id; SHARE_TOKEN=q.share_token||null; ECASE=q.case_id||null;
     CART=Array.isArray(q.items)?q.items:[];
+    QPHOTOS=Array.isArray(q.photos)?q.photos:[];
     document.getElementById('b-project').value=q.project_name||'';
     if(document.getElementById('b-cust')) document.getElementById('b-cust').value=q.customer_type||'owner';
     if(q.region && document.getElementById('b-region')) document.getElementById('b-region').value=q.region;
