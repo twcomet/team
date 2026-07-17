@@ -589,11 +589,11 @@ function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[i
 function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var cai=(it.caiM!=null&&it.caiM!=='')?Number(it.caiM):it.w*it.h/900;   // 才數可手動覆寫，否則寬×高÷900
   var amt=ceil100(cai*it.unit);
-  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM);
-  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,photo:'',n:0,amount:0,idxs:[]};
+  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM)+'|'+(it.mBrand||'')+'|'+(it.mIdx==null?'':it.mIdx)+'|'+(it.mWork||'');
+  g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,series:'寬'+it.w+'×高'+it.h+' cm',cai:cai,unit:it.unit,photo:'',mBrand:it.mBrand||'',mIdx:(it.mIdx==null?0:it.mIdx),mWork:it.mWork||'',n:0,amount:0,idxs:[]};
   if(it.photo&&!g[k].photo)g[k].photo=it.photo;
   g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);
-});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:x.cai,unit:x.unit,photo:x.photo,n:x.n,amount:x.amount,idxs:x.idxs};});}
+});return Object.keys(g).map(function(k){var x=g[k];return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:x.cai,unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,n:x.n,amount:x.amount,idxs:x.idxs};});}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 // 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算
 function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -603,6 +603,26 @@ function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEa
   else if(field==='cai'){it.caiM=(val===''?null:(Number(val)||0));} // 手動覆寫才數
   else if(field==='unit'){it.unit=Number(val)||0;}
 });render();}
+// 選材料（品牌/膜款/工法）→ 自動帶連工帶料 元/才 到 unit（仍可手動覆寫一材單價）
+function editOtherMat(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
+  if(field==='brand'){it.mBrand=val;it.mIdx=0;if(!it.mWork)it.mWork='plane';}   // 換品牌→膜款回第一個、工法預設牆面
+  else if(field==='idx'){it.mIdx=Number(val)||0;}
+  else if(field==='work'){it.mWork=val;}
+  if(it.mBrand&&FILMS[it.mBrand]&&it.mWork){var fi=FILMS[it.mBrand].items[it.mIdx||0];if(fi){var u=workUnit(fi,it.mWork);it.unit=Math.round(Number(u)||0);}}
+});render();}
+// 材料下拉：品牌→膜款→工法，選了自動帶連工帶料 元/才
+function otherMatHtml(L,csv){var sel='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px;max-width:190px';
+  var brands=Object.keys(FILMS);if(!brands.length)return '';
+  var bopt='<option value="">選膜料…</option>'+brands.map(function(b){return '<option value="'+escAttr(b)+'"'+(b===L.mBrand?' selected':'')+'>'+escAttr(FILMS[b].label||b)+'</option>';}).join('');
+  var items=(L.mBrand&&FILMS[L.mBrand])?FILMS[L.mBrand].items:[];
+  var iopt=items.map(function(it,i){return '<option value="'+i+'"'+(i===L.mIdx?' selected':'')+'>'+escAttr(fmtItem(it))+'</option>';}).join('');
+  var wopt=Object.keys(workName).map(function(w){return '<option value="'+w+'"'+(w===(L.mWork||'plane')?' selected':'')+'>'+workName[w]+'</option>';}).join('');
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#6b7280">'
+   +'<span style="color:#9ca3af">材料</span>'
+   +'<select onchange="editOtherMat(\''+csv+'\',\'brand\',this.value)" style="'+sel+'">'+bopt+'</select>'
+   +(L.mBrand?'<select onchange="editOtherMat(\''+csv+'\',\'idx\',this.value)" style="'+sel+'">'+iopt+'</select>':'')
+   +(L.mBrand?'<select onchange="editOtherMat(\''+csv+'\',\'work\',this.value)" style="'+sel+'">'+wopt+'</select>':'')
+   +'</div>';}
 function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
   var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
   var ph=L.photo
@@ -621,7 +641,7 @@ function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?
    +(L.n>1?'<span>×'+L.n+' 件</span>':'')
    +(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>':'')
    +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
-   +'</div></div></div></div>';}
+   +'</div>'+otherMatHtml(L,csv)+'</div></div></div>';}
 // 每個「其他」品項的照片：從估價單照片庫(客人導入)挑，或上傳新的
 function setOtherPhoto(csv,url){csv.split(',').map(Number).forEach(function(i){if(CART[i]&&CART[i].kind==='other')CART[i].photo=url||'';});render();}
 var _photoTarget=null;
