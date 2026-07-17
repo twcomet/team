@@ -477,7 +477,7 @@
             <thead><tr>
               <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
               <th style="width:98px">膜料資訊</th><th id="cth_img" style="width:170px">膜料示意圖</th><th id="cth_photo" style="width:200px">貼覆區域（現場照）</th>
-              <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
+              <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th id="cth_cai" style="width:60px;white-space:nowrap">才數</th><th style="width:42px">數量</th>
               <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
@@ -1381,8 +1381,10 @@ function renderCust(useMkt){
   const showFilmImg=_nt.some(it=>it.filmImg);
   const showSitePhoto=_nt.some(it=>it.areaPhotos&&it.areaPhotos.length);
   const _allMat=_nt.length&&_nt.every(it=>it.mode==='material');
+  const _anyCai=_nt.some(it=>it.mode==='cai');           // 有以才計價的品項才顯示「才數」欄
+  const showCai=_anyCai&&!owner;                          // 業主版隱藏才數
   const _tg=(id,show)=>{const e=document.getElementById(id);if(e)e.style.display=show?'':'none';};
-  _tg('cth_img',showFilmImg); _tg('cth_photo',showSitePhoto);
+  _tg('cth_img',showFilmImg); _tg('cth_photo',showSitePhoto); _tg('cth_cai',showCai);
   _txt('cth_unit',_allMat?'每米材料單價':'連工帶料單價');
   _txt('cth_total',_allMat?'材料總價':'連工帶料總價');
   _txt('cth_promo',_allMat?'材料優惠價':'連工帶料優惠價');
@@ -1396,6 +1398,7 @@ function renderCust(useMkt){
       return `<tr><td class="c" style="font-weight:700">${i+1}</td>
         <td colspan="${mergeCol}" style="background:var(--gray-50)"><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div></td>
         ${owner?'':`<td class="num">${priced?money(it.unitEach):'—'}</td>`}
+        ${showCai?`<td class="num">—</td>`:''}
         <td class="num">${priced?(it.qty||1):'—'}</td>
         <td class="num q-orig">${priced?money(totOf(it)):'—'}</td>
         ${hasDisc?`<td class="num">${priced?`<span class="q-promo">${money(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
@@ -1408,6 +1411,7 @@ function renderCust(useMkt){
       ${showFilmImg?`<td class="c">${it.filmImg?`<img class="q-single" src="${esc(it.filmImg)}" onclick="openPhoto(${i},'film')" alt="膜料示意圖">`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>`:''}
       ${showSitePhoto?`<td class="c">${(it.areaPhotos&&it.areaPhotos.length)?(it.areaPhotos.length===1?`<img class="q-single" src="${esc(it.areaPhotos[0])}" onclick="openPhoto(${i},0)" alt="現場照">`:`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`):`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>`:''}
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
+      ${showCai?`<td class="num">${it.mode==='cai'?caiOf(it).toFixed(1):'—'}</td>`:''}
       <td class="num">${it.qty||1}</td>
       <td class="num q-orig">${money(totOf(it))}</td>
       ${hasDisc?`<td class="num"><span class="q-promo">${money(promoOf(it))}</span></td>`:''}

@@ -331,6 +331,8 @@ function render(q){
   const showSitePhoto = _nt.some(it=>{ let a=[]; try{a=JSON.parse(it.area_photos||'[]')||[];}catch(e){} return !!(it.area_photo_url||a.length); });
   // 全部品項都是材料販售 → 欄位標題用「材料」而非「連工帶料」
   const _allMat = _nt.length && _nt.every(it=>it.calc_mode==='material');
+  const _anyCai = _nt.some(it=>it.calc_mode==='cai');   // 有以才計價的品項才顯示「才數」欄
+  const showCai = _anyCai && !hideChi;                   // 業主版隱藏才數
   const lblUnit  = _allMat ? '每米材料單價' : '連工帶料單價';
   const lblTotal = _allMat ? '材料總價'     : '連工帶料總價';
   const lblPromo = _allMat ? '材料優惠價'   : '連工帶料優惠價';
@@ -369,10 +371,10 @@ function render(q){
             <th style="width:98px">膜料資訊</th>
             ${showFilmImg?'<th style="width:170px">膜料示意圖</th>':''}
             ${showSitePhoto?'<th style="width:200px">貼覆區域（現場照）</th>':''}
-            ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
+            ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}${showCai?'<th style="width:60px;white-space:nowrap">才數</th>':''}<th style="width:42px">數量</th>
             <th style="width:108px;white-space:nowrap">${lblTotal}</th>${hasDiscount?`<th style="width:120px;white-space:nowrap">${lblPromo}</th>`:''}
           </tr></thead>
-          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount)).join('')}</tbody>
+          <tbody>${items.map((it,i)=>rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount,showCai)).join('')}</tbody>
         </table></div>
         <div class="scroll-hint">← 左右滑動可看數量與價格 →</div>
       </div>`:''}
@@ -420,7 +422,7 @@ function render(q){
   if(!accepted && !isExpired) setupCanvas();
 }
 
-function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount){
+function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount,showCai){
   // 合併欄跨：貼覆項目 + 膜料資訊 (+ 膜料示意圖) (+ 現場照)
   const mergeCol = 2 + (showFilmImg?1:0) + (showSitePhoto?1:0);
   if(it.row_kind==='text'){
@@ -428,6 +430,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount){
     return `<tr><td class="c" style="font-weight:700">${i+1}</td>
       <td colspan="${mergeCol}" style="background:var(--gray-50)"><div class="q-name">${esc(it.description||it.location||'')}</div><div class="q-note">${noteHtml(it.notes)}</div></td>
       ${hideChi?'':`<td class="num">${priced?fmt(it.unit_price):'—'}</td>`}
+      ${showCai?`<td class="num">—</td>`:''}
       <td class="num">${priced?(it.quantity||1):'—'}</td>
       <td class="num q-orig">${priced?fmt(it.subtotal):'—'}</td>
       ${hasDiscount?`<td class="num">${priced?`<span class="q-promo">${fmt(promoOf(it))}</span>`:'—'}</td>`:''}</tr>`;
@@ -439,6 +442,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount){
     ${showFilmImg?`<td class="c">${filmImg(it)}</td>`:''}
     ${showSitePhoto?`<td class="c">${siteThumbs(it)}</td>`:''}
     ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?' /米':''):'—'}</td>`}
+    ${showCai?`<td class="num">${it.calc_mode==='cai'&&it.area_sqchi!=null?Number(it.area_sqchi).toFixed(1):'—'}</td>`:''}
     <td class="num">${it.quantity||1}</td>
     <td class="num q-orig">${fmt(it.subtotal)}</td>
     ${hasDiscount?`<td class="num"><span class="q-promo">${fmt(promoOf(it))}</span></td>`:''}
