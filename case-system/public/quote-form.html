@@ -301,6 +301,7 @@
       <select id="clientType" onchange="markDirty();renderCust(document.getElementById('mktChk')?.checked)"><option value="designer">設計師版（顯示單價/才數/尺寸）</option><option value="owner">業主版（隱藏單價/才數/尺寸）</option></select></span>
     <span class="grow"></span>
     <span id="saveStatus" style="font-size:12px;color:var(--gray-400)"></span>
+    <button class="btn sm" id="backToEditBtn" onclick="toggleCust(false)" style="display:none">← 回編輯</button>
     <button class="btn sm" onclick="openCust()">👁 客戶檢視</button>
     <button class="btn sm" onclick="openPreview()">🔗 客戶連結</button>
     <button class="btn sm" id="pdfBtn" onclick="openPdf()">📄 下載 PDF</button>
@@ -449,7 +450,7 @@
 
   <!-- customer view -->
   <div class="cust-view">
-    <div class="toolbar"><button class="btn sm" onclick="toggleCust(false)">← 回編輯</button><span class="grow"></span><span style="font-size:12px;color:var(--gray-500)">客戶收到連結看到的樣子（不含成本）</span></div>
+    <div class="toolbar"><span class="grow"></span><span style="font-size:12px;color:var(--gray-500)">客戶收到連結看到的樣子（不含成本）</span></div>
     <div class="cust-card">
       <div class="cust-hd"><h2><img class="cust-mark" src="/logo.png" alt="" onerror="this.style.display='none'">繪新國際有限公司 · 報價單</h2><p id="custDate">報價確認單</p></div>
       <div class="party">
@@ -476,7 +477,7 @@
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
         <div class="mkt-sign">
           <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
-          <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影紀錄、授權用於官網及社群（不揭露個資），即可享行銷優惠價。</div>
+          <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
           <div class="cmp">
             <div class="col" id="col_normal"><div class="t">不同意拍照（優惠價）</div><div class="v" id="ms_normal"></div></div>
             <div class="col" id="col_mkt"><div class="t">同意拍照（行銷優惠價）</div><div class="v" style="color:var(--primary-dark)" id="ms_mkt"></div></div>
@@ -1608,7 +1609,7 @@ async function deleteTpl(id){
   }catch(e){ alert('刪除失敗：'+(e.message||e)); }
 }
 
-function toggleCust(on){if(on){try{renderCust(document.getElementById('mktChk')?.checked);}catch(e){}}document.querySelector('.editor-view').classList.toggle('hide',on);document.querySelector('.cust-view').classList.toggle('on',on);window.scrollTo(0,0);}
+function toggleCust(on){if(on){try{renderCust(document.getElementById('mktChk')?.checked);}catch(e){}}document.querySelector('.editor-view').classList.toggle('hide',on);document.querySelector('.cust-view').classList.toggle('on',on);var be=document.getElementById('backToEditBtn');if(be)be.style.display=on?'':'none';window.scrollTo(0,0);}
 
 boot();
 </script>
