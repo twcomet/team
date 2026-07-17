@@ -184,6 +184,8 @@
   .chip-ro{border-radius:8px;padding:7px 11px;font-size:13px;font-weight:800;text-align:center;background:#fff;border:1px solid var(--gray-300);color:var(--gray-700);min-width:56px}
   .chip-est{border-radius:8px;padding:7px 12px;font-size:13.5px;font-weight:800;text-align:center;background:#e0e7ff;color:#4338ca}
   .chip-svy{background:#eefaf3!important;border-color:#8ed3ab!important;color:#1f8a5b!important}
+  .mktf-card{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:12px;padding:14px 18px;background:#fff;border:2px solid #6d28d9;border-radius:12px;cursor:pointer;transition:box-shadow .15s,background .15s}
+  .mktf-card.on{box-shadow:0 0 0 3px rgba(109,40,217,.16);background:#faf5ff}
 
   .pricebox{margin-left:auto;border:1.5px solid var(--primary);border-radius:12px;padding:11px 14px;background:var(--primary-bg);min-width:216px;align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:9px}
   .pb-t{font-size:11px;font-weight:800;color:var(--primary-dark);text-align:center}
@@ -487,12 +489,11 @@
           <span id="cv_deduct_line"></span></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
         <div class="mkt-sign">
-          <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案</div>
-          <div style="font-size:12px;color:var(--gray-600);margin-top:4px">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價。</div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:10px">
-            <label style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;cursor:pointer"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:24px;height:24px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"> 我同意拍照攝影授權予繪新媒體</label>
-            <div id="cv_mkt_incentive" style="font-size:14px;font-weight:700;color:var(--gray-700)"></div>
-          </div>
+          <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案 <span style="font-weight:400;font-size:12px;color:var(--gray-600)">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價</span></div>
+          <label class="mktf-card" id="mktfCard">
+            <span style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:24px;height:24px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"><span style="font-size:15px;font-weight:800;color:var(--gray-900)">我同意拍照攝影授權予繪新媒體</span></span>
+            <span id="cv_mkt_incentive" style="text-align:right;line-height:1.2"></span>
+          </label>
         </div>
         <div id="custFolds"></div>
         <div style="margin-top:16px;font-weight:700;font-size:14px">客戶簽章確認 <span style="font-weight:400;font-size:12px;color:var(--gray-500)">（簽名同時代表接受報價與已勾選的行銷優惠條款）</span></div>
@@ -1417,7 +1418,8 @@ function renderCust(useMkt){
   { const ml=document.getElementById('cv_mkt_line'); if(ml) ml.innerHTML=(agree&&c.mktCut>0)?`🎁 行銷優惠折減（同意拍照）：− ${money(c.mktCut)}<br>`:''; }
   { const tl=document.getElementById('cv_tax_line'); if(tl) tl.style.display=c.noInvoice?'none':''; }
   const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=(c.deductList&&c.deductList.length)?c.deductList.map(d=>`<br>折抵：${esc(d.label)}　− ${money(d.amount)}`).join(''):'';
-  const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`行銷優惠折 <b>− ${money(c.mktCut)}</b>　→　優惠價 <b style="color:var(--primary-dark);font-size:18px">${money(c.pay)}</b>`:'';
+  const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`<span style="display:block;font-size:11px;font-weight:700;color:var(--gray-500)">勾選即享・行銷優惠價</span><span style="display:block;font-size:21px;font-weight:900;color:var(--primary-dark)">${money(c.pay)} <small style="font-size:12px;font-weight:700;color:#059669">省 ${money(c.mktCut)}</small></span>`:'';
+  document.getElementById('mktfCard')?.classList.toggle('on', !!useMkt);
   syncCustNotice();
 }
 let PGAL=[], PGALI=0, PGCAP='';
