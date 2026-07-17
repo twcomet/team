@@ -4105,6 +4105,8 @@ _addCol('est_quotes', 'share_token',      'TEXT');
 _addCol('est_quotes', 'client_viewed_at', 'DATETIME');
 // 客戶可見明細：1=含明細（材料/寬高/才），0=只顯示總額。分享連結＋PDF＋客戶檢視都跟著走
 _addCol('est_quotes', 'show_detail',      'INTEGER DEFAULT 1');
+// 計料方式：0=寬鬆(多報)、1=拼料省料。存起來讓存檔總額＋客戶頁與估價機顯示一致
+_addCol('est_quotes', 'combine',          'INTEGER DEFAULT 0');
 // token 唯一（允許多筆 NULL：舊資料未產生前為空）
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_est_quotes_token ON est_quotes(share_token) WHERE share_token IS NOT NULL`);
 

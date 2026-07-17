@@ -129,7 +129,8 @@ function computeAndPersistFields(b) {
   // 整體折扣硬性限制：最多 8 折（0.8 ~ 1），防前端被繞過
   let disc = parseFloat(b.disc); if (isNaN(disc) || disc > 1) disc = 1; if (disc < 0.8) disc = 0.8;
   b.disc = disc;
-  const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc }, eng.buildCatalogFromDb(db));
+  const combine = !!b.combine;   // 拼料省料/寬鬆：必須傳給引擎，否則存檔總額固定用寬鬆、與估價機顯示不符
+  const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc, combine }, eng.buildCatalogFromDb(db));
   return { items, r };
 }
 router.post('/quotes', requireAuth, (req, res) => {
@@ -137,13 +138,13 @@ router.post('/quotes', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const token = genToken();
   const info = db.prepare(`INSERT INTO est_quotes
-    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token,show_detail)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token,show_detail,combine)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', req.session.user.id, token, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1);
+      b.status || 'draft', req.session.user.id, token, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0);
   res.json({ ok: true, id: info.lastInsertRowid, total: r.total, share_token: token });
 });
 router.put('/quotes/:id', requireAuth, (req, res) => {
@@ -151,13 +152,13 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const info = db.prepare(`UPDATE est_quotes SET
     case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
-    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,updated_at=datetime('now','localtime')
+    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,combine=?,updated_at=datetime('now','localtime')
     WHERE id=?`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), (Array.isArray(b.photos) ? JSON.stringify(b.photos) : null), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, req.params.id);
+      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0, req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
 });
@@ -297,7 +298,7 @@ router.get('/quotes/sign/:token', (req, res) => {
   if (!q) return res.status(404).json({ error: '找不到估價單' });
   if (!q.client_viewed_at) db.prepare(`UPDATE est_quotes SET client_viewed_at=datetime('now','localtime') WHERE id=?`).run(q.id);
   const items = JSON.parse(q.items_json || '[]');
-  const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc }, eng.buildCatalogFromDb(db));
+  const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc, combine: !!q.combine }, eng.buildCatalogFromDb(db));
   const owner = q.customer_type === 'owner';
   const showDetail = q.show_detail !== 0;   // 0=只顯示總額（不外洩任何明細）
   // 含明細：材料/尺寸/才數/圖片一律顯示（含業主版）；僅「一材單價」對業主隱藏

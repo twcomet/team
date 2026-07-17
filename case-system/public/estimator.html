@@ -1035,6 +1035,7 @@ async function loadEstQuote(id){
     editId=q.id; SHARE_TOKEN=q.share_token||null; ECASE=q.case_id||null;
     CART=Array.isArray(q.items)?q.items:[];
     QPHOTOS=Array.isArray(q.photos)?q.photos:[];
+    COMBINE=!!q.combine;   // 還原計料方式(拼料省料/寬鬆)，讓顯示與存檔一致
     QSHOW=(q.show_detail===0?0:1);
     if(document.getElementById('q-showdetail')) document.getElementById('q-showdetail').value=String(QSHOW);
     document.getElementById('b-project').value=q.project_name||'';
