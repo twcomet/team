@@ -183,6 +183,7 @@
   .fld.hl-svy > label{color:#1f8a5b} .fld.hl-svy input{border-color:#8ed3ab;background:#eefaf3;font-weight:800;color:#1f8a5b}
   .chip-ro{border-radius:8px;padding:7px 11px;font-size:13px;font-weight:800;text-align:center;background:#fff;border:1px solid var(--gray-300);color:var(--gray-700);min-width:56px}
   .chip-est{border-radius:8px;padding:7px 12px;font-size:13.5px;font-weight:800;text-align:center;background:#e0e7ff;color:#4338ca}
+  .chip-svy{background:#eefaf3!important;border-color:#8ed3ab!important;color:#1f8a5b!important}
 
   .pricebox{margin-left:auto;border:1.5px solid var(--primary);border-radius:12px;padding:11px 14px;background:var(--primary-bg);min-width:216px;align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:9px}
   .pb-t{font-size:11px;font-weight:800;color:var(--primary-dark);text-align:center}
@@ -1121,7 +1122,7 @@ function renderRows(){
       <div class="cgrp cgrp-est" style="flex:1;min-width:${isCai?'240':'340'}px">
         <div class="cgrp-t">🧮 客服內部估價（參考・不對外）</div>
         <div class="cfields">
-          <div class="fld"><label>米數（帶入）</label><div class="chip-ro" id="estm${i}">${it.srvMeters||0}</div></div>
+          <div class="fld"><label style="color:#1f8a5b">工務回報米數（帶入）</label><div class="chip-ro chip-svy" id="estm${i}">${it.srvMeters||0}</div></div>
           <span class="eq">×</span>
           <div class="fld"><label>膜寬 cm</label><input type="number" value="${it.width}" oninput="setNum(${i},'width',this.value)" style="width:72px"></div>
           <span class="eq">=</span>
@@ -1130,9 +1131,10 @@ function renderRows(){
           <span class="eq">×</span>
           <div class="fld"><label>單價/才（參考）</label><input type="number" value="${it.unitCai}" oninput="setNum(${i},'unitCai',this.value)" style="width:74px"></div>
           <span class="eq">=</span>
-          <div class="fld"><div class="chip-est" id="estp${i}">${money(caiCalcAmt(it))}</div><div class="cap">建議報價（參考）</div></div>`}
+          <div class="fld"><div class="chip-est" id="estp${i}">${money(caiCalcAmt(it))}</div><div class="cap">建議報價（參考）</div></div>
+          <button class="btn sm" style="align-self:center;margin-top:6px;padding:4px 10px;font-size:11px;white-space:nowrap" onclick="applyEst(${i})">↑ 套用為單價</button>`}
         </div>
-        ${isCai?`<div style="margin-top:8px;font-size:11px;color:#4338ca">才數計價：右邊「客服填」用 才數(每座) × 單價/才 × 數量(座數) 直接算給客戶</div>`:`<div style="margin-top:9px"><button class="btn sm" style="padding:4px 11px;font-size:11.5px" onclick="applyEst(${i})">↑ 套用建議報價為「單價」</button></div>`}
+        ${isCai?`<div style="margin-top:8px;font-size:11px;color:#4338ca">才數計價：右邊「客服填」用 才數(每座) × 單價/才 × 數量(座數) 直接算給客戶</div>`:''}
       </div>`;
     // 施工類型 + 客服內部估價 → 收合成「客服內部計算公式」；平時隱藏，有工務回報就自動展開
     const _hasSvy=(Number(it.srvMeters)||0)>0||(Number(it.workers)||0)>0;
@@ -1149,8 +1151,7 @@ function renderRows(){
         <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="${isMat?'材料品項名稱':'貼覆項目名稱'}"></div>
         <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
       <div class="ic-note-top">
-        <div class="note-head"><label>${isMat?'材料說明':'貼覆項目說明'}（會顯示在客戶版項目欄・行首加「!」＝紅字重點）</label></div>
-        <textarea oninput="setF(${i},'note',this.value,true)" placeholder="每行一項說明；重要提醒行首加 ! 會在客戶版顯示紅字…">${esc(it.note)}</textarea>
+        <textarea oninput="setF(${i},'note',this.value,true)" placeholder="${isMat?'材料說明':'貼覆項目說明'}：每行一項，會顯示在客戶版項目欄；行首加「!」＝該行紅字重點…">${esc(it.note)}</textarea>
       </div>
       <div class="ic-body">
         <div class="prow">${spec}</div>
