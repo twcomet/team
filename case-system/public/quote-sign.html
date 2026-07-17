@@ -70,6 +70,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Noto Sans TC','Segoe UI',sans
 .q-gallery{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
 .q-gallery img{width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--gray-200)}
 .q-single{width:100%;height:auto;border-radius:8px;cursor:zoom-in;display:block;border:1px solid var(--gray-200)}
+.q-film-img{width:100%;height:auto;border-radius:8px;cursor:zoom-in;display:block;border:1px solid var(--gray-200)}
+.q-film-ph{width:100%;aspect-ratio:3/4;border-radius:8px;background:linear-gradient(160deg,#efe7db,#d8c7ad);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff}
 .lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:30px;display:grid;place-items:center;cursor:pointer;user-select:none}
 .lb-nav.prev{left:16px} .lb-nav.next{right:16px}
 .lb-count{position:fixed;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-size:14px;font-weight:600;letter-spacing:.05em}
@@ -357,9 +359,9 @@ function render(q){
         <div class="qwrap"><table class="qtbl">
           <thead><tr>
             <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
-            <th style="width:124px">膜料資訊</th>
-            ${showFilmImg?'<th style="width:74px">膜料示意圖</th>':''}
-            ${showSitePhoto?'<th style="width:172px">貼覆區域（現場照）</th>':''}
+            <th style="width:98px">膜料資訊</th>
+            ${showFilmImg?'<th style="width:170px">膜料示意圖</th>':''}
+            ${showSitePhoto?'<th style="width:200px">貼覆區域（現場照）</th>':''}
             ${hideChi?'':`<th style="width:116px;white-space:normal">${lblUnit}</th>`}<th style="width:42px">數量</th>
             <th style="width:108px;white-space:nowrap">${lblTotal}</th>${hasDiscount?`<th style="width:120px;white-space:nowrap">${lblPromo}</th>`:''}
           </tr></thead>

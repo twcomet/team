@@ -473,7 +473,7 @@
           <table class="quote-tbl">
             <thead><tr>
               <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
-              <th style="width:124px">膜料資訊</th><th id="cth_img" style="width:74px">膜料示意圖</th><th id="cth_photo" style="width:172px">貼覆區域（現場照）</th>
+              <th style="width:98px">膜料資訊</th><th id="cth_img" style="width:170px">膜料示意圖</th><th id="cth_photo" style="width:200px">貼覆區域（現場照）</th>
               <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th style="width:42px">數量</th>
               <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
@@ -1105,7 +1105,7 @@ function renderRows(){
         </div>
       </div>`;
     const svyGrp=`
-      <div class="cgrp cgrp-svy" style="flex:1 1 auto">
+      <div class="cgrp cgrp-svy" style="flex:1 1 280px">
         <div class="cgrp-t">🔧 工務回報（米數＋人力）</div>
         <div class="cfields">
           <div class="fld hl-svy"><label>回報米數</label><input type="number" value="${it.srvMeters}" oninput="setNum(${i},'srvMeters',this.value)" style="width:88px"></div><span style="align-self:flex-end;padding-bottom:8px;font-size:12px;color:#1f8a5b;font-weight:700">米</span>
@@ -1135,7 +1135,7 @@ function renderRows(){
     // 施工類型 + 客服內部估價 → 收合成「客服內部計算公式」；平時隱藏，有工務回報就自動展開
     const _hasSvy=(Number(it.srvMeters)||0)>0||(Number(it.workers)||0)>0;
     const calcBlock=`
-      <div class="calc-collapse ${_hasSvy?'open':''}" id="calc${i}">
+      <div class="calc-collapse ${_hasSvy?'open':''}" id="calc${i}" style="flex:2 1 360px;margin-top:0">
         <div class="calc-head" onclick="this.parentElement.classList.toggle('open')">🧮 客服內部計算公式（施工類型・才數・參考報價）<span class="calc-arrow">▾</span></div>
         <div class="calc-body"><div class="prow" style="margin-top:0">${workTypeGrp}${estGrp}</div></div>
       </div>`;
@@ -1152,8 +1152,7 @@ function renderRows(){
       </div>
       <div class="ic-body">
         <div class="prow">${spec}</div>
-        ${isMat?'':`<div class="prow">${svyGrp}</div>`}
-        ${isMat?'':calcBlock}
+        ${isMat?'':`<div class="prow">${svyGrp}${calcBlock}</div>`}
         <div class="prow">
           <div class="cgrp cgrp-cs" style="flex:1;min-width:280px"><div class="cgrp-t">🎧 ${isMat?'材料售價（客服填）':'客戶報價（客服填）'}</div><div class="cfields">${csFields}</div></div>
           <div class="pricebox">
@@ -1401,7 +1400,7 @@ function renderCust(useMkt){
       <td class="c" style="font-weight:700">${i+1}</td>
       <td><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div>${showSz&&it.sizeText?`<div class="q-size">尺寸：${esc(it.sizeText)}</div>`:''}</td>
       <td class="q-film">品牌：${esc(f.brand)}<br>型號：<span class="hi">${esc(f.model)}</span>${owner?'':`<br>膜料寬度 ${it.width||'—'} 公分`}</td>
-      ${showFilmImg?`<td class="c">${it.filmImg?`<div class="q-film-photo" style="background-image:url('${esc(it.filmImg)}');background-size:cover;background-position:center;color:transparent" onclick="openPhoto(${i},'film')"></div>`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>`:''}
+      ${showFilmImg?`<td class="c">${it.filmImg?`<img class="q-single" src="${esc(it.filmImg)}" onclick="openPhoto(${i},'film')" alt="膜料示意圖">`:`<div class="q-film-photo">🎞️</div><div style="font-size:10px;color:var(--gray-400);margin-top:5px">膜料示意</div>`}</td>`:''}
       ${showSitePhoto?`<td class="c">${(it.areaPhotos&&it.areaPhotos.length)?(it.areaPhotos.length===1?`<img class="q-single" src="${esc(it.areaPhotos[0])}" onclick="openPhoto(${i},0)" alt="現場照">`:`<div class="q-gallery">${it.areaPhotos.map((u,pi)=>`<img src="${esc(u)}" onclick="openPhoto(${i},${pi})" alt="現場照">`).join('')}</div>`):`<div class="q-photo" onclick="openPhoto(${i})"><div class="em">📷</div>尚未上傳現場照</div>`}</td>`:''}
       ${owner?'':`<td class="num">${unitTxt(it)}</td>`}
       <td class="num">${it.qty||1}</td>
