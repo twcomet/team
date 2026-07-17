@@ -161,6 +161,52 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
 });
+// ── 估價單版本（手動「存為新版本」）────────────────────────────────
+// 從目前已存的 est_quotes 整包拍一張快照存進 est_quote_versions（ver_no 遞增）
+router.post('/quotes/:id/versions', requireAuth, (req, res) => {
+  const q = db.prepare(`SELECT * FROM est_quotes WHERE id=?`).get(req.params.id);
+  if (!q) return res.status(404).json({ error: '找不到估價單' });
+  const maxRow = db.prepare(`SELECT MAX(ver_no) AS m FROM est_quote_versions WHERE quote_id=?`).get(q.id);
+  const verNo = (maxRow && maxRow.m ? maxRow.m : 0) + 1;
+  const info = db.prepare(`INSERT INTO est_quote_versions
+    (quote_id,case_id,ver_no,note,project_name,customer_name,customer_type,region,items_json,photos_json,disc,subtotal,discount,items_final,freight,fut,total,created_by,created_by_name)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      q.id, q.case_id, verNo, (req.body && req.body.note) || '',
+      q.project_name, q.customer_name, q.customer_type, q.region,
+      q.items_json || '[]', q.photos_json || '[]',
+      q.disc, q.subtotal, q.discount, q.items_final, q.freight, q.fut, q.total,
+      req.session.user.id, req.session.user.name);
+  res.json({ ok: true, id: info.lastInsertRowid, ver_no: verNo });
+});
+// 版本列表（只回摘要，不含 items/photos，供列表顯示）
+router.get('/quotes/:id/versions', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT id,ver_no,note,total,created_at,created_by_name
+    FROM est_quote_versions WHERE quote_id=? ORDER BY ver_no DESC`).all(req.params.id);
+  res.json(rows);
+});
+// 單一版本完整內容（含 items/photos，供檢視/還原）
+router.get('/quotes/:id/versions/:vid', requireAuth, (req, res) => {
+  const v = db.prepare(`SELECT * FROM est_quote_versions WHERE id=? AND quote_id=?`).get(req.params.vid, req.params.id);
+  if (!v) return res.status(404).json({ error: '找不到版本' });
+  v.items = JSON.parse(v.items_json || '[]');
+  v.photos = JSON.parse(v.photos_json || '[]');
+  res.json(v);
+});
+// 還原：把某版本整包寫回主估價單（金額仍由引擎依當下牌價重算）
+router.post('/quotes/:id/restore/:vid', requireAuth, (req, res) => {
+  const v = db.prepare(`SELECT * FROM est_quote_versions WHERE id=? AND quote_id=?`).get(req.params.vid, req.params.id);
+  if (!v) return res.status(404).json({ error: '找不到版本' });
+  const items = JSON.parse(v.items_json || '[]');
+  let disc = parseFloat(v.disc); if (isNaN(disc) || disc > 1) disc = 1; if (disc < 0.8) disc = 0.8;
+  const r = eng.quote(items, { cust: v.customer_type, region: v.region, disc }, eng.buildCatalogFromDb(db));
+  const info = db.prepare(`UPDATE est_quotes SET
+    items_json=?,photos_json=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,updated_at=datetime('now','localtime')
+    WHERE id=?`).run(
+      v.items_json || '[]', v.photos_json || '[]', disc,
+      r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total, req.params.id);
+  if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
+  res.json({ ok: true, total: r.total, ver_no: v.ver_no });
+});
 router.get('/quotes', requireAuth, (req, res) => {
   // 可用 ?case_id= 篩選單一案件（供案件詳情「初步估價紀錄」合併顯示）；不帶則回全部(限200)
   const caseId = req.query.case_id;

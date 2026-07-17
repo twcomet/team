@@ -241,6 +241,19 @@
       </div>
     </div>
 
+    <!-- 估價單版本：手動「存為新版本」快照列表，可檢視/還原 -->
+    <div id="verModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeVersions()">
+      <div style="background:#fff;border-radius:14px;width:min(560px,94vw);max-height:86vh;overflow:auto;padding:16px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <b style="font-size:15px">🗂️ 估價單版本</b>
+          <span style="cursor:pointer;font-size:20px;color:#9ca3af" onclick="closeVersions()">×</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:12px">每次「存為新版本」會把目前內容留一張快照。可檢視或還原成主估價單。</div>
+        <button type="button" onclick="saveAsVersion()" style="width:100%;padding:10px;background:#D40069;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px">➕ 把目前內容存為新版本</button>
+        <div id="verList" style="display:flex;flex-direction:column;gap:8px"><div style="color:#9ca3af;font-size:13px;padding:8px">載入中…</div></div>
+      </div>
+    </div>
+
     <div class="ec-shell">
       <!-- 第一區：基本資料 -->
       <div class="ec-card ec-basic-card">
@@ -382,6 +395,7 @@
             </div>
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
+              <button class="ec-btn" style="background:#fff;border:1px solid var(--ec-border)" onclick="openVersions()">🗂️ 版本</button>
             </div>
             <div class="ec-savebtns" id="ec-sent-actions" style="display:none;margin-top:8px">
               <button class="ec-btn" style="background:#D40069;color:#fff" onclick="copyEstLink()">🔗 複製客戶連結</button>
@@ -780,8 +794,9 @@ function renderMargin(priced,hasDisc){
    +(missing?'<br>⚠ '+missing+' 項膜款未建成本，毛利僅供參考':'');
 }
 
-async function saveQuote(status){
- if(!CART.length){alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return;}
+async function saveQuote(status,opts){
+ opts=opts||{};
+ if(!CART.length){ if(!opts.quiet) alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return null;}
  try{
    var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
    var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
@@ -795,10 +810,54 @@ async function saveQuote(status){
      var msg='✓ 已儲存估價單 #'+editId+'（總額 '+NT(j.total)+'）';
      document.getElementById('ec-status').textContent=msg;
      showSentActions();
-     alert(msg+'\n\n可用下方「複製客戶連結／下載 PDF」發給客戶，或到「估價單查詢」查看。');
+     if(!opts.quiet) alert(msg+'\n\n可用下方「複製客戶連結／下載 PDF」發給客戶，或到「估價單查詢」查看。');
+     return j;
    }
-   else alert('儲存失敗：'+(j.error||('伺服器回應 '+r.status)));
- }catch(e){ alert('儲存失敗：'+e.message); }
+   else { if(!opts.quiet) alert('儲存失敗：'+(j.error||('伺服器回應 '+r.status))); return null; }
+ }catch(e){ if(!opts.quiet) alert('儲存失敗：'+e.message); return null; }
+}
+/* ── 估價單版本（手動存為新版本 / 檢視 / 還原）── */
+function openVersions(){ document.getElementById('verModal').style.display='flex'; loadVersions(); }
+function closeVersions(){ document.getElementById('verModal').style.display='none'; }
+async function loadVersions(){
+  var box=document.getElementById('verList');
+  if(!editId){ box.innerHTML='<div style="color:#9ca3af;font-size:13px;padding:8px">尚未儲存估價單，先按上方「存為新版本」即可建立第一版。</div>'; return; }
+  box.innerHTML='<div style="color:#9ca3af;font-size:13px;padding:8px">載入中…</div>';
+  try{
+    var r=await fetch(API+'/quotes/'+editId+'/versions'); var rows=await r.json();
+    if(!Array.isArray(rows)||!rows.length){ box.innerHTML='<div style="color:#9ca3af;font-size:13px;padding:8px">還沒有任何版本。按上方按鈕把目前內容存為第一版。</div>'; return; }
+    box.innerHTML=rows.map(function(x){
+      return '<div style="border:1px solid var(--ec-border);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:center">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:14px;font-weight:700">v'+x.ver_no+'　<span style="color:#D40069">'+NT(x.total)+'</span></div>'
+        +'<div style="font-size:12px;color:#6b7280;margin-top:2px">'+escAttr(x.created_at||'')+'　·　'+escAttr(x.created_by_name||'')+(x.note?('　·　'+escAttr(x.note)):'')+'</div>'
+        +'</div>'
+        +'<button type="button" onclick="restoreVersion('+x.id+','+x.ver_no+')" style="padding:6px 12px;background:#D40069;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">還原</button>'
+        +'</div>';
+    }).join('');
+  }catch(e){ box.innerHTML='<div style="color:#dc2626;font-size:13px;padding:8px">載入失敗：'+escAttr(e.message)+'</div>'; }
+}
+async function saveAsVersion(){
+  if(!CART.length){ alert('估價單還沒有品項，無法存版本。'); return; }
+  var note=prompt('這個版本的備註（可留空）\n例如：報客戶第一版、加購玻璃後、砍價後…','');
+  if(note===null) return;   // 取消
+  var saved=await saveQuote('draft',{quiet:true});   // 先把目前內容存進主估價單
+  if(!editId){ alert('儲存失敗，無法建立版本。'); return; }
+  try{
+    var r=await fetch(API+'/quotes/'+editId+'/versions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:note})});
+    var j=await r.json();
+    if(r.ok){ document.getElementById('ec-status').textContent='✓ 已存為版本 v'+j.ver_no; loadVersions(); }
+    else alert('存版本失敗：'+(j.error||('伺服器回應 '+r.status)));
+  }catch(e){ alert('存版本失敗：'+e.message); }
+}
+async function restoreVersion(vid,verNo){
+  if(!confirm('確定要把「v'+verNo+'」還原成目前的主估價單嗎？\n\n目前尚未存版本的內容會被覆蓋（可先按「存為新版本」保留）。')) return;
+  try{
+    var r=await fetch(API+'/quotes/'+editId+'/restore/'+vid,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    var j=await r.json();
+    if(r.ok){ closeVersions(); await loadEstQuote(editId); document.getElementById('ec-status').textContent='✓ 已還原為 v'+verNo+'（總額 '+NT(j.total)+'）'; }
+    else alert('還原失敗：'+(j.error||('伺服器回應 '+r.status)));
+  }catch(e){ alert('還原失敗：'+e.message); }
 }
 /* 存檔後：客戶連結 / PDF */
 function showSentActions(){ var el=document.getElementById('ec-sent-actions'); if(el&&SHARE_TOKEN) el.style.display='flex'; }

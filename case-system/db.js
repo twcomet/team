@@ -4086,4 +4086,24 @@ _addCol('est_quotes', 'client_viewed_at', 'DATETIME');
 // token 唯一（允許多筆 NULL：舊資料未產生前為空）
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_est_quotes_token ON est_quotes(share_token) WHERE share_token IS NOT NULL`);
 
+// ── 估價單版本快照（手動「存為新版本」時各存一筆；items/photos+金額整包留存）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS est_quote_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quote_id INTEGER NOT NULL,
+    case_id INTEGER,
+    ver_no INTEGER NOT NULL,
+    note TEXT,
+    project_name TEXT, customer_name TEXT, customer_type TEXT, region TEXT,
+    items_json TEXT DEFAULT '[]',
+    photos_json TEXT DEFAULT '[]',
+    disc REAL DEFAULT 1,
+    subtotal REAL DEFAULT 0, discount REAL DEFAULT 0, items_final REAL DEFAULT 0,
+    freight REAL DEFAULT 0, fut REAL DEFAULT 0, total REAL DEFAULT 0,
+    created_by INTEGER, created_by_name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_est_qver_quote ON est_quote_versions(quote_id, ver_no)`);
+
 module.exports = db;
