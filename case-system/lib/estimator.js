@@ -76,14 +76,30 @@ function computeGlass(arr, cat, cust, combine) {
     return { type: 'glass', label: '玻璃｜' + g.catLabel, series: g.sys + '　' + _sizeStr(g.sizes) + '（' + g.unit + '/才）', n: g.n, cai: r.cai, unit: g.unit, amount: ceil100(r.cai * g.unit), idxs: g.idxs };
   });
 }
-function computeOther(arr) {
+// 其他品項：計價用「含損耗才數」＝寬+10、高+10，並套膜寬122拼料(省料)/寬鬆(多報)；caiM 可手動覆寫。並帶出圖片/尺寸/膜料供客戶頁
+function computeOther(arr, cat, combine) {
   const groups = {};
   arr.forEach((it, ci) => {
-    const cai = it.w * it.h / 900, amt = ceil100(cai * it.unit), key = it.name + '|' + it.w + '|' + it.h + '|' + it.unit;
-    groups[key] = groups[key] || { label: '其他｜' + it.name, series: '寬' + it.w + '×高' + it.h + ' cm', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
-    const g = groups[key]; g.n++; g.amount += amt; g.idxs.push(ci);
+    const fi = (it.mBrand && cat.FILMS[it.mBrand] && cat.FILMS[it.mBrand].items[it.mIdx || 0]) ? cat.FILMS[it.mBrand].items[it.mIdx || 0] : null;
+    const W = fi ? filmW(fi) : 122;
+    const wL = (Number(it.w) || 0) + 10, hL = (Number(it.h) || 0) + 10;   // 含損耗：寬+10、高+10
+    const matLabel = fi ? ((cat.FILMS[it.mBrand].label || it.mBrand) + '｜' + fi.asia + ' ' + fi.color) : '';
+    const key = it.name + '|' + it.w + '|' + it.h + '|' + it.unit + '|' + (it.caiM == null ? '' : it.caiM) + '|' + (it.mBrand || '') + '|' + (it.mIdx == null ? '' : it.mIdx) + '|' + (it.mWork || '') + '|' + (combine ? 'C' : 'L');
+    groups[key] = groups[key] || { label: '其他｜' + it.name, series: '寬' + it.w + '×高' + it.h + ' cm', w: it.w, h: it.h, material: matLabel, photo: '', W, caiM: (it.caiM == null ? null : Number(it.caiM)), unit: it.unit, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [] };
+    const g = groups[key];
+    if (it.photo && !g.photo) g.photo = it.photo;
+    if (combine) { const full = Math.floor(wL / W), rem = wL - full * W; g.full += full * (hL / 100); if (rem > 0) g.pieces.push({ h: hL, w: rem, comb: rem < (W - 2) }); }
+    else { g.looseCai += Math.ceil(wL / W) * W * hL / 900; }
+    g.n++; g.idxs.push(ci);
   });
-  return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'other', label: g.label, series: g.series, cai: g.cai, unit: g.unit, n: g.n, amount: g.amount, idxs: g.idxs }; });
+  return Object.keys(groups).map(k => {
+    const g = groups[k];
+    const r = combine ? _combCai(g) : { cai: g.looseCai };
+    const lossGroup = r.cai, lossEach = g.n ? lossGroup / g.n : lossGroup;
+    const priceEach = (g.caiM != null) ? g.caiM : lossEach;
+    const amount = (g.caiM != null) ? ceil100(g.caiM * g.unit) * g.n : ceil100(lossGroup * g.unit);
+    return { type: 'other', label: g.label, series: g.series, material: g.material, w: g.w, h: g.h, photo: g.photo, cai: priceEach, unit: g.unit, n: g.n, amount, idxs: g.idxs };
+  });
 }
 // 物件（籠統項目）：項目名稱＋單價＋數量；金額＝單價×數量（無才數）
 function computeObject(arr) {
@@ -120,7 +136,7 @@ function buildLines(cart, opts, cat) {
   const combine = !!opts.combine; // 預設 false＝寬鬆(膜寬×高)；true＝拼料省料
   lines = lines.concat(computeFilms(cart.filter(c => c.kind === 'film'), cat, combine));
   lines = lines.concat(computeGlass(cart.filter(c => c.kind === 'glass'), cat, cust, combine));
-  lines = lines.concat(computeOther(cart.filter(c => c.kind === 'other')));
+  lines = lines.concat(computeOther(cart.filter(c => c.kind === 'other'), cat, combine));
   lines = lines.concat(computeObject(cart.filter(c => c.kind === 'object')));
   lines = lines.concat(computeSpecial(cart.filter(c => c.kind === 'special')));
   const fixed = {};

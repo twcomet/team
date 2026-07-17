@@ -300,11 +300,15 @@ router.get('/quotes/sign/:token', (req, res) => {
   const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc }, eng.buildCatalogFromDb(db));
   const owner = q.customer_type === 'owner';
   const showDetail = q.show_detail !== 0;   // 0=只顯示總額（不外洩任何明細）
+  // 含明細：材料/尺寸/才數/圖片一律顯示（含業主版）；僅「一材單價」對業主隱藏
   const lines = showDetail ? r.lines.map(L => ({
     type: L.type, label: L.label,
-    series: owner ? '' : (L.series || ''),
+    series: L.series || '',
+    material: L.material || '',
+    w: (L.w != null ? L.w : null), h: (L.h != null ? L.h : null),
+    photo: L.photo || '',
     n: L.n,
-    cai:  owner ? null : (L.cai != null ? Math.round(L.cai * 10) / 10 : null),
+    cai:  (L.cai != null ? Math.round(L.cai * 10) / 10 : null),
     unit: owner ? null : (L.unit || null),
     base: L.base || null, amount: L.amount
   })) : [];

@@ -74,18 +74,19 @@ function render(d){
   var owner = d.customer_type === 'owner';
   var dt = (d.updated_at || d.created_at || '').slice(0,10);
   var rows = (d.lines||[]).map(function(L){
-    var mid = '';
-    if(!owner){
-      var bits = [];
-      if(L.series) bits.push(esc(L.series));
-      if(L.cai!=null && L.unit!=null) bits.push(L.cai + ' 才 × ' + NT(L.unit).replace('NT$ ','') );
-      mid = bits.length ? '<div class="ser">' + bits.join('　·　') + '</div>' : '';
-    }
+    // 含明細：顯示 膜料 / 尺寸(寬×高) / 才數；一材單價僅設計師版顯示
+    var bits = [];
+    if(L.material) bits.push('膜料：'+esc(L.material));
+    if(L.w!=null && L.h!=null) bits.push('尺寸：'+L.w+'×'+L.h+' cm');
+    else if(L.series) bits.push(esc(L.series));
+    if(L.cai!=null) bits.push(L.cai + ' 才' + (L.unit!=null ? ' × ' + NT(L.unit).replace('NT$ ','') : ''));
+    var mid = bits.length ? '<div class="ser">'+bits.join('　·　')+'</div>' : '';
+    var img = L.photo ? '<img src="'+esc(L.photo)+'" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;float:left;margin:2px 9px 4px 0">' : '';
     var unit = L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='film'?'':' 件'));
     var priceCell = (L.base && L.base!==L.amount)
       ? '<span style="text-decoration:line-through;color:#9ca3af;font-size:11px">'+NT(L.base)+'</span><br>'+NT(L.amount)
       : NT(L.amount);
-    return '<tr><td><div class="lbl">'+esc(L.label)+'</div>'+mid+'</td>'
+    return '<tr><td>'+img+'<div class="lbl">'+esc(L.label)+'</div>'+mid+'<div style="clear:both"></div></td>'
       + '<td>'+ (L.n||1) + unit +'</td>'
       + '<td class="amt">'+priceCell+'</td></tr>';
   }).join('');
