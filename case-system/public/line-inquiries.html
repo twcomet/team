@@ -55,6 +55,23 @@
     .det-header  { padding:14px 20px; border-bottom:1px solid var(--gray-200); background:#fff; display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; flex-shrink:0; }
     .det-actions { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
 
+    /* ── header 控制列（負責業務/客服/電話/客戶資料/關懷）：整齊不亂斷行、手機好看 ── */
+    .det-controls { display:flex; gap:8px 10px; margin-top:8px; flex-wrap:wrap; align-items:center; }
+    .det-controls .ctl { display:flex; align-items:center; gap:5px; }
+    .det-controls .ctl-lb { font-size:11px; color:var(--gray-500); white-space:nowrap; }
+    .det-controls .ctl-sel { padding:4px 8px; border:1px solid var(--gray-300); border-radius:7px; font-size:12px; max-width:130px; }
+    .det-controls .ctl-inp { padding:4px 9px; border:1px solid var(--gray-300); border-radius:7px; font-size:12px; width:118px; }
+    .det-controls .ctl-btn { padding:4px 10px; white-space:nowrap; }
+    @media (max-width: 700px) {
+      .det-header { padding:12px 14px; gap:10px; }
+      .det-actions { margin-left:0; width:100%; }
+      .det-actions .btn { flex:1 1 auto; }
+      .det-controls { gap:8px; }
+      .det-controls .ctl { flex:1 1 calc(50% - 8px); min-width:0; }
+      .det-controls .ctl-sel, .det-controls .ctl-inp { flex:1; min-width:0; max-width:none; width:auto; }
+      .det-controls .ctl-btn { flex:1 1 calc(50% - 8px); }
+    }
+
     /* ── 客戶資料區 ── */
     .det-client { padding:10px 20px; background:#fff; border-bottom:1px solid var(--gray-200); flex-shrink:0; }
     .client-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
@@ -853,26 +870,25 @@ async function openInquiry(id) {
           建立：${fmtTime(data.created_at)}　共 ${data.message_count} 則訊息
           <span class="s-badge s-${data.status}" style="margin-left:6px">${sLabel(data.status)}</span>
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:11px;color:var(--gray-500);white-space:nowrap">負責業務</span>
-            <select id="inq-sales" onchange="saveSalesCs(${id})" style="padding:3px 6px;border:1px solid #c4b5fd;border-radius:6px;font-size:12px;background:#faf5ff;color:#6d28d9">
+        <div class="det-controls">
+          <div class="ctl">
+            <span class="ctl-lb">負責業務</span>
+            <select id="inq-sales" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#c4b5fd;background:#faf5ff;color:#6d28d9">
               <option value="">（未指定）</option>${salesOpts}
             </select>
           </div>
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:11px;color:var(--gray-500);white-space:nowrap">負責客服</span>
-            <select id="inq-cs" onchange="saveSalesCs(${id})" style="padding:3px 6px;border:1px solid #fca5a5;border-radius:6px;font-size:12px;background:#fff5f5;color:#991b1b">
+          <div class="ctl">
+            <span class="ctl-lb">負責客服</span>
+            <select id="inq-cs" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#fca5a5;background:#fff5f5;color:#991b1b">
               <option value="">（未指定）</option>${csOpts}
             </select>
           </div>
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-size:12px;color:var(--gray-500);white-space:nowrap">📞</span>
-            <input id="cf-phone" value="${escHtml(data.phone||'')}" placeholder="電話" onchange="saveClient(${id},true)"
-              style="padding:3px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;width:120px">
+          <div class="ctl">
+            <span class="ctl-lb">📞</span>
+            <input id="cf-phone" value="${escHtml(data.phone||'')}" placeholder="電話" onchange="saveClient(${id},true)" class="ctl-inp">
           </div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleClientPanel()" style="padding:3px 8px"><span id="clientToggleLabel">客戶資料 ▾</span></button>
-          ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm" onclick="toggleCarePanel()" style="padding:3px 8px"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>` : ''}
+          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleClientPanel()"><span id="clientToggleLabel">客戶資料 ▾</span></button>
+          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleCarePanel()"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>
         </div>
       </div>
       <div class="det-actions">
@@ -907,8 +923,8 @@ async function openInquiry(id) {
       <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="saveClient(${id})">儲存資料</button>
     </div>
 
-    ${(data.cust_cases && data.cust_cases.length) ? `
     <div class="det-client" id="carePanel" style="display:none">
+      ${(data.cust_cases && data.cust_cases.length) ? `
       <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px">客服關懷紀錄（選擇要存到哪個案件，與案件頁同步）</div>
       <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
         <select id="careCase" onchange="onCareCaseChange()" title="選擇這筆關懷要存到哪個案件" style="padding:8px 10px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;flex:0 0 auto;background:#fdf2f8;color:#9d174d;font-weight:600;max-width:220px">
@@ -920,8 +936,12 @@ async function openInquiry(id) {
         <textarea id="careMemo" rows="2" placeholder="例如：已電聯客戶，確認要轉場勘" style="flex:1;min-width:180px;font-size:13px;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
         <button class="btn btn-primary btn-sm" style="white-space:nowrap;flex:0 0 auto" onclick="submitInquiryCare()">儲存關懷</button>
       </div>
-      <div id="careMiniList" style="margin-top:10px"></div>
-    </div>` : ''}
+      <div id="careMiniList" style="margin-top:10px"></div>` : `
+      <div style="font-size:12px;color:var(--gray-500);line-height:1.7">
+        客服關懷紀錄會存到「案件」並與案件頁同步。這筆詢問目前<b>還沒有對應的案件</b>，請先按右上「轉為案件」，之後就能在這裡選案件存關懷紀錄。<br>
+        <span style="color:var(--gray-400)">（只是想記錄內部備忘，可用右側的 📓 記事本）</span>
+      </div>`}
+    </div>
 
     ${(data.cust_cases && data.cust_cases.length) ? `
     <div style="padding:6px 16px;background:#fdf2f8;border-top:1px solid #fbcfe8;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -937,8 +957,11 @@ async function openInquiry(id) {
 
     <div class="chat-wrap">
       <div class="chat-col">
-    <div class="chat-area" id="chatArea">
-      ${renderMessages(data.messages)}
+        <div class="chat-area" id="chatArea">
+          ${renderMessages(data.messages)}
+        </div>
+      </div>
+      ${notebookHtml(id)}
     </div>
 
     ${data.status !== 'invalid' ? `
@@ -957,9 +980,6 @@ async function openInquiry(id) {
     <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
       此詢問已${sLabel(data.status)}，不可回覆
     </div>`}
-      </div>
-      ${notebookHtml(id)}
-    </div>
   `;
   scrollChat();
   loadNotebook(id);
