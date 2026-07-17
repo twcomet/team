@@ -304,7 +304,7 @@ router.post('/:id/convert', requireAuth, (req, res) => {
 
 // ── 透過 LINE 回覆客戶 ────────────────────────────────────────
 router.post('/:id/reply', requireAuth, async (req, res) => {
-  const { message } = req.body;
+  const { message, reply_to_id } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: '訊息不可空白' });
 
   const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
@@ -313,10 +313,19 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) return res.status(503).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN 未設定' });
 
+  // 針對某則訊息回覆：取該訊息的 quoteToken（LINE 引用回覆）＋內容快照（供本系統顯示）
+  let quoteToken = null, replyPreview = null, replyToId = null;
+  if (reply_to_id) {
+    const src = db.prepare(`SELECT id, content, quote_token FROM line_inquiry_messages WHERE id=? AND inquiry_id=?`).get(reply_to_id, inq.id);
+    if (src) { replyToId = src.id; replyPreview = (src.content || '').slice(0, 120); quoteToken = src.quote_token || null; }
+  }
+
+  const outMsg = { type: 'text', text: message.trim() };
+  if (quoteToken) outMsg.quoteToken = quoteToken;   // 只有客人訊息帶 quoteToken 時才能引用
   const pushRes = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ to: inq.line_user_id, messages: [{ type: 'text', text: message.trim() }] })
+    body: JSON.stringify({ to: inq.line_user_id, messages: [outMsg] })
   });
 
   if (!pushRes.ok) {
@@ -325,9 +334,9 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
   }
 
   db.prepare(`
-    INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sent_by)
-    VALUES (?, 'out', 'text', ?, ?)
-  `).run(inq.id, message.trim(), req.session.user.id);
+    INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sent_by, reply_to_id, reply_to_preview)
+    VALUES (?, 'out', 'text', ?, ?, ?, ?)
+  `).run(inq.id, message.trim(), req.session.user.id, replyToId, replyPreview);
 
   // 送出後清掉 AI 草稿（已由真人處理）
   db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP, ai_draft=NULL, ai_draft_at=NULL, ai_needs_human=0, ai_needs_human_reason=NULL WHERE id=?`).run(inq.id);

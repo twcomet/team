@@ -95,6 +95,16 @@
     .msg-row.out .msg-bubble { background:var(--primary); color:#fff; border-radius:12px 4px 12px 12px; }
     .msg-time   { font-size:11px; color:var(--gray-400); flex-shrink:0; }
     .msg-sender { font-size:11px; color:var(--gray-500); margin-bottom:2px; }
+    /* 針對某則訊息回覆：氣泡上的 ↩ 鈕（hover 才顯眼）＋被引用內容 */
+    .msg-bubble-wrap { display:flex; align-items:center; gap:6px; max-width:100%; }
+    .msg-reply-btn { flex:0 0 auto; width:26px; height:26px; border-radius:50%; border:1px solid var(--gray-200);
+      background:#fff; color:var(--gray-400); cursor:pointer; font-size:14px; line-height:1; opacity:0; transition:opacity .12s; }
+    .msg-row:hover .msg-reply-btn { opacity:1; }
+    .msg-reply-btn:hover { color:var(--primary); border-color:var(--primary); }
+    @media (hover: none) { .msg-reply-btn { opacity:.55; } }   /* 觸控裝置沒有 hover，常態半透明可見 */
+    .msg-quote { font-size:11px; color:var(--gray-500); background:rgba(0,0,0,.05); border-left:3px solid #cbd5e1;
+      border-radius:6px; padding:3px 8px; margin-bottom:3px; max-width:68%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .reply-to-bar { display:flex; align-items:center; gap:8px; padding:7px 14px; background:#eff6ff; border-top:1px solid #bfdbfe; font-size:12px; color:#1e40af; }
 
     /* ── 回覆框 ── */
     .reply-box { padding:10px 14px; background:#fff; border-top:1px solid var(--gray-200); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
@@ -393,6 +403,8 @@ let sortDateDir   = 'desc';
 let currentSort   = 'newest';   // 排序：newest 最新 / awaiting 待回覆優先 / oldest 最舊
 let caseFilter    = '';         // 依案件狀態撈客戶（跨全部詢問，不限已轉案）
 let cannedReplies = [];         // 客服知識庫「罐頭訊息」分類 → 常用語快捷
+let _MSG_MAP = {};              // 目前對話的訊息 id → 訊息物件（給引用回覆用）
+let replyTarget = null;         // 目前要「針對回覆」的客人訊息 {id, preview}
 let currentDraftText = '';   // 目前開啟詢問的 AI 草稿文字（給「採用」用）
 let currentInquiryData = null; // 目前開啟的詢問完整資料
 let aiEstItems = [];         // AI 估價輔助：目前草稿品項
@@ -919,6 +931,7 @@ function backToList() { document.querySelector('.inq-layout')?.classList.remove(
 
 async function openInquiry(id) {
   currentId = id;
+  replyTarget = null;   // 切換對話清掉引用回覆目標
   renderList();
   document.querySelector('.inq-layout')?.classList.add('show-detail');   // 手機：切到詳情全螢幕
 
@@ -1067,6 +1080,11 @@ async function openInquiry(id) {
     ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
     ${aiDraftCard(data, id)}
     ${quickReplyBar()}
+    <div id="replyToBar" class="reply-to-bar" style="display:none">
+      <span style="flex:0 0 auto">↩ 回覆：</span>
+      <span id="replyToPreview" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-600)"></span>
+      <button type="button" onclick="clearReplyTarget()" title="取消引用" style="flex:0 0 auto;border:none;background:transparent;color:var(--gray-500);cursor:pointer;font-size:16px;line-height:1">×</button>
+    </div>
     <div class="reply-box" style="position:relative">
       <button type="button" class="btn btn-sm" id="emojiBtn" style="padding:8px 11px;background:#fff;border:1px solid var(--gray-300);font-size:16px;line-height:1" onclick="toggleEmoji(event)" title="插入 emoji 表情符號">😊</button>
       <button type="button" class="btn btn-sm" id="cannedBtn" style="padding:8px 11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;line-height:1;font-weight:700" onclick="openCanned()" title="罐頭訊息：搜尋／分類挑選">💬</button>
@@ -1100,15 +1118,29 @@ function notebookHtml(id) {
 function renderMessages(msgs) {
   if (!msgs?.length)
     return `<div style="text-align:center;color:var(--gray-400);font-size:13px;padding:20px">尚無訊息記錄</div>`;
+  _MSG_MAP = {};
   return msgs.map(m => {
+    _MSG_MAP[m.id] = m;
     const body = (m.msg_type === 'image' && m.content)
       ? `<a href="${escHtml(m.content)}" target="_blank" rel="noopener"><img src="${escHtml(m.content)}" loading="lazy" style="max-width:210px;max-height:260px;border-radius:10px;display:block;border:1px solid var(--gray-200)"></a>`
       : `<div class="msg-bubble">${escHtml(m.content||'')}</div>`;
+    // 我方訊息若是「針對某則回覆」，在氣泡上方顯示被引用的內容
+    const quoteRef = m.reply_to_preview
+      ? `<div class="msg-quote">↩ ${escHtml(m.reply_to_preview)}</div>`
+      : '';
+    // 只有客人訊息可被引用回覆（帶 quoteToken）
+    const replyBtn = (m.direction === 'in' && m.quote_token)
+      ? `<button class="msg-reply-btn" onclick="setReplyTarget(${m.id})" title="回覆這則訊息">↩</button>`
+      : '';
     return `
     <div class="msg-row ${m.direction}">
-      <div style="display:flex;flex-direction:column;${m.direction==='out'?'align-items:flex-end':''}">
+      <div style="display:flex;flex-direction:column;${m.direction==='out'?'align-items:flex-end':''};max-width:100%;min-width:0">
         ${m.direction === 'out' ? `<div class="msg-sender">${escHtml(m.sender_name||'客服')}</div>` : (m.sender_display ? `<div class="msg-sender" style="display:flex;align-items:center;gap:5px">${avatarHtml(m.sender_avatar, m.sender_display, 18)}${escHtml(m.sender_display)}</div>` : '')}
-        ${body}
+        ${quoteRef}
+        <div class="msg-bubble-wrap" style="${m.direction==='out'?'flex-direction:row-reverse':''}">
+          ${body}
+          ${replyBtn}
+        </div>
         <div class="msg-time">${fmtTime(m.created_at)}</div>
       </div>
     </div>`;
@@ -1281,6 +1313,21 @@ async function submitInquiryCare() {
   else { const d = await r.json().catch(() => ({})); showToast(d.error || '儲存失敗', 'error'); }
 }
 
+// 針對某則客人訊息回覆（LINE 引用回覆）
+function setReplyTarget(msgId) {
+  const m = _MSG_MAP[msgId];
+  if (!m) return;
+  replyTarget = { id: m.id, preview: (m.content || '').slice(0, 120) };
+  const bar = document.getElementById('replyToBar');
+  if (bar) { bar.style.display = 'flex'; document.getElementById('replyToPreview').textContent = replyTarget.preview; }
+  document.getElementById('replyInput')?.focus();
+}
+function clearReplyTarget() {
+  replyTarget = null;
+  const bar = document.getElementById('replyToBar');
+  if (bar) bar.style.display = 'none';
+}
+
 async function sendReply(id) {
   const input = document.getElementById('replyInput');
   const message = input?.value?.trim();
@@ -1290,12 +1337,14 @@ async function sendReply(id) {
   if (btn) { btn.disabled = true; btn.textContent = '傳送中…'; }
 
   const r = await fetch(`/api/line-inquiries/${id}/reply`, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ message })
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ message, reply_to_id: replyTarget?.id || null })
   });
   if (btn) { btn.disabled = false; btn.textContent = '傳送'; }
 
   if (r.ok) {
     if (input) { input.value = ''; input.style.height = 'auto'; }
+    replyTarget = null;
     openInquiry(id);
   } else {
     const err = await r.json().catch(() => ({}));

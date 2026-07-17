@@ -255,9 +255,9 @@ async function handleClientMessage(event, channel) {
     inquiryId = r.lastInsertRowid;
   }
 
-  // 存訊息（群組帶發話者＋發話者大頭照）+ 更新詢問摘要（一律不丟訊息，讓對話重新浮上來 → 配合漏接防呆）
-  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sender_display, sender_avatar) VALUES (?, 'in', ?, ?, ?, ?)`)
-    .run(inquiryId, msgType, content, senderDisplay, senderAvatar);
+  // 存訊息（群組帶發話者＋發話者大頭照＋引用回覆用的 quoteToken）
+  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sender_display, sender_avatar, quote_token) VALUES (?, 'in', ?, ?, ?, ?, ?)`)
+    .run(inquiryId, msgType, content, senderDisplay, senderAvatar, msg.quoteToken || null);
   db.prepare(`
     UPDATE line_inquiries
     SET last_message=?, last_message_at=CURRENT_TIMESTAMP,

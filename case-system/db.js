@@ -1576,6 +1576,10 @@ _addCol('line_inquiries',         'replied_at',     'DATETIME');
 // LINE 大頭照：詢問層級（1對1=客人頭像、群組=群組圖示）＋訊息層級（群組發話者頭像）
 _addCol('line_inquiries',         'avatar_url',     'TEXT');
 _addCol('line_inquiry_messages',  'sender_avatar',  'TEXT');
+// 針對某則訊息回覆（LINE 引用回覆）：入站訊息存 quote_token；出站訊息存回覆的來源訊息 id + 內容快照
+_addCol('line_inquiry_messages',  'quote_token',      'TEXT');
+_addCol('line_inquiry_messages',  'reply_to_id',      'INTEGER');
+_addCol('line_inquiry_messages',  'reply_to_preview', 'TEXT');
 
 // ── 客服知識庫（常見問答 / 制式回覆 / 資源連結，餵給 LINE AI）──────
 db.exec(`
