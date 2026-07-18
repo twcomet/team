@@ -271,6 +271,18 @@
     </div>
 
     <datalist id="estMatModels"></datalist>
+
+    <!-- 客戶版估價單預覽（不用另開分頁，直接看客人會收到的樣子）-->
+    <div id="estPreviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeEstPreview()">
+      <div style="background:#fff;border-radius:14px;width:min(820px,96vw);height:88vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--ec-border)">
+          <b style="font-size:15px">👁 客戶版預覽</b>
+          <span style="cursor:pointer;font-size:20px;color:#9ca3af" onclick="closeEstPreview()">×</span>
+        </div>
+        <iframe id="estPreviewFrame" style="flex:1;border:none;width:100%"></iframe>
+      </div>
+    </div>
+
     <div class="ec-shell">
       <!-- 第一區：基本資料 -->
       <div class="ec-card ec-basic-card">
@@ -431,6 +443,7 @@
             </div>
             <div class="ec-savebtns" id="ec-sent-actions" style="display:none;margin-top:8px">
               <button class="ec-btn" style="background:#D40069;color:#fff" onclick="copyEstLink()">🔗 複製客戶連結</button>
+              <button class="ec-btn" style="background:#374151;color:#fff" onclick="openEstPreview()">👁 預覽</button>
               <button class="ec-btn" style="background:#0ea5e9;color:#fff" onclick="dlEstPdf()">⬇ 下載 PDF</button>
             </div>
           </div>
@@ -982,6 +995,16 @@ function copyEstLink(){
   }catch(e){ fallback(); }
 }
 function dlEstPdf(){ if(!SHARE_TOKEN){alert('請先儲存估價單');return;} window.open('/estimate/'+SHARE_TOKEN+'/pdf','_blank'); }
+// 客戶版預覽 modal：直接載入 /estimate/:token（客人會看到的樣子），不用另開分頁
+function openEstPreview(){
+  if(!SHARE_TOKEN){ alert('請先「儲存估價單」再預覽'); return; }
+  document.getElementById('estPreviewFrame').src='/estimate/'+SHARE_TOKEN+'?t='+Date.now();
+  document.getElementById('estPreviewModal').style.display='flex';
+}
+function closeEstPreview(){
+  document.getElementById('estPreviewModal').style.display='none';
+  document.getElementById('estPreviewFrame').src='about:blank';
+}
 
 /* 歷史報價彈窗（系統內既有 報價單+估價單；958 回簽之後可再併入） */
 var HISTDATA={quotes:[],estimates:[]}, HISTTAB='all', HISTTMR=null;

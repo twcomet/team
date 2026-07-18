@@ -120,7 +120,7 @@ function render(d){
 
   document.getElementById('sheet').innerHTML =
     '<div class="hd"><div class="co">繪新國際有限公司</div><div class="en">TWCOMET INTERNATIONAL</div><div class="doc">估　價　單</div></div>'
-    + '<div class="warn">⚠ 此為估價，非正式報價單；實際價格以簽約報價單與現場丈量為準。</div>'
+    + '<div class="warn">⚠ 本單為初步估價，僅供參考，非正式報價單。<br>實際施作項目、數量與金額，<b>一律須經專人現場場勘實地丈量後</b>，以正式報價單為準；未經場勘之估價金額不作為報價依據。</div>'
     + '<div class="meta">'
       + (d.project_name?'<div class="row"><span class="k">專案</span><b>'+esc(d.project_name)+'</b></div>':'')
       + (d.customer_name?'<div class="row"><span class="k">客戶</span><b>'+esc(d.customer_name)+'</b></div>':'')
