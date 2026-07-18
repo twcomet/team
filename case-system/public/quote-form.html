@@ -1007,17 +1007,23 @@ function showForkBanner(newV, oldV){
     +`</div>`;
   b.style.transition=''; b.style.opacity='1'; b.style.display='block';
 }
-// 複製新版客戶連結：仍是草稿時先標記「已發送(待確認)」→ 客戶點進去不會看到「草稿」
+// 取客戶連結的短網址（TinyURL，快取）；失敗回完整網址
+async function getQuoteShort(){
+  let link=location.origin+'/quote/'+shareToken;
+  try{ const j=await fetch('/api/quotes/short/'+shareToken).then(r=>r.ok?r.json():null); if(j&&j.short_url) link=j.short_url; }catch(e){}
+  return link;
+}
+// 複製新版客戶連結：仍是草稿時先標記「已發送(待確認)」→ 客戶點進去不會看到「草稿」；複製短網址
 async function copyForkLink(btn){
-  const url=location.origin+'/quote/'+shareToken;
   try{
     if(curQuote && curQuote.status==='draft'){
       const r=await fetch(`/api/quotes/${quoteId}/send`,{method:'POST'});
       if(r.ok){ curQuote.status='sent'; try{ bindHeader(curQuote); }catch(e){} }
     }
+    const url=await getQuoteShort();
     await navigator.clipboard.writeText(url);
-    if(btn){ btn.textContent='✓ 已複製，可直接貼給客戶'; btn.disabled=true; btn.style.opacity='.85'; }
-  }catch(e){ prompt('請手動複製新版連結：', url); }
+    if(btn){ btn.textContent='✓ 已複製短網址，可直接貼給客戶'; btn.disabled=true; btn.style.opacity='.85'; }
+  }catch(e){ const url=await getQuoteShort().catch(()=>location.origin+'/quote/'+shareToken); prompt('請手動複製新版連結：', url); }
 }
 async function syncPrepay(){
   for(let i=0;i<PREPAY_DEPOSITS.length;i++){
@@ -1043,6 +1049,9 @@ async function openPreview(){
       }catch(e){ alert('標記發送失敗，將以草稿狀態開啟。'); }
     }
   }
+  const short=await getQuoteShort();                         // 產生+複製短網址
+  try{ await navigator.clipboard.writeText(short); setStatus('🔗 已複製短網址：'+short); }
+  catch(e){ setStatus('🔗 客戶短網址：'+short); }
   window.open(`/quote/${shareToken}`,'_blank');
 }
 // 下載報價單 PDF 檔（可直接傳給客戶，不必只給連結）

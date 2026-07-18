@@ -102,19 +102,16 @@ function render(d){
   var estTax = Math.round((d.total||0) * 0.05);   // 5% 營業稅
   var estWithTax = (d.total||0) + estTax;
   // 估價區間 or 單一價的金額區塊
+  var smallTax = 'font-size:13px;font-weight:600;opacity:.75';
   var totSection;
   if(d.is_range){
     var lo=d.range_low||0, hi=d.range_high||0, loTax=lo+Math.round(lo*0.05), hiTax=hi+Math.round(hi*0.05);
     totSection = '<div class="tot">'
-      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價區間（未稅）</span><b>'+NT(lo)+' ～ '+NT(hi)+'</b></div>'
-      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(loTax-lo)+' ～ '+NT(hiTax-hi)+'</b></div>'
-      + '<div class="grand"><span>估價區間（含稅）</span><b>'+NT(loTax)+' ～ '+NT(hiTax)+'</b></div>'
+      + '<div class="grand"><span>估價區間（未稅）</span><b style="text-align:right">'+NT(lo)+' ～ '+NT(hi)+'<br><span style="'+smallTax+'">（含稅 '+NT(loTax)+' ～ '+NT(hiTax)+'）</span></b></div>'
       + '</div>';
   } else {
     totSection = '<div class="tot">'+totRows
-      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價未稅金額</span><b>'+NT(d.total)+'</b></div>'
-      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(estTax)+'</b></div>'
-      + '<div class="grand"><span>估價總額（含稅）</span><b>'+NT(estWithTax)+'</b></div>'
+      + '<div class="grand"><span>估價總額（未稅）</span><b style="text-align:right">'+NT(d.total)+'<br><span style="'+smallTax+'">（含稅 '+NT(estWithTax)+'）</span></b></div>'
       + '</div>';
   }
 
@@ -133,7 +130,7 @@ function render(d){
     + totSection
     + (d.customer_note?'<div class="note">備註：'+esc(d.customer_note)+'</div>':'')
     + (d.is_range?'<div class="note">＊估價區間為「拼料省料 ～ 寬鬆用料」之估算範圍，實際金額以現場丈量與正式報價單為準。</div>':'')
-    + '<div class="note">＊本估價單「'+(d.is_range?'估價區間（含稅）':'估價總額（含稅）')+'」已含 5% 營業稅。</div>'
+    + '<div class="note">＊估價金額以「未稅」為主；括弧內「含稅」為加計 5% 營業稅後之金額。</div>'
     + '<div class="note">＊若享優惠價，需同意行銷優惠方案，並同意照片拍攝及發布到繪新相關社群媒體上。</div>'
     + '<div class="note">＊以上估價以現貨估價；若選期貨，期貨運費另計。</div>'
     + '<div class="note">＊本估價須經現場場勘丈量、確認實際尺寸與施工工法後，方能提供正式報價單；若變更材料、膜款或工法，價格將隨之調整。</div>'
