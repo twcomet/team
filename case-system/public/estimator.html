@@ -445,6 +445,7 @@
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
               <button class="ec-btn" style="background:#fff;border:1px solid var(--ec-border)" onclick="openVersions()">🗂️ 版本</button>
+              <button class="ec-btn" style="background:#fff;border:1px solid var(--ec-border)" onclick="openLayoutFromEstimate()" title="把品項依材料分組，開排版工具看怎麼裁、用幾米（不同材料不會混排）">📐 排版示意圖</button>
             </div>
             <div class="ec-savebtns" id="ec-sent-actions" style="display:none;margin-top:8px">
               <button class="ec-btn" style="background:#D40069;color:#fff" onclick="copyEstLink()">🔗 複製客戶連結</button>
@@ -1020,6 +1021,42 @@ async function openEstPreview(){
 function closeEstPreview(){
   document.getElementById('estPreviewModal').style.display='none';
   document.getElementById('estPreviewFrame').src='about:blank';
+}
+// 排版示意圖：把品項依「材料」分組(不同材料絕不混排)，片料用含損耗尺寸(寬+10×高+10)，建排版專案並開 /layout
+async function openLayoutFromEstimate(){
+  if(!CART.length){ alert('估價單還沒有品項，無法排版'); return; }
+  var matMap={};   // key -> {name,width,pieces:{品項名:[{w,h}]}}
+  CART.forEach(function(it){
+    if(it.kind!=='other') return;   // 先做「其他」品項(系統櫃/門片等)；牆面/玻璃寬片需拼接，之後再擴充
+    if(!(Number(it.w)>0 && Number(it.h)>0)) return;
+    var W=122, mname='未指定材料';
+    if(it.mBrand && FILMS[it.mBrand] && FILMS[it.mBrand].items[it.mIdx||0]){
+      var fi=FILMS[it.mBrand].items[it.mIdx||0]; W=filmW(fi);
+      mname=(FILMS[it.mBrand].label||it.mBrand)+' '+fi.asia+(it.model?(' '+it.model):'');
+    } else if(it.model){ mname=it.model; }
+    var key=mname+'|'+W;
+    matMap[key]=matMap[key]||{name:mname,width:W,pieces:{}};
+    var pname=(it.name||'其他').trim()||'其他';
+    (matMap[key].pieces[pname]=matMap[key].pieces[pname]||[]).push({w:(Number(it.w)||0)+10,h:(Number(it.h)||0)+10});
+  });
+  var materials=[], areas=[], mi=0;
+  Object.keys(matMap).forEach(function(key){ var m=matMap[key], mid='m'+(mi++);
+    materials.push({id:mid,name:m.name,width:m.width,length:5000});
+    Object.keys(m.pieces).forEach(function(pname){
+      var byS={}; m.pieces[pname].forEach(function(p){ var k=p.w+'x'+p.h; (byS[k]=byS[k]||{w:p.w,h:p.h,qty:0,rotatable:true}).qty++; });
+      areas.push({id:'a'+areas.length,name:pname,materialId:mid,pieces:Object.keys(byS).map(function(k){return byS[k];})});
+    });
+  });
+  if(!materials.length){ alert('沒有可排版的「其他」品項（含損耗尺寸），或品項尚未選材料。'); return; }
+  var pj=(v('b-project')||'').trim();
+  var data={gap:0,rotAll:true,materials:materials,areas:areas};
+  try{
+    var r=await fetch('/api/layout/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'估價排版 '+(pj||('#'+(editId||''))),data:data})});
+    var j=await r.json();
+    if(r.ok&&j.id){ window.open('/layout?open='+j.id,'_blank'); }
+    else if(r.status===403){ alert('你的帳號沒有「排版工具」權限，請找管理者開啟。'); }
+    else alert('建立排版失敗：'+(j.error||('伺服器回應 '+r.status)));
+  }catch(e){ alert('建立排版失敗：'+e.message); }
 }
 
 /* 歷史報價彈窗（系統內既有 報價單+估價單；958 回簽之後可再併入） */

@@ -498,6 +498,9 @@ function exportPDF(){
   currentUser = await loadUser();
   highlightNav('layout');
   await loadProjects();
+  // 從估價機等處帶入：?open=<專案id> → 直接開啟並算好排版
+  var openId = new URLSearchParams(location.search).get('open');
+  if (openId){ try{ await openProject(Number(openId)); calculate(); }catch(e){} }
 })();
 </script>
 </body>
