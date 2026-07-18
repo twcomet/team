@@ -83,9 +83,10 @@ function render(d){
     var mid = bits.length ? '<div class="ser">'+bits.join('　·　')+'</div>' : '';
     var img = L.photo ? '<img src="'+esc(L.photo)+'" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;float:left;margin:2px 9px 4px 0">' : '';
     var unit = L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='film'?'':' 件'));
-    var priceCell = (L.base && L.base!==L.amount)
-      ? '<span style="text-decoration:line-through;color:#9ca3af;font-size:11px">'+NT(L.base)+'</span><br>'+NT(L.amount)
-      : NT(L.amount);
+    var priceCell = d.is_range ? '<span style="color:#9ca3af">—</span>'
+      : ((L.base && L.base!==L.amount)
+          ? '<span style="text-decoration:line-through;color:#9ca3af;font-size:11px">'+NT(L.base)+'</span><br>'+NT(L.amount)
+          : NT(L.amount));
     return '<tr><td>'+img+'<div class="lbl">'+esc(L.label)+'</div>'+mid+'<div style="clear:both"></div></td>'
       + '<td>'+ (L.n||1) + unit +'</td>'
       + '<td class="amt">'+priceCell+'</td></tr>';
@@ -100,6 +101,22 @@ function render(d){
 
   var estTax = Math.round((d.total||0) * 0.05);   // 5% 營業稅
   var estWithTax = (d.total||0) + estTax;
+  // 估價區間 or 單一價的金額區塊
+  var totSection;
+  if(d.is_range){
+    var lo=d.range_low||0, hi=d.range_high||0, loTax=lo+Math.round(lo*0.05), hiTax=hi+Math.round(hi*0.05);
+    totSection = '<div class="tot">'
+      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價區間（未稅）</span><b>'+NT(lo)+' ～ '+NT(hi)+'</b></div>'
+      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(loTax-lo)+' ～ '+NT(hiTax-hi)+'</b></div>'
+      + '<div class="grand"><span>估價區間（含稅）</span><b>'+NT(loTax)+' ～ '+NT(hiTax)+'</b></div>'
+      + '</div>';
+  } else {
+    totSection = '<div class="tot">'+totRows
+      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價未稅金額</span><b>'+NT(d.total)+'</b></div>'
+      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(estTax)+'</b></div>'
+      + '<div class="grand"><span>估價總額（含稅）</span><b>'+NT(estWithTax)+'</b></div>'
+      + '</div>';
+  }
 
   document.getElementById('sheet').innerHTML =
     '<div class="hd"><div class="co">繪新國際有限公司</div><div class="en">TWCOMET INTERNATIONAL</div><div class="doc">估　價　單</div></div>'
@@ -112,14 +129,11 @@ function render(d){
     + '</div>'
     + (d.show_detail === 0
         ? '<div class="note" style="text-align:center;padding:14px;background:#f9fafb;border-radius:8px;margin:6px 0">本估價單依需求僅呈現總額，明細不逐項列出（共 '+(d.item_count||0)+' 項）。</div>'
-        : '<table><thead><tr><th>品項</th><th>數量</th><th>金額</th></tr></thead><tbody>'+rows+'</tbody></table>')
-    + '<div class="tot">'+totRows
-      + '<div class="tr" style="font-weight:700;font-size:14.5px;border-bottom-style:solid"><span>估價未稅金額</span><b>'+NT(d.total)+'</b></div>'
-      + '<div class="tr"><span>稅金（5%）</span><b>'+NT(estTax)+'</b></div>'
-      + '<div class="grand"><span>估價總額（含稅）</span><b>'+NT(estWithTax)+'</b></div>'
-    + '</div>'
+        : '<table><thead><tr><th>品項</th><th>數量</th><th>'+(d.is_range?'':'金額')+'</th></tr></thead><tbody>'+rows+'</tbody></table>')
+    + totSection
     + (d.customer_note?'<div class="note">備註：'+esc(d.customer_note)+'</div>':'')
-    + '<div class="note">＊本估價單「估價總額（含稅）」已含 5% 營業稅。</div>'
+    + (d.is_range?'<div class="note">＊估價區間為「拼料省料 ～ 寬鬆用料」之估算範圍，實際金額以現場丈量與正式報價單為準。</div>':'')
+    + '<div class="note">＊本估價單「'+(d.is_range?'估價區間（含稅）':'估價總額（含稅）')+'」已含 5% 營業稅。</div>'
     + '<div class="note">＊若享優惠價，需同意行銷優惠方案，並同意照片拍攝及發布到繪新相關社群媒體上。</div>'
     + '<div class="note">＊以上估價以現貨估價；若選期貨，期貨運費另計。</div>'
     + '<div class="ft">繪新國際有限公司　Twcomet International<br>本單由繪新管理系統產生</div>';

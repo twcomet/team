@@ -410,12 +410,20 @@
                 <div id="t-margin-detail" style="font-size:11px;color:#6b7280;margin-top:5px;line-height:1.6"></div>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:13px;flex-wrap:wrap">
-              <span style="color:#6b7280;white-space:nowrap">🔎 客戶可見明細</span>
-              <select id="q-showdetail" onchange="QSHOW=+this.value" style="flex:1;min-width:150px;padding:7px 10px;border:1px solid var(--ec-border);border-radius:8px;font-size:13px;font-family:inherit">
-                <option value="1">含明細（材料／寬高／才數）</option>
-                <option value="0">只顯示總額（隱藏明細）</option>
-              </select>
+            <div style="margin-bottom:9px;font-size:13px;border:1px solid var(--ec-border);border-radius:9px;padding:9px 11px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px">
+                <span style="color:#6b7280;font-weight:600;white-space:nowrap">🔎 客戶頁</span>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="cvRange" onchange="setCV('range',0)"> 單一價</label>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="cvRange" onchange="setCV('range',1)"> 估價區間（省料～寬鬆）</label>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#6b7280">
+                <span style="color:#9ca3af">顯示欄位</span>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cv-detail" onchange="setCV('detail',this.checked?1:0)"> 含明細</label>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cv-photo" onchange="setCV('photo',this.checked?1:0)"> 圖片</label>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cv-material" onchange="setCV('material',this.checked?1:0)"> 材料</label>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cv-size" onchange="setCV('size',this.checked?1:0)"> 寬高</label>
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="cv-cai" onchange="setCV('cai',this.checked?1:0)"> 才數</label>
+              </div>
             </div>
             <div class="ec-savebtns">
               <button class="ec-btn ec-btn-g" onclick="saveQuote('draft')">💾 儲存估價單</button>
@@ -455,7 +463,13 @@ function buildMatDatalist(){ var dl=document.getElementById('estMatModels'); if(
 }
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
 let QPHOTOS=[];   // 這張估價單的照片庫（客人導入＋上傳），供各品項挑選掛照片
-let QSHOW=1;      // 客戶可見明細：1=含明細、0=只顯示總額（分享連結/PDF 跟著走）
+// 客戶頁顯示設定：勾選要顯示哪些欄；range=用拼料省料~寬鬆區間。分享連結/PDF 跟著走
+let CVIEW={detail:1,photo:1,material:1,size:1,cai:1,range:0};
+function setCV(k,v){ CVIEW[k]=v?1:0; }
+function syncCVUI(){
+  document.querySelectorAll('input[name="cvRange"]').forEach(function(r,i){ r.checked=(CVIEW.range?i===1:i===0); });
+  ['detail','photo','material','size','cai'].forEach(function(k){ var e=document.getElementById('cv-'+k); if(e)e.checked=!!CVIEW[k]; });
+}
 const EPARAMS = new URLSearchParams(location.search);
 
 const ceil100=n=>Math.ceil(n/100)*100, roundWall=h=>Math.round((+h+10)/10)*10, roundElev=h=>Math.ceil((+h+20)/10)*10;
@@ -894,7 +908,7 @@ async function saveQuote(status,opts){
    var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
    var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),
      customer_name:vo('b-name'), phone:vo('b-phone'), address:vo('b-address'), community:vo('b-community'),
-     items:CART, photos:QPHOTOS, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, show_detail:QSHOW, status:status||'draft' };
+     items:CART, photos:QPHOTOS, disc:parseFloat(v('q-disc'))||1, combine:COMBINE, cust_view:CVIEW, show_detail:CVIEW.detail, status:status||'draft' };
    var url=API+'/quotes'+(editId?('/'+editId):''), method=editId?'PUT':'POST';
    var r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
    var j=await r.json();
@@ -1036,8 +1050,11 @@ async function loadEstQuote(id){
     CART=Array.isArray(q.items)?q.items:[];
     QPHOTOS=Array.isArray(q.photos)?q.photos:[];
     COMBINE=!!q.combine;   // 還原計料方式(拼料省料/寬鬆)，讓顯示與存檔一致
-    QSHOW=(q.show_detail===0?0:1);
-    if(document.getElementById('q-showdetail')) document.getElementById('q-showdetail').value=String(QSHOW);
+    try{ var cv=q.cust_view?(typeof q.cust_view==='string'?JSON.parse(q.cust_view):q.cust_view):null;
+      CVIEW = cv ? {detail:+!!cv.detail,photo:+!!cv.photo,material:+!!cv.material,size:+!!cv.size,cai:+!!cv.cai,range:+!!cv.range}
+                 : {detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0};   // 舊單無 cust_view→由 show_detail 推
+    }catch(e){ CVIEW={detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0}; }
+    syncCVUI();
     document.getElementById('b-project').value=q.project_name||'';
     if(document.getElementById('b-cust')) document.getElementById('b-cust').value=q.customer_type||'owner';
     if(q.region && document.getElementById('b-region')) document.getElementById('b-region').value=q.region;
@@ -1164,6 +1181,7 @@ async function prefillFromCase(id){
   addSpecialRow();
   fillDoor();
   fillSel('f-origin',Object.keys(FUT).map(function(k){return {v:k,t:FUT[k].label};}));fillFutM();
+  syncCVUI();
   render();
   if(!embed) setupCaseSearch();
   var editParam = EPARAMS.get('edit');

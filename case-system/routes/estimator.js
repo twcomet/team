@@ -138,13 +138,14 @@ router.post('/quotes', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const token = genToken();
   const info = db.prepare(`INSERT INTO est_quotes
-    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token,show_detail,combine)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (case_id,project_name,customer_type,region,customer_name,phone,address,community,line_replied,items_json,photos_json,customer_note,disc,subtotal,discount,items_final,freight,fut,total,status,created_by,share_token,show_detail,combine,cust_view)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), JSON.stringify(b.photos || []), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', req.session.user.id, token, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0);
+      b.status || 'draft', req.session.user.id, token, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0,
+      b.cust_view ? JSON.stringify(b.cust_view) : null);
   res.json({ ok: true, id: info.lastInsertRowid, total: r.total, share_token: token });
 });
 router.put('/quotes/:id', requireAuth, (req, res) => {
@@ -152,13 +153,14 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
   const { items, r } = computeAndPersistFields(b);
   const info = db.prepare(`UPDATE est_quotes SET
     case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
-    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,combine=?,updated_at=datetime('now','localtime')
+    items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,combine=?,cust_view=?,updated_at=datetime('now','localtime')
     WHERE id=?`).run(
       b.case_id || null, b.project_name || '', b.customer_type || 'owner', b.region || '',
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), (Array.isArray(b.photos) ? JSON.stringify(b.photos) : null), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0, req.params.id);
+      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0,
+      b.cust_view ? JSON.stringify(b.cust_view) : null, req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
 });
@@ -298,27 +300,41 @@ router.get('/quotes/sign/:token', (req, res) => {
   if (!q) return res.status(404).json({ error: '找不到估價單' });
   if (!q.client_viewed_at) db.prepare(`UPDATE est_quotes SET client_viewed_at=datetime('now','localtime') WHERE id=?`).run(q.id);
   const items = JSON.parse(q.items_json || '[]');
-  const r = eng.quote(items, { cust: q.customer_type, region: q.region, disc: q.disc, combine: !!q.combine }, eng.buildCatalogFromDb(db));
+  const cat = eng.buildCatalogFromDb(db);
+  const baseOpt = { cust: q.customer_type, region: q.region, disc: q.disc };
+  const r = eng.quote(items, { ...baseOpt, combine: !!q.combine }, cat);
   const owner = q.customer_type === 'owner';
-  const showDetail = q.show_detail !== 0;   // 0=只顯示總額（不外洩任何明細）
-  // 含明細：材料/尺寸/才數/圖片一律顯示（含業主版）；僅「一材單價」對業主隱藏
+  // 顯示設定：優先 cust_view(勾選)，否則由舊的 show_detail 推
+  let cv; try { cv = q.cust_view ? JSON.parse(q.cust_view) : null; } catch (e) { cv = null; }
+  cv = cv || { detail: q.show_detail !== 0 ? 1 : 0, photo: 1, material: 1, size: 1, cai: 1, range: 0 };
+  const showDetail = !!cv.detail, isRange = !!cv.range;
+  // 估價區間：拼料省料(低)～寬鬆(高)；區間模式不顯示逐項金額與總額，改顯示區間
+  let rangeLow = null, rangeHigh = null;
+  if (isRange) {
+    const tComb  = eng.quote(items, { ...baseOpt, combine: true  }, cat).total;
+    const tLoose = eng.quote(items, { ...baseOpt, combine: false }, cat).total;
+    rangeLow = Math.min(tComb, tLoose); rangeHigh = Math.max(tComb, tLoose);
+  }
+  // 只送有勾選的欄位（沒勾就不外送）
   const lines = showDetail ? r.lines.map(L => ({
     type: L.type, label: L.label,
-    series: L.series || '',
-    material: L.material || '',
-    w: (L.w != null ? L.w : null), h: (L.h != null ? L.h : null),
-    photo: L.photo || '',
+    series: cv.size ? (L.series || '') : '',
+    material: cv.material ? (L.material || '') : '',
+    w: cv.size && L.w != null ? L.w : null, h: cv.size && L.h != null ? L.h : null,
+    photo: cv.photo ? (L.photo || '') : '',
     n: L.n,
-    cai:  (L.cai != null ? Math.round(L.cai * 10) / 10 : null),
-    unit: owner ? null : (L.unit || null),
-    base: L.base || null, amount: L.amount
+    cai: (cv.cai && L.cai != null) ? Math.round(L.cai * 10) / 10 : null,
+    unit: (!owner && cv.cai) ? (L.unit || null) : null,
+    base: isRange ? null : (L.base || null),
+    amount: isRange ? null : L.amount   // 區間模式：不顯示逐項金額
   })) : [];
   res.json({
     project_name: q.project_name,
     customer_name: q.customer_name || q.case_client_name || '',
     customer_type: q.customer_type, region: q.region,
     created_at: q.created_at, updated_at: q.updated_at, customer_note: q.customer_note,
-    disc: q.disc, show_detail: showDetail ? 1 : 0, item_count: r.lines.length,
+    disc: q.disc, cust_view: cv, show_detail: showDetail ? 1 : 0, item_count: r.lines.length,
+    is_range: isRange ? 1 : 0, range_low: rangeLow, range_high: rangeHigh,
     lines, sub: r.sub, discAmt: r.discAmt, itemsFinal: r.itemsFinal,
     freight: r.freight, fut: r.fut, total: r.total, lowApplied: r.lowApplied, lowmin: r.lowmin
   });

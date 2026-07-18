@@ -4107,6 +4107,8 @@ _addCol('est_quotes', 'client_viewed_at', 'DATETIME');
 _addCol('est_quotes', 'show_detail',      'INTEGER DEFAULT 1');
 // 計料方式：0=寬鬆(多報)、1=拼料省料。存起來讓存檔總額＋客戶頁與估價機顯示一致
 _addCol('est_quotes', 'combine',          'INTEGER DEFAULT 0');
+// 客戶頁顯示設定(JSON)：{detail,photo,material,size,cai,range}——勾選要顯示哪些欄；range=用拼料省料~寬鬆區間
+_addCol('est_quotes', 'cust_view',        'TEXT');
 // token 唯一（允許多筆 NULL：舊資料未產生前為空）
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_est_quotes_token ON est_quotes(share_token) WHERE share_token IS NOT NULL`);
 
