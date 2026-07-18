@@ -11,9 +11,9 @@
     special: { name: '玻璃膜·隔熱·特殊膜', sub: '3M Fasara · CarLife 隔熱紙 · 穩得', c1: '#0e6b7a', c2: '#22a5c4', soft: '#e0f6fb', freight: null },
   };
   // special 類別的品牌中文名（依 est_film_catalog.brand）
-  const SP_BRAND = { '3m': '3M', carlife: 'CarLife 隔熱紙', wonder: '穩得' };
+  const SP_BRAND = { '3m': '3M', carlife: 'CarLife 隔熱紙', wonder: '穩得', special: '特殊膜' };
   // 判斷是否玻璃膜/隔熱/特殊膜（元/才計價，歸到 special 類別）
-  const isSpecial = f => f.brand === 'carlife' || f.brand === 'wonder' ||
+  const isSpecial = f => f.brand === 'carlife' || f.brand === 'wonder' || f.brand === 'special' ||
     (f.brand === '3m' && (/^SH2/.test(f.asia_code || '') || (f.asia_code || '') === 'WH-111'));
   const FREIGHT_NOTE = {
     kr: ['空運 $6,000／一款（約 2–10 工作天，不含假日）', '海運 $3,000／一款（約 20–30 工作天，不含假日）'],
@@ -208,7 +208,7 @@
 
   // 玻璃膜·隔熱·特殊膜表格（元/才計價，無防焰、無每米；依品牌分組）
   function tableSpecial(rows) {
-    const order = ['3m', 'carlife', 'wonder'], groups = {};
+    const order = ['3m', 'carlife', 'wonder', 'special'], groups = {};
     (rows || []).forEach(r => { (groups[r.brand] = groups[r.brand] || []).push(r); });
     const head = `<tr><th style="width:14%">品牌</th><th style="width:44%">型號／花色</th>` +
       `<th style="width:20%">規格</th><th class="ps-ph" style="width:22%">連工帶料<br>(元／才)</th></tr>`;
@@ -219,7 +219,7 @@
         const band = i === 0
           ? `<td class="ps-band nf" rowspan="${rs.length}">${esc(SP_BRAND[bk] || bk)}</td>` : '';
         body += `<tr>${band}` +
-          `<td class="ps-code" style="text-align:left">${esc(r.asia_code || '—')}${r.color ? ` <small style="color:#9ca3af">${esc(r.color)}</small>` : ''}</td>` +
+          `<td class="ps-code" style="text-align:left">${esc(r.asia_code || '—')}${r.color ? ` <small style="color:#9ca3af">${esc(r.color)}</small>` : ''}${r.model_note ? `<br><small style="color:#9ca3af;font-weight:400">供應商：${esc(r.model_note)}</small>` : ''}</td>` +
           `<td>${r.width || 122}cm×${r.roll_len || 30}M</td>` +
           `<td class="ps-perm">${nt(r.plane)}<small>元/才</small></td></tr>`;
       });

@@ -3818,6 +3818,22 @@ try {
   }
 } catch (e) { console.warn('[wonder changhong split]', e.message); }
 
+// 特殊膜品牌：超疏水防爆膜（供應商 日本三井先進材料，記在 model_note）。膜寬122、成本100、材料牌價300、連工帶料450（元/才）。
+try {
+  const MIG = 'special_hydrophobic_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    if (!db.prepare(`SELECT 1 FROM est_film_catalog WHERE brand='special' AND asia_code='超疏水防爆膜'`).get()) {
+      const so = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_film_catalog`).get().n;
+      const w = 122, cost = 100, mat = 300, unit = 450;
+      db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order,active)
+        VALUES ('special','','超疏水防爆膜','','防爆·超疏水','日本三井先進材料','',?,0,?,?,?,?,?,30,?,1)`)
+        .run(Math.round(mat * w / 9), Math.round(cost * w / 9), unit, unit, unit, w, so);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 特殊膜 超疏水防爆膜（三井）已建入 est_film_catalog');
+  }
+} catch (e) { console.warn('[special hydrophobic]', e.message); }
+
 // 韓版 BODAQ 重整：同價系列歸類成分組列（不防焰一組、防焰一組），從~38列縮成23列，較簡潔。成本＝未稅×0.3。
 try {
   const MIG = 'bodaq_kr_regroup_2026_07';
