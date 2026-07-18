@@ -3801,6 +3801,23 @@ try {
   }
 } catch (e) { console.warn('[glass/insulation/wonder seed]', e.message); }
 
+// 穩得長虹玻璃膜 系列細分：把單一「長虹玻璃膜」換成電商的「超擬真／磨砂基礎」兩系列（同價180，僅視覺不同）。個別花色留給膜料管理現貨。
+try {
+  const MIG = 'wonder_changhong_split_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`UPDATE est_film_catalog SET active=0 WHERE brand='wonder' AND asia_code='長虹玻璃膜'`).run();  // 停用舊的單一入口
+    let so = db.prepare(`SELECT COALESCE(MAX(sort_order),0) n FROM est_film_catalog`).get().n;
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order,active) VALUES ('wonder','',?, '', ?, '', '', 0, 0, ?, 180, 180, 180, 152, 15, ?, 1)`);
+    const cpm = Math.round(30 * 152 / 9);   // 成本30元/才 × 膜寬152 ÷ 9 = 元/米
+    for (const [code, color] of [['長虹玻璃膜·超擬真','玻璃膜'], ['長虹玻璃膜·磨砂基礎','玻璃膜']]) {
+      if (db.prepare(`SELECT 1 FROM est_film_catalog WHERE brand='wonder' AND asia_code=?`).get(code)) continue;
+      so++; ins.run(code, color, cpm, so);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 穩得長虹玻璃膜 已細分超擬真／磨砂基礎（單一入口停用）');
+  }
+} catch (e) { console.warn('[wonder changhong split]', e.message); }
+
 // 韓版 BODAQ 重整：同價系列歸類成分組列（不防焰一組、防焰一組），從~38列縮成23列，較簡潔。成本＝未稅×0.3。
 try {
   const MIG = 'bodaq_kr_regroup_2026_07';
