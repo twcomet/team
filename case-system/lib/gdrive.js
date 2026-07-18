@@ -378,4 +378,57 @@ async function listBackups(limit) {
   return { folderId, files: j.files || [] };
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups };
+// ── 客服對話備份：獨立母資料夾「系統客服對話紀錄」（跟案件樹分開；權限由使用者在此夾自行分享）──
+async function _ensureCsRoot(token) {
+  const pid = getS('gdrive_cs_root_id');
+  if (pid) return pid;
+  let id = await _findRootFolder('系統客服對話紀錄', token);   // 同帳號重連可沿用
+  if (!id) { const f = await _createFolder('系統客服對話紀錄', null, token); id = f.id; }
+  setS('gdrive_cs_root_id', id);
+  return id;
+}
+function _safeName(s) { return String(s || '').replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim().slice(0, 120); }
+// 某客戶在「系統客服對話紀錄」下的子夾（存 clients.drive_cs_folder_id）
+async function ensureClientCsFolder(clientId, clientName) {
+  const c = db.prepare('SELECT id, drive_cs_folder_id FROM clients WHERE id=?').get(clientId);
+  if (!c) throw new Error('找不到客戶');
+  if (c.drive_cs_folder_id) return c.drive_cs_folder_id;
+  const token = await accessToken();
+  const root  = await _ensureCsRoot(token);
+  const f = await _createFolder(_safeName(clientName) || ('客戶' + clientId), root, token);
+  db.prepare('UPDATE clients SET drive_cs_folder_id=? WHERE id=?').run(f.id, clientId);
+  return f.id;
+}
+// 某案件在客戶夾下的子夾（存 cases.drive_cs_folder_id）→ 回傳 { folderId, link }
+async function ensureCaseCsFolder(caseId) {
+  const cs = db.prepare('SELECT id, drive_cs_folder_id, drive_cs_folder_url, client_id, case_number, title FROM cases WHERE id=?').get(caseId);
+  if (!cs) throw new Error('找不到案件');
+  if (cs.drive_cs_folder_id) return { folderId: cs.drive_cs_folder_id, link: cs.drive_cs_folder_url || null };
+  if (!cs.client_id) throw new Error('此案件尚未連結客戶，請先在報價單「儲存並建檔」或指定客戶');
+  const cl = db.prepare('SELECT name FROM clients WHERE id=?').get(cs.client_id);
+  const clientFolder = await ensureClientCsFolder(cs.client_id, cl && cl.name);
+  const token = await accessToken();
+  const name = _safeName((cs.case_number ? cs.case_number + ' ' : '') + (cs.title || '')) || ('案件' + caseId);
+  const f = await _createFolder(name, clientFolder, token);
+  db.prepare('UPDATE cases SET drive_cs_folder_id=?, drive_cs_folder_url=? WHERE id=?').run(f.id, f.webViewLink || null, caseId);
+  return { folderId: f.id, link: f.webViewLink || null };
+}
+// 通用：上傳一個檔案(buffer)到指定資料夾
+async function uploadFileToFolder(folderId, name, buf, mime) {
+  const token = await accessToken();
+  const boundary = 'hxf' + Math.random().toString(16).slice(2) + Date.now().toString(16);
+  const meta = JSON.stringify({ name, parents: [folderId] });
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mime || 'application/octet-stream'}\r\n\r\n`),
+    Buffer.isBuffer(buf) ? buf : Buffer.from(buf),
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': `multipart/related; boundary=${boundary}` }, body,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('檔案上傳失敗：' + ((j.error && j.error.message) || r.status));
+  return j;
+}
+
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder };

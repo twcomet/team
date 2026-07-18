@@ -504,7 +504,10 @@
         <div class="sf-tab-section">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)">
             <div style="font-size:14px;font-weight:600;color:var(--gray-700)">💬 客服對話紀錄（LINE）</div>
-            <a id="chatOpenInq" href="/line-inquiries" style="font-size:12px;color:var(--primary);text-decoration:none">到 LINE 詢問回覆 ↗</a>
+            <div style="display:flex;align-items:center;gap:12px">
+              <button class="btn btn-ghost btn-sm" id="convBackupBtn" onclick="backupConversation()" title="把對話＋照片備份成 PDF 到「系統客服對話紀錄」→客戶→案件 資料夾（權限獨立）">📁 備份對話到客服資料夾</button>
+              <a id="chatOpenInq" href="/line-inquiries" style="font-size:12px;color:var(--primary);text-decoration:none">到 LINE 詢問回覆 ↗</a>
+            </div>
           </div>
           <div id="chatBox" style="max-height:560px;overflow-y:auto;padding:6px 2px">
             <p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">載入中…</p>
@@ -2124,6 +2127,22 @@ async function loadCareTab() {
 }
 
 // 客服對話紀錄（LINE）：把這位客戶跟我們的 LINE 對話撈進案件
+async function backupConversation() {
+  const btn = document.getElementById('convBackupBtn');
+  if (!confirm('把此案件的客服對話＋客人照片，備份成 PDF 到「系統客服對話紀錄 → 客戶 → 案件」資料夾？\n\n（此樹跟案件資料夾分開、權限由你在 Drive 自行設定。）')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '備份中…（約需數秒）'; }
+  try {
+    const r = await fetch(`/api/cases/${caseId}/backup-conversation`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) {
+      showToast(`已備份到雲端（${j.messages} 則對話、${j.photos} 張照片）`);
+      if (j.link && confirm('備份完成！要現在打開雲端資料夾看嗎？')) window.open(j.link, '_blank');
+    } else {
+      showToast(j.error || '備份失敗', 'error');
+    }
+  } catch (e) { showToast('備份失敗：' + e.message, 'error'); }
+  if (btn) { btn.disabled = false; btn.textContent = '📁 備份對話到客服資料夾'; }
+}
 async function loadChatTab() {
   const box = document.getElementById('chatBox');
   box.innerHTML = '<p style="color:#9ca3af;font-size:14px;text-align:center;padding:40px">載入中…</p>';

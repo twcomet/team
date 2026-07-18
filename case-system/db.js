@@ -274,6 +274,10 @@ _addCol('cases', 'survey_date',      'DATE');
 _addCol('cases', 'surveyor_id',      'INTEGER REFERENCES users(id)');
 _addCol('cases', 'drive_folder_id',  'TEXT');
 _addCol('cases', 'drive_folder_url', 'TEXT');
+// 客服對話備份用的獨立資料夾樹「系統客服對話紀錄」（跟案件資料夾分開、權限隔離）
+_addCol('cases',   'drive_cs_folder_id',  'TEXT');
+_addCol('cases',   'drive_cs_folder_url', 'TEXT');
+_addCol('clients', 'drive_cs_folder_id',  'TEXT');
 _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');

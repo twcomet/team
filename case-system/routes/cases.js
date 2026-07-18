@@ -1417,4 +1417,79 @@ router.delete('/:id/care-logs/:logId', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── 備份客服對話到 Google Drive「系統客服對話紀錄」(PDF＋照片；獨立權限樹) ──
+function _escH(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function _buildConversationHtml(cs, client, msgs) {
+  const rows = msgs.map(m => {
+    const out = m.direction === 'out';
+    const time = _escH((m.created_at || '').replace('T', ' ').slice(0, 16));
+    const who = out ? _escH(m.sender_name || '客服') : _escH(m.sender_display || client || '客人');
+    const body = (m.msg_type === 'image' && m.content)
+      ? `<img src="${_escH(m.content)}" style="max-width:230px;max-height:280px;border-radius:10px;border:1px solid #e5e7eb;display:block">`
+      : `<div class="bub ${out ? 'o' : 'i'}">${_escH(m.content || '')}</div>`;
+    return `<div class="row ${out ? 'o' : 'i'}">
+      <div class="col"><div class="who">${who}　<span class="t">${time}</span></div>${body}</div>
+    </div>`;
+  }).join('');
+  return `<!doctype html><html lang="zh-TW"><head><meta charset="utf-8">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,"Noto Sans TC","PingFang TC",sans-serif;color:#1b1b1f;font-size:13px;background:#fff;padding:14px 4px}
+    .hd{border-bottom:2px solid #d40069;padding-bottom:8px;margin-bottom:12px}
+    .hd b{font-size:17px}.hd .sub{color:#6b7280;font-size:12px;margin-top:3px}
+    .row{display:flex;margin:8px 0}.row.o{justify-content:flex-end}
+    .col{max-width:74%}.row.o .col{align-items:flex-end;text-align:right}
+    .who{font-size:11px;color:#6b7280;margin-bottom:3px}.who .t{color:#9ca3af}
+    .bub{display:inline-block;padding:8px 12px;border-radius:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word;text-align:left}
+    .bub.i{background:#f3f4f6;border-radius:4px 12px 12px 12px}
+    .bub.o{background:#fdecf3;border:1px solid #f6c9dd;border-radius:12px 4px 12px 12px}
+  </style></head><body>
+    <div class="hd"><b>客服對話紀錄</b>
+      <div class="sub">客戶：${_escH(client || '—')}　·　案件：${_escH((cs.case_number || '') + ' ' + (cs.title || ''))}　·　匯出：${_escH(new Date().toISOString().slice(0,16).replace('T',' '))}　·　共 ${msgs.length} 則</div>
+    </div>${rows || '<div style="color:#9ca3af;text-align:center;padding:30px">尚無對話紀錄</div>'}
+  </body></html>`;
+}
+router.post('/:id/backup-conversation', requireAuth, async (req, res) => {
+  const me = req.session.user;
+  if (!(me.role === 'owner' || me.role === 'vp' || me.is_manager || (me.role || '').startsWith('hq_cs') || me.role === 'hq_accounting'))
+    return res.status(403).json({ error: '僅客服／管理者可備份對話' });
+  if (!gdrive.isConnected()) return res.status(400).json({ error: 'Google Drive 尚未連接，請先到設定連接' });
+  const cs = db.prepare(`SELECT id, client_id, case_number, title, line_source FROM cases WHERE id=?`).get(req.params.id);
+  if (!cs) return res.status(404).json({ error: '找不到案件' });
+  if (!cs.client_id) return res.status(400).json({ error: '此案件尚未連結客戶，無法建立客戶資料夾（請先在報價單「儲存並建檔」或指定客戶）' });
+  const client = db.prepare(`SELECT name FROM clients WHERE id=?`).get(cs.client_id);
+  // 撈這位客戶/此案件的 LINE 對話（依 converted_case_id 或 client_id 或 line_source 對應的詢問）
+  const inqs = db.prepare(`SELECT id FROM line_inquiries WHERE converted_case_id=? OR client_id=? OR (line_user_id IS NOT NULL AND line_user_id=?)`)
+    .all(cs.id, cs.client_id, cs.line_source || '__none__').map(r => r.id);
+  const msgs = inqs.length
+    ? db.prepare(`SELECT m.*, u.name AS sender_name FROM line_inquiry_messages m LEFT JOIN users u ON u.id=m.sent_by
+                  WHERE m.inquiry_id IN (${inqs.map(() => '?').join(',')}) ORDER BY m.created_at ASC, m.id ASC`).all(...inqs)
+    : [];
+  try {
+    const { renderPdfFromHtml } = require('../lib/pdf-render');
+    const html = _buildConversationHtml(cs, client && client.name, msgs);
+    const pdf = await renderPdfFromHtml(html, { title: `客服對話-${(client && client.name) || ''}` });
+    const { folderId, link } = await gdrive.ensureCaseCsFolder(cs.id);
+    const stamp = new Date().toISOString().slice(0, 10);
+    await gdrive.uploadFileToFolder(folderId, `對話紀錄_${stamp}.pdf`, Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf), 'application/pdf');
+    // 照片：把客人傳的 Cloudinary 圖片下載後，一張張上傳到同一個案件資料夾
+    const imgs = msgs.filter(m => m.msg_type === 'image' && m.content).map(m => m.content);
+    let photoCount = 0;
+    for (let i = 0; i < imgs.length; i++) {
+      try {
+        const r = await fetch(imgs[i]); if (!r.ok) continue;
+        const ab = await r.arrayBuffer();
+        await gdrive.uploadFileToFolder(folderId, `照片_${stamp}_${String(i + 1).padStart(2, '0')}.jpg`, Buffer.from(ab), 'image/jpeg');
+        photoCount++;
+      } catch (e) { /* 單張失敗略過 */ }
+    }
+    db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+      .run(me.id, 'backup_conversation', 'cases', cs.id, `備份客服對話到雲端（${msgs.length}則、照片${photoCount}張）`);
+    res.json({ ok: true, link, messages: msgs.length, photos: photoCount });
+  } catch (e) {
+    console.error('[backup-conversation]', e && e.message);
+    res.status(500).json({ error: '備份失敗：' + (e && e.message || '未知錯誤') });
+  }
+});
+
 module.exports = router;

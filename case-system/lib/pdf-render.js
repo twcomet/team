@@ -86,4 +86,50 @@ async function renderPdf(url, { waitSelector, title } = {}) {
   }
 }
 
-module.exports = { renderPdf };
+// 直接用 HTML 字串產 PDF（不需另開網址/路由；用於客服對話備份）
+async function renderPdfFromHtml(html, { title } = {}) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 900, height: 1400, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    // 縮小 Cloudinary 圖片，避免 PDF 過大
+    try {
+      await page.evaluate(() => {
+        document.querySelectorAll('img').forEach(img => {
+          try {
+            const u = new URL(img.src, location.href);
+            if (u.hostname.includes('cloudinary') && u.pathname.includes('/upload/') &&
+                !/\/upload\/[^/]*(?:w_|q_)/.test(u.pathname)) {
+              img.src = img.src.replace('/upload/', '/upload/w_1100,q_auto,f_auto/');
+            }
+          } catch (e) {}
+        });
+      });
+    } catch (e) {}
+    try {
+      await page.evaluate(async () => {
+        await Promise.all(Array.from(document.images).map(img =>
+          img.complete ? Promise.resolve() : new Promise(res => { img.onload = img.onerror = res; })
+        ));
+      });
+    } catch (e) {}
+    try { await page.addStyleTag({ content: '@page{margin:0 !important}' }); } catch (e) {}
+    const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+    const docTitle = esc(title || '客服對話紀錄');
+    const footerTemplate = `<div style="font-size:8px;width:100%;box-sizing:border-box;padding:0 8mm;color:#999;font-family:'Noto Sans CJK TC','Noto Sans TC',sans-serif;display:flex;justify-content:space-between;align-items:center;">
+      <span style="max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${docTitle}</span>
+      <span>第 <span class="pageNumber"></span> / <span class="totalPages"></span> 頁</span>
+    </div>`;
+    const pdf = await page.pdf({
+      format: 'A4', printBackground: true, displayHeaderFooter: true,
+      headerTemplate: '<div></div>', footerTemplate,
+      margin: { top: '10mm', bottom: '16mm', left: '8mm', right: '8mm' },
+    });
+    return pdf;
+  } finally {
+    try { await page.close(); } catch (e) {}
+  }
+}
+
+module.exports = { renderPdf, renderPdfFromHtml };
