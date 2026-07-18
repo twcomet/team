@@ -297,6 +297,24 @@
   </div>
 </div>
 
+<!-- 關聯現有案件 Modal -->
+<div class="modal-overlay" id="linkCaseModal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h3>🔗 關聯到現有案件</h3>
+      <button class="modal-close" onclick="closeLinkCase()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;line-height:1.6">搜尋並選一個既有案件，把這個 LINE 對話（含此群組的 LINE ID）綁上去。綁定後：案件頁會顯示這段對話、之後的訊息也會自動歸到該案；群組會接上該案件的客戶。</div>
+      <input id="linkCaseSearch" type="text" placeholder="輸入 案號 / 案名 / 客戶名 / 電話" oninput="searchLinkCases()" style="width:100%;padding:9px 11px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;box-sizing:border-box">
+      <div id="linkCaseResults" style="margin-top:10px;max-height:340px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeLinkCase()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 客服關懷記錄 Modal -->
 <div class="modal-overlay" id="careModal">
   <div class="modal" style="max-width:920px;width:96%">
@@ -979,6 +997,7 @@ async function openInquiry(id) {
     ${_pill(S === 'new',         'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd', `setStatus(${id},'new')`,         '新詢問',   '設為新詢問')}
     ${_pill(S === 'in_progress', 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d', `setStatus(${id},'in_progress')`, '進行中',   '標記進行中')}
     ${_pill(S === 'converted',   'background:#dcfce7;color:#166534;border:1px solid #86efac', `openConvert(${id})`,             '已轉案',   S === 'converted' ? '此詢問已轉為案件' : '轉為案件')}
+    <button class="btn btn-sm" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer" onclick="openLinkCase(${id})" title="把這個 LINE 對話（含此群組的 LINE ID）綁到一個已存在的案件／客戶">🔗 關聯案件</button>
     ${_pill(S === 'invalid',     'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5', `setStatus(${id},'invalid')`,     '無效',     '標記無效')}
     ${_pill(S === 'hidden',      'background:#e5e7eb;color:#374151;border:1px solid #d1d5db', `setStatus(${id},'hidden')`,      '隱藏',     '隱藏此詢問')}
     <span class="det-sep"></span>
@@ -1491,6 +1510,51 @@ async function doConvert() {
   } else {
     const err = await r.json().catch(() => ({}));
     showToast(err.error || '轉案失敗', 'error');
+  }
+}
+
+// ── 關聯現有案件 ──────────────────────────────────────────
+let linkCaseInquiryId = null, linkCaseTimer = null;
+function openLinkCase(id) {
+  linkCaseInquiryId = id;
+  document.getElementById('linkCaseSearch').value = '';
+  document.getElementById('linkCaseResults').innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋案件</div>';
+  document.getElementById('linkCaseModal').classList.add('open');
+  setTimeout(() => document.getElementById('linkCaseSearch').focus(), 50);
+}
+function closeLinkCase() { document.getElementById('linkCaseModal').classList.remove('open'); }
+function searchLinkCases() {
+  clearTimeout(linkCaseTimer);
+  linkCaseTimer = setTimeout(async () => {
+    const q = document.getElementById('linkCaseSearch').value.trim();
+    const box = document.getElementById('linkCaseResults');
+    if (q.length < 1) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋案件</div>'; return; }
+    const d = await fetch(`/api/search/quick?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ results: [] }));
+    const cases = (d.results || []).filter(x => x.type === 'case');
+    if (!cases.length) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">找不到符合的案件</div>'; return; }
+    box.innerHTML = cases.map(c => `
+      <div onclick="doLinkCase(${c.id})" style="padding:9px 11px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#be185d">${escHtml(c.case_number || '')} <span style="color:var(--gray-800);font-weight:600">${escHtml(c.title || '（未命名）')}</span></div>
+          <div style="font-size:11px;color:var(--gray-500)">${escHtml(c.client_name || '—')}${c.phone ? ' · ' + escHtml(c.phone) : ''}${c.stage_label ? ' · ' + escHtml(c.stage_label) : ''}</div>
+        </div>
+        <span style="font-size:12px;color:#1d4ed8;white-space:nowrap">綁定 →</span>
+      </div>`).join('');
+  }, 250);
+}
+async function doLinkCase(caseId) {
+  if (!linkCaseInquiryId) return;
+  const r = await fetch(`/api/line-inquiries/${linkCaseInquiryId}/link-case`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_id: caseId })
+  });
+  if (r.ok) {
+    const d = await r.json();
+    closeLinkCase();
+    showToast(`已關聯到案件 ${d.case_number || ''}`);
+    loadStats(); loadList(); openInquiry(linkCaseInquiryId);
+  } else {
+    const e = await r.json().catch(() => ({}));
+    showToast(e.error || '關聯失敗', 'error');
   }
 }
 

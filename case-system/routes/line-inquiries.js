@@ -309,6 +309,31 @@ router.post('/:id/convert', requireAuth, (req, res) => {
   res.json({ ok: true, case_id: r.lastInsertRowid, case_number: caseNumber, to_survey: !!to_survey });
 });
 
+// ── 關聯到「現有案件」：把此 LINE 對話（含群組的 LINE ID）綁到既有案件 ──
+// 用 converted_case_id 當綁定鍵（不污染案件的「Line@來源名稱」欄位）；並把群組名補進案件「LINE ID 名稱」
+router.post('/:id/link-case', requireAuth, (req, res) => {
+  const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq) return res.status(404).json({ error: 'not found' });
+  const caseId = parseInt(req.body.case_id);
+  const cs = caseId ? db.prepare(`SELECT id, case_number, client_id, line_display_name FROM cases WHERE id=?`).get(caseId) : null;
+  if (!cs) return res.status(404).json({ error: '找不到案件' });
+  const u = req.session.user;
+
+  // 詢問 → 綁到此案件（沿用轉案的 converted 機制；client 沒綁過就接上案件的客戶）
+  db.prepare(`
+    UPDATE line_inquiries
+    SET status='converted', converted_case_id=?, converted_at=CURRENT_TIMESTAMP, converted_by=?,
+        client_id=COALESCE(client_id, ?), updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(caseId, u.id, cs.client_id || null, inq.id);
+
+  // 案件 → 補上「LINE ID 名稱」(群組/客戶顯示名)，讓案件頁看得到這段對話（原本有值就不覆蓋）
+  db.prepare(`UPDATE cases SET line_display_name=COALESCE(NULLIF(line_display_name,''), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(inq.display_name || null, caseId);
+
+  res.json({ ok: true, case_id: caseId, case_number: cs.case_number });
+});
+
 // ── 透過 LINE 回覆客戶 ────────────────────────────────────────
 router.post('/:id/reply', requireAuth, async (req, res) => {
   const { message, reply_to_id } = req.body;
