@@ -3759,6 +3759,48 @@ try {
   }
 } catch (e) { console.warn('[bodaq kr fill]', e.message); }
 
+// 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 建入 est_film_catalog。
+// 這些品項客戶都用「元/才」思考：連工帶料→plane=cabinet=shape(元/才)；成本/材料(元/才)×膜寬/9 換算成元/米存(cost_per_m/per_m)，估價機 matCost=才×9/W×cost_per_m 才會等於 才×成本(元/才)。
+try {
+  const MIG = 'film_glass_insulation_wonder_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    // [品牌, 型號, 花色/名稱, 膜寬cm, 卷長m, 成本元/才, 連工帶料元/才, 材料牌價元/才(0=無)]
+    const D = [
+      // 3M Fasara 玻璃膜＋白板膜 WH-111（3M低毛利：成本=材料牌價×0.8）
+      ['3m','SH2FGOV','玻璃膜·漸層',152,30,232,390,290], ['3m','SH2FGPP-W','玻璃膜·漸層',152,30,232,390,290],
+      ['3m','SH2FGCL','玻璃膜·漸層',152,30,232,390,290], ['3m','SH2FGSD','玻璃膜·漸層',127,30,232,390,290],
+      ['3m','SH2BKSG','玻璃膜·自然',127,30,232,390,290], ['3m','SH2GRSG','玻璃膜·自然',127,30,232,390,290],
+      ['3m','SH2PTBR','玻璃膜·自然',127,30,232,390,290], ['3m','SH2PTFB','玻璃膜·自然',127,30,232,390,290],
+      ['3m','SH2BKTV','玻璃膜·自然',127,30,232,390,290], ['3m','SH2FGT','玻璃膜·自然',127,30,232,390,290],
+      ['3m','SH2FGTZ','玻璃膜·自然',127,30,232,390,290],
+      ['3m','SH2 Blaze','玻璃膜·炫彩(DF-PA)',122,30,680,950,850], ['3m','SH2 Chill','玻璃膜·炫彩(DF-PA)',122,30,680,950,850],
+      ['3m','WH-111','白板膜',125,30,164,305,205],
+      // CarLife 隔熱紙（成本×3=牌價；卷長24m；IE35三呎=I135）
+      ['carlife','M10+','隔熱紙',152,24,45,235,135], ['carlife','M20+','隔熱紙',152,24,45,235,135],
+      ['carlife','M30+','隔熱紙',152,24,45,235,135], ['carlife','M50+','隔熱紙',152,24,45,235,135],
+      ['carlife','M70+','隔熱紙',152,24,45,235,135], ['carlife','IE35(3呎)','隔熱紙·三呎',150,24,50,250,150],
+      ['carlife','T35K','隔熱紙',152,24,25,180,75], ['carlife','T080','隔熱紙',152,24,25,180,75],
+      ['carlife','T180','隔熱紙',152,24,25,180,75], ['carlife','T350','隔熱紙',152,24,25,180,75],
+      ['carlife','T500','隔熱紙',152,24,25,180,75], ['carlife','T520','隔熱紙',152,24,25,180,75],
+      ['carlife','T800','隔熱紙',152,24,25,180,75], ['carlife','T803','隔熱紙',152,24,25,180,75],
+      // 穩得（成本30組連工帶料180；彩虹PRO成本60×4=240材料、+150施工=390）
+      ['wonder','長虹玻璃膜','玻璃膜',152,15,30,180,0], ['wonder','日式白和紙','玻璃貼膜·和紙',127,15,30,180,0],
+      ['wonder','鏡子膜(L-2502)','鏡面膜',152,30,30,180,0], ['wonder','白板膜','白板膜',150,30,30,180,0],
+      ['wonder','彩虹膜PRO(L-9324)','彩虹膜',137,50,60,390,240], ['wonder','彩虹膜PRO(L-9332)','彩虹膜',152,25,60,390,240],
+    ];
+    let so = db.prepare(`SELECT COALESCE(MAX(sort_order),0) n FROM est_film_catalog`).get().n;
+    const ins = db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,cost_per_m,plane,cabinet,shape,width,roll_len,sort_order,active) VALUES (?, '', ?, '', ?, '', '', ?, 0, ?, ?, ?, ?, ?, ?, ?, 1)`);
+    for (const [brand, code, color, w, roll, cost, unit, mat] of D) {
+      if (db.prepare(`SELECT 1 FROM est_film_catalog WHERE brand=? AND asia_code=?`).get(brand, code)) continue;
+      so++;
+      const per_m = mat ? Math.round(mat * w / 9) : 0, cost_per_m = Math.round(cost * w / 9);
+      ins.run(brand, code, color, per_m, cost_per_m, unit, unit, unit, w, roll, so);
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 已建入 est_film_catalog');
+  }
+} catch (e) { console.warn('[glass/insulation/wonder seed]', e.message); }
+
 // 韓版 BODAQ 重整：同價系列歸類成分組列（不防焰一組、防焰一組），從~38列縮成23列，較簡潔。成本＝未稅×0.3。
 try {
   const MIG = 'bodaq_kr_regroup_2026_07';

@@ -462,7 +462,7 @@
 <script src="/js/common.js"></script>
 <script>
 const API = '/api/estimator';
-const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI' };
+const BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI', '3m':'3M', carlife:'CarLife 隔熱紙', wonder:'穩得' };
 const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統櫃'}, s:{work:'shape',label:'造型'}, t:{work:'ceiling',label:'天花板'} };
 const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型', ceiling:'天花板' };
 function workUnit(it,work){ return work==='ceiling' ? (Number(it.shape)||0)+20 : it[work]; }  // 天花板=造型(shape)+20/才
