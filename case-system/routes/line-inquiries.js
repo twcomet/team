@@ -12,6 +12,9 @@ router.get('/', requireAuth, (req, res) => {
   const where  = [];
   const params = [];
 
+  const wantGroup = req.query.is_group === '1' || req.query.is_group === 'true';
+  if (wantGroup) where.push(`i.is_group=1`);   // 群組篩選：不管名稱/狀態，一律列出所有群組對話
+
   if (case_status) {
     // 依「關聯案件狀態」撈：跨全部詢問（不限詢問本身狀態），比對該客戶的案件階段
     where.push(`COALESCE(cc.status, (SELECT status FROM cases WHERE (client_id=i.client_id OR line_source=i.line_user_id) AND status NOT IN ('closed','invalid') ORDER BY id DESC LIMIT 1)) = ?`);
@@ -19,6 +22,8 @@ router.get('/', requireAuth, (req, res) => {
   } else if (q && (!status || status === 'all')) {
     // 搜尋 + 全部：跨「所有狀態」搜（含已轉案 / 無效 / 結案 / 隱藏），確保任何客戶都找得到
     // 不加任何狀態限制
+  } else if (wantGroup && (!status || status === 'all')) {
+    // 群組篩選 + 全部：列出所有群組（跨全狀態），不再限縮 new/in_progress
   } else if (!status || status === 'all') {
     // 全部（瀏覽，未搜尋）：待處理收件匣 = 新詢問 + 進行中，與上方「全部」badge 一致
     // 已轉案有自己的分頁；要找已轉案客戶請用搜尋（搜尋會跨所有狀態）
