@@ -475,6 +475,48 @@ async function _syncAdhoc(id) {
   db.prepare('UPDATE adhoc_events SET gcal_event_id=? WHERE id=?').run(j.id, id);
 }
 
+// ── 今日「遲到／未打卡」名單 → 一筆全天事件到「繪新派單」曆（attnDate 標記冪等；名單空則刪）──
+async function _syncLateList(dateStr, lateNames, absentNames) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ''))) return;
+  lateNames = lateNames || []; absentNames = absentNames || [];
+  const token   = await gdrive.accessToken();
+  const calId   = await _ensureCalendar(token);
+  const headers = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+  const base    = `${CAL_API}/calendars/${encodeURIComponent(calId)}/events`;
+  // 先找同 attnDate 標記的既有事件（冪等、自癒重複）
+  const fr = await _fetchRetry(`${base}?privateExtendedProperty=${encodeURIComponent('attnDate=' + dateStr)}&showDeleted=false&maxResults=10&singleEvents=false`, { headers });
+  const fj = await fr.json().catch(() => ({}));
+  const existing = (fr.ok && Array.isArray(fj.items)) ? fj.items.filter(e => e.id && e.status !== 'cancelled') : [];
+  // 沒有異常名單 → 刪掉既有事件（例如全部補打卡後）
+  if (!lateNames.length && !absentNames.length) {
+    for (const e of existing) { await _fetchRetry(`${base}/${encodeURIComponent(e.id)}`, { method: 'DELETE', headers }); await _sleep(80); }
+    return;
+  }
+  const total = lateNames.length + absentNames.length;
+  const lines = [];
+  if (lateNames.length)   lines.push(`遲到（${lateNames.length}）：${lateNames.join('、')}`);
+  if (absentNames.length) lines.push(`未打卡（${absentNames.length}）：${absentNames.join('、')}`);
+  const ev = {
+    summary: `⚠️ 出勤異常（${total}）`,
+    description: `系統自動彙整今日出勤異常名單（每日 10:00 更新）\n${lines.join('\n')}`,
+    status: 'confirmed', colorId: '11',
+    start: { date: dateStr }, end: { date: _nextDay(dateStr) },
+    extendedProperties: { private: { attnDate: dateStr } },
+  };
+  if (existing.length) {
+    const keep = existing[0].id;
+    const pr = await _fetchRetry(`${base}/${encodeURIComponent(keep)}`, { method: 'PATCH', headers, body: JSON.stringify(ev) });
+    if (pr.ok) { for (let i = 1; i < existing.length; i++) { await _fetchRetry(`${base}/${encodeURIComponent(existing[i].id)}`, { method: 'DELETE', headers }); await _sleep(80); } return; }
+  }
+  const r = await _fetchRetry(base, { method: 'POST', headers, body: JSON.stringify(ev) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error('建立出勤異常事件失敗：' + ((j.error && j.error.message) || r.status)); }
+}
+function safeSyncLateList(dateStr, lateNames, absentNames) {
+  if (!syncEnabled() || !isConnected()) return Promise.resolve();
+  return _withLock('attn' + dateStr, () => _syncLateList(dateStr, lateNames, absentNames))
+    .catch(e => console.error('[gcal] 同步出勤異常名單失敗 ' + dateStr + '：', e.message));
+}
+
 // ── 對外 API：best-effort，永不 throw（不阻塞派單流程）──────
 function safeSyncDispatch(dispatchId) {
   if (!syncEnabled() || !isConnected()) return Promise.resolve();
@@ -754,4 +796,4 @@ function calendarInfo() {
   return { enabled: syncEnabled(), connected: isConnected(), calendarId: getS('gcal_dispatch_calendar_id') || null };
 }
 
-module.exports = { safeSyncDispatch, safeSyncSurvey, safeSyncAdhoc, safeRemoveAdhoc, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, purgeDuplicateCalendars, syncEnabled, setEnabled, calendarInfo };
+module.exports = { safeSyncDispatch, safeSyncSurvey, safeSyncAdhoc, safeSyncLateList, safeRemoveAdhoc, safeRemoveEvent, startSync, syncJobStatus, duplicateCalendars, shareCalendar, listShares, reapplyShares, diagnose, purgeDuplicateCalendars, syncEnabled, setEnabled, calendarInfo };

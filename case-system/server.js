@@ -938,6 +938,8 @@ setInterval(() => {
           } catch (e) { /* per-recipient */ }
         }
         console.log(`[attn] ${twDate} 10:00 出勤提醒：沒打卡 ${absent.length}、遲到 ${late.length}`);
+        // 把「今日遲到／未打卡」名單同步成一筆全天事件到 Google 派單行事曆（全體可見）
+        try { require('./lib/gcal').safeSyncLateList(twDate, late.map(u => u.name), absent.map(u => u.name)); } catch (e) { /* best-effort */ }
       }
     } catch (e) { console.error('[attn] 10:00 提醒失敗：', e.message); }
   }
