@@ -140,14 +140,17 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   }
 
   if (!matchedChannel) {
-    console.error(`[LINE-WEBHOOK] 簽名驗證失敗 — DB頻道數:${dbChannels.length} CLIENT_SECRET長度:${CLIENT_SECRET().length}`);
+    // 簽名沒對到任何頻道 → 訊息會被丟掉。印出這批事件的來源類型，方便判斷是不是群組訊息被擋在門外
+    let srcInfo = '?';
+    try { const p = JSON.parse(rawBody.toString()); srcInfo = (p.events||[]).map(e=>`${e.type}/${e.source?.type||'-'}`).join(','); } catch {}
+    console.error(`[LINE-WEBHOOK] 簽名驗證失敗（訊息丟棄）— DB頻道數:${dbChannels.length} CLIENT_SECRET長度:${CLIENT_SECRET().length} 事件:[${srcInfo}]`);
     return;
   }
 
   let payload;
   try { payload = JSON.parse(rawBody.toString()); } catch (e) { console.error('[LINE-WEBHOOK] JSON parse error:', e.message); return; }
 
-  console.log(`[LINE-WEBHOOK] 收到 ${payload.events?.length || 0} 個事件，頻道: ${matchedChannel.channel_name || 'env-fallback'}`);
+  console.log(`[LINE-WEBHOOK] 收到 ${payload.events?.length || 0} 個事件，頻道: ${matchedChannel.channel_name || 'env-fallback'}，來源:[${(payload.events||[]).map(e=>`${e.type}/${e.source?.type||'-'}`).join(',')}]`);
 
   for (const event of (payload.events || [])) {
     if (event.type === 'message') {
@@ -167,15 +170,15 @@ async function handleClientMessage(event, channel) {
   const userId  = event.source?.userId || null;  // 群組裡的發話者（用戶可能關閉分享 → null）
   const convId  = event.source?.groupId || event.source?.roomId || null;
   const threadKey = isGroup ? convId : userId;   // 對話線 key：1對1用 userId、群組用 groupId
-  if (!threadKey) return;
-
   const msg = event.message || {};
+  console.log(`[LINE-MSG] 進入處理 srcType=${srcType} conv=${convId||'-'} sender=${userId||'-'} type=${msg.type} ch=${channel.channel_name||channel.id||'env'}`);
+  if (!threadKey) { console.warn(`[LINE-MSG] 丟棄：無 threadKey（群組沒 groupId？）srcType=${srcType}`); return; }
 
   // 依訊息類型決定：儲存型別 / 內容 / 清單預覽字
   let msgType = 'text', content = null, preview = '';
   if (msg.type === 'text') {
     content = (msg.text || '').trim();
-    if (!content) return;
+    if (!content) { console.warn('[LINE-MSG] 丟棄：空白文字'); return; }
     preview = content.slice(0, 200);
   } else if (msg.type === 'image') {
     const url = await fetchLineImageToCloudinary(msg.id, channel.channel_token);
@@ -187,8 +190,6 @@ async function handleClientMessage(event, channel) {
     preview = MSG_LABEL[msg.type] || `[${msg.type || '訊息'}]`;
     content = preview;
   }
-
-  console.log(`[LINE-MSG] srcType=${srcType} conv=${convId||'-'} sender=${userId||'-'} type=${msg.type}`);
 
   // 顯示名稱 + 大頭照 + 群組發話者：1對1抓個人檔案；群組抓群名＋成員名
   // 注意：這段「加值」用 try 包住，任何 LINE API 問題都不可中斷後面的「存訊息」（否則群組/1對1訊息會遺失）
@@ -280,6 +281,8 @@ async function handleClientMessage(event, channel) {
     displayName,   // 一律更新「LINE 原始名稱」(唯讀欄)
     displayName,   // 只有未鎖定時才覆蓋手動輸入的 display_name
     avatarUrl, inquiryId);
+
+  console.log(`[LINE-MSG] ✅ 已存入 LINE 詢問 inquiryId=${inquiryId} isGroup=${isGroup?1:0} name="${displayName}"`);
 
   // AI 草稿改為「手動觸發」以節省 API credit：客服在 LINE 詢問按「🤖 產生 AI 建議回覆」才跑
   // （原本每則客人私訊都自動擬稿，是最大的背景消耗來源；改成按鈕才跑）
