@@ -279,6 +279,11 @@
           <b style="font-size:15px">👁 客戶版預覽</b>
           <span style="cursor:pointer;font-size:20px;color:#9ca3af" onclick="closeEstPreview()">×</span>
         </div>
+        <div id="estPreviewCopied" style="display:none;padding:8px 14px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;font-size:12px;color:#166534;align-items:center;gap:8px">
+          <span style="white-space:nowrap">🔗 已複製短網址</span>
+          <span id="estPreviewLink" style="flex:1;font-family:monospace;word-break:break-all;color:#065f46"></span>
+          <button type="button" onclick="recopyEstLink()" style="white-space:nowrap;border:1px solid #86efac;background:#fff;color:#166534;border-radius:7px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit">再複製</button>
+        </div>
         <iframe id="estPreviewFrame" style="flex:1;border:none;width:100%"></iframe>
       </div>
     </div>
@@ -982,22 +987,30 @@ async function restoreVersion(vid,verNo){
 /* 存檔後：客戶連結 / PDF */
 function showSentActions(){ var el=document.getElementById('ec-sent-actions'); if(el&&SHARE_TOKEN) el.style.display='flex'; }
 function estLink(){ return SHARE_TOKEN ? (location.origin+'/estimate/'+SHARE_TOKEN) : ''; }
-function copyEstLink(){
-  var l=estLink(); if(!l){alert('請先儲存估價單');return;}
-  function done(){ var s=document.getElementById('ec-status'); if(s) s.textContent='🔗 已複製客戶連結：'+l; }
+var _lastCopiedLink='';
+function _doCopy(l){
   function fallback(){
-    try{ var ta=document.createElement('textarea'); ta.value=l; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.top='0'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var ok=document.execCommand('copy'); document.body.removeChild(ta); if(ok){ done(); return; } }catch(e){}
+    try{ var ta=document.createElement('textarea'); ta.value=l; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.top='0'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); return; }catch(e){}
     window.prompt('複製此連結給客戶：', l);   // 最後手段：手動複製
   }
-  try{
-    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(l).then(done, fallback); }
-    else { fallback(); }
-  }catch(e){ fallback(); }
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(l).catch(fallback); } else fallback(); }catch(e){ fallback(); }
+}
+function recopyEstLink(){ if(_lastCopiedLink) _doCopy(_lastCopiedLink); }
+// 複製客戶連結：同時①縮短網址②複製③開預覽視窗；複製提示顯示在預覽視窗內(不在左上)
+async function copyEstLink(){
+  if(!SHARE_TOKEN){ alert('請先「儲存估價單」再複製連結'); return; }
+  openEstPreview();                        // 先開預覽
+  var link=estLink();
+  try{ var j=await fetch(API+'/quotes/short/'+SHARE_TOKEN).then(function(r){return r.ok?r.json():null;}); if(j&&j.short_url) link=j.short_url; }catch(e){}
+  _lastCopiedLink=link; _doCopy(link);
+  var bar=document.getElementById('estPreviewCopied'), el=document.getElementById('estPreviewLink');
+  if(el) el.textContent=link; if(bar) bar.style.display='flex';
 }
 function dlEstPdf(){ if(!SHARE_TOKEN){alert('請先儲存估價單');return;} window.open('/estimate/'+SHARE_TOKEN+'/pdf','_blank'); }
 // 客戶版預覽 modal：直接載入 /estimate/:token（客人會看到的樣子），不用另開分頁
 function openEstPreview(){
   if(!SHARE_TOKEN){ alert('請先「儲存估價單」再預覽'); return; }
+  var bar=document.getElementById('estPreviewCopied'); if(bar) bar.style.display='none';   // 純預覽不顯示複製列
   document.getElementById('estPreviewFrame').src='/estimate/'+SHARE_TOKEN+'?t='+Date.now();
   document.getElementById('estPreviewModal').style.display='flex';
 }

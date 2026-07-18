@@ -4124,6 +4124,8 @@ _addCol('est_quotes', 'show_detail',      'INTEGER DEFAULT 1');
 _addCol('est_quotes', 'combine',          'INTEGER DEFAULT 0');
 // 客戶頁顯示設定(JSON)：{detail,photo,material,size,cai,range}——勾選要顯示哪些欄；range=用拼料省料~寬鬆區間
 _addCol('est_quotes', 'cust_view',        'TEXT');
+// 客戶連結的短網址（複製連結時一併產生並快取，客服要傳給客人）
+_addCol('est_quotes', 'short_url',        'TEXT');
 // token 唯一（允許多筆 NULL：舊資料未產生前為空）
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_est_quotes_token ON est_quotes(share_token) WHERE share_token IS NOT NULL`);
 

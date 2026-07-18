@@ -275,6 +275,23 @@ router.get('/history', requireAuth, (req, res) => {
   const lines = fhist(DEAL_HISTORY.lines || [], ['cust', 'type', 'film', 'desc', 'dim'], 120);
   res.json({ quotes, estimates, deals, histQuotes, lines, histCounts: DEAL_HISTORY.counts || {} });
 });
+// 客戶連結短網址：複製連結時呼叫；有快取用快取，否則用 TinyURL 產生並存起來（失敗回完整網址）
+router.get('/quotes/short/:token', requireAuth, async (req, res) => {
+  const q = db.prepare(`SELECT id, share_token, short_url FROM est_quotes WHERE share_token=?`).get(req.params.token);
+  if (!q) return res.status(404).json({ error: '找不到估價單' });
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const full = `${proto}://${req.get('host')}/estimate/${q.share_token}`;
+  if (q.short_url) return res.json({ short_url: q.short_url, full });
+  try {
+    const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(full));
+    const short = (await r.text()).trim();
+    if (r.ok && /^https?:\/\//.test(short)) {
+      db.prepare(`UPDATE est_quotes SET short_url=? WHERE id=?`).run(short, q.id);
+      return res.json({ short_url: short, full });
+    }
+  } catch (e) { /* 縮網址失敗→退回完整網址 */ }
+  res.json({ short_url: full, full });
+});
 router.get('/quotes/:id', requireAuth, (req, res) => {
   const q = db.prepare(`SELECT * FROM est_quotes WHERE id=?`).get(req.params.id);
   if (!q) return res.status(404).json({ error: '找不到估價單' });
