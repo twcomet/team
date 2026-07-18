@@ -774,16 +774,16 @@ function aiEstEdit(idx, key, val) {
 function aiEstDel(idx) { aiEstItems.splice(idx, 1); renderAiEst(); }
 function aiEstAdd() { aiEstItems.push({ area:'', desc:'', w:0, h:0, qty:1, size_source:'未知', note:'' }); renderAiEst(); }
 async function createEstimateDraft() {
-  const withDims = aiEstItems.filter(it => Number(it.w) > 0 && Number(it.h) > 0);
-  if (!withDims.length) { showToast('至少要有一項填寫寬與高才能建立草稿', 'error'); return; }
+  // 不強制填寬高：只要有品項就能建草稿（尺寸未知的先帶進去，寬高當 0，之後在估價機或現場丈量後補）
+  if (!aiEstItems.length) { showToast('至少要有一個品項才能建立草稿', 'error'); return; }
   const btn = document.getElementById('aiEstGoBtn');
   btn.disabled = true; btn.textContent = '建立中…';
-  // 每項依數量展開成估價機的「其他」品項（單價=0，客服到估價機選膜款定價）
+  // 每項依數量展開成估價機的「其他」品項（單價=0，客服到估價機選膜款定價；寬高未知帶 0）
   const items = [];
-  withDims.forEach(it => {
+  aiEstItems.forEach(it => {
     const q = Math.max(1, Number(it.qty) || 1);
     const name = ((it.area ? it.area + ' ' : '') + (it.desc || '')).trim().slice(0, 40) || '品項';
-    for (let k = 0; k < q; k++) items.push({ kind:'other', name, w:Number(it.w), h:Number(it.h), unit:0 });
+    for (let k = 0; k < q; k++) items.push({ kind:'other', name, w:Number(it.w) || 0, h:Number(it.h) || 0, unit:0 });
   });
   const d = currentInquiryData || {};
   // 客人在對話裡提供的照片 → 一起帶進估價單（存 photos_json）
