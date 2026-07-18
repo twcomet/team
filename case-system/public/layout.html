@@ -107,6 +107,7 @@
           <input id="ed_name" class="lay-input" style="font-size:16px;font-weight:600;min-width:200px" placeholder="專案名稱">
           <button class="btn btn-primary btn-sm" onclick="saveProject()">💾 儲存</button>
           <span id="ed_saved" style="font-size:12px;color:#059669"></span>
+          <span id="ed_totalcai" style="margin-left:auto;font-size:14px;font-weight:700;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:5px 12px">目前總材數（含損料）：— 才</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;align-items:start">
@@ -143,12 +144,7 @@
             <div class="card" style="margin:0 0 12px">
               <div class="card-header"><h3>設定</h3></div>
               <div class="card-body">
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-                  <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer">
-                    <input type="checkbox" id="ed_rot_all" checked onchange="toggleRotAll()"> 全部可轉向
-                  </label>
-                </div>
-                <div class="section-label" style="margin:6px 0">材料定義（型號 · 卷寬 · 卷長 cm）</div>
+                <div class="section-label" style="margin:0 0 6px">材料定義（型號 · 卷寬 · 卷長 cm）</div>
                 <div id="matList"></div>
                 <button class="btn btn-ghost btn-sm" onclick="addMaterial()">＋ 新增材料</button>
               </div>
@@ -157,7 +153,12 @@
             <div class="card" style="margin:0">
               <div class="card-header">
                 <h3>區域與尺寸</h3>
-                <button class="btn btn-primary btn-sm" onclick="addArea()">＋ 新增區域</button>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer" title="一鍵勾選：所有尺寸都可轉向；取消：全部不可轉向。可再單獨調整每一筆">
+                    <input type="checkbox" id="ed_rot_all" onchange="toggleRotAll()"> 全部轉向
+                  </label>
+                  <button class="btn btn-primary btn-sm" onclick="addArea()">＋ 新增區域</button>
+                </div>
               </div>
               <div class="card-body">
                 <div id="areaList"></div>
@@ -211,7 +212,7 @@ async function newProject(){
   const r = await fetch('/api/layout/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim(), data:blankData()})});
   if (r.ok){ const d=await r.json(); await loadProjects(); openProject(d.id); }
 }
-function blankData(){ return { gap:0, rotAll:true, materials:[{id:nid(),name:'',width:122,length:5000}], areas:[] }; }
+function blankData(){ return { gap:0, rotAll:false, materials:[{id:nid(),name:'',width:122,length:5000}], areas:[] }; }
 async function archiveProject(id){ await fetch(`/api/layout/projects/${id}/archive`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:1})}); await loadProjects(); }
 async function delProject(id){ if(!confirm('確定刪除此專案？'))return; await fetch(`/api/layout/projects/${id}`,{method:'DELETE'}); await loadProjects(); }
 
@@ -221,20 +222,27 @@ async function openProject(id){
   if (!r.ok) return;
   const p = await r.json();
   const d = p.data && p.data.materials ? p.data : blankData();
-  proj = { id:p.id, name:p.name, gap:d.gap??0, rotAll:d.rotAll!==false, materials:d.materials||[], areas:d.areas||[] };
+  proj = { id:p.id, name:p.name, gap:d.gap??0, rotAll:d.rotAll===true, materials:d.materials||[], areas:d.areas||[] };
   if (!proj.materials.length) proj.materials=[{id:nid(),name:'',width:122,length:5000}];
   document.getElementById('projListView').style.display='none';
   document.getElementById('editorView').style.display='';
   document.getElementById('ed_name').value = proj.name;
   document.getElementById('ed_rot_all').checked = proj.rotAll;
-  renderMaterials(); renderAreas();
+  renderMaterials(); renderAreas(); updateTotalCai();
   sheets=[]; curSheet=0; dirty=false; clearTimeout(autoSaveTimer); drawSheet();
 }
 async function backToList(){ clearTimeout(autoSaveTimer); if(dirty && proj) await doSave(true); proj=null; document.getElementById('editorView').style.display='none'; document.getElementById('projListView').style.display=''; loadProjects(); }
 let autoSaveTimer = null, saving = false;
 function setSaveStatus(txt, color){ const el=document.getElementById('ed_saved'); el.textContent=txt; el.style.color=color; }
+function updateTotalCai(){
+  const el=document.getElementById('ed_totalcai'); if(!el||!proj) return;
+  let cai=0;
+  proj.areas.forEach(a=> a.pieces.forEach(p=>{ if(p.w>0 && p.h>0) cai += p.w*p.h*(p.qty||1)/900; }));
+  el.textContent='目前總材數（含損料）：'+(Math.round(cai*10)/10)+' 才';
+}
 function markDirty(){
   dirty = true;
+  updateTotalCai();
   setSaveStatus('待儲存…', '#b45309');
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(()=>{ if (dirty && proj) doSave(true); }, 1500);  // 改動後 1.5 秒自動儲存
@@ -301,19 +309,24 @@ function pieceRow(aid,i,p){
     <input type="number" placeholder="寬" value="${p.w||''}" oninput="updPiece('${aid}',${i},'w',this.value)">
     <input type="number" placeholder="高" value="${p.h||''}" oninput="updPiece('${aid}',${i},'h',this.value)">
     <input type="number" placeholder="數量" value="${p.qty||1}" min="1" oninput="updPiece('${aid}',${i},'qty',this.value)">
-    <input type="checkbox" ${p.rotatable!==false?'checked':''} onchange="updPiece('${aid}',${i},'rotatable',this.checked)" title="可轉向">
+    <input type="checkbox" ${p.rotatable===true?'checked':''} onchange="updPiece('${aid}',${i},'rotatable',this.checked)" title="可轉向">
     <button class="icon-btn" onclick="copyPiece('${aid}',${i})" title="複製">📄</button>
     <button class="icon-btn" style="color:#e02424" onclick="delPiece('${aid}',${i})">✕</button>
   </div>`;
 }
-function addArea(){ proj.areas.push({id:nid(),name:String.fromCharCode(65+proj.areas.length)+'區',materialId:proj.materials[0]?.id||'',pieces:[{w:0,h:0,qty:1,rotatable:true}]}); renderAreas(); markDirty(); }
+function addArea(){ proj.areas.push({id:nid(),name:String.fromCharCode(65+proj.areas.length)+'區',materialId:proj.materials[0]?.id||'',pieces:[{w:0,h:0,qty:1,rotatable:!!proj.rotAll}]}); renderAreas(); markDirty(); }
 function delArea(id){ proj.areas=proj.areas.filter(x=>x.id!==id); renderAreas(); markDirty(); }
 function updArea(id,k,v){ const a=proj.areas.find(x=>x.id===id); if(a){ a[k]=v; markDirty(); } }
-function addPiece(aid){ const a=proj.areas.find(x=>x.id===aid); a.pieces.push({w:0,h:0,qty:1,rotatable:true}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
-function delPiece(aid,i){ const a=proj.areas.find(x=>x.id===aid); a.pieces.splice(i,1); if(!a.pieces.length)a.pieces.push({w:0,h:0,qty:1,rotatable:true}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
+function addPiece(aid){ const a=proj.areas.find(x=>x.id===aid); a.pieces.push({w:0,h:0,qty:1,rotatable:!!proj.rotAll}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
+function delPiece(aid,i){ const a=proj.areas.find(x=>x.id===aid); a.pieces.splice(i,1); if(!a.pieces.length)a.pieces.push({w:0,h:0,qty:1,rotatable:!!proj.rotAll}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
 function copyPiece(aid,i){ const a=proj.areas.find(x=>x.id===aid); a.pieces.splice(i+1,0,{...a.pieces[i]}); document.getElementById('pieces_'+aid).innerHTML=a.pieces.map((p,i)=>pieceRow(aid,i,p)).join(''); markDirty(); }
 function updPiece(aid,i,k,v){ const a=proj.areas.find(x=>x.id===aid); const p=a.pieces[i]; if(k==='rotatable')p[k]=v; else if(k==='qty')p[k]=Math.max(1,parseInt(v)||1); else p[k]=parseFloat(v)||0; markDirty(); }
-function toggleRotAll(){ proj.rotAll=document.getElementById('ed_rot_all').checked; markDirty(); }
+function toggleRotAll(){
+  proj.rotAll=document.getElementById('ed_rot_all').checked;
+  // 一鍵：把所有子項目的轉向設成跟主開關一致（之後可再單獨調整）
+  proj.areas.forEach(a=> a.pieces.forEach(p=> p.rotatable=proj.rotAll));
+  renderAreas(); markDirty();
+}
 
 // ── 排料引擎（guillotine best-area-fit）───────────────
 function calculate(){
@@ -330,7 +343,7 @@ function calculate(){
       let n = 0;
       for (const p of a.pieces){
         if (!(p.w>0 && p.h>0)) continue;
-        const rot = proj.rotAll && (p.rotatable!==false);
+        const rot = (p.rotatable===true);   // 以每一筆為準（預設不轉向）；「全部轉向」只是一鍵批次設定各筆
         for (let q=0;q<(p.qty||1);q++){ n++; pieces.push({w:p.w,h:p.h,label:(a.name?a.name.replace(/區$/,''):'')+'-'+n, rotatable:rot, area:a.name}); }
       }
     }

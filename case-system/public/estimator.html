@@ -1043,13 +1043,13 @@ async function openLayoutFromEstimate(){
   Object.keys(matMap).forEach(function(key){ var m=matMap[key], mid='m'+(mi++);
     materials.push({id:mid,name:m.name,width:m.width,length:5000});
     Object.keys(m.pieces).forEach(function(pname){
-      var byS={}; m.pieces[pname].forEach(function(p){ var k=p.w+'x'+p.h; (byS[k]=byS[k]||{w:p.w,h:p.h,qty:0,rotatable:true}).qty++; });
+      var byS={}; m.pieces[pname].forEach(function(p){ var k=p.w+'x'+p.h; (byS[k]=byS[k]||{w:p.w,h:p.h,qty:0,rotatable:false}).qty++; });   // 預設不能轉向(估價較保險)
       areas.push({id:'a'+areas.length,name:pname,materialId:mid,pieces:Object.keys(byS).map(function(k){return byS[k];})});
     });
   });
   if(!materials.length){ alert('沒有可排版的「其他」品項（含損耗尺寸），或品項尚未選材料。'); return; }
   var pj=(v('b-project')||'').trim();
-  var data={gap:0,rotAll:true,materials:materials,areas:areas};
+  var data={gap:0,rotAll:false,materials:materials,areas:areas};
   try{
     var r=await fetch('/api/layout/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'估價排版 '+(pj||('#'+(editId||''))),data:data})});
     var j=await r.json();
