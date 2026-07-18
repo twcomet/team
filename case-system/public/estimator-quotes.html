@@ -142,11 +142,11 @@ function renderList(){
     <td>${CUST[r.customer_type]||r.customer_type||''}</td>
     <td>${esc(r.region)||'—'}</td>
     <td class="eq-total">${NT(r.total)}</td>
-    <td>${stBadge(r.status)}</td>
+    <td>${stBadge(r)}</td>
     <td class="eq-log">${recCell(r)}</td>
     <td class="eq-act">
       <a class="eq-btn eq-btn-edit" href="/estimator?edit=${r.id}" title="開啟並編輯此估價單">✏️ 編輯</a>
-      ${hasTok?`<button class="eq-btn eq-btn-link" onclick="copyLink('${r.share_token}',this)" title="複製可發給客戶的估價單連結">🔗 客戶連結</button>
+      ${hasTok?`<button class="eq-btn eq-btn-link" onclick="copyLink('${r.share_token}',${r.id},this)" title="複製可發給客戶的估價單連結">🔗 客戶連結</button>
       <a class="eq-btn eq-btn-pdf" href="/estimate/${r.share_token}/pdf" target="_blank" rel="noopener" title="下載 PDF 估價單">⬇ PDF</a>`
         :`<button class="eq-btn eq-btn-link" onclick="genLink(${r.id})" title="產生客戶連結">🔗 產生連結</button>`}
       <span class="eq-link" onclick="toggleDetail(${r.id},this)">檢視</span>
@@ -174,18 +174,24 @@ async function genLink(id){
     if(!full){ alert('讀取失敗'); return; }
     const r=await fetch(API+'/quotes/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(full)});
     const j=await r.json().catch(()=>({}));
-    if(r.ok&&j.share_token){ await load(); copyLink(j.share_token); }
+    if(r.ok&&j.share_token){ await load(); copyLink(j.share_token, id); }
     else alert('產生連結失敗：'+(j.error||r.status));
   }catch(e){ alert('產生連結失敗：'+e.message); }
 }
-function copyLink(token,el){
+function copyLink(token,id,el){
   const url=location.origin+'/estimate/'+token;
   const done=()=>{ if(el){ const o=el.innerHTML; el.innerHTML='✅ 已複製'; setTimeout(()=>el.innerHTML=o,1400);} else alert('已複製客戶連結：\n'+url); };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done,()=>prompt('複製此連結：',url)); }
   else prompt('複製此連結：',url);
+  if(id){ fetch(API+'/quotes/'+id+'/mark-sent',{method:'POST'}).then(()=>setTimeout(load,1300)).catch(()=>{}); }   // 複製客戶連結＝已發送
 }
-const ST={draft:['草稿','eq-st-draft'],sent:['已送出','eq-st-sent'],done:['已成交','eq-st-done'],accepted:['已成交','eq-st-done']};
-function stBadge(s){const m=ST[s]||[s||'draft','eq-st-draft'];return '<span class="eq-st '+m[1]+'">'+esc(m[0])+'</span>';}
+const ST={draft:['草稿','eq-st-draft'],sent:['已發送','eq-st-sent'],done:['已成交','eq-st-done'],accepted:['已成交','eq-st-done']};
+function stBadge(r){
+  let s=(typeof r==='string')?r:((r&&r.status)||'draft');
+  if(s==='draft' && r && r.client_viewed_at) s='sent';   // 舊資料：草稿但客戶已開啟 → 視為已發送
+  const m=ST[s]||[s||'draft','eq-st-draft'];
+  return '<span class="eq-st '+m[1]+'">'+esc(m[0])+'</span>';
+}
 async function deleteQuote(id){
   const row=ROWS.find(x=>x.id===id); const name=(row&&row.project_name)||('#'+id);
   if(!confirm('確定刪除估價單「'+name+'」（#'+id+'）？\n此動作無法復原。')) return;

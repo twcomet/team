@@ -151,6 +151,11 @@ router.post('/quotes', requireAuth, (req, res) => {
 router.put('/quotes/:id', requireAuth, (req, res) => {
   const b = req.body || {};
   const { items, r } = computeAndPersistFields(b);
+  // 避免重存/自動存把「已發送/已成交」打回草稿：incoming 是 draft 時保留原本較後面的狀態
+  const cur = db.prepare(`SELECT status FROM est_quotes WHERE id=?`).get(req.params.id);
+  const RANK = { draft: 0, sent: 1, done: 2, accepted: 2 };
+  const incoming = b.status || 'draft';
+  const keepStatus = (incoming === 'draft' && cur && (RANK[cur.status] || 0) > 0) ? cur.status : incoming;
   const info = db.prepare(`UPDATE est_quotes SET
     case_id=?,project_name=?,customer_type=?,region=?,customer_name=?,phone=?,address=?,community=?,line_replied=?,
     items_json=?,photos_json=COALESCE(?,photos_json),customer_note=?,disc=?,subtotal=?,discount=?,items_final=?,freight=?,fut=?,total=?,status=?,show_detail=?,combine=?,cust_view=?,updated_at=datetime('now','localtime')
@@ -159,7 +164,7 @@ router.put('/quotes/:id', requireAuth, (req, res) => {
       b.customer_name || '', b.phone || '', b.address || '', b.community || '', b.line_replied ? 1 : 0,
       JSON.stringify(items), (Array.isArray(b.photos) ? JSON.stringify(b.photos) : null), b.customer_note || '',
       Number(b.disc) || 1, r.sub, r.discAmt, r.itemsFinal, r.freight, r.fut, r.total,
-      b.status || 'draft', (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0,
+      keepStatus, (b.show_detail === 0 || b.show_detail === false) ? 0 : 1, b.combine ? 1 : 0,
       b.cust_view ? JSON.stringify(b.cust_view) : null, req.params.id);
   if (!info.changes) return res.status(404).json({ error: '找不到估價單' });
   res.json({ ok: true, total: r.total, share_token: ensureToken(req.params.id) });
@@ -275,10 +280,17 @@ router.get('/history', requireAuth, (req, res) => {
   const lines = fhist(DEAL_HISTORY.lines || [], ['cust', 'type', 'film', 'desc', 'dim'], 120);
   res.json({ quotes, estimates, deals, histQuotes, lines, histCounts: DEAL_HISTORY.counts || {} });
 });
+// 標記已發送（清單頁複製客戶連結時呼叫）
+router.post('/quotes/:id/mark-sent', requireAuth, (req, res) => {
+  const info = db.prepare(`UPDATE est_quotes SET status='sent' WHERE id=? AND status='draft'`).run(req.params.id);
+  res.json({ ok: true, changed: info.changes });
+});
+
 // 客戶連結短網址：改用自家網域 /s/<code>（無 TinyURL 中轉預覽頁）；同一單重用同一短碼
 router.get('/quotes/short/:token', requireAuth, (req, res) => {
-  const q = db.prepare(`SELECT id, share_token, short_url FROM est_quotes WHERE share_token=?`).get(req.params.token);
+  const q = db.prepare(`SELECT id, share_token, short_url, status FROM est_quotes WHERE share_token=?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到估價單' });
+  if (q.status === 'draft') db.prepare(`UPDATE est_quotes SET status='sent' WHERE id=?`).run(q.id);   // 複製客戶連結＝已發送
   const proto  = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
   const origin = `${proto}://${req.get('host')}`;
   const full   = `${origin}/estimate/${q.share_token}`;
@@ -313,6 +325,7 @@ router.get('/quotes/sign/:token', (req, res) => {
     WHERE eq.share_token = ?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到估價單' });
   if (!q.client_viewed_at) db.prepare(`UPDATE est_quotes SET client_viewed_at=datetime('now','localtime') WHERE id=?`).run(q.id);
+  if (q.status === 'draft') db.prepare(`UPDATE est_quotes SET status='sent' WHERE id=?`).run(q.id);   // 客戶已開啟＝一定已發送
   const items = JSON.parse(q.items_json || '[]');
   const cat = eng.buildCatalogFromDb(db);
   const baseOpt = { cust: q.customer_type, region: q.region, disc: q.disc };
