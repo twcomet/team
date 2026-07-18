@@ -716,9 +716,9 @@ function computeOther(arr){var g={};arr.forEach(function(it,ci){
   x.n++;x.idxs.push(ci);
 });return Object.keys(g).map(function(k){var x=g[k];
   var r=COMBINE?_combCai(x):{cai:x.looseCai};
-  var lossGroup=r.cai, lossEach=x.n?lossGroup/x.n:lossGroup;         // 含損耗才數（全組／每件）
+  var lossGroup=r.cai, lossEach=Math.ceil(x.n?lossGroup/x.n:lossGroup);   // 每件含損耗才數無條件進位到整數才
   var priceEach=(x.caiM!=null)?x.caiM:lossEach;                      // 計價才數(每件)：手動覆寫優先
-  var amount=(x.caiM!=null)?ceil100(x.caiM*x.unit)*x.n:ceil100(lossGroup*x.unit);
+  var amount=ceil100(priceEach*x.unit)*x.n;
   return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:priceEach,caiRaw:x.caiRaw,caiLoss:lossEach,over:(x.caiM!=null),unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,model:x.model,n:x.n,amount:amount,idxs:x.idxs};});}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 // 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算

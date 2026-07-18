@@ -95,9 +95,9 @@ function computeOther(arr, cat, combine) {
   return Object.keys(groups).map(k => {
     const g = groups[k];
     const r = combine ? _combCai(g) : { cai: g.looseCai };
-    const lossGroup = r.cai, lossEach = g.n ? lossGroup / g.n : lossGroup;
+    const lossGroup = r.cai, lossEach = Math.ceil(g.n ? lossGroup / g.n : lossGroup);   // 每件含損耗才數無條件進位到整數才
     const priceEach = (g.caiM != null) ? g.caiM : lossEach;
-    const amount = (g.caiM != null) ? ceil100(g.caiM * g.unit) * g.n : ceil100(lossGroup * g.unit);
+    const amount = ceil100(priceEach * g.unit) * g.n;
     return { type: 'other', label: g.label, series: g.series, material: g.material, w: g.w, h: g.h, photo: g.photo, cai: priceEach, unit: g.unit, n: g.n, amount, idxs: g.idxs };
   });
 }
