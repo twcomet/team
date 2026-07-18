@@ -262,7 +262,8 @@ router.post('/:id/convert', requireAuth, (req, res) => {
   if (!inq)                    return res.status(404).json({ error: 'not found' });
   if (inq.status === 'converted') return res.status(400).json({ error: '已轉案' });
 
-  const { case_type = 'other', title, notes } = req.body;
+  const { case_type = 'other', title, notes, to_survey } = req.body;
+  const initStatus = to_survey ? 'survey_pending' : 'inquiry';   // 勾「直接約場勘」→ 案件直接進待排場勘
   const u   = req.session.user;
   const org = db.prepare(`SELECT id FROM orgs WHERE type='hq' LIMIT 1`).get();
   const orgId = org?.id || null;
@@ -280,15 +281,16 @@ router.post('/:id/convert', requireAuth, (req, res) => {
       title, description, line_source, source_type,
       status, case_group, priority, created_by,
       sales_id, cs_id, line_display_name, line_official_name, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', 'inquiry', 'inquiry', 'normal', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'line', ?, 'inquiry', 'normal', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     caseNumber, orgId, case_type, inq.client_id,
     title || inq.display_name || '（未命名）',
     notes || inq.last_message || '',
-    inq.line_user_id, u.id,
+    inq.line_user_id, initStatus, u.id,
     inq.sales_id || null, inq.cs_id || null,
     inq.display_name || null, inq.display_name || null
   );
+  if (to_survey) db.prepare(`UPDATE cases SET survey_pending_at=CURRENT_TIMESTAMP WHERE id=?`).run(r.lastInsertRowid);
 
   db.prepare(`
     UPDATE line_inquiries
@@ -299,7 +301,7 @@ router.post('/:id/convert', requireAuth, (req, res) => {
 
   gdrive.safeEnsureCaseFolder(r.lastInsertRowid); // LINE 詢問轉案件也自動建雲端資料夾（best-effort，不阻塞）
 
-  res.json({ ok: true, case_id: r.lastInsertRowid, case_number: caseNumber });
+  res.json({ ok: true, case_id: r.lastInsertRowid, case_number: caseNumber, to_survey: !!to_survey });
 });
 
 // ── 透過 LINE 回覆客戶 ────────────────────────────────────────

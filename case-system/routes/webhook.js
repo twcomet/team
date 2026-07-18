@@ -65,10 +65,13 @@ function verifySignature(rawBody, signature, secret) {
 }
 
 async function lineGet(path, token) {
-  const res = await fetch(`https://api.line.me${path}`, {
-    headers: { Authorization: `Bearer ${(token||'').replace(/\s/g,'')}` }
-  });
-  return res.ok ? res.json() : null;
+  try {
+    const res = await fetch(`https://api.line.me${path}`, {
+      headers: { Authorization: `Bearer ${(token||'').replace(/\s/g,'')}` }
+    });
+    if (!res.ok) { console.warn(`[LINE-GET] ${path} → HTTP ${res.status}`); return null; }
+    return await res.json();
+  } catch (e) { console.warn(`[LINE-GET] ${path} 例外：${e.message}`); return null; }   // 永不丟例外，避免中斷後續存訊息
 }
 
 async function reply(replyToken, text, token) {
@@ -185,23 +188,29 @@ async function handleClientMessage(event, channel) {
     content = preview;
   }
 
+  console.log(`[LINE-MSG] srcType=${srcType} conv=${convId||'-'} sender=${userId||'-'} type=${msg.type}`);
+
   // 顯示名稱 + 大頭照 + 群組發話者：1對1抓個人檔案；群組抓群名＋成員名
-  let displayName = 'LINE用戶', senderDisplay = null, avatarUrl = null, senderAvatar = null;
-  if (isGroup) {
-    const summary = srcType === 'group' ? await lineGet(`/v2/bot/group/${convId}/summary`, channel.channel_token) : null;
-    displayName = summary?.groupName || (srcType === 'room' ? 'LINE 多人聊天室' : 'LINE 群組');
-    avatarUrl   = summary?.pictureUrl || null;   // 群組大頭照
-    if (userId) {
-      const base = srcType === 'group' ? `/v2/bot/group/${convId}` : `/v2/bot/room/${convId}`;
-      const mp = await lineGet(`${base}/member/${userId}/profile`, channel.channel_token);
-      senderDisplay = mp?.displayName || '群組成員';
-      senderAvatar  = mp?.pictureUrl || null;    // 群組發話者大頭照
-    } else senderDisplay = '群組成員';
-  } else {
-    const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
-    displayName = profile?.displayName || 'LINE用戶';
-    avatarUrl   = profile?.pictureUrl || null;   // 客人大頭照
-  }
+  // 注意：這段「加值」用 try 包住，任何 LINE API 問題都不可中斷後面的「存訊息」（否則群組/1對1訊息會遺失）
+  let displayName = isGroup ? (srcType === 'room' ? 'LINE 多人聊天室' : 'LINE 群組') : 'LINE用戶';
+  let senderDisplay = isGroup ? '群組成員' : null, avatarUrl = null, senderAvatar = null;
+  try {
+    if (isGroup) {
+      const summary = srcType === 'group' ? await lineGet(`/v2/bot/group/${convId}/summary`, channel.channel_token) : null;
+      if (summary?.groupName) displayName = summary.groupName;
+      avatarUrl = summary?.pictureUrl || null;   // 群組大頭照
+      if (userId) {
+        const base = srcType === 'group' ? `/v2/bot/group/${convId}` : `/v2/bot/room/${convId}`;
+        const mp = await lineGet(`${base}/member/${userId}/profile`, channel.channel_token);
+        senderDisplay = mp?.displayName || '群組成員';
+        senderAvatar  = mp?.pictureUrl || null;    // 群組發話者大頭照
+      }
+    } else {
+      const profile = await lineGet(`/v2/bot/profile/${userId}`, channel.channel_token);
+      displayName = profile?.displayName || 'LINE用戶';
+      avatarUrl   = profile?.pictureUrl || null;   // 客人大頭照
+    }
+  } catch (e) { console.warn(`[LINE-MSG] 名稱/頭貼加值失敗（不影響存訊息）：${e.message}`); }
 
   const sysUser = db.prepare(`SELECT id FROM users WHERE role='owner' LIMIT 1`).get();
   const orgId   = channel.org_id || null;
