@@ -800,14 +800,15 @@ router.post('/sign/:token', (req, res) => {
   // 回簽後自動把報價單 PDF 備份到「案件資料夾」（非阻塞、失敗不影響回簽）
   _backupSignedQuote(q.case_id, req.params.token).catch(() => {});
 });
-// 產生回簽報價單 PDF → 上傳到案件的 Google Drive 資料夾（案件資料夾，全隊可見）
+// 產生回簽報價單 PDF → 上傳到「系統客服對話紀錄」受限樹(客戶→案件)，只客服/管理可見（不進案件資料夾）
 async function _backupSignedQuote(caseId, token) {
   try {
     const gdrive = require('../lib/gdrive');
     if (!gdrive.isConnected()) return;
-    await gdrive.ensureCaseFolder(caseId);   // 確保案件資料夾存在
-    const cs = db.prepare('SELECT drive_folder_id, case_number FROM cases WHERE id=?').get(caseId);
-    if (!cs || !cs.drive_folder_id) return;
+    const cs = db.prepare('SELECT client_id, case_number FROM cases WHERE id=?').get(caseId);
+    if (!cs || !cs.client_id) return;   // 沒連客戶就無法建客戶資料夾，略過
+    const { folderId } = await gdrive.ensureCaseCsFolder(caseId);   // 受限樹：系統客服對話紀錄→客戶→案件
+    if (!folderId) return;
     const { renderPdf } = require('../lib/pdf-render');
     const PORT = process.env.PORT || 3000;
     const url = `http://127.0.0.1:${PORT}/quote/${encodeURIComponent(token)}?pdf=1`;
@@ -815,7 +816,7 @@ async function _backupSignedQuote(caseId, token) {
     const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
     const stamp = new Date().toISOString().slice(0, 10);
     const name = `回簽報價單_${cs.case_number || ''}_${stamp}.pdf`.replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim();
-    await gdrive.uploadFileToFolder(cs.drive_folder_id, name, buf, 'application/pdf');
+    await gdrive.uploadFileToFolder(folderId, name, buf, 'application/pdf');
   } catch (e) { console.error('[backup-signed-quote]', e && e.message); }
 }
 
