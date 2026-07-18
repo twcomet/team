@@ -475,7 +475,7 @@ function fmtStock(v){ var n=Math.round((Number(v)||0)*10)/10; return Number.isIn
 function findMatByModel(model){ var m=(model||'').trim().toLowerCase(); if(!m)return null;
   var hits=MATERIALS.filter(function(x){return String(x.model||'').trim().toLowerCase()===m;});
   if(!hits.length)return null;
-  return { model:hits[0].model, brand:hits[0].brand, location:hits[0].location, stock:hits.reduce(function(a,x){return a+(Number(x.stock_meters)||0);},0), rows:hits.length };
+  return { model:hits[0].model, brand:hits[0].brand, color:hits[0].color, spec:hits[0].spec, width_cm:hits[0].width_cm, category:hits[0].category, fire:hits[0].fire_retardant, location:hits[0].location, stock:hits.reduce(function(a,x){return a+(Number(x.stock_meters)||0);},0), rows:hits.length };
 }
 function buildMatDatalist(){ var dl=document.getElementById('estMatModels'); if(!dl)return;
   dl.innerHTML=MATERIALS.map(function(m){return '<option value="'+escAttr(m.model||'')+'">'+escAttr((m.brand?m.brand+' ':'')+(m.sku?'['+m.sku+'] ':'')+'現貨'+fmtStock(m.stock_meters)+'米')+'</option>';}).join('');
@@ -706,9 +706,9 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
 function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],baseU=cust==='owner'?item.owner:item.designer,unit=(it.uOver!=null?Number(it.uOver):baseU),W=item.width||122;var uk=(it.uOver==null?'':it.uOver);var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit+'|'+uk):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w+'|'+uk);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,over:(it.uOver!=null),W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',W:x.W,label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs,over:!!x.over};});}
 // 其他品項：計價用「含損耗才數」＝寬+10、高+10，並套膜寬122拼料(省料)/寬鬆(多報)；原始才數(寬×高÷900)僅供對照
 function computeOther(arr){var g={};arr.forEach(function(it,ci){
-  var W=(it.mBrand&&FILMS[it.mBrand]&&FILMS[it.mBrand].items[it.mIdx||0])?filmW(FILMS[it.mBrand].items[it.mIdx||0]):122;   // 有選膜料用其膜寬，否則預設122
+  var W=(it.mw!=null&&Number(it.mw)>0)?Number(it.mw):((it.mBrand&&FILMS[it.mBrand]&&FILMS[it.mBrand].items[it.mIdx||0])?filmW(FILMS[it.mBrand].items[it.mIdx||0]):122);   // 料號膜寬優先(玻璃膜150)，其次選膜料膜寬，否則122
   var wL=(Number(it.w)||0)+10, hL=(Number(it.h)||0)+10;   // 含損耗尺寸：寬+10、高+10
-  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM)+'|'+(it.mBrand||'')+'|'+(it.mIdx==null?'':it.mIdx)+'|'+(it.mWork||'')+'|'+(it.model||'')+'|'+(COMBINE?'C':'L');
+  var k=it.name+'|'+it.w+'|'+it.h+'|'+it.unit+'|'+(it.caiM==null?'':it.caiM)+'|'+(it.mBrand||'')+'|'+(it.mIdx==null?'':it.mIdx)+'|'+(it.mWork||'')+'|'+(it.model||'')+'|'+W+'|'+(COMBINE?'C':'L');
   g[k]=g[k]||{label:'其他｜'+it.name,name:it.name,w:it.w,h:it.h,W:W,series:'寬'+it.w+'×高'+it.h+' cm',caiRaw:it.w*it.h/900,caiM:(it.caiM==null?null:Number(it.caiM)),unit:it.unit,photo:'',mBrand:it.mBrand||'',mIdx:(it.mIdx==null?0:it.mIdx),mWork:it.mWork||'',model:it.model||'',n:0,full:0,pieces:[],looseCai:0,idxs:[]};
   var x=g[k];
   if(COMBINE){var full=Math.floor(wL/W),rem=wL-full*W;x.full+=full*(hL/100);if(rem>0)x.pieces.push({h:hL,w:rem,comb:rem<(W-2)});}   // 拼料省料
@@ -729,7 +729,7 @@ function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEa
   else if(field==='h'){it.h=Number(val)||0;it.caiM=null;}
   else if(field==='cai'){it.caiM=(val===''?null:(Number(val)||0));} // 手動覆寫才數
   else if(field==='unit'){it.unit=Number(val)||0;}
-  else if(field==='model'){it.model=val;}   // 型號（非必填）→現貨查詢
+  else if(field==='model'){it.model=val;var _m=findMatByModel(val);it.mw=(_m&&Number(_m.width_cm)>0)?Number(_m.width_cm):null;}   // 型號→現貨查詢＋帶入料號膜寬(才數用)
 });render();}
 // 選材料（品牌/膜款/工法）→ 自動帶連工帶料 元/才 到 unit（仍可手動覆寫一材單價）
 function editOtherMat(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -745,13 +745,18 @@ function otherMatHtml(L,csv){var sel='padding:4px 6px;border:1px solid var(--ec-
   var items=(L.mBrand&&FILMS[L.mBrand])?FILMS[L.mBrand].items:[];
   var iopt=items.map(function(it,i){return '<option value="'+i+'"'+(i===L.mIdx?' selected':'')+'>'+escAttr(fmtItem(it))+'</option>';}).join('');
   var wopt=Object.keys(workName).map(function(w){return '<option value="'+w+'"'+(w===(L.mWork||'plane')?' selected':'')+'>'+workName[w]+'</option>';}).join('');
-  // 型號現貨查詢（非必填）：輸入/選型號→顯示現貨幾米(現貨/期貨)
+  // 型號現貨查詢（非必填）：對到後台料號→顯示膜料規格＋依實際庫存跳現貨/期貨
   var mat=findMatByModel(L.model);
-  var stockChip=(!L.model||!L.model.trim())
-    ? '<span style="color:#9ca3af;font-size:11px">（非必填）</span>'
-    : (mat
-        ? '<span title="架位：'+escAttr(mat.location||'—')+'" style="font-size:11px;font-weight:700;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:1px 8px;white-space:nowrap">🟢 現貨 '+fmtStock(mat.stock)+' 米</span>'
-        : '<span title="庫存查無此型號＝期貨，需採購" style="font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:1px 8px;white-space:nowrap">🟡 期貨（庫存查無）</span>');
+  var hasModel=!!(L.model&&L.model.trim());
+  var stockChip;
+  if(!hasModel) stockChip='<span style="color:#9ca3af;font-size:11px">（非必填）</span>';
+  else if(mat && Number(mat.stock)>0) stockChip='<span title="架位：'+escAttr(mat.location||'—')+'" style="font-size:11px;font-weight:700;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:1px 8px;white-space:nowrap">🟢 現貨 '+fmtStock(mat.stock)+' 米</span>';
+  else if(mat) stockChip='<span title="此料號已建檔但目前無現貨庫存＝期貨，需採購" style="font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:1px 8px;white-space:nowrap">🟡 期貨（已建檔·無現貨）</span>';
+  else stockChip='<span title="膜料管理查無此料號，尚未建檔＝期貨，需採購" style="font-size:11px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:1px 8px;white-space:nowrap">🟡 期貨（未建檔）</span>';
+  // 膜料規格列（對到料號才顯示）：品牌·花色·膜寬·規格·防焰
+  var spec='';
+  if(mat){ var parts=[]; if(mat.brand)parts.push(escAttr(mat.brand)); if(mat.color)parts.push(escAttr(mat.color)); if(Number(mat.width_cm)>0)parts.push('膜寬 '+fmtStock(mat.width_cm)+' cm'); if(mat.spec)parts.push(escAttr(mat.spec)); if(Number(mat.fire))parts.push('防焰');
+    spec='<div style="font-size:11px;color:#6b7280;margin-top:4px;padding-left:2px">📋 膜料規格：'+(parts.join('　·　')||'—')+(Number(mat.width_cm)>0?'<span style="color:#166534">（才數已依 '+fmtStock(mat.width_cm)+' cm 膜寬計算）</span>':'')+'</div>'; }
   return '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:12px;color:#6b7280">'
    +'<span style="color:#9ca3af">材料</span>'
    +'<select onchange="editOtherMat(\''+csv+'\',\'brand\',this.value)" style="'+sel+'">'+bopt+'</select>'
@@ -760,7 +765,7 @@ function otherMatHtml(L,csv){var sel='padding:4px 6px;border:1px solid var(--ec-
    +'<span style="color:#9ca3af;margin-left:6px">型號</span>'
    +'<input list="estMatModels" value="'+escAttr(L.model||'')+'" onchange="editOther(\''+csv+'\',\'model\',this.value)" placeholder="輸入/選型號 如 WP-02" style="padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px;width:150px">'
    +stockChip
-   +'</div>';}
+   +'</div>'+spec;}
 function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
   var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
   var ph=L.photo
@@ -1050,6 +1055,7 @@ async function openLayoutFromEstimate(){
       var fi=FILMS[it.mBrand].items[it.mIdx||0]; W=filmW(fi);
       mname=(FILMS[it.mBrand].label||it.mBrand)+' '+fi.asia+(it.model?(' '+it.model):'');
     } else if(it.model){ mname=it.model; }
+    if(it.mw!=null && Number(it.mw)>0) W=Number(it.mw);   // 料號膜寬優先(玻璃膜150)
     var key=mname+'|'+W;
     matMap[key]=matMap[key]||{name:mname,width:W,pieces:{}};
     var pname=(it.name||'其他').trim()||'其他';

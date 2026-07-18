@@ -81,10 +81,10 @@ function computeOther(arr, cat, combine) {
   const groups = {};
   arr.forEach((it, ci) => {
     const fi = (it.mBrand && cat.FILMS[it.mBrand] && cat.FILMS[it.mBrand].items[it.mIdx || 0]) ? cat.FILMS[it.mBrand].items[it.mIdx || 0] : null;
-    const W = fi ? filmW(fi) : 122;
+    const W = (it.mw != null && Number(it.mw) > 0) ? Number(it.mw) : (fi ? filmW(fi) : 122);   // 料號膜寬優先(玻璃膜150)
     const wL = (Number(it.w) || 0) + 10, hL = (Number(it.h) || 0) + 10;   // 含損耗：寬+10、高+10
     const matLabel = fi ? ((cat.FILMS[it.mBrand].label || it.mBrand) + '｜' + fi.asia + ' ' + fi.color) : '';
-    const key = it.name + '|' + it.w + '|' + it.h + '|' + it.unit + '|' + (it.caiM == null ? '' : it.caiM) + '|' + (it.mBrand || '') + '|' + (it.mIdx == null ? '' : it.mIdx) + '|' + (it.mWork || '') + '|' + (combine ? 'C' : 'L');
+    const key = it.name + '|' + it.w + '|' + it.h + '|' + it.unit + '|' + (it.caiM == null ? '' : it.caiM) + '|' + (it.mBrand || '') + '|' + (it.mIdx == null ? '' : it.mIdx) + '|' + (it.mWork || '') + '|' + W + '|' + (combine ? 'C' : 'L');
     groups[key] = groups[key] || { label: '其他｜' + it.name, series: '寬' + it.w + '×高' + it.h + ' cm', w: it.w, h: it.h, material: matLabel, photo: '', W, caiM: (it.caiM == null ? null : Number(it.caiM)), unit: it.unit, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [] };
     const g = groups[key];
     if (it.photo && !g.photo) g.photo = it.photo;
