@@ -1584,6 +1584,14 @@ _addCol('line_inquiries', 'ai_draft',              'TEXT');
 _addCol('line_inquiries', 'ai_draft_at',           'DATETIME');
 _addCol('line_inquiries', 'ai_needs_human',        'INTEGER DEFAULT 0');
 _addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
+
+// 自家短網址（取代 TinyURL，避免第三方中轉預覽頁；停在自己網域）
+db.exec(`CREATE TABLE IF NOT EXISTS short_links (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  code       TEXT UNIQUE,
+  target     TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
 // 群組訊息：詢問是否為 LINE 群組/多人聊天室；訊息記下群組發話者名稱
 _addCol('line_inquiries',         'is_group',       'INTEGER DEFAULT 0');
 _addCol('line_inquiry_messages',  'sender_display', 'TEXT');

@@ -184,22 +184,19 @@ router.get('/search-cases', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
-// 客戶連結短網址：複製連結時呼叫；有快取用快取，否則 TinyURL 產生並存起來（失敗回完整網址）
-router.get('/short/:token', requireAuth, async (req, res) => {
+// 客戶連結短網址：改用自家網域 /s/<code>（無 TinyURL 中轉預覽頁）；同一單重用同一短碼
+router.get('/short/:token', requireAuth, (req, res) => {
   const q = db.prepare(`SELECT id, share_token, short_url FROM quote_sheets WHERE share_token=?`).get(req.params.token);
   if (!q) return res.status(404).json({ error: '找不到報價單' });
-  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
-  const full = `${proto}://${req.get('host')}/quote/${q.share_token}`;
-  if (q.short_url) return res.json({ short_url: q.short_url, full });
-  try {
-    const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(full));
-    const short = (await r.text()).trim();
-    if (r.ok && /^https?:\/\//.test(short)) {
-      db.prepare(`UPDATE quote_sheets SET short_url=? WHERE id=?`).run(short, q.id);
-      return res.json({ short_url: short, full });
-    }
-  } catch (e) { /* 縮網址失敗→退回完整網址 */ }
-  res.json({ short_url: full, full });
+  const proto  = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const origin = `${proto}://${req.get('host')}`;
+  const full   = `${origin}/quote/${q.share_token}`;
+  if (q.short_url && q.short_url.includes('/s/')) return res.json({ short_url: q.short_url, full });  // 只重用自家短網址；舊的 TinyURL 快取重建
+  const { makeShort } = require('./shortlink');
+  const code  = makeShort(full);
+  const short = code ? `${origin}/s/${code}` : full;
+  db.prepare(`UPDATE quote_sheets SET short_url=? WHERE id=?`).run(short, q.id);
+  res.json({ short_url: short, full });
 });
 
 // ── 取得案件所有版本的報價單列表 ─────────────────────────────────

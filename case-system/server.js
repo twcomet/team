@@ -20,6 +20,9 @@ app.set('trust proxy', 1);
 // LINE webhook 必須在 express.json() 之前，才能取得 raw body 做簽名驗證
 app.use('/webhook', require('./routes/webhook'));
 
+// 自家短網址：/s/<code> 直接 302 導向（客戶端）
+app.use('/s', require('./routes/shortlink'));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
