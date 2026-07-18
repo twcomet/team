@@ -2135,8 +2135,9 @@ async function backupConversation() {
     const r = await fetch(`/api/cases/${caseId}/backup-conversation`, { method: 'POST' });
     const j = await r.json().catch(() => ({}));
     if (r.ok && j.ok) {
-      showToast(`已備份到雲端（${j.messages} 則對話、${j.photos} 張照片）`);
-      if (j.link && confirm('備份完成！要現在打開雲端資料夾看嗎？')) window.open(j.link, '_blank');
+      if (j.nothing_new) showToast('已是最新，沒有新內容需要備份（不重複上傳）');
+      else showToast(`已備份到雲端（新增 ${j.photos} 張照片；對話 PDF 已${j.pdf === 'created' ? '建立' : '更新'}）`);
+      if (j.link && confirm('要現在打開雲端資料夾看嗎？')) window.open(j.link, '_blank');
     } else {
       showToast(j.error || '備份失敗', 'error');
     }

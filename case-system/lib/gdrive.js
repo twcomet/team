@@ -388,14 +388,22 @@ async function _ensureCsRoot(token) {
   return id;
 }
 function _safeName(s) { return String(s || '').replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim().slice(0, 120); }
+// 第二層客戶資料夾命名：「系統存檔 客戶名稱 #客戶編號」（編號＝系統客戶 id）
+function _clientFolderName(clientId, clientName) {
+  return _safeName('系統存檔 ' + (clientName || ('客戶' + clientId)) + ' #' + clientId);
+}
 // 某客戶在「系統客服對話紀錄」下的子夾（存 clients.drive_cs_folder_id）
 async function ensureClientCsFolder(clientId, clientName) {
   const c = db.prepare('SELECT id, drive_cs_folder_id FROM clients WHERE id=?').get(clientId);
   if (!c) throw new Error('找不到客戶');
-  if (c.drive_cs_folder_id) return c.drive_cs_folder_id;
+  const wantName = _clientFolderName(clientId, clientName);
+  if (c.drive_cs_folder_id) {
+    try { const token = await accessToken(); await _renameFile(c.drive_cs_folder_id, wantName, token); } catch (e) {} // 既有資料夾自動更名成新格式
+    return c.drive_cs_folder_id;
+  }
   const token = await accessToken();
   const root  = await _ensureCsRoot(token);
-  const f = await _createFolder(_safeName(clientName) || ('客戶' + clientId), root, token);
+  const f = await _createFolder(wantName, root, token);
   db.prepare('UPDATE clients SET drive_cs_folder_id=? WHERE id=?').run(f.id, clientId);
   return f.id;
 }
@@ -431,4 +439,17 @@ async function uploadFileToFolder(folderId, name, buf, mime) {
   return j;
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder };
+// 更新既有檔案內容（去重複用：對話 PDF 每次覆蓋同一份，不新增）
+async function updateFileContent(fileId, buf, mime) {
+  const token = await accessToken();
+  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': mime || 'application/octet-stream' },
+    body: Buffer.isBuffer(buf) ? buf : Buffer.from(buf),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('檔案更新失敗：' + ((j.error && j.error.message) || r.status));
+  return j;
+}
+
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder, updateFileContent };

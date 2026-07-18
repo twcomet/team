@@ -278,6 +278,17 @@ _addCol('cases', 'drive_folder_url', 'TEXT');
 _addCol('cases',   'drive_cs_folder_id',  'TEXT');
 _addCol('cases',   'drive_cs_folder_url', 'TEXT');
 _addCol('clients', 'drive_cs_folder_id',  'TEXT');
+// 對話備份去重複：對話 PDF 的 Drive 檔案 id(每次覆蓋同一份) + 上次備份時的訊息數(沒新訊息就不重傳)
+_addCol('cases',   'cs_backup_pdf_id',    'TEXT');
+_addCol('cases',   'cs_backup_msgcount',  'INTEGER');
+// 已備份過的照片(依訊息 id 去重，傳過不再傳)
+db.exec(`CREATE TABLE IF NOT EXISTS cs_backup_photos (
+  case_id INTEGER NOT NULL,
+  msg_id  INTEGER NOT NULL,
+  drive_file_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (case_id, msg_id)
+)`);
 _addCol('case_items', 'client_unit_price', 'REAL');
 _addCol('case_items', 'client_subtotal',   'REAL DEFAULT 0');
 _addCol('case_items', 'location',          'TEXT');
