@@ -797,6 +797,26 @@ router.post('/sign/:token', (req, res) => {
   } catch(e) { /* non-critical */ }
 
   res.json({ ok: true });
+  // 回簽後自動把報價單 PDF 備份到「案件資料夾」（非阻塞、失敗不影響回簽）
+  _backupSignedQuote(q.case_id, req.params.token).catch(() => {});
 });
+// 產生回簽報價單 PDF → 上傳到案件的 Google Drive 資料夾（案件資料夾，全隊可見）
+async function _backupSignedQuote(caseId, token) {
+  try {
+    const gdrive = require('../lib/gdrive');
+    if (!gdrive.isConnected()) return;
+    await gdrive.ensureCaseFolder(caseId);   // 確保案件資料夾存在
+    const cs = db.prepare('SELECT drive_folder_id, case_number FROM cases WHERE id=?').get(caseId);
+    if (!cs || !cs.drive_folder_id) return;
+    const { renderPdf } = require('../lib/pdf-render');
+    const PORT = process.env.PORT || 3000;
+    const url = `http://127.0.0.1:${PORT}/quote/${encodeURIComponent(token)}?pdf=1`;
+    const pdf = await renderPdf(url, { waitSelector: '.status-bar', title: '回簽報價單' });
+    const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const name = `回簽報價單_${cs.case_number || ''}_${stamp}.pdf`.replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim();
+    await gdrive.uploadFileToFolder(cs.drive_folder_id, name, buf, 'application/pdf');
+  } catch (e) { console.error('[backup-signed-quote]', e && e.message); }
+}
 
 module.exports = router;
