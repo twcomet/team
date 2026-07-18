@@ -405,8 +405,8 @@
             <!-- 計料方式：小獨立區塊 -->
             <div class="ec-card ec-modecard">
               <div class="ec-modeh">計料方式（點選切換）</div>
-              <div class="ec-mode on" id="mode-loose" onclick="setCombine(false)"><div class="ml"><b>寬鬆（多報）</b></div><span id="mode-loose-amt">$0</span></div>
-              <div class="ec-mode" id="mode-comb" onclick="setCombine(true)"><div class="ml"><b>拼料省料</b></div><span id="mode-comb-amt">$0</span></div>
+              <div class="ec-mode on" id="mode-loose" onclick="setCombine(false)"><div class="ml"><b>寬鬆（多報）</b><small id="mode-loose-sub">幾米幾才</small></div><span id="mode-loose-amt">$0</span></div>
+              <div class="ec-mode" id="mode-comb" onclick="setCombine(true)"><div class="ml"><b>拼料省料</b><small id="mode-comb-sub">幾米幾才</small></div><span id="mode-comb-amt">$0</span></div>
             </div>
             <!-- 金額計算 -->
             <div class="ec-tot">
@@ -702,8 +702,8 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
   var title=(x.name?x.name+'｜':'')+workName[x.work]+'｜'+FILMS[x.brand].label;
   var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
   var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
-  return {type:'film',work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost,over:x.uOver!=null};});}
-function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],baseU=cust==='owner'?item.owner:item.designer,unit=(it.uOver!=null?Number(it.uOver):baseU),W=item.width||122;var uk=(it.uOver==null?'':it.uOver);var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit+'|'+uk):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w+'|'+uk);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,over:(it.uOver!=null),W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs,over:!!x.over};});}
+  return {type:'film',W:x.W,work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost,over:x.uOver!=null};});}
+function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],baseU=cust==='owner'?item.owner:item.designer,unit=(it.uOver!=null?Number(it.uOver):baseU),W=item.width||122;var uk=(it.uOver==null?'':it.uOver);var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit+'|'+uk):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w+'|'+uk);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,over:(it.uOver!=null),W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{}};var x=g[k];x.n++;x.idxs.push(ci);x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',W:x.W,label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs,over:!!x.over};});}
 // 其他品項：計價用「含損耗才數」＝寬+10、高+10，並套膜寬122拼料(省料)/寬鬆(多報)；原始才數(寬×高÷900)僅供對照
 function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var W=(it.mBrand&&FILMS[it.mBrand]&&FILMS[it.mBrand].items[it.mIdx||0])?filmW(FILMS[it.mBrand].items[it.mIdx||0]):122;   // 有選膜料用其膜寬，否則預設122
@@ -720,7 +720,7 @@ function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var lossGroup=r.cai, lossEach=Math.ceil(x.n?lossGroup/x.n:lossGroup);   // 每件含損耗才數無條件進位到整數才
   var priceEach=(x.caiM!=null)?x.caiM:lossEach;                      // 計價才數(每件)：手動覆寫優先
   var amount=ceil100(priceEach*x.unit)*x.n;
-  return {type:'other',label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:priceEach,caiRaw:x.caiRaw,caiLoss:lossEach,over:(x.caiM!=null),unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,model:x.model,n:x.n,amount:amount,idxs:x.idxs};});}
+  return {type:'other',W:x.W,label:x.label,name:x.name,w:x.w,h:x.h,series:x.series,cai:priceEach,caiRaw:x.caiRaw,caiLoss:lossEach,over:(x.caiM!=null),unit:x.unit,photo:x.photo,mBrand:x.mBrand,mIdx:x.mIdx,mWork:x.mWork,model:x.model,n:x.n,amount:amount,idxs:x.idxs};});}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 // 「其他」品項行內編輯：改標題/寬/高/才數/一材單價，套用到該組所有 CART 項目後重算
 function editOther(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='other')return;
@@ -863,6 +863,20 @@ function modeOrigTotal(combine){
   var freight=FREIGHT[v('b-region')]||0,fut=futL.reduce(function(a,L){return a+L.amount;},0);
   return origFinal+freight+fut;
 }
+/* 計料模式的材料統計：總才數 / 換算米數 / 單才單價（供寬鬆·拼料兩列快速對照報多報少） */
+function modeStats(combine){
+  var save=COMBINE; COMBINE=combine; var lines;
+  try{ lines=buildLines(); } finally { COMBINE=save; }
+  var cai=0, meters=0, price=0;
+  lines.forEach(function(L){
+    if(L.type==='fut') return;
+    var lc=(L.type==='other')?((L.cai||0)*(L.n||1)):(L.cai||0);   // 該組計價總才數
+    if(lc>0){ cai+=lc; meters+=lc*9/(L.W||122); }                 // 才→米：才×9÷膜寬(cm)
+    price+=(L.base||L.amount||0);
+  });
+  return {cai:cai, meters:meters, per:(cai>0?price/cai:0)};
+}
+function _msText(m){ return m.cai>0 ? (Math.round(m.meters*10)/10)+' 米 · '+(Math.round(m.cai*10)/10)+' 才 · 單才 '+NT(Math.round(m.per)) : '幾米幾才'; }
 function render(){
  cust=v('b-cust');document.getElementById('t-region').textContent=v('b-region');
  if(v('g-cat'))fillGlassSeries();
@@ -896,6 +910,8 @@ function render(){
  document.getElementById('t-saved').textContent='省 '+NT(origTotal-discTotal);
  document.getElementById('mode-loose-amt').textContent=NT(modeOrigTotal(false));
  document.getElementById('mode-comb-amt').textContent=NT(modeOrigTotal(true));
+ document.getElementById('mode-loose-sub').textContent=_msText(modeStats(false));
+ document.getElementById('mode-comb-sub').textContent=_msText(modeStats(true));
  document.getElementById('mode-loose').classList.toggle('on',!COMBINE);
  document.getElementById('mode-comb').classList.toggle('on',COMBINE);
  renderMargin(priced,hasDisc);
