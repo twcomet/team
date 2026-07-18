@@ -774,7 +774,7 @@ function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?
   return '<div class="ec-grp"><div style="display:flex;gap:10px;align-items:flex-start">'
    +ph
    +'<div style="flex:1;min-width:0">'
-   +'<div class="ec-gh"><b>其他｜<input value="'+escAttr(L.name)+'" onchange="editOther(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
+   +'<div class="ec-gh"><b>其他｜<input value="'+escAttr(L.name)+'" onchange="editOther(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b>'+((!(Number(L.w)>0)||!(Number(L.h)>0))?'<span class="ec-badge" style="background:#fef3c7;color:#92400e;margin-left:6px" title="寬或高尚未填寫，才數與金額待補；請填入尺寸或現場丈量後補">📐 尺寸待補</span>':'')+'<span class="ec-gp">'+NT(orig)+'</span></div>'
    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#6b7280">'
    +'<label>寬<input type="number" value="'+L.w+'" onchange="editOther(\''+csv+'\',\'w\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
    +'<label>高<input type="number" value="'+L.h+'" onchange="editOther(\''+csv+'\',\'h\',this.value)" style="'+inp+';width:62px;margin-left:3px"></label>'
