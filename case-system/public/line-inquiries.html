@@ -1019,6 +1019,7 @@ async function openInquiry(id) {
           </div>
           <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleClientPanel()"><span id="clientToggleLabel">客戶資料 ▾</span></button>
           <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleCarePanel()"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>
+          ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="backupConvFromInquiry()" title="把此對話＋照片備份成 PDF 到「系統客服對話紀錄→客戶→案件」資料夾">📁 備份對話</button>` : ''}
         </div>
       </div>
       <div class="det-actions">${statusBar}</div>
@@ -1364,6 +1365,35 @@ async function markReplied(id) {
   }
 }
 // 轉真人客服：即使已轉案也可標記/取消，會進「轉真人客服」分頁
+// 備份此對話＋照片到雲端（一個案件直接備份；多個案件讓使用者選）
+async function backupConvFromInquiry() {
+  const d = currentInquiryData;
+  const cases = (d && d.cust_cases) || [];
+  if (!cases.length) { showToast('這位客人還沒有案件，無法備份（請先轉為案件）', 'error'); return; }
+  let caseId;
+  if (cases.length === 1) { caseId = cases[0].id; }
+  else {
+    const msg = '這位客人有多個案場，要備份到哪一個？\n\n' +
+      cases.map((c, i) => `${i + 1}. ${c.case_number || ''} ${c.title || ''}`).join('\n') +
+      `\n\n請輸入編號 1～${cases.length}：`;
+    const pick = prompt(msg, '1');
+    if (pick === null) return;
+    const idx = parseInt(pick, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= cases.length) { showToast('編號不正確', 'error'); return; }
+    caseId = cases[idx].id;
+  }
+  const target = cases.find(c => c.id === caseId);
+  if (!confirm(`把此對話＋客人照片備份成 PDF 到雲端？\n\n案件：${(target && (target.case_number + ' ' + (target.title || ''))) || caseId}\n（存到「系統客服對話紀錄→客戶→案件」，跟案件資料夾分開）`)) return;
+  showToast('備份中…（約需數秒）');
+  try {
+    const r = await fetch(`/api/cases/${caseId}/backup-conversation`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) {
+      showToast(`已備份到雲端（${j.messages} 則對話、${j.photos} 張照片）`);
+      if (j.link && confirm('備份完成！要打開雲端資料夾看嗎？')) window.open(j.link, '_blank');
+    } else { showToast(j.error || '備份失敗', 'error'); }
+  } catch (e) { showToast('備份失敗：' + e.message, 'error'); }
+}
 async function markNeedsHuman(id, value) {
   const v = value === 0 ? 0 : 1;
   const r = await fetch(`/api/line-inquiries/${id}/needs-human`, {
