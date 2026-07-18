@@ -129,6 +129,14 @@ router.get('/stats', requireAuth, (req, res) => {
 });
 
 // ── 單筆詳情 + 對話記錄 ──────────────────────────────────────
+// ── 所有用過的標籤（供新增時自動完成／快速選用）── 需定義在 /:id 之前，否則會被 /:id 攔截
+router.get('/tags/all', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT tags FROM line_inquiries WHERE tags IS NOT NULL AND tags!='' AND tags!='[]'`).all();
+  const set = new Set();
+  for (const r of rows) { try { (JSON.parse(r.tags) || []).forEach(t => { const s = String(t || '').trim(); if (s) set.add(s); }); } catch {} }
+  res.json({ tags: [...set].sort() });
+});
+
 router.get('/:id', requireAuth, (req, res) => {
   const inq = db.prepare(`
     SELECT i.*, c.phone, c.email, c.address,
@@ -307,6 +315,16 @@ router.post('/:id/convert', requireAuth, (req, res) => {
   gdrive.safeEnsureCaseFolder(r.lastInsertRowid); // LINE 詢問轉案件也自動建雲端資料夾（best-effort，不阻塞）
 
   res.json({ ok: true, case_id: r.lastInsertRowid, case_number: caseNumber, to_survey: !!to_survey });
+});
+
+// ── 客戶標籤：儲存此詢問的標籤（JSON 陣列）──
+router.put('/:id/tags', requireAuth, (req, res) => {
+  const inq = db.prepare(`SELECT id FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq) return res.status(404).json({ error: 'not found' });
+  let tags = Array.isArray(req.body.tags) ? req.body.tags : [];
+  tags = [...new Set(tags.map(t => String(t || '').trim()).filter(Boolean))].slice(0, 30);  // 去空白、去重、上限30
+  db.prepare(`UPDATE line_inquiries SET tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(JSON.stringify(tags), inq.id);
+  res.json({ ok: true, tags });
 });
 
 // ── 關聯到「現有案件」：把此 LINE 對話（含群組的 LINE ID）綁到既有案件 ──
