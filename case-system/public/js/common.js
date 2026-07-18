@@ -308,6 +308,9 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); })
     );
 
+    // 沒有 top-bar 的頁面（合約管理／個人資料／使用說明…）不注入搜尋/通知，避免 topBar.appendChild 崩潰
+    if (!topBar) return;
+
     // ── 萬用搜尋（跨 5 階段找案件）──────────────────────────
     const gWrap = document.createElement('div');
     gWrap.className = 'gsearch-wrap';

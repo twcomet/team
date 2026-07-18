@@ -7,8 +7,14 @@
 <link rel="stylesheet" href="/css/style.css">
 <link href="/css/quill.snow.css" rel="stylesheet">
 <style>
-.cm-layout { display:flex; gap:0; height:calc(100vh - 56px); overflow:hidden; }
+.cm-layout { display:flex; gap:0; flex:1; min-height:0; overflow:hidden; }
 .cm-list { width:280px; min-width:240px; border-right:1px solid var(--gray-200); display:flex; flex-direction:column; background:#fff; flex-shrink:0; }
+/* 手機：兩欄改上下堆疊，避免擠成一團 */
+@media (max-width:768px){
+  .cm-layout { flex-direction:column; }
+  .cm-list { width:auto; min-width:0; flex-shrink:1; border-right:none; border-bottom:1px solid var(--gray-200); max-height:40vh; }
+  .cm-detail { padding:16px; }
+}
 .cm-list-header { padding:14px 16px; border-bottom:1px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; }
 .cm-list-title { font-size:15px; font-weight:700; color:var(--gray-900); }
 .cm-list-body { flex:1; overflow-y:auto; }
@@ -144,10 +150,9 @@
     </div>
   </aside>
 
-  <main class="main-content" style="padding:0;overflow:hidden;">
-    <div class="topbar">
-      <button class="menu-toggle" id="menuToggle">☰</button>
-      <div class="topbar-title">合約管理</div>
+  <main class="main-content" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:100vh">
+    <div class="top-bar">
+      <span class="page-title">合約管理</span>
     </div>
 
     <div class="cm-layout">

@@ -212,14 +212,27 @@ async function init() {
   document.getElementById('signerDate').textContent = new Date().toLocaleDateString('zh-TW');
 
   const r = await fetch('/api/contracts/my/pending');
-  if (!r.ok) { location.href = '/dashboard'; return; }
+  if (!r.ok) { showNoPending('載入失敗，請稍後重新整理。'); return; }
   pendingContracts = await r.json();
 
-  if (!pendingContracts.length) { location.href = '/dashboard'; return; }
+  if (!pendingContracts.length) { showNoPending(); return; }
 
   document.getElementById('progressWrap').style.display = 'flex';
   await loadContract(0);
   initCanvas();
+}
+
+// 沒有待簽合約 → 顯示友善訊息，不再硬跳回總覽
+function showNoPending(msg) {
+  const area = document.getElementById('signingArea');
+  if (area) area.innerHTML = `
+    <div style="max-width:480px;margin:60px auto;text-align:center;color:#6b7280">
+      <div style="font-size:52px;margin-bottom:12px">✅</div>
+      <div style="font-size:18px;font-weight:700;color:#111827;margin-bottom:8px">目前沒有待簽的合約</div>
+      <div style="font-size:14px;line-height:1.7">${msg || '你指派的合約都已簽署完成，或目前沒有指派給你的合約。'}</div>
+      <a href="/dashboard" style="display:inline-block;margin-top:20px;padding:10px 22px;background:#D40069;color:#fff;border-radius:10px;text-decoration:none;font-weight:700">回總覽</a>
+    </div>`;
+  const pw = document.getElementById('progressWrap'); if (pw) pw.style.display = 'none';
 }
 
 async function loadContract(index) {
