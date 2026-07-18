@@ -2,13 +2,19 @@
    版型參考公司實體「裝潢貼膜價格表」：品牌抬頭 + 防焰/不防焰側欄 + 每米價高亮 + 連工帶料三檔 + 底部說明。
    不顯示成本/毛利（老闆請看報價設定）。 */
 (function () {
-  const ORDER = ['paroi', 'benif', 'bodaq', '3m'];
+  const ORDER = ['paroi', 'benif', 'bodaq', '3m', 'special'];
   const BRANDS = {
     paroi: { name: 'PAROI', sub: '日本 LINTEC', c1: '#6f5122', c2: '#b58a45', soft: '#f6efe2', freight: 'jp' },
     benif: { name: 'BENIF', sub: 'LX Hausys（LG）· 韓國', c1: '#41560f', c2: '#7f9d33', soft: '#eef3df', freight: 'kr' },
     bodaq: { name: 'Bodaq', sub: 'HYUNDAI · 韓國', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
     '3m': { name: '3M', sub: 'DI-NOC 特耐軟片', c1: '#9c0f22', c2: '#e11f33', soft: '#fbe7e9', freight: null },
+    special: { name: '玻璃膜·隔熱·特殊膜', sub: '3M Fasara · CarLife 隔熱紙 · 穩得', c1: '#0e6b7a', c2: '#22a5c4', soft: '#e0f6fb', freight: null },
   };
+  // special 類別的品牌中文名（依 est_film_catalog.brand）
+  const SP_BRAND = { '3m': '3M', carlife: 'CarLife 隔熱紙', wonder: '穩得' };
+  // 判斷是否玻璃膜/隔熱/特殊膜（元/才計價，歸到 special 類別）
+  const isSpecial = f => f.brand === 'carlife' || f.brand === 'wonder' ||
+    (f.brand === '3m' && (/^SH2/.test(f.asia_code || '') || (f.asia_code || '') === 'WH-111'));
   const FREIGHT_NOTE = {
     kr: ['空運 $6,000／一款（約 2–10 工作天，不含假日）', '海運 $3,000／一款（約 20–30 工作天，不含假日）'],
     jp: ['空運 $6,000／一款（約 3–4 週，不含假日）'],
@@ -199,12 +205,34 @@
     return `<table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }
 
+  // 玻璃膜·隔熱·特殊膜表格（元/才計價，無防焰、無每米；依品牌分組）
+  function tableSpecial(rows) {
+    const order = ['3m', 'carlife', 'wonder'], groups = {};
+    (rows || []).forEach(r => { (groups[r.brand] = groups[r.brand] || []).push(r); });
+    const head = `<tr><th style="width:14%">品牌</th><th style="width:44%">型號／花色</th>` +
+      `<th style="width:20%">規格</th><th class="ps-ph" style="width:22%">連工帶料<br>(元／才)</th></tr>`;
+    let body = '';
+    order.forEach(bk => {
+      const rs = groups[bk]; if (!rs || !rs.length) return;
+      rs.forEach((r, i) => {
+        const band = i === 0
+          ? `<td class="ps-band nf" rowspan="${rs.length}">${esc(SP_BRAND[bk] || bk)}</td>` : '';
+        body += `<tr>${band}` +
+          `<td class="ps-code" style="text-align:left">${esc(r.asia_code || '—')}${r.color ? ` <small style="color:#9ca3af">${esc(r.color)}</small>` : ''}</td>` +
+          `<td>${r.width || 122}cm×${r.roll_len || 30}M</td>` +
+          `<td class="ps-perm">${nt(r.plane)}<small>元/才</small></td></tr>`;
+      });
+    });
+    if (!body) body = `<tr><td colspan="4" style="padding:36px;color:#9ca3af">尚無資料</td></tr>`;
+    return `<table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
+
   // 產生單一品牌的牌價表 HTML
   function renderSheet(brand, rows, opts) {
     injectCss();
     opts = opts || {};
     const b = BRANDS[brand]; if (!b) return '';
-    const tableHtml = (brand === '3m') ? table3m(rows) : tableStd(brand, rows, opts);
+    const tableHtml = (brand === '3m') ? table3m(rows) : (brand === 'special') ? tableSpecial(rows) : tableStd(brand, rows, opts);
     return `<div class="ps-sheet" style="--c1:${b.c1};--c2:${b.c2};--soft:${b.soft}" data-brand="${brand}">
       <div class="ps-head">
         <img src="/logo.png" alt="繪新">
@@ -246,7 +274,10 @@
     if (!r.ok) throw new Error('load failed');
     const d = await r.json();
     const byBrand = {}; ORDER.forEach(k => byBrand[k] = []);
-    (d.films || []).forEach(f => { if (byBrand[f.brand]) byBrand[f.brand].push(f); });
+    (d.films || []).forEach(f => {
+      if (isSpecial(f)) { byBrand.special.push(f); return; }   // 玻璃膜/隔熱/特殊膜 → special 分頁
+      if (byBrand[f.brand]) byBrand[f.brand].push(f);
+    });
     return byBrand;
   }
 
