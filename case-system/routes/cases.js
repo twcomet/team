@@ -1466,8 +1466,9 @@ router.post('/:id/backup-conversation', requireAuth, async (req, res) => {
                   WHERE m.inquiry_id IN (${inqs.map(() => '?').join(',')}) ORDER BY m.created_at ASC, m.id ASC`).all(...inqs)
     : [];
   try {
+    const cname = String((client && client.name) || ('客戶' + cs.client_id)).replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim() || ('客戶' + cs.client_id);
     const { folderId, link } = await gdrive.ensureCaseCsFolder(cs.id);
-    // 照片去重：只上傳「沒備份過」的（依訊息 id）
+    // 照片去重：只上傳「沒備份過」的（依訊息 id）；檔名含客戶名＋編號(訊息 id)
     const already = new Set(db.prepare(`SELECT msg_id FROM cs_backup_photos WHERE case_id=?`).all(cs.id).map(r => r.msg_id));
     const imgMsgs = msgs.filter(m => m.msg_type === 'image' && m.content && !already.has(m.id));
     let photoNew = 0;
@@ -1475,25 +1476,26 @@ router.post('/:id/backup-conversation', requireAuth, async (req, res) => {
       try {
         const r = await fetch(imgMsgs[i].content); if (!r.ok) continue;
         const ab = await r.arrayBuffer();
-        const up = await gdrive.uploadFileToFolder(folderId, `照片_msg${imgMsgs[i].id}.jpg`, Buffer.from(ab), 'image/jpeg');
+        const up = await gdrive.uploadFileToFolder(folderId, `照片_${cname}_${imgMsgs[i].id}.jpg`, Buffer.from(ab), 'image/jpeg');
         db.prepare(`INSERT OR IGNORE INTO cs_backup_photos (case_id,msg_id,drive_file_id) VALUES (?,?,?)`).run(cs.id, imgMsgs[i].id, up.id || null);
         photoNew++;
       } catch (e) { /* 單張失敗略過 */ }
     }
-    // 對話 PDF：訊息數沒變、且已有備份、且沒有新照片 → 跳過；否則覆蓋同一份(或首次建立)
+    // 對話 PDF：檔名含客戶名；訊息數沒變、且已有備份、且沒有新照片 → 跳過；否則覆蓋同一份(或首次建立)
+    const pdfName = `對話紀錄_${cname}.pdf`;
     const st = db.prepare(`SELECT cs_backup_pdf_id, cs_backup_msgcount FROM cases WHERE id=?`).get(cs.id);
     let pdfAction = 'skipped';
     const changed = !st.cs_backup_pdf_id || (st.cs_backup_msgcount !== msgs.length) || photoNew > 0;
     if (changed) {
       const { renderPdfFromHtml } = require('../lib/pdf-render');
       const html = _buildConversationHtml(cs, client && client.name, msgs);
-      const pdf = await renderPdfFromHtml(html, { title: `客服對話-${(client && client.name) || ''}` });
+      const pdf = await renderPdfFromHtml(html, { title: `客服對話-${cname}` });
       const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
       if (st.cs_backup_pdf_id) {
-        try { await gdrive.updateFileContent(st.cs_backup_pdf_id, buf, 'application/pdf'); pdfAction = 'updated'; }
-        catch (e) { const up = await gdrive.uploadFileToFolder(folderId, '對話紀錄.pdf', buf, 'application/pdf'); db.prepare(`UPDATE cases SET cs_backup_pdf_id=? WHERE id=?`).run(up.id, cs.id); pdfAction = 'created'; }
+        try { await gdrive.updateFileContent(st.cs_backup_pdf_id, buf, 'application/pdf'); try { await gdrive.renameFile(st.cs_backup_pdf_id, pdfName); } catch (e2) {} pdfAction = 'updated'; }
+        catch (e) { const up = await gdrive.uploadFileToFolder(folderId, pdfName, buf, 'application/pdf'); db.prepare(`UPDATE cases SET cs_backup_pdf_id=? WHERE id=?`).run(up.id, cs.id); pdfAction = 'created'; }
       } else {
-        const up = await gdrive.uploadFileToFolder(folderId, '對話紀錄.pdf', buf, 'application/pdf');
+        const up = await gdrive.uploadFileToFolder(folderId, pdfName, buf, 'application/pdf');
         db.prepare(`UPDATE cases SET cs_backup_pdf_id=? WHERE id=?`).run(up.id, cs.id); pdfAction = 'created';
       }
       db.prepare(`UPDATE cases SET cs_backup_msgcount=? WHERE id=?`).run(msgs.length, cs.id);

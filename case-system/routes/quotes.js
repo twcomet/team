@@ -805,7 +805,7 @@ async function _backupSignedQuote(caseId, token) {
   try {
     const gdrive = require('../lib/gdrive');
     if (!gdrive.isConnected()) return;
-    const cs = db.prepare('SELECT client_id, case_number FROM cases WHERE id=?').get(caseId);
+    const cs = db.prepare('SELECT c.client_id, c.case_number, cl.name AS client_name FROM cases c LEFT JOIN clients cl ON cl.id=c.client_id WHERE c.id=?').get(caseId);
     if (!cs || !cs.client_id) return;   // 沒連客戶就無法建客戶資料夾，略過
     const { folderId } = await gdrive.ensureCaseCsFolder(caseId);   // 受限樹：系統客服對話紀錄→客戶→案件
     if (!folderId) return;
@@ -815,7 +815,8 @@ async function _backupSignedQuote(caseId, token) {
     const pdf = await renderPdf(url, { waitSelector: '.status-bar', title: '回簽報價單' });
     const buf = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf);
     const stamp = new Date().toISOString().slice(0, 10);
-    const name = `回簽報價單_${cs.case_number || ''}_${stamp}.pdf`.replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim();
+    const cname = String(cs.client_name || ('客戶' + cs.client_id)).replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim();
+    const name = `回簽報價單_${cname}_${cs.case_number || ''}_${stamp}.pdf`.replace(/[\\/?%*:|"<>\r\n]+/g, ' ').trim();
     await gdrive.uploadFileToFolder(folderId, name, buf, 'application/pdf');
   } catch (e) { console.error('[backup-signed-quote]', e && e.message); }
 }

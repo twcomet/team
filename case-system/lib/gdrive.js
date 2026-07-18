@@ -439,6 +439,11 @@ async function uploadFileToFolder(folderId, name, buf, mime) {
   return j;
 }
 
+// 更名既有檔案/資料夾（供對話 PDF 補上客戶名關鍵字）
+async function renameFile(fileId, name) {
+  const token = await accessToken();
+  return _renameFile(fileId, name, token);
+}
 // 更新既有檔案內容（去重複用：對話 PDF 每次覆蓋同一份，不新增）
 async function updateFileContent(fileId, buf, mime) {
   const token = await accessToken();
@@ -452,4 +457,4 @@ async function updateFileContent(fileId, buf, mime) {
   return j;
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder, updateFileContent };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder, updateFileContent, renameFile };
