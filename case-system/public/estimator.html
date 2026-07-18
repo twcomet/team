@@ -998,8 +998,9 @@ function _doCopy(l){
 function recopyEstLink(){ if(_lastCopiedLink) _doCopy(_lastCopiedLink); }
 // 複製客戶連結：同時①縮短網址②複製③開預覽視窗；複製提示顯示在預覽視窗內(不在左上)
 async function copyEstLink(){
-  if(!SHARE_TOKEN){ alert('請先「儲存估價單」再複製連結'); return; }
-  openEstPreview();                        // 先開預覽
+  if(!CART.length){ alert('估價單還沒有品項，無法複製連結'); return; }
+  await openEstPreview();                   // 先自動存(反映目前設定)＋開預覽
+  if(!SHARE_TOKEN) return;
   var link=estLink();
   try{ var j=await fetch(API+'/quotes/short/'+SHARE_TOKEN).then(function(r){return r.ok?r.json():null;}); if(j&&j.short_url) link=j.short_url; }catch(e){}
   _lastCopiedLink=link; _doCopy(link);
@@ -1008,8 +1009,10 @@ async function copyEstLink(){
 }
 function dlEstPdf(){ if(!SHARE_TOKEN){alert('請先儲存估價單');return;} window.open('/estimate/'+SHARE_TOKEN+'/pdf','_blank'); }
 // 客戶版預覽 modal：直接載入 /estimate/:token（客人會看到的樣子），不用另開分頁
-function openEstPreview(){
-  if(!SHARE_TOKEN){ alert('請先「儲存估價單」再預覽'); return; }
+async function openEstPreview(){
+  if(!CART.length){ alert('估價單還沒有品項，無法預覽'); return; }
+  await saveQuote('draft',{quiet:true});   // 先自動存一次：讓預覽反映目前設定(單一價/區間/顯示欄位/計料方式)
+  if(!SHARE_TOKEN){ alert('儲存失敗，無法預覽'); return; }
   var bar=document.getElementById('estPreviewCopied'); if(bar) bar.style.display='none';   // 純預覽不顯示複製列
   document.getElementById('estPreviewFrame').src='/estimate/'+SHARE_TOKEN+'?t='+Date.now();
   document.getElementById('estPreviewModal').style.display='flex';
