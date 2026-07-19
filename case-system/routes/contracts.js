@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024, fieldSize: 10 * 1024 * 1024 },   // fieldSize 拉高，長合約內文才不會撞預設 1MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') cb(null, true);
     else cb(new Error('只允許上傳 PDF 檔案'));
@@ -60,21 +60,26 @@ router.post('/', requireAuth, (req, res, next) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
   next();
 }, upload.single('file'), (req, res) => {
-  const { title, description, content } = req.body;
-  if (!title?.trim()) return res.status(400).json({ error: '請填寫合約名稱' });
-  if (!content?.trim() && !req.file) return res.status(400).json({ error: '請輸入合約內容或上傳 PDF' });
+  try {
+    const { title, description, content } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: '請填寫合約名稱' });
+    if (!content?.trim() && !req.file) return res.status(400).json({ error: '請輸入合約內容或上傳 PDF' });
 
-  const r = db.prepare(`INSERT INTO contracts (title, description, content, filename, original_name, created_by) VALUES (?,?,?,?,?,?)`)
-    .run(
-      title.trim(),
-      description?.trim() || null,
-      content?.trim() || null,
-      req.file ? req.file.filename : null,
-      decodeOriginalName(req.file),
-      req.session.user.id,
-    );
+    const r = db.prepare(`INSERT INTO contracts (title, description, content, filename, original_name, created_by) VALUES (?,?,?,?,?,?)`)
+      .run(
+        title.trim(),
+        description?.trim() || null,
+        content?.trim() || null,
+        req.file ? req.file.filename : null,
+        decodeOriginalName(req.file),
+        req.session.user.id,
+      );
 
-  res.json({ ok: true, id: r.lastInsertRowid });
+    res.json({ ok: true, id: r.lastInsertRowid });
+  } catch (e) {
+    console.error('[POST /api/contracts]', e.message);
+    res.status(500).json({ error: '建立合約失敗：' + e.message });
+  }
 });
 
 // ── 更新合約內容（admin）─────────────────────────────────────

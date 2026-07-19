@@ -627,6 +627,7 @@ cDrop.addEventListener('drop', e => {
 });
 
 async function doCreate() {
+  if (!quillCreate) { showToast('編輯器尚未載入，請重新整理頁面再試', 'error'); return; }
   const title   = document.getElementById('cTitle').value.trim();
   const desc    = document.getElementById('cDesc').value.trim();
   const content = quillCreate.root.innerHTML;
@@ -637,22 +638,31 @@ async function doCreate() {
 
   const btn = document.getElementById('createBtn');
   btn.disabled = true; btn.textContent = '建立中…';
+  try {
+    const fd = new FormData();
+    fd.append('title', title);
+    fd.append('description', desc);
+    fd.append('content', isEmpty ? '' : content);
+    if (selectedFile) fd.append('file', selectedFile);
 
-  const fd = new FormData();
-  fd.append('title', title);
-  fd.append('description', desc);
-  fd.append('content', isEmpty ? '' : content);
-  if (selectedFile) fd.append('file', selectedFile);
-
-  const r = await fetch('/api/contracts', { method:'POST', body: fd });
-  btn.disabled = false; btn.textContent = '建立合約';
-
-  if (!r.ok) { const d = await r.json(); showToast(d.error||'建立失敗', 'error'); return; }
-  const d = await r.json();
-  closeModal('createModal');
-  showToast('合約已建立', 'success');
-  await loadContracts();
-  selectContract(d.id);
+    const r = await fetch('/api/contracts', { method:'POST', body: fd });
+    if (!r.ok) {
+      let msg = 'HTTP ' + r.status;
+      try { const d = await r.json(); if (d.error) msg = d.error; }
+      catch(_) { try { const t = await r.text(); if (t) msg += '：' + t.slice(0,140); } catch(__){} }
+      showToast('建立失敗：' + msg, 'error');
+      return;
+    }
+    const d = await r.json();
+    closeModal('createModal');
+    showToast('合約已建立', 'success');
+    await loadContracts();
+    selectContract(d.id);
+  } catch (e) {
+    showToast('建立失敗：' + (e.message || '網路錯誤，請重試'), 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '建立合約';
+  }
 }
 
 document.getElementById('createModal').addEventListener('click', e => {
