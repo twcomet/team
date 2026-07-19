@@ -207,10 +207,12 @@ router.post('/:id/notify', requireAuth, (req, res) => {
 
 // ── 移除指派（admin）──────────────────────────────────────────
 router.delete('/:id/assign/:userId', requireAuth, (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  db.prepare(`DELETE FROM contract_assignments WHERE contract_id=? AND user_id=?`)
-    .run(req.params.id, req.params.userId);
-  res.json({ ok: true });
+  if (!isAdmin(req)) return res.status(403).json({ error: '沒有權限' });
+  try {
+    db.prepare(`DELETE FROM contract_assignments WHERE contract_id=? AND user_id=?`)
+      .run(Number(req.params.id), Number(req.params.userId));
+    res.json({ ok: true });
+  } catch (e) { console.error('[DELETE assign]', e.message); res.status(500).json({ error: '移除失敗：' + e.message }); }
 });
 
 // ── 取得我的待簽合約（員工）──────────────────────────────────
@@ -280,9 +282,11 @@ router.post('/:id/sign', requireAuth, (req, res) => {
 
 // ── 刪除某人的簽署紀錄（admin；清除測試簽署，讓對方回到「未簽」可重新簽）──
 router.delete('/:id/signature/:userId', requireAuth, (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-  const info = db.prepare(`DELETE FROM contract_signatures WHERE contract_id=? AND user_id=?`).run(req.params.id, req.params.userId);
-  res.json({ ok: true, removed: info.changes });
+  if (!isAdmin(req)) return res.status(403).json({ error: '沒有權限' });
+  try {
+    const info = db.prepare(`DELETE FROM contract_signatures WHERE contract_id=? AND user_id=?`).run(Number(req.params.id), Number(req.params.userId));
+    res.json({ ok: true, removed: info.changes });
+  } catch (e) { console.error('[DELETE signature]', e.message); res.status(500).json({ error: '刪除失敗：' + e.message }); }
 });
 
 // ── 取得某人已簽的合約文件（內容＋手寫簽名），供檢視/列印/下載。本人或管理者可看 ──

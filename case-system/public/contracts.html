@@ -577,11 +577,17 @@ async function deleteSignature(userId, name) {
 
 async function removeAssign(userId) {
   if (!confirm('確定要移除此人的指派？')) return;
-  const r = await fetch(`/api/contracts/${currentId}/assign/${userId}`, { method:'DELETE' });
-  if (!r.ok) { showToast('移除失敗', 'error'); return; }
-  showToast('已移除', 'success');
-  await loadContracts();
-  await loadDetail();
+  try {
+    const r = await fetch(`/api/contracts/${currentId}/assign/${userId}`, { method:'DELETE' });
+    if (!r.ok) {
+      let m = 'HTTP ' + r.status;
+      try { const d = await r.json(); if (d.error) m = d.error; } catch(_) {}
+      showToast('移除失敗：' + m, 'error'); return;
+    }
+    showToast('已移除', 'success');
+    await loadContracts();
+    await loadDetail();
+  } catch (e) { showToast('移除失敗：' + (e.message || '網路錯誤'), 'error'); }
 }
 
 async function deleteContract(id) {
