@@ -421,6 +421,31 @@ async function ensureCaseCsFolder(caseId) {
   db.prepare('UPDATE cases SET drive_cs_folder_id=?, drive_cs_folder_url=? WHERE id=?').run(f.id, f.webViewLink || null, caseId);
   return { folderId: f.id, link: f.webViewLink || null };
 }
+// ── 合約簽署雲端樹：母資料夾「合約簽署」→ 依合約標題分類子夾 ──
+async function _ensureContractRoot(token) {
+  const pid = getS('gdrive_contract_root_id');
+  if (pid) return pid;
+  let id = await _findRootFolder('合約簽署', token);   // 同帳號重連可沿用
+  if (!id) { const f = await _createFolder('合約簽署', null, token); id = f.id; }
+  setS('gdrive_contract_root_id', id);
+  return id;
+}
+// 某合約在「合約簽署」下的分類子夾（存 contracts.drive_folder_id；標題改了自動更名）
+async function ensureContractFolder(contractId, title) {
+  const c = db.prepare('SELECT id, drive_folder_id FROM contracts WHERE id=?').get(contractId);
+  if (!c) throw new Error('找不到合約');
+  const wantName = _safeName(title || ('合約' + contractId));
+  if (c.drive_folder_id) {
+    try { const token = await accessToken(); await _renameFile(c.drive_folder_id, wantName, token); } catch (e) {}
+    return c.drive_folder_id;
+  }
+  const token = await accessToken();
+  const root  = await _ensureContractRoot(token);
+  const f = await _createFolder(wantName, root, token);
+  db.prepare('UPDATE contracts SET drive_folder_id=? WHERE id=?').run(f.id, contractId);
+  return f.id;
+}
+
 // 通用：上傳一個檔案(buffer)到指定資料夾
 async function uploadFileToFolder(folderId, name, buf, mime) {
   const token = await accessToken();
@@ -457,4 +482,4 @@ async function updateFileContent(fileId, buf, mime) {
   return j;
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, uploadFileToFolder, updateFileContent, renameFile };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, ensureContractFolder, uploadFileToFolder, updateFileContent, renameFile };

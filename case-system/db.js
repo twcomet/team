@@ -2281,6 +2281,7 @@ db.exec(`
   );
 `);
 _addCol('contracts', 'content', 'TEXT');
+_addCol('contracts', 'drive_folder_id', 'TEXT');   // 「合約簽署」雲端樹下該合約的資料夾 id
 db.exec(`
   CREATE TABLE IF NOT EXISTS contract_assignments (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

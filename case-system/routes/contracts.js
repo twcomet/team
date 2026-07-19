@@ -268,6 +268,20 @@ router.post('/:id/sign', requireAuth, (req, res) => {
     .run(req.params.id, uid, u.name || '', signature, ip || null);
 
   res.json({ ok: true });
+
+  // 簽署完成 → 產生已簽合約 PDF 備份到 Google Drive「合約簽署 → 合約標題」（best-effort，不阻塞回應）
+  try { require('../lib/contract-archive').backupSignedContract(Number(req.params.id), uid); } catch (e) { /* non-critical */ }
+});
+
+// ── 取得某人已簽的合約文件（內容＋手寫簽名），供檢視/列印/下載。本人或管理者可看 ──
+router.get('/:id/signed-doc', requireAuth, (req, res) => {
+  const targetUid = parseInt(req.query.user_id) || req.session.user.id;
+  if (targetUid !== req.session.user.id && !isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const c = db.prepare(`SELECT id, title, content FROM contracts WHERE id=?`).get(req.params.id);
+  if (!c) return res.status(404).json({ error: '找不到合約' });
+  const sig = db.prepare(`SELECT signed_name, signature, signed_at, ip_address FROM contract_signatures WHERE contract_id=? AND user_id=?`).get(req.params.id, targetUid);
+  if (!sig) return res.status(404).json({ error: '此人尚未簽署' });
+  res.json({ title: c.title, content: c.content || '', signer_name: sig.signed_name, signed_at: sig.signed_at, signature: sig.signature, ip: sig.ip_address });
 });
 
 module.exports = router;
