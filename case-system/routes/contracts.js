@@ -273,6 +273,13 @@ router.post('/:id/sign', requireAuth, (req, res) => {
   try { require('../lib/contract-archive').backupSignedContract(Number(req.params.id), uid); } catch (e) { /* non-critical */ }
 });
 
+// ── 刪除某人的簽署紀錄（admin；清除測試簽署，讓對方回到「未簽」可重新簽）──
+router.delete('/:id/signature/:userId', requireAuth, (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const info = db.prepare(`DELETE FROM contract_signatures WHERE contract_id=? AND user_id=?`).run(req.params.id, req.params.userId);
+  res.json({ ok: true, removed: info.changes });
+});
+
 // ── 取得某人已簽的合約文件（內容＋手寫簽名），供檢視/列印/下載。本人或管理者可看 ──
 router.get('/:id/signed-doc', requireAuth, (req, res) => {
   const targetUid = parseInt(req.query.user_id) || req.session.user.id;
