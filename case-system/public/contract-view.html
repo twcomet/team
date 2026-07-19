@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合約檢視</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f3f4f6; font-family:'Noto Sans TC',-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif; color:#111827; }
+  .toolbar { position:sticky; top:0; display:flex; gap:10px; align-items:center; justify-content:space-between; padding:10px 16px; background:#fff; border-bottom:1px solid #e5e7eb; }
+  .toolbar a, .toolbar button { font-size:14px; border:1px solid #d1d5db; background:#fff; border-radius:9px; padding:8px 14px; cursor:pointer; text-decoration:none; color:#374151; font-weight:600; }
+  .toolbar .print { background:#D40069; color:#fff; border-color:#D40069; }
+  .doc { max-width:820px; margin:24px auto; background:#fff; border-radius:14px; box-shadow:0 1px 10px rgba(0,0,0,.06); padding:40px 44px; }
+  .doc h1 { font-size:22px; text-align:center; margin:0 0 26px; letter-spacing:1px; }
+  .doc .content { font-size:14px; line-height:1.9; }
+  .doc .content p { margin:0 0 10px; }
+  .doc hr { margin:28px 0 20px; border:none; border-top:1px solid #d1d5db; }
+  .doc .sig { font-size:14px; line-height:2.1; }
+  .doc .sig img { max-width:340px; max-height:170px; border:1px solid #e5e7eb; border-radius:8px; margin-top:8px; display:block; }
+  .doc .note { font-size:12px; color:#9ca3af; margin-top:24px; line-height:1.6; }
+  @media print { body { background:#fff; } .no-print { display:none !important; } .doc { box-shadow:none; margin:0; max-width:none; border-radius:0; } }
+</style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <a href="#" onclick="history.back();return false;">← 返回</a>
+    <button class="print" onclick="window.print()">🖨️ 列印 / 存成 PDF</button>
+  </div>
+  <div id="doc" class="doc">載入中…</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const id = q.get('id'), user = q.get('user');
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  (async () => {
+    const el = document.getElementById('doc');
+    if (!id) { el.innerHTML = '<p style="color:#b91c1c;text-align:center;padding:40px">缺少合約編號</p>'; return; }
+    const url = '/api/contracts/' + encodeURIComponent(id) + '/signed-doc' + (user ? ('?user_id=' + encodeURIComponent(user)) : '');
+    let r; try { r = await fetch(url); } catch(e) { el.innerHTML='<p style="color:#b91c1c;text-align:center;padding:40px">網路錯誤</p>'; return; }
+    if (!r.ok) { const e = await r.json().catch(()=>({})); el.innerHTML = '<p style="color:#b91c1c;text-align:center;padding:40px">'+esc(e.error||'載入失敗')+'</p>'; return; }
+    const d = await r.json();
+    document.title = d.title + ' — 已簽署';
+    el.innerHTML =
+      '<h1>' + esc(d.title) + '</h1>' +
+      '<div class="content">' + (d.content || '<p style="color:#9ca3af">（無內文）</p>') + '</div>' +
+      '<hr><div class="sig">' +
+        '<div><b>簽署人：</b>' + esc(d.signer_name) + '</div>' +
+        '<div><b>簽署日期：</b>' + esc((d.signed_at||'').replace('T',' ').slice(0,19)) + '</div>' +
+        (d.ip ? '<div><b>簽署 IP：</b>' + esc(d.ip) + '</div>' : '') +
+        '<div style="margin-top:12px"><b>手寫電子簽名：</b></div>' +
+        (d.signature ? '<img src="' + d.signature + '" alt="簽名">' : '<div style="color:#9ca3af">（無簽名影像）</div>') +
+      '</div>' +
+      '<p class="note">本文件為系統於簽署完成時自動產生之電子簽署存證。依當事人簽署時之確認，電子簽章與親筆簽名具同等法律效力。</p>';
+  })();
+</script>
+</body>
+</html>

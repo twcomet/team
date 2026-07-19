@@ -179,6 +179,17 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「我的合約」選單（所有員工都看得到自己被指派/已簽的合約）：放在 員工功能 → 請假管理下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="my-contracts"]')) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'my-contracts'; a.href = '/my-contracts';
+    a.innerHTML = '<span class="icon">✍️</span>我的合約';
+    const anchor = nav.querySelector('[data-page="leave"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
+
   // 注入「膜料牌價表」選單（業務／客服／老闆）：放在 進銷存 → 膜料使用紀錄下方
   (function() {
     const nav = document.querySelector('.sidebar-nav');

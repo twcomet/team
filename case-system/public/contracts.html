@@ -347,7 +347,7 @@ function renderDetail(data) {
       ${renderAssignTab(c, assignments)}
     </div>
     <div id="tabStatus" style="display:${currentTab==='status'?'':'none'}">
-      ${renderStatusTab(assignments)}
+      ${renderStatusTab(assignments, c.id)}
     </div>
   `;
 
@@ -470,7 +470,7 @@ function renderAssignTab(c, assignments) {
   `;
 }
 
-function renderStatusTab(assignments) {
+function renderStatusTab(assignments, contractId) {
   if (!assignments.length) return '<div style="color:var(--gray-400);font-size:14px;padding:16px 0">尚無指派紀錄</div>';
   const rows = assignments.map(a => `<tr>
     <td><strong>${esc(a.name)}</strong></td>
@@ -479,7 +479,9 @@ function renderStatusTab(assignments) {
     <td>${a.signed_at ? '<span class="sign-badge badge-green">✓ 已簽署</span>' : '<span class="sign-badge badge-red">未簽</span>'}</td>
     <td>${fmtDateTime(a.signed_at)}</td>
     <td>${a.signed_name||'—'}</td>
-    <td>${!a.signed_at ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="removeAssign(${a.user_id})">移除</button>` : ''}</td>
+    <td>${a.signed_at
+      ? `<a class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;text-decoration:none" href="/contract/view?id=${contractId}&user=${a.user_id}" target="_blank" title="查看此人已簽的合約內容與簽名">📄 查看</a>`
+      : `<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="removeAssign(${a.user_id})">移除</button>`}</td>
   </tr>`).join('');
   return `<table class="status-table">
     <thead><tr><th>姓名</th><th>職位</th><th>指派時間</th><th>狀態</th><th>簽署時間</th><th>簽署姓名</th><th></th></tr></thead>

@@ -239,6 +239,12 @@ function requirePagePerm(page) {
 }
 
 // 合約簽署頁（已登入員工）
+app.get('/contract/view', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'contract-view.html'));
+});
+app.get('/my-contracts', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'my-contracts.html'));
+});
 app.get('/contract', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'contract.html'));
 });
