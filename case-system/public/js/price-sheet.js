@@ -190,23 +190,30 @@
     return `<table class="ps-tbl"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }
 
-  // 3M 表格（依 3M 官方牌價表：系列/現貨供應色號/規格/才(支)/每才建議售價；連工帶料取報價設定或公式回推）
+  // 3M 表格（系列/現貨供應色號/規格/才(支) 用內建官方表；每才與連工帶料改從報價設定 est_film_catalog 撈）
   function table3m(dbRows) {
-    const dbMap = {}; (dbRows || []).forEach(r => { dbMap[(r.asia_code || '').trim()] = r; });
+    // 報價設定的 3M 常把多個色號寫在同一列（如「PS、WG」），拆開後逐碼對應；後出現者覆蓋(個別列蓋過群組列)
+    const dbMap = {};
+    (dbRows || []).forEach(r => { dbMap[(r.asia_code || '').trim()] = r; });
+    const dbByCode = {};
+    (dbRows || []).forEach(r => {
+      String(r.asia_code || '').split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(code => { dbByCode[code] = r; });
+    });
     const head = `<tr>
       <th style="width:9%">系列</th><th style="width:37%">現貨供應色號</th>
       <th style="width:11%">規格</th><th style="width:7%">才(支)</th>
       <th class="ps-ph" style="width:11%">每才 $</th>
       <th style="width:8%">連工帶料<br>全平面牆面</th><th style="width:9%">系統櫃<br>門片</th><th style="width:8%">連工帶料<br>造型</th></tr>`;
     const body = OFFICIAL_3M.map(o => {
-      const db = dbMap[o.code] || {};
+      const db = dbByCode[o.code] || dbMap[o.code] || {};
+      const perCai = (Number(db.per_m) > 0) ? perTsai(db) : o.price;   // 每才：報價設定 per_m→每才；查無才用內建官方價
       const plane = db.plane || o.price + 90, cabinet = db.cabinet || o.price + 120, shape = db.shape || o.price + 145;
       return `<tr>
         <td class="ps-code">${esc(o.label || o.code)}</td>
         <td class="ps-codes">${esc(o.colors || '—')}</td>
         <td>${o.w}cm×${o.roll}M</td>
         <td>${o.tsai}</td>
-        <td class="ps-perm">${nt(o.price)}<small>未稅/才</small></td>
+        <td class="ps-perm">${nt(perCai)}<small>未稅/才</small></td>
         <td class="ps-cai">${nt(plane)}</td><td class="ps-cai">${nt(cabinet)}</td><td class="ps-cai">${nt(shape)}</td>
       </tr>`;
     }).join('');
@@ -254,7 +261,7 @@
   }
 
   const NOTES_3M = [
-    '建議售價為「元／才」未稅，比照 3M 官方牌價表（2026/5/1）。',
+    '每才建議售價（元／才・未稅）與連工帶料皆依「報價設定」；色號／規格比照 3M 官方牌價表（2026/5/1）。',
     '現貨供應最低出貨 32 才；規格 122cm×50M（部分系列 25M、WH 白板膜 125cm×30M）。',
     '底漆 WP-2000 $6,500／瓶（3.75L）、助黏劑 UPUV $2,150／瓶（946ml），依施工需求另計。',
     'Fasara 玻璃裝飾貼膜（SH2 系列）屬玻璃膜，另列報價。',
