@@ -208,7 +208,7 @@ function buildCatalogFromDb(db) {
   const lo = db.prepare(`SELECT key,value FROM settings WHERE key IN ('est_lowmin_owner','est_lowmin_designer')`).all();
   const LOWMIN = {
     owner: Number((lo.find(x => x.key === 'est_lowmin_owner') || {}).value || 10000),
-    designer: Number((lo.find(x => x.key === 'est_lowmin_designer') || {}).value || 9000),
+    designer: Number((lo.find(x => x.key === 'est_lowmin_designer') || {}).value || 10000),
   };
   return { FILMS, GLASS, DOORS, FREIGHT, LOWMIN, FUT: DEFAULT.FUT };
 }

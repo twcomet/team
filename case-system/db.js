@@ -3722,6 +3722,12 @@ try {
   }
   db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_owner',?)`).run(String(_estSeed.LOWMIN.owner));
   db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_designer',?)`).run(String(_estSeed.LOWMIN.designer));
+  // 低消統一：業主/設計師一致（一次性把 designer 低消對齊 owner，之前設計師是 9000）
+  if (!db.prepare(`SELECT 1 FROM settings WHERE key='est_lowmin_unified'`).get()) {
+    const _ownLm = db.prepare(`SELECT value FROM settings WHERE key='est_lowmin_owner'`).get()?.value || '10000';
+    db.prepare(`UPDATE settings SET value=? WHERE key='est_lowmin_designer'`).run(_ownLm);
+    db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_lowmin_unified','1')`).run();
+  }
   console.log('✅ 估價價目表就緒（est_films/glass/doors/freight；空表才 seed 預設值，使用者改動不覆蓋）');
 } catch (e) { console.warn('[est pricing seed]', e.message); }
 

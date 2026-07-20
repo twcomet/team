@@ -325,7 +325,7 @@
             <div class="ec-itab" data-tab="c">系統櫃</div>
             <div class="ec-itab" data-tab="s">造型</div>
             <div class="ec-itab" data-tab="t">天花板</div>
-            <div class="ec-itab" data-tab="glass">玻璃</div>
+            <div class="ec-itab" data-tab="glass" style="display:none">玻璃</div>
             <div class="ec-itab" data-tab="elev">電梯</div>
             <div class="ec-itab" data-tab="door">門</div>
             <div class="ec-itab" data-tab="other">其他</div>
@@ -472,7 +472,7 @@ const FTAB = { w:{work:'plane',label:'牆面'}, c:{work:'cabinet',label:'系統�
 const workName = { plane:'牆面', cabinet:'系統櫃', shape:'造型', ceiling:'天花板' };
 function workUnit(it,work){ return work==='ceiling' ? (Number(it.shape)||0)+20 : it[work]; }  // 天花板=造型(shape)+20/才
 const FUT = { kr:{label:'韓國膜',methods:[{v:'sea',name:'海運',price:3000,lead:'20～30 工作天'},{v:'air',name:'空運',price:6000,lead:'2～10 工作天'}]}, jp:{label:'日本膜',methods:[{v:'air',name:'空運',price:6000,lead:'約 3～4 週'}]} };
-let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:9000};
+let FILMS={}, GLASS={}, DOORS={}, FREIGHT={}, LOWMIN={owner:10000,designer:10000};
 let MATERIALS=[];   // 物料管理庫存（供「其他」品項型號現貨查詢：現貨/期貨＋幾米）
 async function loadMaterials(){ try{ var r=await fetch('/api/materials'); MATERIALS=r.ok?await r.json():[]; }catch(e){ MATERIALS=[]; } buildMatDatalist(); }
 function fmtStock(v){ var n=Math.round((Number(v)||0)*10)/10; return Number.isInteger(n)?String(n):n.toFixed(1); }
@@ -517,7 +517,7 @@ async function loadCatalog(){
   DOORS={}; (cat.doors||[]).forEach(function(r){ DOORS[r.cat]=DOORS[r.cat]||{}; if(r.cat==='fire'){DOORS.fire.sized=1;DOORS.fire[r.size]=DOORS.fire[r.size]||{};DOORS.fire[r.size][r.origin]=DOORS.fire[r.size][r.origin]||{};DOORS.fire[r.size][r.origin][r.side]=r.price;}else{DOORS[r.cat][r.origin]=DOORS[r.cat][r.origin]||{};DOORS[r.cat][r.origin][r.side]=DOORS[r.cat][r.origin][r.side]||{};DOORS[r.cat][r.origin][r.side][r.frame]=r.price;} });
   GLASS={}; (pr.glass||[]).forEach(function(r){ if(!GLASS[r.cat_key])GLASS[r.cat_key]={label:r.cat_label,items:[]}; GLASS[r.cat_key].items.push({sys:r.sys,owner:r.owner_price,designer:r.designer_price,width:r.width||122}); });
   FREIGHT={}; (pr.freight||[]).forEach(function(r){ FREIGHT[r.region]=r.amount||0; });
-  LOWMIN = pr.lowmin || {owner:10000,designer:9000};
+  LOWMIN = pr.lowmin || {owner:10000,designer:10000};
 }
 
 /* 三裝潢膜分頁（動態建立）*/
@@ -528,6 +528,7 @@ function buildFilmPane(pfx){
    '<div class="ec-fld"><label>類型</label><input value="'+t.label+'" disabled style="background:#f3f4f6;color:#6b7280"></div>'+
    '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
    '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
+   (pfx==='t'?'<div class="ec-fld"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="t-shape" onchange="priceHint(\'t\')"> 有造型（連工帶料 +30／才）</label></div>':'')+
    '<div class="ec-szhd">尺寸（可加多筆，會歸在同一項目下）</div>'+
    '<div class="ec-szgrid ec-szcap"><span>寬 cm</span><span>高 cm</span><span>數量</span><span></span></div>'+
    '<div id="'+pfx+'-rows"></div>'+
@@ -554,14 +555,18 @@ function rmFilmRow(el){
   row.remove();
 }
 function fillFilmP(pfx){var b=v(pfx+'-brand');fillSel(pfx+'-item',FILMS[b].items.map(function(it,i){return {v:i,t:fmtItem(it)};}));priceHint(pfx);}
-function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(workUnit(it,t.work))+'／才　·　膜寬 '+filmW(it)+'cm'+(t.work==='ceiling'?'（造型+20）':'');}
+function priceHint(pfx){var t=FTAB[pfx],it=fItem(v(pfx+'-brand'),+v(pfx+'-item'));
+  var cs=(pfx==='t' && document.getElementById('t-shape') && document.getElementById('t-shape').checked);
+  var u=workUnit(it,t.work)+(cs?30:0);
+  document.getElementById(pfx+'-perm').textContent=t.label+'連工帶料 '+NT(u)+'／才　·　膜寬 '+filmW(it)+'cm'+(t.work==='ceiling'?(cs?'（全平天花板＋造型30）':'（全平天花板，最高）'):'');}
 function addFilm(pfx){
   var t=FTAB[pfx],nm=(v(pfx+'-name')||'').trim(),b=v(pfx+'-brand'),idx=+v(pfx+'-item');
   var rows=document.querySelectorAll('#'+pfx+'-rows .ec-szrow'), added=0, partial=false;
   rows.forEach(function(row){
     var h=+row.querySelector('.'+pfx+'-h').value||0, w=+row.querySelector('.'+pfx+'-w').value||0, q=+row.querySelector('.'+pfx+'-q').value||1;
     if(!h||!w){ if(h||w) partial=true; return; }   // 有填一半→提醒；整列空白→略過
-    for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w});
+    var cs=(pfx==='t' && document.getElementById('t-shape') && document.getElementById('t-shape').checked);   // 天花板有造型 +30/才
+    for(var i=0;i<q;i++)CART.push({kind:'film',name:nm,brand:b,idx:idx,work:t.work,h:h,w:w,cs:cs});
     added++;
   });
   if(!added){ alert('請至少填一列的寬與高'); return; }
@@ -705,12 +710,13 @@ function _sizeStr(sz){return Object.keys(sz).map(function(s){return sz[s]>1?s+'�
 function _combCai(g){var W=g.W,Fb=W*100/900,pcs=g.pieces.slice().sort(function(a,b){return b.h-a.h;}),strips=[];pcs.forEach(function(pc){var placed=false;if(pc.comb){for(var i=0;i<strips.length;i++){var s=strips[i];if(s.used+pc.w<=W&&pc.h<=s.host){s.used+=pc.w;s.mem++;placed=true;break;}}}if(!placed)strips.push({used:pc.w,host:pc.h,mem:1});});return {cai:(g.full+strips.reduce(function(a,s){return a+s.host/100;},0))*Fb,comb:strips.filter(function(s){return s.mem>1;}).length};}
 function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item);var isComb=COMBINE&&(it.work==='plane'||it.work==='cabinet');var nm=(it.name||'').trim();
   // 依「項目名稱＋膜＋工法」分組：同一物件的多尺寸歸在一起（寬鬆模式總額不變、僅呈現歸組）
-  var k=nm+'|'+it.brand+'|'+it.idx+'|'+it.work+'|'+(isComb?'C':'L')+'|'+(it.uOver==null?'':it.uOver);
-  g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,isComb:isComb,uOver:(it.uOver==null?null:Number(it.uOver)),full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{},photo:''};var x=g[k];x.n++;x.idxs.push(ci);if(it.photo&&!x.photo)x.photo=it.photo;
+  var k=nm+'|'+it.brand+'|'+it.idx+'|'+it.work+'|'+(isComb?'C':'L')+'|'+(it.uOver==null?'':it.uOver)+'|'+(it.cs?'S':'');
+  g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,cs:!!it.cs,isComb:isComb,uOver:(it.uOver==null?null:Number(it.uOver)),full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{},photo:''};var x=g[k];x.n++;x.idxs.push(ci);if(it.photo&&!x.photo)x.photo=it.photo;
   var sk='寬'+it.w+'×高'+it.h;x.rows[sk]=x.rows[sk]||{w:it.w,h:it.h,n:0,caiEach:Math.ceil(it.w/W)*W*roundWall(it.h)/900};x.rows[sk].n++;
   if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*roundWall(it.h)/900;}});
- return Object.keys(g).map(function(k){var x=g[k],unit=(x.uOver!=null?x.uOver:workUnit(x.item,x.work));var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
-  var title=(x.name&&x.name.trim())?x.name.trim():(workName[x.work]+'｜'+FILMS[x.brand].label);   // 有填項目名稱就只顯示名稱,否則帶工法｜品牌
+ return Object.keys(g).map(function(k){var x=g[k],unit=(x.uOver!=null?x.uOver:(workUnit(x.item,x.work)+(x.cs?30:0)));var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
+  var _wl=(x.work==='ceiling'&&x.cs)?'造型天花板':workName[x.work];   // 天花板有造型→顯示造型天花板
+  var title=(x.name&&x.name.trim())?x.name.trim():(_wl+'｜'+FILMS[x.brand].label);   // 有填項目名稱就只顯示名稱,否則帶工法｜品牌
   var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
   var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
   return {type:'film',W:x.W,work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost,over:x.uOver!=null,photo:x.photo};});}

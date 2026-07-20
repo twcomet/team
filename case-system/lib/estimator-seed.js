@@ -96,6 +96,6 @@ const FREIGHT = {
   '南高':     { survey_fee: 6000, amount: 8000,  overnight_fee: 14000, night_surcharge: 0 },
   '屏東台東': { survey_fee: 8000, amount: 10000, overnight_fee: 16000, night_surcharge: 0 },
 };
-const LOWMIN = { owner: 10000, designer: 9000 };
+const LOWMIN = { owner: 10000, designer: 10000 };
 
 module.exports = { FILMS, GLASS, DOOR, FREIGHT, LOWMIN };
