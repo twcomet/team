@@ -136,8 +136,8 @@
         <label class="mm-chk"><input type="checkbox" id="sStock"> 庫存米數 🔒</label>
         <label class="mm-chk"><input type="checkbox" id="sLoc"> 貨架位置 🔒</label>
         <label class="mm-chk"><input type="checkbox" id="sBranch"> 存放分店 🔒</label>
-        <button class="btn btn-sm btn-ghost" id="selAllBtn" style="margin-left:auto" onclick="selectAllVisible()">☑ 全選本頁</button>
-        <button class="btn btn-primary btn-sm" onclick="doShare()">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
+        <button class="btn btn-sm btn-ghost" id="selAllBtn" style="margin-left:auto" onclick="selectAll('top')">☑ 全選本頁</button>
+        <button class="btn btn-primary btn-sm" onclick="doShare('top')">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 2px 14px">
         <button class="btn btn-sm btn-ghost" id="aiTagBtn" onclick="doAiTag()">🤖 AI 分析花色標籤</button>
@@ -147,7 +147,7 @@
         <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px">✅ 分享連結已產生（免登入，客戶點開即可看）</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input id="shareUrl" readonly style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #a7f3d0;border-radius:8px;font-size:13px;background:#fff">
-          <button class="btn btn-sm btn-primary" onclick="copyShareUrl(this)">複製</button>
+          <button class="btn btn-sm btn-primary" onclick="copyShareUrl(this,'top')">複製</button>
           <a id="shareOpen" href="#" target="_blank" class="btn btn-sm btn-ghost">開啟</a>
         </div>
       </div>
@@ -157,6 +157,23 @@
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-top:16px;border-top:2px dashed #fbcfe8">
           <span style="font-size:15px;font-weight:800;color:#9d174d">🎨 相近花色推薦</span>
           <span id="simSeed" style="font-size:12px;color:#6b7280"></span>
+        </div>
+        <div class="mm-share-bar" style="margin-bottom:12px">
+          <span class="lbl">分享這區相近花色：</span>
+          <label class="mm-chk"><input type="checkbox" id="sPrice_rec"> 每米單價</label>
+          <label class="mm-chk"><input type="checkbox" id="sStock_rec"> 庫存米數 🔒</label>
+          <label class="mm-chk"><input type="checkbox" id="sLoc_rec"> 貨架位置 🔒</label>
+          <label class="mm-chk"><input type="checkbox" id="sBranch_rec"> 存放分店 🔒</label>
+          <button class="btn btn-sm btn-ghost" id="selAllBtn_rec" style="margin-left:auto" onclick="selectAll('rec')">☑ 全選本區</button>
+          <button class="btn btn-primary btn-sm" onclick="doShare('rec')">🔗 產生分享連結（已勾選 <span id="selCount_rec">0</span> 項）</button>
+        </div>
+        <div class="mm-linkbox" id="linkBox_rec">
+          <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px">✅ 分享連結已產生（免登入，客戶點開即可看）</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="shareUrl_rec" readonly style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #a7f3d0;border-radius:8px;font-size:13px;background:#fff">
+            <button class="btn btn-sm btn-primary" onclick="copyShareUrl(this,'rec')">複製</button>
+            <a id="shareOpen_rec" href="#" target="_blank" class="btn btn-sm btn-ghost">開啟</a>
+          </div>
         </div>
         <div id="simResults"></div>
       </div>
@@ -255,9 +272,10 @@ async function loadSimilar(seedId){
   if (!items.length){ box.innerHTML = '<div class="mm-empty">目前庫存中找不到明顯相近的花色（可放寬「至少需要幾米」再試，或上傳花色圖後用第二期 AI 比對更準）。</div>'; return; }
   box.innerHTML = '<div class="mm-grid">' + items.map(cardHtml).join('') + '</div>';
 }
+function updateSelCounts(){ ['selCount','selCount_rec'].forEach(id=>{ const e=document.getElementById(id); if(e)e.textContent=picked.size; }); }
 function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id);
   document.querySelectorAll('[data-mid="'+id+'"]').forEach(c=>{ c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
-  document.getElementById('selCount').textContent = picked.size; }
+  updateSelCounts(); }
 function downscale(file,max,q){ return new Promise(function(res,rej){ var img=new Image(); var url=URL.createObjectURL(file);
   img.onload=function(){ var w=img.width,h=img.height; if(w>max||h>max){ var r=Math.min(max/w,max/h); w=Math.round(w*r); h=Math.round(h*r); }
     var c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',q)); };
@@ -283,27 +301,32 @@ async function onMatchFile(input){
   if(!RESULTS.length){ box.innerHTML='<div class="mm-empty">配對不到相近膜料。可能是庫存膜料還沒做「AI 花色分析」——請先按下方「🤖 AI 分析花色標籤」跑一輪再試（目前已分析 '+(j.analyzed||0)+' 支）。</div>'; return; }
   box.innerHTML='<div style="font-size:13px;color:#6b7280;margin-bottom:8px">依你上傳的照片，從 '+(j.analyzed||0)+' 支已分析膜料中配對到 '+RESULTS.length+' 支相近：</div><div class="mm-grid">'+RESULTS.map(cardHtml).join('')+'</div>';
 }
-function selectAllVisible(){
-  const cards=[...document.querySelectorAll('[data-mid]')];
-  const ids=[...new Set(cards.map(c=>Number(c.getAttribute('data-mid'))))];
+function selectAll(scope){
+  const root = scope==='rec' ? document.getElementById('simResults') : document;
+  const scopeCards = root ? [...root.querySelectorAll('[data-mid]')] : [];
+  const ids=[...new Set(scopeCards.map(c=>Number(c.getAttribute('data-mid'))))];
   const allSel = ids.length && ids.every(id=>picked.has(id));
   ids.forEach(id=>{ if(allSel)picked.delete(id); else picked.add(id); });
-  cards.forEach(c=>{ const on=picked.has(Number(c.getAttribute('data-mid'))); c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
-  document.getElementById('selCount').textContent=picked.size;
-  document.getElementById('selAllBtn').textContent = allSel?'☑ 全選本頁':'☐ 取消全選';
+  // 同一支膜料可能同時出現在搜尋結果與推薦區，兩邊卡片都要同步勾選狀態
+  document.querySelectorAll('[data-mid]').forEach(c=>{ const on=picked.has(Number(c.getAttribute('data-mid'))); c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
+  updateSelCounts();
+  const btn=document.getElementById(scope==='rec'?'selAllBtn_rec':'selAllBtn');
+  if(btn) btn.textContent = allSel ? (scope==='rec'?'☑ 全選本區':'☑ 全選本頁') : (scope==='rec'?'☐ 取消本區':'☐ 取消全選');
 }
-async function doShare(){
-  if (!picked.size){ alert('請先勾選要分享的膜料（卡片左上角勾選框）'); return; }
-  const fields = { price: sPrice.checked, stock: sStock.checked, location: sLoc.checked, branch: sBranch.checked };
+async function doShare(scope){
+  const sfx = scope==='rec' ? '_rec' : '';
+  const g = id => document.getElementById(id+sfx);
+  if (!picked.size){ alert('請先勾選要分享的膜料（卡片左上角勾選框），或按「全選」'); return; }
+  const fields = { price: g('sPrice').checked, stock: g('sStock').checked, location: g('sLoc').checked, branch: g('sBranch').checked };
   let j; try { j = await fetch('/api/material-match/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[...picked], fields})}).then(r=>r.json()); }
   catch(e){ alert('產生失敗'); return; }
   if (!j.ok){ alert(j.error||'產生失敗'); return; }
   const url = location.origin + '/m/' + j.token;
-  document.getElementById('shareUrl').value = url;
-  document.getElementById('shareOpen').href = url;
-  document.getElementById('linkBox').style.display = 'block';
+  g('shareUrl').value = url;
+  g('shareOpen').href = url;
+  g('linkBox').style.display = 'block';
 }
-function copyShareUrl(btn){ const i=document.getElementById('shareUrl'); i.select(); navigator.clipboard?.writeText(i.value).then(()=>{const o=btn.textContent;btn.textContent='✅ 已複製';setTimeout(()=>btn.textContent=o,1400);},()=>{}); }
+function copyShareUrl(btn, scope){ const i=document.getElementById('shareUrl'+(scope==='rec'?'_rec':'')); i.select(); navigator.clipboard?.writeText(i.value).then(()=>{const o=btn.textContent;btn.textContent='✅ 已複製';setTimeout(()=>btn.textContent=o,1400);},()=>{}); }
 async function loadUntagged(){
   try { const j = await fetch('/api/material-match/untagged-count').then(r=>r.json());
     const info = document.getElementById('aiTagInfo'), btn = document.getElementById('aiTagBtn');
