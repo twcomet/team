@@ -99,8 +99,10 @@ function render(d){
   if(d.freight>0) totRows += '<div class="tr"><span>車馬費</span><b>'+NT(d.freight)+'</b></div>';
   if(d.fut>0)     totRows += '<div class="tr"><span>期貨運費</span><b>'+NT(d.fut)+'</b></div>';
 
-  var estTax = Math.round((d.total||0) * 0.05);   // 5% 營業稅
-  var estWithTax = (d.total||0) + estTax;
+  // 客服若手動填了「給客戶的建議報價」→ 客戶看到的總額以它為準
+  var estBase = (d.cust_total!=null) ? d.cust_total : (d.total||0);
+  var estTax = Math.round(estBase * 0.05);   // 5% 營業稅
+  var estWithTax = estBase + estTax;
   // 估價區間 or 單一價的金額區塊
   var smallTax = 'font-size:13px;font-weight:600;opacity:.75';
   var totSection;
@@ -111,7 +113,7 @@ function render(d){
       + '</div>';
   } else {
     totSection = '<div class="tot">'+totRows
-      + '<div class="grand"><span>估價總額（未稅）</span><b style="text-align:right">'+NT(d.total)+'<br><span style="'+smallTax+'">（含稅 '+NT(estWithTax)+'）</span></b></div>'
+      + '<div class="grand"><span>估價總額（未稅）</span><b style="text-align:right">'+NT(estBase)+'<br><span style="'+smallTax+'">（含稅 '+NT(estWithTax)+'）</span></b></div>'
       + '</div>';
   }
 

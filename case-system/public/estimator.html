@@ -419,6 +419,11 @@
               <div class="ec-tr"><span>期貨運費</span><b id="t-fut">$0</b></div>
               <div class="ec-grand"><span>估價總額（原價·未稅）</span><b id="t-total">$0</b></div>
               <div class="ec-discbar" id="t-discbar"><div class="dl"><span>折扣後應付（未稅）</span><small id="t-saved">省 $0</small></div><b id="t-disctotal">$0</b></div>
+              <div class="ec-tr" style="border-top:2px solid #fbcfe8;margin-top:6px;padding-top:9px;align-items:center">
+                <span style="font-weight:800;color:#9d174d">給客戶的建議報價</span>
+                <span style="display:inline-flex;align-items:center;gap:3px"><span style="color:#9ca3af">$</span><input id="t-custquote" type="number" oninput="onCustQuote()" placeholder="同總額" style="width:112px;text-align:right;font-weight:800;font-size:16px;border:1px solid #fbcfe8;border-radius:8px;padding:5px 9px;color:#9d174d"></span>
+              </div>
+              <div class="ec-tr" style="border:none;padding-top:2px"><span style="font-size:11px;color:#9ca3af">預設＝系統算的總額；客服可手動改成要給客戶的價<span id="t-custquote-reset"></span></span><span></span></div>
               <div id="t-margin-box" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                   <span style="font-size:13px;font-weight:600">裝潢膜材料毛利 <span id="t-margin-note" style="font-size:10px;font-weight:400;color:#9ca3af"></span></span>
@@ -483,8 +488,14 @@ function buildMatDatalist(){ var dl=document.getElementById('estMatModels'); if(
 let CART=[], cust='owner', editId=null, ECASE=null, COMBINE=false, IS_OWNER=false, SHARE_TOKEN=null;
 let QPHOTOS=[];   // 這張估價單的照片庫（客人導入＋上傳），供各品項挑選掛照片
 // 客戶頁顯示設定：勾選要顯示哪些欄；range=用拼料省料~寬鬆區間。分享連結/PDF 跟著走
-let CVIEW={detail:1,photo:1,material:1,size:1,cai:1,range:0};
+let CVIEW={detail:1,photo:1,material:1,size:1,cai:1,range:0,custTotal:null};
 function setCV(k,v){ CVIEW[k]=v?1:0; }
+var custQuoteTouched=false;
+function onCustQuote(){ var el=document.getElementById('t-custquote'); var val=(el.value===''?null:(parseFloat(el.value)||0));
+  if(val===null){ custQuoteTouched=false; CVIEW.custTotal=null; el.value=window._sysFinal||''; }
+  else { custQuoteTouched=true; CVIEW.custTotal=val; }
+  var r=document.getElementById('t-custquote-reset'); if(r) r.innerHTML=custQuoteTouched?('　<a href="#" onclick="resetCustQuote();return false" style="color:#2563eb">↺ 恢復系統價 '+NT(window._sysFinal||0)+'</a>'):''; }
+function resetCustQuote(){ custQuoteTouched=false; CVIEW.custTotal=null; var el=document.getElementById('t-custquote'); if(el)el.value=window._sysFinal||''; var r=document.getElementById('t-custquote-reset'); if(r)r.innerHTML=''; }
 function syncCVUI(){
   document.querySelectorAll('input[name="cvRange"]').forEach(function(r,i){ r.checked=(CVIEW.range?i===1:i===0); });
   ['detail','photo','material','size','cai'].forEach(function(k){ var e=document.getElementById('cv-'+k); if(e)e.checked=!!CVIEW[k]; });
@@ -945,6 +956,13 @@ function render(){
  document.getElementById('t-discbar').classList.toggle('on',hasDisc);
  document.getElementById('t-disctotal').textContent=NT(discTotal);
  document.getElementById('t-saved').textContent='省 '+NT(origTotal-discTotal);
+ // 給客戶的建議報價：預設＝系統最終價(有折扣用折後、否則用總額)；客服未手動改時跟著同步
+ var _sysFinal=hasDisc?discTotal:origTotal;
+ window._sysFinal=_sysFinal;
+ var _cq=document.getElementById('t-custquote');
+ if(_cq && !custQuoteTouched){ _cq.value=_sysFinal||''; CVIEW.custTotal=null; }
+ var _cqr=document.getElementById('t-custquote-reset');
+ if(_cqr) _cqr.innerHTML = custQuoteTouched ? '　<a href="#" onclick="resetCustQuote();return false" style="color:#2563eb">↺ 恢復系統價 '+NT(_sysFinal)+'</a>' : '';
  document.getElementById('mode-loose-amt').textContent=NT(modeOrigTotal(false));
  document.getElementById('mode-comb-amt').textContent=NT(modeOrigTotal(true));
  document.getElementById('mode-loose-sub').textContent=_msText(modeStats(false));
@@ -1202,9 +1220,11 @@ async function loadEstQuote(id){
     QPHOTOS=Array.isArray(q.photos)?q.photos:[];
     COMBINE=!!q.combine;   // 還原計料方式(拼料省料/寬鬆)，讓顯示與存檔一致
     try{ var cv=q.cust_view?(typeof q.cust_view==='string'?JSON.parse(q.cust_view):q.cust_view):null;
-      CVIEW = cv ? {detail:+!!cv.detail,photo:+!!cv.photo,material:+!!cv.material,size:+!!cv.size,cai:+!!cv.cai,range:+!!cv.range}
-                 : {detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0};   // 舊單無 cust_view→由 show_detail 推
-    }catch(e){ CVIEW={detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0}; }
+      CVIEW = cv ? {detail:+!!cv.detail,photo:+!!cv.photo,material:+!!cv.material,size:+!!cv.size,cai:+!!cv.cai,range:+!!cv.range,custTotal:(cv.custTotal!=null?Number(cv.custTotal):null)}
+                 : {detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0,custTotal:null};   // 舊單無 cust_view→由 show_detail 推
+    }catch(e){ CVIEW={detail:(q.show_detail===0?0:1),photo:1,material:1,size:1,cai:1,range:0,custTotal:null}; }
+    custQuoteTouched = (CVIEW.custTotal!=null);   // 有存過手動報價 → 標記為已手動改
+    if(custQuoteTouched){ var _cq0=document.getElementById('t-custquote'); if(_cq0)_cq0.value=CVIEW.custTotal; }
     syncCVUI();
     document.getElementById('b-project').value=q.project_name||'';
     if(document.getElementById('b-cust')) document.getElementById('b-cust').value=q.customer_type||'owner';

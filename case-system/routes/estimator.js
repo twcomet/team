@@ -378,7 +378,8 @@ router.get('/quotes/sign/:token', (req, res) => {
     disc: q.disc, cust_view: cv, show_detail: showDetail ? 1 : 0, item_count: r.lines.length,
     is_range: isRange ? 1 : 0, range_low: rangeLow, range_high: rangeHigh,
     lines, sub: r.sub, discAmt: r.discAmt, itemsFinal: r.itemsFinal,
-    freight: r.freight, fut: r.fut, total: r.total, lowApplied: r.lowApplied, lowmin: r.lowmin
+    freight: r.freight, fut: r.fut, total: r.total, lowApplied: r.lowApplied, lowmin: r.lowmin,
+    cust_total: (cv.custTotal != null && !isRange) ? Number(cv.custTotal) : null   // 客服手動的「給客戶建議報價」；區間模式不適用
   });
 });
 
