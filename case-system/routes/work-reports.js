@@ -33,11 +33,13 @@ router.get('/all', requireAuth, (req, res) => {
   if (from) { where += ' AND w.report_date >= ?'; p.push(from); }
   if (to)   { where += ' AND w.report_date <= ?'; p.push(to); }
   const rows = db.prepare(`
-    SELECT w.*, u.name AS reporter_name, c.case_number, c.title AS case_title, cl.name AS client_name
+    SELECT w.*, u.name AS reporter_name, c.case_number, c.title AS case_title, cl.name AS client_name,
+           d.dispatch_type
     FROM work_reports w
     LEFT JOIN users u    ON u.id  = w.reporter_id
     LEFT JOIN cases c    ON c.id  = w.case_id
     LEFT JOIN clients cl ON cl.id = c.client_id
+    LEFT JOIN dispatches d ON d.id = w.dispatch_id
     ${where}
     ORDER BY w.submitted_at DESC, w.id DESC
     LIMIT 500

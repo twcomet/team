@@ -146,7 +146,9 @@ function renderWorkReports() {
           : `<span style="font-family:monospace;color:var(--gray-600)">${esc(r.case_number||'—')}</span>`} <b>${esc(r.client_name||r.case_title||'')}</b></div>
         <div style="color:var(--gray-500);font-size:12px">${esc((r.submitted_at||'').replace('T',' ').slice(0,16))} · ${esc(r.reporter_name||'')}</div>
       </div>
-      <div>📐 完工 <b style="color:#16a34a">${r.progress_pct!=null?r.progress_pct+'%':'—'}</b>　🚗 ${names(r.driver_names)}　📦 ${names(r.prepper_names)}　📷 ${names(r.photographer_names)}　☁️ ${r.photos_uploaded?'✅ 已上傳':'⛔ 未傳'}</div>
+      ${r.dispatch_type==='cut_material'
+        ? `<div>✂️ <b style="color:#188038;background:#e6f4ea;border-radius:5px;padding:1px 8px">裁料完成</b>　<span style="color:var(--gray-400);font-size:12px">材料類·不計施工進度</span></div>`
+        : `<div>📐 完工 <b style="color:#16a34a">${r.progress_pct!=null?r.progress_pct+'%':'—'}</b>　🚗 ${names(r.driver_names)}　📦 ${names(r.prepper_names)}　📷 ${names(r.photographer_names)}　☁️ ${r.photos_uploaded?'✅ 已上傳':'⛔ 未傳'}</div>`}
       ${r.notes ? `<div style="color:var(--gray-600)">📝 ${esc(r.notes)}</div>` : ''}
     </div>`).join('');
 }
