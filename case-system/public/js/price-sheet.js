@@ -102,8 +102,8 @@
     .ps-head .title{font-size:25px;font-weight:900;letter-spacing:5px;margin-left:8px}
     .ps-head .date{margin-left:auto;text-align:right;font-size:12px;opacity:.92;font-weight:600;letter-spacing:1px;line-height:1.6}
     .ps-scroll{overflow-x:auto}
-    .ps-sheet ::selection{background:#3a3340;color:#fff}
-    .ps-sheet ::-moz-selection{background:#3a3340;color:#fff}
+    .ps-sheet ::selection{background:rgba(120,60,120,.16);color:inherit}
+    .ps-sheet ::-moz-selection{background:rgba(120,60,120,.16);color:inherit}
     table.ps-tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px;table-layout:fixed}
     table.ps-tbl thead th{background:var(--soft);color:var(--c1);font-weight:800;font-size:12px;letter-spacing:.4px;
       padding:12px 8px;text-align:center;border-bottom:2px solid var(--c1);line-height:1.35;white-space:nowrap}
@@ -177,7 +177,7 @@
       `<th style="width:12%" rowspan="2">規格</th>` +
       `<th class="ps-ph" style="width:12%" rowspan="2">電商每米<br>(含稅)</th>` +
       `<th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
-      `<tr><th>平面</th><th>系統櫃</th><th>造型</th></tr>`;
+      `<tr><th>平面牆壁</th><th>系統櫃</th><th>造型</th></tr>`;
     let bodyRows = '';
     groups.forEach(g => {
       g.rows.forEach((r, i) => {
@@ -205,7 +205,7 @@
         <th style="width:11%" rowspan="2">規格</th><th style="width:6%" rowspan="2">才(支)</th>
         <th class="ps-ph" style="width:11%" rowspan="2">每才<br>（未稅）</th>
         <th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
-      `<tr><th>平面</th><th>系統櫃</th><th>造型</th></tr>`;
+      `<tr><th>平面牆壁</th><th>系統櫃</th><th>造型</th></tr>`;
     const body = OFFICIAL_3M.map(o => {
       const db = dbByCode[o.code] || dbMap[o.code] || {};
       const perCai = (Number(db.per_m) > 0) ? perTsai(db) : o.price;   // 每才：報價設定 per_m→每才；查無才用內建官方價
