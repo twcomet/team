@@ -34,6 +34,32 @@ router.post('/upload', requireAuth, upload.single('image'), async (req, res) => 
   }
 });
 
+// 把一組圖片網址(客人照片/估價照片)歸檔到「案件」的雲端資料夾（保存客人傳的原圖）。
+// 顯示仍用原本的 Cloudinary 連結(可嵌入)，這裡只是額外備份一份到 Drive。
+router.post('/archive-to-drive', requireAuth, async (req, res) => {
+  const gdrive = require('../lib/gdrive');
+  if (!gdrive.isConnected()) return res.status(400).json({ error: 'Google Drive 尚未連接，請先到設定連接' });
+  const caseId = Number(req.body.case_id) || 0;
+  const urls = Array.isArray(req.body.urls) ? req.body.urls.filter(u => /^https?:\/\//.test(u)).slice(0, 30) : [];
+  if (!caseId) return res.status(400).json({ error: '需要先有案件才能歸檔到雲端資料夾' });
+  if (!urls.length) return res.status(400).json({ error: '沒有可歸檔的照片' });
+  try {
+    const { folderId, link } = await gdrive.ensureCaseCsFolder(caseId);
+    if (!folderId) return res.status(400).json({ error: '此案件尚未連結客戶，無法建立雲端資料夾' });
+    let ok = 0, failed = 0;
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const r = await fetch(urls[i]); if (!r.ok) { failed++; continue; }
+        const ab = await r.arrayBuffer();
+        const ext = /\.png(\?|$)/i.test(urls[i]) ? 'png' : 'jpg';
+        await gdrive.uploadFileToFolder(folderId, `客人照片_${req.body.label || ''}_${i + 1}.${ext}`.replace(/__/g, '_'), Buffer.from(ab), ext === 'png' ? 'image/png' : 'image/jpeg');
+        ok++;
+      } catch (e) { failed++; }
+    }
+    res.json({ ok: true, count: ok, failed, folder_url: link });
+  } catch (e) { res.status(500).json({ error: e.message || '歸檔失敗' }); }
+});
+
 const ALLOWED_DOC_TYPES = [
   'application/pdf',
   'application/vnd.ms-excel',

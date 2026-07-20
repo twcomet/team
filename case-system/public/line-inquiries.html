@@ -417,6 +417,7 @@
       <label style="font-size:12px;color:var(--gray-600);display:flex;align-items:center;gap:5px;margin-right:auto">
         <input type="checkbox" id="aiEstNewCase"> 同時建立此客戶案件
       </label>
+      <button class="btn btn-ghost btn-sm" id="aiEstArchiveBtn" onclick="archiveAiPhotosToDrive()" title="把客人傳的照片備份到此案件的雲端資料夾">💾 存客人照片到雲端</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('aiEstModal').classList.remove('open')">取消</button>
       <button class="btn btn-primary btn-sm" id="aiEstGoBtn" onclick="createEstimateDraft()">建立估價草稿並開啟估價機 →</button>
     </div>
@@ -803,6 +804,30 @@ function aiEstEdit(idx, key, val) {
 }
 function aiEstDel(idx) { aiEstItems.splice(idx, 1); renderAiEst(); }
 function aiEstAdd() { aiEstItems.push({ area:'', desc:'', w:0, h:0, qty:1, size_source:'未知', note:'' }); renderAiEst(); }
+// 把客人傳的照片備份到「案件」的雲端資料夾（保存客人傳的原圖）；沒案件先問要不要建立
+async function archiveAiPhotosToDrive() {
+  const d = currentInquiryData || {};
+  const photos = (d.messages || []).filter(m => m.msg_type === 'image' && m.content).map(m => m.content);
+  if (!photos.length) { showToast('這通對話沒有客人照片', 'error'); return; }
+  let caseId = d.converted_case_id || null;
+  if (!caseId) {
+    if (!confirm('要存到雲端資料夾需要先有案件。要現在建立此客戶案件並把照片歸檔嗎？')) return;
+    try {
+      const cr = await fetch(`/api/line-inquiries/${currentId}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const cj = await cr.json().catch(() => ({}));
+      if (cr.ok && cj.case_id) caseId = cj.case_id;
+    } catch (e) {}
+    if (!caseId) { showToast('建立案件失敗，無法歸檔', 'error'); return; }
+  }
+  const btn = document.getElementById('aiEstArchiveBtn'); if (btn) { btn.disabled = true; btn.textContent = '歸檔中…'; }
+  try {
+    const j = await fetch('/api/storage/archive-to-drive', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ case_id: caseId, urls: photos, label: (d.client_name || d.display_name || '') }) }).then(r => r.json());
+    if (j.ok) { showToast(`✅ 已存 ${j.count} 張到雲端資料夾${j.failed ? `（${j.failed} 張失敗）` : ''}`); if (j.folder_url) window.open(j.folder_url, '_blank'); }
+    else showToast(j.error || '歸檔失敗', 'error');
+  } catch (e) { showToast('歸檔失敗', 'error'); }
+  if (btn) { btn.disabled = false; btn.textContent = '💾 存客人照片到雲端'; }
+}
 async function createEstimateDraft() {
   // 不強制填寬高，也不強制要有品項：沒品項也能建草稿，把客人照片直接帶進估價機，再於估價機建品項
   const btn = document.getElementById('aiEstGoBtn');
