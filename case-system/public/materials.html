@@ -789,7 +789,7 @@ function applyFilters() {
 }
 
 // 官網正式品牌清單（標準化用，下拉選單與分析報表都以此為準）
-const BRANDS = ['LG','BODAQ','3M','PAROI','Protect','Belbien','AICA','穩得','其他'];
+const BRANDS = ['LG','BODAQ','3M','PAROI','CarLife','穩得','特殊膜','Protect','Belbien','AICA','其他'];
 // 舊資料常見拼法 → 正式品牌（只影響色塊判斷、排序與未來分析歸併，不改動原始資料）
 const BRAND_ALIASES = { 'Paroi':'PAROI', 'Para':'PAROI', 'Boda':'BODAQ', 'LX':'LG', 'Bodaq':'BODAQ', 'BENIF':'LG', 'LG=LX':'LG', '溫德':'穩得', 'Wunder':'穩得', 'Wunder磨料':'穩得' };
 // 列表品牌排序：PAROI → LG(=LX) → BODAQ → 3M → AICA → 穩得，其餘排最後
@@ -1196,7 +1196,7 @@ async function saveSell() {
 
 // ── 定價表自動帶價（新增膜料時：選品牌→選系列自動帶入售價/成本/防焰/膜寬/花色）──
 let CATALOG_ROWS = null, _autofillColor = '';
-const MAT_BRAND_TO_CAT = { 'BODAQ':'bodaq','Boda':'bodaq','Bodaq':'bodaq','LG':'benif','LX':'benif','BENIF':'benif','PAROI':'paroi','Paroi':'paroi','Para':'paroi','3M':'3m' };
+const MAT_BRAND_TO_CAT = { 'BODAQ':'bodaq','Boda':'bodaq','Bodaq':'bodaq','LG':'benif','LX':'benif','BENIF':'benif','PAROI':'paroi','Paroi':'paroi','Para':'paroi','3M':'3m','穩得':'wonder','Wunder':'wonder','CarLife':'carlife','特殊膜':'special' };
 async function ensureCatalog() {
   if (CATALOG_ROWS) return;
   try { const r = await fetch('/api/materials/film-catalog'); CATALOG_ROWS = r.ok ? await r.json() : []; }
@@ -1211,10 +1211,9 @@ function populateCatalogSeries(brand) {
   if (!rows.length) { wrap.style.display = 'none'; sel.innerHTML = '<option value="">—</option>'; return; }
   let opts = '<option value="">—（不自動帶入）</option>';
   rows.forEach(r => {
-    if (!r.sell_price) return;                                   // 跳過無價的雜列
     const i = CATALOG_ROWS.indexOf(r);
     const regionTag = r.brand === 'bodaq' ? (r.region ? '（韓國）' : '（亞洲）') : '';
-    const priceInfo = `售價$${r.sell_price}${r.fireproof ? ' · ' + r.fireproof : ''}`;   // 不顯示成本
+    const priceInfo = r.sell_price ? `售價$${r.sell_price}${r.fireproof ? ' · ' + r.fireproof : ''}` : '連工帶料計價';   // 穩得等無材料每米售價的系列也顯示
     // 一列可能含多個系列（如「LE、ME、MES」或「BR,MO,PBR」）→ 拆成單一系列各自一個選項
     const codes = String(r.asia_code || '').split(/[、,，]/).map(s => s.trim()).filter(s => s && s !== '…' && s !== '...');
     if (!codes.length) return;                                   // 沒有系列碼就跳過
