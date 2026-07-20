@@ -1005,6 +1005,11 @@ async function saveQuote(status,opts){
      var msg='✓ 已儲存估價單 #'+editId+'（總額 '+NT(j.total)+'）';
      document.getElementById('ec-status').textContent=msg;
      showSentActions();
+     // 有案件＋有照片時，把明細照片自動歸檔到案件雲端資料夾（背景進行、去重、失敗不影響存檔）
+     if(!opts.quiet && ECASE && QPHOTOS.length){
+       try{ fetch(API.replace('/estimator','')+'/storage/archive-to-drive',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({case_id:ECASE,urls:QPHOTOS,label:vo('b-name')||''})})
+         .then(function(rr){return rr.json();}).then(function(aj){ if(aj&&aj.ok&&aj.count>0)document.getElementById('ec-status').textContent=msg+'　☁️ 已備份 '+aj.count+' 張照片到案件資料夾'; }).catch(function(){}); }catch(e){}
+     }
      if(!opts.quiet) alert(msg+'\n\n可用下方「複製客戶連結／下載 PDF」發給客戶，或到「估價單查詢」查看。');
      return j;
    }

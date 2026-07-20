@@ -46,17 +46,21 @@ router.post('/archive-to-drive', requireAuth, async (req, res) => {
   try {
     const { folderId, link } = await gdrive.ensureCaseCsFolder(caseId);
     if (!folderId) return res.status(400).json({ error: '此案件尚未連結客戶，無法建立雲端資料夾' });
-    let ok = 0, failed = 0;
+    const db = require('../db');
+    const already = new Set(db.prepare('SELECT src_url FROM est_photo_archive WHERE case_id=?').all(caseId).map(r => r.src_url));
+    let ok = 0, failed = 0, skipped = 0;
     for (let i = 0; i < urls.length; i++) {
+      if (already.has(urls[i])) { skipped++; continue; }   // 同案件同網址已備份過 → 跳過
       try {
         const r = await fetch(urls[i]); if (!r.ok) { failed++; continue; }
         const ab = await r.arrayBuffer();
         const ext = /\.png(\?|$)/i.test(urls[i]) ? 'png' : 'jpg';
-        await gdrive.uploadFileToFolder(folderId, `客人照片_${req.body.label || ''}_${i + 1}.${ext}`.replace(/__/g, '_'), Buffer.from(ab), ext === 'png' ? 'image/png' : 'image/jpeg');
+        const up = await gdrive.uploadFileToFolder(folderId, `客人照片_${req.body.label || ''}_${i + 1}.${ext}`.replace(/__/g, '_'), Buffer.from(ab), ext === 'png' ? 'image/png' : 'image/jpeg');
+        try { db.prepare('INSERT OR IGNORE INTO est_photo_archive (case_id,src_url,drive_file_id) VALUES (?,?,?)').run(caseId, urls[i], (up && up.id) || null); } catch (e2) {}
         ok++;
       } catch (e) { failed++; }
     }
-    res.json({ ok: true, count: ok, failed, folder_url: link });
+    res.json({ ok: true, count: ok, failed, skipped, folder_url: link });
   } catch (e) { res.status(500).json({ error: e.message || '歸檔失敗' }); }
 });
 
