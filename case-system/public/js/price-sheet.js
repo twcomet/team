@@ -102,6 +102,16 @@
     .ps-head .title{font-size:25px;font-weight:900;letter-spacing:5px;margin-left:8px}
     .ps-head .date{margin-left:auto;text-align:right;font-size:12px;opacity:.92;font-weight:600;letter-spacing:1px;line-height:1.6}
     .ps-scroll{overflow-x:auto}
+    /* 列印/存 PDF：強制印出背景色與漸層（品牌抬頭、每米、防焰側標），否則會整片變白 */
+    .ps-sheet,.ps-sheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @media print{
+      .ps-scroll{overflow:visible!important}
+      .ps-sheet{box-shadow:none!important;border:1px solid #e5e7eb;border-radius:12px}
+      table.ps-tbl{font-size:12px}
+      table.ps-tbl thead{display:table-header-group}
+      table.ps-tbl tr{page-break-inside:avoid}
+      .ps-notes,.ps-note{page-break-inside:avoid}
+    }
     .ps-sheet ::selection{background:rgba(120,60,120,.16);color:inherit}
     .ps-sheet ::-moz-selection{background:rgba(120,60,120,.16);color:inherit}
     table.ps-tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px;table-layout:fixed}
@@ -119,7 +129,7 @@
     td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important;font-weight:900;font-size:15px}
     table.ps-tbl tbody tr:hover td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important}
     td.ps-perm small{display:block;font-weight:600;font-size:10px;opacity:.9;margin-top:2px}
-    .ps-code{font-weight:800;letter-spacing:.3px;text-align:left!important}
+    .ps-code{font-weight:800;letter-spacing:.3px;text-align:left!important;overflow-wrap:anywhere;word-break:break-word}
     .ps-codes{text-align:left!important;font-size:11.5px;color:#5f5866;line-height:1.7;word-break:break-word;white-space:normal}
     .ps-kr{color:#8a8390;font-weight:700}
     .ps-color{color:#5f5866}
