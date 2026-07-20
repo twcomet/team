@@ -976,6 +976,22 @@ function renderMargin(priced,hasDisc){
 async function saveQuote(status,opts){
  opts=opts||{};
  if(!CART.length){ if(!opts.quiet) alert('估價單還沒有任何品項，無法儲存。\n\n請先在左邊填好尺寸，按深色的「＋ 加入牆面（或對應品項）」把它加進右邊「估價明細」（總額會跳動），再按儲存。');return null;}
+ // 防重複：新建(非自動存)且有客戶資料時，先查此客戶是否已有估價單，警告但可選擇繼續
+ if(!editId && !opts.quiet){
+   var _vg=function(id){var e=document.getElementById(id);return e?e.value.trim():'';};
+   var _nm=_vg('b-name'), _ph=_vg('b-phone');
+   if(_nm||_ph){
+     try{
+       var dup=await fetch(API+'/quotes/dup-check?name='+encodeURIComponent(_nm)+'&phone='+encodeURIComponent(_ph)).then(function(r){return r.json();});
+       if(Array.isArray(dup)&&dup.length){
+         var STL={draft:'草稿',sent:'已發送',done:'已成交',accepted:'已成交'};
+         var lst=dup.slice(0,5).map(function(d){return '　#'+d.id+' '+(d.project_name||'估價單')+'（'+(STL[d.status]||d.status||'')+'·總額 '+NT(d.total)+'）';}).join('\n');
+         var go=confirm('⚠️ 此客戶「'+(_nm||_ph)+'」已經有 '+dup.length+' 張估價單：\n\n'+lst+'\n\n若只是要改舊的，請按「取消」，到「估價單查詢」開啟那張編輯。\n\n確定仍要「再建一張新的」嗎？');
+         if(!go){ document.getElementById('ec-status').textContent='已取消新建（此客戶已有估價單，可至「估價單查詢」開啟舊的）'; return null; }
+       }
+     }catch(e){}
+   }
+ }
  try{
    var vo=function(id){var e=document.getElementById(id);return e?e.value:'';};
    var body={ case_id:ECASE, project_name:v('b-project'), customer_type:v('b-cust'), region:v('b-region'),

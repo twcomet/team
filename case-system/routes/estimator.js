@@ -133,6 +133,21 @@ function computeAndPersistFields(b) {
   const r = eng.quote(items, { cust: b.customer_type, region: b.region, disc, combine }, eng.buildCatalogFromDb(db));
   return { items, r };
 }
+// 防重複：查此客戶(電話優先，否則同姓名)是否已有估價單。回最近幾張供前端警告
+router.get('/quotes/dup-check', requireAuth, (req, res) => {
+  const name = String(req.query.name || '').trim();
+  const digits = s => String(s || '').replace(/\D/g, '');
+  const pn = digits(req.query.phone);
+  if (!name && pn.length < 6) return res.json([]);
+  const rows = db.prepare(`SELECT id, project_name, customer_name, phone, total, status, created_at
+                           FROM est_quotes WHERE COALESCE(status,'')<>'void' ORDER BY id DESC LIMIT 800`).all();
+  const match = rows.filter(q => {
+    if (pn.length >= 6 && digits(q.phone).includes(pn)) return true;
+    if (name && String(q.customer_name || '').trim() === name) return true;
+    return false;
+  }).slice(0, 8);
+  res.json(match);
+});
 router.post('/quotes', requireAuth, (req, res) => {
   const b = req.body || {};
   const { items, r } = computeAndPersistFields(b);
