@@ -128,7 +128,7 @@
   .area-add{width:58px;height:44px;border-radius:6px;border:1.5px dashed var(--gray-300);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--gray-400);cursor:pointer;background:#fafafa}
 
   /* customer quote table (參考舊報價單) */
-  .quote-tbl-wrap{border:1px solid var(--gray-300);border-radius:10px;overflow:hidden}
+  .quote-tbl-wrap{border:1px solid var(--gray-300);border-radius:10px;overflow-x:auto}
   .quote-tbl{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
   .quote-tbl td,.quote-tbl th{overflow:hidden;word-break:break-word}
   .quote-tbl th{background:var(--space-900);color:#fff;font-weight:700;padding:9px 8px;text-align:center;font-size:11.5px;border-right:1px solid rgba(255,255,255,.14);white-space:nowrap}
@@ -475,10 +475,10 @@
         <div class="quote-tbl-wrap">
           <table class="quote-tbl">
             <thead><tr>
-              <th style="width:34px">項目</th><th style="width:168px">項目說明</th>
-              <th style="width:98px">膜料資訊</th><th id="cth_img" style="width:170px">膜料示意圖</th><th id="cth_photo" style="width:200px">貼覆區域（現場照）</th>
-              <th id="cth_unit" style="width:116px;white-space:normal">連工帶料單價</th><th id="cth_cai" style="width:60px;white-space:nowrap">才數</th><th style="width:42px">數量</th>
-              <th id="cth_total" style="width:108px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:120px;white-space:nowrap">連工帶料優惠價</th>
+              <th style="width:32px">項目</th><th style="width:230px">項目說明</th>
+              <th style="width:88px">膜料資訊</th><th id="cth_img" style="width:130px">膜料示意圖</th><th id="cth_photo" style="width:140px">貼覆區域（現場照）</th>
+              <th id="cth_unit" style="width:92px;white-space:normal">連工帶料單價</th><th id="cth_cai" style="width:50px;white-space:nowrap">才數</th><th style="width:38px">數量</th>
+              <th id="cth_total" style="width:88px;white-space:nowrap">連工帶料總價</th><th id="cth_promo" style="width:92px;white-space:nowrap">連工帶料優惠價</th>
             </tr></thead>
             <tbody id="custItems"></tbody>
           </table>
