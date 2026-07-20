@@ -155,6 +155,9 @@ router.post('/clockin', async (req, res) => {
     } catch (e) { /* non-critical */ }
   }
 
+  // 打卡後更新今日出勤異常事件（10:00 後才作用）：把剛打卡的人移出未打卡、遲到者改列遲到
+  try { const att = require('../lib/attendance-util'); att.syncAnomalyIfDue(today); } catch (e) {}
+
   const outDisp = cls.out.next_day ? `隔日 ${autoOut}` : autoOut;
   return res.json({
     ok: true, time: now, is_late: isLate, location: location_name,

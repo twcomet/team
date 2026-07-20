@@ -921,17 +921,7 @@ setInterval(() => {
       const att = require('./lib/attendance-util');
       if (att.isWorkday(twDate)) {
         const { pushMessage } = require('./routes/webhook');
-        const roster = att.clockRoster();
-        const rows = db.prepare(`SELECT user_id, clock_in, is_late FROM attendance WHERE work_date=?`).all(twDate);
-        const byUser = {}; rows.forEach(r => { byUser[r.user_id] = r; });
-        const leaves = db.prepare(`SELECT user_id FROM leave_requests WHERE status='approved' AND ? BETWEEN leave_date AND COALESCE(leave_end_date, leave_date)`).all(twDate);
-        const onLeave = new Set(leaves.map(l => l.user_id));
-        const absent = [], late = [];
-        for (const u of roster) {
-          const a = byUser[u.id];
-          if (a && a.clock_in) { if (a.is_late) late.push(u); }
-          else if (!onLeave.has(u.id)) absent.push(u);
-        }
+        const { late, absent } = att.computeAnomaly(twDate);   // 共用計算：排除免打卡/請假，遲到與未打卡分開
         // 提醒沒打卡的員工本人
         for (const u of absent) {
           try {

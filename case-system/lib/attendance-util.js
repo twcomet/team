@@ -41,4 +41,38 @@ function isClockExempt(user) {
   return ROLE_EXEMPT.has(user.role) || isOutsourced(user.role) || !!user.clock_exempt;
 }
 
-module.exports = { isWorkday, isHoliday, clockRoster, isClockExempt, ROLE_EXEMPT, HOLIDAYS };
+// 台灣現在時間（UTC+8）：回 { date:'YYYY-MM-DD', min:自午夜起的分鐘 }
+function _twNow() {
+  const d = new Date(Date.now() + 8 * 3600 * 1000);
+  return { date: d.toISOString().slice(0, 10), min: d.getUTCHours() * 60 + d.getUTCMinutes() };
+}
+
+// 計算某日出勤異常名單：{ late:[user], absent:[user] }
+// 規則：只看「該打卡名冊」(已排除免打卡/老闆副總/外包)；有打卡且遲到→late；沒打卡且非請假→absent
+function computeAnomaly(dateStr) {
+  const roster = clockRoster();
+  const rows = db.prepare(`SELECT user_id, clock_in, is_late FROM attendance WHERE work_date=?`).all(dateStr);
+  const byUser = {}; rows.forEach(r => { byUser[r.user_id] = r; });
+  const leaves = db.prepare(`SELECT user_id FROM leave_requests WHERE status='approved' AND ? BETWEEN leave_date AND COALESCE(leave_end_date, leave_date)`).all(dateStr);
+  const onLeave = new Set(leaves.map(l => l.user_id));
+  const absent = [], late = [];
+  for (const u of roster) {
+    const a = byUser[u.id];
+    if (a && a.clock_in) { if (a.is_late) late.push(u); }
+    else if (!onLeave.has(u.id)) absent.push(u);
+  }
+  return { late, absent };
+}
+
+// 只在「今天、且已過 10:00、且是工作日」時，把最新出勤異常名單重新同步到 Google 派單行事曆。
+// 10:00 前不動，避免早上大家還在陸續打卡就先建立異常事件；之後打卡/請假/免打卡有變動時呼叫即可自我修正。
+function syncAnomalyIfDue(dateStr) {
+  try {
+    const now = _twNow();
+    if (dateStr !== now.date || now.min < 600 || !isWorkday(dateStr)) return;
+    const { late, absent } = computeAnomaly(dateStr);
+    require('./gcal').safeSyncLateList(dateStr, late.map(u => u.name), absent.map(u => u.name));
+  } catch (e) { /* best-effort */ }
+}
+
+module.exports = { isWorkday, isHoliday, clockRoster, isClockExempt, computeAnomaly, syncAnomalyIfDue, twNow: _twNow, ROLE_EXEMPT, HOLIDAYS };

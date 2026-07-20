@@ -228,6 +228,7 @@ router.delete('/leave-requests/:id', requireAuth, (req, res) => {
   if (lr.user_id !== me.id && !isHR) return res.status(403).json({ error: '無權限' });
   if (lr.status === 'approved' && !isHR) return res.status(400).json({ error: '已核准的請假無法自行取消，請聯繫 HR' });
   db.prepare(`DELETE FROM leave_requests WHERE id = ?`).run(req.params.id);
+  try { const att = require('../lib/attendance-util'); att.syncAnomalyIfDue(att.twNow().date); } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -238,10 +239,12 @@ router.put('/leave-requests/:id/review', requireAuth, requireHR, (req, res) => {
   // 撤回：改回審核中，清除審核結果（不推播）
   if (status === 'pending') {
     db.prepare(`UPDATE leave_requests SET status='pending', review_note=NULL, reviewed_by=NULL, reviewed_at=NULL WHERE id=?`).run(req.params.id);
+    try { const att = require('../lib/attendance-util'); att.syncAnomalyIfDue(att.twNow().date); } catch (e) {}
     return res.json({ ok: true });
   }
   db.prepare(`UPDATE leave_requests SET status=?, review_note=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?`)
     .run(status, review_note||null, req.session.user.id, req.params.id);
+  try { const att = require('../lib/attendance-util'); att.syncAnomalyIfDue(att.twNow().date); } catch (e) {}   // 請假核准/駁回 → 更新今日出勤異常
 
   // 推播結果給員工
   const lr = db.prepare(`SELECT lr.*, u.line_user_id, u.name FROM leave_requests lr JOIN users u ON u.id=lr.user_id WHERE lr.id=?`).get(req.params.id);
@@ -418,6 +421,7 @@ router.post('/attendance-exempt', requireAuth, requireHR, (req, res) => {
   if (att.ROLE_EXEMPT.has(u.role) || isOutsourced(u.role))
     return res.status(400).json({ error: '此角色（老闆／副總／外包）一律免打卡，無法變更' });
   db.prepare(`UPDATE users SET clock_exempt=? WHERE id=?`).run(exempt, uid);
+  att.syncAnomalyIfDue(att.twNow().date);   // 免打卡設定變動 → 更新今日出勤異常事件
   res.json({ ok: true, user_id: uid, clock_exempt: exempt });
 });
 
