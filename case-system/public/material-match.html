@@ -341,7 +341,13 @@ async function doAiTag(){
     }
   } finally { aiRunning=false; loadUntagged(); if (RESULTS.length) loadSimilar(RESULTS[0].id); }
 }
-loadTaxonomy(); loadUntagged();
+async function init(){
+  await loadUser();                 // 載入使用者→跑側邊選單權限與注入(相似花色查詢/牌價表等)＋顯示姓名
+  highlightNav('material-match');   // 標記目前頁為使用中
+  loadTaxonomy();
+  loadUntagged();
+}
+init();
 </script>
 </body>
 </html>
