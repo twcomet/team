@@ -66,7 +66,8 @@
     { code: 'WH', label: '白板貼膜 WH-111', colors: 'WH-111', w: 125, roll: 30, tsai: 408, price: 205 },
   ];
   const NOTES_WORK = [
-    '膜料寬度皆為 122 公分（PS 石膏 93 公分）。',
+    '施工費以上報價皆未稅（連工帶料均為未稅），膜料寬度皆為 122 公分。',
+    'PS 石膏膜寬為 93 公分（其餘皆 122 公分）。',
     '電梯／消防栓／門（消防門、大門等）／窗框等物件皆以「座」計價。',
     '倒吊天花板、特殊造型、高空作業（300 公分以上）需加價 20／才起。',
     '雙北、桃園以外地區車馬費另計，請參照車馬費表。報價不含底板整平補土打磨、矽利康清除及重打、清除底紙等費用。',
@@ -110,10 +111,11 @@
       font-variant-numeric:tabular-nums;color:#241f29;line-height:1.4}
     table.ps-tbl tbody tr:last-child td{border-bottom:none}
     table.ps-tbl tbody tr:hover td:not(.ps-perm):not(.ps-band){background:var(--soft)}
-    td.ps-band{writing-mode:vertical-rl;text-orientation:upright;background:var(--c1);color:#fff;
-      font-weight:900;font-size:16px;letter-spacing:5px;width:46px;padding:8px 4px;text-align:center;
+    td.ps-band{background:var(--c1);width:56px;padding:10px 6px;text-align:center;
       vertical-align:middle;border-bottom:2px solid #fff}
-    td.ps-band.nf{background:#8f8a95;background:color-mix(in srgb,var(--c1) 58%,#8a8a8a)}
+    td.ps-band.nf{background:#8f8a95;background:color-mix(in srgb,var(--c1) 72%,#8a8a8a)}
+    .ps-band-t{writing-mode:vertical-rl;text-orientation:upright;color:#fff;font-weight:900;
+      font-size:17px;letter-spacing:5px;display:inline-block}
     td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important;font-weight:900;font-size:15px}
     table.ps-tbl tbody tr:hover td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important}
     td.ps-perm small{display:block;font-weight:600;font-size:10px;opacity:.9;margin-top:2px}
@@ -166,16 +168,16 @@
     const showBand = groups.length > 1 || (groups[0] && groups[0].fireproof);
     const cols = 6 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
     const codeTh = hasKr
-      ? '<th style="width:20%">亞洲系列</th><th style="width:12%">韓國系列</th>'
-      : '<th style="width:32%">系列／型號</th>';
-    const head = `<tr>${showBand ? '<th style="width:3%"></th>' : ''}${codeTh}` +
-      `<th style="width:8%">規格<br>(米)</th><th class="ps-ph" style="width:13%">每米 $</th>` +
+      ? '<th style="width:18%">亞洲系列</th><th style="width:12%">韓國系列</th>'
+      : '<th style="width:30%">系列／型號</th>';
+    const head = `<tr>${showBand ? '<th style="width:5%"></th>' : ''}${codeTh}` +
+      `<th style="width:11%;white-space:normal">規格 (米)<br><small style="font-weight:700;font-size:9.5px;opacity:.9">寬122公分×長度(米)</small></th><th class="ps-ph" style="width:10%">每米 $</th>` +
       `<th style="width:15%">連工帶料<br>全平面牆面</th><th style="width:14%">系統櫃<br>門片</th><th style="width:15%">連工帶料<br>造型</th></tr>`;
     let bodyRows = '';
     groups.forEach(g => {
       g.rows.forEach((r, i) => {
         const band = (showBand && i === 0)
-          ? `<td class="ps-band ${g.fireproof === '防焰' ? '' : 'nf'}" rowspan="${g.rows.length}">${esc(g.fireproof || '')}</td>` : '';
+          ? `<td class="ps-band ${g.fireproof === '防焰' ? '' : 'nf'}" rowspan="${g.rows.length}"><span class="ps-band-t">${esc(g.fireproof || '')}</span></td>` : '';
         bodyRows += `<tr>${band}${rowCells(r, false, hasKr, opts.customer)}</tr>`;
       });
     });
@@ -217,7 +219,7 @@
       const rs = groups[bk]; if (!rs || !rs.length) return;
       rs.forEach((r, i) => {
         const band = i === 0
-          ? `<td class="ps-band nf" rowspan="${rs.length}">${esc(SP_BRAND[bk] || bk)}</td>` : '';
+          ? `<td class="ps-band nf" rowspan="${rs.length}"><span class="ps-band-t">${esc(SP_BRAND[bk] || bk)}</span></td>` : '';
         body += `<tr>${band}` +
           `<td class="ps-code" style="text-align:left">${esc(r.asia_code || '—')}${r.color ? ` <small style="color:#9ca3af">${esc(r.color)}</small>` : ''}${r.model_note ? `<br><small style="color:#9ca3af;font-weight:400">供應商：${esc(r.model_note)}</small>` : ''}</td>` +
           `<td>${r.width || 122}cm×${r.roll_len || 30}M</td>` +
