@@ -26,8 +26,9 @@
 <script src="/js/price-sheet.js"></script>
 <script>
 (async function(){
-  const m=(location.pathname.match(/\/price\/([a-z0-9]+)/i)||[])[1];
-  const brand=(m||'paroi').toLowerCase();
+  const m=(location.pathname.match(/\/price\/([a-z0-9_]+)/i)||[])[1];
+  let brand=(m||'paroi').toLowerCase();
+  if(brand==='bodaq') brand='bodaq_asia';   // 舊連結相容：Bodaq 已拆成 亞洲／韓國
   const el=document.getElementById('sheet');
   if(!PriceSheet.BRANDS[brand]){ el.innerHTML='<p style="text-align:center;color:#b91c1c;padding:40px">查無此品牌牌價</p>'; return; }
   document.title='繪新 '+PriceSheet.BRANDS[brand].name+' 裝潢貼膜價格表';

@@ -2,11 +2,12 @@
    版型參考公司實體「裝潢貼膜價格表」：品牌抬頭 + 防焰/不防焰側欄 + 每米價高亮 + 連工帶料三檔 + 底部說明。
    不顯示成本/毛利（老闆請看報價設定）。 */
 (function () {
-  const ORDER = ['paroi', 'benif', 'bodaq', '3m', 'special'];
+  const ORDER = ['paroi', 'benif', 'bodaq_asia', 'bodaq_kr', '3m', 'special'];
   const BRANDS = {
     paroi: { name: 'PAROI', sub: '日本 LINTEC', c1: '#6f5122', c2: '#b58a45', soft: '#f6efe2', freight: 'jp' },
     benif: { name: 'BENIF', sub: 'LX Hausys（LG）· 韓國', c1: '#41560f', c2: '#7f9d33', soft: '#eef3df', freight: 'kr' },
-    bodaq: { name: 'Bodaq', sub: 'HYUNDAI · 韓國', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
+    bodaq_asia: { name: 'Bodaq 亞洲', sub: 'HYUNDAI · 亞洲版', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
+    bodaq_kr:   { name: 'Bodaq 韓國', sub: 'HYUNDAI · 韓國版', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
     '3m': { name: '3M', sub: 'DI-NOC 特耐軟片', c1: '#9c0f22', c2: '#e11f33', soft: '#fbe7e9', freight: null },
     special: { name: '玻璃膜·隔熱·特殊膜', sub: '3M Fasara · CarLife 隔熱紙 · 穩得', c1: '#0e6b7a', c2: '#22a5c4', soft: '#e0f6fb', freight: null },
   };
@@ -152,10 +153,11 @@
     const price = priceOf(r, is3m);
     const permCell = is3m
       ? `<td class="ps-perm">${nt(price)}<small>未稅</small></td>`
-      : `<td class="ps-perm">${nt(price)}${customer ? '' : `<small>未稅 ${nt(r.per_m)}</small>`}</td>`;
+      : `<td class="ps-perm">${nt(price)}</td>`;   // 只顯示電商含稅每米，未稅隱藏（膜料只賣含稅價）
     const krCol = hasKr ? `<td class="ps-code ps-kr">${esc(r.kr_code || '—')}</td>` : '';
+    const spec = `${Number(r.width) || 122}cm×${r.roll_len || 50}M`;   // 統一規格格式：寬cm×長M
     return `<td class="ps-code">${esc(r.asia_code || '—')}</td>${krCol}` +
-      `<td>${r.roll_len || 50}</td>${permCell}` +
+      `<td>${spec}</td>${permCell}` +
       `<td class="ps-cai">${nt(r.plane)}</td><td class="ps-cai">${nt(r.cabinet)}</td><td class="ps-cai">${nt(r.shape)}</td>`;
   }
 
@@ -166,12 +168,16 @@
     const groups = groupRows(rows, false);
     const showBand = groups.length > 1 || (groups[0] && groups[0].fireproof);
     const cols = 6 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
+    const bandTh = showBand ? '<th style="width:5%" rowspan="2"></th>' : '';
     const codeTh = hasKr
-      ? '<th style="width:18%">亞洲系列</th><th style="width:12%">韓國系列</th>'
-      : '<th style="width:30%">系列／型號</th>';
-    const head = `<tr>${showBand ? '<th style="width:5%"></th>' : ''}${codeTh}` +
-      `<th style="width:11%;white-space:normal">規格 (米)<br><small style="font-weight:700;font-size:9.5px;opacity:.9">寬122公分×長度(米)</small></th><th class="ps-ph" style="width:10%">每米 $</th>` +
-      `<th style="width:15%">連工帶料<br>全平面牆面</th><th style="width:14%">系統櫃<br>門片</th><th style="width:15%">連工帶料<br>造型</th></tr>`;
+      ? '<th style="width:17%" rowspan="2">亞洲系列</th><th style="width:12%" rowspan="2">對應系列</th>'
+      : '<th style="width:29%" rowspan="2">系列／型號</th>';
+    const head =
+      `<tr>${bandTh}${codeTh}` +
+      `<th style="width:12%" rowspan="2">規格</th>` +
+      `<th class="ps-ph" style="width:12%" rowspan="2">電商每米<br>(含稅)</th>` +
+      `<th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
+      `<tr><th>全平面牆</th><th>系統櫃門片</th><th>造型</th></tr>`;
     let bodyRows = '';
     groups.forEach(g => {
       g.rows.forEach((r, i) => {
@@ -278,6 +284,10 @@
     const byBrand = {}; ORDER.forEach(k => byBrand[k] = []);
     (d.films || []).forEach(f => {
       if (isSpecial(f)) { byBrand.special.push(f); return; }   // 玻璃膜/隔熱/特殊膜 → special 分頁
+      if (f.brand === 'bodaq') {                               // Bodaq 依 region 拆成 亞洲／韓國 兩張表
+        (String(f.region || '').includes('韓國') ? byBrand.bodaq_kr : byBrand.bodaq_asia).push(f);
+        return;
+      }
       if (byBrand[f.brand]) byBrand[f.brand].push(f);
     });
     return byBrand;

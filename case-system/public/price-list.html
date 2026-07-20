@@ -131,7 +131,7 @@ async function init(){
   await loadUser();
   highlightNav('price-list');
   try{ DATA=await PriceSheet.fetchData(); }catch(e){ document.getElementById('sheet').innerHTML='<p style="color:#b91c1c">牌價載入失敗</p>'; return; }
-  const h=(location.hash||'').replace('#',''); if(PriceSheet.BRANDS[h]) cur=h;
+  let h=(location.hash||'').replace('#',''); if(h==='bodaq') h='bodaq_asia'; if(PriceSheet.BRANDS[h]) cur=h;
   draw();
 }
 init();
