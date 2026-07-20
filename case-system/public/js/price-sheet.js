@@ -6,8 +6,8 @@
   const BRANDS = {
     paroi: { name: 'PAROI', sub: '日本 LINTEC', c1: '#6f5122', c2: '#b58a45', soft: '#f6efe2', freight: 'jp' },
     benif: { name: 'BENIF', sub: 'LX Hausys（LG）· 韓國', c1: '#41560f', c2: '#7f9d33', soft: '#eef3df', freight: 'kr' },
-    bodaq_asia: { name: 'Bodaq 亞洲', sub: 'HYUNDAI · 亞洲版', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
-    bodaq_kr:   { name: 'Bodaq 韓國', sub: 'HYUNDAI · 韓國版', c1: '#4a1178', c2: '#d4148a', soft: '#f7e6f4', freight: 'kr' },
+    bodaq_asia: { name: 'Bodaq 亞洲', sub: 'HYUNDAI · 亞洲版', c1: '#7a1fa0', c2: '#d4148a', soft: '#f9e8f6', freight: 'kr' },  // 亮：紫→洋紅
+    bodaq_kr:   { name: 'Bodaq 韓國', sub: 'HYUNDAI · 韓國版', c1: '#3a0d5c', c2: '#6d2a8c', soft: '#ece2f2', freight: 'kr' },  // 深：深紫
     '3m': { name: '3M', sub: 'DI-NOC 特耐軟片', c1: '#9c0f22', c2: '#e11f33', soft: '#fbe7e9', freight: null },
     special: { name: '玻璃膜·隔熱·特殊膜', sub: '3M Fasara · CarLife 隔熱紙 · 穩得', c1: '#0e6b7a', c2: '#22a5c4', soft: '#e0f6fb', freight: null },
   };
@@ -177,7 +177,7 @@
       `<th style="width:12%" rowspan="2">規格</th>` +
       `<th class="ps-ph" style="width:12%" rowspan="2">電商每米<br>(含稅)</th>` +
       `<th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
-      `<tr><th>全平面牆</th><th>系統櫃門片</th><th>造型</th></tr>`;
+      `<tr><th>平面</th><th>系統櫃</th><th>造型</th></tr>`;
     let bodyRows = '';
     groups.forEach(g => {
       g.rows.forEach((r, i) => {
@@ -199,11 +199,13 @@
     (dbRows || []).forEach(r => {
       String(r.asia_code || '').split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(code => { dbByCode[code] = r; });
     });
-    const head = `<tr>
-      <th style="width:9%">系列</th><th style="width:37%">現貨供應色號</th>
-      <th style="width:11%">規格</th><th style="width:7%">才(支)</th>
-      <th class="ps-ph" style="width:11%">每才 $</th>
-      <th style="width:8%">連工帶料<br>全平面牆面</th><th style="width:9%">系統櫃<br>門片</th><th style="width:8%">連工帶料<br>造型</th></tr>`;
+    const head =
+      `<tr>
+        <th style="width:9%" rowspan="2">系列</th><th style="width:35%" rowspan="2">現貨供應色號</th>
+        <th style="width:11%" rowspan="2">規格</th><th style="width:6%" rowspan="2">才(支)</th>
+        <th class="ps-ph" style="width:11%" rowspan="2">每才<br>（未稅）</th>
+        <th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
+      `<tr><th>平面</th><th>系統櫃</th><th>造型</th></tr>`;
     const body = OFFICIAL_3M.map(o => {
       const db = dbByCode[o.code] || dbMap[o.code] || {};
       const perCai = (Number(db.per_m) > 0) ? perTsai(db) : o.price;   // 每才：報價設定 per_m→每才；查無才用內建官方價
@@ -213,7 +215,7 @@
         <td class="ps-codes">${esc(o.colors || '—')}</td>
         <td>${o.w}cm×${o.roll}M</td>
         <td>${o.tsai}</td>
-        <td class="ps-perm">${nt(perCai)}<small>未稅/才</small></td>
+        <td class="ps-perm">${nt(perCai)}</td>
         <td class="ps-cai">${nt(plane)}</td><td class="ps-cai">${nt(cabinet)}</td><td class="ps-cai">${nt(shape)}</td>
       </tr>`;
     }).join('');
