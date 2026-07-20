@@ -112,8 +112,12 @@
       table.ps-tbl tr{page-break-inside:avoid}
       .ps-notes,.ps-note{page-break-inside:avoid}
     }
-    .ps-sheet ::selection{background:rgba(120,60,120,.16);color:inherit}
-    .ps-sheet ::-moz-selection{background:rgba(120,60,120,.16);color:inherit}
+    /* 選取文字：淡底＋保留原字色，不要深底白字(反白) */
+    .ps-sheet ::selection{background:rgba(212,0,105,.18);color:inherit}
+    .ps-sheet ::-moz-selection{background:rgba(212,0,105,.18);color:inherit}
+    /* 深色青綠格(每米價欄、防焰側標)白字：選取用半透明白，字仍清楚、不反白 */
+    .ps-sheet td.ps-perm::selection,.ps-sheet td.ps-perm *::selection,.ps-sheet td.ps-band::selection,.ps-sheet td.ps-band *::selection,.ps-sheet th.ps-ph::selection,.ps-sheet th.ps-ph *::selection{background:rgba(255,255,255,.32);color:#fff}
+    .ps-sheet td.ps-perm::-moz-selection,.ps-sheet td.ps-perm *::-moz-selection,.ps-sheet td.ps-band::-moz-selection,.ps-sheet td.ps-band *::-moz-selection,.ps-sheet th.ps-ph::-moz-selection,.ps-sheet th.ps-ph *::-moz-selection{background:rgba(255,255,255,.32);color:#fff}
     table.ps-tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px;table-layout:fixed}
     table.ps-tbl thead th{background:var(--soft);color:var(--c1);font-weight:800;font-size:12px;letter-spacing:.4px;
       padding:12px 8px;text-align:center;border-bottom:2px solid var(--c1);line-height:1.35;white-space:nowrap}
