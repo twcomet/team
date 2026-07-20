@@ -29,6 +29,11 @@
   .mm-meta b { color:#111827; }
   .mm-empty { color:var(--gray-400); font-size:14px; padding:40px; text-align:center; }
   .mm-linkbox { display:none; margin-top:12px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:12px 14px; }
+  .mm-panel { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px 16px; margin-bottom:14px; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; }
+  .mm-fg-t { font-size:12px; font-weight:800; color:#9d174d; margin-bottom:7px; border-bottom:1px solid #f3f4f6; padding-bottom:4px; }
+  .mm-opts { display:flex; flex-wrap:wrap; gap:5px 12px; }
+  .mm-opt { font-size:13px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; color:#374151; }
+  .mm-dot { width:13px; height:13px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -95,9 +100,22 @@
     <div class="mm-wrap">
       <div class="mm-filters">
         <div class="mm-f"><label>至少需要幾米</label><input type="number" id="fMin" min="0" step="0.1" value="0" style="width:110px" placeholder="例：10"></div>
-        <div class="mm-f"><label>品牌</label><select id="fBrand" style="min-width:140px"><option value="">全部品牌</option></select></div>
         <div class="mm-f" style="flex:1;min-width:180px"><label>關鍵字（型號／花色）</label><input type="text" id="fQ" style="width:100%" placeholder="如 木紋、AA、WP052…" onkeydown="if(event.key==='Enter')doSearch()"></div>
+        <div class="mm-f"><button class="btn btn-ghost" id="filtToggle" onclick="toggleFilters()">🔎 篩選<span id="filtCount"></span></button></div>
         <div class="mm-f"><button class="btn btn-primary" onclick="doSearch()">🔍 搜尋</button></div>
+      </div>
+      <div class="mm-panel" id="filtPanel" style="display:none">
+        <div><div class="mm-fg-t">品牌</div><div id="fgBrand" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">款式</div><div id="fgPattern" class="mm-opts"></div></div>
+        <div style="grid-column:span 2"><div class="mm-fg-t">顏色系列</div><div id="fgColor" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">色調</div><div id="fgTone" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">防焰與否</div><div id="fgFire" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">供貨狀態</div><div id="fgStock" class="mm-opts"></div></div>
+        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;border-top:1px solid #f3f4f6;padding-top:10px">
+          <button class="btn btn-sm btn-primary" onclick="doSearch()">套用篩選</button>
+          <button class="btn btn-sm btn-ghost" onclick="clearFilters()">清除全部</button>
+          <span style="font-size:11px;color:#9ca3af">款式／顏色系列／色調需膜料已做「AI 花色分析」才會命中</span>
+        </div>
       </div>
 
       <div class="mm-share-bar">
@@ -143,16 +161,37 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;',
 function nt(n){ return '$'+(Number(n)||0).toLocaleString(); }
 function fmtM(n){ const v=Number(n)||0; return (Math.round(v*10)/10)+' 米'; }
 
-async function loadBrands(){
-  try { const bs = await fetch('/api/material-match/brands').then(r=>r.json());
-    document.getElementById('fBrand').innerHTML = '<option value="">全部品牌</option>' + bs.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+const COLOR_HEX = {'黑':'#111827','藍':'#2563eb','深棕':'#5c3a21','深灰':'#374151','深灰棕':'#4b3f36','深銀灰':'#4b5563','金':'#d4af37','綠':'#16a34a','淺棕':'#b08d57','淺灰':'#d1d5db','淺灰棕':'#c4b5a5','淺銀灰':'#cbd5e1','中性棕':'#8b6f4e','中性灰':'#9ca3af','橘':'#f97316','粉':'#f9a8d4','紫':'#a855f7','白':'#ffffff','彩虹':'conic','紅棕':'#7c2d12','紅':'#ef4444','黃':'#facc15'};
+function optChk(group,val,label,dot){
+  const d = dot ? `<span class="mm-dot" style="${dot==='conic'?'background:conic-gradient(from 0deg,#ef4444,#f59e0b,#facc15,#22c55e,#3b82f6,#a855f7,#ef4444)':'background:'+dot}"></span>` : '';
+  return `<label class="mm-opt"><input type="checkbox" data-fg="${group}" value="${esc(val)}" onchange="updFiltCount()">${d}${esc(label)}</label>`;
+}
+async function loadTaxonomy(){
+  try { const t = await fetch('/api/material-match/taxonomy').then(r=>r.json());
+    document.getElementById('fgBrand').innerHTML   = (t.brands||[]).map(b=>optChk('brand',b,b)).join('') || '<span style="font-size:12px;color:#9ca3af">無</span>';
+    document.getElementById('fgPattern').innerHTML = (t.patterns||[]).map(p=>optChk('pattern',p,p)).join('');
+    document.getElementById('fgColor').innerHTML   = (t.colors||[]).map(c=>optChk('color',c,c,COLOR_HEX[c]||'#e5e7eb')).join('');
+    document.getElementById('fgTone').innerHTML    = (t.tones||[]).map(x=>optChk('tone',x,x)).join('');
+    document.getElementById('fgFire').innerHTML    = optChk('fire','1','防焰')+optChk('fire','0','不防焰');
+    document.getElementById('fgStock').innerHTML   = optChk('stock','in','現貨商品')+optChk('stock','pre','預購商品');
   } catch(e){}
 }
+function toggleFilters(){ const p=document.getElementById('filtPanel'); p.style.display = p.style.display==='none'?'grid':'none'; }
+function _checked(group){ return [...document.querySelectorAll(`[data-fg="${group}"]:checked`)].map(el=>el.value); }
+function updFiltCount(){ const n=document.querySelectorAll('.mm-panel [type="checkbox"]:checked').length; document.getElementById('filtCount').textContent = n?` (${n})`:''; }
+function clearFilters(){ document.querySelectorAll('.mm-panel [type="checkbox"]').forEach(c=>c.checked=false); updFiltCount(); }
+// 防焰/供貨：兩個都勾或都不勾＝不篩選；只勾一個才送
+function _oneOf(group){ const v=_checked(group); return v.length===1?v[0]:''; }
 async function doSearch(){
   const min = document.getElementById('fMin').value || 0;
-  const brand = document.getElementById('fBrand').value;
   const q = document.getElementById('fQ').value.trim();
-  const p = new URLSearchParams({ min_meters: min }); if (brand) p.set('brand', brand); if (q) p.set('q', q);
+  const p = new URLSearchParams(); p.set('min_meters', min); if (q) p.set('q', q);
+  _checked('brand').forEach(b=>p.append('brand',b));
+  _checked('pattern').forEach(x=>p.append('pattern',x));
+  _checked('color').forEach(x=>p.append('color',x));
+  _checked('tone').forEach(x=>p.append('tone',x));
+  const fire=_oneOf('fire'); if(fire) p.set('fire',fire);
+  const stock=_oneOf('stock'); if(stock) p.set('stock',stock);
   const box = document.getElementById('results'); box.innerHTML = '<div class="mm-empty">搜尋中…</div>';
   let rows; try { rows = await fetch('/api/material-match/search?'+p).then(r=>r.json()); } catch(e){ box.innerHTML='<div class="mm-empty">搜尋失敗</div>'; return; }
   RESULTS = rows || []; renderResults();
@@ -163,9 +202,9 @@ function tagChips(r){
   const t = r.ai_tags; if(!t) return '';
   const chip = (x,bg,c)=>`<span style="display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:${bg};color:${c};margin:1px 3px 1px 0">${esc(x)}</span>`;
   let h='';
-  if(t.grain) h+=chip(t.grain,'#ede9fe','#6d28d9');
-  if(t.tone)  h+=chip(t.tone+'色調','#f1f5f9','#475569');
-  (t.hue||[]).forEach(x=>h+=chip(x,'#fdf2f8','#9d174d'));
+  (t.pattern||[]).forEach(x=>h+=chip(x,'#ede9fe','#6d28d9'));
+  if(t.tone)  h+=chip(t.tone,'#f1f5f9','#475569');
+  (t.color_family||[]).forEach(x=>h+=chip(x,'#fdf2f8','#9d174d'));
   const ai = r.matched_by==='ai' ? '<span style="font-size:10px;color:#6d28d9;font-weight:700"> 🤖AI相近</span>' : '';
   return h?`<div style="margin-top:5px;line-height:1.9">${h}${ai}</div>`:'';
 }
@@ -257,7 +296,7 @@ async function doAiTag(){
   // 重新整理目前搜尋結果的推薦（若有）
   if (RESULTS.length) loadSimilar(RESULTS[0].id);
 }
-loadBrands(); loadUntagged();
+loadTaxonomy(); loadUntagged();
 </script>
 </body>
 </html>

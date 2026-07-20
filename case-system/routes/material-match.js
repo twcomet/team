@@ -14,31 +14,65 @@ function _code(n = 8) {
 }
 const FILM = "1=1";   // 不用 category 過濾：正式庫 category 值不一，過濾會把膜料全濾掉
 
-// ── 搜尋膜料：庫存 >= 米數 ＋ 品牌 ＋ 關鍵字（品牌/型號/花色/規格）──
+// 多值參數解析：支援 ?x=a&x=b 或 ?x=a,b
+function _multi(v) {
+  if (v == null) return [];
+  const arr = Array.isArray(v) ? v : String(v).split(',');
+  return arr.map(x => String(x || '').trim()).filter(Boolean);
+}
+
+// ── 搜尋膜料：庫存 >= 米數 ＋ 品牌/防焰/供貨 ＋ 款式/顏色系列/色調(AI標籤) ＋ 關鍵字 ──
 router.get('/search', requireAuth, (req, res) => {
-  const min   = Number(req.query.min_meters) || 0;
-  const brand = (req.query.brand || '').trim();
-  const q     = (req.query.q || '').trim();
+  const min    = Number(req.query.min_meters) || 0;
+  const brands = _multi(req.query.brand);          // 可複選
+  const q      = (req.query.q || '').trim();
+  const fire   = (req.query.fire || '').trim();    // '1'=防焰 '0'=不防焰
+  const stock  = (req.query.stock || '').trim();   // 'in'=現貨 'pre'=預購(無現貨)
+  const tones    = _multi(req.query.tone);         // 色調(AI)
+  const colors   = _multi(req.query.color);        // 顏色系列(AI)
+  const patterns = _multi(req.query.pattern);      // 款式(AI)
+  const aiFilter = tones.length || colors.length || patterns.length;
+
   const where = [FILM, 'COALESCE(m.stock_meters,0) >= ?'];
   const params = [min];
-  if (brand) { where.push('TRIM(LOWER(m.brand))=TRIM(LOWER(?))'); params.push(brand); }
+  if (brands.length) { where.push(`TRIM(LOWER(m.brand)) IN (${brands.map(() => '?').join(',')})`); brands.forEach(b => params.push(b.toLowerCase())); }
+  if (fire === '1') where.push('COALESCE(m.fire_retardant,0)=1');
+  else if (fire === '0') where.push('COALESCE(m.fire_retardant,0)=0');
+  if (stock === 'in') where.push('COALESCE(m.stock_meters,0) > 0');
+  else if (stock === 'pre') where.push('COALESCE(m.stock_meters,0) <= 0');
   if (q) {
-    // 忽略連字號/空格、不分大小寫：AA611 也能搜到 AA-611、aa 611
     const nq = '%' + q.replace(/[-\s]/g, '').toLowerCase() + '%';
     const norm = c => `REPLACE(REPLACE(LOWER(${c}),'-',''),' ','')`;
     where.push(`(${norm('m.brand')} LIKE ? OR ${norm('m.model')} LIKE ? OR ${norm('m.color')} LIKE ? OR ${norm('m.spec')} LIKE ?)`);
     params.push(nq, nq, nq, nq);
   }
-  const rows = db.prepare(`
+  let rows = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
-           m.stock_meters, m.location, m.width_cm, m.ai_tags, o.name AS branch
+           m.stock_meters, m.location, m.width_cm, m.fire_retardant, m.ai_tags, o.name AS branch
     FROM materials m LEFT JOIN orgs o ON o.id = m.org_id
     WHERE ${where.join(' AND ')}
     ORDER BY COALESCE(m.stock_meters,0) DESC, m.brand, m.model
-    LIMIT 200
+    LIMIT ${aiFilter ? 800 : 200}
   `).all(...params);
   rows.forEach(r => { r.ai_tags = _parseTags(r.ai_tags); });
+  // AI 標籤面向（款式/顏色系列/色調）：逐項比對已 AI 分析的膜料（沒分析過的不符合這些條件）
+  if (aiFilter) {
+    rows = rows.filter(r => {
+      const t = r.ai_tags; if (!t) return false;
+      if (tones.length && !tones.includes(t.tone)) return false;
+      if (patterns.length && !patterns.some(p => (t.pattern || []).includes(p))) return false;
+      if (colors.length && !colors.some(c => (t.color_family || []).includes(c))) return false;
+      return true;
+    }).slice(0, 200);
+  }
   res.json(rows);
+});
+
+// 篩選面板選項：品牌清單 ＋ 款式/顏色系列/色調 taxonomy（前端渲染 checkbox）
+router.get('/taxonomy', requireAuth, (req, res) => {
+  const mai = require('../lib/material-ai');
+  const brands = db.prepare(`SELECT DISTINCT brand FROM materials WHERE brand IS NOT NULL AND brand<>'' AND ${FILM} ORDER BY brand`).all().map(r => r.brand);
+  res.json({ brands, patterns: mai.PATTERNS, colors: mai.COLORS, tones: mai.TONES });
 });
 
 // ── 相近花色推薦（規則式，無 AI）：以某支膜料為基準，比對「紋路類型＋色系＋膜寬＋品牌」找相近替代花色 ──
@@ -73,12 +107,11 @@ function _parseTags(s) { if (!s) return null; try { const t = JSON.parse(s); ret
 // AI 視覺標籤比對分數（兩支都有 AI 標籤時使用，權重高於純文字）
 function _tagScore(a, b) {
   let s = 0;
-  if (a.grain && b.grain && a.grain === b.grain) s += 6;      // 同紋路類型
-  if (a.tone && b.tone && a.tone === b.tone) s += 3;          // 同明暗
-  const ah = new Set(a.hue || []), bh = b.hue || [];
-  for (const h of bh) if (ah.has(h)) s += 2;                  // 共同色系
-  const as = new Set(a.style || []), bs = b.style || [];
-  for (const st of bs) if (as.has(st)) s += 1;                // 同風格
+  const ap = new Set(a.pattern || []), bp = b.pattern || [];
+  for (const p of bp) if (ap.has(p)) s += 6;                  // 同款式（紋路）
+  if (a.tone && b.tone && a.tone === b.tone) s += 3;          // 同色調
+  const ac = new Set(a.color_family || []), bc = b.color_family || [];
+  for (const c of bc) if (ac.has(c)) s += 2;                  // 同顏色系列
   return s;
 }
 router.get('/similar', requireAuth, (req, res) => {

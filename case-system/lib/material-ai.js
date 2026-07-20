@@ -3,14 +3,17 @@
 const db = require('../db');
 const MODEL = 'claude-sonnet-5';
 
-const GRAINS = ['木紋', '石紋', '水泥', '布紋', '皮革', '金屬', '藤竹', '素色', '其他'];
-const TONES  = ['淺', '中', '深'];
+// 對齊電商網站的分面 taxonomy（款式 20／顏色系列 22／色調 3）
+const PATTERNS = ['木紋', '大理石紋', '金屬紋', '素面', '特殊紋', '編織', '皮革', '炫彩虹膜', '塗料', '石紋', '亮面', '珍珠紋', '亮片', '幾何紋', '混合波紋', '金銀箔', '高光澤', '超浮雕', '光滑表面', '彩釉'];
+const COLORS   = ['黑', '藍', '深棕', '深灰', '深灰棕', '深銀灰', '金', '綠', '淺棕', '淺灰', '淺灰棕', '淺銀灰', '中性棕', '中性灰', '橘', '粉', '紫', '白', '彩虹', '紅棕', '紅', '黃'];
+const TONES    = ['淺色', '中性色', '深色'];
 
 async function callVision(imageUrl) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('未設定 ANTHROPIC_API_KEY');
-  const system = `你是室內裝潢貼膜的花色分類專家。看這張膜料花色圖，只輸出 JSON（不要多餘文字）：
-{"grain":"紋路類型，從［木紋/石紋/水泥/布紋/皮革/金屬/藤竹/素色/其他］擇一","tone":"明暗，從［淺/中/深］擇一","hue":["主要色系，如 白/米/灰/棕/木/黑/藍/綠，最多3個"],"main_color":"一句話主色描述，如 淺白橡木色","style":["風格，如 北歐/日式/工業/現代/自然/古典，最多2個"]}`;
+  const system = `你是室內裝潢貼膜的花色分類專家。看這張膜料花色圖，依下列固定選項分類，只輸出 JSON（不要多餘文字）：
+{"pattern":["款式，只能從此清單選 1-2 個：${PATTERNS.join('/')}"],"tone":"色調，只能從［${TONES.join('/')}］擇一","color_family":["顏色系列，只能從此清單選 1-2 個：${COLORS.join('/')}"],"main_color":"一句話主色描述，如 淺白橡木色"}
+規則：pattern 與 color_family 一定要從清單挑最接近的，不要自創詞；色調偏白偏亮＝淺色、偏黑偏暗＝深色、其餘＝中性色。`;
   const messages = [{ role: 'user', content: [
     { type: 'image', source: { type: 'url', url: imageUrl } },
     { type: 'text', text: '請分析這張膜料花色，只輸出上述 JSON。' },
@@ -27,12 +30,11 @@ async function callVision(imageUrl) {
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
   if (a < 0 || b < 0) throw new Error('AI 未回傳 JSON');
   let j; try { j = JSON.parse(text.slice(a, b + 1)); } catch (e) { throw new Error('AI JSON 解析失敗'); }
-  // 正規化
-  const grain = GRAINS.includes(j.grain) ? j.grain : '其他';
-  const tone  = TONES.includes(j.tone) ? j.tone : '中';
-  const hue   = Array.isArray(j.hue) ? j.hue.map(x => String(x || '').trim()).filter(Boolean).slice(0, 3) : [];
-  const style = Array.isArray(j.style) ? j.style.map(x => String(x || '').trim()).filter(Boolean).slice(0, 2) : [];
-  return { grain, tone, hue, style, main_color: String(j.main_color || '').trim().slice(0, 40) };
+  const pickList = (v, list, max) => (Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(x => list.includes(x)).slice(0, max);
+  const tone = TONES.includes(j.tone) ? j.tone : '中性色';
+  const pattern = pickList(j.pattern, PATTERNS, 2);
+  const color_family = pickList(j.color_family, COLORS, 2);
+  return { tone, pattern, color_family, main_color: String(j.main_color || '').trim().slice(0, 40) };
 }
 
 // 對單一膜料上標籤（需有 image_url），寫回 materials.ai_tags / ai_tagged_at
@@ -45,4 +47,4 @@ async function tagMaterial(id) {
   return tags;
 }
 
-module.exports = { tagMaterial, callVision };
+module.exports = { tagMaterial, callVision, PATTERNS, COLORS, TONES };
