@@ -107,7 +107,8 @@
         <label class="mm-chk"><input type="checkbox" id="sStock"> 庫存米數 🔒</label>
         <label class="mm-chk"><input type="checkbox" id="sLoc"> 貨架位置 🔒</label>
         <label class="mm-chk"><input type="checkbox" id="sBranch"> 存放分店 🔒</label>
-        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="doShare()">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
+        <button class="btn btn-sm btn-ghost" id="selAllBtn" style="margin-left:auto" onclick="selectAllVisible()">☑ 全選本頁</button>
+        <button class="btn btn-primary btn-sm" onclick="doShare()">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 2px 14px">
         <button class="btn btn-sm btn-ghost" id="aiTagBtn" onclick="doAiTag()">🤖 AI 分析花色標籤</button>
@@ -209,6 +210,15 @@ async function loadSimilar(seedId){
 function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id);
   document.querySelectorAll('[data-mid="'+id+'"]').forEach(c=>{ c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
   document.getElementById('selCount').textContent = picked.size; }
+function selectAllVisible(){
+  const cards=[...document.querySelectorAll('[data-mid]')];
+  const ids=[...new Set(cards.map(c=>Number(c.getAttribute('data-mid'))))];
+  const allSel = ids.length && ids.every(id=>picked.has(id));
+  ids.forEach(id=>{ if(allSel)picked.delete(id); else picked.add(id); });
+  cards.forEach(c=>{ const on=picked.has(Number(c.getAttribute('data-mid'))); c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
+  document.getElementById('selCount').textContent=picked.size;
+  document.getElementById('selAllBtn').textContent = allSel?'☑ 全選本頁':'☐ 取消全選';
+}
 async function doShare(){
   if (!picked.size){ alert('請先勾選要分享的膜料（卡片左上角勾選框）'); return; }
   const fields = { price: sPrice.checked, stock: sStock.checked, location: sLoc.checked, branch: sBranch.checked };

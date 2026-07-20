@@ -65,10 +65,9 @@ function _simScore(seed, cand) {
   let s = 0;
   for (const g of seed.grain) if (cand.grain.has(g)) s += 5;   // 同紋路大類，最重要
   for (const h of seed.hue)   if (cand.hue.has(h))   s += 2;   // 共同色系
-  if (seed.brand && cand.brand && String(seed.brand).toLowerCase() === String(cand.brand).toLowerCase()) s += 1;
   const w1 = Number(seed.width_cm) || 122, w2 = Number(cand.width_cm) || 122;
   if (Math.abs(w1 - w2) <= 8) s += 1;                          // 膜寬相近（可互換施工）
-  return s;
+  return s;                                                    // 不加品牌權重：跨品牌相近花色平等排序
 }
 function _parseTags(s) { if (!s) return null; try { const t = JSON.parse(s); return t && typeof t === 'object' ? t : null; } catch (_) { return null; } }
 // AI 視覺標籤比對分數（兩支都有 AI 標籤時使用，權重高於純文字）
@@ -109,16 +108,13 @@ router.get('/similar', requireAuth, (req, res) => {
     const cp = _profile(r);
     const candTags = _parseTags(r.ai_tags);
     let s = 0, ai = false;
-    if (seedTags && candTags) {                                // 兩支都有 AI 花色標籤 → 用視覺比對（較準）
-      s = _tagScore(seedTags, candTags);
-      if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 1;
-      if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1;
-      if (s > 0) { s += 20; ai = true; }                       // AI 命中者整體排在文字猜測之上
-    } else if (noSeedText) {                                   // 基準膜料沒有花色文字可比對：同品牌＋膜寬相近先推
-      if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 3;
-      if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1;
-    } else {                                                   // 純文字規則比對
-      s = _simScore({ ...sp, brand: seed.brand, width_cm: seed.width_cm }, { ...cp, brand: r.brand, width_cm: r.width_cm });
+    if (seedTags && candTags) {                                // 兩支都有 AI 花色標籤 → 用視覺比對（較準，跨品牌）
+      const ts = _tagScore(seedTags, candTags);
+      if (ts > 0) { s = 20 + ts; if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1; ai = true; }
+    } else if (noSeedText) {                                   // 基準膜料沒有花色文字可比對：膜寬相近先推（不限品牌）
+      s = 1; if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1;
+    } else {                                                   // 純文字規則比對（紋路＋色系，不限品牌）
+      s = _simScore({ ...sp, width_cm: seed.width_cm }, { ...cp, width_cm: r.width_cm });
     }
     if (candTags) r._tags = candTags;
     return { r, s, ai };
