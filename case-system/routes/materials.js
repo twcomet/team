@@ -187,16 +187,33 @@ router.put('/:id', requireAuth, (req, res) => {
 
 router.delete('/:id', requireAuth, (req, res) => {
   const { org_id, id: uid } = req.session.user;
+  const force = req.query.force === '1' || req.query.force === 'true';
+  const mid = req.params.id;
   try {
-    const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=? AND org_id=?`).get(req.params.id, org_id);
+    const mat = db.prepare(`SELECT brand, model FROM materials WHERE id=? AND org_id=?`).get(mid, org_id);
     if (!mat) return res.status(404).json({ error: '找不到膜料' });
-    db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`).run(req.params.id, org_id);
+    if (force) {
+      // 強制刪除：先解除／清掉關聯，再刪膜料。單據本身保留（只把 material_id 設 NULL），避免破壞歷史採購/報價
+      const stmts = [
+        `DELETE FROM material_logs WHERE material_id=?`,               // 膜料自己的異動流水
+        `UPDATE material_order_items SET material_id=NULL WHERE material_id=?`,
+        `UPDATE material_requisitions SET material_id=NULL WHERE material_id=?`,
+        `UPDATE purchase_orders     SET material_id=NULL WHERE material_id=?`,
+        `UPDATE quote_sheet_items   SET material_id=NULL WHERE material_id=?`,
+        `UPDATE dispatch_materials  SET material_id=NULL WHERE material_id=?`,
+        `UPDATE film_price_matrix   SET material_id=NULL WHERE material_id=?`,
+      ];
+      for (const s of stmts) { try { db.prepare(s).run(mid); } catch (_) { /* 該表不存在就略過 */ } }
+      // material_rolls / material_reservations / material_change_logs 已設 CASCADE / SET NULL，隨膜料刪除自動處理
+    }
+    db.prepare(`DELETE FROM materials WHERE id=? AND org_id=?`).run(mid, org_id);
     db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (NULL, ?, 'delete', ?, ?)`)
-      .run(org_id, `刪除膜料型號：${mat.brand} ${mat.model}`, uid);
+      .run(org_id, `刪除膜料型號：${mat.brand} ${mat.model}${force ? '（強制刪除·已解除關聯單據）' : ''}`, uid);
     res.json({ ok: true });
   } catch (e) {
     if (e.message && e.message.includes('FOREIGN KEY')) {
-      return res.status(409).json({ error: '此膜料已有關聯採購紀錄或報價資料，無法直接刪除。請先刪除相關紀錄後再試。' });
+      // 回報還有哪些關聯，讓前端提示可否強制刪除
+      return res.status(409).json({ error: '此膜料已有關聯採購紀錄或報價資料，無法直接刪除。', canForce: true });
     }
     res.status(500).json({ error: e.message });
   }

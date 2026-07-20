@@ -1397,12 +1397,21 @@ async function saveMat() {
 
 async function deleteMat(id) {
   if (!confirm('確定刪除此膜料型號？相關捲料和紀錄也會一併刪除。')) return;
-  const res = await fetch(`/api/materials/${id}`, { method:'DELETE' });
-  if (res.ok) {
-    showToast('膜料已刪除');
-  } else {
+  let res = await fetch(`/api/materials/${id}`, { method:'DELETE' });
+  if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    showToast(err.error || '刪除失敗', 'error');
+    if (res.status === 409 && err.canForce) {
+      // 有關聯採購/報價：詢問是否強制刪除（保留單據，只解除與此膜料的關聯）
+      if (confirm('此膜料已有關聯的採購或報價紀錄。\n\n要「強制刪除」嗎？\n（那些採購單／報價單會保留，只會解除它們與此膜料的連結；此膜料與其庫存/捲料/異動紀錄會被刪除，無法復原）')) {
+        res = await fetch(`/api/materials/${id}?force=1`, { method:'DELETE' });
+        if (!res.ok) { const e2 = await res.json().catch(()=>({})); showToast(e2.error || '強制刪除失敗', 'error'); }
+        else showToast('膜料已強制刪除');
+      }
+    } else {
+      showToast(err.error || '刪除失敗', 'error');
+    }
+  } else {
+    showToast('膜料已刪除');
   }
   expandedRows.delete(id);
   await Promise.all([loadMaterials(), loadActivity()]);
