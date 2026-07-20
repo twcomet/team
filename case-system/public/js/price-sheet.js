@@ -110,7 +110,6 @@
     table.ps-tbl tbody td{padding:12px 12px;text-align:center;border-bottom:1px solid #eee;
       font-variant-numeric:tabular-nums;color:#241f29;line-height:1.4}
     table.ps-tbl tbody tr:last-child td{border-bottom:none}
-    table.ps-tbl tbody tr:hover td:not(.ps-perm):not(.ps-band){background:var(--soft)}
     td.ps-band{background:var(--c1);width:56px;padding:10px 6px;text-align:center;
       vertical-align:middle;border-bottom:2px solid #fff}
     td.ps-band.nf{background:#8f8a95;background:color-mix(in srgb,var(--c1) 72%,#8a8a8a)}
@@ -213,7 +212,7 @@
     const order = ['3m', 'carlife', 'wonder', 'special'], groups = {};
     (rows || []).forEach(r => { (groups[r.brand] = groups[r.brand] || []).push(r); });
     const head = `<tr><th style="width:14%">品牌</th><th style="width:44%">型號／花色</th>` +
-      `<th style="width:20%">規格</th><th class="ps-ph" style="width:22%">連工帶料<br>(元／才)</th></tr>`;
+      `<th style="width:20%">規格</th><th class="ps-ph" style="width:22%">連工帶料<br>(元／才・未稅)</th></tr>`;
     let body = '';
     order.forEach(bk => {
       const rs = groups[bk]; if (!rs || !rs.length) return;
@@ -223,7 +222,7 @@
         body += `<tr>${band}` +
           `<td class="ps-code" style="text-align:left">${esc(r.asia_code || '—')}${r.color ? ` <small style="color:#9ca3af">${esc(r.color)}</small>` : ''}${r.model_note ? `<br><small style="color:#9ca3af;font-weight:400">供應商：${esc(r.model_note)}</small>` : ''}</td>` +
           `<td>${r.width || 122}cm×${r.roll_len || 30}M</td>` +
-          `<td class="ps-perm">${nt(r.plane)}<small>元/才</small></td></tr>`;
+          `<td class="ps-perm">${nt(r.plane)}</td></tr>`;
       });
     });
     if (!body) body = `<tr><td colspan="4" style="padding:36px;color:#9ca3af">尚無資料</td></tr>`;
