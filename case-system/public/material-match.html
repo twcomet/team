@@ -307,8 +307,10 @@ function copyShareUrl(btn){ const i=document.getElementById('shareUrl'); i.selec
 async function loadUntagged(){
   try { const j = await fetch('/api/material-match/untagged-count').then(r=>r.json());
     const info = document.getElementById('aiTagInfo'), btn = document.getElementById('aiTagBtn');
+    if (!j.can_run) btn.style.display='none';   // 只有老闆/倉管看得到分析按鈕
+    const failedTxt = j.failed>0 ? `・${j.failed} 支圖片失效略過` : '';
     if (!j.with_image){ info.textContent='（膜料尚未上傳花色圖，請先到膜料管理上傳，AI 才能分析色系與紋路）'; btn.disabled=true; btn.style.opacity=.5; return; }
-    info.textContent = j.untagged>0 ? `有花色圖 ${j.with_image} 支・尚未分析 ${j.untagged} 支` : `已全部分析（有花色圖 ${j.with_image} 支）`;
+    info.textContent = j.untagged>0 ? `有花色圖 ${j.with_image} 支・尚未分析 ${j.untagged} 支${failedTxt}` : `已全部分析（有花色圖 ${j.with_image} 支）${failedTxt}`;
     btn.disabled = j.untagged===0; btn.style.opacity = j.untagged===0?.5:1;
   } catch(e){}
 }
@@ -316,19 +318,28 @@ let aiRunning=false;
 async function doAiTag(){
   if (aiRunning) return; aiRunning=true;
   const btn=document.getElementById('aiTagBtn'), info=document.getElementById('aiTagInfo');
-  btn.disabled=true; let total=0;
+  btn.disabled=true; let total=0, fails=0, stall=0, prev=Infinity;
   try {
     while(true){
-      info.textContent = `AI 分析中…已完成 ${total} 支`;
-      const j = await fetch('/api/material-match/ai-tag-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:8})}).then(r=>r.json());
-      if (!j.ok){ info.textContent='分析失敗'; break; }
-      total += j.done;
-      if (j.remaining<=0 || j.tried===0){ info.textContent=`✅ AI 分析完成，共 ${total} 支${j.errors&&j.errors.length?`（${j.errors.length} 支失敗）`:''}`; break; }
+      info.textContent = `AI 分析中…已完成 ${total} 支（可留在此頁等待）`;
+      let j=null;
+      try {
+        const resp = await fetch('/api/material-match/ai-tag-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+        if (resp.status===403){ info.textContent='只有老闆與倉管可以執行 AI 花色分析'; break; }
+        const txt = await resp.text();
+        try { j = JSON.parse(txt); } catch(_){ throw new Error('gateway'); }   // 502 等非 JSON
+      } catch(e){
+        fails++; if (fails>=6){ info.textContent=`連線不穩暫停，已完成 ${total} 支，稍後可再按一次繼續`; break; }
+        info.textContent=`連線忙碌，重試中…（已完成 ${total} 支）`; await new Promise(r=>setTimeout(r,2000)); continue;
+      }
+      fails=0;
+      if (!j.ok){ info.textContent=j.error||'分析失敗'; break; }
+      total += j.done||0;
+      if (j.remaining<=0){ info.textContent=`✅ AI 分析完成，本次處理 ${total} 支${j.failed?`（另 ${j.failed} 支圖片失效略過）`:''}`; break; }
+      if (j.remaining>=prev){ stall++; if (stall>=2){ info.textContent=`已完成 ${total} 支；剩 ${j.remaining} 支目前無法分析`; break; } } else stall=0;
+      prev=j.remaining;
     }
-  } catch(e){ info.textContent='分析中斷：'+(e.message||''); }
-  aiRunning=false; loadUntagged();
-  // 重新整理目前搜尋結果的推薦（若有）
-  if (RESULTS.length) loadSimilar(RESULTS[0].id);
+  } finally { aiRunning=false; loadUntagged(); if (RESULTS.length) loadSimilar(RESULTS[0].id); }
 }
 loadTaxonomy(); loadUntagged();
 </script>

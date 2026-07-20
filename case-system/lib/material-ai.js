@@ -47,7 +47,7 @@ async function tagMaterial(id) {
   if (!m) throw new Error('膜料不存在');
   if (!m.image_url || !/^https?:\/\//.test(m.image_url)) throw new Error('此膜料沒有花色圖，無法 AI 分析');
   const tags = await callVision(m.image_url);
-  db.prepare("UPDATE materials SET ai_tags=?, ai_tagged_at=datetime('now','+8 hours') WHERE id=?").run(JSON.stringify(tags), id);
+  db.prepare("UPDATE materials SET ai_tags=?, ai_tagged_at=datetime('now','+8 hours'), ai_tag_failed=0 WHERE id=?").run(JSON.stringify(tags), id);
   return tags;
 }
 

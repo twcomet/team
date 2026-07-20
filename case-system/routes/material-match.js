@@ -185,28 +185,42 @@ router.post('/match-image', requireAuth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message || '配對失敗' }); }
 });
 
+// 只有老闆與倉管(資產倉管權限)可執行 AI 花色分析，避免其他人重複跑浪費 token
+function _canAiTag(u) { return !!(u && (u.role === 'owner' || u.can_manage_assets)); }
+// 尚未分析的條件：有圖、無標籤、且未標記為失敗
+const UNTAGGED = `${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='') AND COALESCE(ai_tag_failed,0)=0`;
+
 // 尚未 AI 分析、但有花色圖的膜料數量
 router.get('/untagged-count', requireAuth, (req, res) => {
-  const n = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='')`).get().c;
-  const total = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>''`).get().c;
-  res.json({ untagged: n, with_image: total });
+  const untagged = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${UNTAGGED}`).get().c;
+  const total    = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>''`).get().c;
+  const failed   = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND COALESCE(ai_tag_failed,0)=1`).get().c;
+  res.json({ untagged, with_image: total, failed, can_run: _canAiTag(req.session.user) });
 });
 
 // AI 分析單一膜料花色
 router.post('/ai-tag/:id', requireAuth, async (req, res) => {
+  if (!_canAiTag(req.session.user)) return res.status(403).json({ error: '只有老闆與倉管可以執行 AI 花色分析' });
   try { const tags = await require('../lib/material-ai').tagMaterial(Number(req.params.id)); res.json({ ok: true, tags }); }
-  catch (e) { res.status(400).json({ error: e.message || 'AI 分析失敗' }); }
+  catch (e) { try { db.prepare('UPDATE materials SET ai_tag_failed=1 WHERE id=?').run(Number(req.params.id)); } catch (_) {} res.status(400).json({ error: e.message || 'AI 分析失敗' }); }
 });
 
-// 批次 AI 分析：一次處理 N 支「有花色圖但尚未分析」的膜料（預設 8 支，避免逾時／爆量）
+// 批次 AI 分析：以「時間預算」為主（18 秒內收工），避免每次跑太久觸發閘道逾時(502 Bad Gateway)。
+// 前端會反覆呼叫直到 remaining=0。分析失敗(圖片失效)者標記 ai_tag_failed 排除，才不會卡住同幾支。
 router.post('/ai-tag-batch', requireAuth, async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.body.limit) || 8, 1), 20);
-  const ids = db.prepare(`SELECT id FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='') ORDER BY COALESCE(stock_meters,0) DESC LIMIT ?`).all(limit).map(r => r.id);
+  if (!_canAiTag(req.session.user)) return res.status(403).json({ error: '只有老闆與倉管可以執行 AI 花色分析' });
+  const cap = Math.min(Math.max(Number(req.body.limit) || 40, 1), 60);
+  const ids = db.prepare(`SELECT id FROM materials WHERE ${UNTAGGED} ORDER BY COALESCE(stock_meters,0) DESC LIMIT ?`).all(cap).map(r => r.id);
   const mai = require('../lib/material-ai');
-  let done = 0; const errors = [];
-  for (const id of ids) { try { await mai.tagMaterial(id); done++; } catch (e) { errors.push({ id, error: e.message }); } }
-  const left = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='')`).get().c;
-  res.json({ ok: true, done, tried: ids.length, remaining: left, errors });
+  const start = Date.now();
+  let done = 0, failed = 0; const errors = [];
+  for (const id of ids) {
+    if (Date.now() - start > 18000) break;   // 保守 18 秒內回應
+    try { await mai.tagMaterial(id); done++; }
+    catch (e) { failed++; try { db.prepare('UPDATE materials SET ai_tag_failed=1 WHERE id=?').run(id); } catch (_) {} if (errors.length < 5) errors.push({ id, error: e.message }); }
+  }
+  const remaining = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${UNTAGGED}`).get().c;
+  res.json({ ok: true, done, failed, remaining, errors });
 });
 
 // 品牌下拉清單
