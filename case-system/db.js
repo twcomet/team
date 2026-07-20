@@ -3051,6 +3051,26 @@ db.exec(`
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+// 加價項目 seed（空表才帶入；佳樺 2026-07 標準表＋交代：拆裝電子鎖 5000 等）
+try {
+  if (!db.prepare(`SELECT COUNT(*) n FROM catalog_addons`).get().n) {
+    const _insAddon = db.prepare(`INSERT INTO catalog_addons (name,description,price_type,base_price,max_price,requires_photo,applies_to,sort_order) VALUES (?,?,?,?,?,?,?,?)`);
+    const _addons = [
+      ['拆裝電子鎖', '大門貼膜前後拆裝電子鎖', 'fixed', 5000, null, 0, 'door', 1],
+      ['造型門片（非平面）', '非平面門片，需傳照片評估', 'range', 2000, 5000, 1, 'door', 2],
+      ['露出溝槽', '溝槽造型露出', 'fixed', 3000, null, 0, 'door', 3],
+      ['貼溝槽', '溝槽貼膜（易浮起、後續浮起不保固）', 'fixed', 3000, null, 0, 'door', 4],
+      ['兩層以上門框', '門框加價，需傳照片評估', 'range', 1000, 5000, 1, 'door', 5],
+      ['內子母門', '子母門加價，需傳照片評估', 'range', 3000, 5000, 1, 'door', 6],
+      ['百葉通風口', '不建議貼膜；如需施工加一式（不保固）', 'fixed', 3000, null, 0, 'door', 7],
+      ['底板處理費', '底板不平／生鏽／溝槽，需油漆工補土打磨（金額另議）', 'fixed', 0, null, 1, 'all', 8],
+      ['矽利康收邊', '門框與牆面交界打矽利康收邊（金額另議）', 'fixed', 0, null, 0, 'all', 9],
+      ['高空作業（300cm↑）／倒吊', '高空或倒吊天花板，每才加價', 'per_chi', 20, null, 0, 'all', 10],
+    ];
+    _addons.forEach(a => _insAddon.run(...a));
+    console.log('✅ 加價項目 seed 完成（' + _addons.length + ' 項）');
+  }
+} catch (e) { console.warn('[addons seed]', e.message); }
 
 // 貼膜須知模板庫
 db.exec(`
