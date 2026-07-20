@@ -117,7 +117,9 @@
       <button class="es-tab" onclick="switchTab('glass')">玻璃</button>
       <button class="es-tab" onclick="switchTab('doors')">門（固定價）</button>
       <button class="es-tab" onclick="switchTab('freight')">車馬費</button>
+      <button class="es-tab" onclick="switchTab('futures')">期貨運費</button>
       <button class="es-tab" onclick="switchTab('lowmin')">低消</button>
+      <button class="es-tab" onclick="switchTab('addons')">加價項目</button>
     </div>
 
     <div id="panel-films" class="es-panel active">
@@ -149,6 +151,10 @@
       </div>
     </div>
     <div id="panel-glass" class="es-panel">
+      <div class="es-card" id="card-glassfilms" style="display:none"><h3>玻璃膜（連工帶料每才單價）</h3>
+        <p class="es-hint">穩得長虹玻璃膜、日本三井特殊膜等，屬於玻璃膜、已從「裝潢膜」移到這裡。牆面/系統櫃/造型三欄通常填同一個每才價。<span style="color:#b45309">與下方「玻璃每才單價」若有重複，確認後可擇一刪除。</span></p>
+        <div class="es-scroll"><table class="es-table"><thead><tr id="th-glassfilms"></tr></thead><tbody id="tb-glassfilms"></tbody></table></div>
+      </div>
       <div class="es-card"><h3>玻璃每才單價</h3><p class="es-hint">分業主 / 設計師兩價。寬度＝玻璃膜寬（拼料模式依此算才數）；長度＝每卷米。</p>
         <div class="es-scroll"><table class="es-table"><thead><tr><th>類別</th><th>型號</th><th>業主/才</th><th>設計師/才</th><th>寬度cm</th><th>長度米</th><th>啟用</th><th></th></tr></thead><tbody id="tb-glass"></tbody></table></div>
       </div>
@@ -186,6 +192,46 @@
         <button class="es-btn es-btn-primary es-btn-sm" style="margin-top:10px" onclick="saveLowmin()">儲存低消</button> <span id="lm-saved" class="es-saved"></span>
       </div>
     </div>
+
+    <div id="panel-futures" class="es-panel">
+      <div class="es-card"><h3>期貨運費（進口／期貨膜款）</h3>
+        <p class="es-hint">期貨（需下單進口）膜款的運費。設計師優惠金額＝最低可以談到的價格；業務報價時在「金額 ～ 設計師優惠」之間抓。</p>
+        <div class="es-scroll"><table class="es-table"><thead><tr>
+          <th>運費名稱</th><th>運送方式</th><th>等待時間</th><th>金額</th><th>設計師優惠(最低)</th><th>啟用</th><th></th>
+        </tr></thead><tbody id="tb-futures"></tbody></table></div>
+      </div>
+      <div class="es-card"><h3>＋ 新增期貨運費</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+          <div><label style="font-size:11px;color:#6b7280">運費名稱</label><br><input id="nff-name" style="width:150px;text-align:left"></div>
+          <div><label style="font-size:11px;color:#6b7280">運送方式</label><br><input id="nff-method" style="width:90px;text-align:left" placeholder="空運/海運"></div>
+          <div><label style="font-size:11px;color:#6b7280">等待時間</label><br><input id="nff-lead" style="width:130px;text-align:left" placeholder="7~10 個工作天"></div>
+          <div><label style="font-size:11px;color:#6b7280">金額</label><br><input id="nff-amount" type="number" style="width:80px"></div>
+          <div><label style="font-size:11px;color:#6b7280">設計師優惠(最低)</label><br><input id="nff-min" type="number" style="width:90px"></div>
+          <button class="es-btn es-btn-primary" onclick="addFutures()">＋ 新增</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-addons" class="es-panel">
+      <div class="es-card"><h3>加價項目（業務估價時可勾選）</h3>
+        <p class="es-hint">這裡設定好，業務在估價計算機就會看到「加價項目」清單，勾選即自動加金額。定價方式：<b>固定</b>＝一口價；<b>區間</b>＝業務在最低~最高間抓；<b>每才</b>＝按才數加價。</p>
+        <div class="es-scroll"><table class="es-table"><thead><tr>
+          <th>項目名稱</th><th>說明</th><th>定價方式</th><th>金額/起價</th><th>最高</th><th>需照片</th><th>適用</th><th>啟用</th><th></th>
+        </tr></thead><tbody id="tb-addons"></tbody></table></div>
+      </div>
+      <div class="es-card"><h3>＋ 新增加價項目</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+          <div><label style="font-size:11px;color:#6b7280">項目名稱</label><br><input id="na-name" style="width:140px;text-align:left"></div>
+          <div><label style="font-size:11px;color:#6b7280">說明</label><br><input id="na-desc" style="width:200px;text-align:left"></div>
+          <div><label style="font-size:11px;color:#6b7280">定價方式</label><br><select id="na-ptype" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="fixed">固定價</option><option value="range">區間價</option><option value="per_chi">每才加價</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">金額/起價</label><br><input id="na-base" type="number" style="width:80px"></div>
+          <div><label style="font-size:11px;color:#6b7280">最高(區間)</label><br><input id="na-max" type="number" style="width:80px"></div>
+          <div><label style="font-size:11px;color:#6b7280">適用</label><br><select id="na-applies" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="all">全部</option><option value="door">門類</option><option value="glass">玻璃</option><option value="film">膜料</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">需照片</label><br><input id="na-photo" type="checkbox" style="width:auto;margin-top:8px"></div>
+          <button class="es-btn es-btn-primary" onclick="addAddon()">＋ 新增</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -208,7 +254,9 @@ async function load() {
   DATA = await fetch(API + '/prices').then(r => r.json());
   const c = await fetch(API + '/catalog').then(r => r.json());
   DATA.filmCat = c.films; DATA.doorCat = c.doors; DATA.isOwner = c.isOwner;
-  renderFilms(); renderGlass(); renderDoors(); renderFreight();
+  DATA.futures = await fetch(API + '/futures-freight').then(r => r.json()).catch(()=>[]);
+  DATA.addons  = await fetch('/api/quote-settings/addons').then(r => r.json()).catch(()=>[]);
+  renderFilms(); renderGlass(); renderDoors(); renderFreight(); renderFutures(); renderAddons();
   document.getElementById('lm-owner').value = DATA.lowmin.owner;
   document.getElementById('lm-designer').value = DATA.lowmin.designer;
 }
@@ -233,12 +281,15 @@ function updCai(inp){
   const c = tr.querySelector('.caiC'); if(c) c.textContent = caiVal(cost, w);
   const m = tr.querySelector('.caiM'); if(m) m.textContent = caiMargin(perm, cost);
 }
+const GLASS_FILM_BRANDS = ['wonder','special']; // 穩得/特殊膜＝玻璃膜，移到「玻璃」分頁顯示
 function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';
-  document.getElementById('th-films').innerHTML =
+  const thHtml =
     '<th></th><th>系列/型號</th><th>花色</th><th>備註<span style="font-weight:400;color:#9ca3af">·對應</span></th><th>防焰</th><th>寬度cm</th><th>長度米</th><th>牌價/米(未稅)</th><th>電商價/米</th><th class="es-cai">牌價/才</th><th>牆面/才</th><th>系統櫃/才</th><th>造型/才</th>'
     + (owner ? '<th style="color:#b45309">成本/米 🔒</th><th class="es-cai" style="color:#b45309">成本/才 🔒</th><th class="es-cai" style="color:#b45309">毛利率 🔒</th>' : '') + '<th>啟用</th><th class="es-actions"></th>';
+  document.getElementById('th-films').innerHTML = thHtml;
+  const thgf = document.getElementById('th-glassfilms'); if (thgf) thgf.innerHTML = thHtml;
   const colspan = owner ? 18 : 15;
   // 排序：品牌 PAROI→LG(BENIF)→Bodaq→3M；同品牌 亞洲在前、韓版在後；韓版內 不防焰在前、防焰在後
   const BRANK = { paroi:1, benif:2, bodaq:3, '3m':4 };
@@ -248,11 +299,14 @@ function renderFilms() {
     if (a.region) { const fa = a.fireproof==='防焰'?1:0, fb = b.fireproof==='防焰'?1:0; if (fa !== fb) return fa - fb; }
     return (a.sort_order||0) - (b.sort_order||0);
   });
-  let lastGrp = '', h = '';
+  let lastGrp = '', h = '', lastGGrp = '', gh = '';
   films.forEach(f => {
+    const isGlass = GLASS_FILM_BRANDS.includes(f.brand);
     const gkey = (f.brand||'') + '|' + (f.region||'');
-    if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; }
-    h += `<tr data-id="${f.id}" data-brand="${esc(f.brand||'')}">
+    let row = '';
+    if (isGlass) { if (gkey !== lastGGrp) { lastGGrp = gkey; const gl = (BRAND[f.brand]||f.brand); gh += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; } }
+    else { if (gkey !== lastGrp) { lastGrp = gkey; const gl = (BRAND[f.brand]||f.brand) + (f.region ? ' <span style="color:#0e6b5e">'+esc(f.region)+'版</span>' : ''); h += `<tr class="es-grp"><td colspan="${colspan}">${gl}</td></tr>`; } }
+    row = `<tr data-id="${f.id}" data-brand="${esc(f.brand||'')}">
       <td></td>
       <td><textarea data-k="asia_code" class="es-codes" rows="1" oninput="autoGrow(this)" title="系列/型號碼">${esc(f.asia_code||'')}</textarea></td>
       <td><input data-k="color" value="${esc(f.color||'')}" style="width:96px;text-align:left"></td>
@@ -274,9 +328,12 @@ function renderFilms() {
       <td><input type="checkbox" ${f.active?'checked':''} data-k="active" style="width:auto"></td>
       <td class="es-actions" style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('film-catalog',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFilm(${f.id})">刪</button><span class="es-saved" style="display:block;font-size:11px"></span></td>
     </tr>`;
+    if (isGlass) gh += row; else h += row;
   });
   document.getElementById('tb-films').innerHTML = h;
-  document.querySelectorAll('#tb-films textarea.es-codes').forEach(autoGrow);
+  const tbgf = document.getElementById('tb-glassfilms'); if (tbgf) tbgf.innerHTML = gh;
+  const cardgf = document.getElementById('card-glassfilms'); if (cardgf) cardgf.style.display = gh ? '' : 'none';
+  document.querySelectorAll('#tb-films textarea.es-codes, #tb-glassfilms textarea.es-codes').forEach(autoGrow);
 }
 function autoGrow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
 async function delFilm(id){
@@ -378,9 +435,11 @@ async function saveRow(kind, btn){ return saveRowTr(kind, btn.closest('tr')); }
 // 膜料表：改完欄位（離開輸入框）自動儲存，不必找最右邊的儲存鈕
 document.addEventListener('change', e => {
   const inp = e.target;
-  if (!inp || !inp.matches || !inp.matches('#tb-films [data-k]')) return;
-  const tr = inp.closest('tr[data-id]');
-  if (tr) saveRowTr('film-catalog', tr);
+  if (!inp || !inp.matches) return;
+  if (inp.matches('#tb-films [data-k]') || inp.matches('#tb-glassfilms [data-k]')) {
+    const tr = inp.closest('tr[data-id]');
+    if (tr) saveRowTr('film-catalog', tr);
+  }
 });
 // 依公式重算連工帶料：系統櫃＝牌價/才+100、牆面+70、造型+125（僅 bodaq/benif/paroi）
 async function recalcConnectWork(){
@@ -410,11 +469,87 @@ async function recalcConnectWork(){
   setTimeout(()=>{ msg.textContent=''; }, 4000);
 }
 async function saveLowmin() {
-  const r = await fetch(`${API}/lowmin`, { method:'PUT', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ owner: document.getElementById('lm-owner').value, designer: document.getElementById('lm-designer').value }) });
   const span = document.getElementById('lm-saved');
-  span.textContent = r.ok ? '✓ 已存' : '✗ 失敗'; setTimeout(()=>span.textContent='', 1500);
+  span.textContent = '儲存中…'; span.style.color = '#6b7280';
+  try {
+    const r = await fetch(`${API}/lowmin`, { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ owner: document.getElementById('lm-owner').value, designer: document.getElementById('lm-designer').value }) });
+    if (r.ok) { span.textContent = '✓ 已存'; span.style.color = '#16a34a'; esToast('✓ 低消已儲存'); }
+    else { const e = (await r.json().catch(()=>({}))).error || ('HTTP ' + r.status); span.textContent = '✗ ' + e; span.style.color = '#dc2626'; esToast('✗ ' + e, false); }
+  } catch (err) { span.textContent = '✗ ' + err.message; span.style.color = '#dc2626'; esToast('✗ ' + err.message, false); }
+  setTimeout(()=>{ if(span.textContent.startsWith('✓')) span.textContent=''; }, 2500);
 }
+
+// ── 期貨運費 ─────────────────────────────────────────────────────
+function renderFutures() {
+  const tb = document.getElementById('tb-futures'); if (!tb) return;
+  tb.innerHTML = (DATA.futures||[]).map(f => `
+    <tr data-id="${f.id}">
+      <td><input data-k="name" value="${esc(f.name||'')}" style="width:160px;text-align:left"></td>
+      <td><input data-k="ship_method" value="${esc(f.ship_method||'')}" style="width:90px;text-align:left"></td>
+      <td><input data-k="lead_time" value="${esc(f.lead_time||'')}" style="width:140px;text-align:left"></td>
+      <td><input type="number" data-k="amount" value="${f.amount ?? 0}"></td>
+      <td><input type="number" data-k="designer_min" value="${f.designer_min ?? ''}" placeholder="—"></td>
+      <td><input type="checkbox" data-k="active" ${f.active?'checked':''} style="width:auto"></td>
+      <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('futures-freight',this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delFutures(${f.id})">刪</button><span class="es-saved"></span></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="color:#9ca3af;padding:12px">尚無期貨運費，請用下方表單新增。</td></tr>`;
+}
+async function addFutures() {
+  const body = { name:document.getElementById('nff-name').value, ship_method:document.getElementById('nff-method').value,
+    lead_time:document.getElementById('nff-lead').value, amount:document.getElementById('nff-amount').value, designer_min:document.getElementById('nff-min').value };
+  if (!body.name) { alert('請填運費名稱'); return; }
+  const r = await fetch(`${API}/futures-freight`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (r.ok) { ['nff-name','nff-method','nff-lead','nff-amount','nff-min'].forEach(id=>document.getElementById(id).value=''); load(); }
+  else alert('新增失敗');
+}
+async function delFutures(id) { if(!confirm('確定刪除這筆期貨運費？'))return; await fetch(`${API}/futures-freight/${id}`,{method:'DELETE'}); load(); }
+
+// ── 加價項目（與報價單共用 catalog_addons）───────────────────────
+const APTYPE = { fixed:'固定價', range:'區間價', per_chi:'每才加價' };
+const AAPPLY = { all:'全部', door:'門類', glass:'玻璃', film:'膜料' };
+function renderAddons() {
+  const tb = document.getElementById('tb-addons'); if (!tb) return;
+  tb.innerHTML = (DATA.addons||[]).map(a => `
+    <tr data-id="${a.id}">
+      <td><input data-k="name" value="${esc(a.name||'')}" style="width:130px;text-align:left"></td>
+      <td><input data-k="description" value="${esc(a.description||'')}" style="width:220px;text-align:left;color:#6b7280"></td>
+      <td><select data-k="price_type" style="width:auto">
+        <option value="fixed"${a.price_type==='fixed'?' selected':''}>固定價</option>
+        <option value="range"${a.price_type==='range'?' selected':''}>區間價</option>
+        <option value="per_chi"${a.price_type==='per_chi'?' selected':''}>每才加價</option>
+      </select></td>
+      <td><input type="number" data-k="base_price" value="${a.base_price ?? 0}"></td>
+      <td><input type="number" data-k="max_price" value="${a.max_price ?? ''}" placeholder="—"></td>
+      <td><input type="checkbox" data-k="requires_photo" ${a.requires_photo?'checked':''} style="width:auto"></td>
+      <td><select data-k="applies_to" style="width:auto">
+        <option value="all"${a.applies_to==='all'?' selected':''}>全部</option>
+        <option value="door"${a.applies_to==='door'?' selected':''}>門類</option>
+        <option value="glass"${a.applies_to==='glass'?' selected':''}>玻璃</option>
+        <option value="film"${a.applies_to==='film'?' selected':''}>膜料</option>
+      </select></td>
+      <td><input type="checkbox" data-k="active" checked style="width:auto"></td>
+      <td style="white-space:nowrap"><button class="es-btn es-btn-primary es-btn-sm" onclick="saveAddon(this)">儲存</button><button class="es-btn es-btn-danger es-btn-sm" onclick="delAddon(${a.id})">刪</button><span class="es-saved"></span></td>
+    </tr>`).join('') || `<tr><td colspan="9" style="color:#9ca3af;padding:12px">尚無加價項目，請用下方表單新增。</td></tr>`;
+}
+async function saveAddon(btn) {
+  const tr = btn.closest('tr'); const id = tr.dataset.id; const body = {};
+  tr.querySelectorAll('[data-k]').forEach(inp => { body[inp.dataset.k] = inp.type==='checkbox' ? inp.checked : inp.value; });
+  const span = tr.querySelector('.es-saved'); if(span){ span.textContent='儲存中…'; span.style.color='#6b7280'; }
+  const r = await fetch(`/api/quote-settings/addons/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (r.ok) { if(span){ span.textContent='✓ 已存'; span.style.color='#16a34a'; setTimeout(()=>span.textContent='',1500);} esToast('✓ 已儲存'); }
+  else { if(span){ span.textContent='✗ 失敗'; span.style.color='#dc2626'; } esToast('✗ 加價項目儲存失敗', false); }
+}
+async function addAddon() {
+  const body = { name:document.getElementById('na-name').value, description:document.getElementById('na-desc').value,
+    price_type:document.getElementById('na-ptype').value, base_price:document.getElementById('na-base').value,
+    max_price:document.getElementById('na-max').value||null, applies_to:document.getElementById('na-applies').value,
+    requires_photo:document.getElementById('na-photo').checked };
+  if (!body.name) { alert('請填項目名稱'); return; }
+  const r = await fetch('/api/quote-settings/addons', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (r.ok) { ['na-name','na-desc','na-base','na-max'].forEach(id=>document.getElementById(id).value=''); document.getElementById('na-photo').checked=false; load(); }
+  else alert('新增失敗');
+}
+async function delAddon(id) { if(!confirm('確定停用這個加價項目？'))return; await fetch(`/api/quote-settings/addons/${id}`,{method:'DELETE'}); load(); }
 function switchTab(t) {
   document.querySelectorAll('.es-tab').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');

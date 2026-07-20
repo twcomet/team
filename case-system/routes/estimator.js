@@ -122,9 +122,33 @@ router.put('/freight/:id', requireAuth, requireEdit, (req, res) => {
 });
 
 router.put('/lowmin', requireAuth, requireEdit, (req, res) => {
-  const { owner, designer } = req.body;
-  db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_owner',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(Number(owner)||0));
-  db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_designer',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(Number(designer)||0));
+  try {
+    const { owner, designer } = req.body || {};
+    db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_owner',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(Number(owner)||0));
+    db.prepare(`INSERT INTO settings (key,value) VALUES ('est_lowmin_designer',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(Number(designer)||0));
+    res.json({ ok: true });
+  } catch (e) { console.error('[lowmin save]', e); res.status(500).json({ error: '低消儲存失敗：' + e.message }); }
+});
+
+// ── 期貨運費 ─────────────────────────────────────────────────────
+router.get('/futures-freight', requireAuth, (req, res) => {
+  res.json(db.prepare(`SELECT * FROM est_futures_freight WHERE active=1 ORDER BY sort_order, id`).all());
+});
+router.post('/futures-freight', requireAuth, requireEdit, (req, res) => {
+  const b = req.body || {};
+  const maxSo = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_futures_freight`).get().n;
+  const info = db.prepare(`INSERT INTO est_futures_freight (name,ship_method,lead_time,amount,designer_min,sort_order) VALUES (?,?,?,?,?,?)`)
+    .run(b.name||'', b.ship_method||'', b.lead_time||'', Number(b.amount)||0, b.designer_min===''||b.designer_min==null?null:Number(b.designer_min), maxSo);
+  res.json({ ok: true, id: info.lastInsertRowid });
+});
+router.put('/futures-freight/:id', requireAuth, requireEdit, (req, res) => {
+  const b = req.body || {};
+  db.prepare(`UPDATE est_futures_freight SET name=?,ship_method=?,lead_time=?,amount=?,designer_min=?,active=? WHERE id=?`)
+    .run(b.name||'', b.ship_method||'', b.lead_time||'', Number(b.amount)||0, b.designer_min===''||b.designer_min==null?null:Number(b.designer_min), b.active?1:0, req.params.id);
+  res.json({ ok: true });
+});
+router.delete('/futures-freight/:id', requireAuth, requireEdit, (req, res) => {
+  db.prepare(`UPDATE est_futures_freight SET active=0 WHERE id=?`).run(req.params.id);
   res.json({ ok: true });
 });
 

@@ -3751,6 +3751,29 @@ try {
   console.log('✅ 估價價目表就緒（est_films/glass/doors/freight；空表才 seed 預設值，使用者改動不覆蓋）');
 } catch (e) { console.warn('[est pricing seed]', e.message); }
 
+// ── 期貨運費（進口／期貨膜款的運費：名稱 × 運送方式 × 等待時間 × 金額 × 設計師優惠最低）──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS est_futures_freight (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT,               -- 運費名稱（例：韓國期貨空運）
+    ship_method  TEXT,               -- 運送方式（空運／海運／併櫃…）
+    lead_time    TEXT,               -- 等待時間（文字，例：7~10 個工作天）
+    amount       REAL DEFAULT 0,     -- 標準金額
+    designer_min REAL,               -- 給設計師的優惠金額（最低可到）
+    sort_order   INTEGER DEFAULT 0,
+    active       INTEGER DEFAULT 1
+  );
+`);
+try {
+  if (!db.prepare(`SELECT COUNT(*) n FROM est_futures_freight`).get().n) {
+    const _insFut = db.prepare(`INSERT INTO est_futures_freight (name,ship_method,lead_time,amount,designer_min,sort_order) VALUES (?,?,?,?,?,?)`);
+    [
+      ['韓國期貨（空運）', '空運', '7~10 個工作天', 6000, 4000, 1],
+      ['韓國期貨（海運）', '海運', '約 30~45 天',   3000, 2000, 2],
+    ].forEach(r => _insFut.run(...r));
+  }
+} catch (e) { console.warn('[futures freight seed]', e.message); }
+
 // ── 估價「重設計版」真實牌價（新表，不動舊 est_films；CREATE TABLE IF NOT EXISTS 最安全）──
 // est_film_catalog：裝潢膜 品牌×防焰×膜款，三種連工帶料每才價（plane牆面/cabinet系統櫃/shape造型）
 // est_door_catalog：門 大門/房門/防火門 三類固定價
