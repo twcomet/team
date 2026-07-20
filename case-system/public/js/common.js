@@ -190,6 +190,18 @@ async function loadUser() {
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
 
+  // 注入「相似花色查詢」選單（內部同仁）：放在 進銷存 → 排版工具 上方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="material-match"]')) return;
+    if (outsourced) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'material-match'; a.href = '/material-match';
+    a.innerHTML = '<span class="icon">🎨</span>相似花色查詢';
+    const anchor = nav.querySelector('[data-page="layout"]') || nav.querySelector('[data-page="material-usage"]');
+    if (anchor) anchor.insertAdjacentElement('beforebegin', a); else nav.appendChild(a);
+  })();
+
   // 注入「膜料牌價表」選單（業務／客服／老闆）：放在 進銷存 → 膜料使用紀錄下方
   (function() {
     const nav = document.querySelector('.sidebar-nav');

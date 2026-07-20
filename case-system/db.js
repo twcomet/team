@@ -1585,6 +1585,19 @@ _addCol('line_inquiries', 'ai_draft_at',           'DATETIME');
 _addCol('line_inquiries', 'ai_needs_human',        'INTEGER DEFAULT 0');
 _addCol('line_inquiries', 'ai_needs_human_reason', 'TEXT');
 
+// 相似花色查詢：分享給客戶的連結（勾選要顯示的機密欄位；免登入頁只回被允許的欄）
+db.exec(`CREATE TABLE IF NOT EXISTS material_share (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  token         TEXT UNIQUE,
+  material_ids  TEXT,            -- JSON 陣列
+  show_price    INTEGER DEFAULT 0,
+  show_stock    INTEGER DEFAULT 0,
+  show_location INTEGER DEFAULT 0,
+  show_branch   INTEGER DEFAULT 0,
+  created_by    INTEGER REFERENCES users(id),
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
 // 自家短網址（取代 TinyURL，避免第三方中轉預覽頁；停在自己網域）
 db.exec(`CREATE TABLE IF NOT EXISTS short_links (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

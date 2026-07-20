@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>相似花色查詢</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mm-wrap { padding:18px 20px 40px; }
+  .mm-filters { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+  .mm-f label { display:block; font-size:12px; color:var(--gray-500); margin-bottom:4px; font-weight:600; }
+  .mm-f input, .mm-f select { padding:8px 10px; border:1px solid var(--gray-300); border-radius:8px; font-size:14px; }
+  .mm-share-bar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; background:#fdf2f8; border:1px solid #fbcfe8; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
+  .mm-share-bar .lbl { font-size:12px; font-weight:800; color:#9d174d; }
+  .mm-chk { font-size:13px; display:inline-flex; align-items:center; gap:4px; cursor:pointer; color:#374151; }
+  .mm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+  .mm-card { background:#fff; border:1px solid var(--gray-200); border-radius:12px; overflow:hidden; position:relative; }
+  .mm-card.sel { border-color:#D40069; box-shadow:0 0 0 2px #fbcfe8; }
+  .mm-card .pick { position:absolute; top:8px; left:8px; width:20px; height:20px; z-index:2; cursor:pointer; }
+  .mm-thumb { width:100%; height:150px; object-fit:cover; background:#f3f4f6; display:block; }
+  .mm-thumb-empty { width:100%; height:150px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:13px; }
+  .mm-body { padding:10px 12px; }
+  .mm-brand { font-size:11px; color:#9ca3af; font-weight:700; }
+  .mm-model { font-size:14px; font-weight:800; color:var(--gray-900); }
+  .mm-model a { color:inherit; text-decoration:none; }
+  .mm-model a:hover { color:#D40069; text-decoration:underline; }
+  .mm-color { font-size:12px; color:var(--gray-600); margin-top:2px; }
+  .mm-meta { font-size:12px; color:var(--gray-500); margin-top:6px; line-height:1.7; }
+  .mm-meta b { color:#111827; }
+  .mm-empty { color:var(--gray-400); font-size:14px; padding:40px; text-align:center; }
+  .mm-linkbox { display:none; margin-top:12px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:12px 14px; }
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks" href="/my-tasks"><span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry" href="/cases-inquiry"><span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey" href="/cases-survey"><span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal" href="/cases-deal"><span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list" href="/quote-list"><span class="icon">📋</span>報價管理</a>
+  <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc" href="/material-calc"><span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="calendar" href="/calendar"><span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients" href="/clients"><span class="icon">👥</span>客戶管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials" href="/materials"><span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage"><span class="icon">📋</span>膜料使用紀錄</a>
+  <a class="nav-item" data-page="material-match" href="/material-match"><span class="icon">🎨</span>相似花色查詢</a>
+  <a class="nav-item" data-page="layout" href="/layout"><span class="icon">📐</span>排版工具</a>
+  <a class="nav-item" data-page="purchases" href="/purchases"><span class="icon">🚚</span>進貨管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave" href="/leave"><span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="profile" href="/profile"><span class="icon">🪪</span>我的個人資料</a>
+</nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <button class="logout-btn" id="logoutBtn">登出</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="top-bar"><span class="page-title">🎨 相似花色查詢</span></div>
+    <div class="mm-wrap">
+      <div class="mm-filters">
+        <div class="mm-f"><label>至少需要幾米</label><input type="number" id="fMin" min="0" step="0.1" value="0" style="width:110px" placeholder="例：10"></div>
+        <div class="mm-f"><label>品牌</label><select id="fBrand" style="min-width:140px"><option value="">全部品牌</option></select></div>
+        <div class="mm-f" style="flex:1;min-width:180px"><label>關鍵字（型號／花色）</label><input type="text" id="fQ" style="width:100%" placeholder="如 木紋、AA、WP052…" onkeydown="if(event.key==='Enter')doSearch()"></div>
+        <div class="mm-f"><button class="btn btn-primary" onclick="doSearch()">🔍 搜尋</button></div>
+      </div>
+
+      <div class="mm-share-bar">
+        <span class="lbl">分享給客戶時要顯示：</span>
+        <span style="font-size:12px;color:#6b7280">品牌／型號／圖片（一定顯示）</span>
+        <label class="mm-chk"><input type="checkbox" id="sPrice"> 每米單價</label>
+        <label class="mm-chk"><input type="checkbox" id="sStock"> 庫存米數 🔒</label>
+        <label class="mm-chk"><input type="checkbox" id="sLoc"> 貨架位置 🔒</label>
+        <label class="mm-chk"><input type="checkbox" id="sBranch"> 存放分店 🔒</label>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="doShare()">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
+      </div>
+      <div class="mm-linkbox" id="linkBox">
+        <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px">✅ 分享連結已產生（免登入，客戶點開即可看）</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="shareUrl" readonly style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #a7f3d0;border-radius:8px;font-size:13px;background:#fff">
+          <button class="btn btn-sm btn-primary" onclick="copyShareUrl(this)">複製</button>
+          <a id="shareOpen" href="#" target="_blank" class="btn btn-sm btn-ghost">開啟</a>
+        </div>
+      </div>
+
+      <div id="results"><div class="mm-empty">輸入條件後按「搜尋」，符合庫存米數的膜料會顯示在這裡。</div></div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let RESULTS = [];
+const picked = new Set();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function nt(n){ return '$'+(Number(n)||0).toLocaleString(); }
+function fmtM(n){ const v=Number(n)||0; return (Math.round(v*10)/10)+' 米'; }
+
+async function loadBrands(){
+  try { const bs = await fetch('/api/material-match/brands').then(r=>r.json());
+    document.getElementById('fBrand').innerHTML = '<option value="">全部品牌</option>' + bs.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  } catch(e){}
+}
+async function doSearch(){
+  const min = document.getElementById('fMin').value || 0;
+  const brand = document.getElementById('fBrand').value;
+  const q = document.getElementById('fQ').value.trim();
+  const p = new URLSearchParams({ min_meters: min }); if (brand) p.set('brand', brand); if (q) p.set('q', q);
+  const box = document.getElementById('results'); box.innerHTML = '<div class="mm-empty">搜尋中…</div>';
+  let rows; try { rows = await fetch('/api/material-match/search?'+p).then(r=>r.json()); } catch(e){ box.innerHTML='<div class="mm-empty">搜尋失敗</div>'; return; }
+  RESULTS = rows || []; renderResults();
+}
+function renderResults(){
+  const box = document.getElementById('results');
+  if (!RESULTS.length){ box.innerHTML='<div class="mm-empty">沒有符合條件（庫存 ≥ 指定米數）的膜料。</div>'; return; }
+  box.innerHTML = '<div class="mm-grid">' + RESULTS.map(r => {
+    const sel = picked.has(r.id);
+    const img = r.image_url ? `<img class="mm-thumb" src="${esc(r.image_url)}" loading="lazy" alt="">` : `<div class="mm-thumb-empty">（無花色圖）</div>`;
+    return `<div class="mm-card${sel?' sel':''}" id="card-${r.id}">
+      <input type="checkbox" class="pick" ${sel?'checked':''} onchange="togglePick(${r.id},this.checked)">
+      ${img}
+      <div class="mm-body">
+        <div class="mm-brand">${esc(r.brand||'')}</div>
+        <div class="mm-model"><a href="/materials?id=${r.id}" target="_blank" title="到膜料管理看使用歷程">${esc(r.model||'—')} ↗</a></div>
+        ${r.color?`<div class="mm-color">${esc(r.color)}</div>`:''}
+        <div class="mm-meta">
+          ${r.unit_price?`每米 <b>${nt(r.unit_price)}</b><br>`:''}
+          庫存 <b>${fmtM(r.stock_meters)}</b>　膜寬 ${r.width_cm||122}cm<br>
+          ${r.location?`貨架 ${esc(r.location)}　`:''}${r.branch?`<span style="color:#9ca3af">${esc(r.branch)}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id); document.getElementById('card-'+id)?.classList.toggle('sel',on); document.getElementById('selCount').textContent = picked.size; }
+async function doShare(){
+  if (!picked.size){ alert('請先勾選要分享的膜料（卡片左上角勾選框）'); return; }
+  const fields = { price: sPrice.checked, stock: sStock.checked, location: sLoc.checked, branch: sBranch.checked };
+  let j; try { j = await fetch('/api/material-match/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:[...picked], fields})}).then(r=>r.json()); }
+  catch(e){ alert('產生失敗'); return; }
+  if (!j.ok){ alert(j.error||'產生失敗'); return; }
+  const url = location.origin + '/m/' + j.token;
+  document.getElementById('shareUrl').value = url;
+  document.getElementById('shareOpen').href = url;
+  document.getElementById('linkBox').style.display = 'block';
+}
+function copyShareUrl(btn){ const i=document.getElementById('shareUrl'); i.select(); navigator.clipboard?.writeText(i.value).then(()=>{const o=btn.textContent;btn.textContent='✅ 已複製';setTimeout(()=>btn.textContent=o,1400);},()=>{}); }
+loadBrands();
+</script>
+</body>
+</html>

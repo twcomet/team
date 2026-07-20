@@ -105,6 +105,7 @@ app.use('/api/marketing',             require('./routes/marketing'));
 app.use('/api/invalid-reason-tags',   require('./routes/invalid-reason-tags'));
 app.use('/api/hr',                    require('./routes/hr'));
 app.use('/api/attendance',            require('./routes/attendance'));
+app.use('/api/material-match',        require('./routes/material-match'));
 app.use('/api/client-deposits',       require('./routes/client-deposits'));
 app.use('/api/contracts',             require('./routes/contracts'));
 app.use('/api/expenses',              require('./routes/expenses'));
@@ -244,6 +245,12 @@ app.get('/contract/view', requireAuth, (req, res) => {
 });
 app.get('/my-contracts', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'my-contracts.html'));
+});
+app.get('/material-match', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'material-match.html'));
+});
+app.get('/m/:token', (req, res) => {   // 免登入分享頁
+  res.sendFile(path.join(__dirname, 'public', 'material-share.html'));
 });
 app.get('/contract', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'contract.html'));
