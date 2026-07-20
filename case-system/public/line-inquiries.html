@@ -763,7 +763,13 @@ function renderAiEst() {
   const photos = aiEstPhotoStrip();
   const note = aiEstNote ? `<div style="margin-bottom:10px;padding:8px 11px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px">📝 AI 提醒：${escHtml(aiEstNote)}</div>` : '';
   if (!aiEstItems.length) {
-    body.innerHTML = `${photos}${note}<div style="padding:18px;text-align:center;color:var(--gray-500);font-size:13px">AI 從這通對話還判斷不出明確的估價品項，建議先請客人補照片／尺寸，或直接手動到估價機建立。</div>`;
+    body.innerHTML = `${photos}${note}
+      <div style="padding:14px 16px;text-align:center;color:var(--gray-500);font-size:13px;line-height:1.8">
+        AI 從這通對話還判斷不出明確的估價品項。你可以：<br>
+        ① 按下方「＋ 手動加一項」輸入品項名稱（例：系統櫃）再建草稿；<br>
+        ② 或直接按「建立估價草稿」——會把上面的照片一起帶進估價機，之後在估價機裡建品項。
+      </div>
+      <div style="text-align:center"><button onclick="aiEstAdd()" class="btn btn-ghost btn-sm">＋ 手動加一項（輸入品項名稱）</button></div>`;
     return;
   }
   const rows = aiEstItems.map((it, idx) => {
@@ -798,8 +804,7 @@ function aiEstEdit(idx, key, val) {
 function aiEstDel(idx) { aiEstItems.splice(idx, 1); renderAiEst(); }
 function aiEstAdd() { aiEstItems.push({ area:'', desc:'', w:0, h:0, qty:1, size_source:'未知', note:'' }); renderAiEst(); }
 async function createEstimateDraft() {
-  // 不強制填寬高：只要有品項就能建草稿（尺寸未知的先帶進去，寬高當 0，之後在估價機或現場丈量後補）
-  if (!aiEstItems.length) { showToast('至少要有一個品項才能建立草稿', 'error'); return; }
+  // 不強制填寬高，也不強制要有品項：沒品項也能建草稿，把客人照片直接帶進估價機，再於估價機建品項
   const btn = document.getElementById('aiEstGoBtn');
   btn.disabled = true; btn.textContent = '建立中…';
   // 每項依數量展開成估價機的「其他」品項（單價=0，客服到估價機選膜款定價；寬高未知帶 0）
