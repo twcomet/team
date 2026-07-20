@@ -41,6 +41,18 @@ function seedCatalogDefaults(force) {
       else { for (const origin of ['kr', 'jp']) for (const side of ['single', 'double']) for (const frame of ['no', 'yes']) ins.run(c, null, origin, side, frame, d[origin][side][frame], so++); }
     }
   }
+  // 一次性：把門價目對齊 2026.04 標準表（即使之前用舊價 seed 過也會更新到最新；使用者之後手動改動不再被蓋）
+  try {
+    if (!db.prepare(`SELECT 1 FROM settings WHERE key='est_doors_std_202604'`).get()) {
+      const updFire = db.prepare(`UPDATE est_door_catalog SET price=? WHERE cat='fire' AND size=? AND origin=? AND side=?`);
+      const updDoor = db.prepare(`UPDATE est_door_catalog SET price=? WHERE cat=? AND origin=? AND side=? AND frame=?`);
+      for (const [c, d] of Object.entries(_catData.DOORS)) {
+        if (d.sized) { for (const size of ['small', 'large', 'double']) for (const origin of ['kr', 'jp']) for (const side of ['single', 'double']) updFire.run(d[size][origin][side], size, origin, side); }
+        else { for (const origin of ['kr', 'jp']) for (const side of ['single', 'double']) for (const frame of ['no', 'yes']) updDoor.run(d[origin][side][frame], c, origin, side, frame); }
+      }
+      db.prepare(`INSERT OR IGNORE INTO settings (key,value) VALUES ('est_doors_std_202604','1')`).run();
+    }
+  } catch (e) { console.warn('[door std refresh]', e.message); }
 }
 
 // 只有老闆 / 管理員 / 有報價設定權限者可改價目
