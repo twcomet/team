@@ -558,6 +558,16 @@ input[type=number] { -moz-appearance: textfield; }
           </div>
         </div>
 
+        <!-- 從報價設定選膜料自動帶連工帶料每才價 -->
+        <div class="price-field" style="flex-wrap:wrap;gap:8px;align-items:center">
+          <label>從報價設定帶價</label>
+          <div class="price-iw" style="flex-wrap:wrap;gap:6px;justify-content:flex-start;position:static">
+            <select id="mcBrand" onchange="mcBrandChange()" style="padding:8px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px"><option value="">選品牌…</option></select>
+            <select id="mcSeries" onchange="mcApplyPrice()" style="padding:8px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px;max-width:230px"><option value="">選系列/型號…</option></select>
+            <select id="mcWork" onchange="mcApplyPrice()" style="padding:8px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px"><option value="plane">牆面</option><option value="cabinet">系統櫃門片</option><option value="shape">造型</option></select>
+          </div>
+        </div>
+
         <!-- 4. 報價 -->
         <div class="price-field">
           <label>連工帶料單價</label>
@@ -1201,6 +1211,34 @@ input[type=number] { -moz-appearance: textfield; }
     return `${c.case_number} ${c.title}（${c.client_name || '無客戶'}）`;
   }
 
+  // ── 從「報價設定」(est_film_catalog) 帶連工帶料每才價 ──
+  let MC_CAT = [];
+  const MC_BRAND = { bodaq:'Bodaq', benif:'BENIF', paroi:'PAROI', '3m':'3M', carlife:'CarLife 隔熱紙', wonder:'穩得', special:'特殊膜' };
+  async function mcLoadCatalog() {
+    try { MC_CAT = await fetch('/api/materials/film-catalog').then(r => r.ok ? r.json() : []); } catch (e) { MC_CAT = []; }
+    const bs = [...new Set(MC_CAT.map(r => r.brand).filter(Boolean))];
+    const bsel = document.getElementById('mcBrand');
+    if (bsel) bsel.innerHTML = '<option value="">選品牌…</option>' + bs.map(b => `<option value="${b}">${MC_BRAND[b] || b}</option>`).join('');
+  }
+  function mcBrandChange() {
+    const b = document.getElementById('mcBrand').value;
+    const ssel = document.getElementById('mcSeries');
+    const rows = MC_CAT.filter(r => r.brand === b && (r.asia_code || r.color));
+    ssel.innerHTML = '<option value="">選系列/型號…</option>' + rows.map(r => {
+      const i = MC_CAT.indexOf(r);
+      const lbl = [r.asia_code, r.color, r.region ? '(' + r.region + ')' : ''].filter(Boolean).join(' ');
+      return `<option value="${i}">${lbl}</option>`;
+    }).join('');
+    mcApplyPrice();
+  }
+  function mcApplyPrice() {
+    const i = document.getElementById('mcSeries').value;
+    if (i === '' || !MC_CAT[i]) return;
+    const work = document.getElementById('mcWork').value;
+    const price = Number(MC_CAT[i][work]) || 0;
+    if (price > 0) { document.getElementById('unitPrice').value = price; calculate(); }
+  }
+  window.mcBrandChange = mcBrandChange; window.mcApplyPrice = mcApplyPrice;
   async function initCaseIntegration() {
     await loadUser();
     highlightNav('material-calc');
@@ -1382,6 +1420,7 @@ input[type=number] { -moz-appearance: textfield; }
   addRow();
   updateSaveBox();
   initCaseIntegration().catch(console.error);
+  mcLoadCatalog();   // 載入報價設定膜款供選單帶價
 </script>
 </body>
 </html>
