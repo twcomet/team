@@ -31,12 +31,13 @@ router.get('/search', requireAuth, (req, res) => {
   }
   const rows = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
-           m.stock_meters, m.location, m.width_cm, o.name AS branch
+           m.stock_meters, m.location, m.width_cm, m.ai_tags, o.name AS branch
     FROM materials m LEFT JOIN orgs o ON o.id = m.org_id
     WHERE ${where.join(' AND ')}
     ORDER BY COALESCE(m.stock_meters,0) DESC, m.brand, m.model
     LIMIT 200
   `).all(...params);
+  rows.forEach(r => { r.ai_tags = _parseTags(r.ai_tags); });
   res.json(rows);
 });
 
@@ -69,16 +70,29 @@ function _simScore(seed, cand) {
   if (Math.abs(w1 - w2) <= 8) s += 1;                          // 膜寬相近（可互換施工）
   return s;
 }
+function _parseTags(s) { if (!s) return null; try { const t = JSON.parse(s); return t && typeof t === 'object' ? t : null; } catch (_) { return null; } }
+// AI 視覺標籤比對分數（兩支都有 AI 標籤時使用，權重高於純文字）
+function _tagScore(a, b) {
+  let s = 0;
+  if (a.grain && b.grain && a.grain === b.grain) s += 6;      // 同紋路類型
+  if (a.tone && b.tone && a.tone === b.tone) s += 3;          // 同明暗
+  const ah = new Set(a.hue || []), bh = b.hue || [];
+  for (const h of bh) if (ah.has(h)) s += 2;                  // 共同色系
+  const as = new Set(a.style || []), bs = b.style || [];
+  for (const st of bs) if (as.has(st)) s += 1;                // 同風格
+  return s;
+}
 router.get('/similar', requireAuth, (req, res) => {
   const id  = Number(req.query.id) || 0;
   const min = Number(req.query.min_meters) || 0;
   if (!id) return res.json([]);
-  const seed = db.prepare(`SELECT id, brand, model, color, spec, width_cm FROM materials WHERE id=?`).get(id);
+  const seed = db.prepare(`SELECT id, brand, model, color, spec, width_cm, ai_tags FROM materials WHERE id=?`).get(id);
   if (!seed) return res.json([]);
   const sp = _profile(seed);
+  const seedTags = _parseTags(seed.ai_tags);
   const rows = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
-           m.stock_meters, m.location, m.width_cm, o.name AS branch
+           m.stock_meters, m.location, m.width_cm, m.ai_tags, o.name AS branch
     FROM materials m LEFT JOIN orgs o ON o.id = m.org_id
     WHERE ${FILM} AND COALESCE(m.stock_meters,0) >= ?
       AND TRIM(LOWER(COALESCE(m.model,''))) <> TRIM(LOWER(COALESCE(?,'')))
@@ -93,12 +107,47 @@ router.get('/similar', requireAuth, (req, res) => {
   const noSeedText = !sp.hasText || (!sp.grain.size && !sp.hue.size);
   const scored = Object.values(bestByModel).map(r => {
     const cp = _profile(r);
-    let s = _simScore({ ...sp, brand: seed.brand, width_cm: seed.width_cm }, { ...cp, brand: r.brand, width_cm: r.width_cm });
-    // 基準膜料沒有花色文字可比對時：退而求其次，同品牌＋膜寬相近先推
-    if (noSeedText) { s = 0; if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 3; if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1; }
-    return { r, s };
-  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 12).map(x => x.r);
-  res.json({ seed: { id: seed.id, brand: seed.brand, model: seed.model, color: seed.color }, items: scored });
+    const candTags = _parseTags(r.ai_tags);
+    let s = 0, ai = false;
+    if (seedTags && candTags) {                                // 兩支都有 AI 花色標籤 → 用視覺比對（較準）
+      s = _tagScore(seedTags, candTags);
+      if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 1;
+      if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1;
+      if (s > 0) { s += 20; ai = true; }                       // AI 命中者整體排在文字猜測之上
+    } else if (noSeedText) {                                   // 基準膜料沒有花色文字可比對：同品牌＋膜寬相近先推
+      if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 3;
+      if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1;
+    } else {                                                   // 純文字規則比對
+      s = _simScore({ ...sp, brand: seed.brand, width_cm: seed.width_cm }, { ...cp, brand: r.brand, width_cm: r.width_cm });
+    }
+    if (candTags) r._tags = candTags;
+    return { r, s, ai };
+  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 12).map(x => ({ ...x.r, matched_by: x.ai ? 'ai' : 'text', ai_tags: x.r._tags || null, _tags: undefined }));
+  res.json({ seed: { id: seed.id, brand: seed.brand, model: seed.model, color: seed.color, ai_tags: seedTags }, items: scored, seed_tagged: !!seedTags });
+});
+
+// 尚未 AI 分析、但有花色圖的膜料數量
+router.get('/untagged-count', requireAuth, (req, res) => {
+  const n = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='')`).get().c;
+  const total = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>''`).get().c;
+  res.json({ untagged: n, with_image: total });
+});
+
+// AI 分析單一膜料花色
+router.post('/ai-tag/:id', requireAuth, async (req, res) => {
+  try { const tags = await require('../lib/material-ai').tagMaterial(Number(req.params.id)); res.json({ ok: true, tags }); }
+  catch (e) { res.status(400).json({ error: e.message || 'AI 分析失敗' }); }
+});
+
+// 批次 AI 分析：一次處理 N 支「有花色圖但尚未分析」的膜料（預設 8 支，避免逾時／爆量）
+router.post('/ai-tag-batch', requireAuth, async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.body.limit) || 8, 1), 20);
+  const ids = db.prepare(`SELECT id FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='') ORDER BY COALESCE(stock_meters,0) DESC LIMIT ?`).all(limit).map(r => r.id);
+  const mai = require('../lib/material-ai');
+  let done = 0; const errors = [];
+  for (const id of ids) { try { await mai.tagMaterial(id); done++; } catch (e) { errors.push({ id, error: e.message }); } }
+  const left = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='')`).get().c;
+  res.json({ ok: true, done, tried: ids.length, remaining: left, errors });
 });
 
 // 品牌下拉清單

@@ -3277,6 +3277,8 @@ _addCol('materials', 'fire_retardant','INTEGER DEFAULT 0');
 _addCol('materials', 'width_cm',      'REAL DEFAULT 122');
 _addCol('materials', 'image_url',     'TEXT');
 _addCol('materials', 'image_public_id','TEXT');
+_addCol('materials', 'ai_tags',       'TEXT');       // 相似花色查詢：AI 視覺標籤 JSON {grain,tone,hue[],style[],main_color}
+_addCol('materials', 'ai_tagged_at',  'TEXT');       // 上次 AI 分析花色時間
 // 是否上電商（要不要跟電商平台連動數字）；既有用 ec_key 對接過的型號自動回填為 1
 _addCol('materials', 'on_ecommerce',  'INTEGER DEFAULT 0');
 try { db.prepare(`UPDATE materials SET on_ecommerce=1 WHERE ec_key IS NOT NULL AND TRIM(ec_key)!='' AND (on_ecommerce IS NULL OR on_ecommerce=0)`).run(); } catch (e) {}

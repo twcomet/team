@@ -109,6 +109,10 @@
         <label class="mm-chk"><input type="checkbox" id="sBranch"> 存放分店 🔒</label>
         <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="doShare()">🔗 產生分享連結（已勾選 <span id="selCount">0</span> 項）</button>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 2px 14px">
+        <button class="btn btn-sm btn-ghost" id="aiTagBtn" onclick="doAiTag()">🤖 AI 分析花色標籤</button>
+        <span id="aiTagInfo" style="font-size:12px;color:#6b7280"></span>
+      </div>
       <div class="mm-linkbox" id="linkBox">
         <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:6px">✅ 分享連結已產生（免登入，客戶點開即可看）</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -154,6 +158,16 @@ async function doSearch(){
   // 搜尋有結果 → 自動用第一筆為基準推薦相近花色
   if (RESULTS.length) loadSimilar(RESULTS[0].id); else hideSim();
 }
+function tagChips(r){
+  const t = r.ai_tags; if(!t) return '';
+  const chip = (x,bg,c)=>`<span style="display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:${bg};color:${c};margin:1px 3px 1px 0">${esc(x)}</span>`;
+  let h='';
+  if(t.grain) h+=chip(t.grain,'#ede9fe','#6d28d9');
+  if(t.tone)  h+=chip(t.tone+'色調','#f1f5f9','#475569');
+  (t.hue||[]).forEach(x=>h+=chip(x,'#fdf2f8','#9d174d'));
+  const ai = r.matched_by==='ai' ? '<span style="font-size:10px;color:#6d28d9;font-weight:700"> 🤖AI相近</span>' : '';
+  return h?`<div style="margin-top:5px;line-height:1.9">${h}${ai}</div>`:'';
+}
 function cardHtml(r){
   const sel = picked.has(r.id);
   const img = r.image_url ? `<img class="mm-thumb" src="${esc(r.image_url)}" loading="lazy" alt="">` : `<div class="mm-thumb-empty">（無花色圖）</div>`;
@@ -164,6 +178,7 @@ function cardHtml(r){
       <div class="mm-brand">${esc(r.brand||'')}</div>
       <div class="mm-model"><a href="/materials?id=${r.id}" target="_blank" title="到膜料管理看使用歷程">${esc(r.model||'—')} ↗</a></div>
       ${r.color?`<div class="mm-color">${esc(r.color)}</div>`:''}
+      ${tagChips(r)}
       <div class="mm-meta">
         ${r.unit_price?`每米 <b>${nt(r.unit_price)}</b><br>`:''}
         庫存 <b>${fmtM(r.stock_meters)}</b>　膜寬 ${r.width_cm||122}cm<br>
@@ -206,7 +221,33 @@ async function doShare(){
   document.getElementById('linkBox').style.display = 'block';
 }
 function copyShareUrl(btn){ const i=document.getElementById('shareUrl'); i.select(); navigator.clipboard?.writeText(i.value).then(()=>{const o=btn.textContent;btn.textContent='✅ 已複製';setTimeout(()=>btn.textContent=o,1400);},()=>{}); }
-loadBrands();
+async function loadUntagged(){
+  try { const j = await fetch('/api/material-match/untagged-count').then(r=>r.json());
+    const info = document.getElementById('aiTagInfo'), btn = document.getElementById('aiTagBtn');
+    if (!j.with_image){ info.textContent='（膜料尚未上傳花色圖，請先到膜料管理上傳，AI 才能分析色系與紋路）'; btn.disabled=true; btn.style.opacity=.5; return; }
+    info.textContent = j.untagged>0 ? `有花色圖 ${j.with_image} 支・尚未分析 ${j.untagged} 支` : `已全部分析（有花色圖 ${j.with_image} 支）`;
+    btn.disabled = j.untagged===0; btn.style.opacity = j.untagged===0?.5:1;
+  } catch(e){}
+}
+let aiRunning=false;
+async function doAiTag(){
+  if (aiRunning) return; aiRunning=true;
+  const btn=document.getElementById('aiTagBtn'), info=document.getElementById('aiTagInfo');
+  btn.disabled=true; let total=0;
+  try {
+    while(true){
+      info.textContent = `AI 分析中…已完成 ${total} 支`;
+      const j = await fetch('/api/material-match/ai-tag-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit:8})}).then(r=>r.json());
+      if (!j.ok){ info.textContent='分析失敗'; break; }
+      total += j.done;
+      if (j.remaining<=0 || j.tried===0){ info.textContent=`✅ AI 分析完成，共 ${total} 支${j.errors&&j.errors.length?`（${j.errors.length} 支失敗）`:''}`; break; }
+    }
+  } catch(e){ info.textContent='分析中斷：'+(e.message||''); }
+  aiRunning=false; loadUntagged();
+  // 重新整理目前搜尋結果的推薦（若有）
+  if (RESULTS.length) loadSimilar(RESULTS[0].id);
+}
+loadBrands(); loadUntagged();
 </script>
 </body>
 </html>
