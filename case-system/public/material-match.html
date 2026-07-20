@@ -119,6 +119,13 @@
       </div>
 
       <div id="results"><div class="mm-empty">輸入條件後按「搜尋」，符合庫存米數的膜料會顯示在這裡。</div></div>
+      <div id="simBox" style="display:none;margin-top:22px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-top:16px;border-top:2px dashed #fbcfe8">
+          <span style="font-size:15px;font-weight:800;color:#9d174d">🎨 相近花色推薦</span>
+          <span id="simSeed" style="font-size:12px;color:#6b7280"></span>
+        </div>
+        <div id="simResults"></div>
+      </div>
     </div>
   </main>
 </div>
@@ -144,30 +151,49 @@ async function doSearch(){
   const box = document.getElementById('results'); box.innerHTML = '<div class="mm-empty">搜尋中…</div>';
   let rows; try { rows = await fetch('/api/material-match/search?'+p).then(r=>r.json()); } catch(e){ box.innerHTML='<div class="mm-empty">搜尋失敗</div>'; return; }
   RESULTS = rows || []; renderResults();
+  // 搜尋有結果 → 自動用第一筆為基準推薦相近花色
+  if (RESULTS.length) loadSimilar(RESULTS[0].id); else hideSim();
+}
+function cardHtml(r){
+  const sel = picked.has(r.id);
+  const img = r.image_url ? `<img class="mm-thumb" src="${esc(r.image_url)}" loading="lazy" alt="">` : `<div class="mm-thumb-empty">（無花色圖）</div>`;
+  return `<div class="mm-card${sel?' sel':''}" data-mid="${r.id}">
+    <input type="checkbox" class="pick" ${sel?'checked':''} onchange="togglePick(${r.id},this.checked)">
+    ${img}
+    <div class="mm-body">
+      <div class="mm-brand">${esc(r.brand||'')}</div>
+      <div class="mm-model"><a href="/materials?id=${r.id}" target="_blank" title="到膜料管理看使用歷程">${esc(r.model||'—')} ↗</a></div>
+      ${r.color?`<div class="mm-color">${esc(r.color)}</div>`:''}
+      <div class="mm-meta">
+        ${r.unit_price?`每米 <b>${nt(r.unit_price)}</b><br>`:''}
+        庫存 <b>${fmtM(r.stock_meters)}</b>　膜寬 ${r.width_cm||122}cm<br>
+        ${r.location?`貨架 ${esc(r.location)}　`:''}${r.branch?`<span style="color:#9ca3af">${esc(r.branch)}</span>`:''}
+      </div>
+      <button class="btn btn-sm btn-ghost" style="margin-top:8px;width:100%" onclick="loadSimilar(${r.id})">🔍 找相近花色</button>
+    </div>
+  </div>`;
 }
 function renderResults(){
   const box = document.getElementById('results');
   if (!RESULTS.length){ box.innerHTML='<div class="mm-empty">沒有符合條件（庫存 ≥ 指定米數）的膜料。</div>'; return; }
-  box.innerHTML = '<div class="mm-grid">' + RESULTS.map(r => {
-    const sel = picked.has(r.id);
-    const img = r.image_url ? `<img class="mm-thumb" src="${esc(r.image_url)}" loading="lazy" alt="">` : `<div class="mm-thumb-empty">（無花色圖）</div>`;
-    return `<div class="mm-card${sel?' sel':''}" id="card-${r.id}">
-      <input type="checkbox" class="pick" ${sel?'checked':''} onchange="togglePick(${r.id},this.checked)">
-      ${img}
-      <div class="mm-body">
-        <div class="mm-brand">${esc(r.brand||'')}</div>
-        <div class="mm-model"><a href="/materials?id=${r.id}" target="_blank" title="到膜料管理看使用歷程">${esc(r.model||'—')} ↗</a></div>
-        ${r.color?`<div class="mm-color">${esc(r.color)}</div>`:''}
-        <div class="mm-meta">
-          ${r.unit_price?`每米 <b>${nt(r.unit_price)}</b><br>`:''}
-          庫存 <b>${fmtM(r.stock_meters)}</b>　膜寬 ${r.width_cm||122}cm<br>
-          ${r.location?`貨架 ${esc(r.location)}　`:''}${r.branch?`<span style="color:#9ca3af">${esc(r.branch)}</span>`:''}
-        </div>
-      </div>
-    </div>`;
-  }).join('') + '</div>';
+  box.innerHTML = '<div class="mm-grid">' + RESULTS.map(cardHtml).join('') + '</div>';
 }
-function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id); document.getElementById('card-'+id)?.classList.toggle('sel',on); document.getElementById('selCount').textContent = picked.size; }
+function hideSim(){ document.getElementById('simBox').style.display='none'; }
+async function loadSimilar(seedId){
+  const min = document.getElementById('fMin').value || 0;
+  const wrap = document.getElementById('simBox'), box = document.getElementById('simResults'), seedEl = document.getElementById('simSeed');
+  wrap.style.display='block'; box.innerHTML = '<div class="mm-empty">尋找相近花色中…</div>'; seedEl.textContent='';
+  wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  let j; try { j = await fetch('/api/material-match/similar?'+new URLSearchParams({id:seedId, min_meters:min})).then(r=>r.json()); }
+  catch(e){ box.innerHTML='<div class="mm-empty">推薦失敗</div>'; return; }
+  const seed = j.seed||{}, items = j.items||[];
+  seedEl.textContent = seed.model ? `以「${seed.brand||''} ${seed.model}」為基準・依紋路與色系相近排序` : '';
+  if (!items.length){ box.innerHTML = '<div class="mm-empty">目前庫存中找不到明顯相近的花色（可放寬「至少需要幾米」再試，或上傳花色圖後用第二期 AI 比對更準）。</div>'; return; }
+  box.innerHTML = '<div class="mm-grid">' + items.map(cardHtml).join('') + '</div>';
+}
+function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id);
+  document.querySelectorAll('[data-mid="'+id+'"]').forEach(c=>{ c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
+  document.getElementById('selCount').textContent = picked.size; }
 async function doShare(){
   if (!picked.size){ alert('請先勾選要分享的膜料（卡片左上角勾選框）'); return; }
   const fields = { price: sPrice.checked, stock: sStock.checked, location: sLoc.checked, branch: sBranch.checked };

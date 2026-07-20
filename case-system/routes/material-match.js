@@ -40,6 +40,67 @@ router.get('/search', requireAuth, (req, res) => {
   res.json(rows);
 });
 
+// ── 相近花色推薦（規則式，無 AI）：以某支膜料為基準，比對「紋路類型＋色系＋膜寬＋品牌」找相近替代花色 ──
+// 紋路類型（互斥大類，命中同類最加分）
+const GRAIN = [
+  ['木紋', /木紋|木理|橡木|栓木|胡桃|柚木?|梧桐|楓木?|松木|白橡|灰橡|原木|洗白木|木/],
+  ['石紋', /大理石|石紋|岩板|岩|雲石|石材|砂岩|水磨石|洞石|大理/],
+  ['水泥', /水泥|清水模|工業風|素水泥/],
+  ['布紋', /布紋|織布|亞麻|棉麻|編織布|布|織|紡/],
+  ['皮革', /皮革|皮紋|荔枝皮|皮/],
+  ['金屬', /金屬|拉絲|不鏽鋼|鏡面|鏡|鋁|鋼|銅|髮絲/],
+  ['藤竹', /藤|籐|竹/],
+  ['素色', /素色|純色|單色|烤漆|素/],
+];
+// 色系關鍵字（重疊愈多愈相近）
+const HUE = ['白橡','灰橡','米白','象牙','奶油','原木','胡桃','梧桐','煙燻','香檳','白','米','淺','橡','楓','柚','栓','灰','棕','咖','深','黑','碳','金','銀','藍','綠','紅','紫','橘','黃'];
+function _profile(m) {
+  const t = [m.color, m.spec, m.model].map(x => String(x || '')).join(' ');
+  const grain = new Set(); for (const [k, re] of GRAIN) if (re.test(t)) grain.add(k);
+  const hue = new Set(); for (const h of HUE) if (t.includes(h)) hue.add(h);
+  return { grain, hue, hasText: !!t.replace(/[\s\-()（）]/g, '') };
+}
+function _simScore(seed, cand) {
+  let s = 0;
+  for (const g of seed.grain) if (cand.grain.has(g)) s += 5;   // 同紋路大類，最重要
+  for (const h of seed.hue)   if (cand.hue.has(h))   s += 2;   // 共同色系
+  if (seed.brand && cand.brand && String(seed.brand).toLowerCase() === String(cand.brand).toLowerCase()) s += 1;
+  const w1 = Number(seed.width_cm) || 122, w2 = Number(cand.width_cm) || 122;
+  if (Math.abs(w1 - w2) <= 8) s += 1;                          // 膜寬相近（可互換施工）
+  return s;
+}
+router.get('/similar', requireAuth, (req, res) => {
+  const id  = Number(req.query.id) || 0;
+  const min = Number(req.query.min_meters) || 0;
+  if (!id) return res.json([]);
+  const seed = db.prepare(`SELECT id, brand, model, color, spec, width_cm FROM materials WHERE id=?`).get(id);
+  if (!seed) return res.json([]);
+  const sp = _profile(seed);
+  const rows = db.prepare(`
+    SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
+           m.stock_meters, m.location, m.width_cm, o.name AS branch
+    FROM materials m LEFT JOIN orgs o ON o.id = m.org_id
+    WHERE ${FILM} AND COALESCE(m.stock_meters,0) >= ?
+      AND TRIM(LOWER(COALESCE(m.model,''))) <> TRIM(LOWER(COALESCE(?,'')))
+    ORDER BY COALESCE(m.stock_meters,0) DESC
+  `).all(min, seed.model || '');
+  // 同型號只留庫存最高的一筆（避免同一支花色因多個貨架重複出現）
+  const bestByModel = {};
+  for (const r of rows) {
+    const key = (String(r.brand || '') + '|' + String(r.model || '')).toLowerCase();
+    if (!bestByModel[key] || (Number(r.stock_meters) || 0) > (Number(bestByModel[key].stock_meters) || 0)) bestByModel[key] = r;
+  }
+  const noSeedText = !sp.hasText || (!sp.grain.size && !sp.hue.size);
+  const scored = Object.values(bestByModel).map(r => {
+    const cp = _profile(r);
+    let s = _simScore({ ...sp, brand: seed.brand, width_cm: seed.width_cm }, { ...cp, brand: r.brand, width_cm: r.width_cm });
+    // 基準膜料沒有花色文字可比對時：退而求其次，同品牌＋膜寬相近先推
+    if (noSeedText) { s = 0; if (seed.brand && r.brand && String(seed.brand).toLowerCase() === String(r.brand).toLowerCase()) s += 3; if (Math.abs((Number(seed.width_cm) || 122) - (Number(r.width_cm) || 122)) <= 8) s += 1; }
+    return { r, s };
+  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 12).map(x => x.r);
+  res.json({ seed: { id: seed.id, brand: seed.brand, model: seed.model, color: seed.color }, items: scored });
+});
+
 // 品牌下拉清單
 router.get('/brands', requireAuth, (req, res) => {
   const rows = db.prepare(`SELECT DISTINCT brand FROM materials WHERE brand IS NOT NULL AND brand!='' AND ${FILM} ORDER BY brand`).all();
