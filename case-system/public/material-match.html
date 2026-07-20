@@ -31,6 +31,7 @@
   .mm-linkbox { display:none; margin-top:12px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:12px 14px; }
   .mm-panel { background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px 16px; margin-bottom:14px; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; }
   .mm-fg-t { font-size:12px; font-weight:800; color:#9d174d; margin-bottom:7px; border-bottom:1px solid #f3f4f6; padding-bottom:4px; }
+  .mm-fg-hint { font-weight:500; color:#9ca3af; font-size:10.5px; margin-left:6px; }
   .mm-opts { display:flex; flex-wrap:wrap; gap:5px 12px; }
   .mm-opt { font-size:13px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; color:#374151; }
   .mm-dot { width:13px; height:13px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; flex-shrink:0; }
@@ -106,11 +107,11 @@
         <div class="mm-f"><button class="btn btn-primary" onclick="doSearch()">🔍 搜尋</button></div>
       </div>
       <div class="mm-panel" id="filtPanel">
-        <div><div class="mm-fg-t">品牌</div><div id="fgBrand" class="mm-opts"></div></div>
-        <div><div class="mm-fg-t">款式</div><div id="fgPattern" class="mm-opts"></div></div>
-        <div style="grid-column:span 2"><div class="mm-fg-t">顏色系列</div><div id="fgColor" class="mm-opts"></div></div>
-        <div><div class="mm-fg-t">色調</div><div id="fgTone" class="mm-opts"></div></div>
-        <div><div class="mm-fg-t">防焰與否</div><div id="fgFire" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">品牌<span class="mm-fg-hint">可複選·符合任一即顯示</span></div><div id="fgBrand" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">款式<span class="mm-fg-hint">可複選·符合任一即顯示</span></div><div id="fgPattern" class="mm-opts"></div></div>
+        <div style="grid-column:span 2"><div class="mm-fg-t">顏色系列<span class="mm-fg-hint">可複選·符合任一即顯示</span></div><div id="fgColor" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">色調<span class="mm-fg-hint">可複選·符合任一即顯示</span></div><div id="fgTone" class="mm-opts"></div></div>
+        <div><div class="mm-fg-t">防焰與否<span class="mm-fg-hint">只勾一個才生效</span></div><div id="fgFire" class="mm-opts"></div></div>
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;border-top:1px solid #f3f4f6;padding-top:10px">
           <button class="btn btn-sm btn-primary" onclick="doSearch()">套用篩選</button>
           <button class="btn btn-sm btn-ghost" onclick="clearFilters()">清除全部</button>
