@@ -155,6 +155,36 @@ router.get('/similar', requireAuth, (req, res) => {
   res.json({ seed: { id: seed.id, brand: seed.brand, model: seed.model, color: seed.color, ai_tags: seedTags }, items: scored, seed_tagged: !!seedTags });
 });
 
+// 上傳布料/顏色照片 → 自動配對最相近的膜料（第三期）
+// 成本：只花 1 次 AI 呼叫辨識這張照片；與膜料比對是純數學（膜料需已做 AI 分析）
+router.post('/match-image', requireAuth, async (req, res) => {
+  try {
+    const min = Number(req.body.min_meters) || 0;
+    const img = String(req.body.image || '');
+    const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,(.+)$/i.exec(img);
+    if (!m) return res.status(400).json({ error: '請上傳 JPG／PNG／WebP 圖片' });
+    const detected = await require('../lib/material-ai').tagImageData(m[1].toLowerCase(), m[2]);
+    const rows = db.prepare(`
+      SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
+             m.stock_meters, m.location, m.width_cm, m.ai_tags, o.name AS branch
+      FROM materials m LEFT JOIN orgs o ON o.id = m.org_id
+      WHERE ${FILM} AND COALESCE(m.stock_meters,0) >= ? AND m.ai_tags IS NOT NULL AND m.ai_tags<>''
+    `).all(min);
+    // 同型號去重（留庫存最高），再依 AI 標籤相近度排序
+    const bestByModel = {};
+    for (const r of rows) {
+      const key = (String(r.brand || '') + '|' + String(r.model || '')).toLowerCase();
+      if (!bestByModel[key] || (Number(r.stock_meters) || 0) > (Number(bestByModel[key].stock_meters) || 0)) bestByModel[key] = r;
+    }
+    const items = Object.values(bestByModel).map(r => {
+      const t = _parseTags(r.ai_tags);
+      return { r, t, s: t ? _tagScore(detected, t) : 0 };
+    }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 24)
+      .map(x => ({ ...x.r, ai_tags: x.t, matched_by: 'ai' }));
+    res.json({ detected, items, analyzed: rows.length });
+  } catch (e) { res.status(400).json({ error: e.message || '配對失敗' }); }
+});
+
 // 尚未 AI 分析、但有花色圖的膜料數量
 router.get('/untagged-count', requireAuth, (req, res) => {
   const n = db.prepare(`SELECT COUNT(*) c FROM materials WHERE ${FILM} AND image_url IS NOT NULL AND image_url<>'' AND (ai_tags IS NULL OR ai_tags='')`).get().c;

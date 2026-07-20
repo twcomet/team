@@ -34,6 +34,7 @@
   .mm-opts { display:flex; flex-wrap:wrap; gap:5px 12px; }
   .mm-opt { font-size:13px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; color:#374151; }
   .mm-dot { width:13px; height:13px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; flex-shrink:0; }
+  .mm-photo { background:#fff; border:1px dashed #fbcfe8; border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 </style>
 </head>
 <body>
@@ -104,17 +105,26 @@
         <div class="mm-f"><button class="btn btn-ghost" id="filtToggle" onclick="toggleFilters()">🔎 篩選<span id="filtCount"></span></button></div>
         <div class="mm-f"><button class="btn btn-primary" onclick="doSearch()">🔍 搜尋</button></div>
       </div>
-      <div class="mm-panel" id="filtPanel" style="display:none">
+      <div class="mm-panel" id="filtPanel">
         <div><div class="mm-fg-t">品牌</div><div id="fgBrand" class="mm-opts"></div></div>
         <div><div class="mm-fg-t">款式</div><div id="fgPattern" class="mm-opts"></div></div>
         <div style="grid-column:span 2"><div class="mm-fg-t">顏色系列</div><div id="fgColor" class="mm-opts"></div></div>
         <div><div class="mm-fg-t">色調</div><div id="fgTone" class="mm-opts"></div></div>
         <div><div class="mm-fg-t">防焰與否</div><div id="fgFire" class="mm-opts"></div></div>
-        <div><div class="mm-fg-t">供貨狀態</div><div id="fgStock" class="mm-opts"></div></div>
         <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;border-top:1px solid #f3f4f6;padding-top:10px">
           <button class="btn btn-sm btn-primary" onclick="doSearch()">套用篩選</button>
           <button class="btn btn-sm btn-ghost" onclick="clearFilters()">清除全部</button>
           <span style="font-size:11px;color:#9ca3af">款式／顏色系列／色調需膜料已做「AI 花色分析」才會命中</span>
+        </div>
+      </div>
+
+      <div class="mm-photo" id="photoMatch">
+        <div style="font-size:14px;font-weight:800;color:#9d174d;margin-bottom:4px">📷 上傳布料／顏色照片，自動配對相近膜料</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:10px">客戶給你一張布料或想要的顏色，上傳後系統用 AI 辨識款式與色系，配對庫存中最接近的膜料（只花 1 次 AI 辨識，很省）。</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label class="btn btn-primary btn-sm" style="cursor:pointer">📷 選擇照片<input type="file" accept="image/*" onchange="onMatchFile(this)" style="display:none"></label>
+          <img id="matchPreview" style="display:none;width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-200)">
+          <span id="matchStatus" style="font-size:12px;color:#6b7280"></span>
         </div>
       </div>
 
@@ -173,7 +183,6 @@ async function loadTaxonomy(){
     document.getElementById('fgColor').innerHTML   = (t.colors||[]).map(c=>optChk('color',c,c,COLOR_HEX[c]||'#e5e7eb')).join('');
     document.getElementById('fgTone').innerHTML    = (t.tones||[]).map(x=>optChk('tone',x,x)).join('');
     document.getElementById('fgFire').innerHTML    = optChk('fire','1','防焰')+optChk('fire','0','不防焰');
-    document.getElementById('fgStock').innerHTML   = optChk('stock','in','現貨商品')+optChk('stock','pre','預購商品');
   } catch(e){}
 }
 function toggleFilters(){ const p=document.getElementById('filtPanel'); p.style.display = p.style.display==='none'?'grid':'none'; }
@@ -191,7 +200,6 @@ async function doSearch(){
   _checked('color').forEach(x=>p.append('color',x));
   _checked('tone').forEach(x=>p.append('tone',x));
   const fire=_oneOf('fire'); if(fire) p.set('fire',fire);
-  const stock=_oneOf('stock'); if(stock) p.set('stock',stock);
   const box = document.getElementById('results'); box.innerHTML = '<div class="mm-empty">搜尋中…</div>';
   let rows; try { rows = await fetch('/api/material-match/search?'+p).then(r=>r.json()); } catch(e){ box.innerHTML='<div class="mm-empty">搜尋失敗</div>'; return; }
   RESULTS = rows || []; renderResults();
@@ -249,6 +257,31 @@ async function loadSimilar(seedId){
 function togglePick(id, on){ if(on)picked.add(id); else picked.delete(id);
   document.querySelectorAll('[data-mid="'+id+'"]').forEach(c=>{ c.classList.toggle('sel',on); const cb=c.querySelector('.pick'); if(cb)cb.checked=on; });
   document.getElementById('selCount').textContent = picked.size; }
+function downscale(file,max,q){ return new Promise(function(res,rej){ var img=new Image(); var url=URL.createObjectURL(file);
+  img.onload=function(){ var w=img.width,h=img.height; if(w>max||h>max){ var r=Math.min(max/w,max/h); w=Math.round(w*r); h=Math.round(h*r); }
+    var c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',q)); };
+  img.onerror=function(){ URL.revokeObjectURL(url); rej(new Error('圖片讀取失敗')); }; img.src=url; }); }
+async function onMatchFile(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const status=document.getElementById('matchStatus'), prev=document.getElementById('matchPreview');
+  status.textContent='處理圖片中…';
+  let dataUrl; try { dataUrl=await downscale(f,1024,0.85); } catch(e){ status.textContent='圖片讀取失敗'; return; }
+  prev.src=dataUrl; prev.style.display='';
+  status.textContent='🤖 AI 辨識並配對中…（約幾秒）';
+  const min=document.getElementById('fMin').value||0;
+  let j; try { j=await fetch('/api/material-match/match-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:dataUrl,min_meters:min})}).then(r=>r.json()); }
+  catch(e){ status.textContent='配對失敗'; return; }
+  if(j.error){ status.textContent='⚠️ '+j.error; return; }
+  const d=j.detected||{};
+  const chip=(x,bg,c)=>`<span style="display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;background:${bg};color:${c};margin:1px 3px">${esc(x)}</span>`;
+  let ch=''; (d.pattern||[]).forEach(x=>ch+=chip(x,'#ede9fe','#6d28d9')); if(d.tone)ch+=chip(d.tone,'#f1f5f9','#475569'); (d.color_family||[]).forEach(x=>ch+=chip(x,'#fdf2f8','#9d174d'));
+  status.innerHTML='辨識結果：'+(ch||'—')+(d.main_color?'　<span style="color:#9ca3af">'+esc(d.main_color)+'</span>':'');
+  hideSim();
+  RESULTS=j.items||[];
+  const box=document.getElementById('results');
+  if(!RESULTS.length){ box.innerHTML='<div class="mm-empty">配對不到相近膜料。可能是庫存膜料還沒做「AI 花色分析」——請先按下方「🤖 AI 分析花色標籤」跑一輪再試（目前已分析 '+(j.analyzed||0)+' 支）。</div>'; return; }
+  box.innerHTML='<div style="font-size:13px;color:#6b7280;margin-bottom:8px">依你上傳的照片，從 '+(j.analyzed||0)+' 支已分析膜料中配對到 '+RESULTS.length+' 支相近：</div><div class="mm-grid">'+RESULTS.map(cardHtml).join('')+'</div>';
+}
 function selectAllVisible(){
   const cards=[...document.querySelectorAll('[data-mid]')];
   const ids=[...new Set(cards.map(c=>Number(c.getAttribute('data-mid'))))];
