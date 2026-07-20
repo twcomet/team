@@ -130,15 +130,16 @@
       </div>
       <div class="es-card"><h3>＋ 新增膜款</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
-          <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option><option value="3m">3M</option><option value="carlife">CarLife 隔熱紙</option><option value="wonder">穩得</option><option value="special">特殊膜</option></select></div>
-          <div><label style="font-size:11px;color:#6b7280">版本</label><br><select id="nf-region" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">亞洲/一般</option><option value="韓國">韓國</option></select></div>
+          <div><label style="font-size:11px;color:#6b7280">品牌</label><br><select id="nf-brand" onchange="toggleNfRegion()" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="bodaq">Bodaq</option><option value="benif">BENIF</option><option value="paroi">PAROI</option><option value="3m">3M</option><option value="carlife">CarLife 隔熱紙</option><option value="wonder">穩得</option><option value="special">特殊膜</option></select></div>
+          <div id="nf-region-wrap"><label style="font-size:11px;color:#6b7280">版本</label><br><select id="nf-region" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">亞洲/一般</option><option value="韓國">韓國</option></select></div>
           <div><label style="font-size:11px;color:#6b7280">系列/型號</label><br><input id="nf-asia" style="width:100px"></div>
           <div><label style="font-size:11px;color:#6b7280">花色</label><br><input id="nf-color" style="width:88px"></div>
           <div><label style="font-size:11px;color:#6b7280">備註·對應</label><br><input id="nf-note" style="width:100px"></div>
           <div><label style="font-size:11px;color:#6b7280">防焰</label><br><select id="nf-fire" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"><option value="">—</option><option value="防焰">防焰</option><option value="不防焰">不防焰</option></select></div>
           <div><label style="font-size:11px;color:#6b7280">寬cm</label><br><input id="nf-width" type="number" value="122" style="width:60px"></div>
           <div><label style="font-size:11px;color:#6b7280">長度米</label><br><input id="nf-len" type="number" value="50" style="width:60px"></div>
-          <div><label style="font-size:11px;color:#6b7280">材料/米</label><br><input id="nf-perm" type="number" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">牌價/米(未稅)</label><br><input id="nf-perm" type="number" oninput="nfSyncEcom()" style="width:82px"></div>
+          <div><label style="font-size:11px;color:#6b7280">電商價/米</label><br><input id="nf-ecom" type="number" readonly title="由牌價自動換算(含稅·進位50)" placeholder="自動" style="width:82px;background:#f3f4f6;color:#6b7280"></div>
           <div><label style="font-size:11px;color:#6b7280">牆面/才</label><br><input id="nf-plane" type="number" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">系統櫃/才</label><br><input id="nf-cab" type="number" style="width:70px"></div>
           <div><label style="font-size:11px;color:#6b7280">造型/才</label><br><input id="nf-shape" type="number" style="width:70px"></div>
@@ -283,6 +284,10 @@ async function delFilm(id){
   await fetch(`${API}/film-catalog/${id}`, { method:'DELETE' });
   load();
 }
+// 版本(亞洲/韓國)只有 Bodaq 需要，其餘品牌隱藏
+function toggleNfRegion(){ var b=document.getElementById('nf-brand').value; var w=document.getElementById('nf-region-wrap'); if(w)w.style.display=(b==='bodaq')?'':'none'; if(b!=='bodaq'){var r=document.getElementById('nf-region'); if(r)r.value='';} }
+// 牌價/米 → 電商價/米 自動換算（跟表格同一套 ecomOf）
+function nfSyncEcom(){ var e=document.getElementById('nf-ecom'); if(e)e.value=ecomOf(document.getElementById('nf-perm').value)||''; }
 async function addFilm(){
   var body = {
     brand: document.getElementById('nf-brand').value,
@@ -301,7 +306,7 @@ async function addFilm(){
   var ce = document.getElementById('nf-cost'); if(ce) body.cost_per_m = ce.value;
   if(!body.asia_code && !body.color){ alert('請至少填代碼或花色'); return; }
   var r = await fetch(`${API}/film-catalog`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-  if(r.ok){ ['nf-asia','nf-color','nf-note','nf-perm','nf-plane','nf-cab','nf-shape'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); document.getElementById('nf-fire').value=''; load(); }
+  if(r.ok){ ['nf-asia','nf-color','nf-note','nf-perm','nf-ecom','nf-plane','nf-cab','nf-shape'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); document.getElementById('nf-fire').value=''; load(); }
   else alert('新增失敗');
 }
 function renderGlass() {
