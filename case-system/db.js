@@ -3280,6 +3280,16 @@ _addCol('materials', 'image_public_id','TEXT');
 _addCol('materials', 'ai_tags',       'TEXT');       // 相似花色查詢：AI 視覺標籤 JSON {tone,pattern[],color_family[],main_color}
 _addCol('materials', 'ai_tagged_at',  'TEXT');       // 上次 AI 分析花色時間
 _addCol('materials', 'ai_tag_failed', 'INTEGER DEFAULT 0'); // AI 分析失敗(圖片連結失效等)→排除,不再卡住批次
+// 膜料大類：裝潢膜／玻璃膜／隔熱紙／特殊膜／其他。相似花色查詢只抓「裝潢膜」。
+_addCol('materials', 'film_type',     'TEXT');
+// 自動回填既有膜料的大類（只補 NULL，使用者手動分類過就不覆蓋）
+try {
+  const _t = "(COALESCE(spec,'')||' '||COALESCE(model,'')||' '||COALESCE(color,''))";
+  db.prepare(`UPDATE materials SET film_type='隔熱紙' WHERE film_type IS NULL AND (TRIM(LOWER(COALESCE(brand,''))) IN ('carlife','car life') OR ${_t} LIKE '%隔熱%')`).run();
+  db.prepare(`UPDATE materials SET film_type='玻璃膜' WHERE film_type IS NULL AND (${_t} LIKE '%長虹%' OR ${_t} LIKE '%防爆%' OR ${_t} LIKE '%玻璃膜%')`).run();
+  db.prepare(`UPDATE materials SET film_type='特殊膜' WHERE film_type IS NULL AND TRIM(LOWER(COALESCE(brand,'')))='特殊膜'`).run();
+  db.prepare(`UPDATE materials SET film_type='裝潢膜' WHERE film_type IS NULL AND (category IS NULL OR category='film')`).run();
+} catch (e) { console.warn('[film_type backfill]', e.message); }
 // 是否上電商（要不要跟電商平台連動數字）；既有用 ec_key 對接過的型號自動回填為 1
 _addCol('materials', 'on_ecommerce',  'INTEGER DEFAULT 0');
 try { db.prepare(`UPDATE materials SET on_ecommerce=1 WHERE ec_key IS NOT NULL AND TRIM(ec_key)!='' AND (on_ecommerce IS NULL OR on_ecommerce=0)`).run(); } catch (e) {}

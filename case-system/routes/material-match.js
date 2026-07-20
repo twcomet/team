@@ -12,7 +12,19 @@ function _code(n = 8) {
   for (let i = 0; i < n; i++) s += B[b[i] % 62];
   return s;
 }
-const FILM = "1=1";   // 不用 category 過濾：正式庫 category 值不一，過濾會把膜料全濾掉
+// 只查「裝潢膜」：以膜料大類 film_type 為主（膜料建檔可設定，既有已自動回填）。
+// 若某支還沒分類(film_type 空)，退而用關鍵字排除玻璃膜類（CarLife 隔熱紙／長虹／防爆／玻璃膜）。
+// （用無表名的欄位，讓有無 alias 的查詢都能共用；這些欄位僅存在於 materials，不與 orgs 衝突）
+const _GTXT = "(COALESCE(spec,'')||' '||COALESCE(model,'')||' '||COALESCE(color,''))";
+const FILM = `(
+  film_type='裝潢膜'
+  OR (
+    COALESCE(film_type,'')=''
+    AND TRIM(LOWER(COALESCE(brand,''))) NOT IN ('carlife','car life')
+    AND ${_GTXT} NOT LIKE '%隔熱%' AND ${_GTXT} NOT LIKE '%長虹%'
+    AND ${_GTXT} NOT LIKE '%防爆%' AND ${_GTXT} NOT LIKE '%玻璃膜%'
+  )
+)`;
 
 // 多值參數解析：支援 ?x=a&x=b 或 ?x=a,b
 function _multi(v) {

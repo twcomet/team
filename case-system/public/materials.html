@@ -252,6 +252,15 @@
         </div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>膜料大類 <span style="font-weight:400;color:#9ca3af;font-size:11px">（相似花色查詢只抓「裝潢膜」）</span></label>
+          <select id="m_film_type">
+            <option value="裝潢膜">裝潢膜</option>
+            <option value="玻璃膜">玻璃膜</option>
+            <option value="隔熱紙">隔熱紙</option>
+            <option value="特殊膜">特殊膜</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
         <div class="form-group"><label>④ 類別</label>
           <select id="m_category">
             <option value="film">膜料</option>
@@ -1256,6 +1265,7 @@ function openMatModal() {
   fillBrandSelect('');
   document.getElementById('m_spec').value = '';
   document.getElementById('m_category').value = 'film';
+  document.getElementById('m_film_type').value = '裝潢膜';
   document.getElementById('m_fire_retardant').value = '0';
   document.getElementById('m_on_ecommerce').value = '0';
   document.getElementById('m_width_cm').value = '122';
@@ -1282,6 +1292,7 @@ function openMatEdit(id) {
   document.getElementById('m_spec').value      = m.spec  || '';
   document.getElementById('m_location').value  = m.location || '';
   document.getElementById('m_category').value  = m.category || 'film';
+  document.getElementById('m_film_type').value = m.film_type || '裝潢膜';
   document.getElementById('m_unit_cost').value    = currentUser?.can_see_cost ? (m.unit_cost || '') : '';
   document.getElementById('m_unit_price').value   = m.unit_price || '';
   document.getElementById('m_stock_meters').value = m.stock_meters || '';
@@ -1335,6 +1346,7 @@ async function saveMat() {
     spec:         document.getElementById('m_spec').value  || null,
     location:     document.getElementById('m_location').value.trim() || null,
     category:       document.getElementById('m_category').value || 'film',
+    film_type:      document.getElementById('m_film_type').value || '裝潢膜',
     unit_price:     parseFloat(document.getElementById('m_unit_price').value)   || 0,
     stock_meters:   parseFloat(document.getElementById('m_stock_meters').value) || 0,
     notes:          document.getElementById('m_notes').value.trim() || null,
