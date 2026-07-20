@@ -12,7 +12,7 @@ function _code(n = 8) {
   for (let i = 0; i < n; i++) s += B[b[i] % 62];
   return s;
 }
-const FILM = "(m.category IS NULL OR m.category='film')";
+const FILM = "1=1";   // 不用 category 過濾：正式庫 category 值不一，過濾會把膜料全濾掉
 
 // ── 搜尋膜料：庫存 >= 米數 ＋ 品牌 ＋ 關鍵字（品牌/型號/花色/規格）──
 router.get('/search', requireAuth, (req, res) => {
@@ -22,7 +22,13 @@ router.get('/search', requireAuth, (req, res) => {
   const where = [FILM, 'COALESCE(m.stock_meters,0) >= ?'];
   const params = [min];
   if (brand) { where.push('TRIM(LOWER(m.brand))=TRIM(LOWER(?))'); params.push(brand); }
-  if (q) { const like = '%' + q + '%'; where.push('(m.brand LIKE ? OR m.model LIKE ? OR m.color LIKE ? OR m.spec LIKE ?)'); params.push(like, like, like, like); }
+  if (q) {
+    // 忽略連字號/空格、不分大小寫：AA611 也能搜到 AA-611、aa 611
+    const nq = '%' + q.replace(/[-\s]/g, '').toLowerCase() + '%';
+    const norm = c => `REPLACE(REPLACE(LOWER(${c}),'-',''),' ','')`;
+    where.push(`(${norm('m.brand')} LIKE ? OR ${norm('m.model')} LIKE ? OR ${norm('m.color')} LIKE ? OR ${norm('m.spec')} LIKE ?)`);
+    params.push(nq, nq, nq, nq);
+  }
   const rows = db.prepare(`
     SELECT m.id, m.brand, m.model, m.color, m.spec, m.image_url, m.unit_price,
            m.stock_meters, m.location, m.width_cm, o.name AS branch
