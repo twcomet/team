@@ -60,6 +60,16 @@
     .stat-pill.on { font-weight:800; cursor:default; box-shadow:0 1px 3px rgba(0,0,0,.08); }
     .stat-pill.on:hover { color:inherit; }
     .det-sep { width:1px; height:20px; background:var(--gray-200); margin:0 2px; }
+    /* 功能類操作按鈕：比狀態明顯 */
+    .det-act { font-weight:700; padding:6px 13px; border-radius:9px; cursor:pointer; border:1px solid transparent; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+    .det-act-primary { background:var(--primary); color:#fff; }
+    .det-act-primary:hover { filter:brightness(1.05); }
+    .det-act-blue { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .det-act-green { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+    .det-act-done { background:#dcfce7; color:#166534; border-color:#86efac; }
+    .det-act-purple { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+    .det-act-purple-on { background:#ede9fe; color:#6d28d9; border-color:#c4b5fd; font-weight:800; }
+    .det-status-sel { padding:6px 9px; border:1px solid var(--gray-300); border-radius:9px; font-size:12.5px; background:#fff; cursor:pointer; font-family:inherit; }
 
     /* ── header 控制列（負責業務/客服/電話/客戶資料/關懷）：整齊不亂斷行、手機好看 ── */
     .det-controls { display:flex; gap:8px 10px; margin-top:8px; flex-wrap:wrap; align-items:center; }
@@ -1004,22 +1014,26 @@ async function openInquiry(id) {
   const _repliedCleared = data.replied_at && data.replied_at >= data.last_message_at;
   const _showMarkReplied = _lastMsgIn && !_repliedCleared && data.status !== 'invalid' && data.status !== 'hidden';
 
-  // 狀態燈號列：目前狀態亮燈，其他淡化可點擊切換
+  // 工具列：功能類（明顯的操作按鈕）＋ 狀態類（收進下拉選單）
   const S = data.status;
-  const _pill = (active, litStyle, onclick, label, title, alwaysClick) =>
-    `<button class="btn btn-sm stat-pill${active ? ' on' : ''}" style="${active ? litStyle : ''}${active && alwaysClick ? ';cursor:pointer' : ''}"${onclick && (!active || alwaysClick) ? ` onclick="${onclick}"` : ''}${title ? ` title="${title}"` : ''}>${label}</button>`;
+  const convDone = (S === 'converted');
   const statusBar = `
-    ${_pill(S === 'new',         'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd', `setStatus(${id},'new')`,         '新詢問',   '設為新詢問')}
-    ${_pill(S === 'in_progress', 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d', `setStatus(${id},'in_progress')`, '進行中',   '標記進行中')}
-    ${_pill(S === 'converted',   'background:#dcfce7;color:#166534;border:1px solid #86efac', `openConvert(${id})`,             '已轉案',   S === 'converted' ? '此詢問已轉為案件' : '轉為案件')}
-    <button class="btn btn-sm" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer" onclick="openLinkCase(${id})" title="把這個 LINE 對話（含此群組的 LINE ID）綁到一個已存在的案件／客戶">🔗 關聯案件</button>
-    ${_pill(S === 'invalid',     'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5', `setStatus(${id},'invalid')`,     '無效',     '標記無效')}
-    ${_pill(S === 'hidden',      'background:#e5e7eb;color:#374151;border:1px solid #d1d5db', `setStatus(${id},'hidden')`,      '隱藏',     '隱藏此詢問')}
-    <span class="det-sep"></span>
+    <button class="btn btn-sm det-act ${convDone ? 'det-act-done' : 'det-act-primary'}" onclick="openConvert(${id})" title="${convDone ? '此詢問已轉為案件，可再次轉案' : '把這通詢問轉成案件（詢價／場勘）'}">${convDone ? '✅ 已轉案' : '📋 轉案'}</button>
+    <button class="btn btn-sm det-act det-act-blue" onclick="openLinkCase(${id})" title="把這個 LINE 對話（含此群組的 LINE ID）綁到一個已存在的案件／客戶">🔗 案件關聯</button>
     ${(S !== 'invalid' && S !== 'hidden')
-      ? _pill(!!_repliedCleared, 'background:#dcfce7;color:#166534;border:1px solid #86efac', `markReplied(${id})`, _repliedCleared ? '✓ 已回覆' : '✓ 標記已回覆', '已在 LINE 官方後台回覆過了？點這清掉待回覆紅燈', true)
+      ? `<button class="btn btn-sm det-act ${_repliedCleared ? 'det-act-done' : 'det-act-green'}" onclick="markReplied(${id})" title="已在 LINE 官方後台回覆過了？點這清掉待回覆紅燈">${_repliedCleared ? '✓ 已回覆' : '✓ 標記回覆'}</button>`
       : ''}
-    ${_pill(!!data.ai_needs_human, 'background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd', data.ai_needs_human ? `markNeedsHuman(${id},0)` : `markNeedsHuman(${id},1)`, '🤖 轉真人客服', data.ai_needs_human ? '目前在「轉真人客服」分頁，點此取消' : '標記需要真人客服接手', true)}
+    <button class="btn btn-sm det-act ${data.ai_needs_human ? 'det-act-purple-on' : 'det-act-purple'}" onclick="markNeedsHuman(${id},${data.ai_needs_human ? 0 : 1})" title="${data.ai_needs_human ? '目前在「轉真人客服」分頁，點此取消' : '標記需要真人客服接手'}">🤖 轉真人客服</button>
+    <span class="det-sep"></span>
+    <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--gray-500)">狀態
+      <select class="det-status-sel" onchange="onStatusSelect(${id},this.value)" title="設定此詢問的狀態">
+        <option value="new"         ${S === 'new' ? 'selected' : ''}>🔵 新詢問</option>
+        <option value="in_progress" ${S === 'in_progress' ? 'selected' : ''}>🟡 進行中</option>
+        ${convDone ? `<option value="converted" selected>🟢 已轉案</option>` : ''}
+        <option value="invalid"     ${S === 'invalid' ? 'selected' : ''}>⚫ 無效</option>
+        <option value="hidden"      ${S === 'hidden' ? 'selected' : ''}>⚪ 隱藏</option>
+      </select>
+    </label>
     ${(S === 'converted' || S === 'invalid')
       ? `<button class="btn btn-sm" style="background:#fff;color:#dc2626;border:1px solid #fecaca;cursor:pointer" onclick="deleteInquiry(${id})" title="刪除此詢問">🗑️ 刪除</button>` : ''}`;
 
@@ -1259,6 +1273,11 @@ function scrollChat() {
 }
 
 // ── 動作 ──────────────────────────────────────────────────
+// 狀態下拉：「已轉案」只能透過「轉案」按鈕實際轉案產生，不允許在此直接設定
+function onStatusSelect(id, val) {
+  if (val === 'converted') { openConvert(id); return; }
+  setStatus(id, val);
+}
 async function setStatus(id, status) {
   await fetch(`/api/line-inquiries/${id}/status`, {
     method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status })
