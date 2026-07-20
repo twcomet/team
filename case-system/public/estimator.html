@@ -809,9 +809,36 @@ function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
   var cai=meters*(Number(it.per)||0);
   var amt=ceil100(cai*(Number(it.unit)||0));
   var k=it.name+'|'+it.m+'|'+it.strips+'|'+it.per+'|'+it.unit;
-  g[k]=g[k]||{label:'其他特殊｜'+it.name,series:it.m+'米 × '+it.strips+'條 = '+(Math.round(meters*100)/100)+'米　'+it.per+' 才/米',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};
+  g[k]=g[k]||{label:'其他特殊｜'+it.name,name:it.name,m:Number(it.m)||0,strips:Number(it.strips)||0,per:Number(it.per)||0,meters:meters,series:it.m+'米 × '+it.strips+'條 = '+(Math.round(meters*100)/100)+'米　'+it.per+' 才/米',cai:cai,unit:it.unit,n:0,amount:0,idxs:[]};
   g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);
-});return Object.keys(g).map(function(k){var x=g[k];return {type:'special',label:x.label,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+});return Object.keys(g).map(function(k){var x=g[k];return {type:'special',label:x.label,name:x.name,m:x.m,strips:x.strips,per:x.per,meters:x.meters,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs};});}
+// 其他特殊 行內編輯：改標題/米/條/膜寬/單才(才/米)/連工帶料，套用到該組所有 CART 項目後重算
+function editSpecial(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='special')return;
+  if(field==='name'){it.name=val;}
+  else if(field==='m'){it.m=Number(val)||0;}
+  else if(field==='strips'){it.strips=Number(val)||0;}
+  else if(field==='per'){it.per=Number(val)||0;}
+  else if(field==='unit'){it.unit=Number(val)||0;}
+  else if(field==='width'){var w=Number(val)||0;if(w>0)it.per=Math.round(w*100/900*100)/100;}   // 改膜寬→自動換算單才(才/米)
+});render();}
+function specialLineHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
+  var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
+  var wcm=Math.round((L.per||0)*9);   // 由單才(才/米)反推膜寬 cm：per=膜寬×100/900 → 膜寬=per×9
+  return '<div class="ec-grp">'
+   +'<div class="ec-gh"><b>其他特殊｜<input value="'+escAttr(L.name)+'" onchange="editSpecial(\''+csv+'\',\'name\',this.value)" style="'+inp+';width:150px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
+   +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#6b7280">'
+   +'<label>米<input type="number" step="0.1" value="'+L.m+'" onchange="editSpecial(\''+csv+'\',\'m\',this.value)" style="'+inp+';width:58px;margin-left:3px"></label>'
+   +'<label>條<input type="number" value="'+L.strips+'" onchange="editSpecial(\''+csv+'\',\'strips\',this.value)" style="'+inp+';width:50px;margin-left:3px"></label>'
+   +'<span style="color:#9ca3af">= '+(Math.round((L.meters||0)*100)/100)+' 米</span>'
+   +'<label title="改膜寬會自動換算單才(才/米)">膜寬<input type="number" value="'+wcm+'" onchange="editSpecial(\''+csv+'\',\'width\',this.value)" style="'+inp+';width:56px;margin-left:3px"></label>'
+   +'<label>單才(才/米)<input type="number" step="0.01" value="'+L.per+'" onchange="editSpecial(\''+csv+'\',\'per\',this.value)" style="'+inp+';width:66px;margin-left:3px"></label>'
+   +'<label>連工帶料<input type="number" value="'+L.unit+'" onchange="editSpecial(\''+csv+'\',\'unit\',this.value)" style="'+inp+';width:70px;margin-left:3px"></label>'
+   +'<span style="color:#111827;font-weight:600" title="材數＝米數×單才">'+(Math.round((L.cai||0)*100)/100)+' 才 × '+L.unit+'</span>'
+   +'<span style="color:#111827;font-weight:600">單價 '+NT(per)+'</span>'
+   +(L.n>1?'<span>×'+L.n+' 件</span>':'')
+   +(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>':'')
+   +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
+   +'</div></div>';}
 function specialRowHtml(){ return '<div class="ec-elevrow">'+
   '<div class="ec-fld"><label>項目名稱</label><input class="sp-name" placeholder="例：特殊造型、異材質…"></div>'+
   '<div class="ec-g2"><div class="ec-fld"><label>米</label><input class="sp-m" type="number" step="0.1" value="2.3"></div><div class="ec-fld"><label>條</label><input class="sp-strips" type="number" value="1"></div></div>'+
@@ -889,6 +916,7 @@ function render(){
  if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
  else{var h='';lines.forEach(function(L){
    if(L.type==='other'){h+=otherRowHtml(L);return;}   // 其他品項：行內可編輯列
+   if(L.type==='special'){h+=specialLineHtml(L);return;}   // 其他特殊：行內可編輯列（米/條/單才/連工帶料）
    var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='special'?' 項':' 件')));
    var orig=L.base||L.amount;
    var szHtml='';
