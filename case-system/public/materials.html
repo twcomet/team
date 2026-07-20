@@ -178,6 +178,10 @@
             <select id="filterSpec" onchange="applyFilters()">
               <option value="">全部材質</option>
             </select>
+            <select id="filterFilmType" onchange="applyFilters()">
+              <option value="">全部大類</option>
+              <option>裝潢膜</option><option>玻璃膜</option><option>隔熱紙</option><option>特殊膜</option><option>其他</option>
+            </select>
             <select id="filterStock" onchange="applyFilters()">
               <option value="">全部庫存</option>
               <option value="low">偏低（&lt;10米）</option>
@@ -192,6 +196,7 @@
                 <th style="width:32px"></th>
                 <th>品牌</th>
                 <th>型號</th>
+                <th>大類</th>
                 <th>材質</th>
                 <th>防焰</th>
                 <th>貨架</th>
@@ -782,11 +787,13 @@ function applyFilters() {
   const q     = document.getElementById('searchInput').value.toLowerCase();
   const brand = document.getElementById('filterBrand').value;
   const spec  = document.getElementById('filterSpec').value;
+  const ftype = document.getElementById('filterFilmType').value;
   const stock = document.getElementById('filterStock').value;
   let list = materials;
   if (q)     list = list.filter(m => (m.brand+m.model+(m.spec||'')+(m.location||'')).toLowerCase().includes(q));
   if (brand) list = list.filter(m => m.brand === brand);
   if (spec)  list = list.filter(m => m.spec === spec);
+  if (ftype) list = list.filter(m => (m.film_type || '裝潢膜') === ftype);
   if (stock === 'low') list = list.filter(m => m.stock_meters < 10);
   if (stock === 'ok')  list = list.filter(m => m.stock_meters >= 30);
   // 依指定品牌順序排序（PAROI→LG→BODAQ→3M→AICA→穩得），同品牌內再依型號
@@ -829,11 +836,16 @@ function brandTag(brand) {
   return `<span class="brand-tag brand-${key}">${brand}</span>`;
 }
 function stockClass(v) { return v < 10 ? 'stock-low' : v < 30 ? 'stock-mid' : 'stock-ok'; }
+function filmTypeTag(t) {
+  const map = { '裝潢膜':['#dcfce7','#166534'], '玻璃膜':['#dbeafe','#1e40af'], '隔熱紙':['#cffafe','#155e75'], '特殊膜':['#ede9fe','#6d28d9'], '其他':['#f3f4f6','#6b7280'] };
+  const v = t || '裝潢膜'; const c = map[v] || map['其他'];
+  return `<span style="background:${c[0]};color:${c[1]};border-radius:5px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap">${v}</span>`;
+}
 
 function renderTable(list) {
   const tbody = document.getElementById('matTbody');
   const canCost = currentUser?.can_see_cost;
-  const colCount = canCost ? 10 : 9;
+  const colCount = canCost ? 11 : 10;
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:32px;color:var(--gray-500)">沒有符合條件的膜料</td></tr>`;
     return;
@@ -850,6 +862,7 @@ function renderTable(list) {
         ${m.image_url ? `<img src="${m.image_url}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;border:1px solid var(--gray-200)">` : ''}
         <strong>${m.model}</strong>${m.on_ecommerce?` <span style="background:#ede9fe;color:#6d28d9;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;vertical-align:middle" title="與電商連動">🛒 電商</span>`:''}${m.color?`<br><span style="font-size:11px;color:var(--gray-500)">${m.color}</span>`:''}
       </td>
+      <td>${filmTypeTag(m.film_type)}</td>
       <td style="color:var(--gray-500)">${m.spec||'—'}</td>
       <td>${m.fire_retardant ? `<span style="background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600">防焰</span>` : `<span style="background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600">不防焰</span>`}</td>
       <td style="font-family:monospace;font-size:12px">${m.location||'—'}</td>

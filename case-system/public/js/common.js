@@ -288,6 +288,10 @@ function highlightNav(page) {
   });
 }
 
+// 側邊選單一律從頂端顯示（避免瀏覽器捲動還原/動態注入把選單捲到中間，頂部項目看不到）
+function resetNavScroll() { const n = document.querySelector('.sidebar-nav'); if (n) n.scrollTop = 0; }
+window.addEventListener('pageshow', resetNavScroll);
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     // 不論登出請求成功/失敗/逾時，都一定要導向（手機網路不穩時也能登出）

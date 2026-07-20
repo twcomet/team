@@ -51,7 +51,7 @@ body { font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-se
 .sidebar-brand { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
 .sidebar-brand h2 { font-size: 14px; font-weight: 700; font-family: 'Orbitron', 'Noto Sans TC', sans-serif; letter-spacing: .5px; color: var(--primary-light); display:flex; align-items:center; }
 .sidebar-brand p { font-size: 11px; opacity: .6; margin-top: 2px; }
-.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; overflow-anchor: none; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 20px; font-size: 14px; color: rgba(255,255,255,.75); text-decoration: none; cursor: pointer; transition: background .15s, color .15s; border: none; background: none; width: 100%; }
 .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
 .nav-item.active { background: rgba(255,0,128,.45); color: #fff; border-left: 3px solid var(--primary); padding-left: 17px; font-weight: 600; }
