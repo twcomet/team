@@ -413,7 +413,22 @@ function openTaskCard(id) {
   const th = primaryTheme(t);
   document.getElementById('tcm-open').href = (th && th.url) ? th.url(t) : `/case-detail?id=${t.id}`;
   const rpBtn = document.getElementById('tcm-report');
-  if (t.next_dispatch_id) { rpBtn.style.display = ''; window._rpTask = { dispatch_id: t.next_dispatch_id, case_id: t.id, title: `${t.case_number} ${t.title||''}` }; }
+  if (t.next_dispatch_id) {
+    const dtype = t.next_dispatch ? t.next_dispatch.split('|')[0] : '';
+    window._rpTask = { dispatch_id: t.next_dispatch_id, case_id: t.id, title: `${t.case_number} ${t.title||''}`, dtype };
+    rpBtn.style.display = '';
+    if (dtype === 'cut_material') {
+      // 裁料：不用完整完工回報，裁切完點一下「完成」即可
+      const done = t.my_report_count > 0;
+      rpBtn.textContent = done ? '✅ 裁料已完成' : '✅ 裁料完成';
+      rpBtn.disabled = done;
+      rpBtn.onclick = markCutDone;
+    } else {
+      rpBtn.textContent = '📝 完工回報';
+      rpBtn.disabled = false;
+      rpBtn.onclick = openReport;
+    }
+  }
   else { rpBtn.style.display = 'none'; window._rpTask = null; }
   document.getElementById('taskCardModal').classList.add('open');
 }
@@ -463,6 +478,17 @@ async function submitReport() {
   } catch(e) { btn.disabled = false; btn.textContent = '送出完工回報'; showToast('送出失敗', 'error'); }
 }
 
+// 裁料一鍵完成：不需拍照/進度/準備材料，直接標記完成（存為完工回報 progress 100）
+async function markCutDone() {
+  const task = window._rpTask; if (!task) return;
+  const btn = document.getElementById('tcm-report'); btn.disabled = true; btn.textContent = '處理中…';
+  try {
+    const r = await fetch('/api/work-reports', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dispatch_id: task.dispatch_id, case_id: task.case_id, report_date: new Date().toISOString().slice(0,10), progress_pct: 100, notes: '裁料完成' }) });
+    if (r.ok) { showToast('✅ 已標記裁料完成'); closeTaskCard(); init(); }
+    else { btn.disabled = false; btn.textContent = '✅ 裁料完成'; showToast('送出失敗', 'error'); }
+  } catch(e) { btn.disabled = false; btn.textContent = '✅ 裁料完成'; showToast('送出失敗', 'error'); }
+}
 function renderSection(label, cls, list) {
   if (!list.length) return '';
   return `<div class="section-label ${cls}">${label}</div>` + list.map(renderCard).join('');
