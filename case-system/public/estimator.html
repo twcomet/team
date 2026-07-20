@@ -371,6 +371,8 @@
             <div class="ec-hint">內箱/天花高 +20cm 損耗；每才單價依膜款造型價。</div>
           </div>
           <div class="ec-pane" id="pane-door">
+            <div class="ec-fld"><label>快速選門款（含價格）</label><select id="d-quick" onchange="pickDoorQuick()"><option value="">— 直接選有價格的門款 —</option></select></div>
+            <div class="ec-hint" style="margin:-4px 0 8px">選了會自動把下面門類／膜料／面／框帶好，你也可再手動微調。</div>
             <div class="ec-fld"><label>門類</label><select id="d-cat" onchange="fillDoor()"><option value="main">大門現貨</option><option value="room">房門現貨</option><option value="fire">防火門</option></select></div>
             <div class="ec-g2"><div class="ec-fld"><label>膜料</label><select id="d-origin" onchange="updDoor()"><option value="kr">韓國膜(BODAQ/LG)</option><option value="jp">日本膜(PAROI)</option></select></div><div class="ec-fld" id="d-size-fld" style="display:none"><label>座別</label><select id="d-size" onchange="updDoor()"><option value="small">單開小座</option><option value="large">單開大座</option><option value="double">雙開</option></select></div></div>
             <div class="ec-g2"><div class="ec-fld"><label>面</label><select id="d-side" onchange="updDoor()"><option value="single">單面</option><option value="double">雙面</option></select></div><div class="ec-fld" id="d-frame-fld"><label>門框</label><select id="d-frame" onchange="updDoor()"><option value="no">不含框</option><option value="yes">含框</option></select></div></div>
@@ -655,6 +657,31 @@ function addObjectRow(){ document.getElementById('ob-rows').insertAdjacentHTML('
 function rmObjRow(el){ var row=el.closest('.ec-elevrow'), box=row.parentNode; if(box.querySelectorAll('.ec-elevrow').length<=1){ box.innerHTML=''; addObjectRow(); return; } row.remove(); }
 function fillGlassSeries(){var c=v('g-cat');fillSel('g-series',GLASS[c].items.map(function(it,i){var p=cust==='owner'?it.owner:it.designer;return {v:i,t:it.sys+'（'+p+'/才）'};}));}
 function fillDoor(){var fire=v('d-cat')==='fire';document.getElementById('d-size-fld').style.display=fire?'block':'none';document.getElementById('d-frame-fld').style.display=fire?'none':'block';updDoor();}
+// 快速選門款：把所有「有價格」的門款組合列成一份含價下拉，選了自動帶好四個欄位
+var _DCATL={main:'大門現貨',room:'房門現貨',fire:'防火門'},_DSIZEL={small:'單開小座',large:'單開大座',double:'雙開'},_DSIDEL={single:'單面',double:'雙面'},_DFRAMEL={no:'不含框',yes:'含框'},_DORIGL={kr:'韓國膜',jp:'日本膜'};
+function buildDoorQuickList(){
+  var sel=document.getElementById('d-quick'); if(!sel)return;
+  var opts=['<option value="">— 直接選有價格的門款 —</option>'];
+  ['main','room'].forEach(function(cat){ if(!DOORS[cat])return;
+    ['kr','jp'].forEach(function(o){ ['single','double'].forEach(function(side){ ['no','yes'].forEach(function(fr){
+      var p=(((DOORS[cat]||{})[o]||{})[side]||{})[fr]; if(p==null)return;
+      opts.push('<option value="'+[cat,'',o,side,fr].join('|')+'">'+_DCATL[cat]+'·'+_DORIGL[o]+'·'+_DSIDEL[side]+'·'+_DFRAMEL[fr]+'　—　'+NT(p)+'</option>');
+    });});});
+  });
+  if(DOORS.fire){ ['small','large','double'].forEach(function(sz){ ['kr','jp'].forEach(function(o){ ['single','double'].forEach(function(side){
+    var p=(((DOORS.fire||{})[sz]||{})[o]||{})[side]; if(p==null)return;
+    opts.push('<option value="'+['fire',sz,o,side,''].join('|')+'">'+_DCATL.fire+'·'+_DSIZEL[sz]+'·'+_DORIGL[o]+'·'+_DSIDEL[side]+'　—　'+NT(p)+'</option>');
+  });});});}
+  sel.innerHTML=opts.join('');
+}
+function pickDoorQuick(){
+  var v0=document.getElementById('d-quick').value; if(!v0)return;
+  var p=v0.split('|'),cat=p[0],sz=p[1],o=p[2],side=p[3],fr=p[4];
+  document.getElementById('d-cat').value=cat; fillDoor();
+  if(cat==='fire') document.getElementById('d-size').value=sz; else document.getElementById('d-frame').value=fr;
+  document.getElementById('d-origin').value=o; document.getElementById('d-side').value=side;
+  updDoor();
+}
 function doorPrice(){var cat=v('d-cat'),o=v('d-origin'),side=v('d-side');if(cat==='fire')return DOORS.fire[v('d-size')][o][side];return DOORS[cat][o][side][v('d-frame')];}
 function updDoor(){document.getElementById('d-perm').textContent='單價 '+NT(doorPrice());}
 function fillFutM(){var o=v('f-origin');fillSel('f-method',FUT[o].methods.map(function(m){return {v:m.v,t:m.name+'　$'+m.price.toLocaleString()+'／款'};}));futHint();}
@@ -1404,6 +1431,7 @@ async function prefillFromCase(id){
   addObjectRow();
   addSpecialRow();
   fillDoor();
+  buildDoorQuickList();
   renderAddonList();
   fillSel('f-origin',Object.keys(FUT).map(function(k){return {v:k,t:FUT[k].label};}));fillFutM();
   syncCVUI();
