@@ -122,7 +122,7 @@ function draw(){
   const tabs=document.getElementById('tabs'), actions=document.getElementById('actions'), hint=document.getElementById('hint'), sheet=document.getElementById('sheet');
   if(mode==='film'){
     tabs.innerHTML=PriceSheet.ORDER.map(k=>{const b=PriceSheet.BRANDS[k],on=k===curBrand;return `<div class="pl-tab ${on?'on':''}" style="${on?`background:linear-gradient(120deg,${b.c1},${b.c2})`:''}" onclick="setBrand('${k}')"><span class="dot" style="background:${on?'#fff':b.c2}"></span>${b.name}</div>`;}).join('');
-    actions.innerHTML='<button class="pl-btn" onclick="window.print()">⬇ 下載 PDF</button><button class="pl-btn primary" onclick="copyShare(this,\'/price/\'+curBrand)">🔗 分享連結</button>';
+    actions.innerHTML='<button class="pl-btn" onclick="window.print()">⬇ 下載 PDF</button><button class="pl-btn" onclick="window.open(\'/price/\'+curBrand+\'/jpg\',\'_blank\')">🖼 下載 JPG</button><button class="pl-btn primary" onclick="copyShare(this,\'/price/\'+curBrand)">🔗 分享連結</button>';
     hint.innerHTML='此頁供業務／客服查閱，不含成本與毛利（老闆請至「報價設定」）。「分享連結」為對外版牌價。';
     sheet.innerHTML=PriceSheet.renderSheet(curBrand, DATA[curBrand]||[], {customer:false});
   } else {

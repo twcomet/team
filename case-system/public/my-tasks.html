@@ -242,7 +242,7 @@
         <input type="range" id="rp-pct" min="0" max="100" step="5" value="0" style="width:100%" oninput="document.getElementById('rp-pctv').textContent=this.value+'%'"></div>
       <div class="rp-fld"><div class="rp-lab">備註（選填）</div><textarea id="rp-notes" rows="2" style="width:100%;border:1.5px solid var(--gray-200);border-radius:8px;padding:9px;font-family:inherit" placeholder="例：系統櫃門片貼完，剩左右兩側明天收尾"></textarea></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeReport()">取消</button><button id="rp-submit" class="btn" style="background:#16a34a;color:#fff" onclick="submitReport()">送出完工回報</button></div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px"><button class="btn btn-ghost" onclick="closeReport()">取消</button><button class="btn" style="background:#3a2540;color:#fff" onclick="if(window._rpTask)CutReport.open(window._rpTask.case_id, window._rpTask.title)">🪚 切料回報</button><button id="rp-submit" class="btn" style="background:#16a34a;color:#fff" onclick="submitReport()">送出完工回報</button></div>
   </div>
 </div>
 <style>
@@ -256,6 +256,7 @@
 
 <script src="/js/common.js?v=20260721c"></script>
 <script src="/js/care-logs.js"></script>
+<script src="/js/cut-report.js"></script>
 <script>
 // ── 主題定義 ─────────────────────────────────────────────────
 const THEMES = {

@@ -146,11 +146,11 @@ async function renderImage(url, { waitSelector, width } = {}) {
           img.complete ? Promise.resolve() : new Promise(res => { img.onload = img.onerror = res; })));
       });
     } catch (e) {}
-    // 只截「價目表卡片」本體（若有 .sheet-capture），否則整頁
-    const el = await page.$('.sheet-capture');
-    const buf = el ? await el.screenshot({ type: 'jpeg', quality: 92 })
-                   : await page.screenshot({ type: 'jpeg', quality: 92, fullPage: true });
-    return buf;
+    // 只截價目表卡片本體（門片 .sheet-capture / 膜料 .ps-sheet），否則整頁
+    const el = (await page.$('.sheet-capture')) || (await page.$('.ps-sheet'));
+    const buf = el ? await el.screenshot({ type: 'jpeg', quality: 90 })
+                   : await page.screenshot({ type: 'jpeg', quality: 90, fullPage: true });
+    return Buffer.from(buf);   // 新版 puppeteer 回 Uint8Array，Express 直接 send 會變 JSON 損毀，強制轉 Buffer
   } finally {
     try { await page.close(); } catch (e) {}
   }

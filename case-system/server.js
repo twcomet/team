@@ -325,6 +325,18 @@ app.get('/price-list', requireAuth, requireContract, (req, res) => {
 app.get('/price/:brand', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'price-view.html'));
 });
+// 膜料牌價下載 JPG（截 .ps-sheet）
+app.get('/price/:brand/jpg', async (req, res) => {
+  try {
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    const url = `${proto}://${req.get('host')}/price/${encodeURIComponent(req.params.brand)}`;
+    const { renderImage } = require('./lib/pdf-render');
+    const img = await renderImage(url, { waitSelector: '.ps-sheet', width: 1000 });
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent('繪新牌價_' + req.params.brand)}.jpg"`);
+    res.send(img);
+  } catch (e) { res.status(500).send('JPG 產生失敗：' + e.message); }
+});
 // 牌價資料（公開；一律不含成本/毛利，僅啟用中膜款）
 app.get('/api/price-list', (req, res) => {
   try {

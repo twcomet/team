@@ -179,6 +179,7 @@
 </div>
 
 <script src="/js/common.js?v=20260721c"></script>
+<script src="/js/cut-report.js"></script>
 <script>
 const caseId = new URLSearchParams(location.search).get('id');
 let data = null;
@@ -406,6 +407,7 @@ function render() {
   html += `<div class="section">
     <div class="section-hd">📦 膜料使用紀錄</div>
     <div class="section-body">
+      <button type="button" onclick="CutReport.open(${caseId}, '${(d.case_number||'').replace(/'/g,'')} '+(d.title||'').replace(/'/g,''), ()=>location.reload())" style="width:100%;padding:11px;border:none;border-radius:10px;background:#3a2540;color:#fff;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:12px">🪚 切料回報（切了哪支・切幾米，直接扣庫存）</button>
       <div id="matList">${renderMatList()}</div>
       ${renderMatForm(installDispatches)}
     </div>
