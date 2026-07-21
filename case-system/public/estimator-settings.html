@@ -150,8 +150,8 @@
       </div>
     </div>
     <div id="panel-glass" class="es-panel">
-      <div class="es-card" id="card-glassfilms" style="display:none"><h3>玻璃膜（連工帶料每才單價）</h3>
-        <p class="es-hint">穩得長虹玻璃膜、日本三井特殊膜等，屬於玻璃膜、已從「裝潢膜」移到這裡。牆面/系統櫃/造型三欄通常填同一個每才價。<span style="color:#b45309">與下方「玻璃每才單價」若有重複，確認後可擇一刪除。</span></p>
+      <div class="es-card" id="card-glassfilms" style="display:none"><h3>玻璃膜 / 隔熱紙（連工帶料每才單價）</h3>
+        <p class="es-hint">穩得長虹玻璃膜、日本三井特殊膜、CarLife 隔熱紙等，不屬於裝潢膜、已從「裝潢膜」移到這裡。牆面/系統櫃/造型三欄通常填同一個每才價。<span style="color:#b45309">與下方「玻璃每才單價」若有重複，確認後可擇一刪除。</span></p>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-glassfilms"></tr></thead><tbody id="tb-glassfilms"></tbody></table></div>
       </div>
       <div class="es-card"><h3>玻璃每才單價</h3><p class="es-hint">分業主 / 設計師兩價。寬度＝玻璃膜寬（拼料模式依此算才數）；長度＝每卷米。</p>
@@ -280,7 +280,7 @@ function updCai(inp){
   const c = tr.querySelector('.caiC'); if(c) c.textContent = caiVal(cost, w);
   const m = tr.querySelector('.caiM'); if(m) m.textContent = caiMargin(perm, cost);
 }
-const GLASS_FILM_BRANDS = ['wonder','special']; // 穩得/特殊膜＝玻璃膜，移到「玻璃」分頁顯示
+const GLASS_FILM_BRANDS = ['wonder','special','carlife']; // 穩得/特殊膜＝玻璃膜、CarLife＝隔熱紙，都不是裝潢膜→移到「玻璃/隔熱紙」分頁顯示
 function renderFilms() {
   const owner = !!DATA.isOwner;
   var nfc = document.getElementById('nf-cost-wrap'); if (nfc) nfc.style.display = owner ? '' : 'none';

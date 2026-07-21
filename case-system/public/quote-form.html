@@ -341,6 +341,7 @@
       <button class="btn primary sm" onclick="addRow()">＋ 新增連工帶料</button>
       <button class="btn sm" onclick="addMaterialRow()">＋ 新增膜料販售</button>
       <button class="btn sm" onclick="addTextRow()">＋ 自由文字列</button>
+      <button class="btn sm" onclick="addFuturesRow()">＋ 期貨運費</button>
       <button class="btn sm" onclick="openTplModal()">📋 導入範本</button>
       <button class="btn sm" onclick="saveTemplate()">💾 存為範本</button>
       <span class="grow"></span>
@@ -594,8 +595,8 @@ const totOf=it=>it.total!=null?it.total:baseAmt(it);
 const discOf=it=>it.disc!=null?it.disc:100;  // NULL 對齊後端 recalcQuoteV2 的 ??100（舊單顯示=實際收的，不折）
 const promoOf=it=>it.promo!=null?it.promo:Math.round(totOf(it)*discOf(it)/100);
 // 回報米數為「每一座」→ 非材料販售的膜料成本＝每米成本 × 每座米數 × 數量(座數)
-const matCostOf=it=>it.kind==='text'?0:Math.round((it.filmCostPerM||0)*(it.mode==='material'?(it.qty||0):(it.srvMeters||0)*(it.qty||1)));
-const laborCostOf=it=>(it.kind==='text'||it.mode==='material')?0:Math.round((it.workers||0)*(it.days||0)*dayRate);
+const matCostOf=it=>(it.kind==='text'||it.kind==='futures')?0:Math.round((it.filmCostPerM||0)*(it.mode==='material'?(it.qty||0):(it.srvMeters||0)*(it.qty||1)));
+const laborCostOf=it=>(it.kind==='text'||it.kind==='futures'||it.mode==='material')?0:Math.round((it.workers||0)*(it.days||0)*dayRate);
 // 毛利以「優惠價」(實際售價)為基準，非牌價
 const marginOf=it=>promoOf(it)-matCostOf(it)-laborCostOf(it);
 const marginPct=it=>{const p=promoOf(it);return p>0?Math.round(marginOf(it)/p*100):0;};
@@ -622,6 +623,8 @@ async function loadMaterials(){ try{ const r=await fetch('/api/materials'); MATE
 // ── 定價表（est_film_catalog）：選膜料時自動帶連工帶料每才價（牆面/系統櫃/造型）──
 let CATALOG=[];
 async function loadCatalog(){ try{ const r=await fetch('/api/materials/film-catalog'); CATALOG=r.ok?await r.json():[]; }catch(e){ CATALOG=[]; } }
+let FUTURES=[];
+async function loadFutures(){ try{ const r=await fetch('/api/estimator/futures-freight'); FUTURES=r.ok?await r.json():[]; }catch(e){ FUTURES=[]; } }
 const QF_BRAND2CAT={ BODAQ:'bodaq', BODA:'bodaq', LG:'benif', LX:'benif', BENIF:'benif', PAROI:'paroi', PARA:'paroi', '3M':'3m' };
 function matchCatalog(brand,model){
   const cat=QF_BRAND2CAT[String(brand||'').toUpperCase().trim()]; if(!cat||!CATALOG.length) return null;
@@ -704,6 +707,7 @@ async function loadQuote(){
   document.getElementById('flexBox').style.display=deducts.length>0?'block':'none';
   await loadMaterials();                       // 先載膜料庫存，供品牌/型號勾稽與示意圖帶入
   await loadCatalog();                          // 載定價表，供選膜料時自動帶連工帶料每才價
+  await loadFutures();                           // 載期貨運費，供「期貨運費」項目下拉
   items=(q.items||[]).map(mapDbToProto);
   await Promise.all([loadNotices(), loadPrepay()]);
   applyDefaultTemplatesIfEmpty(q);             // (a)(b)(c)(d) 沒存檔內容時，直接套該區塊「預設範本」
@@ -1088,11 +1092,17 @@ async function openPdf(){
 
 function renderRows(){
   document.getElementById('rows').innerHTML = items.map((it,i)=>{
-    if(it.kind==='text'){
-      return `<div class="irow">${railCtrl(i,true)}<div class="icard" style="background:var(--gray-50);border-style:dashed">
+    if(it.kind==='text'||it.kind==='futures'){
+      const isFut=it.kind==='futures';
+      const futPick=isFut?`<div style="padding:8px 0 2px">
+          <label style="font-size:11px;color:var(--gray-500);display:block;margin-bottom:4px">🚢 期貨運費類型（於「報價設定 → 期貨運費」維護）</label>
+          <select onchange="pickFutures(${i},this.value)" style="min-width:300px;padding:7px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px">${futuresOpts(it)}</select>
+        </div>`:'';
+      return `<div class="irow">${railCtrl(i,true)}<div class="icard" style="background:${isFut?'#f0f9ff':'var(--gray-50)'};border-style:dashed">
         <div class="ic-top">
-          <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="標題/文字（例：期貨運費、加價選項、區段標題）"></div>
+          <div class="ic-head"><input class="name-inp" value="${esc(it.name)}" oninput="setF(${i},'name',this.value,true)" placeholder="${isFut?'期貨運費項目名稱':'標題/文字（例：期貨運費、加價選項、區段標題）'}"></div>
           <div class="ic-actions"><button class="copyrow" onclick="copyRow(${i})" title="複製這個項目到下方">⧉ 複製</button><button class="delrow" onclick="delRow(${i})">✕</button></div></div>
+        ${futPick}
         <div class="ic-body">
           <div class="ic-foot" style="margin-top:2px;border-top:none;padding-top:0">
             <div class="note-head"><label>說明文字（會顯示在客戶版・行首加「!」＝紅字重點）</label></div>
@@ -1395,6 +1405,22 @@ function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',m
 // 膜料販售：直接建 material 模式品項（每米單價×米數；選好型號會自動帶售價、客戶版不顯示示意圖/現場照）
 function addMaterialRow(){items.push({name:'膜料販售',mode:'material',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:1000,qty:10,unitCai:180,srvMeters:0,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:0,days:0,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
+// 期貨運費列：可選期貨類型自動帶金額（同文字列一樣計價：單價×數量、可折）
+function addFuturesRow(){items.push({kind:'futures',name:'期貨運費',futuresId:null,unitEach:0,qty:1,disc:100,promo:null,total:null,note:'',workers:0,days:0,filmCostPerM:0,mode:'unit'});renderRows();recalc();focusLast();}
+function futuresOpts(it){
+  return `<option value="">選擇期貨運費類型…</option>`+(FUTURES||[]).map(f=>{
+    const bits=[f.ship_method,f.lead_time].filter(Boolean).join('・');
+    return `<option value="${f.id}" ${String(it.futuresId)===String(f.id)?'selected':''}>${esc(f.name||'')}　NT$ ${Number(f.amount||0).toLocaleString()}${bits?'（'+esc(bits)+'）':''}</option>`;
+  }).join('');
+}
+function pickFutures(i,id){
+  const it=items[i]; const f=(FUTURES||[]).find(x=>String(x.id)===String(id));
+  it.futuresId=id||null;
+  if(f){ it.name=f.name||'期貨運費'; it.unitEach=Number(f.amount)||0; it.total=null; it.promo=null;
+    const bits=[f.ship_method,f.lead_time].filter(Boolean).join('・');
+    it.note=bits?('運送方式：'+bits+(f.designer_min!=null?'　（設計師優惠最低 NT$ '+Number(f.designer_min).toLocaleString()+'）':'')):(it.note||''); }
+  markDirty(); renderRows(); recalc();
+}
 function focusLast(){const cards=document.querySelectorAll('#rows .icard');const last=cards[cards.length-1];if(!last)return;last.scrollIntoView({behavior:'smooth',block:'center'});const n=last.querySelector('.name-inp');if(n)setTimeout(()=>{n.focus();n.select();},120);}
 function tgl(h){const bl=h.closest('.block');const t=bl.querySelector('textarea');const show=t.style.display==='none';t.style.display=show?'block':'none';const im=bl.querySelector('.block-imgs');if(im)im.style.display=(show&&im.children.length>0)?'flex':'none';}
 
@@ -1459,7 +1485,7 @@ function renderCust(useMkt){
   const uth=document.getElementById('cth_unit'); if(uth) uth.style.display=owner?'none':'';
   const showSz=showSize&&!owner;
   // 空欄整欄隱藏 + 材料販售字樣：與客戶版(quote-sign)一致
-  const _nt=items.filter(it=>it.kind!=='text');
+  const _nt=items.filter(it=>it.kind!=='text'&&it.kind!=='futures');
   const showFilmImg=_nt.some(it=>it.filmImg);
   const showSitePhoto=_nt.some(it=>it.areaPhotos&&it.areaPhotos.length);
   const _allMat=_nt.length&&_nt.every(it=>it.mode==='material');
@@ -1475,7 +1501,7 @@ function renderCust(useMkt){
   { const pl=document.getElementById('cv_promo_line'); if(pl) pl.style.display=hasDisc?'':'none'; }
   const mergeCol=2+(showFilmImg?1:0)+(showSitePhoto?1:0);
   document.getElementById('custItems').innerHTML=items.map((it,i)=>{
-    if(it.kind==='text'){
+    if(it.kind==='text'||it.kind==='futures'){
       const priced=totOf(it)>0;
       return `<tr><td class="c" style="font-weight:700">${i+1}</td>
         <td colspan="${mergeCol}" style="background:var(--gray-50)"><div class="q-name">${esc(it.name)}</div><div class="q-note">${noteHtml(it.note)}</div></td>
