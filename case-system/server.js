@@ -336,6 +336,66 @@ app.get('/api/price-list', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── 門片價目表（大門/房門/防火門）─────────────────────────────
+app.get('/door-price', requireAuth, requireContract, (req, res) => {
+  const u = req.session.user;
+  const ok = u?.role === 'owner' || u?.manage_users ||
+    ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role);
+  if (!ok) return res.redirect('/my-tasks');
+  res.sendFile(path.join(__dirname, 'public', 'door-price.html'));
+});
+// 對外分享（單一類型 main/room/fire，不需登入）
+app.get('/door/:type', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'door-view.html'));
+});
+// 門片價目資料（公開；直接吃報價設定 est_door_catalog）
+app.get('/api/door-price', (req, res) => {
+  try {
+    const db = require('./db');
+    const rows = db.prepare(`SELECT cat, size, origin, side, frame, price FROM est_door_catalog WHERE active=1`).all();
+    // 整理成 {main:{kr:{single:{no,yes},double:{...}},jp:{...}}, room:{...}, fire:{small:{kr:{single,double},jp:{...}},...}}
+    const out = { main: {}, room: {}, fire: {} };
+    for (const r of rows) {
+      if (r.cat === 'fire') {
+        out.fire[r.size] = out.fire[r.size] || {};
+        out.fire[r.size][r.origin] = out.fire[r.size][r.origin] || {};
+        out.fire[r.size][r.origin][r.side] = r.price;
+      } else if (out[r.cat]) {
+        out[r.cat][r.origin] = out[r.cat][r.origin] || {};
+        out[r.cat][r.origin][r.side] = out[r.cat][r.origin][r.side] || {};
+        out[r.cat][r.origin][r.side][r.frame] = r.price;
+      }
+    }
+    res.json(out);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/door/:type/pdf', async (req, res) => {
+  try {
+    const type = ['main', 'room', 'fire'].includes(req.params.type) ? req.params.type : 'main';
+    const name = { main: '大門現貨價格表', room: '房門現貨價目表', fire: '防火門價目表' }[type];
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    const url = `${proto}://${req.get('host')}/door/${type}?pdf=1`;
+    const { renderPdf } = require('./lib/pdf-render');
+    const pdf = await renderPdf(url, { waitSelector: '.sheet-capture', title: name });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(name)}.pdf"`);
+    res.send(pdf);
+  } catch (e) { res.status(500).send('PDF 產生失敗：' + e.message); }
+});
+app.get('/door/:type/jpg', async (req, res) => {
+  try {
+    const type = ['main', 'room', 'fire'].includes(req.params.type) ? req.params.type : 'main';
+    const name = { main: '大門現貨價格表', room: '房門現貨價目表', fire: '防火門價目表' }[type];
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    const url = `${proto}://${req.get('host')}/door/${type}?pdf=1`;
+    const { renderImage } = require('./lib/pdf-render');
+    const img = await renderImage(url, { waitSelector: '.sheet-capture', width: 1000 });
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(name)}.jpg"`);
+    res.send(img);
+  } catch (e) { res.status(500).send('JPG 產生失敗：' + e.message); }
+});
+
 // 設計師查詢頁（客戶用，不需登入）
 app.get('/designer', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'designer.html'));

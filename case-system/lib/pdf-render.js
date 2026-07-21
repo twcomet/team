@@ -132,4 +132,28 @@ async function renderPdfFromHtml(html, { title } = {}) {
   }
 }
 
-module.exports = { renderPdf, renderPdfFromHtml };
+// 把整頁截成一張 JPG（給門片價目表「下載 JPG」用）
+async function renderImage(url, { waitSelector, width } = {}) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: width || 1000, height: 1400, deviceScaleFactor: 2 });
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+    if (waitSelector) { try { await page.waitForSelector(waitSelector, { timeout: 8000 }); } catch (e) {} }
+    try {
+      await page.evaluate(async () => {
+        await Promise.all(Array.from(document.images).map(img =>
+          img.complete ? Promise.resolve() : new Promise(res => { img.onload = img.onerror = res; })));
+      });
+    } catch (e) {}
+    // 只截「價目表卡片」本體（若有 .sheet-capture），否則整頁
+    const el = await page.$('.sheet-capture');
+    const buf = el ? await el.screenshot({ type: 'jpeg', quality: 92 })
+                   : await page.screenshot({ type: 'jpeg', quality: 92, fullPage: true });
+    return buf;
+  } finally {
+    try { await page.close(); } catch (e) {}
+  }
+}
+
+module.exports = { renderPdf, renderPdfFromHtml, renderImage };

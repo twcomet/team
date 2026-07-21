@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>門片價目表 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .dp-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .dp-tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .dp-tab{border:1px solid var(--gray-200,#e5e7eb);background:#fff;border-radius:999px;padding:8px 20px;cursor:pointer;font-size:14px;font-weight:800;color:var(--gray-500,#6b7280)}
+  .dp-tab.on{color:#fff;border-color:transparent}
+  .dp-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .dp-btn{border:1px solid var(--gray-300,#d1d5db);background:#fff;border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--gray-700,#374151);display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+  .dp-btn.primary{background:#D40069;border-color:#D40069;color:#fff}
+  .dp-hint{font-size:12px;color:var(--gray-400,#9ca3af);margin:0 2px 14px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label">業務</span>
+      <a class="nav-item" data-page="dashboard" href="/dashboard"><span class="icon">📊</span>總覽</a>
+      <a class="nav-item" data-page="my-tasks" href="/my-tasks"><span class="icon">📌</span>我的任務</a>
+      <a class="nav-item" data-page="line-inquiries" href="/line-inquiries"><span class="icon">💬</span>LINE 詢問</a>
+      <a class="nav-item" data-page="quote-list" href="/quote-list"><span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+      <a class="nav-item" data-page="material-calc" href="/material-calc"><span class="icon">🧮</span>快速報價</a>
+      <span class="nav-group-label">進銷存</span>
+      <a class="nav-item" data-page="materials" href="/materials"><span class="icon">🎞️</span>膜料管理</a>
+      <a class="nav-item" data-page="price-list" href="/price-list"><span class="icon">🏷️</span>膜料牌價表</a>
+      <a class="nav-item" data-page="door-price" href="/door-price"><span class="icon">🚪</span>門片價目表</a>
+      <span class="nav-group-label">系統設定</span>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-name" id="sidebarUserName"></div>
+      <div class="user-role" id="sidebarUserRole"></div>
+      <a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none;cursor:pointer">登出</a>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🚪 門片價目表</span></div>
+    <div class="page-body">
+      <div class="dp-bar">
+        <div class="dp-tabs" id="tabs"></div>
+        <div class="dp-actions">
+          <button class="dp-btn" onclick="dl('pdf')">⬇ 下載 PDF</button>
+          <button class="dp-btn" onclick="dl('jpg')">🖼 下載 JPG</button>
+          <button class="dp-btn primary" onclick="copyShare(this)">🔗 分享連結</button>
+        </div>
+      </div>
+      <div class="dp-hint">數字直接連動「報價設定 → 門（固定價）」；在報價設定改價，這裡就會跟著變。「分享連結」為對外版（設計師可看，不需登入）。</div>
+      <div id="sheet"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js?v=20260721"></script>
+<script src="/js/door-sheet.js"></script>
+<script>
+let DATA={}, cur='main';
+function tabsHtml(){
+  return Object.values(DoorSheet.TYPES).map(t=>{
+    const on=t.key===cur;
+    return `<div class="dp-tab ${on?'on':''}" style="${on?`background:linear-gradient(120deg,${t.c1},${t.c2})`:''}" onclick="setType('${t.key}')">${t.name.replace('價格表','').replace('價目表','')}</div>`;
+  }).join('');
+}
+function draw(){ document.getElementById('tabs').innerHTML=tabsHtml(); document.getElementById('sheet').innerHTML=DoorSheet.render(cur,DATA); }
+function setType(k){ cur=k; draw(); }
+function dl(kind){ window.open(`/door/${cur}/${kind}`, '_blank'); }
+function copyShare(btn){
+  const url=location.origin+'/door/'+cur;
+  const done=()=>{ const t=btn.textContent; btn.textContent='✓ 已複製對外連結'; setTimeout(()=>btn.textContent=t,1800); };
+  (navigator.clipboard&&navigator.clipboard.writeText)?navigator.clipboard.writeText(url).then(done,()=>prompt('複製對外連結：',url)):prompt('複製對外連結：',url);
+}
+(async()=>{
+  await loadUser(); highlightNav('door-price');
+  const st=document.createElement('style'); st.textContent=DoorSheet.css(); document.head.appendChild(st);
+  try{ DATA=await fetch('/api/door-price').then(r=>r.ok?r.json():{}); }catch(e){}
+  draw();
+})();
+</script>
+</body>
+</html>

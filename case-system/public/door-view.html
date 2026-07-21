@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>門片價目表 — 繪新國際</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#efeae3;font-family:'Noto Sans TC',system-ui,sans-serif;padding:22px 12px 50px}
+  .dv-actions{max-width:820px;margin:0 auto 14px;display:flex;justify-content:flex-end;gap:8px}
+  .dv-btn{border:1px solid #d1cabf;background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;color:#4a3b2a;cursor:pointer}
+  .dv-foot{max-width:820px;margin:16px auto 0;text-align:center;color:#9c9184;font-size:12px}
+  @media print{ .dv-actions,.dv-foot{display:none!important} body{background:#fff;padding:0} }
+</style>
+</head>
+<body>
+<div class="dv-actions" id="dvActions"><button class="dv-btn" onclick="window.print()">⬇ 列印 / 存 PDF</button></div>
+<div id="sheet"><p style="text-align:center;color:#8a8074;padding:50px">載入中…</p></div>
+<div class="dv-foot">繪新國際 Twcomet International · 本表為參考價，實際報價依現場為準</div>
+<script src="/js/door-sheet.js"></script>
+<script>
+(async function(){
+  const m=(location.pathname.match(/\/door\/([a-z]+)/i)||[])[1];
+  const type=['main','room','fire'].includes(m)?m:'main';
+  document.title=(DoorSheet.TYPES[type]||DoorSheet.TYPES.main).name+' — 繪新國際';
+  const st=document.createElement('style'); st.textContent=DoorSheet.css(); document.head.appendChild(st);
+  if(new URLSearchParams(location.search).get('pdf')==='1'){ const a=document.getElementById('dvActions'); if(a)a.style.display='none'; }
+  let data={};
+  try{ data=await fetch('/api/door-price').then(r=>r.ok?r.json():{}); }catch(e){}
+  document.getElementById('sheet').innerHTML=DoorSheet.render(type,data);
+})();
+</script>
+</body>
+</html>
