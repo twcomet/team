@@ -37,9 +37,9 @@ function computeFilms(arr, cat, combine) {
     const item = filmItem(cat, it.brand, it.idx), W = filmW(item);
     const isComb = combine && (it.work === 'plane' || it.work === 'cabinet');
     const nm = (it.name || '').trim();
-    // 與前端一致：依「項目名稱＋膜＋工法」分組（同一物件的多尺寸歸在一起）
-    const key = nm + '|' + it.brand + '|' + it.idx + '|' + it.work + '|' + (isComb ? 'C' : 'L');
-    groups[key] = groups[key] || { name: nm, item, brand: it.brand, W, work: it.work, isComb, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
+    // 與前端一致：依「項目名稱＋膜＋工法＋改價＋造型」分組（同一物件的多尺寸歸在一起）
+    const key = nm + '|' + it.brand + '|' + it.idx + '|' + it.work + '|' + (isComb ? 'C' : 'L') + '|' + (it.uOver == null ? '' : it.uOver) + '|' + (it.cs ? 'S' : '');
+    groups[key] = groups[key] || { name: nm, item, brand: it.brand, W, work: it.work, isComb, uOver: (it.uOver == null ? null : Number(it.uOver)), cs: !!it.cs, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
     g.sizes['寬' + it.w + '×高' + it.h] = (g.sizes['寬' + it.w + '×高' + it.h] || 0) + 1;
     if (isComb) {
@@ -49,19 +49,21 @@ function computeFilms(arr, cat, combine) {
     } else { g.looseCai += Math.ceil(it.w / W) * W * roundWall(it.h) / 900; } // 寬鬆：需要幾條×膜寬×(高+10cm損耗)（每條整條膜寬·多報）
   });
   return Object.keys(groups).map(k => {
-    const g = groups[k], unit = workUnit(g.item, g.work);
+    const g = groups[k], unit = (g.uOver != null ? g.uOver : (workUnit(g.item, g.work) + (g.cs ? 30 : 0)));
     const r = g.isComb ? _combCai(g) : { cai: g.looseCai, comb: 0 };
-    const title = (g.name ? g.name + '｜' : '') + workName[g.work] + '｜' + cat.FILMS[g.brand].label;
-    return { type: 'film', work: g.work, brand: g.brand, label: title, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, idxs: g.idxs };
+    const wl = (g.work === 'ceiling' && g.cs) ? '造型天花板' : workName[g.work];
+    const title = (g.name ? g.name + '｜' : '') + wl + '｜' + cat.FILMS[g.brand].label;
+    return { type: 'film', work: g.work, brand: g.brand, label: title, series: g.item.asia + ' ' + g.item.color + '　' + _sizeStr(g.sizes), n: g.n, cai: r.cai, unit, amount: ceil100(r.cai * unit), comb: r.comb, over: g.uOver != null, idxs: g.idxs };
   });
 }
 // 玻璃：combine=true 拼料省料(用該玻璃膜寬)；否則 寬鬆＝膜寬×高
 function computeGlass(arr, cat, cust, combine) {
   const groups = {};
   arr.forEach((it, ci) => {
-    const item = cat.GLASS[it.cat].items[it.idx], unit = cust === 'owner' ? item.owner : item.designer, W = item.width || 122;
+    const item = cat.GLASS[it.cat].items[it.idx], W = item.width || 122;
+    const unit = it.uOver != null ? Number(it.uOver) : (cust === 'owner' ? item.owner : item.designer);   // 尊重改價(uOver)
     const key = combine ? (it.cat + '|' + it.idx + '|' + unit) : (it.cat + '|' + it.idx + '|' + unit + '|' + it.h + '|' + it.w);
-    groups[key] = groups[key] || { catLabel: cat.GLASS[it.cat].label, sys: item.sys, unit, W, isComb: !!combine, full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
+    groups[key] = groups[key] || { catLabel: cat.GLASS[it.cat].label, sys: item.sys, unit, W, isComb: !!combine, over: (it.uOver != null), full: 0, pieces: [], looseCai: 0, n: 0, idxs: [], sizes: {} };
     const g = groups[key]; g.n++; g.idxs.push(ci);
     g.sizes['寬' + it.w + '×高' + it.h] = (g.sizes['寬' + it.w + '×高' + it.h] || 0) + 1;
     if (combine) {
@@ -73,7 +75,7 @@ function computeGlass(arr, cat, cust, combine) {
   return Object.keys(groups).map(k => {
     const g = groups[k];
     const r = g.isComb ? _combCai(g) : { cai: g.looseCai };
-    return { type: 'glass', label: '玻璃｜' + g.catLabel, series: g.sys + '　' + _sizeStr(g.sizes) + '（' + g.unit + '/才）', n: g.n, cai: r.cai, unit: g.unit, amount: ceil100(r.cai * g.unit), idxs: g.idxs };
+    return { type: 'glass', label: '玻璃｜' + g.catLabel, series: g.sys + '　' + _sizeStr(g.sizes) + '（' + g.unit + '/才）', n: g.n, cai: r.cai, unit: g.unit, amount: ceil100(r.cai * g.unit), over: !!g.over, idxs: g.idxs };
   });
 }
 // 其他品項：計價用「含損耗才數」＝寬+10、高+10，並套膜寬122拼料(省料)/寬鬆(多報)；caiM 可手動覆寫。並帶出圖片/尺寸/膜料供客戶頁
