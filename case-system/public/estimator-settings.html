@@ -178,7 +178,7 @@
         <p style="margin:0 0 10px;color:#6b7280;font-size:13px;line-height:1.6">
           場勘車馬費＝案件成交可折抵；超過案件金額此項可免收。過夜住宿以「一組工每晚」計，夜間施工另加價（無則填 0）。
         </p>
-        <table class="es-table"><thead><tr><th>區域</th><th>場勘車馬費</th><th>施工車馬費</th><th>過夜住宿/組·晚</th><th>夜間施工加價</th><th></th></tr></thead><tbody id="tb-freight"></tbody></table>
+        <table class="es-table"><thead><tr><th>區域</th><th>場勘車馬費</th><th>施工車馬費</th><th>過夜住宿/組·晚</th><th>夜間施工加價</th><th>低消（此區·0=用預設）</th><th></th></tr></thead><tbody id="tb-freight"></tbody></table>
       </div>
     </div>
     <div id="panel-lowmin" class="es-panel">
@@ -410,6 +410,7 @@ function renderFreight() {
       <td><input type="number" value="${f.amount ?? 0}" data-k="amount"></td>
       <td><input type="number" value="${f.overnight_fee ?? 0}" data-k="overnight_fee"></td>
       <td><input type="number" value="${f.night_surcharge ?? 0}" data-k="night_surcharge"></td>
+      <td><input type="number" value="${f.low_min ?? 0}" data-k="low_min" title="此區域低消；填 0 表示用預設業主/設計師低消"></td>
       <td><button class="es-btn es-btn-primary es-btn-sm" onclick="saveRow('freight',this)">儲存</button><span class="es-saved"></span></td>
     </tr>`).join('');
 }

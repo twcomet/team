@@ -3698,6 +3698,7 @@ db.exec(`
 _addCol('est_freight', 'survey_fee',      'REAL DEFAULT 0');
 _addCol('est_freight', 'overnight_fee',   'REAL DEFAULT 0');
 _addCol('est_freight', 'night_surcharge', 'REAL DEFAULT 0');
+_addCol('est_freight', 'low_min',         'REAL DEFAULT 0');   // 該區域低消(>0 才覆蓋預設業主/設計師低消)；近距離用
 _addCol('est_glass',   'width',           'INTEGER DEFAULT 122'); // 玻璃膜寬（拼料用）
 _addCol('est_glass',   'roll_len',        'REAL DEFAULT 50');     // 長度（米）
 try {
@@ -3873,6 +3874,23 @@ try {
     console.log('✅ est_film_catalog：牌價/米(未稅) 已 ×1.05 四捨五入取整');
   }
 } catch (e) { console.warn('[per_m x1.05]', e.message); }
+
+// 近距離低消：新增「近距離·三峽鶯歌」區域，低消 8000（公司在鶯歌，車馬費就近＝0）
+try {
+  const MIG = 'lowmin_near_sanxia_yingge_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    const exists = db.prepare(`SELECT id FROM est_freight WHERE region=?`).get('近距離·三峽鶯歌');
+    if (!exists) {
+      const so = db.prepare(`SELECT COALESCE(MIN(sort_order),0)-1 n FROM est_freight`).get().n;   // 排最前面
+      db.prepare(`INSERT INTO est_freight (region, survey_fee, amount, overnight_fee, night_surcharge, low_min, sort_order) VALUES (?,?,?,?,?,?,?)`)
+        .run('近距離·三峽鶯歌', 0, 0, 0, 0, 8000, so);
+    } else {
+      db.prepare(`UPDATE est_freight SET low_min=8000 WHERE region='近距離·三峽鶯歌'`).run();
+    }
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 近距離低消（三峽/鶯歌 8000）已建');
+  }
+} catch (e) { console.warn('[lowmin near]', e.message); }
 
 // 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 建入 est_film_catalog。
 // 這些品項客戶都用「元/才」思考：連工帶料→plane=cabinet=shape(元/才)；成本/材料(元/才)×膜寬/9 換算成元/米存(cost_per_m/per_m)，估價機 matCost=才×9/W×cost_per_m 才會等於 才×成本(元/才)。

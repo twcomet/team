@@ -169,7 +169,7 @@ function quote(cart, opts, catalog) {
   const sub = priced.reduce((a, L) => a + (L.base || L.amount), 0);       // 原價小計（連工帶料）
   const afterDisc = priced.reduce((a, L) => a + L.amount, 0);             // 折後小計
   const discAmt = sub - afterDisc;
-  const lowmin = cat.LOWMIN[cust];
+  const lowmin = (cat.FREIGHT_LOW && cat.FREIGHT_LOW[region] > 0) ? cat.FREIGHT_LOW[region] : cat.LOWMIN[cust];   // 近距離區域用該區低消
   const lowApplied = afterDisc > 0 && afterDisc < lowmin;               // 折後不足低消才補（不含運費）
   const itemsFinal = lowApplied ? lowmin : afterDisc;
   const freight = cat.FREIGHT[region] || 0;                             // 車馬費(施工)，最後加、不計低消
@@ -205,14 +205,14 @@ function buildCatalogFromDb(db) {
     if (!GLASS[r.cat_key]) GLASS[r.cat_key] = { label: r.cat_label, items: [] };
     GLASS[r.cat_key].items.push({ sys: r.sys, owner: r.owner_price, designer: r.designer_price, width: r.width || 122 });
   });
-  const FREIGHT = {};
-  db.prepare(`SELECT region, amount FROM est_freight`).all().forEach(r => { FREIGHT[r.region] = r.amount || 0; });
+  const FREIGHT = {}, FREIGHT_LOW = {};
+  db.prepare(`SELECT region, amount, low_min FROM est_freight`).all().forEach(r => { FREIGHT[r.region] = r.amount || 0; FREIGHT_LOW[r.region] = r.low_min || 0; });
   const lo = db.prepare(`SELECT key,value FROM settings WHERE key IN ('est_lowmin_owner','est_lowmin_designer')`).all();
   const LOWMIN = {
     owner: Number((lo.find(x => x.key === 'est_lowmin_owner') || {}).value || 10000),
     designer: Number((lo.find(x => x.key === 'est_lowmin_designer') || {}).value || 10000),
   };
-  return { FILMS, GLASS, DOORS, FREIGHT, LOWMIN, FUT: DEFAULT.FUT };
+  return { FILMS, GLASS, DOORS, FREIGHT, FREIGHT_LOW, LOWMIN, FUT: DEFAULT.FUT };
 }
 
 module.exports = {

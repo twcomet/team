@@ -118,9 +118,9 @@ router.put('/doors/:id', requireAuth, requireEdit, (req, res) => {
 });
 
 router.put('/freight/:id', requireAuth, requireEdit, (req, res) => {
-  const { survey_fee, amount, overnight_fee, night_surcharge } = req.body;
-  db.prepare(`UPDATE est_freight SET survey_fee=?, amount=?, overnight_fee=?, night_surcharge=? WHERE id=?`)
-    .run(Number(survey_fee)||0, Number(amount)||0, Number(overnight_fee)||0, Number(night_surcharge)||0, req.params.id);
+  const { survey_fee, amount, overnight_fee, night_surcharge, low_min } = req.body;
+  db.prepare(`UPDATE est_freight SET survey_fee=?, amount=?, overnight_fee=?, night_surcharge=?, low_min=? WHERE id=?`)
+    .run(Number(survey_fee)||0, Number(amount)||0, Number(overnight_fee)||0, Number(night_surcharge)||0, Number(low_min)||0, req.params.id);
   res.json({ ok: true });
 });
 
