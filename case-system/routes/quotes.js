@@ -788,13 +788,12 @@ router.post('/sign/:token', (req, res) => {
     client_accepted_at=CURRENT_TIMESTAMP, client_marketing_consent=? WHERE share_token=?`)
     .run(signature, consent, req.params.token);
 
-  // 案件升為已確認，同步成交金額
+  // 案件「成交金額」＝未稅：同意行銷→行銷優惠後(未稅 marketing_total)；不同意→一般優惠後(未稅 discount_value)。
+  // 修：原本 v2 存的是含稅應付(final_total)，導致成交金額(未稅)欄被帶成含稅金額。
   let finalAmt;
   if (q.engine === 'v2') {
-    // final_total 已是「同意拍照」的含稅扣折抵應付；不同意＝優惠價×(1+稅)−折抵
-    const deduction = Math.max(0, (q.marketing_total || 0) + (q.tax_amount || 0) - (q.final_total || 0));
-    finalAmt = consent ? (q.final_total || 0)
-                       : Math.round((q.discount_value || 0) * (1 + (q.tax_rate || 0.05))) - deduction;
+    finalAmt = consent ? (q.marketing_total != null ? q.marketing_total : (q.discount_value || 0))
+                       : (q.discount_value != null ? q.discount_value : 0);
   } else {
     finalAmt = consent && q.marketing_total ? q.marketing_total : q.final_total;
   }
