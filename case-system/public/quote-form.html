@@ -400,6 +400,7 @@
         <div class="fi"><label>優惠方式</label><select id="mktMode" onchange="recalc()"><option value="pct">總優惠價再打折</option><option value="amt">再折抵固定金額</option></select></div>
         <div class="fi"><label>數值</label><input type="number" id="mktVal" placeholder="空白＝不套用" oninput="recalc()"><span id="mktUnit">折(90=9折)</span></div>
         <div style="font-size:11px;color:var(--gray-500);margin:2px 0 4px">折數填 90＝9折；折抵金額直接填如 3000。<b>空白＝不套用</b>。場勘費/預付金等折抵請用下方「折抵」區。</div>
+        <div class="fi" style="margin-top:4px"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:600;color:var(--primary-dark)"><input type="checkbox" id="hideMktChk" onchange="markDirty();renderCust(document.getElementById('mktChk')?.checked)" style="width:16px;height:16px"> 客戶版隱藏行銷優惠（賣材料等不需要，客人就不會看到同意勾選）</label></div>
       </div>
     </div>
 
@@ -496,7 +497,7 @@
           <span id="cv_promo_line"><b>優惠後（未稅）：<span id="cv_promo"></span></b><br></span><span id="cv_mkt_line"></span><span id="cv_tax_line">稅金 5%：<span id="cv_tax"></span></span>
           <span id="cv_deduct_line"></span></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--gray-200)"><span style="font-weight:700">應付總金額</span><span style="font-size:24px;font-weight:900;color:var(--primary-dark)" id="cv_pay"></span></div>
-        <div class="mkt-sign">
+        <div class="mkt-sign" id="mktSignBox">
           <div style="font-weight:800;color:#6d28d9">🎁 行銷優惠方案 <span style="font-weight:400;font-size:12px;color:var(--gray-600)">同意繪新於施工時拍照攝影記錄，授權用於全球、用於官網社群，即可享優惠價</span></div>
           <label class="mktf-card" id="mktfCard">
             <span style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="mktChk" onchange="toggleMkt(this.checked)" style="width:24px;height:24px;flex-shrink:0;accent-color:#6d28d9;cursor:pointer"><span style="font-size:15px;font-weight:800;color:var(--gray-900)">我同意拍照攝影授權予繪新媒體</span></span>
@@ -768,6 +769,7 @@ async function loadQuote(){
   dayRate=q.day_rate||2800; const dr=document.getElementById('dayRate'); if(dr) dr.value=dayRate;
   document.getElementById('mktMode').value=q.mkt_mode||'pct';
   document.getElementById('mktVal').value=(q.mkt_value!=null?q.mkt_value:'');
+  { const hm=document.getElementById('hideMktChk'); if(hm) hm.checked=!!q.hide_marketing; }
   document.getElementById('clientType').value=q.client_type||'designer';
   { const ni=document.getElementById('noInvoiceChk'); if(ni) ni.checked=!!q.no_invoice; }
   setTerm('a',q.notes_terms); setTerm('c',q.notes_inspection); setTerm('d',q.notes_acceptance);
@@ -1054,6 +1056,7 @@ async function saveAll(){
       status: forked ? 'draft' : (curQuote?.status??'draft'), engine:'v2',
       mkt_mode:document.getElementById('mktMode').value,
       mkt_value:(document.getElementById('mktVal').value===''?null:Number(document.getElementById('mktVal').value)),
+      hide_marketing:document.getElementById('hideMktChk')?.checked?1:0,
       flex_deducts:JSON.stringify(document.getElementById('flexChk').checked?deducts:[]),
       day_rate:dayRate,
       notes_terms:getTerm('a'), notes_notice:document.getElementById('noticeArea').value||null,
@@ -1621,6 +1624,8 @@ function renderCust(useMkt){
   const dl=document.getElementById('cv_deduct_line');if(dl)dl.innerHTML=(c.deductList&&c.deductList.length)?c.deductList.map(d=>`<br>折抵：${esc(d.label)}　− ${money(d.amount)}`).join(''):'';
   const inc=document.getElementById('cv_mkt_incentive');if(inc)inc.innerHTML=(c.mktCut>0)?`<span style="display:block;font-size:11px;font-weight:700;color:var(--gray-500)">勾選即享・行銷優惠價</span><span style="display:block;font-size:21px;font-weight:900;color:var(--primary-dark)">${money(c.pay)} <small style="font-size:12px;font-weight:700;color:#059669">省 ${money(c.mktCut)}</small></span>`:'';
   document.getElementById('mktfCard')?.classList.toggle('on', !!useMkt);
+  // 勾「隱藏行銷優惠」或沒有行銷折扣 → 客戶版預覽不顯示行銷優惠整區
+  { const box=document.getElementById('mktSignBox'); if(box) box.style.display=((document.getElementById('hideMktChk')?.checked)||!(c.mktCut>0))?'none':''; }
   syncCustNotice();
 }
 let PGAL=[], PGALI=0, PGCAP='';

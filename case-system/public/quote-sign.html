@@ -314,7 +314,7 @@ function render(q){
   const afterMkt = q.marketing_total!=null?q.marketing_total:promoTotal;
   const taxRate = q.no_invoice ? 0 : (q.tax_rate||0.05);   // 不開發票 → 免稅
   const mktCut = Math.max(0, promoTotal-afterMkt);
-  const hasMkt = mktCut>0;
+  const hasMkt = mktCut>0 && !q.hide_marketing;   // 客服可在報價單勾「隱藏行銷優惠」→ 客戶看不到同意勾選
   const hasDiscount = (subtotal - promoTotal) > 0.5;                   // 後台有設「一般優惠折數」才顯示優惠價欄
   // 折抵明細（名目＋金額）：彈性折抵 + 已套用預付金；總額用實際明細加總，避免依 final_total 反推而時有時無
   const DEP_NAME = { survey_fee:'場勘費', catalog:'膜料本', sample:'樣本費', other:'其他預收款' };
