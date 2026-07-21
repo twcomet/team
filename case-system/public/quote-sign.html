@@ -336,8 +336,7 @@ function render(q){
   const _allMat = _nt.length && _nt.every(it=>it.calc_mode==='material');
   const _anyCai = _nt.some(it=>it.calc_mode==='cai');   // 有以才計價的品項才顯示「才數」欄
   const showCai = _anyCai && !hideChi;                   // 業主版隱藏才數
-  const _allRoll = _allMat && _nt.every(it=>it.sell_mode==='roll');
-  const lblUnit  = _allMat ? (_allRoll?'每支材料單價':'每米材料單價') : '連工帶料單價';
+  const lblUnit  = '單價';   // 通用：每列自己帶 /才、/米、/支
   const lblTotal = _allMat ? '材料總價'     : '連工帶料總價';
   const lblPromo = _allMat ? '材料優惠價'   : '連工帶料優惠價';
 

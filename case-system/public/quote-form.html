@@ -1584,8 +1584,7 @@ function renderCust(useMkt){
   const showCai=_anyCai&&!owner;                          // 業主版隱藏才數
   const _tg=(id,show)=>{const e=document.getElementById(id);if(e)e.style.display=show?'':'none';};
   _tg('cth_img',showFilmImg); _tg('cth_photo',showSitePhoto); _tg('cth_cai',showCai);
-  const _allRoll=_allMat&&_nt.every(it=>it.sellMode==='roll');
-  _txt('cth_unit',_allMat?(_allRoll?'每支材料單價':'每米材料單價'):'連工帶料單價');
+  _txt('cth_unit','單價');   // 通用欄名：每列自己帶 /才、/米、/支
   _txt('cth_total',_allMat?'材料總價':'連工帶料總價');
   _txt('cth_promo',_allMat?'材料優惠價':'連工帶料優惠價');
   const hasDisc=((c.sub||0)-(c.promo||0))>0.5;   // 有設一般優惠折數才顯示優惠價欄
