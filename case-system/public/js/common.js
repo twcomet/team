@@ -197,7 +197,10 @@ async function loadUser() {
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="material-match"]')) return;
-    if (outsourced) return;
+    const p = currentUser.permissions || {};
+    // 有勾選權限就依權限；沒設定→維持原本預設（外包/約聘/經銷不可見，其餘可見）
+    const canMatch = currentUser.role === 'owner' || (p.page_material_match !== undefined ? p.page_material_match : !outsourced);
+    if (!canMatch) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'material-match'; a.href = '/material-match';
     a.innerHTML = '<span class="icon">🎨</span>相似花色查詢';
@@ -209,8 +212,12 @@ async function loadUser() {
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="price-list"]')) return;
-    const canPrice = currentUser.role === 'owner' || mu
-      || ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(currentUser.role);
+    const pPl = currentUser.permissions || {};
+    // 有勾選權限就依權限；沒設定→維持原本角色預設
+    const canPrice = currentUser.role === 'owner'
+      || (pPl.page_price_list !== undefined
+            ? pPl.page_price_list
+            : (mu || ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(currentUser.role)));
     if (!canPrice) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'price-list'; a.href = '/price-list';

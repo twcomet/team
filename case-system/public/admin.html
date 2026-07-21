@@ -465,6 +465,12 @@
             <input type="checkbox" id="perm_page_material_calc"> 🧮 快速報價
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_price_list"> 🏷️ 膜料牌價表
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_material_match"> 🎨 相似花色查詢
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_performance"> 🏆 業績報表
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
@@ -536,7 +542,7 @@
   </div>
 </div>
 
-<script src="/js/common.js?v=20260721"></script>
+<script src="/js/common.js?v=20260721b"></script>
 <script>
 let orgs = [], roles = [], allUsers = [], customRoles = [], lineChannels = [];
 let editingUserId = null, editingRoleId = null, editingBuiltinRole = null;
@@ -1186,6 +1192,8 @@ function openEditUser(id) {
   document.getElementById('perm_page_quote_settings').checked  = isOwner ? true : (perms.page_quote_settings !== undefined ? !!perms.page_quote_settings : false);
   document.getElementById('perm_page_materials').checked        = isOwner ? true : (perms.page_materials      !== undefined ? !!perms.page_materials      : !!u.is_manager);
   document.getElementById('perm_page_material_calc').checked    = isOwner ? true : (perms.page_material_calc !== undefined ? !!perms.page_material_calc : true);
+  document.getElementById('perm_page_price_list').checked       = isOwner ? true : (perms.page_price_list !== undefined ? !!perms.page_price_list : (['vp','hq_sales','hq_cs','hq_cs_manager','hq_hr','hq_accounting','branch_manager','branch_sales'].includes(u.role) || !!u.is_manager));
+  document.getElementById('perm_page_material_match').checked   = isOwner ? true : (perms.page_material_match !== undefined ? !!perms.page_material_match : !['contractor_install','contractor_sales','dealer'].includes(u.role));
   document.getElementById('perm_page_performance').checked      = isOwner ? true : (perms.page_performance !== undefined ? !!perms.page_performance : !!u.is_manager);
   document.getElementById('perm_page_reports').checked          = isOwner ? true : (perms.page_reports     !== undefined ? !!perms.page_reports     : !!u.is_manager);
   document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
@@ -1250,6 +1258,8 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_cases_deal:     document.getElementById('perm_page_cases_deal').checked,
       page_materials:      document.getElementById('perm_page_materials').checked,
       page_material_calc:  document.getElementById('perm_page_material_calc').checked,
+      page_price_list:     document.getElementById('perm_page_price_list').checked,
+      page_material_match: document.getElementById('perm_page_material_match').checked,
       page_performance:    document.getElementById('perm_page_performance').checked,
       page_reports:        document.getElementById('perm_page_reports').checked,
       page_marketing:      document.getElementById('perm_page_marketing').checked,
