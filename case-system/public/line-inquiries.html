@@ -620,7 +620,9 @@ async function loadCanned() {
 function openCanned() {
   const cats = Array.from(new Set(ALL_CANNED.map(k => k.category || '未分類')));
   const sel = document.getElementById('cannedCat');
-  sel.innerHTML = `<option value="">全部（${ALL_CANNED.length}）</option>` +
+  const total = ALL_CANNED.length + QUICK_REPLIES.length;
+  sel.innerHTML = `<option value="">全部（${total}）</option>` +
+    `<option value="常用語">常用語（${QUICK_REPLIES.length}）</option>` +
     cats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}（${ALL_CANNED.filter(k => (k.category||'未分類') === c).length}）</option>`).join('');
   document.getElementById('ca-cats').innerHTML = cats.map(c => `<option value="${escHtml(c)}">`).join('');
   document.getElementById('cannedSearch').value = '';
@@ -634,22 +636,27 @@ function renderCanned() {
   const q = (document.getElementById('cannedSearch').value || '').trim().toLowerCase();
   const cat = document.getElementById('cannedCat').value;
   const box = document.getElementById('cannedList');
-  let list = ALL_CANNED.slice();
-  if (cat) list = list.filter(k => (k.category || '未分類') === cat);
-  if (q) list = list.filter(k => (`${k.question||''} ${k.answer||''} ${k.keywords||''}`).toLowerCase().includes(q));
+  // 常用語(SOP 快捷)併入罐頭訊息，放最上面「常用語」分類
+  const qr = QUICK_REPLIES.map((r, idx) => ({ qr: idx, category: '常用語', title: r.label, answer: r.text, keywords: '' }));
+  const cn = ALL_CANNED.map(k => ({ id: k.id, category: k.category || '未分類', title: k.question || (k.answer || '').slice(0, 14), answer: k.answer || '', keywords: k.keywords || '' }));
+  let list = qr.concat(cn);
+  if (cat) list = list.filter(k => k.category === cat);
+  if (q) list = list.filter(k => (`${k.title} ${k.answer} ${k.keywords || ''}`).toLowerCase().includes(q));
   if (!list.length) { box.innerHTML = `<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:24px">找不到符合的罐頭訊息</div>`; return; }
   box.innerHTML = list.map(k => {
-    const title = k.question || (k.answer || '').slice(0, 14);
-    return `<div onclick="pickCanned(${k.id})" title="點擊帶入回覆框（可再編輯）"
+    const onclick = (k.qr != null) ? `pickQuick(${k.qr})` : `pickCanned(${k.id})`;
+    const isQr = k.qr != null;
+    return `<div onclick="${onclick}" title="點擊帶入回覆框（可再編輯）"
       style="background:#fff;border:1px solid var(--gray-200);border-radius:9px;padding:9px 12px;cursor:pointer">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-        <span style="font-size:10px;font-weight:700;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;padding:1px 7px;border-radius:9px;white-space:nowrap">${escHtml(k.category || '未分類')}</span>
-        <span style="font-weight:700;color:#1e293b;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(title)}</span>
+        <span style="font-size:10px;font-weight:700;color:${isQr ? '#6d28d9' : '#166534'};background:${isQr ? '#f5f3ff' : '#f0fdf4'};border:1px solid ${isQr ? '#ddd6fe' : '#bbf7d0'};padding:1px 7px;border-radius:9px;white-space:nowrap">${escHtml(k.category)}</span>
+        <span style="font-weight:700;color:#1e293b;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(k.title)}</span>
       </div>
       <div style="font-size:12px;color:var(--gray-500);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escHtml(k.answer || '')}</div>
     </div>`;
   }).join('');
 }
+function pickQuick(idx) { insertReplyText(QUICK_REPLIES[idx]?.text || ''); closeCanned(); }
 function pickCanned(id) {
   const k = ALL_CANNED.find(x => x.id === id);
   if (k) insertReplyText(k.answer || '');
@@ -1174,7 +1181,7 @@ async function openInquiry(id) {
     ${data.status !== 'invalid' ? `
     ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
     ${aiDraftCard(data, id)}
-    ${quickReplyBar()}
+    ${''/* 常用語已併入💬罐頭訊息、AI助手/AI估價已移到輸入框左側 */}
     <div id="replyToBar" class="reply-to-bar" style="display:none">
       <span style="flex:0 0 auto">↩ 回覆：</span>
       <span id="replyToPreview" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-600)"></span>
@@ -1182,7 +1189,9 @@ async function openInquiry(id) {
     </div>
     <div class="reply-box" style="position:relative">
       <button type="button" class="btn btn-sm" id="emojiBtn" style="padding:8px 11px;background:#fff;border:1px solid var(--gray-300);font-size:16px;line-height:1" onclick="toggleEmoji(event)" title="插入 emoji 表情符號">😊</button>
-      <button type="button" class="btn btn-sm" id="cannedBtn" style="padding:8px 11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;line-height:1;font-weight:700" onclick="openCanned()" title="罐頭訊息：搜尋／分類挑選">💬</button>
+      <button type="button" class="btn btn-sm" id="cannedBtn" style="padding:8px 11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;line-height:1;font-weight:700" onclick="openCanned()" title="罐頭訊息／常用語：搜尋、分類挑選">💬</button>
+      <button type="button" class="btn btn-sm" id="aiChatBtn" style="padding:8px 11px;background:#f5f3ff;border:1px solid #c4b5fd;color:#6d28d9;font-size:15px;line-height:1;font-weight:700" onclick="openAiChat()" title="問 AI 助手（co-pilot，不會傳給客人）">🤖</button>
+      <button type="button" class="btn btn-sm" id="aiEstBtn" style="padding:8px 11px;background:#fdf2f8;border:1px solid #fbcfe8;color:#be185d;font-size:15px;line-height:1;font-weight:700" onclick="openAiEstimate()" title="AI 估價輔助：從對話＋照片萃取品項 → 開估價機草稿">💲</button>
       <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息…（換行請直接按 Enter，送出請按右邊按鈕）" rows="1"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
       ></textarea>

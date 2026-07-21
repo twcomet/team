@@ -668,8 +668,9 @@ router.delete('/:quoteId', requireAuth, (req, res) => {
   const dealStatuses = ['contracted','payment','closed'];
   if (dealStatuses.includes(qs.case_status))
     return res.status(400).json({ error: `案件 ${qs.case_number} 已成交，報價單無法刪除` });
-  if (qs.status === 'signed')
-    return res.status(400).json({ error: '已簽署的報價單無法刪除' });
+  // 已回簽（客戶確認 accepted）／已簽署（signed）一律鎖住，任何人都不可刪除
+  if (qs.status === 'accepted' || qs.status === 'signed')
+    return res.status(400).json({ error: '已回簽／已簽署的報價單無法刪除' });
   db.prepare(`DELETE FROM quote_sheet_items WHERE quote_id=?`).run(req.params.quoteId);
   db.prepare(`DELETE FROM quote_sheets WHERE id=?`).run(req.params.quoteId);
   res.json({ ok: true });
