@@ -154,15 +154,14 @@
         <p class="es-hint">穩得長虹玻璃膜、日本三井特殊膜、CarLife 隔熱紙等，不屬於裝潢膜、已從「裝潢膜」移到這裡。牆面/系統櫃/造型三欄通常填同一個每才價。<span style="color:#b45309">與下方「玻璃每才單價」若有重複，確認後可擇一刪除。</span></p>
         <div class="es-scroll"><table class="es-table"><thead><tr id="th-glassfilms"></tr></thead><tbody id="tb-glassfilms"></tbody></table></div>
       </div>
-      <div class="es-card"><h3>玻璃每才單價</h3><p class="es-hint">分業主 / 設計師兩價。寬度＝玻璃膜寬（拼料模式依此算才數）；長度＝每卷米。</p>
-        <div class="es-scroll"><table class="es-table"><thead><tr><th>類別</th><th>型號</th><th>業主/才</th><th>設計師/才</th><th>寬度cm</th><th>長度米</th><th>啟用</th><th></th></tr></thead><tbody id="tb-glass"></tbody></table></div>
+      <div class="es-card"><h3>玻璃每才單價</h3><p class="es-hint">已統一單一每才單價（不分業主／設計師），跟裝潢膜一樣的邏輯。寬度＝玻璃膜寬（拼料模式依此算才數）；長度＝每卷米。</p>
+        <div class="es-scroll"><table class="es-table"><thead><tr><th>類別</th><th>型號</th><th>每才單價</th><th>寬度cm</th><th>長度米</th><th>啟用</th><th></th></tr></thead><tbody id="tb-glass"></tbody></table></div>
       </div>
       <div class="es-card"><h3>＋ 新增玻璃型號</h3>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
           <div><label style="font-size:11px;color:#6b7280">類別</label><br><select id="ng-cat" style="padding:5px;border:1px solid #d1d5db;border-radius:6px"></select></div>
           <div><label style="font-size:11px;color:#6b7280">型號</label><br><input id="ng-sys" style="width:140px"></div>
-          <div><label style="font-size:11px;color:#6b7280">業主/才</label><br><input id="ng-owner" type="number" style="width:70px"></div>
-          <div><label style="font-size:11px;color:#6b7280">設計師/才</label><br><input id="ng-designer" type="number" style="width:70px"></div>
+          <div><label style="font-size:11px;color:#6b7280">每才單價</label><br><input id="ng-price" type="number" style="width:80px"></div>
           <div><label style="font-size:11px;color:#6b7280">寬cm</label><br><input id="ng-width" type="number" value="122" style="width:60px"></div>
           <div><label style="font-size:11px;color:#6b7280">長度米</label><br><input id="ng-len" type="number" value="50" style="width:60px"></div>
           <button class="es-btn es-btn-primary" onclick="addGlass()">＋ 新增</button>
@@ -367,11 +366,10 @@ function renderGlass() {
   var cats = {};
   DATA.glass.forEach(g => {
     cats[g.cat_key] = g.cat_label;
-    if (g.cat_label !== lastCat) { lastCat = g.cat_label; h += `<tr class="es-grp"><td colspan="8">${esc(g.cat_label)}</td></tr>`; }
+    if (g.cat_label !== lastCat) { lastCat = g.cat_label; h += `<tr class="es-grp"><td colspan="7">${esc(g.cat_label)}</td></tr>`; }
     h += `<tr data-id="${g.id}">
       <td></td><td style="white-space:normal;min-width:180px">${esc(g.sys)}</td>
-      <td><input type="number" value="${g.owner_price}" data-k="owner_price"></td>
-      <td><input type="number" value="${g.designer_price}" data-k="designer_price"></td>
+      <td><input type="number" value="${g.owner_price}" data-k="price"></td>
       <td><input type="number" value="${g.width ?? 122}" data-k="width"></td>
       <td><input type="number" value="${g.roll_len ?? 50}" data-k="roll_len"></td>
       <td><input type="checkbox" ${g.active?'checked':''} data-k="active" style="width:auto"></td>
@@ -384,10 +382,10 @@ function renderGlass() {
 async function delGlass(id){ if(!confirm('確定刪除這個玻璃型號？'))return; await fetch(`${API}/glass/${id}`,{method:'DELETE'}); load(); }
 async function addGlass(){
   var sel=document.getElementById('ng-cat'), catKey=sel.value, catLabel=sel.options[sel.selectedIndex].textContent;
-  var body={ cat_key:catKey, cat_label:catLabel, sys:document.getElementById('ng-sys').value, owner_price:document.getElementById('ng-owner').value, designer_price:document.getElementById('ng-designer').value, width:document.getElementById('ng-width').value, roll_len:document.getElementById('ng-len').value };
+  var body={ cat_key:catKey, cat_label:catLabel, sys:document.getElementById('ng-sys').value, price:document.getElementById('ng-price').value, width:document.getElementById('ng-width').value, roll_len:document.getElementById('ng-len').value };
   if(!body.sys){ alert('請填型號'); return; }
   var r=await fetch(`${API}/glass`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r.ok){ ['ng-sys','ng-owner','ng-designer'].forEach(function(id){document.getElementById(id).value='';}); load(); } else alert('新增失敗');
+  if(r.ok){ ['ng-sys','ng-price'].forEach(function(id){document.getElementById(id).value='';}); load(); } else alert('新增失敗');
 }
 function renderDoors() {
   let lastCat = '', h = '';

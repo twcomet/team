@@ -3854,6 +3854,16 @@ try {
   }
 } catch (e) { console.warn('[ecom=pricelist]', e.message); }
 
+// 玻璃統一單一每才單價（不分業主/設計師）：一次性把 designer_price 對齊 owner_price
+try {
+  const MIG = 'glass_single_price_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`UPDATE est_glass SET designer_price = owner_price`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ est_glass：玻璃已統一單一每才單價（designer=owner）');
+  }
+} catch (e) { console.warn('[glass single price]', e.message); }
+
 // 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 建入 est_film_catalog。
 // 這些品項客戶都用「元/才」思考：連工帶料→plane=cabinet=shape(元/才)；成本/材料(元/才)×膜寬/9 換算成元/米存(cost_per_m/per_m)，估價機 matCost=才×9/W×cost_per_m 才會等於 才×成本(元/才)。
 try {

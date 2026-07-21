@@ -90,16 +90,19 @@ router.put('/films/:id', requireAuth, requireEdit, (req, res) => {
 });
 
 router.put('/glass/:id', requireAuth, requireEdit, (req, res) => {
-  const { owner_price, designer_price, active, width, roll_len } = req.body;
+  const b = req.body || {};
+  // 玻璃已統一單一每才單價（不分業主/設計師）：owner=designer=price
+  const price = Number(b.price != null ? b.price : b.owner_price) || 0;
   db.prepare(`UPDATE est_glass SET owner_price=?,designer_price=?,width=?,roll_len=?,active=? WHERE id=?`)
-    .run(Number(owner_price)||0, Number(designer_price)||0, Number(width)||122, Number(roll_len)||50, active?1:0, req.params.id);
+    .run(price, price, Number(b.width)||122, Number(b.roll_len)||50, b.active?1:0, req.params.id);
   res.json({ ok: true });
 });
 router.post('/glass', requireAuth, requireEdit, (req, res) => {
   const b = req.body || {};
+  const price = Number(b.price != null ? b.price : b.owner_price) || 0;
   const maxSo = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_glass`).get().n;
   const info = db.prepare(`INSERT INTO est_glass (cat_key,cat_label,sys,owner_price,designer_price,width,roll_len,sort_order) VALUES (?,?,?,?,?,?,?,?)`)
-    .run(b.cat_key || '', b.cat_label || '', b.sys || '', Number(b.owner_price)||0, Number(b.designer_price)||0, Number(b.width)||122, Number(b.roll_len)||50, maxSo);
+    .run(b.cat_key || '', b.cat_label || '', b.sys || '', price, price, Number(b.width)||122, Number(b.roll_len)||50, maxSo);
   res.json({ ok: true, id: info.lastInsertRowid });
 });
 router.delete('/glass/:id', requireAuth, requireEdit, (req, res) => {
