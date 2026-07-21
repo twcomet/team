@@ -60,7 +60,7 @@ router.get('/', requireAuth, (req, res) => {
 // 供「新增膜料」自動帶價用：估價定價表(est_film_catalog)。成本依 can_see_cost 決定是否外送
 router.get('/film-catalog', requireAuth, (req, res) => {
   const me = req.session.user;
-  const rows = db.prepare(`SELECT brand, region, asia_code, kr_code, color, fireproof, per_m, ecom_price, cost_per_m, width, plane, cabinet, shape FROM est_film_catalog WHERE active=1 ORDER BY sort_order, id`).all();
+  const rows = db.prepare(`SELECT brand, region, asia_code, kr_code, color, fireproof, per_m, ecom_price, cost_per_m, width, roll_len, plane, cabinet, shape FROM est_film_catalog WHERE active=1 ORDER BY sort_order, id`).all();
   // 售價：有電商價(BODAQ/LX/PAROI)用含稅、3M 無電商用未稅牌價
   rows.forEach(r => { r.sell_price = (r.ecom_price && r.ecom_price > 0) ? Math.round(r.ecom_price) : Math.round(r.per_m || 0); });
   if (!me.can_see_cost) rows.forEach(r => { r.cost_per_m = null; });

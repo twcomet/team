@@ -643,12 +643,41 @@ function fillCaiFromCatalog(i){
   return false;
 }
 function setWorkType(i,v){ const it=items[i]; it.workType=v; fillCaiFromCatalog(i); markDirty(); renderRows(); recalc(); }
-// 膜料販售 每米售價＝報價設定的「牌價(未稅)/米」；查無定價表才退回膜料庫存售價
-function filmSellPerM(it){
-  const row=matchCatalog(it.brand,it.model); if(row && Number(row.per_m)>0) return Math.round(row.per_m);
-  const mat=it.materialId?findMatById(it.materialId):null; return (mat&&mat.unit_price)?mat.unit_price:null;
+// ── 系列（定價表 asia_code）：品牌→系列 帶牌價/米 ──────────────────
+function catBrandKey(brand){ return QF_BRAND2CAT[String(brand||'').toUpperCase().trim()]||null; }
+function seriesList(brand){
+  const cat=catBrandKey(brand); if(!cat||!CATALOG.length) return [];
+  const seen={}, out=[];
+  CATALOG.filter(r=>r.brand===cat).forEach(r=>{ const s=String(r.asia_code||'').trim(); if(s&&!seen[s]){ seen[s]=1; out.push({code:s, per_m:r.per_m, color:r.color, width:r.width, roll_len:r.roll_len}); } });
+  return out;
 }
-function fillMaterialPrice(it){ if(it.mode!=='material')return false; const p=filmSellPerM(it); if(p!=null){ it.unitEach=p; it.total=null; it.promo=null; return true; } return false; }
+function catalogRowBySeries(brand,series){
+  const cat=catBrandKey(brand); if(!cat) return null;
+  return CATALOG.find(r=>r.brand===cat && String(r.asia_code||'').trim()===String(series||'').trim())||null;
+}
+// 取該膜的「牌價(未稅)/米」與卷長：優先用已選系列，其次型號比對，再退回庫存售價
+function filmUnitPerM(it){
+  if(it.series){ const rs=catalogRowBySeries(it.brand,it.series); if(rs && Number(rs.per_m)>0) return {perM:Math.round(rs.per_m), roll:Number(rs.roll_len)||0}; }
+  const row=matchCatalog(it.brand,it.model); if(row && Number(row.per_m)>0) return {perM:Math.round(row.per_m), roll:Number(row.roll_len)||0};
+  const mat=it.materialId?findMatById(it.materialId):null; if(mat && mat.unit_price) return {perM:mat.unit_price, roll:0};
+  return null;
+}
+// 膜料販售：散米＝牌價/米 × 米數；整支＝牌價/米 × 卷長 × 9折（整卷不另收運費）
+function fillMaterialPrice(it){
+  if(it.mode!=='material') return false;
+  const p=filmUnitPerM(it); if(!p) return false;
+  if(it.sellMode==='roll'){ const roll=p.roll||50; it.unitEach=Math.round(p.perM*roll*0.9); }
+  else { it.unitEach=p.perM; }
+  it.total=null; it.promo=null; return true;
+}
+function setSeries(i,v){
+  const it=items[i]; it.series=v||'';
+  const row=catalogRowBySeries(it.brand,v); if(row && row.width) it.width=row.width;
+  fillMaterialPrice(it);
+  markDirty(); renderRows(); recalc();
+}
+// 整支/散米切換：重算每支/每米單價
+function setSellMode(i,m){ const it=items[i]; it.sellMode=m; fillMaterialPrice(it); markDirty(); renderRows(); recalc(); }
 const brandList=()=>[...new Set(MATERIALS.map(m=>m.brand).filter(Boolean))].sort();
 const modelList=(brand)=>MATERIALS.filter(m=>m.brand===brand);
 const findMat=(brand,model)=>MATERIALS.find(m=>m.brand===brand&&m.model===model);
@@ -1142,9 +1171,10 @@ function renderRows(){
         <label>${isMat?'單買膜料（品牌／型號・勾稽庫存）':'膜料資訊（品牌／型號・勾稽庫存）'}</label>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <select class="film-sel" onchange="setFilmBrand(${i},this.value)">${brandOpts}</select>
+          ${(isMat&&!custom)?`<select class="film-sel" title="系列（自動帶牌價/米）" onchange="setSeries(${i},this.value)"><option value="">系列…</option>${seriesList(it.brand).map(s=>`<option value="${esc(s.code)}" ${it.series===s.code?'selected':''}>${esc(s.code)}${Number(s.per_m)>0?'（NT$ '+Number(s.per_m).toLocaleString()+'/米）':''}</option>`).join('')}</select>`:''}
           ${custom
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
-            : `<input class="film-sel" list="mdl${i}" style="min-width:210px" value="${curModelVal}" placeholder="打字搜尋型號／貨架…" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
+            : `<input class="film-sel" list="mdl${i}" style="min-width:190px" value="${curModelVal}" placeholder="打字搜尋型號／貨架…" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
           ${stockChip}
         </div>
       </div>`;
@@ -1168,10 +1198,13 @@ function renderRows(){
     const modeToggle=`<span class="seg" style="margin-left:6px">
         <span class="${it.mode==='unit'?'on':''}" onclick="setMode(${i},'unit')">座計價</span>
         <span class="${isCai?'on':''}" onclick="setMode(${i},'cai')">才數計價</span></span>`;
+    const isRoll=it.sellMode==='roll';
+    const sellToggle=`<span class="seg" title="整支/散米價格不同"><span class="${!isRoll?'on':''}" onclick="setSellMode(${i},'meter')">散米</span><span class="${isRoll?'on':''}" onclick="setSellMode(${i},'roll')">整支</span></span>`;
     const csFields = isMat ? `
-        <div class="fld"><label>每米單價</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:96px"></div>
+        <div class="fld" style="align-self:flex-end;padding-bottom:2px">${sellToggle}</div>
+        <div class="fld"><label>${isRoll?'每支單價':'每米單價'}</label><input type="number" value="${it.unitEach}" oninput="setNum(${i},'unitEach',this.value)" style="width:96px"></div>
         <span class="eq">×</span>
-        <div class="fld"><label>訂購米數/數量</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:92px"></div>`
+        <div class="fld"><label>${isRoll?'支數':'訂購米數'}</label><input type="number" value="${it.qty}" oninput="setNum(${i},'qty',this.value)" style="width:92px"></div>`
       : isCai ? `
         <div class="fld"><label>才數（工務帶入）</label><div class="chip-ro" id="pcai${i}">${caiOf(it).toFixed(2)}</div></div>
         <span class="eq">×</span>
@@ -1312,8 +1345,8 @@ function setMode(i,m){const it=items[i];it.mode=m;
 // ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
 function setFilmBrand(i,v){
   const it=items[i];
-  if(v==='__custom'){ it.isFutures=true; it.brand=''; it.model=''; it.materialId=null; markDirty(); renderRows(); return; }
-  it.isFutures=false; it.brand=v; it.model=''; it.materialId=null;
+  if(v==='__custom'){ it.isFutures=true; it.brand=''; it.model=''; it.series=''; it.materialId=null; markDirty(); renderRows(); return; }
+  it.isFutures=false; it.brand=v; it.model=''; it.series=''; it.materialId=null;
   markDirty(); renderRows();
 }
 function setFilmModel(i,v){
@@ -1403,7 +1436,7 @@ function copyRow(i){const src=items[i]; if(!src) return; const copy=JSON.parse(J
   const cards=document.querySelectorAll('#rows .icard'); const el=cards[i+1]; if(el) el.scrollIntoView({behavior:'smooth',block:'center'});}
 function addRow(){items.push({name:'新增品項',mode:'unit',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:20000,qty:1,unitCai:180,srvMeters:8,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:1,days:1,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 // 膜料販售：直接建 material 模式品項（每米單價×米數；選好型號會自動帶售價、客戶版不顯示示意圖/現場照）
-function addMaterialRow(){items.push({name:'膜料販售',mode:'material',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:1000,qty:10,unitCai:180,srvMeters:0,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:0,days:0,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
+function addMaterialRow(){items.push({name:'膜料販售',mode:'material',sellMode:'meter',series:'',film:'',brand:'',model:'',materialId:null,isFutures:false,unitEach:1000,qty:10,unitCai:180,srvMeters:0,width:122,sizeText:'',disc:80,filmCostPerM:500,workers:0,days:0,note:'',filmImg:'',areaPhotos:[]});renderRows();recalc();focusLast();}
 function addTextRow(){items.push({kind:'text',name:'自由文字列',note:'（可填說明，如：本報價已含北北基運費）',unitEach:0,qty:1,disc:100,promo:null});renderRows();recalc();focusLast();}
 // 期貨運費列：可選期貨類型自動帶金額（同文字列一樣計價：單價×數量、可折）
 function addFuturesRow(){items.push({kind:'futures',name:'期貨運費',futuresId:null,unitEach:0,qty:1,disc:100,promo:null,total:null,note:'',workers:0,days:0,filmCostPerM:0,mode:'unit'});renderRows();recalc();focusLast();}

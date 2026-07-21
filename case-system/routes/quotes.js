@@ -133,7 +133,7 @@ function applyV2Item(quoteId, itemId, b) {
 // ── 報價單總列表（含過濾）────────────────────────────────────────
 router.get('/', requireAuth, (req, res) => {
   const me = req.session.user;
-  const { status, from, to, search, case_type } = req.query;
+  const { status, from, to, search, case_type, creator } = req.query;
 
   let sql = `
     SELECT qs.id, qs.case_id, qs.version, qs.status, qs.final_total, qs.created_at,
@@ -154,6 +154,7 @@ router.get('/', requireAuth, (req, res) => {
   if (from)      { sql += ` AND date(qs.created_at) >= ?`; params.push(from); }
   if (to)        { sql += ` AND date(qs.created_at) <= ?`; params.push(to); }
   if (case_type) { sql += ` AND c.case_type = ?`; params.push(case_type); }
+  if (creator)   { sql += ` AND qs.created_by = ?`; params.push(creator); }
   if (search) {
     sql += ` AND (c.case_number LIKE ? OR c.title LIKE ? OR cl.name LIKE ?)`;
     const q = `%${search}%`;
@@ -161,6 +162,20 @@ router.get('/', requireAuth, (req, res) => {
   }
 
   sql += ` ORDER BY qs.created_at DESC LIMIT 300`;
+  res.json(db.prepare(sql).all(...params));
+});
+
+// ── 編輯人清單（報價管理「編輯人」下拉篩選用；只列有建過報價單的人）────
+router.get('/editors', requireAuth, (req, res) => {
+  const me = req.session.user;
+  let sql = `SELECT DISTINCT u.id, u.name
+    FROM quote_sheets qs
+    JOIN users u ON u.id = qs.created_by
+    JOIN cases c ON c.id = qs.case_id
+    WHERE u.name IS NOT NULL AND u.name <> ''`;
+  const params = [];
+  if (me.role !== 'owner') { sql += ` AND c.org_id = ?`; params.push(me.org_id); }
+  sql += ` ORDER BY u.name`;
   res.json(db.prepare(sql).all(...params));
 });
 

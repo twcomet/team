@@ -143,6 +143,9 @@
           <option value="material_sale">賣膜料</option>
             <option value="other">其他</option>
         </select>
+        <select id="editorFilter" title="依編輯人篩選">
+          <option value="">全部編輯人</option>
+        </select>
         <input type="date" id="fromDate" title="建立日期起">
         <input type="date" id="toDate" title="建立日期迄">
         <button class="btn btn-sm" onclick="loadList()" style="background:#2563eb;color:#fff">查詢</button>
@@ -268,7 +271,22 @@ function esc(s) {
 async function init() {
   currentUser = await loadUser();
   highlightNav('quote-list');
+  await loadEditors();
   loadList();
+}
+
+// 編輯人下拉：列出所有建過報價單的人；並放「我自己」快速選項
+async function loadEditors() {
+  try {
+    const list = await fetch(`${API}/editors`).then(r => r.ok ? r.json() : []);
+    const sel = document.getElementById('editorFilter');
+    if (!sel) return;
+    const myId = currentUser && currentUser.id;
+    let html = '<option value="">全部編輯人</option>';
+    if (myId && list.some(u => String(u.id) === String(myId))) html += `<option value="${myId}">👤 我自己（${esc(currentUser.name||'')}）</option>`;
+    html += list.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    sel.innerHTML = html;
+  } catch (e) {}
 }
 
 async function loadList() {
@@ -277,11 +295,13 @@ async function loadList() {
   const caseType  = document.getElementById('caseTypeFilter').value;
   const from      = document.getElementById('fromDate').value;
   const to        = document.getElementById('toDate').value;
+  const creator   = document.getElementById('editorFilter')?.value || '';
 
   const params = new URLSearchParams();
   if (search)   params.set('search', search);
   if (status)   params.set('status', status);
   if (caseType) params.set('case_type', caseType);
+  if (creator)  params.set('creator', creator);
   if (from)     params.set('from', from);
   if (to)       params.set('to', to);
 
@@ -330,6 +350,7 @@ function clearFilters() {
   document.getElementById('searchInput').value = '';
   document.getElementById('statusFilter').value = '';
   document.getElementById('caseTypeFilter').value = '';
+  const ef = document.getElementById('editorFilter'); if (ef) ef.value = '';
   document.getElementById('fromDate').value = '';
   document.getElementById('toDate').value = '';
   loadList();
