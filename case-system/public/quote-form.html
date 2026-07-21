@@ -678,6 +678,32 @@ function setSeries(i,v){
 }
 // 整支/散米切換：重算每支/每米單價
 function setSellMode(i,m){ const it=items[i]; it.sellMode=m; fillMaterialPrice(it); markDirty(); renderRows(); recalc(); }
+// ── 樓地板價（成本×1.1；後端算好 min_sell_per_m，客服看得到樓地板但看不到成本）──
+function catalogRowForItem(it){
+  if(it.series){ const r=catalogRowBySeries(it.brand,it.series); if(r) return r; }
+  return matchCatalog(it.brand,it.model);
+}
+function filmFloorUnit(it){   // 每單位(散米=每米、整支=每支)樓地板；無成本資料回 0＝不設限
+  const r=catalogRowForItem(it); if(!r) return 0;
+  const fm=Number(r.min_sell_per_m)||0; if(fm<=0) return 0;
+  if(it.sellMode==='roll'){ const roll=Number(r.roll_len)||50; return Math.round(fm*roll); }
+  return fm;
+}
+function floorWarnHtml(it){
+  const fu=filmFloorUnit(it); if(!fu) return '';
+  const ft=fu*(Number(it.qty)||0); const bad=promoOf(it)<ft-0.5;
+  return `<div class="pb-row" style="border-top:1px dashed #f7c9de;margin-top:4px;padding-top:5px"><span style="${bad?'color:#dc2626;font-weight:800':'color:#9ca3af'}">🧱 樓地板（不可低於）</span><span style="${bad?'color:#dc2626;font-weight:800':'color:#6b7280'};font-variant-numeric:tabular-nums">${money(ft)}</span></div>`
+    +(bad?`<div style="color:#dc2626;font-size:11px;font-weight:800;margin-top:3px">⛔ 低於樓地板價，無法儲存（差 ${money(ft-promoOf(it))}）</div>`:'');
+}
+function updateFloorWarn(i){ const el=document.getElementById('floorWarn'+i); if(el){ const it=items[i]; el.innerHTML=(it&&it.mode==='material')?floorWarnHtml(it):''; } }
+function materialFloorViolations(){
+  return items.map((it,idx)=>{
+    if(it.mode!=='material') return null;
+    const fu=filmFloorUnit(it); if(!fu) return null;
+    const floorTotal=fu*(Number(it.qty)||0); const sell=promoOf(it);
+    return sell < floorTotal-0.5 ? {idx, name:it.name||'膜料販售', sell, floorTotal, mode:it.sellMode==='roll'?'整支':'散米'} : null;
+  }).filter(Boolean);
+}
 const brandList=()=>[...new Set(MATERIALS.map(m=>m.brand).filter(Boolean))].sort();
 const modelList=(brand)=>MATERIALS.filter(m=>m.brand===brand);
 const findMat=(brand,model)=>MATERIALS.find(m=>m.brand===brand&&m.model===model);
@@ -973,6 +999,12 @@ function setStatus(t){ const e=document.getElementById('saveStatus'); if(e) e.te
 function markDirty(){ if(loaded) setStatus('● 尚未儲存'); }
 async function saveAll(){
   if(!quoteId) return;
+  // 膜料販售樓地板價(成本×1.1)：低於就硬擋、不可送出（不像成本地板可確認覆寫）
+  const _fv=materialFloorViolations();
+  if(_fv.length){
+    alert('⛔ 以下膜料販售低於「樓地板價」，無法儲存：\n\n'+_fv.map(v=>`・${v.name}（${v.mode}）：優惠價 ${money(v.sell)} ＜ 樓地板 ${money(v.floorTotal)}`).join('\n')+'\n\n請把售價調到樓地板價以上再儲存。');
+    setStatus('● 尚未儲存（低於樓地板價）'); return;
+  }
   // 成本地板價：售價低於成本時擋一道，需確認才放行(擋手誤，刻意降價可覆寫)
   if(window._cust?.belowCost){
     const c=window._cust;
@@ -1289,6 +1321,7 @@ function renderRows(){
             <div class="pb-row"><span>${totLabel}</span><input class="price-in" id="tin${i}" type="number" value="${totOf(it)}" oninput="setTotal(${i},this.value)"></div>
             <div class="pb-row"><span>折扣 %</span><input class="disc-in" id="din${i}" type="number" step="0.5" value="${discOf(it)}" oninput="setDisc(${i},this.value)"></div>
             <div class="pb-row"><span>${promoLabel}</span><input class="price-in promo" id="pin${i}" type="number" value="${promoOf(it)}" oninput="setPromo(${i},this.value)"></div>
+            <div class="pb-floor" id="floorWarn${i}">${isMat?floorWarnHtml(it):''}</div>
           </div>
         </div>
       </div>
@@ -1413,6 +1446,7 @@ function setNum(i,k,v){const it=items[i];it[k]=+v||0;
   it.total=baseAmt(it);it.promo=null;
   _txt('estm'+i,(it.srvMeters||0));_txt('estc'+i,caiOf(it).toFixed(2));_txt('estp'+i,money(caiCalcAmt(it)));_txt('pcai'+i,caiOf(it).toFixed(2));
   _inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));_inp('din'+i,discOf(it));
+  updateFloorWarn(i);
   if(k==='srvMeters'&&(+v||0)>0)document.getElementById('calc'+i)?.classList.add('open');
   renderCost();recalc();}
 // 「套用建議報價為單價」：建議報價（才數×單價/才）是「每一座」的價，直接放入單價；總價=單價×數量
@@ -1420,9 +1454,9 @@ function applyEst(i){const it=items[i];it.unitEach=caiCalcAmt(it);it.total=null;
 function setCai(i,v){const it=items[i];it.cai=+v||0;it.total=baseAmt(it);it.promo=null;
   const val=caiOf(it).toFixed(2);['caiv'+i,'caiv2'+i].forEach(id=>{const e=document.getElementById(id);if(e&&e!==document.activeElement)e.value=val;});
   _txt('caic'+i,money(caiCalcAmt(it)));_inp('tin'+i,it.total);_inp('pin'+i,promoOf(it));renderCost();recalc();}
-function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));renderCost();recalc();}
-function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));recalc();}
-function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);recalc();}
+function setTotal(i,v){const it=items[i];it.total=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));updateFloorWarn(i);renderCost();recalc();}
+function setDisc(i,v){const it=items[i];it.disc=+v||0;it.promo=null;_inp('pin'+i,promoOf(it));updateFloorWarn(i);recalc();}
+function setPromo(i,v){const it=items[i];it.promo=+v||0;const t=totOf(it);it.disc=t>0?Math.round(it.promo/t*1000)/10:0;_inp('din'+i,it.disc);updateFloorWarn(i);recalc();}
 // 排序控制：卡片左側直排軌道 ▲ 上移 / 可改順位數字 / ▼ 下移（純前端調 items 順序，存檔時送 reorder 持久化）
 function railCtrl(i,isText){const n=items.length;return `<div class="rail">
     <button class="ic-mv" onclick="moveRow(${i},-1)" title="上移"${i===0?' disabled':''}>▲</button>

@@ -63,6 +63,8 @@ router.get('/film-catalog', requireAuth, (req, res) => {
   const rows = db.prepare(`SELECT brand, region, asia_code, kr_code, color, fireproof, per_m, ecom_price, cost_per_m, width, roll_len, plane, cabinet, shape FROM est_film_catalog WHERE active=1 ORDER BY sort_order, id`).all();
   // 售價：有電商價(BODAQ/LX/PAROI)用含稅、3M 無電商用未稅牌價
   rows.forEach(r => { r.sell_price = (r.ecom_price && r.ecom_price > 0) ? Math.round(r.ecom_price) : Math.round(r.per_m || 0); });
+  // 樓地板價(每米)＝完全成本×1.1(多一成)。所有人(含客服)都拿得到此「最低售價護欄」，但不外送實際成本
+  rows.forEach(r => { const c = Number(r.cost_per_m) || 0; r.min_sell_per_m = c > 0 ? Math.round(c * 1.1) : null; });
   if (!me.can_see_cost) rows.forEach(r => { r.cost_per_m = null; });
   res.json(rows);
 });
