@@ -133,6 +133,8 @@
     td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important;font-weight:900;font-size:15px}
     table.ps-tbl tbody tr:hover td.ps-perm{background-color:var(--c1)!important;background-image:linear-gradient(120deg,var(--c1),var(--c2))!important;color:#fff!important}
     td.ps-perm small{display:block;font-weight:600;font-size:10px;opacity:.9;margin-top:2px}
+    td.ps-roll{background:var(--soft)!important;background-image:none!important;color:var(--c1)!important;font-weight:800}
+    table.ps-tbl tbody tr:hover td.ps-roll{background:var(--soft)!important;background-image:none!important}
     .ps-code{font-weight:800;letter-spacing:.3px;text-align:left!important;overflow-wrap:anywhere;word-break:break-word}
     .ps-codes{text-align:left!important;font-size:11.5px;color:#5f5866;line-height:1.7;word-break:break-word;white-space:normal}
     .ps-kr{color:#8a8390;font-weight:700}
@@ -163,15 +165,16 @@
     return groups;
   }
 
+  const rollPriceOf = r => Math.round((Number(r.per_m) || 0) * (Number(r.roll_len) || 50) * 0.9); // 整卷牌價＝每米(未稅)×卷長×9折
   function rowCells(r, is3m, hasKr, customer) {
     const price = priceOf(r, is3m);
-    const permCell = is3m
-      ? `<td class="ps-perm">${nt(price)}<small>未稅</small></td>`
-      : `<td class="ps-perm">${nt(price)}</td>`;   // 只顯示電商含稅每米，未稅隱藏（膜料只賣含稅價）
+    const permCell = `<td class="ps-perm">${nt(price)}</td>`;   // 牌價／米(未稅)
+    const roll = rollPriceOf(r);
+    const rollCell = `<td class="ps-perm ps-roll">${roll > 0 ? nt(roll) : '—'}</td>`;   // 整卷牌價(9折)
     const krCol = hasKr ? `<td class="ps-code ps-kr">${esc(r.kr_code || '—')}</td>` : '';
     const spec = `${Number(r.width) || 122}cm×${r.roll_len || 50}M`;   // 統一規格格式：寬cm×長M
     return `<td class="ps-code">${esc(r.asia_code || '—')}</td>${krCol}` +
-      `<td>${spec}</td>${permCell}` +
+      `<td>${spec}</td>${permCell}${rollCell}` +
       `<td class="ps-cai">${nt(r.plane)}</td><td class="ps-cai">${nt(r.cabinet)}</td><td class="ps-cai">${nt(r.shape)}</td>`;
   }
 
@@ -181,15 +184,16 @@
     const hasKr = rows.some(r => (r.kr_code || '').trim());      // 有韓碼才顯示「韓國系列」欄
     const groups = groupRows(rows, false);
     const showBand = groups.length > 1 || (groups[0] && groups[0].fireproof);
-    const cols = 6 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
+    const cols = 7 + (hasKr ? 1 : 0) + (showBand ? 1 : 0);
     const bandTh = showBand ? '<th style="width:5%" rowspan="2"></th>' : '';
     const codeTh = hasKr
-      ? '<th style="width:17%" rowspan="2">亞洲系列</th><th style="width:12%" rowspan="2">對應系列</th>'
-      : '<th style="width:29%" rowspan="2">系列／型號</th>';
+      ? '<th style="width:15%" rowspan="2">亞洲系列</th><th style="width:11%" rowspan="2">對應系列</th>'
+      : '<th style="width:25%" rowspan="2">系列／型號</th>';
     const head =
       `<tr>${bandTh}${codeTh}` +
-      `<th style="width:12%" rowspan="2">規格</th>` +
-      `<th class="ps-ph" style="width:12%" rowspan="2">牌價／米<br>(未稅)</th>` +
+      `<th style="width:11%" rowspan="2">規格</th>` +
+      `<th class="ps-ph" style="width:11%" rowspan="2">牌價／米<br>(未稅)</th>` +
+      `<th class="ps-ph" style="width:12%" rowspan="2">整卷牌價<br>(9折)</th>` +
       `<th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
       `<tr><th>平面牆壁</th><th>系統櫃</th><th>造型</th></tr>`;
     let bodyRows = '';
