@@ -870,9 +870,9 @@ function renderTable(list) {
       <td>${m.unit_price?'$'+m.unit_price:'—'}</td>
       <td>
         <span class="${stockClass(m.stock_meters||0)}" title="實際庫存（總）">${(m.stock_meters||0).toFixed(1)}</span>
-        ${(() => { const softHold=(m.committed_reserved_meters||0)+(m.pending_reserved_meters||0); const anyRes=softHold+(m.case_reserved_meters||0); return anyRes>0 ? `<br><span style="font-size:11px;font-weight:700;background:#dcfce7;color:#166534;border-radius:3px;padding:1px 5px" title="可用＝實際庫存−詢價中/成交保留（案件保留已從庫存扣除，不重複計）">✅ 可用 ${Math.max(0,(m.stock_meters||0)-softHold).toFixed(1)}m</span>` : ''; })()}
+        ${(() => { const softHold=(m.committed_reserved_meters||0)+(m.pending_reserved_meters||0); const anyRes=softHold+(m.case_reserved_meters||0); return anyRes>0 ? `<br><span style="font-size:11px;font-weight:700;background:#dcfce7;color:#166534;border-radius:3px;padding:1px 5px" title="可用＝實際庫存−報價中/成交保留（案件保留已從庫存扣除，不重複計）">✅ 可用 ${Math.max(0,(m.stock_meters||0)-softHold).toFixed(1)}m</span>` : ''; })()}
         ${(m.committed_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:0 4px">🔒 成交保留 ${m.committed_reserved_meters.toFixed(1)}m</span>` : ''}
-        ${(m.pending_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px">💬 詢價中 ${m.pending_reserved_meters.toFixed(1)}m</span>` : ''}
+        ${(m.pending_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:0 4px" title="已出正式報價單給客戶（報價中）才會保留；詢價/估價階段不保留">📝 報價中 ${m.pending_reserved_meters.toFixed(1)}m</span>` : ''}
         ${(m.case_reserved_meters||0)>0 ? `<br><span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px">📋 案件保留 ${m.case_reserved_meters.toFixed(1)}m</span>` : ''}
       </td>
       <td style="font-size:12px">${m.sku ? `<span style="font-family:monospace;font-weight:600">${m.sku}</span>` : `<span style="color:var(--gray-400)" title="尚未設定膜料編號，暫以系統編號顯示">#${m.id}</span>`}</td>
