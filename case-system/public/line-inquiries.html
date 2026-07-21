@@ -145,6 +145,12 @@
     .nb-ta:focus { outline:none; border-color:var(--primary); }
     .nb-card-actions { display:flex; gap:6px; margin-top:7px; }
     .nb-empty { color:var(--gray-400); font-size:12px; text-align:center; padding:18px 8px; }
+    /* ── 右側欄控制列（負責業務/客服/客戶資料/關懷，移到標籤上方）── */
+    .nb-controls { padding:10px 12px; border-bottom:1px solid var(--gray-200); background:#fff; display:flex; flex-direction:column; gap:7px; flex-shrink:0; }
+    .nb-controls .ctl { display:flex; align-items:center; gap:6px; }
+    .nb-controls .ctl-lb { font-size:11px; color:var(--gray-500); white-space:nowrap; width:52px; flex-shrink:0; }
+    .nb-controls .ctl-sel { flex:1; min-width:0; padding:5px 8px; border:1px solid var(--gray-300); border-radius:7px; font-size:12px; }
+    .nb-controls .ctl-btn { width:100%; justify-content:flex-start; }
     /* ── 客戶標籤（記事本上方）── */
     .nb-tags { padding:10px 12px 11px; border-bottom:1px solid var(--gray-200); flex-shrink:0; background:#fafafa; }
     .nb-tags-hd { font-size:12px; font-weight:700; color:var(--gray-700); margin-bottom:7px; display:flex; align-items:center; gap:5px; }
@@ -1092,23 +1098,6 @@ async function openInquiry(id) {
           建立：${fmtTime(data.created_at)}　共 ${data.message_count} 則訊息
           <span class="s-badge s-${data.status}" style="margin-left:6px">${sLabel(data.status)}</span>
         </div>
-        <div class="det-controls">
-          <div class="ctl">
-            <span class="ctl-lb">負責業務</span>
-            <select id="inq-sales" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#c4b5fd;background:#faf5ff;color:#6d28d9">
-              <option value="">（未指定）</option>${salesOpts}
-            </select>
-          </div>
-          <div class="ctl">
-            <span class="ctl-lb">負責客服</span>
-            <select id="inq-cs" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#fca5a5;background:#fff5f5;color:#991b1b">
-              <option value="">（未指定）</option>${csOpts}
-            </select>
-          </div>
-          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleClientPanel()"><span id="clientToggleLabel">客戶資料 ▾</span></button>
-          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleCarePanel()"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>
-          ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="backupConvFromInquiry()" title="把此對話＋照片備份成 PDF 到「系統客服對話紀錄→客戶→案件」資料夾">📁 備份對話</button>` : ''}
-        </div>
       </div>
       <div class="det-actions">${statusBar}</div>
     </div>
@@ -1162,7 +1151,24 @@ async function openInquiry(id) {
           ${renderMessages(data.messages)}
         </div>
       </div>
-      ${notebookHtml(id)}
+      ${notebookHtml(id, `
+        <div class="nb-controls">
+          <div class="ctl">
+            <span class="ctl-lb">負責業務</span>
+            <select id="inq-sales" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#c4b5fd;background:#faf5ff;color:#6d28d9">
+              <option value="">（未指定）</option>${salesOpts}
+            </select>
+          </div>
+          <div class="ctl">
+            <span class="ctl-lb">負責客服</span>
+            <select id="inq-cs" onchange="saveSalesCs(${id})" class="ctl-sel" style="border-color:#fca5a5;background:#fff5f5;color:#991b1b">
+              <option value="">（未指定）</option>${csOpts}
+            </select>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleClientPanel()"><span id="clientToggleLabel">客戶資料 ▾</span></button>
+          <button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="toggleCarePanel()"><span id="careToggleLabel">📞 關懷紀錄 ▾</span></button>
+          ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="backupConvFromInquiry()" title="把此對話＋照片備份成 PDF 到「系統客服對話紀錄→客戶→案件」資料夾">📁 備份對話</button>` : ''}
+        </div>`)}
     </div>
 
     ${data.status !== 'invalid' ? `
@@ -1244,9 +1250,10 @@ async function loadTagSuggestions() {
 }
 
 // ── 記事本（右側，與該用戶之間的內部多筆備註；客人看不到）──
-function notebookHtml(id) {
+function notebookHtml(id, controlsHtml = '') {
   return `
     <aside class="nb" id="notebook">
+      ${controlsHtml || ''}
       <div class="nb-tags">
         <div class="nb-tags-hd">🏷️ 標籤</div>
         <div class="tag-chips" id="tagChips"></div>
