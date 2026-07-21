@@ -376,6 +376,18 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
     if (src) { replyToId = src.id; replyPreview = (src.content || '').slice(0, 120); quoteToken = src.quote_token || null; }
   }
 
+  // 傳送前先確認客人在此 OA 可被推播：非群組時查 profile，404/403＝未加好友/已封鎖/ID有誤
+  // → LINE push 對非好友會回 200 但不送達（系統看得到、客人收不到）。先擋下來給客服明確提示，別假裝送出。
+  if (!inq.is_group && inq.line_user_id) {
+    try {
+      const prof = await fetch('https://api.line.me/v2/bot/profile/' + encodeURIComponent(inq.line_user_id), { headers: { Authorization: `Bearer ${token}` } });
+      if (prof.status === 404 || prof.status === 403) {
+        console.warn('[line reply] profile unreachable', { inquiry: inq.id, to: inq.line_user_id, status: prof.status });
+        return res.status(409).json({ error: '這位客人在官方帳號查不到（可能沒把繪新官方帳號加為好友、已封鎖，或這通對話其實是從其他工具／群組進來的）。系統直接回覆會送不到他，請改用官方帳號後台回覆。' });
+      }
+    } catch (e) { /* profile 查詢失敗（網路等）不阻擋，仍嘗試推播 */ }
+  }
+
   const outMsg = { type: 'text', text: message.trim() };
   if (quoteToken) outMsg.quoteToken = quoteToken;   // 只有客人訊息帶 quoteToken 時才能引用
   const pushRes = await fetch('https://api.line.me/v2/bot/message/push', {
