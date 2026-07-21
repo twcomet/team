@@ -1,3 +1,6 @@
+// 桌機左側欄收合狀態：越早套用越不閃（此檔在各頁載入時即執行）
+try { if (localStorage.getItem('sbCollapsed') === '1') document.documentElement.classList.add('sb-collapsed'); } catch (e) {}
+
 const ROLE_LABELS = {
   owner:'最高管理者', hq_cs:'客服', hq_cs_manager:'客服主管', hq_sales:'業務（總部）',
   hq_tech:'技術（總部）', hq_accounting:'會計', hq_hr:'人事',
@@ -329,6 +332,23 @@ document.addEventListener('DOMContentLoaded', () => {
       sidebar.classList.contains('open') ? closeSidebar() : openSidebar()
     );
     backdrop.addEventListener('click', closeSidebar);
+
+    // ── 桌機版：左側欄收合／展開（縮成只剩圖示，讓內容變大）──────
+    const collapseBtn = document.createElement('button');
+    collapseBtn.className = 'sb-collapse-btn';
+    collapseBtn.type = 'button';
+    const syncCollapseBtn = () => {
+      const on = document.documentElement.classList.contains('sb-collapsed');
+      collapseBtn.textContent = on ? '›' : '‹';
+      collapseBtn.title = on ? '展開選單' : '收合選單';
+    };
+    collapseBtn.addEventListener('click', () => {
+      const on = document.documentElement.classList.toggle('sb-collapsed');
+      try { localStorage.setItem('sbCollapsed', on ? '1' : '0'); } catch (e) {}
+      syncCollapseBtn();
+    });
+    document.body.appendChild(collapseBtn);
+    syncCollapseBtn();
 
     // 點選選單項目後自動收合（手機）
     sidebar.querySelectorAll('.nav-item').forEach(el =>

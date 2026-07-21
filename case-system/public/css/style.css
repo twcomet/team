@@ -177,6 +177,28 @@ tr:hover td { background: #eef2ff !important; }
 .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
 .sidebar-backdrop.open { display: block; }
 
+/* ── 桌機：左側欄收合（縮成只剩圖示，讓內容變大）───────────── */
+.sb-collapse-btn { position: fixed; top: 16px; left: var(--sidebar-w); transform: translateX(-50%);
+  z-index: 101; width: 24px; height: 24px; border-radius: 50%; background: var(--primary, #d6336c);
+  color: #fff; border: 2px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; line-height: 1; padding: 0; box-shadow: 0 2px 6px rgba(0,0,0,.28);
+  transition: left .18s; }
+.sb-collapse-btn:hover { filter: brightness(1.08); }
+@media (min-width: 769px) {
+  html.sb-collapsed { --sidebar-w: 64px; }
+  html.sb-collapsed .sidebar-brand { padding: 16px 0; text-align: center; }
+  html.sb-collapsed .sidebar-brand h2 { font-size: 0; justify-content: center; }
+  html.sb-collapsed .sidebar-brand h2 img { margin-right: 0 !important; }
+  html.sb-collapsed .sidebar-brand p { display: none; }
+  html.sb-collapsed .nav-group-label { font-size: 0; padding: 6px 0; }
+  html.sb-collapsed .nav-item { font-size: 0; gap: 0; justify-content: center; padding-left: 0; padding-right: 0; }
+  html.sb-collapsed .nav-item .icon { font-size: 19px; width: auto; }
+  html.sb-collapsed .nav-item.active { padding-left: 0; border-left-width: 3px; }
+  html.sb-collapsed .sidebar-user { font-size: 0; padding: 14px 4px; text-align: center; }
+  html.sb-collapsed .sidebar-user * { font-size: 0; }
+}
+@media (max-width: 768px) { .sb-collapse-btn { display: none; } }
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   .mobile-menu-btn { display: flex; }
