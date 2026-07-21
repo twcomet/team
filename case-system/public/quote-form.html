@@ -739,11 +739,11 @@ function mapDbToProto(d){
     unitCai:d.unit_price_cai||0, srvMeters:d.estimated_meters||0, width:d.film_width_cm||122,
     sizeText:d.size_text||'', disc:(d.item_disc!=null?d.item_disc:100),  // 舊資料 item_disc=NULL → 100(不折)，與後端 recalcQuoteV2 一致；避免畫面顯示8折、實際收全額
     promo:(d.promo_price==null?null:d.promo_price), filmCostPerM:d.cost_per_meter||0,
-    workers:d.workers||0, days:d.work_days||0, note:d.notes||'', cai:d.area_sqchi,
+    workers:d.workers||0, days:d.work_days||0, note:d.notes||'', cai:d.area_sqchi, sellMode:d.sell_mode||'meter',
     filmImg:d.material_photo_url||'', areaPhotos:(()=>{let a=[];try{a=JSON.parse(d.area_photos||'[]')||[];}catch(e){}if(d.area_photo_url&&!a.includes(d.area_photo_url))a.unshift(d.area_photo_url);return a;})() };
 }
 function mapProtoToDb(it){
-  return { row_kind:it.kind||'item', calc_mode:it.mode||'unit', item_type:'film',
+  return { row_kind:it.kind||'item', calc_mode:it.mode||'unit', item_type:'film', sell_mode:(it.sellMode||''),
     description:it.name||'', film_brand:it.brand||null, film_model:(it.model||it.film||''), material_id:(it.materialId||null),
     film_width_cm:it.width||122, size_text:it.sizeText||'',
     unit_price:it.unitEach||0, unit_price_cai:it.unitCai||0, quantity:it.qty||1,
@@ -1566,7 +1566,7 @@ function noteHtml(note){
     return em?`<div class="em">${t}</div>`:`<div>${t}</div>`;
   }).join('');
 }
-const unitTxt=it=>it.mode==='cai'?money(it.unitCai)+' /才':it.mode==='material'?money(it.unitEach)+' /米':money(it.unitEach);
+const unitTxt=it=>it.mode==='cai'?money(it.unitCai)+' /才':it.mode==='material'?(money(it.unitEach)+(it.sellMode==='roll'?' /支':' /米')):money(it.unitEach);
 function renderCust(useMkt){
   const c=window._cust;if(!c)return;
   const owner=document.getElementById('clientType').value==='owner';   // 業主版：隱藏單價/才數/尺寸
@@ -1581,7 +1581,8 @@ function renderCust(useMkt){
   const showCai=_anyCai&&!owner;                          // 業主版隱藏才數
   const _tg=(id,show)=>{const e=document.getElementById(id);if(e)e.style.display=show?'':'none';};
   _tg('cth_img',showFilmImg); _tg('cth_photo',showSitePhoto); _tg('cth_cai',showCai);
-  _txt('cth_unit',_allMat?'每米材料單價':'連工帶料單價');
+  const _allRoll=_allMat&&_nt.every(it=>it.sellMode==='roll');
+  _txt('cth_unit',_allMat?(_allRoll?'每支材料單價':'每米材料單價'):'連工帶料單價');
   _txt('cth_total',_allMat?'材料總價':'連工帶料總價');
   _txt('cth_promo',_allMat?'材料優惠價':'連工帶料優惠價');
   const hasDisc=((c.sub||0)-(c.promo||0))>0.5;   // 有設一般優惠折數才顯示優惠價欄

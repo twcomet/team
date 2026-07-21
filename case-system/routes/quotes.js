@@ -123,10 +123,11 @@ function applyV2Item(quoteId, itemId, b) {
   // 工務回報的人力：人數 × 工作天數（內部成本/毛利/成本地板用；不對客戶顯示）
   const workers  = (b.workers   != null && b.workers   !== '') ? Number(b.workers)   : null;
   const workDays = (b.work_days != null && b.work_days !== '') ? Number(b.work_days) : null;
+  const sellMode = b.sell_mode || '';   // 膜料販售：'roll'=整支、其餘=散米/米
   db.prepare(`UPDATE quote_sheet_items SET
-      calc_mode=?, unit_price_cai=?, item_disc=?, promo_price=?, area_photos=?, row_kind=?, suggested_price=?, area_sqchi=?, subtotal=?, workers=?, work_days=?
+      calc_mode=?, unit_price_cai=?, item_disc=?, promo_price=?, area_photos=?, row_kind=?, suggested_price=?, area_sqchi=?, subtotal=?, workers=?, work_days=?, sell_mode=?
       WHERE id=? AND quote_id=?`)
-    .run(mode, unitCai, disc, promo, areaPhotos, kind, suggested, cai, subtotal, workers, workDays, itemId, quoteId);
+    .run(mode, unitCai, disc, promo, areaPhotos, kind, suggested, cai, subtotal, workers, workDays, sellMode, itemId, quoteId);
   db.prepare(`UPDATE quote_sheets SET engine='v2' WHERE id=?`).run(quoteId);
 }
 

@@ -336,7 +336,8 @@ function render(q){
   const _allMat = _nt.length && _nt.every(it=>it.calc_mode==='material');
   const _anyCai = _nt.some(it=>it.calc_mode==='cai');   // 有以才計價的品項才顯示「才數」欄
   const showCai = _anyCai && !hideChi;                   // 業主版隱藏才數
-  const lblUnit  = _allMat ? '每米材料單價' : '連工帶料單價';
+  const _allRoll = _allMat && _nt.every(it=>it.sell_mode==='roll');
+  const lblUnit  = _allMat ? (_allRoll?'每支材料單價':'每米材料單價') : '連工帶料單價';
   const lblTotal = _allMat ? '材料總價'     : '連工帶料總價';
   const lblPromo = _allMat ? '材料優惠價'   : '連工帶料優惠價';
 
@@ -445,7 +446,7 @@ function rowHtml(it,i,hideChi,showFilmImg,showSitePhoto,hasDiscount,showCai){
     <td class="q-film">${filmInfo(it)}</td>
     ${showFilmImg?`<td class="c">${filmImg(it)}</td>`:''}
     ${showSitePhoto?`<td class="c">${siteThumbs(it)}</td>`:''}
-    ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?' /米':''):'—'}</td>`}
+    ${hideChi?'':`<td class="num">${it.unit_price?fmt(it.unit_price)+(it.calc_mode==='cai'?' /才':it.calc_mode==='material'?(it.sell_mode==='roll'?' /支':' /米'):''):'—'}</td>`}
     ${showCai?`<td class="num">${it.calc_mode==='cai'&&it.area_sqchi!=null?Number(it.area_sqchi).toFixed(1):'—'}</td>`:''}
     <td class="num">${it.quantity||1}</td>
     <td class="num${hasDiscount?' q-orig':''}">${fmt(it.subtotal)}</td>
