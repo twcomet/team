@@ -439,8 +439,8 @@ router.put('/film-catalog/:id', requireAuth, requireEdit, (req, res) => {
   const isOwner = req.session.user.role === 'owner';
   const { per_m, plane, cabinet, shape, active, cost_per_m, width, roll_len, fireproof, asia_code, kr_code, color, model_note } = req.body;
   const _row = db.prepare(`SELECT brand FROM est_film_catalog WHERE id=?`).get(req.params.id);
-  // 電商含稅牌價由未稅牌價自動推算（進位50）；3M 不上電商→維持 0（售價以牌價 per_m 為準）
-  const ecom = (_row && _row.brand === '3m') ? 0 : Math.round((Number(per_m)||0)*1.05/50)*50;
+  // 電商價＝牌價(未稅)。公司政策：不再另計含稅電商價，牌價就是售價。（3M 以每才計，per_m 通常為 0）
+  const ecom = Number(per_m)||0;
   db.prepare(`UPDATE est_film_catalog SET per_m=?,ecom_price=?,fireproof=?,plane=?,cabinet=?,shape=?,width=?,roll_len=?,active=? WHERE id=?`)
     .run(Number(per_m)||0, ecom, fireproof||'', Number(plane)||0, Number(cabinet)||0, Number(shape)||0, Number(width)||122, Number(roll_len)||50, active?1:0, req.params.id);
   // 代碼/花色/備註（可編輯；只在有送才更新，避免清空）
@@ -456,7 +456,7 @@ router.post('/film-catalog', requireAuth, requireEdit, (req, res) => {
   const isOwner = req.session.user.role === 'owner';
   const b = req.body || {};
   const maxSo = db.prepare(`SELECT COALESCE(MAX(sort_order),0)+1 n FROM est_film_catalog`).get().n;
-  const ecom = Math.round((Number(b.per_m)||0)*1.05/50)*50; // 電商含稅牌價：由未稅牌價自動推算（進位50）
+  const ecom = Number(b.per_m)||0; // 電商價＝牌價(未稅)；不再另計含稅電商價
   const info = db.prepare(`INSERT INTO est_film_catalog (brand,region,asia_code,kr_code,color,model_note,fireproof,per_m,ecom_price,plane,cabinet,shape,width,roll_len,cost_per_m,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(b.brand || 'bodaq', b.region || '', b.asia_code || '', b.kr_code || '', b.color || '', b.model_note || '', b.fireproof || '', Number(b.per_m)||0, ecom, Number(b.plane)||0, Number(b.cabinet)||0, Number(b.shape)||0, Number(b.width)||122, Number(b.roll_len)||50, isOwner ? (Number(b.cost_per_m)||0) : 0, maxSo);
   res.json({ ok: true, id: info.lastInsertRowid });

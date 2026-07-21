@@ -81,11 +81,11 @@
   ];
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const ecomOf = p => Math.round((Number(p) || 0) * 1.05 / 50) * 50;
+  const ecomOf = p => Number(p) || 0;   // 電商價＝牌價(未稅)；公司政策：牌價就是售價
   const nt = n => '$' + (Math.round(Number(n) || 0)).toLocaleString('en-US');
   const caiFactor = w => ((Number(w) || 122) * 100) / 900;                 // 每米→每才 換算係數（膜寬 cm × 100 ÷ 900）
   const perTsai = r => Math.round((Number(r.per_m) || 0) / caiFactor(r.width)); // 3M 每才牌價（未稅，比照報價設定）
-  const priceOf = (r, is3m) => is3m ? perTsai(r) : (Number(r.ecom_price) || ecomOf(r.per_m)); // 3M 以每才、其餘以電商含稅/米
+  const priceOf = (r, is3m) => is3m ? perTsai(r) : (Number(r.ecom_price) || ecomOf(r.per_m)); // 3M 以每才、其餘以牌價(未稅)/米
   const todayStr = () => { const d = new Date(); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 
   let cssInjected = false;
@@ -189,7 +189,7 @@
     const head =
       `<tr>${bandTh}${codeTh}` +
       `<th style="width:12%" rowspan="2">規格</th>` +
-      `<th class="ps-ph" style="width:12%" rowspan="2">電商每米<br>(含稅)</th>` +
+      `<th class="ps-ph" style="width:12%" rowspan="2">牌價／米<br>(未稅)</th>` +
       `<th colspan="3" style="border-bottom:1px solid rgba(0,0,0,.14)">連工帶料（未稅・元／才）</th></tr>` +
       `<tr><th>平面牆壁</th><th>系統櫃</th><th>造型</th></tr>`;
     let bodyRows = '';

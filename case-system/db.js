@@ -3844,6 +3844,16 @@ try {
   }
 } catch (e) { console.warn('[bodaq kr fill]', e.message); }
 
+// 電商價＝牌價(未稅)：公司政策改為「牌價就是售價」，一次性把既有 ecom_price 對齊 per_m（之後 POST/PUT 也都 ecom=per_m）
+try {
+  const MIG = 'ecom_equals_pricelist_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`UPDATE est_film_catalog SET ecom_price = per_m`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ est_film_catalog：電商價已對齊牌價(未稅)');
+  }
+} catch (e) { console.warn('[ecom=pricelist]', e.message); }
+
 // 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 建入 est_film_catalog。
 // 這些品項客戶都用「元/才」思考：連工帶料→plane=cabinet=shape(元/才)；成本/材料(元/才)×膜寬/9 換算成元/米存(cost_per_m/per_m)，估價機 matCost=才×9/W×cost_per_m 才會等於 才×成本(元/才)。
 try {
