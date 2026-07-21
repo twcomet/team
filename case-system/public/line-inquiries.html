@@ -120,6 +120,10 @@
     .reply-box { padding:10px 14px; background:#fff; border-top:1px solid var(--gray-200); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
     .reply-ta  { flex:1; padding:10px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:14px; line-height:1.5; resize:vertical; min-height:76px; max-height:240px; font-family:inherit; font-variant-emoji:emoji; }
     .reply-ta:focus { outline:none; border-color:var(--primary); }
+    /* AI 助手/輔助：輸入框上方一列 */
+    .reply-ai-row { display:flex; gap:6px; padding:7px 14px 0; background:#fff; flex-shrink:0; }
+    /* 回覆相關區塊固定在對話欄底部（不隨對話捲動、不被壓縮），讓右側記事本貫穿到底 */
+    .chat-col > .reply-box, .chat-col > .reply-ai-row, .chat-col > .reply-to-bar { flex-shrink:0; }
 
     /* ── 備註區 ── */
     .note-section { padding:10px 20px; background:#fff; border-top:1px solid var(--gray-200); flex-shrink:0; }
@@ -1157,6 +1161,31 @@ async function openInquiry(id) {
         <div class="chat-area" id="chatArea">
           ${renderMessages(data.messages)}
         </div>
+        ${data.status !== 'invalid' ? `
+        ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
+        ${aiDraftCard(data, id)}
+        <div id="replyToBar" class="reply-to-bar" style="display:none">
+          <span style="flex:0 0 auto">↩ 回覆：</span>
+          <span id="replyToPreview" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-600)"></span>
+          <button type="button" onclick="clearReplyTarget()" title="取消引用" style="flex:0 0 auto;border:none;background:transparent;color:var(--gray-500);cursor:pointer;font-size:16px;line-height:1">×</button>
+        </div>
+        <div class="reply-ai-row">
+          <button type="button" class="btn btn-sm" onclick="openAiChat()" style="padding:5px 11px;background:#f5f3ff;border:1px solid #c4b5fd;color:#6d28d9;font-size:12px;font-weight:700" title="問 AI 助手（co-pilot，不會傳給客人）">🤖 問 AI 助手</button>
+          <button type="button" class="btn btn-sm" onclick="openAiEstimate()" style="padding:5px 11px;background:#fdf2f8;border:1px solid #fbcfe8;color:#be185d;font-size:12px;font-weight:700" title="AI 估價輔助：從對話＋照片萃取品項 → 開估價機草稿">💲 AI 估價輔助</button>
+        </div>
+        <div class="reply-box" style="position:relative">
+          <button type="button" class="btn btn-sm" id="emojiBtn" style="padding:8px 11px;background:#fff;border:1px solid var(--gray-300);font-size:16px;line-height:1" onclick="toggleEmoji(event)" title="插入 emoji 表情符號">😊</button>
+          <button type="button" class="btn btn-sm" id="cannedBtn" style="padding:8px 11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;line-height:1;font-weight:700" onclick="openCanned()" title="罐頭訊息／常用語：搜尋、分類挑選">💬</button>
+          <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息…（換行請直接按 Enter，送出請按右邊按鈕）" rows="1"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+          ></textarea>
+          <button class="btn btn-sm" id="aiPolishBtn" style="padding:8px 12px;background:#f5f3ff;color:#6d28d9;border:1px solid #c4b5fd" onclick="aiPolish()">✨ AI 潤飾</button>
+          <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="sendReply(${id})">📨 傳送</button>
+          <div id="emojiPanel" style="display:none;position:absolute;bottom:calc(100% + 8px);left:6px;z-index:60;background:#fff;border:1px solid var(--gray-300);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px;width:296px;max-height:220px;overflow-y:auto"></div>
+        </div>` : `
+        <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
+          此詢問已${sLabel(data.status)}，不可回覆
+        </div>`}
       </div>
       ${notebookHtml(id, `
         <div class="nb-controls">
@@ -1177,31 +1206,6 @@ async function openInquiry(id) {
           ${(data.cust_cases && data.cust_cases.length) ? `<button type="button" class="btn btn-ghost btn-sm ctl-btn" onclick="backupConvFromInquiry()" title="把此對話＋照片備份成 PDF 到「系統客服對話紀錄→客戶→案件」資料夾">📁 備份對話</button>` : ''}
         </div>`)}
     </div>
-
-    ${data.status !== 'invalid' ? `
-    ${data.status === 'converted' ? `<div style="padding:6px 16px;font-size:11px;color:#166534;background:#f0fdf4;border-top:1px solid var(--gray-200)">✅ 此詢問已轉案，仍可繼續回覆客人</div>` : ''}
-    ${aiDraftCard(data, id)}
-    ${''/* 常用語已併入💬罐頭訊息、AI助手/AI估價已移到輸入框左側 */}
-    <div id="replyToBar" class="reply-to-bar" style="display:none">
-      <span style="flex:0 0 auto">↩ 回覆：</span>
-      <span id="replyToPreview" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-600)"></span>
-      <button type="button" onclick="clearReplyTarget()" title="取消引用" style="flex:0 0 auto;border:none;background:transparent;color:var(--gray-500);cursor:pointer;font-size:16px;line-height:1">×</button>
-    </div>
-    <div class="reply-box" style="position:relative">
-      <button type="button" class="btn btn-sm" id="emojiBtn" style="padding:8px 11px;background:#fff;border:1px solid var(--gray-300);font-size:16px;line-height:1" onclick="toggleEmoji(event)" title="插入 emoji 表情符號">😊</button>
-      <button type="button" class="btn btn-sm" id="cannedBtn" style="padding:8px 11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;line-height:1;font-weight:700" onclick="openCanned()" title="罐頭訊息／常用語：搜尋、分類挑選">💬</button>
-      <button type="button" class="btn btn-sm" id="aiChatBtn" style="padding:8px 11px;background:#f5f3ff;border:1px solid #c4b5fd;color:#6d28d9;font-size:15px;line-height:1;font-weight:700" onclick="openAiChat()" title="問 AI 助手（co-pilot，不會傳給客人）">🤖</button>
-      <button type="button" class="btn btn-sm" id="aiEstBtn" style="padding:8px 11px;background:#fdf2f8;border:1px solid #fbcfe8;color:#be185d;font-size:15px;line-height:1;font-weight:700" onclick="openAiEstimate()" title="AI 估價輔助：從對話＋照片萃取品項 → 開估價機草稿">💲</button>
-      <textarea class="reply-ta" id="replyInput" placeholder="輸入訊息…（換行請直接按 Enter，送出請按右邊按鈕）" rows="1"
-        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-      ></textarea>
-      <button class="btn btn-sm" id="aiPolishBtn" style="padding:8px 12px;background:#f5f3ff;color:#6d28d9;border:1px solid #c4b5fd" onclick="aiPolish()">✨ AI 潤飾</button>
-      <button class="btn btn-primary btn-sm" style="padding:8px 16px" onclick="sendReply(${id})">📨 傳送</button>
-      <div id="emojiPanel" style="display:none;position:absolute;bottom:calc(100% + 8px);left:6px;z-index:60;background:#fff;border:1px solid var(--gray-300);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:8px;width:296px;max-height:220px;overflow-y:auto"></div>
-    </div>` : `
-    <div style="padding:9px 16px;font-size:12px;color:var(--gray-400);border-top:1px solid var(--gray-200);text-align:center;background:#fff">
-      此詢問已${sLabel(data.status)}，不可回覆
-    </div>`}
   `;
   scrollChat();
   loadNotebook(id);
