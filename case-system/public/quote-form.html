@@ -640,6 +640,12 @@ function fillCaiFromCatalog(i){
   return false;
 }
 function setWorkType(i,v){ const it=items[i]; it.workType=v; fillCaiFromCatalog(i); markDirty(); renderRows(); recalc(); }
+// 膜料販售 每米售價＝報價設定的「牌價(未稅)/米」；查無定價表才退回膜料庫存售價
+function filmSellPerM(it){
+  const row=matchCatalog(it.brand,it.model); if(row && Number(row.per_m)>0) return Math.round(row.per_m);
+  const mat=it.materialId?findMatById(it.materialId):null; return (mat&&mat.unit_price)?mat.unit_price:null;
+}
+function fillMaterialPrice(it){ if(it.mode!=='material')return false; const p=filmSellPerM(it); if(p!=null){ it.unitEach=p; it.total=null; it.promo=null; return true; } return false; }
 const brandList=()=>[...new Set(MATERIALS.map(m=>m.brand).filter(Boolean))].sort();
 const modelList=(brand)=>MATERIALS.filter(m=>m.brand===brand);
 const findMat=(brand,model)=>MATERIALS.find(m=>m.brand===brand&&m.model===model);
@@ -1290,8 +1296,8 @@ function setWork(i,k,v){items[i][k]=+v||0;if((+v||0)>0)document.getElementById('
 function setDayRate(v){dayRate=+v||0;recalc();}
 function setF(i,k,v,noRender){items[i][k]=v;if(!noRender)renderRows();else if(k==='sizeText'||k==='note')renderCust(document.getElementById('mktChk')?.checked);}
 function setMode(i,m){const it=items[i];it.mode=m;
-  // 切到材料販售且已選膜料 → 自動帶該料售價(電商牌價/米)
-  if(m==='material'&&it.materialId){const mat=findMatById(it.materialId);if(mat&&mat.unit_price){it.unitEach=mat.unit_price;it.total=null;it.promo=null;}}
+  // 切到材料販售 → 自動帶報價設定牌價(未稅)/米（查無退回庫存售價）
+  if(m==='material') fillMaterialPrice(it);
   renderRows();recalc();}
 // ── 膜料品牌/型號選擇 → 勾稽庫存自動帶入 ──────────────────────────
 function setFilmBrand(i,v){
@@ -1323,8 +1329,8 @@ function setFilmModelById(i,id){
     if(mat.image_url) it.filmImg=mat.image_url;
     if(mat.unit_cost!=null) it.filmCostPerM=mat.unit_cost;
     it.film=[mat.brand,mat.model,mat.width_cm?('寬'+mat.width_cm+'cm'):''].filter(Boolean).join(' · ');
-    // 材料販售：選好型號自動帶入這支料的售價(電商牌價/米)為每米單價
-    if(it.mode==='material' && mat.unit_price){ it.unitEach=mat.unit_price; it.total=null; it.promo=null; }
+    // 材料販售：選好型號自動帶入報價設定牌價(未稅)/米（查無退回庫存售價）
+    fillMaterialPrice(it);
   }else{ it.materialId=null; it.model=''; }
   fillCaiFromCatalog(i);
   markDirty(); renderRows(); recalc();
@@ -1340,7 +1346,8 @@ function setFilmModelByText(i,text){
   if(cand.length){ setFilmModelById(i,cand[0].id); return; }
   it.isFutures=false; it.materialId=null; it.model=key;   // 比對不到→自訂/期貨型號
   it.film=[it.brand,key].filter(Boolean).join(' · ');
-  fillCaiFromCatalog(i); markDirty(); renderRows(); recalc();
+  fillCaiFromCatalog(i); fillMaterialPrice(it);   // 期貨/自訂型號若對得到系列，仍帶報價設定牌價
+  markDirty(); renderRows(); recalc();
 }
 // ── 照片上傳（Cloudinary via /api/storage/upload）─────────────────
 function pickImage(cb){
