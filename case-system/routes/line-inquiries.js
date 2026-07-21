@@ -360,7 +360,13 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
   const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
   if (!inq) return res.status(404).json({ error: 'not found' });
 
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  // 依「該詢問所屬的 LINE 頻道」取對應 token（多 OA/分店），查不到才退回預設；
+  // 修：原本一律用預設 token，客人若在非預設 OA→LINE 回 200 但實際不會送達（訊息在系統看得到、客人卻收不到）
+  let token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (inq.channel_id) {
+    const ch = db.prepare(`SELECT channel_token, channel_name FROM line_channels WHERE id=?`).get(inq.channel_id);
+    if (ch && ch.channel_token) token = ch.channel_token;
+  }
   if (!token) return res.status(503).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN 未設定' });
 
   // 針對某則訊息回覆：取該訊息的 quoteToken（LINE 引用回覆）＋內容快照（供本系統顯示）
@@ -380,8 +386,11 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
 
   if (!pushRes.ok) {
     const err = await pushRes.text().catch(() => '');
-    return res.status(502).json({ error: 'LINE API 錯誤', detail: err });
+    console.error('[line reply push] FAIL', { inquiry: inq.id, channel_id: inq.channel_id, to: inq.line_user_id, status: pushRes.status, err });
+    return res.status(502).json({ error: 'LINE 傳送失敗（' + pushRes.status + '）：' + (err || '請確認客人所在的 LINE 官方帳號與系統設定一致') });
   }
+  // 200 也記一筆(含 x-line-request-id)，方便對照客人是否真的收到（LINE push 200 不代表一定送達，如客人已封鎖/非此 OA 好友）
+  console.log('[line reply push] OK', { inquiry: inq.id, channel_id: inq.channel_id, to: inq.line_user_id, reqId: pushRes.headers.get('x-line-request-id') || '' });
 
   db.prepare(`
     INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sent_by, reply_to_id, reply_to_preview)
