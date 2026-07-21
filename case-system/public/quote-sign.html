@@ -298,6 +298,8 @@ async function load(){
 
 function render(q){
   const accepted = q.status==='accepted';
+  // 已回簽：一律以「客人當初勾選的行銷優惠」為準顯示（避免重新整理/存檔/PDF 時 agreeMkt 被重設為 false，跳回未優惠價）
+  if(accepted) agreeMkt = !!q.client_marketing_consent;
   const items = q.items||[];
   const hideChi = !!q.hide_chi;
   const quoteNum = `${q.case_number||'QT'}-v${q.version||1}`;
