@@ -30,9 +30,11 @@ async function fetchGCalEvents() {
     return icalCache.events;
   }
 
+  // 視窗放寬：往回約一年、往後約一年（原本只抓 今天~+90天，導致過去與較遠的行程在「我的行事曆」看不到）
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const limit = new Date(today); limit.setDate(limit.getDate() + 90);
+  const lo    = new Date(today); lo.setDate(lo.getDate() - 366);
+  const limit = new Date(today); limit.setDate(limit.getDate() + 400);
 
   const parseEvents = raw =>
     Object.values(raw)
@@ -49,7 +51,7 @@ async function fetchGCalEvents() {
           source:   'gcal',
         };
       })
-      .filter(e => { const d = new Date(e.date); return d >= today && d <= limit; });
+      .filter(e => { const d = new Date(e.date); return d >= lo && d <= limit; });
 
   const results = await Promise.allSettled(urls.map(url => ical.async.fromURL(url)));
 
