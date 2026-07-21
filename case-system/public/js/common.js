@@ -222,15 +222,9 @@ async function loadUser() {
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'price-list'; a.href = '/price-list';
     a.innerHTML = '<span class="icon">🏷️</span>膜料牌價表';
+    a.innerHTML = '<span class="icon">🏷️</span>牌價表';   // 膜料＋門片整合在同一頁
     const anchor = nav.querySelector('[data-page="material-usage"]') || nav.querySelector('[data-page="materials"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
-    // 門片價目表：跟膜料牌價表同一群人可見，接在其下方
-    if (!nav.querySelector('[data-page="door-price"]')) {
-      const d = document.createElement('a');
-      d.className = 'nav-item'; d.dataset.page = 'door-price'; d.href = '/door-price';
-      d.innerHTML = '<span class="icon">🚪</span>門片價目表';
-      a.insertAdjacentElement('afterend', d);
-    }
   })();
 
   // 注入「客服關懷記錄」選單：老闆看全部客服、客服維護自己的；放在「業務」區最下面
