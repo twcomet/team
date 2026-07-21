@@ -121,7 +121,7 @@ function computeSpecial(arr) {
     const cai = meters * (Number(it.per) || 0);
     const amt = ceil100(cai * (Number(it.unit) || 0));
     const key = it.name + '|' + it.m + '|' + it.strips + '|' + it.per + '|' + it.unit;
-    groups[key] = groups[key] || { label: '其他特殊｜' + (it.name || '特殊品項'), series: it.m + '米 × ' + it.strips + '條 = ' + (Math.round(meters * 100) / 100) + '米　' + it.per + ' 才/米', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
+    groups[key] = groups[key] || { label: (it.name || '特殊品項'), series: it.m + '米 × ' + it.strips + '條 = ' + (Math.round(meters * 100) / 100) + '米　' + it.per + ' 才/米', cai, unit: it.unit, n: 0, amount: 0, idxs: [] };
     const g = groups[key]; g.n++; g.amount += amt; g.idxs.push(ci);
   });
   return Object.keys(groups).map(k => { const g = groups[k]; return { type: 'special', label: g.label, series: g.series, cai: g.cai, unit: g.unit, n: g.n, amount: g.amount, idxs: g.idxs }; });
