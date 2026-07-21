@@ -3864,6 +3864,16 @@ try {
   }
 } catch (e) { console.warn('[glass single price]', e.message); }
 
+// 牌價/米(未稅) ×1.05 四捨五入取整：把原未稅提升到「含稅級距」但仍標示為未稅（電商價已合併掉，用此還原）；電商價同步=per_m
+try {
+  const MIG = 'per_m_x105_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    db.prepare(`UPDATE est_film_catalog SET per_m = ROUND(per_m * 1.05), ecom_price = ROUND(per_m * 1.05) WHERE per_m > 0`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ est_film_catalog：牌價/米(未稅) 已 ×1.05 四捨五入取整');
+  }
+} catch (e) { console.warn('[per_m x1.05]', e.message); }
+
 // 玻璃膜(3M Fasara)＋隔熱紙(CarLife)＋穩得系列 建入 est_film_catalog。
 // 這些品項客戶都用「元/才」思考：連工帶料→plane=cabinet=shape(元/才)；成本/材料(元/才)×膜寬/9 換算成元/米存(cost_per_m/per_m)，估價機 matCost=才×9/W×cost_per_m 才會等於 才×成本(元/才)。
 try {
