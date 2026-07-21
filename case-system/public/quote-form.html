@@ -1209,7 +1209,7 @@ function renderRows(){
     const stockChip = custom
       ? `<span class="stk fut" title="庫存查無此料＝期貨，需採購">期貨（庫存查無）</span>`
       : (_mat ? `<span class="stk now" title="架位：${esc(_mat.location||'—')}｜成本：${_mat.unit_cost!=null?_mat.unit_cost+'元/米':'—'}">現貨 ${fmtStock(_mat.stock_meters)} 米</span>`
-              : `<span class="stk non">選品牌／型號</span>`);
+              : (it.model ? `<span class="stk fut" title="庫存查無此型號＝期貨，需採購">期貨（庫存查無）</span>` : `<span class="stk non">選品牌／型號</span>`));
     const brandOpts=`<option value="">品牌…</option>`+brandList().map(b=>`<option ${b===it.brand?'selected':''}>${esc(b)}</option>`).join('')+`<option value="__custom" ${custom?'selected':''}>其他（期貨/自訂）</option>`;
     // 型號改「可打字搜尋」input + datalist：同型號多支用 id 區分，選項帶編號/貨架/庫存；value 末端夾 #id 供回填比對
     const matLabel=m=>`${m.model}${m.sku?' ['+m.sku+']':''}｜架${m.location||'—'}｜${fmtStock(m.stock_meters)}米`;
@@ -1223,7 +1223,7 @@ function renderRows(){
           ${(isMat&&!custom)?`<select class="film-sel" title="系列（自動帶牌價/米；亞洲版與韓版分開）" onchange="setSeries(${i},this.value)"><option value="">系列…</option>${seriesList(it.brand).map(s=>`<option value="${esc(s.value)}" ${it.series===s.value?'selected':''}>${esc(s.label)}</option>`).join('')}</select>`:''}
           ${custom
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
-            : `<input class="film-sel" list="mdl${i}" style="min-width:190px" value="${curModelVal}" placeholder="打字搜尋型號／貨架…" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
+            : `<input class="film-sel" list="mdl${i}" style="min-width:190px" value="${curModelVal || esc(it.model||'')}" placeholder="打字搜尋型號／貨架，查無＝期貨" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
           ${stockChip}
         </div>
       </div>`;
