@@ -655,12 +655,22 @@ function catBrandKey(brand){ return QF_BRAND2CAT[String(brand||'').toUpperCase()
 function seriesList(brand){
   const cat=catBrandKey(brand); if(!cat||!CATALOG.length) return [];
   const seen={}, out=[];
-  CATALOG.filter(r=>r.brand===cat).forEach(r=>{ const s=String(r.asia_code||'').trim(); if(s&&!seen[s]){ seen[s]=1; out.push({code:s, per_m:r.per_m, color:r.color, width:r.width, roll_len:r.roll_len}); } });
+  CATALOG.filter(r=>r.brand===cat).forEach(r=>{
+    const code=String(r.asia_code||'').trim(); if(!code) return;
+    const region=String(r.region||'').trim();               // ''＝亞洲/一般、'韓國'＝韓版
+    const value=code+'@@'+region;                            // 帶版本，避免亞洲/韓版同碼互相蓋掉
+    if(seen[value]) return; seen[value]=1;
+    const label=code+(region?' · '+region+'版':'')+(Number(r.per_m)>0?'（NT$ '+Number(r.per_m).toLocaleString()+'/米）':'');
+    out.push({value, label, per_m:r.per_m, width:r.width, roll_len:r.roll_len, region, code});
+  });
   return out;
 }
-function catalogRowBySeries(brand,series){
+function catalogRowBySeries(brand,seriesVal){
   const cat=catBrandKey(brand); if(!cat) return null;
-  return CATALOG.find(r=>r.brand===cat && String(r.asia_code||'').trim()===String(series||'').trim())||null;
+  const parts=String(seriesVal||'').split('@@'); const code=parts[0].trim(), region=(parts[1]||'').trim();
+  const rows=CATALOG.filter(r=>r.brand===cat && String(r.asia_code||'').trim()===code);
+  if(parts.length>1){ const hit=rows.find(r=>String(r.region||'').trim()===region); if(hit) return hit; }  // 指定版本
+  return rows[0]||null;                                       // 舊資料(只存 code) 或查無版本→第一筆
 }
 // 取該膜的「牌價(未稅)/米」與卷長：優先用已選系列，其次型號比對，再退回庫存售價
 function filmUnitPerM(it){
@@ -1210,7 +1220,7 @@ function renderRows(){
         <label>${isMat?'單買膜料（品牌／型號・勾稽庫存）':'膜料資訊（品牌／型號・勾稽庫存）'}</label>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <select class="film-sel" onchange="setFilmBrand(${i},this.value)">${brandOpts}</select>
-          ${(isMat&&!custom)?`<select class="film-sel" title="系列（自動帶牌價/米）" onchange="setSeries(${i},this.value)"><option value="">系列…</option>${seriesList(it.brand).map(s=>`<option value="${esc(s.code)}" ${it.series===s.code?'selected':''}>${esc(s.code)}${Number(s.per_m)>0?'（NT$ '+Number(s.per_m).toLocaleString()+'/米）':''}</option>`).join('')}</select>`:''}
+          ${(isMat&&!custom)?`<select class="film-sel" title="系列（自動帶牌價/米；亞洲版與韓版分開）" onchange="setSeries(${i},this.value)"><option value="">系列…</option>${seriesList(it.brand).map(s=>`<option value="${esc(s.value)}" ${it.series===s.value?'selected':''}>${esc(s.label)}</option>`).join('')}</select>`:''}
           ${custom
             ? `<input class="film-sel" style="min-width:150px" value="${esc(it.film)}" onchange="setF(${i},'film',this.value)" placeholder="期貨/自訂膜料型號">`
             : `<input class="film-sel" list="mdl${i}" style="min-width:190px" value="${curModelVal}" placeholder="打字搜尋型號／貨架…" onchange="setFilmModelByText(${i},this.value)"><datalist id="mdl${i}">${dlOpts}</datalist>`}
