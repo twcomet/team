@@ -83,15 +83,17 @@ router.post('/', requireAuth, (req, res) => {
   // 只有 can_see_cost 才能寫入成本
   const safeCost = me.can_see_cost ? (unit_cost || 0) : 0;
 
-  const r = db.prepare(`
-    INSERT INTO materials (org_id, brand, model, sku, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce, film_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(org_id, brand, model, sku || null, color || null, spec || null, location || null,
-         safeCost, unit_price || 0, stock_meters || 0, notes || null,
-         category || 'film', ec_key || null, Number(fire_retardant) ? 1 : 0, width_cm || 122,
-         image_url || null, image_public_id || null, Number(on_ecommerce) ? 1 : 0, film_type || '裝潢膜');
-
-  const matId = r.lastInsertRowid;
+  let matId;
+  try {
+    db.exec('BEGIN');
+    const r = db.prepare(`
+      INSERT INTO materials (org_id, brand, model, sku, color, spec, location, unit_cost, unit_price, stock_meters, notes, category, ec_key, fire_retardant, width_cm, image_url, image_public_id, on_ecommerce, film_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(org_id, brand, model, sku || null, color || null, spec || null, location || null,
+           safeCost, unit_price || 0, stock_meters || 0, notes || null,
+           category || 'film', ec_key || null, Number(fire_retardant) ? 1 : 0, width_cm || 122,
+           image_url || null, image_public_id || null, Number(on_ecommerce) ? 1 : 0, film_type || '裝潢膜');
+    matId = r.lastInsertRowid;
 
   // 有設定初始庫存 → 自動建第一支捲料＋進貨流水帳
   if (stock_meters > 0) {
@@ -111,8 +113,15 @@ router.post('/', requireAuth, (req, res) => {
     `).run(roll.lastInsertRowid, matId, org_id, stock_meters, uid);
   }
 
-  db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'create', ?, ?)`)
-    .run(matId, org_id, `新增膜料型號：${brand} ${model}`, uid);
+    db.prepare(`INSERT INTO material_change_logs (material_id, org_id, action, detail, changed_by) VALUES (?, ?, 'create', ?, ?)`)
+      .run(matId, org_id, `新增膜料型號：${brand} ${model}`, uid);
+
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
+    console.error('[material create]', e);
+    return res.status(500).json({ error: '存入失敗：' + e.message });
+  }
 
   res.json({ id: matId });
 });
