@@ -368,7 +368,7 @@
             <div class="ec-fld" id="e-floorfld" style="display:none"><label>數量（座/處）</label><input id="e-floorq" type="number" value="1"></div>
             <button type="button" class="ec-addrow" id="e-addrow" onclick="addElevRow()">＋ 新增下一個尺寸</button>
             <button class="ec-add" onclick="addElev()">＋ 加入電梯</button>
-            <div class="ec-hint">內箱/天花高 +20cm 損耗；每才單價依膜款造型價。</div>
+            <div class="ec-hint">內箱：高+20；左右壁面寬&gt;120→3條、否則1條；後壁面無鏡&gt;120→2條、否則1條；有鏡則膜只貼鏡子以外(膜高=總高−鏡高+10)。每才單價依膜款造型價。</div>
           </div>
           <div class="ec-pane" id="pane-door">
             <div class="ec-fld"><label>快速選門款（含價格）</label><select id="d-quick" onchange="pickDoorQuick()"><option value="">— 直接選有價格的門款 —</option></select></div>
@@ -635,7 +635,9 @@ function elevRowHtml(part){
     '<div class="ec-fld"><label>數量（座/處）</label><input class="e-q" type="number" value="1"></div>'+
     '<span class="ec-elevrm" onclick="rmElevRow(this)" title="刪除">×</span></div>';
   return '<div class="ec-elevrow">'+
-    '<div class="ec-g3"><div class="ec-fld"><label>左右牆寬</label><input class="e-side" type="number" value="240"></div><div class="ec-fld"><label>後牆寬</label><input class="e-backw" type="number" value="120"></div><div class="ec-fld"><label>高</label><input class="e-h" type="number" value="230"></div></div>'+
+    '<div class="ec-g3"><div class="ec-fld"><label>左右壁面寬</label><input class="e-side" type="number" value="240"></div><div class="ec-fld"><label>後壁面寬</label><input class="e-backw" type="number" value="120"></div><div class="ec-fld"><label>高</label><input class="e-h" type="number" value="220"></div></div>'+
+    '<div class="ec-fld"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" class="e-mirror" onchange="var w=this.closest(\'.ec-elevrow\').querySelector(\'.e-mirrorwrap\');w.style.display=this.checked?\'block\':\'none\'"> 後壁面有鏡子（鏡面不貼膜，膜只貼鏡子以外）</label></div>'+
+    '<div class="ec-fld e-mirrorwrap" style="display:none"><label>鏡子高度 cm</label><input class="e-mirrorh" type="number" value="100"></div>'+
     '<div class="ec-fld"><label>數量（座/處）</label><input class="e-q" type="number" value="1"></div>'+
     '<span class="ec-elevrm" onclick="rmElevRow(this)" title="刪除">×</span></div>';
 }
@@ -719,8 +721,9 @@ function addElev(){
       for(var i=0;i<q;i++)CART.push({kind:'elev-ceil',brand:b,idx:idx,cl:cl,cw:cw});
     } else {
       var side=+row.querySelector('.e-side').value||0, backw=+row.querySelector('.e-backw').value||0, h=+row.querySelector('.e-h').value||0;
+      var mchk=row.querySelector('.e-mirror'), mirror=!!(mchk&&mchk.checked), mirrorh=mirror?(+row.querySelector('.e-mirrorh').value||0):0;
       if(!side||!backw||!h) return;
-      for(var i=0;i<q;i++)CART.push({kind:'elev-box',brand:b,idx:idx,side:side,backw:backw,h:h});
+      for(var i=0;i<q;i++)CART.push({kind:'elev-box',brand:b,idx:idx,side:side,backw:backw,h:h,mirror:mirror,mirrorh:mirrorh});
     }
     added++;
   });
@@ -985,7 +988,19 @@ function addSpecial(){
   render();
 }
 function elevUnit(it){return it.shape;}
-function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;if(c.side)m+=Math.ceil(c.side/W)*(H/100);if(c.backw)m+=Math.ceil(c.backw/W)*(H/100);return ceil100(m*Fb*u);}
+// 電梯內箱：左右壁面合計(寬>120→3條、≤120→1條) + 後壁面(無鏡:寬>120→2條、≤120→1條；有鏡:膜只貼鏡子以外，膜高=(總高−鏡高)+10)。高一律+20(roundElev)。米數×才/米×造型每才價
+function elevStrips(w,hi){ return w>120?hi:1; }
+function elevBox(c){
+  var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=0;
+  m += elevStrips(c.side,3)*(H/100);   // 左右壁面：>120→3條、否則1條
+  if(c.mirror && c.mirrorh>0){          // 後壁面有鏡子：膜只貼鏡子以外，膜高=(總高−鏡高)+10
+    var filmH=Math.max(0,(Number(c.h)-Number(c.mirrorh))+10);
+    m += elevStrips(c.backw,2)*(filmH/100);
+  } else {                              // 後壁面無鏡：>120→2條、否則1條
+    m += elevStrips(c.backw,2)*(H/100);
+  }
+  return ceil100(m*Fb*u);
+}
 function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
 function elevDoor(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=Math.ceil(c.w/W)*(H/100);return ceil100(m*Fb*u);}
 function buildLines(){var lines=[];
@@ -997,7 +1012,7 @@ function buildLines(){var lines=[];
  lines=lines.concat(computeSpecial(CART.filter(function(c){return c.kind==='special';})));
  lines=lines.concat(computeAddon(CART.filter(function(c){return c.kind==='addon';})));
  var fixed={};CART.forEach(function(it,ci){var sig,label,series,amt,ftype='fixed';
-  if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h;label='電梯內箱';series=fItem(it.brand,it.idx).asia;}
+  if(it.kind==='elev-box'){amt=elevBox(it);sig='EB|'+it.brand+'|'+it.idx+'|'+it.side+'|'+it.backw+'|'+it.h+'|'+(it.mirror?'M'+it.mirrorh:'');label='電梯內箱';series=fItem(it.brand,it.idx).asia+'　左右壁'+it.side+'('+elevStrips(it.side,3)+'條)·後壁'+it.backw+'('+elevStrips(it.backw,2)+'條)'+(it.mirror?'·鏡'+it.mirrorh:'')+'·高'+it.h;}
   else if(it.kind==='elev-ceil'){amt=elevCeil(it);sig='EC|'+it.brand+'|'+it.idx+'|'+it.cl+'|'+it.cw;label='電梯天花板';series=fItem(it.brand,it.idx).asia;}
   else if(it.kind==='elev-floor'){amt=it.ftype==='one'?12000:8000;sig='EL|'+it.ftype;label='電梯地板'+(it.ftype==='one'?'·一片式':'·塑膠地磚');series='固定價';}
   else if(it.kind==='elev-door'){amt=elevDoor(it);sig='ED|'+it.dpart+'|'+it.brand+'|'+it.idx+'|'+it.w+'|'+it.h;label='電梯'+(DOOR_PARTS[it.dpart]||'門');series=fItem(it.brand,it.idx).asia+'　門寬'+it.w+'×門高'+it.h;}
