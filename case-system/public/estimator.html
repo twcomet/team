@@ -567,7 +567,7 @@ function addonAmtChange(id){
   CART=CART.filter(function(c){return !(c.kind==='addon'&&c.addonId===id);});
   _addonPush(a); render();
 }
-function computeAddon(arr){var g={};arr.forEach(function(it,ci){var amt=Number(it.amount)||0;var k=it.name+'|'+amt;g[k]=g[k]||{label:'加價｜'+it.name,series:(it.ptype==='per_chi'?'每才加價':it.ptype==='range'?'區間加價':'固定加價'),unit:amt,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'addon',label:x.label,series:x.series+'　$'+x.unit.toLocaleString()+' /項',n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeAddon(arr){var g={};arr.forEach(function(it,ci){var amt=Number(it.amount)||0;var k=it.name+'|'+amt;g[k]=g[k]||{label:'加價｜'+it.name,series:(it.ptype==='per_chi'?'每才加價':it.ptype==='range'?'區間加價':'固定加價'),unit:amt,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=amt;g[k].idxs.push(it._ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'addon',label:x.label,series:x.series+'　$'+x.unit.toLocaleString()+' /項',n:x.n,amount:x.amount,idxs:x.idxs};});}
 
 /* 三裝潢膜分頁（動態建立）*/
 function buildFilmPane(pfx){
@@ -785,7 +785,7 @@ function _combCai(g){var W=g.W,Fb=W*100/900,pcs=g.pieces.slice().sort(function(a
 function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(it.brand,it.idx),W=filmW(item);var isComb=COMBINE&&(it.work==='plane'||it.work==='cabinet');var nm=(it.name||'').trim();
   // 依「項目名稱＋膜＋工法」分組：同一物件的多尺寸歸在一起（寬鬆模式總額不變、僅呈現歸組）
   var k=nm+'|'+it.brand+'|'+it.idx+'|'+it.work+'|'+(isComb?'C':'L')+'|'+(it.uOver==null?'':it.uOver)+'|'+(it.cs?'S':'');
-  g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,cs:!!it.cs,isComb:isComb,uOver:(it.uOver==null?null:Number(it.uOver)),full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{},photo:''};var x=g[k];x.n++;x.idxs.push(ci);if(it.photo&&!x.photo)x.photo=it.photo;
+  g[k]=g[k]||{name:nm,item:item,brand:it.brand,W:W,work:it.work,cs:!!it.cs,isComb:isComb,uOver:(it.uOver==null?null:Number(it.uOver)),full:0,pieces:[],looseCai:0,n:0,idxs:[],rows:{},photo:''};var x=g[k];x.n++;x.idxs.push(it._ci);if(it.photo&&!x.photo)x.photo=it.photo;
   var sk='寬'+it.w+'×高'+it.h;x.rows[sk]=x.rows[sk]||{w:it.w,h:it.h,n:0,caiEach:Math.ceil(it.w/W)*W*roundWall(it.h)/900};x.rows[sk].n++;
   if(isComb){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*roundWall(it.h)/900;}});
  return Object.keys(g).map(function(k){var x=g[k],unit=(x.uOver!=null?x.uOver:(workUnit(x.item,x.work)+(x.cs?30:0)));var r=x.isComb?_combCai(x):{cai:x.looseCai,comb:0};
@@ -794,7 +794,7 @@ function computeFilms(arr){var g={};arr.forEach(function(it,ci){var item=fItem(i
   var rows=Object.keys(x.rows).map(function(sk){return x.rows[sk];});
   var matCost=x.item.cost?(r.cai*9/x.W*x.item.cost):0;   // 材料成本＝才數×9/膜寬×成本/米（才↔米換算）
   return {type:'film',W:x.W,work:x.work,label:title,series:x.item.asia+' '+x.item.color,sizeRows:rows,n:x.n,cai:r.cai,unit:unit,amount:ceil100(r.cai*unit),comb:r.comb,idxs:x.idxs,matCost:matCost,hasCost:!!x.item.cost,over:x.uOver!=null,photo:x.photo};});}
-function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],baseU=cust==='owner'?item.owner:item.designer,unit=(it.uOver!=null?Number(it.uOver):baseU),W=item.width||122;var uk=(it.uOver==null?'':it.uOver);var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit+'|'+uk):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w+'|'+uk);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,over:(it.uOver!=null),W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{},photo:''};var x=g[k];x.n++;x.idxs.push(ci);if(it.photo&&!x.photo)x.photo=it.photo;x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',W:x.W,label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs,over:!!x.over,photo:x.photo};});}
+function computeGlass(arr){var g={};arr.forEach(function(it,ci){var item=GLASS[it.cat].items[it.idx],baseU=cust==='owner'?item.owner:item.designer,unit=(it.uOver!=null?Number(it.uOver):baseU),W=item.width||122;var uk=(it.uOver==null?'':it.uOver);var k=COMBINE?(it.cat+'|'+it.idx+'|'+unit+'|'+uk):(it.cat+'|'+it.idx+'|'+unit+'|'+it.h+'|'+it.w+'|'+uk);g[k]=g[k]||{label:GLASS[it.cat].label,sys:item.sys,unit:unit,over:(it.uOver!=null),W:W,isComb:COMBINE,full:0,pieces:[],looseCai:0,n:0,idxs:[],sizes:{},photo:''};var x=g[k];x.n++;x.idxs.push(it._ci);if(it.photo&&!x.photo)x.photo=it.photo;x.sizes['寬'+it.w+'×高'+it.h]=(x.sizes['寬'+it.w+'×高'+it.h]||0)+1;if(COMBINE){var H=roundWall(it.h),full=Math.floor(it.w/W),rem=it.w-full*W;x.full+=full*(H/100);if(rem>0)x.pieces.push({h:H,w:rem,comb:rem<(W-2)});}else{x.looseCai+=Math.ceil(it.w/W)*W*it.h/900;}});return Object.keys(g).map(function(k){var x=g[k];var r=x.isComb?_combCai(x):{cai:x.looseCai};return {type:'glass',W:x.W,label:'玻璃｜'+x.label,series:x.sys+'　'+_sizeStr(x.sizes)+'（'+x.unit+'/才）',n:x.n,cai:r.cai,unit:x.unit,amount:ceil100(r.cai*x.unit),idxs:x.idxs,over:!!x.over,photo:x.photo};});}
 // 其他品項：計價用「含損耗才數」＝寬+10、高+10，並套膜寬122拼料(省料)/寬鬆(多報)；原始才數(寬×高÷900)僅供對照
 function computeOther(arr){var g={};arr.forEach(function(it,ci){
   var W=(it.mw!=null&&Number(it.mw)>0)?Number(it.mw):((it.mBrand&&FILMS[it.mBrand]&&FILMS[it.mBrand].items[it.mIdx||0])?filmW(FILMS[it.mBrand].items[it.mIdx||0]):122);   // 料號膜寬優先(玻璃膜150)，其次選膜料膜寬，否則122
@@ -805,7 +805,7 @@ function computeOther(arr){var g={};arr.forEach(function(it,ci){
   if(COMBINE){var full=Math.floor(wL/W),rem=wL-full*W;x.full+=full*(hL/100);if(rem>0)x.pieces.push({h:hL,w:rem,comb:rem<(W-2)});}   // 拼料省料
   else{x.looseCai+=Math.ceil(wL/W)*W*hL/900;}   // 寬鬆(多報)：寬進位到整幅膜寬
   if(it.photo&&!x.photo)x.photo=it.photo;
-  x.n++;x.idxs.push(ci);
+  x.n++;x.idxs.push(it._ci);
 });return Object.keys(g).map(function(k){var x=g[k];
   var r=COMBINE?_combCai(x):{cai:x.looseCai};
   var lossGroup=r.cai, lossEach=Math.ceil(x.n?lossGroup/x.n:lossGroup);   // 每件含損耗才數無條件進位到整數才
@@ -878,7 +878,7 @@ function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?
    +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
    +'</div>'+otherMatHtml(L,csv)+'</div></div></div>';}
 // 每個「其他」品項的照片：從估價單照片庫(客人導入)挑，或上傳新的
-function setOtherPhoto(csv,url){csv.split(',').map(Number).forEach(function(i){if(CART[i])CART[i].photo=url||'';});render();}  // 任何明細列(膜料/玻璃/其他/其他特殊)都可掛照片
+function setOtherPhoto(csv,url){csv.split(',').map(Number).forEach(function(i){if(CART[i]!=null)CART[i].photo=url||'';});render();}  // 任何明細列(膜料/玻璃/物件/其他/其他特殊/門/電梯)都可掛照片；idxs 已是真實 CART 索引
 var _photoTarget=null, CLOUDPHOTOS=[], _cloudLoaded=false;
 function openOtherPhoto(csv){_photoTarget=csv;renderPhotoPicker();document.getElementById('estPhotoPicker').style.display='flex';loadCasePhotos();}
 function closePhotoPicker(){document.getElementById('estPhotoPicker').style.display='none';}
@@ -905,9 +905,9 @@ async function uploadOtherPhoto(input){var file=input.files[0];if(!file)return;i
     if(r.ok&&j.url){if(QPHOTOS.indexOf(j.url)<0)QPHOTOS.push(j.url);setOtherPhoto(_photoTarget,j.url);st.textContent='';closePhotoPicker();}
     else st.textContent='上傳失敗：'+(j.error||r.status);
   }catch(e){st.textContent='上傳失敗：'+e.message;}}
-function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{name:it.name,label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,photo:'',n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);if(it.photo&&!g[k].photo)g[k].photo=it.photo;});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',name:x.name,label:x.label,series:x.series,unit:x.unit,photo:x.photo,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{name:it.name,label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,photo:'',n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(it._ci);if(it.photo&&!g[k].photo)g[k].photo=it.photo;});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',name:x.name,label:x.label,series:x.series,unit:x.unit,photo:x.photo,n:x.n,amount:x.amount,idxs:x.idxs};});}
 // 物件（初步估價選項）行內可編輯：改標題／單價／照片；套用到該組所有 CART 項目後重算
-function editObject(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='object')return;if(field==='name')it.name=val;else if(field==='price')it.price=Number(val)||0;});markDirty&&0;render();}
+function editObject(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='object')return;if(field==='name')it.name=val;else if(field==='price')it.price=Number(val)||0;});render();}
 function objectLineHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
   var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
   var ph=L.photo
@@ -930,7 +930,7 @@ function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
   var amt=ceil100(cai*(Number(it.unit)||0));
   var k=it.name+'|'+it.m+'|'+it.strips+'|'+it.per+'|'+it.unit;
   g[k]=g[k]||{label:'其他特殊｜'+it.name,name:it.name,m:Number(it.m)||0,strips:Number(it.strips)||0,per:Number(it.per)||0,meters:meters,series:it.m+'米 × '+it.strips+'條 = '+(Math.round(meters*100)/100)+'米　'+it.per+' 才/米',cai:cai,unit:it.unit,n:0,amount:0,idxs:[],photo:''};
-  g[k].n++;g[k].amount+=amt;g[k].idxs.push(ci);if(it.photo&&!g[k].photo)g[k].photo=it.photo;
+  g[k].n++;g[k].amount+=amt;g[k].idxs.push(it._ci);if(it.photo&&!g[k].photo)g[k].photo=it.photo;
 });return Object.keys(g).map(function(k){var x=g[k];return {type:'special',label:x.label,name:x.name,m:x.m,strips:x.strips,per:x.per,meters:x.meters,series:x.series,cai:x.cai,unit:x.unit,n:x.n,amount:x.amount,idxs:x.idxs,photo:x.photo};});}
 // 明細列照片按鈕（膜料/玻璃/其他特殊 共用；上傳走 /api/storage/upload 存雲端連結，不佔 DB）
 function linePhotoBtn(csv,photo){ return photo
@@ -989,6 +989,7 @@ function elevBox(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevU
 function elevCeil(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),ch=roundElev(c.cl),m=Math.ceil(c.cw/W)*(ch/100);return ceil100(m*Fb*u);}
 function elevDoor(c){var it=fItem(c.brand,c.idx),W=filmW(it),Fb=W*100/900,u=elevUnit(it),H=roundElev(c.h),m=Math.ceil(c.w/W)*(H/100);return ceil100(m*Fb*u);}
 function buildLines(){var lines=[];
+ CART.forEach(function(c,i){c._ci=i;});   // 標記真實 CART 索引，讓 filter 後的 compute 也能回填正確索引(修:照片/編輯跑到別項)
  lines=lines.concat(computeFilms(CART.filter(function(c){return c.kind==='film';})));
  lines=lines.concat(computeGlass(CART.filter(function(c){return c.kind==='glass';})));
  lines=lines.concat(computeOther(CART.filter(function(c){return c.kind==='other';})));
