@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施工驗收單 — 繪新國際</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  :root{ --space:#3a1030; --primary:#b91c6b; --primary-dark:#8a1350; --gray-900:#1f2937; --gray-700:#374151; --gray-500:#6b7280; --gray-400:#9ca3af; --gray-300:#d1d5db; --gray-200:#e5e7eb; --gray-100:#f3f4f6; --gray-50:#f9fafb; --ok:#1f8a5b; --radius:14px; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#efeae5;font-family:'Noto Sans TC',system-ui,sans-serif;color:var(--gray-900);padding:16px 10px 60px}
+  .page{max-width:640px;margin:0 auto}
+  .body{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:0 10px 40px -14px rgba(60,10,45,.3)}
+  .header{background:linear-gradient(130deg,var(--space),#5a1a48);color:#fff;padding:22px 22px 18px;text-align:center}
+  .header .co{font-size:13px;opacity:.9;letter-spacing:1px}
+  .header h1{margin:6px 0 2px;font-size:24px;letter-spacing:4px}
+  .header .num{display:inline-block;margin-top:6px;font-size:12px;background:rgba(255,255,255,.16);padding:3px 12px;border-radius:20px;letter-spacing:1px}
+  .sec{padding:16px 20px;border-bottom:1px solid var(--gray-100)}
+  .sec-title{font-size:13px;font-weight:800;color:var(--primary-dark);margin-bottom:10px;letter-spacing:1px}
+  .party{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .party .b{font-weight:800;font-size:14px}
+  .party .r{font-size:12px;color:var(--gray-500);line-height:1.7;margin-top:3px}
+  .item{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--gray-100)}
+  .item:last-child{border-bottom:none}
+  .item .ck{width:22px;height:22px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+  .item .ck.on{background:var(--ok);color:#fff} .item .ck.off{background:var(--gray-100);color:var(--gray-300)}
+  .item .nm{flex:1;font-size:14px}
+  .item img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-200);cursor:zoom-in}
+  .confirm label{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1.5px solid var(--gray-200);border-radius:11px;margin-bottom:9px;cursor:pointer;font-size:14px;font-weight:600;line-height:1.5}
+  .confirm label.on{border-color:var(--primary);background:#fdf2f8}
+  .confirm input{width:22px;height:22px;flex-shrink:0;accent-color:var(--primary);margin-top:1px}
+  .notice{font-size:13px;color:var(--gray-600,#4b5563);line-height:1.8;white-space:pre-wrap}
+  .sig-wrap{padding:18px 20px}
+  .sig-title{font-size:16px;font-weight:800;text-align:center;color:var(--primary-dark);margin-bottom:4px}
+  .sig-desc{font-size:12px;color:var(--gray-500);text-align:center;margin-bottom:12px;line-height:1.6}
+  #sig{width:100%;height:180px;border:2px dashed var(--gray-300);border-radius:10px;background:#fafafa;touch-action:none;display:block}
+  #sig.has{border:2px solid var(--primary);background:#fff}
+  .sig-ctrl{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .btn-clear{border:none;background:var(--gray-100);color:var(--gray-600,#4b5563);border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .btn-go{width:100%;margin-top:14px;border:none;background:var(--primary);color:#fff;font-size:17px;font-weight:800;border-radius:11px;padding:14px;cursor:pointer;letter-spacing:2px}
+  .btn-go:disabled{background:var(--gray-300);cursor:not-allowed}
+  .done-card{text-align:center;padding:24px 20px}
+  .done-badge{display:inline-block;background:linear-gradient(145deg,#10b981,#059669);color:#fff;font-weight:800;padding:12px 28px;border-radius:12px;letter-spacing:2px;font-size:16px}
+  .done-sig{margin-top:16px;border:1px solid var(--gray-200);border-radius:10px;padding:10px;display:inline-block}
+  .done-sig img{max-width:260px;display:block}
+  .foot{text-align:center;color:#a89e97;font-size:11px;padding:14px}
+  .lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .lb.on{display:flex} .lb img{max-width:100%;max-height:90vh;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="page"><div class="body" id="app"><p style="text-align:center;color:#8a8074;padding:50px">載入中…</p></div>
+  <div class="foot">繪新國際 Twcomet International · 施工驗收單</div>
+</div>
+<div class="lb" id="lb" onclick="this.classList.remove('on')"><img id="lbImg" src=""></div>
+<script>
+const token = (location.pathname.match(/\/accept\/([a-f0-9]+)/i)||[])[1];
+let DATA = null, confirmState = {};
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CONFIRMS = [
+  { k:'scope',  t:'施工範圍、花色與材質與報價相符' },
+  { k:'flat',   t:'貼膜完成後表面平整，無氣泡、翹邊' },
+  { k:'noflaw', t:'已確認驗收無瑕疵' },
+];
+function openLb(u){ document.getElementById('lbImg').src=u; document.getElementById('lb').classList.add('on'); }
+
+async function load(){
+  if(!token){ document.getElementById('app').innerHTML='<p style="padding:40px;text-align:center;color:#b91c1c">連結無效</p>'; return; }
+  try{ DATA = await fetch('/api/acceptance/sign/'+token).then(r=>r.ok?r.json():null); }catch(e){}
+  if(!DATA){ document.getElementById('app').innerHTML='<p style="padding:40px;text-align:center;color:#b91c1c">找不到驗收單</p>'; return; }
+  render();
+}
+function render(){
+  const q = DATA, signed = q.status==='signed';
+  const items = q.items||[];
+  const today = new Date();
+  const dateStr = q.client_signed_at ? q.client_signed_at.slice(0,10) : `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  let h = `
+    <div class="header"><div class="co">${esc(q.org_name)}</div><h1>施工驗收單</h1><div class="num">${esc(q.case_number||'')}</div></div>
+    <div class="sec"><div class="sec-title">甲乙方</div>
+      <div class="party">
+        <div><div class="b">${esc(q.client_name||'客戶')}（甲方）</div><div class="r">${q.client_phone?'電話 '+esc(q.client_phone)+'<br>':''}${q.location?'施工地點 '+esc(q.location):''}</div></div>
+        <div><div class="b">${esc(q.org_name)}（乙方）</div><div class="r">統編 ${esc(q.org_tax_id)}<br>${esc(q.org_phone)}</div></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sec-title">施工項目（${items.length} 項）</div>
+      ${items.length ? items.map(it=>`<div class="item"><span class="ck ${it.checked?'on':'off'}">${it.checked?'✓':''}</span><span class="nm">${esc(it.name)}${it.note?'<br><span style="font-size:12px;color:#9ca3af">'+esc(it.note)+'</span>':''}</span>${it.photo?`<img src="${esc(it.photo)}" onclick="openLb('${esc(it.photo)}')">`:''}</div>`).join('') : '<div style="color:#9ca3af;font-size:13px">（無明細）</div>'}
+    </div>`;
+  if((q.notice_content||'').trim()){
+    h += `<div class="sec"><div class="sec-title">客戶須知</div><div class="notice">${esc(q.notice_content)}</div></div>`;
+  }
+  if(signed){
+    h += `<div class="done-card"><div class="done-badge">✅ 已完成驗收簽署</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:10px">簽署時間：${(q.client_signed_at||'').slice(0,16).replace('T',' ')}</div>
+      ${q.client_signature?`<div class="done-sig"><img src="${esc(q.client_signature)}" alt="簽名"></div>`:''}
+      <div style="margin-top:16px;font-size:13px;color:#6b7280;line-height:1.7">若簽名有誤需重簽，請聯繫繪新客服協助解鎖。</div></div>`;
+  } else {
+    h += `<div class="sec confirm"><div class="sec-title">驗收確認（請逐項確認勾選）</div>
+      ${CONFIRMS.map(c=>`<label id="cf-${c.k}"><input type="checkbox" onchange="onConfirm('${c.k}',this.checked)"> <span>${esc(c.t)}</span></label>`).join('')}
+    </div>
+    <div class="sig-wrap">
+      <div class="sig-title">以上確認清楚請簽名</div>
+      <div class="sig-desc">請三項都勾選後，在下框內以手指或滑鼠簽名，完成後按「確認驗收」。<br>驗收日期：${dateStr}</div>
+      <canvas id="sig"></canvas>
+      <div class="sig-ctrl"><span style="font-size:12px;color:#9ca3af">↑ 請在框內簽名</span><button class="btn-clear" onclick="clearSig()">清除重寫</button></div>
+      <button class="btn-go" id="go" onclick="submit()">確認驗收</button>
+    </div>`;
+  }
+  document.getElementById('app').innerHTML = h;
+  if(!signed) setupCanvas();
+}
+function onConfirm(k,v){ confirmState[k]=v; document.getElementById('cf-'+k).classList.toggle('on',v); }
+function setupCanvas(){
+  const c=document.getElementById('sig'); if(!c) return;
+  const rect=c.getBoundingClientRect(), dpr=window.devicePixelRatio||1, h=180;
+  c.width=rect.width*dpr; c.height=h*dpr; c.style.height=h+'px';
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.strokeStyle='#1f2937'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  let draw=false;
+  const pos=e=>{const r=c.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};};
+  c.addEventListener('pointerdown',e=>{draw=true;c.classList.add('has');const{x,y}=pos(e);ctx.beginPath();ctx.moveTo(x,y);});
+  c.addEventListener('pointermove',e=>{if(!draw)return;e.preventDefault();const{x,y}=pos(e);ctx.lineTo(x,y);ctx.stroke();});
+  c.addEventListener('pointerup',()=>draw=false); c.addEventListener('pointerleave',()=>draw=false);
+}
+function clearSig(){ const c=document.getElementById('sig'); if(c){c.getContext('2d').clearRect(0,0,c.width,c.height);c.classList.remove('has');} }
+async function submit(){
+  if(!CONFIRMS.every(c=>confirmState[c.k])){ alert('請先逐項勾選驗收確認'); return; }
+  const c=document.getElementById('sig');
+  if(!c.classList.contains('has')){ alert('請先在框內簽名'); return; }
+  const go=document.getElementById('go'); go.disabled=true; go.textContent='處理中…';
+  try{
+    const r=await fetch('/api/acceptance/sign/'+token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:c.toDataURL('image/png'),confirm:confirmState})});
+    if(r.ok){ DATA=await fetch('/api/acceptance/sign/'+token).then(x=>x.json()); render(); }
+    else { const e=await r.json().catch(()=>({})); alert(e.error||'送出失敗'); go.disabled=false; go.textContent='確認驗收'; }
+  }catch(e){ alert('網路錯誤，請重試'); go.disabled=false; go.textContent='確認驗收'; }
+}
+load();
+</script>
+</body>
+</html>

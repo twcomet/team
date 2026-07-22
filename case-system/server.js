@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html', 'price-view.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'acceptance-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html', 'price-view.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -60,6 +60,7 @@ app.use('/api/adhoc-events', require('./routes/adhoc-events'));
 app.use('/api/care-logs', require('./routes/care-logs'));
 app.use('/api/survey',  require('./routes/survey'));
 app.use('/api/quotes', require('./routes/quotes'));
+app.use('/api/acceptance', require('./routes/acceptance'));
 app.use('/api/quote-settings', require('./routes/quote-settings'));
 app.use('/api/estimator', require('./routes/estimator'));
 app.use('/api/gdrive',    require('./routes/gdrive'));
@@ -426,6 +427,10 @@ app.get('/survey-worker', (req, res) => {
 // 公開報價單頁（客戶用，不需登入）
 // LINE/社群預覽讀的是「伺服器輸出的 HTML <title>/OG」，不會跑 JS，
 // 所以在這裡依報價單帶入標題：繪新報價單-客戶名稱-案名
+// 驗收單客戶簽署頁（公開，免登入）
+app.get('/accept/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'acceptance-sign.html'));
+});
 app.get('/quote/:token', (req, res) => {
   const file = path.join(__dirname, 'public', 'quote-sign.html');
   // 不要讓 LINE/瀏覽器快取這頁 HTML，避免客戶拿到舊版前端（下載邏輯等）

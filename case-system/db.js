@@ -3097,6 +3097,30 @@ try {
   }
 } catch (e) { console.warn('[notice swap party]', e.message); }
 
+// ── 驗收單（施工完成後給客人簽名確認；一筆派工一張）──────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS acceptance_forms (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id       INTEGER REFERENCES cases(id),
+    dispatch_id   INTEGER,                 -- 對應派工（每派工一張）
+    org_id        INTEGER REFERENCES orgs(id),
+    share_token   TEXT UNIQUE,             -- 客人簽署連結
+    status        TEXT DEFAULT 'draft',    -- draft(師傅已開啟未簽) / signed(已回簽) / void
+    items_json    TEXT DEFAULT '[]',       -- 施工項目明細：[{name,checked,photo,note}]
+    confirm_json  TEXT DEFAULT '{}',       -- 客戶驗收確認勾選：{scope:1,flat:1,noflaw:1}
+    notice_content TEXT,                    -- 客戶須知（選填，可套範本）
+    client_signature TEXT,                  -- 客人簽名 base64
+    client_signed_at DATETIME,
+    signed_by_staff  INTEGER REFERENCES users(id),  -- 現場給簽的施工人員
+    opened_by     INTEGER REFERENCES users(id),      -- 首次開啟的師傅
+    unlocked_by   INTEGER REFERENCES users(id),      -- 解鎖重簽者
+    unlocked_at   DATETIME,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+_addCol('acceptance_forms', 'dispatch_id', 'INTEGER');
+
 // 折扣規則（客戶分類 × 案量門檻）
 db.exec(`
   CREATE TABLE IF NOT EXISTS discount_rules (
