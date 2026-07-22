@@ -342,7 +342,7 @@ async function loadList() {
         ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}
         ${(() => {
             const canDelAny = currentUser?.role==='owner' || currentUser?.manage_users;
-            const canDelDraft = canDelAny || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(currentUser?.role);
+            const canDelDraft = canDelAny || currentUser?.can_delete || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(currentUser?.role);
             if (['accepted','signed'].includes(q.status)) return canDelAny ? `<span title="已回簽／已簽署，不可刪除" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#9ca3af;border-radius:6px">🔒 已回簽</span>` : '';
             // 老闆/主管：任何未回簽可刪；客服/業務：只有草稿可刪
             const show = canDelAny || (canDelDraft && q.status === 'draft');
