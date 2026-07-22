@@ -1061,9 +1061,21 @@ router.delete('/:id', requireAuth, (req, res) => {
     if (dispCount > 0)
       return res.status(400).json({ error: `此案件有 ${dispCount} 筆派工紀錄，無法刪除` });
   } else {
-    // 硬刪除會連同派工/場勘/報價/收款一併移除且無法復原 → 僅限老闆；其他人請改用「標記無效」
-    if (me.role !== 'owner')
-      return res.status(403).json({ error: '僅限老闆可刪除案件，其他人請改用「標記無效」' });
+    // 硬刪除會連同派工/場勘/報價/收款一併移除且無法復原 → 老闆/主管可刪；客服/業務僅可刪「草稿/未成案」且無收款無派工
+    const canAny = me.role === 'owner' || me.manage_users;
+    if (!canAny) {
+      const canCs = ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);
+      if (!canCs) return res.status(403).json({ error: '僅限老闆／主管可刪除案件，其他人請改用「標記無效」' });
+      // 客服/業務：限早期未成案階段，且不能有收款/訂金/派工
+      const EARLY = ['inquiry','initial_estimate','cared_waiting','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft'];
+      const c0 = db.prepare(`SELECT status, payment_received, deposit_amount, payment_status FROM cases WHERE id=?`).get(req.params.id);
+      if (!c0) return res.status(404).json({ error: '找不到案件' });
+      if (!EARLY.includes(c0.status)) return res.status(403).json({ error: '客服／業務僅能刪除草稿／未成案；已成交或有收款的案件請主管處理' });
+      if ((c0.payment_received || 0) > 0 || (c0.deposit_amount || 0) > 0 || c0.payment_status === 'paid')
+        return res.status(400).json({ error: '此案件已有收款／訂金，無法刪除' });
+      const dispCnt = db.prepare(`SELECT COUNT(*) n FROM dispatches WHERE case_id=?`).get(req.params.id).n;
+      if (dispCnt > 0) return res.status(400).json({ error: `此案件已有 ${dispCnt} 筆派工，無法刪除` });
+    }
   }
 
   const c = db.prepare(`SELECT id, case_number, title FROM cases WHERE id=?`).get(req.params.id);

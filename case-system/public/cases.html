@@ -942,7 +942,7 @@ function getCaseRow(c) {
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="display:${(currentUser?.role==='owner')?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${caseDelVisible(c)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }
@@ -988,7 +988,7 @@ function getCaseRow(c) {
       <td style="width:60px;font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;cursor:default" onmouseenter="showEditorTooltip(event,${c.id})" onmousemove="posEditorTooltip(event)" onmouseleave="hideEditorTooltip()">${c.updated_by_name || '—'}</td>
       <td style="width:65px" onclick="event.stopPropagation()">
         <button onclick="deleteCase(${c.id},'${escHtml(c.case_number)}')"
-          style="display:${(currentUser?.role==='owner')?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
+          style="display:${caseDelVisible(c)?'inline-block':'none'};padding:3px 8px;border-radius:12px;font-size:11px;background:#fee2e2;color:#991b1b;border:none;cursor:pointer">刪除</button>
       </td>
     </tr>`;
   }
@@ -1371,6 +1371,13 @@ function escHtml(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+// 案件刪除鈕顯示：老闆/主管任何案件；客服/業務只在「草稿/未成案」顯示(後端再擋收款/派工)
+const _CASE_EARLY = ['inquiry','initial_estimate','cared_waiting','quote_needed','quote_sent','survey_pending','survey_scheduled','surveyed','quote_draft'];
+function caseDelVisible(c) {
+  if (currentUser?.role === 'owner' || currentUser?.manage_users) return true;
+  if (['vp','hq_cs','hq_cs_manager','hq_sales'].includes(currentUser?.role)) return _CASE_EARLY.includes(c.status);
+  return false;
+}
 
 async function loadNoteTemplates() {
   const res = await fetch('/api/survey/note-templates');
