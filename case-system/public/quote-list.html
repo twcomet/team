@@ -340,11 +340,14 @@ async function loadList() {
       <td style="white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <a href="/quote-form?id=${q.id}" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#d6336c;color:#fff;border-radius:6px;text-decoration:none">開啟</a>
         ${q.share_token && q.status !== 'draft' ? `<a href="/quote/${q.share_token}?print=1" target="_blank" class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#374151;border-radius:6px;text-decoration:none">列印</a>` : ''}
-        ${(currentUser?.role==='owner'||currentUser?.manage_users) ? (
-            ['accepted','signed'].includes(q.status)
-              ? `<span title="已回簽／已簽署，不可刪除" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#9ca3af;border-radius:6px">🔒 已回簽</span>`
-              : `<button class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#fee2e2;color:#991b1b;border-radius:6px;border:none;cursor:pointer" onclick="deleteQuote(${q.id},'${(q.case_number||'').replace(/'/g,"\\'")}')">刪除</button>`
-          ) : ''}
+        ${(() => {
+            const canDelAny = currentUser?.role==='owner' || currentUser?.manage_users;
+            const canDelDraft = canDelAny || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(currentUser?.role);
+            if (['accepted','signed'].includes(q.status)) return canDelAny ? `<span title="已回簽／已簽署，不可刪除" style="font-size:12px;padding:4px 10px;background:#f3f4f6;color:#9ca3af;border-radius:6px">🔒 已回簽</span>` : '';
+            // 老闆/主管：任何未回簽可刪；客服/業務：只有草稿可刪
+            const show = canDelAny || (canDelDraft && q.status === 'draft');
+            return show ? `<button class="btn btn-sm" style="font-size:12px;padding:4px 10px;background:#fee2e2;color:#991b1b;border-radius:6px;border:none;cursor:pointer" onclick="deleteQuote(${q.id},'${(q.case_number||'').replace(/'/g,"\\'")}')">刪除</button>` : '';
+          })()}
       </td>
     </tr>`;
   }).join('');

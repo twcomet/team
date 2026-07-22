@@ -661,12 +661,15 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
 // 刪除整張報價單
 router.delete('/:quoteId', requireAuth, (req, res) => {
   const me = req.session.user;
-  const canDel = me.role === 'owner' || me.manage_users || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);
-  if (!canDel) return res.status(403).json({ error: '無刪除報價單權限' });
+  const canDelAny = me.role === 'owner' || me.manage_users;   // 老闆/主管：可刪任何未回簽
+  const canDelDraft = canDelAny || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);  // 客服/業務：只可刪草稿
+  if (!canDelDraft) return res.status(403).json({ error: '無刪除報價單權限' });
   const qs = db.prepare(`SELECT qs.id, qs.status, c.status as case_status, c.case_number
     FROM quote_sheets qs JOIN cases c ON c.id=qs.case_id
     WHERE qs.id=?`).get(req.params.quoteId);
   if (!qs) return res.status(404).json({ error: '找不到報價單' });
+  // 非老闆/主管（客服/業務）只能刪「草稿」；已發送/已回簽的請主管處理
+  if (!canDelAny && qs.status !== 'draft') return res.status(403).json({ error: '客服／業務僅能刪除草稿報價單；已發送或已回簽的請主管處理' });
   const dealStatuses = ['contracted','payment','closed'];
   if (dealStatuses.includes(qs.case_status))
     return res.status(400).json({ error: `案件 ${qs.case_number} 已成交，報價單無法刪除` });
