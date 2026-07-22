@@ -578,7 +578,8 @@ function buildFilmPane(pfx){
    '<div class="ec-fld"><label>品牌</label><select id="'+pfx+'-brand" onchange="fillFilmP(\''+pfx+'\')"></select></div>'+
    '<div class="ec-fld"><label>膜款（系列／花色）</label><select id="'+pfx+'-item" onchange="priceHint(\''+pfx+'\')"></select></div>'+
    (pfx==='t'?'<div class="ec-fld"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="t-shape" onchange="priceHint(\'t\')"> 有造型（連工帶料 +30／才）</label></div>':'')+
-   '<div class="ec-szhd">尺寸（可加多筆，會歸在同一項目下）</div>'+
+   (pfx==='c'?cabinetAutoHtml():'')+
+   '<div class="ec-szhd">'+(pfx==='c'?'門片尺寸（可用上方自動換算填入，或手動加）':'尺寸（可加多筆，會歸在同一項目下）')+'</div>'+
    '<div class="ec-szgrid ec-szcap"><span>寬 cm</span><span>高 cm</span><span>數量</span><span></span></div>'+
    '<div id="'+pfx+'-rows"></div>'+
    '<button type="button" class="ec-addrow" onclick="addFilmRow(\''+pfx+'\')">＋ 新增下一個尺寸</button>'+
@@ -588,6 +589,34 @@ function buildFilmPane(pfx){
   fillSel(pfx+'-brand',Object.keys(FILMS).map(function(k){return {v:k,t:FILMS[k].label};}));
   fillFilmP(pfx);
   addFilmRow(pfx);   // 預設一列尺寸
+}
+// 系統櫃自動換算：客戶只給總寬時，用「總寬÷門片數」得門片寬，每片(門片寬+10)×(門片高+10)排進膜卷算才
+function cabinetAutoHtml(){
+  return '<div style="background:#f6f4ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;margin-bottom:8px">'+
+    '<div style="font-weight:800;color:#6d28d9;margin-bottom:8px;font-size:13px">🗄️ 系統櫃自動換算（客戶只給總寬時用）</div>'+
+    '<div class="ec-g3"><div class="ec-fld"><label>總櫃體寬 cm</label><input id="cab-tw" type="number" value="200"></div>'+
+      '<div class="ec-fld"><label>門片數</label><input id="cab-n" type="number" value="5"></div>'+
+      '<div class="ec-fld"><label>門片高 cm</label><input id="cab-dh" type="number" value="90"></div></div>'+
+    '<div class="ec-fld" style="margin-top:6px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="checkbox" id="cab-base" onchange="document.getElementById(\'cab-basewrap\').style.display=this.checked?\'block\':\'none\'"> 底部需要貼皮（多一條）</label></div>'+
+    '<div id="cab-basewrap" style="display:none"><div class="ec-g2"><div class="ec-fld"><label>底部貼皮寬 cm</label><input id="cab-bw" type="number" value="200"></div><div class="ec-fld"><label>底部貼皮高 cm</label><input id="cab-bh" type="number" value="10"></div></div></div>'+
+    '<button type="button" class="ec-addrow" onclick="genCabinet()" style="border-color:#c4b5fd;color:#6d28d9;background:#fff;margin-top:8px">↧ 依總寬換算門片、填入下方尺寸</button>'+
+    '<div class="ec-hint" style="margin-top:4px">門片寬＝總寬÷門片數；每片自動＋10 損耗（高在計算時再＋10），一起排進 122 膜卷算總才。單片寬過大排不下就會自動多吃一條。</div>'+
+  '</div>';
+}
+function genCabinet(){
+  var tw=+val('cab-tw')||0, n=+val('cab-n')||0, dh=+val('cab-dh')||0;
+  if(!tw||!n||!dh){ alert('請填總櫃體寬、門片數、門片高'); return; }
+  var dw=tw/n;                         // 門片寬＝總寬÷門片數
+  var box=document.getElementById('c-rows'); box.innerHTML='';
+  // 每片門片：寬先＋10損耗（高在 computeFilms 由 roundWall 再＋10）
+  var rowW=Math.round(dw+10);
+  box.insertAdjacentHTML('beforeend','<div class="ec-szrow ec-szgrid"><input class="c-w" type="number" value="'+rowW+'"><input class="c-h" type="number" value="'+dh+'"><input class="c-q" type="number" value="'+n+'"><span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span></div>');
+  // 底部貼皮（若勾選）：也是一條，寬＋10損耗
+  if(document.getElementById('cab-base')&&document.getElementById('cab-base').checked){
+    var bw=+val('cab-bw')||0, bh=+val('cab-bh')||0;
+    if(bw&&bh) box.insertAdjacentHTML('beforeend','<div class="ec-szrow ec-szgrid"><input class="c-w" type="number" value="'+Math.round(bw+10)+'"><input class="c-h" type="number" value="'+bh+'"><input class="c-q" type="number" value="1"><span class="ec-szrm" onclick="rmFilmRow(this)" title="刪除此列">×</span></div>');
+  }
+  if(!v('c-name')){ var nm=document.getElementById('c-name'); if(nm)nm.value='系統櫃（總寬'+tw+'／'+n+'片）'; }
 }
 function filmRowHtml(pfx){
   return '<div class="ec-szrow ec-szgrid">'+
