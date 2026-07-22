@@ -188,6 +188,13 @@ let matChangeType = 'use'; // 'use' | 'return'
 
 const TYPE_LABEL   = { cut_material:'裁切材料', factory_survey:'場勘', survey:'場勘', install:'施工', aftersales:'售後服務', other:'其他' };
 const TYPE_CLS     = { cut_material:'pill-cut', factory_survey:'pill-factory', survey:'pill-survey', install:'pill-install', aftersales:'pill-aftersales', other:'pill-other' };
+// 開啟驗收單（取或建該案件的驗收單→開簽署頁，師傅獨立操作，不用進案件）
+async function openAcceptance(cid){
+  try{ const f=await fetch('/api/acceptance/case/'+cid).then(r=>r.ok?r.json():null);
+    if(f&&f.share_token){ window.open('/accept/'+f.share_token,'_blank'); return; }
+  }catch(e){}
+  alert('開啟驗收單失敗，請稍後再試');
+}
 const STATUS_LABEL = {
   inquiry:'詢價需初步估價', initial_estimate:'已初步估價', cared_waiting:'已關懷，等待客戶回覆',
   survey_pending:'待排場勘', survey_scheduled:'已排場勘', surveyed:'已場勘',
@@ -390,6 +397,15 @@ function render() {
       </div>
     </div>`;
   }
+
+  // ── 驗收單（施工完成後給客人簽；獨立開啟，不用進案件）──────────
+  html += `<div class="section">
+    <div class="section-hd">✅ 施工驗收單</div>
+    <div class="section-body">
+      <button type="button" onclick="openAcceptance(${caseId})" style="width:100%;padding:12px;border:none;border-radius:10px;background:#8a1350;color:#fff;font-weight:800;font-size:15px;cursor:pointer">🖊 開啟驗收單（確認項目・上傳完工照・給客人簽）</button>
+      <div style="font-size:12px;color:#9ca3af;margin-top:8px;line-height:1.7">施工項目預設帶入報價單。在頁面確認完工、上傳完工照、選客戶須知後，把手機交給客人確認簽名。</div>
+    </div>
+  </div>`;
 
   // ── 6. 完工照上傳 ─────────────────────────────────────────
   if (d.photo_upload_url) {

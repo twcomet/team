@@ -218,7 +218,6 @@
         <div class="tab" data-tab="care" data-groups="inquiry,survey,deal">客服關懷紀錄</div>
         <div class="tab" data-tab="chat" data-groups="inquiry,survey,deal">客服對話紀錄</div>
         <div class="tab" data-tab="survey" data-groups="inquiry,survey,deal">場勘</div>
-        <div class="tab" data-tab="acceptance" data-groups="inquiry,survey,deal">驗收單</div>
         <div class="tab" data-tab="quote" data-groups="inquiry,survey,deal">正式報價單</div>
         <div class="tab" data-tab="documents" data-groups="inquiry,survey,deal">往來文件</div>
         <div class="tab" data-tab="material" data-groups="inquiry,survey,deal">膜料使用</div>
@@ -585,11 +584,6 @@
       </div><!-- end tab-documents -->
 
       <!-- 場勘 -->
-      <!-- 驗收單 -->
-      <div class="tab-pane" id="tab-acceptance">
-        <div id="acceptanceBox" style="max-width:640px"><div style="color:#9ca3af;padding:20px">載入中…</div></div>
-      </div>
-
       <div class="tab-pane" id="tab-survey">
         <!-- 狀態列 -->
         <div id="sf_statusBar" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:13px;background:#f9fafb;border:1px solid var(--gray-200)">
@@ -1615,7 +1609,6 @@ async function init() {
       t.classList.add('active');
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
       if (t.dataset.tab === 'survey')     loadSurveyTab();
-      if (t.dataset.tab === 'acceptance') loadAcceptanceTab();
       if (t.dataset.tab === 'outsource')  loadOutsourceTab();
       if (t.dataset.tab === 'estimate')   loadQuickEstimates();
       if (t.dataset.tab === 'documents')  loadCaseDocuments();
