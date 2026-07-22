@@ -229,15 +229,10 @@
             </div>
             <div id="stab-notes">
               <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-                <button class="btn btn-primary btn-sm" onclick="openNoteTemplateModal()">＋ 新增模板</button>
+                <button class="btn btn-primary btn-sm" onclick="openNoteTemplateModal()">＋ 新增備註範本</button>
               </div>
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead><tr><th>類別</th><th>關鍵字</th><th>備註內容</th><th></th></tr></thead>
-                  <tbody id="noteTemplateBody">
-                    <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">載入中...</td></tr>
-                  </tbody>
-                </table>
+              <div id="noteTemplateArea">
+                <div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">載入中...</div>
               </div>
             </div>
             <div id="stab-checklist" style="display:none">
@@ -259,15 +254,16 @@
 <div class="modal-overlay" id="noteTemplateModal">
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
-      <h3 id="ntModalTitle">新增備註模板</h3>
+      <h3 id="ntModalTitle">新增備註範本</h3>
       <button class="modal-close" onclick="closeModal('noteTemplateModal')">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="ntId">
       <div class="form-row">
         <div class="form-group">
-          <label>類別 <span style="font-size:11px;color:var(--gray-400)">（如：除膜、貼膜、電梯）</span></label>
-          <input type="text" id="ntCategory" placeholder="例：除膜">
+          <label>類別 <span style="font-size:11px;color:var(--gray-400)">（可直接選現有類別，或輸入新類別）</span></label>
+          <input type="text" id="ntCategory" list="ntCatList" placeholder="例：除膜、貼膜、電梯">
+          <datalist id="ntCatList"></datalist>
         </div>
         <div class="form-group">
           <label>關鍵字 <span style="font-size:11px;color:var(--gray-400)">（搜尋用）</span></label>
@@ -1380,21 +1376,34 @@ async function loadNoteTemplates() {
   const res = await fetch('/api/survey/note-templates');
   if (!res.ok) return;
   noteTemplates = await res.json();
-  const tbody = document.getElementById('noteTemplateBody');
+  const area = document.getElementById('noteTemplateArea');
+  if (!area) return;
   if (!noteTemplates.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">尚無模板</td></tr>';
+    area.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px;font-size:13px">尚無備註範本</div>';
     return;
   }
-  tbody.innerHTML = noteTemplates.map(t => `
-    <tr>
-      <td style="font-size:13px;color:var(--gray-600)">${escHtml(t.category || '—')}</td>
-      <td><span style="background:#eff6ff;color:#1d4ed8;font-size:12px;padding:2px 8px;border-radius:12px">${escHtml(t.keyword || '—')}</span></td>
-      <td style="font-size:13px;max-width:300px;white-space:pre-wrap;word-break:break-all">${escHtml(t.content)}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="openNoteTemplateModal(${t.id})">編輯</button>
-        <button class="btn btn-ghost btn-sm" style="color:#e02424" onclick="deleteNoteTemplate(${t.id},'${escHtml(t.keyword||t.category||'').replace(/'/g,'&#39;')}')">刪除</button>
-      </td>
-    </tr>
+  // 依類別分組（跟檢查清單一致）
+  const grouped = {};
+  noteTemplates.forEach(t => { const c = t.category || '未分類'; (grouped[c] = grouped[c] || []).push(t); });
+  area.innerHTML = Object.entries(grouped).map(([cat, items]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>${escHtml(cat)}（${items.length}）</span>
+        <button onclick="openNoteTemplateModal(null,'${escHtml(cat === '未分類' ? '' : cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px">＋ 在此類別新增</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${items.map(t => `
+          <div style="border:1px solid var(--gray-200);border-radius:8px;padding:8px 12px;display:flex;gap:10px;align-items:flex-start">
+            ${t.keyword ? `<span style="background:#eff6ff;color:#1d4ed8;font-size:12px;padding:2px 8px;border-radius:12px;white-space:nowrap;flex-shrink:0">${escHtml(t.keyword)}</span>` : ''}
+            <div style="flex:1;font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--gray-700)">${escHtml(t.content)}</div>
+            <div style="white-space:nowrap;flex-shrink:0">
+              <button onclick="openNoteTemplateModal(${t.id})" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:13px" title="編輯">✎</button>
+              <button onclick="deleteNoteTemplate(${t.id},'${escHtml(t.keyword||t.category||'').replace(/'/g,'&#39;')}')" style="background:none;border:none;cursor:pointer;color:#e02424;font-size:13px" title="刪除">×</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
   `).join('');
 }
 
@@ -1428,13 +1437,15 @@ async function loadChecklistTemplates() {
   `).join('');
 }
 
-function openNoteTemplateModal(id) {
+function openNoteTemplateModal(id, presetCat) {
   const t = id ? noteTemplates.find(x => x.id === id) : null;
+  const cats = [...new Set(noteTemplates.map(x => x.category).filter(Boolean))];
+  document.getElementById('ntCatList').innerHTML = cats.map(c => `<option value="${escHtml(c)}">`).join('');
   document.getElementById('ntId').value        = t ? t.id : '';
-  document.getElementById('ntCategory').value  = t ? (t.category || '') : '';
+  document.getElementById('ntCategory').value  = t ? (t.category || '') : (presetCat || '');
   document.getElementById('ntKeyword').value   = t ? (t.keyword  || '') : '';
   document.getElementById('ntContent').value   = t ? (t.content  || '') : '';
-  document.getElementById('ntModalTitle').textContent = t ? '編輯備註模板' : '新增備註模板';
+  document.getElementById('ntModalTitle').textContent = t ? '編輯備註範本' : (presetCat ? `在「${presetCat}」新增備註範本` : '新增備註範本');
   document.getElementById('noteTemplateModal').classList.add('open');
 }
 
