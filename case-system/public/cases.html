@@ -224,7 +224,7 @@
           </div>
           <div class="card-body">
             <div style="display:flex;gap:0;border-bottom:2px solid var(--gray-200);margin-bottom:16px">
-              <div class="stpl-tab stpl-active" data-stab="notes" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">備註模板庫</div>
+              <div class="stpl-tab stpl-active" data-stab="notes" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid var(--primary);margin-bottom:-2px;color:var(--primary)">客服用備註範本</div>
               <div class="stpl-tab" data-stab="checklist" style="padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--gray-500)">施作檢查清單模板</div>
             </div>
             <div id="stab-notes">
@@ -296,12 +296,13 @@
     <div class="modal-body">
       <input type="hidden" id="clId">
       <div class="form-group">
-        <label>類別 * <span style="font-size:11px;color:var(--gray-400)">（如：玻璃膜、門框、牆面、電梯、一般）</span></label>
-        <input type="text" id="clCategory" placeholder="例：玻璃膜">
+        <label>類別 * <span style="font-size:11px;color:var(--gray-400)">（可直接選現有大類別，或輸入新類別）</span></label>
+        <input type="text" id="clCategory" list="clCatList" placeholder="例：玻璃膜、門框、牆面、電梯、一般">
+        <datalist id="clCatList"></datalist>
       </div>
       <div class="form-group">
-        <label>項目名稱 *</label>
-        <input type="text" id="clItem" placeholder="例：確認玻璃尺寸與規格">
+        <label id="clItemLabel">檢查項目 * <span style="font-size:11px;color:var(--gray-400)">（一行一個，可一次新增多項）</span></label>
+        <textarea id="clItem" rows="7" placeholder="一行一個項目，例如：&#10;確認玻璃尺寸與規格&#10;確認是否 Low-E 玻璃&#10;確認框內緣尺寸"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -1410,7 +1411,10 @@ async function loadChecklistTemplates() {
   }
   area.innerHTML = Object.entries(grouped).map(([cat, items]) => `
     <div style="margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px">${escHtml(cat)}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>${escHtml(cat)}（${items.length}）</span>
+        <button onclick="openChecklistTemplateModal(null,'${escHtml(cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px">＋ 在此類別新增</button>
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 2px">
         ${items.map(it => `
           <div style="display:flex;align-items:center;gap:4px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:4px 10px;font-size:13px">
@@ -1456,27 +1460,45 @@ async function deleteNoteTemplate(id, label) {
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
 }
 
-function openChecklistTemplateModal(id) {
+function openChecklistTemplateModal(id, presetCat) {
   const t = id ? checklistTemplates.find(x => x.id === id) : null;
+  // 現有大類別帶進 datalist，方便直接選、往同一類別加項目
+  const cats = [...new Set(checklistTemplates.map(x => x.category).filter(Boolean))];
+  document.getElementById('clCatList').innerHTML = cats.map(c => `<option value="${escHtml(c)}">`).join('');
   document.getElementById('clId').value       = t ? t.id : '';
-  document.getElementById('clCategory').value = t ? (t.category || '') : '';
+  document.getElementById('clCategory').value = t ? (t.category || '') : (presetCat || '');
   document.getElementById('clItem').value     = t ? (t.item     || '') : '';
-  document.getElementById('clModalTitle').textContent = t ? '編輯清單項目' : '新增清單項目';
+  const lbl = document.getElementById('clItemLabel');
+  if (lbl) lbl.innerHTML = t ? '檢查項目 *' : '檢查項目 * <span style="font-size:11px;color:var(--gray-400)">（一行一個，可一次新增多項）</span>';
+  document.getElementById('clItem').rows = t ? 3 : 7;
+  document.getElementById('clModalTitle').textContent = t ? '編輯清單項目' : (presetCat ? `在「${presetCat}」新增項目` : '新增清單項目（可一次多項）');
   document.getElementById('checklistTemplateModal').classList.add('open');
 }
 
 document.getElementById('clSaveBtn').addEventListener('click', async () => {
-  const id   = document.getElementById('clId').value;
-  const body = {
-    category: document.getElementById('clCategory').value.trim(),
-    item:     document.getElementById('clItem').value.trim(),
-  };
-  if (!body.category || !body.item) { showToast('類別和項目名稱皆必填', 'error'); return; }
-  const res = await fetch(id ? `/api/survey/checklist-templates/${id}` : '/api/survey/checklist-templates', {
-    method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
-  });
-  if (res.ok) { closeModal('checklistTemplateModal'); await loadChecklistTemplates(); showToast('清單項目已儲存'); }
-  else { const e = await res.json(); showToast(e.error || '儲存失敗', 'error'); }
+  const id  = document.getElementById('clId').value;
+  const category = document.getElementById('clCategory').value.trim();
+  const raw = document.getElementById('clItem').value;
+  if (!category) { showToast('請填類別', 'error'); return; }
+  if (id) {
+    // 編輯單一項目
+    const item = raw.trim().split('\n')[0].trim();
+    if (!item) { showToast('請填項目名稱', 'error'); return; }
+    const res = await fetch(`/api/survey/checklist-templates/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ category, item }) });
+    if (res.ok) { closeModal('checklistTemplateModal'); await loadChecklistTemplates(); showToast('清單項目已儲存'); }
+    else { const e = await res.json().catch(()=>({})); showToast(e.error || '儲存失敗', 'error'); }
+    return;
+  }
+  // 新增：一行一個，一次新增多項
+  const items = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!items.length) { showToast('請至少填一個項目', 'error'); return; }
+  let ok = 0;
+  for (const item of items) {
+    const res = await fetch('/api/survey/checklist-templates', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ category, item }) });
+    if (res.ok) ok++;
+  }
+  closeModal('checklistTemplateModal'); await loadChecklistTemplates();
+  showToast(`已新增 ${ok}/${items.length} 個項目到「${category}」`);
 });
 
 async function deleteChecklistTemplate(id, label) {
