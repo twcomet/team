@@ -3086,6 +3086,16 @@ db.exec(`
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+// 甲乙方對調：公司政策改為「客戶＝甲方、繪新＝乙方」，一次性把貼膜須知範本內容的 甲方↔乙方 對調
+try {
+  const MIG = 'notice_swap_party_2026_07';
+  if (!db.prepare(`SELECT 1 FROM _migrations WHERE name=?`).get(MIG)) {
+    // 用暫時符號避免雙向替換互相蓋掉：甲方→§→乙方
+    db.prepare(`UPDATE film_notice_templates SET content = REPLACE(REPLACE(REPLACE(content,'甲方','TMP'),'乙方','甲方'),'TMP','乙方') WHERE content LIKE '%甲方%' OR content LIKE '%乙方%'`).run();
+    db.prepare(`INSERT INTO _migrations (name) VALUES (?)`).run(MIG);
+    console.log('✅ 貼膜須知範本：甲方↔乙方 已對調（客戶=甲方、繪新=乙方）');
+  }
+} catch (e) { console.warn('[notice swap party]', e.message); }
 
 // 折扣規則（客戶分類 × 案量門檻）
 db.exec(`

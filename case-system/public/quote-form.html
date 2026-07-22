@@ -453,7 +453,7 @@
           <a href="/quote-settings#notices" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--primary,#be185d);font-weight:700;text-decoration:none;white-space:nowrap">＋ 管理範本</a>
         </span>
       </div>
-      <textarea id="termC" style="display:none">1. 施工完畢當天請乙方安排人員當場驗收，有問題請當場提出。
+      <textarea id="termC" style="display:none">1. 施工完畢當天請甲方安排人員當場驗收，有問題請當場提出。
 2. 若當天無法到場，請於完工後七日內通知；逾期視同驗收通過。
 3. 施工保固：完工後皮料「非人為」問題免費保固一年。</textarea>
       <div class="block-imgs" id="img-inspection" style="display:none"></div></div>
@@ -476,8 +476,8 @@
     <div class="cust-card">
       <div class="cust-hd"><h2><img class="cust-mark" src="/logo.png" alt="" onerror="this.style.display='none'">繪新國際有限公司 · 報價單</h2><p id="custDate">報價確認單</p></div>
       <div class="party">
-        <div><b>繪新國際有限公司（甲方）</b><div class="r">統一編號 45917816<br>聯絡電話 02-8678-1229<br>公司地址 新北市鶯歌區中山路166巷2號<br>業務負責人 <span id="custSalesName">林佳樺</span></div></div>
-        <div><b>客戶資訊（乙方）</b><div class="r" id="custParty">—</div></div>
+        <div><b>客戶資訊（甲方）</b><div class="r" id="custParty">—</div></div>
+        <div><b>繪新國際有限公司（乙方）</b><div class="r">統一編號 45917816<br>聯絡電話 02-8678-1229<br>公司地址 新北市鶯歌區中山路166巷2號<br>業務負責人 <span id="custSalesName">林佳樺</span></div></div>
       </div>
       <div class="cust-body">
         <div style="font-weight:800;font-size:14px;margin-bottom:9px">訂單資訊</div>
@@ -811,10 +811,10 @@ function bindHeader(q){
   const salesHasCur = salesUsers.some(u=>String(u.id)===pv.sales_id);
   const salesExtra = (!salesHasCur && pv.sales_id && q.sales_name) ? `<option value="${esc(pv.sales_id)}" selected>${esc(q.sales_name)}（案件業務）</option>` : '';
   const salesOpts = salesUsers.map(u=>`<option value="${u.id}"${String(u.id)===pv.sales_id?' selected':''}>${esc(u.name)}</option>`).join('');
-  const salesFld=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--gray-500,#6b7280);font-weight:700;grid-column:1/-1">業務窗口（甲方，顯示在客戶版報價單）<select id="pfSales" onchange="onPartyInput()" style="font-size:13px;font-weight:600;color:var(--gray-800,#1f2937);border:1px solid var(--gray-300,#d1d5db);border-radius:7px;padding:7px 9px;background:#fff"><option value="">（未指定，用開單人）</option>${salesExtra}${salesOpts}</select></label>`;
+  const salesFld=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--gray-500,#6b7280);font-weight:700;grid-column:1/-1">業務窗口（乙方繪新，顯示在客戶版報價單）<select id="pfSales" onchange="onPartyInput()" style="font-size:13px;font-weight:600;color:var(--gray-800,#1f2937);border:1px solid var(--gray-300,#d1d5db);border-radius:7px;padding:7px 9px;background:#fff"><option value="">（未指定，用開單人）</option>${salesExtra}${salesOpts}</select></label>`;
   document.getElementById('qParty').innerHTML=`
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span class="mut">客戶（乙方）</span><b id="partySummary">${esc(pv.client_name||'—')}</b>
+      <span class="mut">客戶（甲方）</span><b id="partySummary">${esc(pv.client_name||'—')}</b>
       <span class="grow" style="flex:1"></span>
       <button type="button" class="btn sm" id="partyToggleBtn" onclick="togglePartyEdit()">✎ 編輯客戶／案場資訊 ▾</button>
     </div>
