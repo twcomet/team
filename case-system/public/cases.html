@@ -1388,8 +1388,8 @@ async function loadNoteTemplates() {
   area.innerHTML = Object.entries(grouped).map(([cat, items]) => `
     <div style="margin-bottom:16px">
       <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
-        <span>${escHtml(cat)}（${items.length}）</span>
-        <button onclick="openNoteTemplateModal(null,'${escHtml(cat === '未分類' ? '' : cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px">＋ 在此類別新增</button>
+        <span>${escHtml(cat)}（${items.length}）${cat !== '未分類' ? `<button onclick="renameNoteCategory('${escHtml(cat).replace(/'/g,'&#39;')}')" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:12px" title="重命名此類別">✎</button>` : ''}</span>
+        <button onclick="openNoteTemplateModal(null,'${escHtml(cat === '未分類' ? '' : cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px;flex-shrink:0">＋ 在此類別新增</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${items.map(t => `
@@ -1420,9 +1420,9 @@ async function loadChecklistTemplates() {
   }
   area.innerHTML = Object.entries(grouped).map(([cat, items]) => `
     <div style="margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
-        <span>${escHtml(cat)}（${items.length}）</span>
-        <button onclick="openChecklistTemplateModal(null,'${escHtml(cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px">＋ 在此類別新增</button>
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:8px;padding:4px 10px;background:var(--gray-100);border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>${escHtml(cat)}（${items.length}）<button onclick="renameChecklistCategory('${escHtml(cat).replace(/'/g,'&#39;')}')" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:12px" title="重命名此類別">✎</button></span>
+        <button onclick="openChecklistTemplateModal(null,'${escHtml(cat).replace(/'/g,'&#39;')}')" style="background:none;border:1px solid var(--primary);color:var(--primary);border-radius:6px;cursor:pointer;font-size:12px;padding:2px 8px;flex-shrink:0">＋ 在此類別新增</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 2px">
         ${items.map(it => `
@@ -1517,6 +1517,30 @@ async function deleteChecklistTemplate(id, label) {
   const res = await fetch(`/api/survey/checklist-templates/${id}`, { method: 'DELETE' });
   if (res.ok) { await loadChecklistTemplates(); showToast('已刪除'); }
   else { const e = await res.json(); showToast(e.error || '刪除失敗', 'error'); }
+}
+async function renameChecklistCategory(oldCat) {
+  const nc = prompt(`把類別「${oldCat}」重新命名為：`, oldCat);
+  if (nc == null) return; const cat = nc.trim();
+  if (!cat || cat === oldCat) return;
+  const items = checklistTemplates.filter(x => (x.category || '') === oldCat);
+  let ok = 0;
+  for (const t of items) {
+    const r = await fetch(`/api/survey/checklist-templates/${t.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ category: cat, item: t.item }) });
+    if (r.ok) ok++;
+  }
+  await loadChecklistTemplates(); showToast(`已重命名 ${ok}/${items.length} 項到「${cat}」`);
+}
+async function renameNoteCategory(oldCat) {
+  const nc = prompt(`把類別「${oldCat}」重新命名為：`, oldCat);
+  if (nc == null) return; const cat = nc.trim();
+  if (!cat || cat === oldCat) return;
+  const items = noteTemplates.filter(x => (x.category || '') === oldCat);
+  let ok = 0;
+  for (const t of items) {
+    const r = await fetch(`/api/survey/note-templates/${t.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ category: cat, keyword: t.keyword, content: t.content }) });
+    if (r.ok) ok++;
+  }
+  await loadNoteTemplates(); showToast(`已重命名 ${ok}/${items.length} 項到「${cat}」`);
 }
 
 // ── 狀態操作按鈕 ──────────────────────────────────────────────
