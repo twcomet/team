@@ -296,6 +296,11 @@ pages.forEach(page => {
 // /cases 舊路由 → 導向 cases-survey
 app.get('/cases', requireAuth, requireContract, (req, res) => res.redirect('/cases-survey'));
 
+// 驗收單頁（登入即可開；清單/解鎖等資料權限由 API 層把關）
+app.get('/acceptance', requireAuth, requireContract, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'acceptance-list.html'));
+});
+
 // 新版報價單示意畫面（預覽用，不放選單；登入即可看）
 app.get('/quote-preview', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'quote-preview.html'));

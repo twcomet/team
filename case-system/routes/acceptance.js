@@ -25,6 +25,22 @@ function seedItemsFromQuote(caseId) {
   });
 }
 
+// 取得或建立某案件的驗收單（精簡版：一案一張，從案件詳情開啟）
+router.get('/case/:caseId', requireAuth, (req, res) => {
+  const cid = Number(req.params.caseId);
+  const c = db.prepare(`SELECT id, org_id FROM cases WHERE id=?`).get(cid);
+  if (!c) return res.status(404).json({ error: '找不到案件' });
+  let form = db.prepare(`SELECT * FROM acceptance_forms WHERE case_id=? ORDER BY id DESC LIMIT 1`).get(cid);
+  if (!form) {
+    const token = genToken();
+    const items = JSON.stringify(seedItemsFromQuote(cid));
+    const info = db.prepare(`INSERT INTO acceptance_forms (case_id, org_id, share_token, status, items_json, opened_by)
+      VALUES (?, ?, ?, 'draft', ?, ?)`).run(cid, c.org_id || null, token, items, req.session.user.id);
+    form = db.prepare(`SELECT * FROM acceptance_forms WHERE id=?`).get(info.lastInsertRowid);
+  }
+  res.json(hydrate(form));
+});
+
 // 師傅開啟：取得或建立某派工的驗收單
 router.get('/dispatch/:dispatchId', requireAuth, (req, res) => {
   const did = Number(req.params.dispatchId);

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>驗收單 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .av-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .av-table th{background:#f8fafc;color:#374151;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  .av-table td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+  .av-table tr:hover td{background:#f9fafb}
+  .pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+  .p-draft{background:#fef3c7;color:#92400e} .p-signed{background:#d1fae5;color:#065f46}
+  .btn2{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+  .btn2.pri{background:#b91c6b;border-color:#b91c6b;color:#fff}
+  .btn2.warn{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:5000;display:none;align-items:center;justify-content:center;padding:14px}
+  .ov.on{display:flex}
+  .mbox{background:#fff;border-radius:14px;width:100%;max-width:640px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+  .mhd{padding:14px 18px;background:#3a1030;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .mhd b{font-size:15px} .mhd .x{cursor:pointer;font-size:20px}
+  .mbd{padding:14px 18px;overflow-y:auto;flex:1}
+  .aitem{display:flex;gap:9px;align-items:center;padding:8px 0;border-bottom:1px dashed #eee}
+  .aitem input[type=checkbox]{width:20px;height:20px;flex-shrink:0}
+  .aitem .nm{flex:1;font-size:14px}
+  .aitem .th{width:48px;height:48px;border-radius:8px;border:1px solid #e5e7eb;object-fit:cover;cursor:pointer}
+  .aitem .up{width:48px;height:48px;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;font-size:16px;color:#9ca3af;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .mft{padding:12px 18px;border-top:1px solid #eee;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+  .lnk{flex:1;min-width:0;font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-user"><div class="user-name" id="sidebarUserName"></div><div class="user-role" id="sidebarUserRole"></div><a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a></div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">✅ 驗收單</span></div>
+    <div class="page-body">
+      <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">列出已開啟的驗收單（師傅已開啟／已回簽）。「檢視」可看內容、複製客戶簽署連結；已回簽如需重簽，客服／主管可「解鎖」。</div>
+      <div id="listArea"><div style="color:#9ca3af;padding:20px">載入中…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov"><div class="mbox">
+  <div class="mhd"><b id="mTitle">驗收單</b><span class="x" onclick="closeModal()">✕</span></div>
+  <div class="mbd" id="mBody"></div>
+  <div class="mft" id="mFoot"></div>
+</div></div>
+
+<script src="/js/common.js?v=20260722"></script>
+<script>
+let LIST=[], cur=null, canManage=false;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const STLABEL={draft:'師傅已開啟',signed:'已回簽'};
+
+async function init(){
+  await loadUser(); highlightNav('acceptance');
+  const r=currentUser?.role;
+  canManage = r==='owner'||currentUser?.manage_users||['vp','hq_cs','hq_cs_manager','hq_accounting'].includes(r);
+  const cid=new URLSearchParams(location.search).get('case');
+  if(cid){ await openCase(cid); }
+  await loadList();
+}
+async function loadList(){
+  try{ LIST=await fetch('/api/acceptance/').then(x=>x.ok?x.json():[]); }catch(e){ LIST=[]; }
+  const a=document.getElementById('listArea');
+  if(!LIST.length){ a.innerHTML='<div style="color:#9ca3af;padding:24px;text-align:center">尚無已開啟的驗收單</div>'; return; }
+  a.innerHTML=`<table class="av-table"><thead><tr><th>案件</th><th>客戶</th><th>狀態</th><th>開啟人</th><th>簽署時間</th><th>操作</th></tr></thead><tbody>${
+    LIST.map(f=>`<tr>
+      <td><b>${esc(f.case_number||'')}</b> ${esc(f.title||'')}</td>
+      <td>${esc(f.client_name||'—')}</td>
+      <td><span class="pill ${f.status==='signed'?'p-signed':'p-draft'}">${STLABEL[f.status]||f.status}</span></td>
+      <td>${esc(f.opened_by_name||'—')}</td>
+      <td style="font-size:12px;color:#6b7280">${f.client_signed_at?f.client_signed_at.slice(0,16).replace('T',' '):'—'}</td>
+      <td style="white-space:nowrap"><button class="btn2" onclick="openForm(${f.id})">檢視</button> ${f.status==='signed'&&canManage?`<button class="btn2 warn" onclick="unlock(${f.id})">解鎖重簽</button>`:''}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+async function openCase(cid){
+  try{ cur=await fetch('/api/acceptance/case/'+cid).then(x=>x.ok?x.json():null); }catch(e){}
+  if(cur) showModal();
+}
+async function openForm(id){
+  try{ cur=await fetch('/api/acceptance/'+id).then(x=>x.ok?x.json():null); }catch(e){}
+  if(cur) showModal();
+}
+function showModal(){
+  const f=cur, signed=f.status==='signed';
+  document.getElementById('mTitle').textContent='驗收單 · '+(f.case_number||('#'+f.id));
+  const items=f.items||[];
+  document.getElementById('mBody').innerHTML=`
+    <div style="font-size:12px;color:#6b7280;margin-bottom:8px">狀態：<b>${STLABEL[f.status]||f.status}</b>${signed?'（已回簽，如需重簽請解鎖）':'　施工項目打勾、上傳完工照後，把下方連結給客人簽'}</div>
+    <div style="font-weight:700;font-size:13px;color:#8a1350;margin:6px 0">施工項目（${items.length}）</div>
+    <div id="itemBox">${items.map((it,i)=>itemRow(it,i,signed)).join('')||'<div style="color:#9ca3af;font-size:13px">無明細，可下方新增</div>'}</div>
+    ${signed?'':'<button class="btn2" style="margin-top:8px" onclick="addItem()">＋ 新增項目</button>'}
+    <div style="font-weight:700;font-size:13px;color:#8a1350;margin:14px 0 4px">客戶須知（選填）</div>
+    <textarea id="mNotice" ${signed?'disabled':''} rows="3" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:13px" placeholder="例：貼膜後 24 小時勿碰水…">${esc(f.notice_content||'')}</textarea>
+    ${signed&&f.client_signature?`<div style="margin-top:12px"><div style="font-size:12px;color:#6b7280">客戶簽名</div><img src="${esc(f.client_signature)}" style="max-width:240px;border:1px solid #e5e7eb;border-radius:8px;margin-top:4px"></div>`:''}`;
+  const link=location.origin+'/accept/'+f.share_token;
+  document.getElementById('mFoot').innerHTML=`
+    <span class="lnk" title="${esc(link)}">🔗 ${esc(link)}</span>
+    <button class="btn2" onclick="copyLink('${esc(f.share_token)}',this)">複製簽署連結</button>
+    <a class="btn2" href="/accept/${esc(f.share_token)}" target="_blank">開啟簽署頁</a>
+    ${signed?'':'<button class="btn2 pri" onclick="saveForm()">儲存</button>'}`;
+  document.getElementById('ov').classList.add('on');
+}
+function itemRow(it,i,signed){
+  return `<div class="aitem" data-i="${i}">
+    <input type="checkbox" ${it.checked?'checked':''} ${signed?'disabled':''} onchange="cur.items[${i}].checked=this.checked">
+    <span class="nm">${signed?esc(it.name):`<input value="${esc(it.name)}" onchange="cur.items[${i}].name=this.value" style="width:100%;border:1px solid #eee;border-radius:6px;padding:5px 7px;font-size:13px">`}</span>
+    ${it.photo?`<img class="th" src="${esc(it.photo)}" onclick="window.open('${esc(it.photo)}','_blank')">`:(signed?'':`<div class="up" onclick="upItem(${i})">📷</div>`)}
+  </div>`;
+}
+function addItem(){ cur.items=cur.items||[]; cur.items.push({name:'',checked:false,photo:'',note:''}); showModal(); }
+function upItem(i){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=async()=>{ const fl=inp.files[0]; if(!fl)return; const fd=new FormData(); fd.append('image',fl);
+    try{ const j=await fetch('/api/storage/upload',{method:'POST',body:fd}).then(r=>r.json()); if(j.url){ cur.items[i].photo=j.url; showModal(); } }catch(e){ alert('上傳失敗'); } };
+  inp.click();
+}
+async function saveForm(){
+  try{ const r=await fetch('/api/acceptance/'+cur.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:cur.items,notice_content:document.getElementById('mNotice').value})});
+    if(r.ok){ alert('已儲存'); await loadList(); } else { const e=await r.json().catch(()=>({})); alert(e.error||'儲存失敗'); }
+  }catch(e){ alert('儲存失敗'); }
+}
+function copyLink(tok,btn){ const url=location.origin+'/accept/'+tok; (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>{const t=btn.textContent;btn.textContent='✓ 已複製';setTimeout(()=>btn.textContent=t,1500);},()=>prompt('複製連結：',url)); }
+async function unlock(id){
+  if(!confirm('確定解鎖這張驗收單讓客人重簽？（會清掉目前簽名）')) return;
+  const r=await fetch('/api/acceptance/'+id+'/unlock',{method:'POST'});
+  if(r.ok){ alert('已解鎖，可請師傅重新請客人簽'); await loadList(); } else { const e=await r.json().catch(()=>({})); alert(e.error||'解鎖失敗'); }
+}
+function closeModal(){ document.getElementById('ov').classList.remove('on'); }
+init();
+</script>
+</body>
+</html>

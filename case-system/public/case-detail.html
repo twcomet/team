@@ -183,6 +183,7 @@
         <button class="btn btn-primary btn-sm" id="toDealBtn" style="display:none">✓ 確認成交</button>
         <button class="btn btn-ghost btn-sm" id="toInvalidBtn" style="display:none;color:#e02424">✕ 無效保存</button>
         <button class="btn btn-ghost btn-sm" id="driveBtn" style="margin-left:8px" title="Google 雲端資料夾" onclick="openOrCreateDrive()">📁 雲端資料夾</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:8px;color:#8a1350" title="開啟施工驗收單（施工完成後給客人簽）" onclick="location.href='/acceptance?case='+caseId">✅ 驗收單</button>
         <button class="btn btn-ghost btn-sm" id="deleteCaseBtn" style="display:none;color:#9ca3af;margin-left:8px" onclick="deleteCaseInDetail()">🗑 刪除案件</button>
       </div>
     </div>
@@ -1475,7 +1476,7 @@
   </div>
 </div>
 
-<script src="/js/common.js?v=20260721c"></script>
+<script src="/js/common.js?v=20260722"></script>
 <script>
 // ── 常數 ───────────────────────────────────────────────────
 const STAGES_BY_GROUP = {
