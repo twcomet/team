@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>售後服務 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .as-tabs{display:flex;gap:8px;margin-bottom:16px}
+  .as-tab{border:1px solid var(--gray-300,#d1d5db);background:#fff;border-radius:10px;padding:9px 20px;cursor:pointer;font-size:15px;font-weight:800;color:var(--gray-500,#6b7280)}
+  .as-tab.on{background:#3a1030;color:#fff;border-color:transparent}
+  .av-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .av-table th{background:#f8fafc;color:#374151;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  .av-table td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+  .av-table tr:hover td{background:#f9fafb}
+  .pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+  .p-draft{background:#fef3c7;color:#92400e} .p-signed{background:#d1fae5;color:#065f46}
+  .btn2{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;color:#374151}
+  .btn2.warn{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+  .as-empty{color:#9ca3af;padding:40px;text-align:center;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-user"><div class="user-name" id="sidebarUserName"></div><div class="user-role" id="sidebarUserRole"></div><a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a></div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🛎️ 售後服務</span></div>
+    <div class="page-body">
+      <div class="as-tabs">
+        <button id="tabAccept" class="as-tab on" onclick="setTab('accept')">✅ 驗收單</button>
+        <button id="tabFeedback" class="as-tab" onclick="setTab('feedback')">💬 客戶回饋</button>
+      </div>
+      <div id="paneAccept">
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:12px">列出已開啟的驗收單（師傅已開啟／已回簽）。「檢視」開啟驗收單頁面；已回簽如需重簽，客服／主管可「解鎖」。</div>
+        <div id="listArea"><div class="as-empty">載入中…</div></div>
+      </div>
+      <div id="paneFeedback" style="display:none">
+        <div class="as-empty">💬 客戶回饋（好評／意見回饋）功能即將推出。<br>之後客戶就能在這裡留下服務評價與意見。</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js?v=20260723"></script>
+<script>
+let LIST=[], canManage=false;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const STLABEL={draft:'師傅已開啟',signed:'已回簽'};
+function setTab(t){
+  document.getElementById('tabAccept').classList.toggle('on',t==='accept');
+  document.getElementById('tabFeedback').classList.toggle('on',t==='feedback');
+  document.getElementById('paneAccept').style.display=t==='accept'?'':'none';
+  document.getElementById('paneFeedback').style.display=t==='feedback'?'':'none';
+}
+async function init(){
+  await loadUser(); highlightNav('after-sales');
+  const r=currentUser?.role;
+  canManage = r==='owner'||currentUser?.manage_users||['vp','hq_cs','hq_cs_manager','hq_accounting'].includes(r);
+  await loadList();
+}
+async function loadList(){
+  try{ LIST=await fetch('/api/acceptance/').then(x=>x.ok?x.json():[]); }catch(e){ LIST=[]; }
+  const a=document.getElementById('listArea');
+  if(!LIST.length){ a.innerHTML='<div class="as-empty">尚無已開啟的驗收單</div>'; return; }
+  a.innerHTML=`<table class="av-table"><thead><tr><th>案件</th><th>客戶</th><th>狀態</th><th>開啟人</th><th>簽署時間</th><th>操作</th></tr></thead><tbody>${
+    LIST.map(f=>`<tr>
+      <td><b>${esc(f.case_number||'')}</b> ${esc(f.title||'')}</td>
+      <td>${esc(f.client_name||'—')}</td>
+      <td><span class="pill ${f.status==='signed'?'p-signed':'p-draft'}">${STLABEL[f.status]||f.status}</span></td>
+      <td>${esc(f.opened_by_name||'—')}</td>
+      <td style="font-size:12px;color:#6b7280">${f.client_signed_at?f.client_signed_at.slice(0,16).replace('T',' '):'—'}</td>
+      <td style="white-space:nowrap"><a class="btn2" href="/accept/${esc(f.share_token)}" target="_blank">檢視</a> ${f.status==='signed'&&canManage?`<button class="btn2 warn" onclick="unlock(${f.id})">解鎖重簽</button>`:''}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
+}
+async function unlock(id){
+  if(!confirm('確定解鎖這張驗收單讓客人重簽？（會清掉目前簽名）')) return;
+  const r=await fetch('/api/acceptance/'+id+'/unlock',{method:'POST'});
+  if(r.ok){ alert('已解鎖，可請師傅重新請客人簽'); await loadList(); } else { const e=await r.json().catch(()=>({})); alert(e.error||'解鎖失敗'); }
+}
+init();
+</script>
+</body>
+</html>

@@ -129,6 +129,18 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="calendar"]') || nav.querySelector('[data-page="my-tasks"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
+  // 注入「售後服務」選單（老闆/主管/副總/客服/會計）：驗收單＋客戶回饋，放完工回報下方
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="after-sales"]')) return;
+    const can = currentUser.role === 'owner' || mu || ['vp','hq_cs','hq_cs_manager','hq_accounting'].includes(currentUser.role);
+    if (!can) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'after-sales'; a.href = '/after-sales';
+    a.innerHTML = '<span class="icon">🛎️</span>售後服務';
+    const anchor = nav.querySelector('[data-page="work-reports"]') || nav.querySelector('[data-page="quote-list"]') || nav.querySelector('[data-page="my-tasks"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
   // 注入「客服知識庫」選單（跟 LINE 詢問同群人）：放在「業務」區最下面（較常用的在上面）
   (function() {
     const nav = document.querySelector('.sidebar-nav');
