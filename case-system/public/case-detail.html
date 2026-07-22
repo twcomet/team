@@ -183,7 +183,6 @@
         <button class="btn btn-primary btn-sm" id="toDealBtn" style="display:none">✓ 確認成交</button>
         <button class="btn btn-ghost btn-sm" id="toInvalidBtn" style="display:none;color:#e02424">✕ 無效保存</button>
         <button class="btn btn-ghost btn-sm" id="driveBtn" style="margin-left:8px" title="Google 雲端資料夾" onclick="openOrCreateDrive()">📁 雲端資料夾</button>
-        <button class="btn btn-ghost btn-sm" style="margin-left:8px;color:#8a1350" title="開啟施工驗收單（施工完成後給客人簽）" onclick="location.href='/acceptance?case='+caseId">✅ 驗收單</button>
         <button class="btn btn-ghost btn-sm" id="deleteCaseBtn" style="display:none;color:#9ca3af;margin-left:8px" onclick="deleteCaseInDetail()">🗑 刪除案件</button>
       </div>
     </div>
@@ -219,6 +218,7 @@
         <div class="tab" data-tab="care" data-groups="inquiry,survey,deal">客服關懷紀錄</div>
         <div class="tab" data-tab="chat" data-groups="inquiry,survey,deal">客服對話紀錄</div>
         <div class="tab" data-tab="survey" data-groups="inquiry,survey,deal">場勘</div>
+        <div class="tab" data-tab="acceptance" data-groups="inquiry,survey,deal">驗收單</div>
         <div class="tab" data-tab="quote" data-groups="inquiry,survey,deal">正式報價單</div>
         <div class="tab" data-tab="documents" data-groups="inquiry,survey,deal">往來文件</div>
         <div class="tab" data-tab="material" data-groups="inquiry,survey,deal">膜料使用</div>
@@ -585,6 +585,11 @@
       </div><!-- end tab-documents -->
 
       <!-- 場勘 -->
+      <!-- 驗收單 -->
+      <div class="tab-pane" id="tab-acceptance">
+        <div id="acceptanceBox" style="max-width:640px"><div style="color:#9ca3af;padding:20px">載入中…</div></div>
+      </div>
+
       <div class="tab-pane" id="tab-survey">
         <!-- 狀態列 -->
         <div id="sf_statusBar" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:13px;background:#f9fafb;border:1px solid var(--gray-200)">
@@ -1476,7 +1481,7 @@
   </div>
 </div>
 
-<script src="/js/common.js?v=20260722"></script>
+<script src="/js/common.js?v=20260722b"></script>
 <script>
 // ── 常數 ───────────────────────────────────────────────────
 const STAGES_BY_GROUP = {
@@ -1610,6 +1615,7 @@ async function init() {
       t.classList.add('active');
       document.getElementById('tab-' + t.dataset.tab).classList.add('active');
       if (t.dataset.tab === 'survey')     loadSurveyTab();
+      if (t.dataset.tab === 'acceptance') loadAcceptanceTab();
       if (t.dataset.tab === 'outsource')  loadOutsourceTab();
       if (t.dataset.tab === 'estimate')   loadQuickEstimates();
       if (t.dataset.tab === 'documents')  loadCaseDocuments();
@@ -3031,6 +3037,39 @@ let sfNoteTemplates = [];
 let sfChecklistTemplates = {};   // { category: [{id, item, sort_order}] }
 let sfChecklistState = [];       // [{category, item, template_id, checked}]
 
+// ── 驗收單頁籤 ────────────────────────────────────────────────
+let _acForm = null;
+async function loadAcceptanceTab() {
+  const box = document.getElementById('acceptanceBox');
+  try { _acForm = await fetch('/api/acceptance/case/' + caseId).then(r => r.ok ? r.json() : null); }
+  catch (e) { _acForm = null; }
+  if (!_acForm) { box.innerHTML = '<div style="color:#b91c1c;padding:20px">載入失敗</div>'; return; }
+  const f = _acForm, signed = f.status === 'signed';
+  const link = location.origin + '/accept/' + f.share_token;
+  const canManage = currentUser?.role === 'owner' || currentUser?.manage_users || ['vp','hq_cs','hq_cs_manager','hq_accounting'].includes(currentUser?.role);
+  const stLabel = signed ? '✅ 已回簽' : (f.items && f.items.length ? '📝 已建立（未簽）' : '📝 未開始');
+  box.innerHTML = `
+    <div style="background:#fdf2f8;border:1px solid #f7c9de;border-radius:12px;padding:16px 18px">
+      <div style="font-weight:800;color:#8a1350;font-size:15px;margin-bottom:6px">✅ 施工驗收單</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:12px">狀態：<b>${stLabel}</b>${signed && f.client_signed_at ? '　·　簽署 ' + f.client_signed_at.slice(0,16).replace('T',' ') : ''}</div>
+      <div style="font-size:12px;color:#9ca3af;line-height:1.7;margin-bottom:14px">施工人員點「開啟驗收單」→ 在頁面確認施工項目、上傳完工照、選客戶須知，把手機交給客人確認簽名。項目預設帶入最新報價單。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <a href="/accept/${f.share_token}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">🖊 開啟驗收單（編輯／給客人簽）</a>
+        <button class="btn btn-ghost btn-sm" onclick="copyAcLink('${f.share_token}',this)">🔗 複製客戶簽署連結</button>
+        ${signed && canManage ? `<button class="btn btn-ghost btn-sm" style="color:#b91c1c" onclick="unlockAc(${f.id})">🔓 解鎖重簽</button>` : ''}
+      </div>
+      ${signed && f.client_signature ? `<div style="margin-top:14px"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">客戶簽名</div><img src="${f.client_signature}" style="max-width:240px;border:1px solid #e5e7eb;border-radius:8px"></div>` : ''}
+    </div>`;
+}
+function copyAcLink(tok, btn) {
+  const url = location.origin + '/accept/' + tok;
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { const t = btn.textContent; btn.textContent = '✓ 已複製'; setTimeout(() => btn.textContent = t, 1500); }, () => prompt('複製連結：', url));
+}
+async function unlockAc(id) {
+  if (!confirm('確定解鎖這張驗收單讓客人重簽？（會清掉目前簽名）')) return;
+  const r = await fetch('/api/acceptance/' + id + '/unlock', { method: 'POST' });
+  if (r.ok) { await loadAcceptanceTab(); } else { const e = await r.json().catch(() => ({})); alert(e.error || '解鎖失敗'); }
+}
 async function loadSurveyTab() {
   if (sfLoaded) return;
   sfLoaded = true;
