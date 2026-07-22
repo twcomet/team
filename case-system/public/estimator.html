@@ -735,7 +735,7 @@ function addObject(){
     var name=(row.querySelector('.ob-name').value||'').trim()||'物件';
     var price=+row.querySelector('.ob-price').value||0, q=+row.querySelector('.ob-q').value||1;
     if(!price) return;
-    for(var i=0;i<q;i++)CART.push({kind:'object',name:name,price:price});
+    for(var i=0;i<q;i++)CART.push({kind:'object',name:name,price:price,photo:''});
     added++;
   });
   if(!added){ alert('請至少填一列的單價'); return; }
@@ -879,12 +879,24 @@ function otherRowHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?
    +'</div>'+otherMatHtml(L,csv)+'</div></div></div>';}
 // 每個「其他」品項的照片：從估價單照片庫(客人導入)挑，或上傳新的
 function setOtherPhoto(csv,url){csv.split(',').map(Number).forEach(function(i){if(CART[i])CART[i].photo=url||'';});render();}  // 任何明細列(膜料/玻璃/其他/其他特殊)都可掛照片
-var _photoTarget=null;
-function openOtherPhoto(csv){_photoTarget=csv;renderPhotoPicker();document.getElementById('estPhotoPicker').style.display='flex';}
+var _photoTarget=null, CLOUDPHOTOS=[], _cloudLoaded=false;
+function openOtherPhoto(csv){_photoTarget=csv;renderPhotoPicker();document.getElementById('estPhotoPicker').style.display='flex';loadCasePhotos();}
 function closePhotoPicker(){document.getElementById('estPhotoPicker').style.display='none';}
-function renderPhotoPicker(){var box=document.getElementById('photoPickerGrid');
-  box.innerHTML=QPHOTOS.length?QPHOTOS.map(function(u,i){return '<img src="'+escAttr(u)+'" onclick="pickOtherPhotoIdx('+i+')" title="選這張" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--ec-border);cursor:pointer">';}).join(''):'<div style="color:#9ca3af;font-size:13px;padding:10px">尚無照片，請用下方「上傳照片」新增。</div>';}
+// 載入此案件雲端(LINE對話)已上傳的照片，供直接挑選附上
+async function loadCasePhotos(){
+  if(_cloudLoaded || !ECASE) return; _cloudLoaded=true;
+  try{ var j=await fetch(API+'/case-photos/'+ECASE).then(function(r){return r.ok?r.json():{photos:[]};}); CLOUDPHOTOS=(j.photos||[]); renderPhotoPicker(); }catch(e){}
+}
+function _photoTile(u,onclick){ return '<img src="'+escAttr(u)+'" onclick="'+onclick+'" title="選這張" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--ec-border);cursor:pointer">'; }
+function renderPhotoPicker(){var box=document.getElementById('photoPickerGrid');var h='';
+  h+='<div style="font-size:12px;font-weight:700;color:#6b7280;width:100%;margin:2px 0 4px">📎 這張估價單的照片</div>';
+  h+=QPHOTOS.length?QPHOTOS.map(function(u,i){return _photoTile(u,'pickOtherPhotoIdx('+i+')');}).join(''):'<div style="color:#9ca3af;font-size:12px;padding:4px 2px 8px">尚無，請下方上傳或從雲端挑選。</div>';
+  var cloud=CLOUDPHOTOS.filter(function(u){return QPHOTOS.indexOf(u)<0;});
+  if(cloud.length){ h+='<div style="font-size:12px;font-weight:700;color:#6b7280;width:100%;margin:10px 0 4px">☁️ 雲端已上傳（LINE 對話收到的圖）</div>';
+    h+=cloud.map(function(u){return _photoTile(u,'pickCloudPhoto(\''+escAttr(u).replace(/'/g,"\\'")+'\')');}).join(''); }
+  box.innerHTML=h;}
 function pickOtherPhotoIdx(i){setOtherPhoto(_photoTarget,QPHOTOS[i]);closePhotoPicker();}
+function pickCloudPhoto(u){if(QPHOTOS.indexOf(u)<0)QPHOTOS.push(u);setOtherPhoto(_photoTarget,u);closePhotoPicker();}
 function clearOtherPhoto(){setOtherPhoto(_photoTarget,'');closePhotoPicker();}
 async function uploadOtherPhoto(input){var file=input.files[0];if(!file)return;input.value='';
   var st=document.getElementById('photoUpStatus');st.textContent='上傳中…';
@@ -893,7 +905,24 @@ async function uploadOtherPhoto(input){var file=input.files[0];if(!file)return;i
     if(r.ok&&j.url){if(QPHOTOS.indexOf(j.url)<0)QPHOTOS.push(j.url);setOtherPhoto(_photoTarget,j.url);st.textContent='';closePhotoPicker();}
     else st.textContent='上傳失敗：'+(j.error||r.status);
   }catch(e){st.textContent='上傳失敗：'+e.message;}}
-function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',label:x.label,series:x.series,n:x.n,amount:x.amount,idxs:x.idxs};});}
+function computeObject(arr){var g={};arr.forEach(function(it,ci){var price=Number(it.price)||0,k=it.name+'|'+price;g[k]=g[k]||{name:it.name,label:'物件｜'+it.name,series:'單價 $'+price.toLocaleString(),unit:price,photo:'',n:0,amount:0,idxs:[]};g[k].n++;g[k].amount+=price;g[k].idxs.push(ci);if(it.photo&&!g[k].photo)g[k].photo=it.photo;});return Object.keys(g).map(function(k){var x=g[k];return {type:'object',name:x.name,label:x.label,series:x.series,unit:x.unit,photo:x.photo,n:x.n,amount:x.amount,idxs:x.idxs};});}
+// 物件（初步估價選項）行內可編輯：改標題／單價／照片；套用到該組所有 CART 項目後重算
+function editObject(csv,field,val){var idxs=csv.split(',').map(Number);idxs.forEach(function(i){var it=CART[i];if(!it||it.kind!=='object')return;if(field==='name')it.name=val;else if(field==='price')it.price=Number(val)||0;});markDirty&&0;render();}
+function objectLineHtml(L){var csv=L.idxs.join(','),orig=L.base||L.amount,per=L.n?Math.round(orig/L.n):orig;
+  var inp='padding:4px 6px;border:1px solid var(--ec-border);border-radius:6px;font-size:12px';
+  var ph=L.photo
+    ? '<img src="'+escAttr(L.photo)+'" onclick="openOtherPhoto(\''+csv+'\')" title="點擊更換/移除照片" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--ec-border);cursor:pointer;flex:0 0 auto">'
+    : '<button type="button" onclick="openOtherPhoto(\''+csv+'\')" title="加照片" style="width:54px;height:54px;border:1px dashed var(--ec-border);border-radius:8px;background:#fafafa;cursor:pointer;font-size:18px;color:#9ca3af;flex:0 0 auto;line-height:1">📷</button>';
+  return '<div class="ec-grp"><div style="display:flex;gap:10px;align-items:flex-start">'
+   +ph
+   +'<div style="flex:1;min-width:0">'
+   +'<div class="ec-gh"><b><input value="'+escAttr(L.name)+'" onchange="editObject(\''+csv+'\',\'name\',this.value)" placeholder="項目名稱" style="'+inp+';width:200px;font-weight:700"></b><span class="ec-gp">'+NT(orig)+'</span></div>'
+   +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#6b7280">'
+   +'<label>單價<input type="number" value="'+L.unit+'" onchange="editObject(\''+csv+'\',\'price\',this.value)" style="'+inp+';width:96px;margin-left:3px"></label>'
+   +(L.n>1?'<span>×'+L.n+' 件</span>':'')
+   +(L.base?'<span class="ec-after">折後 '+NT(L.amount)+'</span>':'')
+   +'<span class="ec-rm" onclick="rmGroup(\''+csv+'\')" style="margin-left:auto">移除</span>'
+   +'</div></div></div></div>';}
 // 其他特殊品項：米數=米×條；材數=米數×單才(才/米)；金額=材數×連工帶料(元/才)→進位百元
 function computeSpecial(arr){var g={};arr.forEach(function(it,ci){
   var meters=(Number(it.m)||0)*(Number(it.strips)||0);
@@ -1012,6 +1041,7 @@ function render(){
  if(!lines.length){box.innerHTML='<div class="ec-empty">從左邊選好品項、填尺寸，按粉紅色「＋ 加入」按鈕，<br>明細與總額會即時出現在這裡。</div>';}
  else{var h='';lines.forEach(function(L){
    if(L.type==='other'){h+=otherRowHtml(L);return;}   // 其他品項：行內可編輯列
+   if(L.type==='object'){h+=objectLineHtml(L);return;}   // 物件(初步估價選項)：可編輯標題/單價/照片
    if(L.type==='special'){h+=specialLineHtml(L);return;}   // 其他特殊：行內可編輯列（米/條/單才/連工帶料）
    var u=L.type==='film'?(L.work==='cabinet'?' 片':' 面'):(L.type==='glass'?' 面':(L.type==='fut'?' 款':(L.type==='special'?' 項':' 件')));
    var orig=L.base||L.amount;

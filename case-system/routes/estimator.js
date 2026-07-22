@@ -67,6 +67,27 @@ function requireEdit(req, res, next) {
   next();
 }
 
+// ── 案件雲端照片（LINE 對話收到的圖）供估價明細挑選附上 ───────────
+router.get('/case-photos/:caseId', requireAuth, (req, res) => {
+  try {
+    const caseId = Number(req.params.caseId);
+    const c = db.prepare(`SELECT client_id, line_source FROM cases WHERE id=?`).get(caseId);
+    if (!c) return res.json({ photos: [] });
+    // 找出此案件對應的 LINE 詢問（同客戶或同 line_user）→ 取所有圖片訊息的 URL（content 存 Cloudinary 連結）
+    const rows = db.prepare(`
+      SELECT m.content AS url, m.created_at
+      FROM line_inquiry_messages m
+      JOIN line_inquiries i ON i.id = m.inquiry_id
+      WHERE m.msg_type='image' AND m.content LIKE 'http%'
+        AND ( (? IS NOT NULL AND i.client_id = ?) OR (? IS NOT NULL AND i.line_user_id = ?) OR i.converted_case_id = ? )
+      ORDER BY m.created_at DESC LIMIT 60
+    `).all(c.client_id, c.client_id, c.line_source, c.line_source, caseId);
+    const seen = new Set(), photos = [];
+    for (const r of rows) { if (r.url && !seen.has(r.url)) { seen.add(r.url); photos.push(r.url); } }
+    res.json({ photos });
+  } catch (e) { res.json({ photos: [], error: e.message }); }
+});
+
 // ── 讀全部價目（估價頁與設定頁共用）──────────────────────────────
 router.get('/prices', requireAuth, (req, res) => {
   const films = db.prepare(`SELECT * FROM est_films ORDER BY sort_order, id`).all();
