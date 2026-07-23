@@ -141,6 +141,18 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="work-reports"]') || nav.querySelector('[data-page="quote-list"]') || nav.querySelector('[data-page="my-tasks"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
+  // 注入「模板設定」選單（老闆/主管/客服主管/客服）：統一管理各類範本，放在系統設定區（報價設定下方）
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="template-settings"]')) return;
+    const can = currentUser.role === 'owner' || mu || ['hq_cs_manager','hq_cs'].includes(currentUser.role);
+    if (!can) return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'template-settings'; a.href = '/template-settings';
+    a.innerHTML = '<span class="icon">🗂️</span>模板設定';
+    const anchor = nav.querySelector('[data-page="estimator-settings"]') || nav.querySelector('[data-page="guide"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
   // 注入「客服知識庫」選單（跟 LINE 詢問同群人）：放在「業務」區最下面（較常用的在上面）
   (function() {
     const nav = document.querySelector('.sidebar-nav');

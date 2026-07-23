@@ -79,6 +79,14 @@ app.get('/ai-advisor', requireAuth, (req, res) => {
 app.get('/gdrive-connect', requireAuth, requireOwner, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'gdrive-connect.html'));
 });
+
+// 模板設定（統一管理各類範本）：老闆／主管／客服主管／客服
+app.get('/template-settings', requireAuth, requireContract, (req, res) => {
+  const u = req.session.user;
+  const ok = u.role === 'owner' || u.manage_users || ['hq_cs_manager', 'hq_cs'].includes(u.role);
+  if (!ok) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'template-settings.html'));
+});
 app.use('/api/search', require('./routes/search'));
 app.use('/api/ledger', require('./routes/ledger'));
 app.use('/api/vendors', require('./routes/vendors'));

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模板設定 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .ts-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .ts-tab{border:1px solid var(--gray-300,#d1d5db);background:#fff;border-radius:10px;padding:9px 18px;cursor:pointer;font-size:14px;font-weight:700;color:var(--gray-500,#6b7280)}
+  .ts-tab.on{background:#3a1030;color:#fff;border-color:transparent}
+  .ts-hint{font-size:12px;color:#9ca3af;margin-bottom:12px;line-height:1.7}
+  .ts-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .ts-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .ts-table th{background:#f8fafc;color:#374151;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  .ts-table td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+  .ts-table tr:hover td{background:#f9fafb}
+  .ts-prev{max-width:420px;color:#6b7280;font-size:12px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .cat-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#eef2ff;color:#3730a3}
+  .btn2{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;color:#374151;white-space:nowrap}
+  .btn2.warn{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+  .btn2.star{background:#fffbeb;border-color:#fde68a;color:#b45309}
+  .btn2.star.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
+  .ts-empty{color:#9ca3af;padding:36px;text-align:center;font-size:13px;background:#fff;border-radius:10px}
+  .ts-sel,.ts-inp{padding:7px 10px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:13px;font-family:inherit}
+  /* modal */
+  .tm-ov{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center;z-index:9000;padding:16px}
+  .tm-ov.on{display:flex}
+  .tm-box{background:#fff;border-radius:14px;max-width:560px;width:100%;padding:22px;box-shadow:0 20px 60px -20px rgba(0,0,0,.4)}
+  .tm-box h3{margin:0 0 16px;font-size:16px}
+  .tm-fld{margin-bottom:12px}
+  .tm-fld label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px;font-weight:600}
+  .tm-fld input,.tm-fld select,.tm-fld textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--gray-300,#d1d5db);border-radius:8px;font-size:14px;font-family:inherit}
+  .tm-fld textarea{min-height:110px;line-height:1.7;resize:vertical}
+  .tm-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user"><div class="user-name" id="sidebarUserName"></div><div class="user-role" id="sidebarUserRole"></div><a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a></div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🗂️ 模板設定</span></div>
+    <div class="page-body">
+      <div class="ts-hint">系統各處要「帶入」的範本，統一在這裡管理（報價單、場勘單、驗收單會直接讀這裡的資料）。</div>
+      <div class="ts-tabs">
+        <button class="ts-tab on" data-tab="notice"    onclick="setTab('notice')">📄 須知／條款範本</button>
+        <button class="ts-tab"    data-tab="note"      onclick="setTab('note')">📝 場勘備註範本</button>
+        <button class="ts-tab"    data-tab="checklist" onclick="setTab('checklist')">✅ 施作檢查清單</button>
+        <button class="ts-tab"    data-tab="quote"     onclick="setTab('quote')">📋 報價單整張範本</button>
+        <button class="ts-tab"    data-tab="canned"    onclick="setTab('canned')">💬 客服罐頭訊息</button>
+      </div>
+
+      <!-- 須知/條款範本 -->
+      <div id="pane-notice" class="pane">
+        <div class="ts-hint">報價單與驗收單會帶入的須知/條款/檢查項目。<b>(e) 施工前檢查項目</b>：依品項建立、內容一行一項，驗收單師傅選品項時自動帶出成打勾清單。</div>
+        <div class="ts-bar">
+          <label style="font-size:13px;color:#6b7280">區塊
+            <select id="noticeBlock" class="ts-sel" onchange="loadNotice()"></select>
+          </label>
+          <button class="btn2" onclick="addNotice()">＋ 新增範本</button>
+        </div>
+        <div id="noticeList"></div>
+      </div>
+
+      <!-- 場勘備註範本 -->
+      <div id="pane-note" class="pane" style="display:none">
+        <div class="ts-hint">場勘單「客服用備註範本」——場勘時可快速帶入的備註內容。</div>
+        <div class="ts-bar"><button class="btn2" onclick="addNote()">＋ 新增備註範本</button></div>
+        <div id="noteList"></div>
+      </div>
+
+      <!-- 施作檢查清單 -->
+      <div id="pane-checklist" class="pane" style="display:none">
+        <div class="ts-hint">場勘單「施作檢查清單模板」——依品項帶出的檢查項目。</div>
+        <div class="ts-bar"><button class="btn2" onclick="addCheck()">＋ 新增檢查項目</button></div>
+        <div id="checkList"></div>
+      </div>
+
+      <!-- 報價單整張範本 -->
+      <div id="pane-quote" class="pane" style="display:none">
+        <div class="ts-hint">報價單的「整張範本」（在報價單編輯頁按「存為範本」建立、開新報價單時「導入範本」帶入）。這裡可檢視與刪除。</div>
+        <div id="quoteList"></div>
+      </div>
+
+      <!-- 罐頭訊息（連結） -->
+      <div id="pane-canned" class="pane" style="display:none">
+        <div class="ts-empty">💬 客服罐頭訊息與知識庫在「<b>客服知識庫</b>」頁維護（LINE 詢問回覆的常用語／AI 客服知識來源）。<br><br>
+          <a class="btn2" href="/cs-knowledge">前往客服知識庫 →</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通用編輯 Modal -->
+<div class="tm-ov" id="tmOv">
+  <div class="tm-box">
+    <h3 id="tmTitle">編輯</h3>
+    <div id="tmBody"></div>
+    <div class="tm-foot">
+      <button class="btn2" onclick="closeTm()">取消</button>
+      <button class="btn2" style="background:#3a1030;color:#fff;border-color:#3a1030" onclick="tmSave()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/common.js?v=20260723"></script>
+<script>
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CATS=['一般','門片類','系統櫃類','牆面類','窗台檯面類','電梯類','玻璃隔熱紙','裝潢膜','舊膜撕除類'];
+const NOTICE_BLOCKS=[
+  {v:'terms',      t:'(a) 報價單優惠條款'},
+  {v:'notice',     t:'(b) 貼膜前須知'},
+  {v:'inspection', t:'(c) 驗收須知'},
+  {v:'acceptance', t:'(d) 回簽/訂單簽核資訊'},
+  {v:'precheck',   t:'(e) 施工前檢查項目（驗收單）'},
+];
+function trunc(s,n){ s=String(s||''); return s.length>n? s.slice(0,n)+'…':s; }
+function catOptions(sel){ return CATS.map(c=>`<option value="${esc(c)}"${c===sel?' selected':''}>${esc(c)}</option>`).join(''); }
+async function api(url,opts){ const r=await fetch(url,opts); if(!r.ok){ let e={}; try{e=await r.json()}catch{} throw new Error(e.error||('HTTP '+r.status)); } return r.status===204?null:r.json().catch(()=>null); }
+function toast(m,ok=true){ if(window.showToast) showToast(m, ok?'success':'error'); else alert(m); }
+
+function setTab(t){
+  document.querySelectorAll('.ts-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  document.querySelectorAll('.pane').forEach(p=>p.style.display='none');
+  document.getElementById('pane-'+t).style.display='';
+  if(t==='notice') loadNotice();
+  if(t==='note') loadNote();
+  if(t==='checklist') loadCheck();
+  if(t==='quote') loadQuote();
+}
+
+// ── 通用 Modal ──
+let _tmSave=null;
+function openTm(title, fields, values, onSave){
+  document.getElementById('tmTitle').textContent=title;
+  document.getElementById('tmBody').innerHTML=fields.map(f=>{
+    const v=values&&values[f.key]!=null?values[f.key]:'';
+    if(f.type==='select') return `<div class="tm-fld"><label>${esc(f.label)}</label><select id="tm-${f.key}">${f.options.map(o=>`<option value="${esc(o.v)}"${o.v==v?' selected':''}>${esc(o.t)}</option>`).join('')}</select></div>`;
+    if(f.type==='textarea') return `<div class="tm-fld"><label>${esc(f.label)}</label><textarea id="tm-${f.key}" placeholder="${esc(f.ph||'')}">${esc(v)}</textarea></div>`;
+    if(f.type==='catlist') return `<div class="tm-fld"><label>${esc(f.label)}</label><input id="tm-${f.key}" list="tm-cats" value="${esc(v)}"><datalist id="tm-cats">${CATS.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>`;
+    return `<div class="tm-fld"><label>${esc(f.label)}</label><input id="tm-${f.key}" value="${esc(v)}" placeholder="${esc(f.ph||'')}"></div>`;
+  }).join('');
+  _tmSave=onSave;
+  document.getElementById('tmOv').classList.add('on');
+}
+function closeTm(){ document.getElementById('tmOv').classList.remove('on'); _tmSave=null; }
+function tmVal(k){ const el=document.getElementById('tm-'+k); return el?el.value.trim():''; }
+async function tmSave(){ if(_tmSave){ try{ await _tmSave(); closeTm(); }catch(e){ toast(e.message,false); } } }
+
+// ── 1. 須知/條款範本（film_notice_templates via quote-settings/notices）──
+function loadNoticeBlocks(){
+  document.getElementById('noticeBlock').innerHTML=NOTICE_BLOCKS.map(b=>`<option value="${b.v}">${esc(b.t)}</option>`).join('');
+}
+async function loadNotice(){
+  const block=document.getElementById('noticeBlock').value||'notice';
+  const box=document.getElementById('noticeList');
+  let rows=[]; try{ rows=await api('/api/quote-settings/notices?block='+block); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  if(!rows.length){ box.innerHTML='<div class="ts-empty">此區塊尚無範本，按「＋ 新增範本」建立。</div>'; return; }
+  box.innerHTML=`<table class="ts-table"><thead><tr><th>名稱</th><th>類別</th><th>內容</th><th>預設</th><th style="width:120px">操作</th></tr></thead><tbody>${
+    rows.map(r=>`<tr>
+      <td><b>${esc(r.name)}</b></td>
+      <td>${r.category?`<span class="cat-pill">${esc(r.category)}</span>`:'—'}</td>
+      <td><div class="ts-prev">${esc(r.content)}</div></td>
+      <td><button class="btn2 star ${r.is_default?'on':''}" title="設為此區塊套範本時的預設" onclick='setNoticeDefault(${r.id},${r.is_default?0:1})'>★</button></td>
+      <td><button class="btn2" onclick='editNotice(${JSON.stringify(r).replace(/'/g,"&#39;")})'>編輯</button>
+          <button class="btn2 warn" onclick="delNotice(${r.id})">刪除</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function noticeFields(){ return [
+  {key:'block',label:'區塊',type:'select',options:NOTICE_BLOCKS.map(b=>({v:b.v,t:b.t}))},
+  {key:'name',label:'模板名稱',ph:'例：門片類須知'},
+  {key:'category',label:'類別（品項）',type:'select',options:CATS.map(c=>({v:c,t:c}))},
+  {key:'content',label:'內容（施工前檢查請一行一項）',type:'textarea',ph:'輸入內容…'},
+];}
+function addNotice(){
+  const block=document.getElementById('noticeBlock').value||'notice';
+  openTm('新增須知範本', noticeFields(), {block,category:'一般'}, async()=>{
+    if(!tmVal('name')) throw new Error('請填模板名稱');
+    await api('/api/quote-settings/notices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:tmVal('block'),name:tmVal('name'),category:tmVal('category'),content:tmVal('content')})});
+    toast('已新增'); document.getElementById('noticeBlock').value=tmVal('block'); loadNotice();
+  });
+}
+function editNotice(r){
+  openTm('編輯須知範本', noticeFields(), r, async()=>{
+    if(!tmVal('name')) throw new Error('請填模板名稱');
+    await api('/api/quote-settings/notices/'+r.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:tmVal('block'),name:tmVal('name'),category:tmVal('category'),content:tmVal('content'),active:1,image_url:r.image_url||null})});
+    toast('已更新'); loadNotice();
+  });
+}
+async function delNotice(id){ if(!confirm('確定刪除此範本？'))return; try{ await api('/api/quote-settings/notices/'+id,{method:'DELETE'}); toast('已刪除'); loadNotice(); }catch(e){ toast(e.message,false); } }
+async function setNoticeDefault(id,on){ try{ await api('/api/quote-settings/notices/'+id+'/default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on})}); loadNotice(); }catch(e){ toast(e.message,false); } }
+
+// ── 2. 場勘備註範本（survey_note_templates）──
+async function loadNote(){
+  const box=document.getElementById('noteList');
+  let rows=[]; try{ rows=await api('/api/survey/note-templates'); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  if(!rows.length){ box.innerHTML='<div class="ts-empty">尚無備註範本。</div>'; return; }
+  box.innerHTML=`<table class="ts-table"><thead><tr><th>類別</th><th>關鍵字</th><th>內容</th><th style="width:120px">操作</th></tr></thead><tbody>${
+    rows.map(r=>`<tr>
+      <td><span class="cat-pill">${esc(r.category)}</span></td>
+      <td>${esc(r.keyword)}</td>
+      <td><div class="ts-prev">${esc(r.content)}</div></td>
+      <td><button class="btn2" onclick='editNote(${JSON.stringify(r).replace(/'/g,"&#39;")})'>編輯</button>
+          <button class="btn2 warn" onclick="delNote(${r.id})">刪除</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function noteFields(){ return [
+  {key:'category',label:'類別',type:'catlist'},
+  {key:'keyword',label:'關鍵字（快速尋找用）',ph:'例：需自備電源'},
+  {key:'content',label:'備註內容',type:'textarea'},
+];}
+function addNote(){ openTm('新增備註範本', noteFields(), {category:'一般'}, async()=>{
+  if(!tmVal('keyword')||!tmVal('content')) throw new Error('請填關鍵字與內容');
+  await api('/api/survey/note-templates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:tmVal('category')||'一般',keyword:tmVal('keyword'),content:tmVal('content')})});
+  toast('已新增'); loadNote();
+});}
+function editNote(r){ openTm('編輯備註範本', noteFields(), r, async()=>{
+  await api('/api/survey/note-templates/'+r.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:tmVal('category')||'一般',keyword:tmVal('keyword'),content:tmVal('content')})});
+  toast('已更新'); loadNote();
+});}
+async function delNote(id){ if(!confirm('確定刪除？'))return; try{ await api('/api/survey/note-templates/'+id,{method:'DELETE'}); toast('已刪除'); loadNote(); }catch(e){ toast(e.message,false); } }
+
+// ── 3. 施作檢查清單（survey_checklist_templates）──
+async function loadCheck(){
+  const box=document.getElementById('checkList');
+  let rows=[]; try{ rows=await api('/api/survey/checklist-templates'); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  if(!rows.length){ box.innerHTML='<div class="ts-empty">尚無檢查項目。</div>'; return; }
+  box.innerHTML=`<table class="ts-table"><thead><tr><th>類別</th><th>檢查項目</th><th style="width:120px">操作</th></tr></thead><tbody>${
+    rows.map(r=>`<tr>
+      <td><span class="cat-pill">${esc(r.category)}</span></td>
+      <td>${esc(r.item)}</td>
+      <td><button class="btn2" onclick='editCheck(${JSON.stringify(r).replace(/'/g,"&#39;")})'>編輯</button>
+          <button class="btn2 warn" onclick="delCheck(${r.id})">刪除</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function checkFields(){ return [
+  {key:'category',label:'類別（品項）',type:'catlist'},
+  {key:'item',label:'檢查項目',ph:'例：底板平整度確認'},
+];}
+function addCheck(){ openTm('新增檢查項目', checkFields(), {category:'一般'}, async()=>{
+  if(!tmVal('item')) throw new Error('請填檢查項目');
+  await api('/api/survey/checklist-templates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:tmVal('category')||'一般',item:tmVal('item')})});
+  toast('已新增'); loadCheck();
+});}
+function editCheck(r){ openTm('編輯檢查項目', checkFields(), r, async()=>{
+  await api('/api/survey/checklist-templates/'+r.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:tmVal('category')||'一般',item:tmVal('item')})});
+  toast('已更新'); loadCheck();
+});}
+async function delCheck(id){ if(!confirm('確定刪除？'))return; try{ await api('/api/survey/checklist-templates/'+id,{method:'DELETE'}); toast('已刪除'); loadCheck(); }catch(e){ toast(e.message,false); } }
+
+// ── 4. 報價單整張範本（quote_templates）──
+async function loadQuote(){
+  const box=document.getElementById('quoteList');
+  let rows=[]; try{ rows=await api('/api/quotes/templates'); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  if(!rows.length){ box.innerHTML='<div class="ts-empty">尚無報價單範本。到報價單編輯頁按「存為範本」建立。</div>'; return; }
+  box.innerHTML=`<table class="ts-table"><thead><tr><th>範本名稱</th><th>項目數</th><th>建立者</th><th>建立時間</th><th style="width:80px">操作</th></tr></thead><tbody>${
+    rows.map(r=>`<tr>
+      <td><b>${esc(r.title)}</b></td>
+      <td>${r.item_count??'—'}</td>
+      <td>${esc(r.creator_name||r.created_by_name||'—')}</td>
+      <td>${esc((r.created_at||'').slice(0,10))}</td>
+      <td><button class="btn2 warn" onclick="delQuote(${r.id})">刪除</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function delQuote(id){ if(!confirm('確定刪除此報價單範本？'))return; try{ await api('/api/quotes/templates/'+id,{method:'DELETE'}); toast('已刪除'); loadQuote(); }catch(e){ toast(e.message,false); } }
+
+async function init(){
+  await loadUser();
+  if(window.highlightNav) highlightNav('template-settings');
+  loadNoticeBlocks();
+  setTab('notice');
+}
+init();
+</script>
+</body>
+</html>
