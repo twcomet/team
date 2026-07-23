@@ -867,6 +867,8 @@ async function createEstimateDraft() {
   // 不強制填寬高，也不強制要有品項：沒品項也能建草稿，把客人照片直接帶進估價機，再於估價機建品項
   const btn = document.getElementById('aiEstGoBtn');
   btn.disabled = true; btn.textContent = '建立中…';
+  const estWin = window.open('', '_blank');   // 先在點擊當下開新分頁(避免後續 await 完再開被彈窗攔截器擋)
+  if (estWin) { try { estWin.document.write('<p style="font:15px sans-serif;padding:24px;color:#555">估價機載入中…</p>'); } catch (e) {} }
   // 每項依數量展開成估價機的「其他」品項（單價=0，客服到估價機選膜款定價；寬高未知帶 0）
   const items = [];
   aiEstItems.forEach(it => {
@@ -901,41 +903,37 @@ async function createEstimateDraft() {
       if (Array.isArray(existing) && existing.length) {
         document.getElementById('aiEstModal').classList.remove('open');
         btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
-        openEstFrame(existing[0].id);
+        openEstFrame(existing[0].id, estWin);
         showToast('此案已有估價單，直接開啟編輯（一案一張）');
         return;
       }
     }
     const r = await fetch('/api/estimator/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.id) { showToast(j.error || '建立估價草稿失敗', 'error'); btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →'; return; }
+    if (!r.ok || !j.id) { if (estWin) estWin.close(); showToast(j.error || '建立估價草稿失敗', 'error'); btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →'; return; }
     document.getElementById('aiEstModal').classList.remove('open');
     btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
-    openEstFrame(j.id);
-    showToast('已建立估價草稿，於彈跳視窗開啟估價機');
+    openEstFrame(j.id, estWin);
+    showToast('已建立估價草稿，開啟估價機新分頁');
   } catch (e) {
+    if (estWin) estWin.close();
     showToast('建立失敗，請稍後再試', 'error');
     btn.disabled = false; btn.textContent = '建立估價草稿並開啟估價機 →';
   }
 }
-// 在彈跳視窗內開估價機（不跳走本頁）；iframe 被登入擋掉時退回「在新分頁開啟」
-function openEstFrame(quoteId) {
-  const url = `/estimator?edit=${quoteId}`;
-  const fr = document.getElementById('estFrame');
-  const fb = document.getElementById('estFrameFallback');
-  document.getElementById('estFrameOpenTab').href = url;
-  document.getElementById('estFrameFallbackBtn').href = url;
-  fb.style.display = 'none'; fr.style.display = 'block';
-  fr.onload = function () {
-    try {
-      const p = fr.contentWindow.location.pathname;
-      if (p === '/' || /login/i.test(p)) { fb.style.display = ''; fr.style.display = 'none'; }
-      else { fb.style.display = 'none'; fr.style.display = 'block'; }
-    } catch (e) { /* 跨源讀不到就當正常顯示 */ }
-  };
-  fr.src = `${url}&embed=1`;
-  document.getElementById('estFrameModal').classList.add('open');
+// 在新分頁開估價機（頂層導覽→登入不會掉；沿用同一支 /estimator）
+function openEstFrame(quoteId, win) {
+  const url = `/estimator?edit=${encodeURIComponent(quoteId)}`;
+  _estReturnInquiry = currentId;           // 切回這頁時刷新該對話(估價紀錄可能更新)
+  const w = win || window.open(url, '_blank');   // 新分頁(頂層導覽→登入不會掉)
+  if (w) { if (win) w.location = url; w.focus(); }
+  else { location.href = url; }
 }
+// 估價機改「新分頁」開啟後，切回本頁自動刷新目前對話
+let _estReturnInquiry = null;
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && _estReturnInquiry) { const id = _estReturnInquiry; _estReturnInquiry = null; if (typeof openInquiry === 'function') openInquiry(id); }
+});
 function closeEstFrame() {
   document.getElementById('estFrameModal').classList.remove('open');
   const fr = document.getElementById('estFrame');
