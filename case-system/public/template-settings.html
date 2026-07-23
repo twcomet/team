@@ -276,7 +276,9 @@ async function delNote(id){ if(!confirm('確定刪除？'))return; try{ await ap
 // ── 3. 施作檢查清單（survey_checklist_templates）──
 async function loadCheck(){
   const box=document.getElementById('checkList');
-  let rows=[]; try{ rows=await api('/api/survey/checklist-templates'); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  let resp; try{ resp=await api('/api/survey/checklist-templates'); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
+  // GET 回的是 { rows, grouped, categories } 物件，不是陣列 → 取出 rows（相容舊陣列形式）
+  const rows = Array.isArray(resp) ? resp : (resp && resp.rows) || [];
   if(!rows.length){ box.innerHTML='<div class="ts-empty">尚無檢查項目。</div>'; return; }
   box.innerHTML=`<table class="ts-table"><thead><tr><th>類別</th><th>檢查項目</th><th style="width:120px">操作</th></tr></thead><tbody>${
     rows.map(r=>`<tr>
