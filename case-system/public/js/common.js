@@ -105,7 +105,7 @@ async function loadUser() {
     materials:        p.page_materials    !== undefined ? p.page_materials    : mu,
     'material-calc':  p.page_material_calc !== undefined ? p.page_material_calc : mu,
     marketing:           p.page_marketing    !== undefined ? p.page_marketing    : mu,
-    'dispatch-pool':     p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : mu,
+    'dispatch-pool':     p.page_dispatch_pool !== undefined ? p.page_dispatch_pool : (mu || ['hq_cs','hq_cs_manager'].includes(currentUser.role)),
     'quote-settings':    p.page_quote_settings !== undefined ? p.page_quote_settings : mu,
     'staff-performance': currentUser.role === 'owner',
     marketplace:      true,   // 市集所有人可見

@@ -9,8 +9,10 @@ const router = express.Router();
 
 function canManagePool(user) {
   const p = user.permissions || {};
-  return !!user.manage_users || p.page_dispatch_pool === true;
+  if (p.page_dispatch_pool !== undefined) return p.page_dispatch_pool === true;   // 有明確設定就依設定
+  return !!user.manage_users || ['hq_cs','hq_cs_manager'].includes(user.role);    // 預設：主管 + 客服
 }
+
 
 // 施工完成照片放永久磁碟（與資料庫同 volume），避免重新部署被清掉；用 /uploads 靜態路由提供
 const DATA_DIR   = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : path.join(__dirname, '..');
