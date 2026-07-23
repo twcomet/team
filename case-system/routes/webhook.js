@@ -2,6 +2,7 @@ const express = require('express');
 const crypto  = require('crypto');
 const db      = require('../db');
 const cloudinary = require('cloudinary').v2;
+const { applyBind } = require('../lib/client-bind');
 const router  = express.Router();
 
 cloudinary.config({
@@ -191,28 +192,13 @@ async function handleClientBind(text, userId, channel, replyToken) {
     return true;
   }
 
-  // 去重合併：客人先前傳訊時系統可能已自動建過一筆客戶（同 line_user_id）
-  const dups = db.prepare(`SELECT * FROM clients WHERE line_user_id=? AND id<>?`).all(userId, target.id);
-  for (const d of dups) {
-    db.prepare(`UPDATE line_inquiries SET client_id=? WHERE client_id=?`).run(target.id, d.id);
-    const autoCreated = d.source === 'LINE' && !d.phone && !d.email && !d.address && !d.tax_id;
-    if (autoCreated) db.prepare(`DELETE FROM clients WHERE id=?`).run(d.id);
-    else             db.prepare(`UPDATE clients SET line_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(d.id);
-  }
-
-  // 店別歸屬：以客人實際送碼的 OA 為準；與建檔店別不同 → 標記提醒客服確認
-  const mismatch = (token.org_id && channel.org_id && token.org_id !== channel.org_id) ? 1 : 0;
-  db.prepare(`
-    UPDATE clients
-    SET line_user_id=?, line_channel_id=?, org_id=COALESCE(?, org_id),
-        bind_org_mismatch=?, bound_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
-    WHERE id=?
-  `).run(userId, channel.id || null, channel.org_id || null, mismatch, target.id);
+  // 合併去重＋寫入 line_user_id/店別歸屬/bound_at；跨店（建檔店 vs 實際 OA）標記提醒客服
+  const bindRes = applyBind(target.id, userId, channel, token.org_id) || { mismatch: 0 };
 
   db.prepare(`UPDATE client_bind_tokens SET used_at=CURRENT_TIMESTAMP, bound_line_user_id=?, bound_channel_id=? WHERE id=?`)
     .run(userId, channel.id || null, token.id);
 
-  console.log(`[CLIENT-BIND] ✅ client=${target.id}(${target.name}) line=${userId} ch=${channel.channel_name || channel.id || 'env'} mismatch=${mismatch}`);
+  console.log(`[CLIENT-BIND] ✅ client=${target.id}(${target.name}) line=${userId} ch=${channel.channel_name || channel.id || 'env'} mismatch=${bindRes.mismatch}`);
   await reply(replyToken,
     `✅ 綁定成功！\n${target.name} 您好，之後我們會直接透過這裡傳送報價單、場勘與驗收等資料給您。`,
     channel.channel_token);

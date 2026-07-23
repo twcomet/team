@@ -141,6 +141,7 @@ router.get('/tags/all', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, (req, res) => {
   const inq = db.prepare(`
     SELECT i.*, c.phone, c.email, c.address,
+           c.name AS client_name, c.line_user_id AS client_line_user_id, c.bind_org_mismatch AS client_bind_mismatch,
            cc.case_number AS converted_case_number,
            su.name AS sales_name, su.id AS sales_id_val,
            cu.name AS cs_name,    cu.id AS cs_id_val,
@@ -469,6 +470,67 @@ router.post('/:id/send-bind-link', requireAuth, async (req, res) => {
   db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(inq.id);
 
   res.json({ ok: true, client_name: client.name });
+});
+
+// 取這通對話所屬 OA 的 { id, org_id }（給 applyBind 用；env-fallback 頻道回 null）
+function inqChannel(inq) {
+  if (!inq.channel_id) return null;
+  return db.prepare(`SELECT id, org_id FROM line_channels WHERE id=?`).get(inq.channel_id) || null;
+}
+
+// ── 客戶資料編輯：直接關聯到「既有客戶檔」（客人免動手）────────────
+// 把這通對話的 line_user_id 綁到選定客戶檔，合併去重、店別歸屬、跨店標記。
+router.post('/:id/link-client', requireAuth, (req, res) => {
+  const { client_id } = req.body || {};
+  if (!client_id) return res.status(400).json({ error: '請選擇要關聯的客戶' });
+  const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq)              return res.status(404).json({ error: 'not found' });
+  if (inq.is_group)      return res.status(400).json({ error: '群組對話不適用此關聯' });
+  if (!inq.line_user_id) return res.status(400).json({ error: '此對話沒有 LINE ID 可關聯' });
+  const client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(client_id);
+  if (!client)           return res.status(404).json({ error: '找不到客戶' });
+
+  const r = applyBind(client.id, inq.line_user_id, inqChannel(inq), client.org_id);
+  db.prepare(`UPDATE line_inquiries SET client_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(client.id, inq.id);
+  res.json({ ok: true, client_id: client.id, client_name: client.name, mismatch: r ? r.mismatch : 0 });
+});
+
+// ── 客戶資料編輯：查不到 → 新增客戶檔並關聯 ──────────────────────
+// force 未帶且偵測到疑似重複 → 回 409 附候選清單，讓客服先判斷（改關聯或確認新增）。
+router.post('/:id/create-client', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const { name, phone, email, address, force } = req.body || {};
+  const nm = (name || '').trim();
+  if (!nm)               return res.status(400).json({ error: '請輸入客戶名稱' });
+  const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq)              return res.status(404).json({ error: 'not found' });
+  if (inq.is_group)      return res.status(400).json({ error: '群組對話不適用此建檔' });
+  if (!inq.line_user_id) return res.status(400).json({ error: '此對話沒有 LINE ID 可關聯' });
+
+  // 相似/重複偵測：同名（去空白）或電話相同 → 提醒客服（除非 force）
+  if (!force) {
+    const nmKey = nm.replace(/\s+/g, '');
+    const like = `%${nm}%`;
+    const dups = db.prepare(`
+      SELECT id, name, phone, contact_person AS contact, line_user_id
+      FROM clients
+      WHERE REPLACE(name,' ','') = ? OR name LIKE ?
+         ${phone ? 'OR (phone IS NOT NULL AND phone=?)' : ''}
+      ORDER BY (REPLACE(name,' ','')=?) DESC, id DESC LIMIT 8
+    `).all(...(phone ? [nmKey, like, phone, nmKey] : [nmKey, like, nmKey]));
+    if (dups.length) return res.status(409).json({ error: 'duplicate', duplicates: dups });
+  }
+
+  const ch = inqChannel(inq);
+  const orgId = (ch && ch.org_id) || me.org_id || null;
+  const r = db.prepare(`INSERT INTO clients (org_id, name, phone, email, address, source, created_by)
+                        VALUES (?,?,?,?,?, 'LINE', ?)`)
+    .run(orgId, nm, phone || null, email || null, address || null, me.id);
+  const clientId = r.lastInsertRowid;
+
+  applyBind(clientId, inq.line_user_id, ch, orgId);
+  db.prepare(`UPDATE line_inquiries SET client_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(clientId, inq.id);
+  res.json({ ok: true, client_id: clientId, client_name: nm });
 });
 
 // ── 標記已回覆（清掉待回覆紅燈）─────────────────────────────

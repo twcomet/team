@@ -55,4 +55,32 @@ function buildBindLink(client, code, origin) {
   return { link: deep_link || page_url, deep_link, page_url, via: deep_link ? 'deeplink' : 'page', oa_name: ch ? ch.channel_name : null };
 }
 
-module.exports = { genBindCode, channelForClient, bindDeepLink, createBindToken, buildBindLink };
+// 把 lineUserId 綁到 targetClientId：合併去重（清掉先前自動建的重複客戶、對話併過去）
+// + 寫入 line_channel_id / org（以實際 OA 為準）/ bound_at / bind_org_mismatch。
+// channel = { id, org_id } 或 null；filedOrgId = 建檔店別（跨店提醒用，省略則取該客戶現有 org）。
+function applyBind(targetClientId, lineUserId, channel, filedOrgId) {
+  const target = db.prepare(`SELECT id, org_id FROM clients WHERE id=?`).get(targetClientId);
+  if (!target) return null;
+
+  const dups = db.prepare(`SELECT * FROM clients WHERE line_user_id=? AND id<>?`).all(lineUserId, targetClientId);
+  for (const d of dups) {
+    db.prepare(`UPDATE line_inquiries SET client_id=? WHERE client_id=?`).run(targetClientId, d.id);
+    const autoCreated = d.source === 'LINE' && !d.phone && !d.email && !d.address && !d.tax_id;
+    if (autoCreated) db.prepare(`DELETE FROM clients WHERE id=?`).run(d.id);
+    else             db.prepare(`UPDATE clients SET line_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(d.id);
+  }
+
+  const chId  = channel && channel.id     != null ? channel.id     : null;
+  const chOrg = channel && channel.org_id != null ? channel.org_id : null;
+  const filed = filedOrgId != null ? filedOrgId : target.org_id;
+  const mismatch = (filed && chOrg && filed !== chOrg) ? 1 : 0;
+  db.prepare(`
+    UPDATE clients
+    SET line_user_id=?, line_channel_id=COALESCE(?, line_channel_id), org_id=COALESCE(?, org_id),
+        bind_org_mismatch=?, bound_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(lineUserId, chId, chOrg, mismatch, targetClientId);
+  return { targetId: targetClientId, mismatch };
+}
+
+module.exports = { genBindCode, channelForClient, bindDeepLink, createBindToken, buildBindLink, applyBind };
