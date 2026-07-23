@@ -351,6 +351,12 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_template_settings"> 🗂️ 模板設定
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_hr"> 👤 人事資料管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_subcontract"> 🤝 協力外包
+          </label>
         </div>
       </div>
     </div>
@@ -499,6 +505,12 @@
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="perm_page_template_settings"> 🗂️ 模板設定
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_hr"> 👤 人事資料管理
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_page_subcontract"> 🤝 協力外包
           </label>
         </div>
       </div>
@@ -826,6 +838,8 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_page_material_match').checked   = p.page_material_match !== undefined ? !!p.page_material_match : !['contractor_install','contractor_sales','dealer'].includes(roleValue);
   document.getElementById('rolePerm_page_work_reports').checked     = !!p.page_work_reports;
   document.getElementById('rolePerm_page_template_settings').checked= p.page_template_settings !== undefined ? !!p.page_template_settings : ['hq_cs_manager','hq_cs'].includes(roleValue);
+  document.getElementById('rolePerm_page_hr').checked               = p.page_hr !== undefined ? !!p.page_hr : ['owner','hq_hr'].includes(roleValue);
+  document.getElementById('rolePerm_page_subcontract').checked      = p.page_subcontract !== undefined ? !!p.page_subcontract : ['owner','branch_manager','hq_accounting','hq_cs'].includes(roleValue);
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -865,6 +879,8 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_material_match').checked    = !!p.page_material_match;
   document.getElementById('rolePerm_page_work_reports').checked      = !!p.page_work_reports;
   document.getElementById('rolePerm_page_template_settings').checked = !!p.page_template_settings;
+  document.getElementById('rolePerm_page_hr').checked                = !!p.page_hr;
+  document.getElementById('rolePerm_page_subcontract').checked       = !!p.page_subcontract;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -895,6 +911,8 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_material_match: document.getElementById('rolePerm_page_material_match').checked,
     page_work_reports:   document.getElementById('rolePerm_page_work_reports').checked,
     page_template_settings: document.getElementById('rolePerm_page_template_settings').checked,
+    page_hr:             document.getElementById('rolePerm_page_hr').checked,
+    page_subcontract:    document.getElementById('rolePerm_page_subcontract').checked,
   };
 
   // 系統內建角色 → 儲存到 role_defaults
@@ -1096,6 +1114,8 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_marketing').checked        = !!p.page_marketing;
     document.getElementById('perm_page_work_reports').checked      = !!p.page_work_reports;
     document.getElementById('perm_page_template_settings').checked = p.page_template_settings !== undefined ? !!p.page_template_settings : ['hq_cs_manager','hq_cs'].includes(roleValue);
+    document.getElementById('perm_page_hr').checked               = p.page_hr !== undefined ? !!p.page_hr : ['owner','hq_hr'].includes(roleValue);
+    document.getElementById('perm_page_subcontract').checked      = p.page_subcontract !== undefined ? !!p.page_subcontract : ['owner','branch_manager','hq_accounting','hq_cs'].includes(roleValue);
   } else {
     const isContractor = CONTRACTOR_ROLES.includes(roleValue);
     const isHQ = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'].includes(roleValue);
@@ -1128,6 +1148,8 @@ function applyRoleDefaults(roleValue) {
     document.getElementById('perm_page_marketing').checked        = false;
     document.getElementById('perm_page_work_reports').checked      = false;
     document.getElementById('perm_page_template_settings').checked = ['hq_cs_manager','hq_cs'].includes(roleValue);
+    document.getElementById('perm_page_hr').checked               = ['owner','hq_hr'].includes(roleValue);
+    document.getElementById('perm_page_subcontract').checked      = ['owner','branch_manager','hq_accounting','hq_cs'].includes(roleValue);
     document.getElementById('perm_my_tasks').checked              = isContractor;
   }
 }
@@ -1234,6 +1256,8 @@ function openEditUser(id) {
   document.getElementById('perm_page_marketing').checked        = isOwner ? true : (perms.page_marketing   !== undefined ? !!perms.page_marketing   : !!u.is_manager);
   document.getElementById('perm_page_work_reports').checked      = isOwner ? true : (perms.page_work_reports !== undefined ? !!perms.page_work_reports : false);
   document.getElementById('perm_page_template_settings').checked = isOwner ? true : (perms.page_template_settings !== undefined ? !!perms.page_template_settings : ['hq_cs_manager','hq_cs'].includes(u.role));
+  document.getElementById('perm_page_hr').checked               = isOwner ? true : (perms.page_hr !== undefined ? !!perms.page_hr : ['owner','hq_hr'].includes(u.role));
+  document.getElementById('perm_page_subcontract').checked      = isOwner ? true : (perms.page_subcontract !== undefined ? !!perms.page_subcontract : ['owner','branch_manager','hq_accounting','hq_cs'].includes(u.role));
   const HQ_ROLES_ADM = ['owner','vp','hq_cs','hq_cs_manager','hq_sales','hq_tech','hq_accounting','hq_hr'];
   document.getElementById('perm_page_cases_deal').checked      = isOwner ? true : (perms.page_cases_deal !== undefined ? !!perms.page_cases_deal : HQ_ROLES_ADM.includes(u.role));
   document.getElementById('perm_my_tasks').checked             = editPerm('my_tasks', true);
@@ -1301,6 +1325,8 @@ document.getElementById('userSaveBtn').addEventListener('click', async () => {
       page_marketing:      document.getElementById('perm_page_marketing').checked,
       page_work_reports:   document.getElementById('perm_page_work_reports').checked,
       page_template_settings: document.getElementById('perm_page_template_settings').checked,
+      page_hr:             document.getElementById('perm_page_hr').checked,
+      page_subcontract:    document.getElementById('perm_page_subcontract').checked,
       my_tasks:            document.getElementById('perm_my_tasks').checked,
     },
     allowed_org_ids: Array.from(document.querySelectorAll('.allowed-org-cb:checked:not(:disabled)'))

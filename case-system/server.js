@@ -377,8 +377,11 @@ app.get('/api/price-list', (req, res) => {
 // ── 門片價目表（大門/房門/防火門）─────────────────────────────
 app.get('/door-price', requireAuth, requireContract, (req, res) => {
   const u = req.session.user;
+  const p = u?.permissions || {};
+  // 與牌價表一致：門片價目表也用 page_price_list 權限（有勾依權限、未設退角色預設）
   const ok = u?.role === 'owner' || u?.manage_users ||
-    ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role);
+    (p.page_price_list !== undefined ? p.page_price_list === true
+      : ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role));
   if (!ok) return res.redirect('/my-tasks');
   res.sendFile(path.join(__dirname, 'public', 'door-price.html'));
 });
