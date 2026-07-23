@@ -175,7 +175,7 @@ router.put('/:id', requireAuth, (req, res) => {
 
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
-  if (me.role !== 'owner' && !me.manage_users) return res.status(403).json({ error: '無刪除權限' });
+  if (me.role !== 'owner' && !me.manage_users && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
   const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
   if (!client) return res.status(404).json({ error: '找不到客戶' });
   const activeCount = db.prepare(`

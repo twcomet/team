@@ -351,7 +351,7 @@ async function init() {
   await Promise.all([loadClient(), loadCases(), loadDeposits()]);
   document.getElementById('editClientBtn').addEventListener('click', openEditModal);
   document.getElementById('addDepositBtn').addEventListener('click', openDepositModal);
-  if (currentUser?.role === 'owner' || currentUser?.manage_users) {
+  if (currentUser?.role === 'owner' || currentUser?.manage_users || currentUser?.can_delete) {
     const delBtn = document.getElementById('deleteClientBtn');
     delBtn.style.display = '';
     delBtn.addEventListener('click', deleteClient);
