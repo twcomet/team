@@ -197,6 +197,23 @@ db.exec(`
   )
 `);
 
+// ── 刪除申請（重要資料：客服申請→老闆/主管審核）──────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deletion_requests (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity       TEXT NOT NULL DEFAULT 'clients',   -- 未來可擴充其他資料類型
+    entity_id    INTEGER NOT NULL,
+    entity_label TEXT,                              -- 名稱快照（如客戶名）
+    reason       TEXT,
+    requested_by INTEGER REFERENCES users(id),
+    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status       TEXT DEFAULT 'pending',            -- pending / approved / rejected
+    decided_by   INTEGER REFERENCES users(id),
+    decided_at   DATETIME,
+    decide_note  TEXT
+  )
+`);
+
 // ── 分潤設定 ────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS profit_shares (

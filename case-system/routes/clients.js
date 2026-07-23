@@ -173,17 +173,90 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// 「重要客戶」＝有任何案件（進行中/結案/歷史）或任何金流（預收款）→ 非老闆不可直接刪，須申請審核
+function clientImportant(id) {
+  const r = db.prepare(`SELECT
+    (SELECT COUNT(*) FROM cases WHERE client_id=?) AS cases,
+    (SELECT COUNT(*) FROM client_deposits WHERE client_id=?) AS deps`).get(id, id);
+  return (r.cases > 0) || (r.deps > 0);
+}
+function notifyOwners(title, body, url, entityId) {
+  const owners = db.prepare(`SELECT id FROM users WHERE role='owner' AND active=1`).all();
+  const ins = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'deletion','deletion_requests',?,?)`);
+  for (const o of owners) ins.run(o.id, title, body, entityId || null, url || null);
+}
+const canReviewDeletion = (me) => me.role === 'owner';   // 刪除審核：只有老闆
+
+// 刪除申請清單（審核頁用）— 老闆/主管
+router.get('/deletion-requests', requireAuth, (req, res) => {
+  if (!canReviewDeletion(req.session.user)) return res.status(403).json({ error: '無審核權限' });
+  const rows = db.prepare(`
+    SELECT dr.*, u.name AS requested_by_name, du.name AS decided_by_name,
+           (SELECT COUNT(*) FROM cases WHERE client_id=dr.entity_id) AS case_count
+    FROM deletion_requests dr
+    LEFT JOIN users u  ON u.id = dr.requested_by
+    LEFT JOIN users du ON du.id = dr.decided_by
+    WHERE dr.entity='clients'
+    ORDER BY (dr.status='pending') DESC, dr.id DESC LIMIT 200
+  `).all();
+  res.json(rows);
+});
+
+// 核准刪除申請 → 執行刪除 — 老闆/主管
+router.post('/deletion-requests/:reqId/approve', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!canReviewDeletion(me)) return res.status(403).json({ error: '無審核權限' });
+  const dr = db.prepare(`SELECT * FROM deletion_requests WHERE id=? AND status='pending'`).get(req.params.reqId);
+  if (!dr) return res.status(404).json({ error: '找不到待審申請（可能已處理）' });
+  db.prepare(`DELETE FROM clients WHERE id=?`).run(dr.entity_id);
+  db.prepare(`UPDATE deletion_requests SET status='approved', decided_by=?, decided_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, dr.id);
+  if (dr.requested_by) db.prepare(`INSERT INTO notifications (user_id, title, body, type) VALUES (?,?,?,'deletion')`)
+    .run(dr.requested_by, `刪除已核准：${dr.entity_label || ''}`, `您申請刪除的客戶「${dr.entity_label || ''}」已由 ${me.name} 核准並刪除。`);
+  db.prepare(`INSERT INTO audit_logs (user_id,action,entity,entity_id,detail) VALUES (?,?,?,?,?)`)
+    .run(me.id, 'delete', 'clients', dr.entity_id, `核准刪除客戶：${dr.entity_label || ''}（申請人 ${dr.requested_by_name || dr.requested_by || ''}）`);
+  res.json({ ok: true });
+});
+
+// 駁回刪除申請 — 老闆/主管
+router.post('/deletion-requests/:reqId/reject', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (!canReviewDeletion(me)) return res.status(403).json({ error: '無審核權限' });
+  const dr = db.prepare(`SELECT * FROM deletion_requests WHERE id=? AND status='pending'`).get(req.params.reqId);
+  if (!dr) return res.status(404).json({ error: '找不到待審申請（可能已處理）' });
+  const note = (req.body?.note || '').trim() || null;
+  db.prepare(`UPDATE deletion_requests SET status='rejected', decided_by=?, decided_at=CURRENT_TIMESTAMP, decide_note=? WHERE id=?`).run(me.id, note, dr.id);
+  if (dr.requested_by) db.prepare(`INSERT INTO notifications (user_id, title, body, type) VALUES (?,?,?,'deletion')`)
+    .run(dr.requested_by, `刪除申請被駁回：${dr.entity_label || ''}`, `您申請刪除客戶「${dr.entity_label || ''}」已被 ${me.name} 駁回。${note ? '\n原因：'+note : ''}`);
+  res.json({ ok: true });
+});
+
+// 客服申請刪除重要客戶（不直接刪，送審）
+router.post('/:id/request-deletion', requireAuth, (req, res) => {
+  const me = req.session.user;
+  if (me.role !== 'owner' && !me.manage_users && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
+  const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
+  if (!client) return res.status(404).json({ error: '找不到客戶' });
+  const existing = db.prepare(`SELECT id FROM deletion_requests WHERE entity='clients' AND entity_id=? AND status='pending'`).get(client.id);
+  if (existing) return res.json({ ok: true, already: true });
+  const reason = (req.body?.reason || '').trim() || null;
+  const r = db.prepare(`INSERT INTO deletion_requests (entity, entity_id, entity_label, reason, requested_by) VALUES ('clients',?,?,?,?)`)
+    .run(client.id, client.name, reason, me.id);
+  notifyOwners(`刪除申請：${client.name}`, `${me.name} 申請刪除客戶「${client.name}」${reason ? '\n原因：'+reason : ''}`, '/deletion-requests', r.lastInsertRowid);
+  res.json({ ok: true, request_id: r.lastInsertRowid });
+});
+
 router.delete('/:id', requireAuth, (req, res) => {
   const me = req.session.user;
   if (me.role !== 'owner' && !me.manage_users && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
   const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
   if (!client) return res.status(404).json({ error: '找不到客戶' });
-  const activeCount = db.prepare(`
-    SELECT COUNT(*) AS cnt FROM cases
-    WHERE client_id=? AND status NOT IN ('invalid','closed')
-  `).get(req.params.id).cnt;
-  if (activeCount > 0) return res.status(400).json({ error: `此客戶有 ${activeCount} 筆進行中案件，無法刪除` });
-  db.prepare(`DELETE FROM clients WHERE id=?`).run(req.params.id);
+  const isOwner = me.role === 'owner';
+  // 重要客戶（有案件/金流/成交/回簽）：只有老闆能直接刪；主管/客服須走「申請刪除」由老闆審核
+  if (clientImportant(client.id) && !isOwner)
+    return res.status(403).json({ error: '此客戶有案件或金流資料，請改用「申請刪除」由老闆審核', need_request: true });
+  db.prepare(`DELETE FROM clients WHERE id=?`).run(client.id);
+  // 若有待審申請，一併標記為已核准
+  db.prepare(`UPDATE deletion_requests SET status='approved', decided_by=?, decided_at=CURRENT_TIMESTAMP WHERE entity='clients' AND entity_id=? AND status='pending'`).run(me.id, client.id);
   res.json({ ok: true });
 });
 
@@ -222,7 +295,12 @@ router.get('/:id', requireAuth, (req, res) => {
     FROM cases WHERE client_id = ?
   `).get(req.params.id);
 
-  res.json({ ...c, stats });
+  // 刪除保護：重要客戶（有案件/金流）非老闆/主管須申請；帶出是否已有待審申請
+  const is_important = clientImportant(c.id);
+  const pending = db.prepare(`SELECT dr.id, dr.requested_at, u.name AS requested_by_name, dr.reason
+    FROM deletion_requests dr LEFT JOIN users u ON u.id=dr.requested_by
+    WHERE dr.entity='clients' AND dr.entity_id=? AND dr.status='pending' ORDER BY dr.id DESC LIMIT 1`).get(c.id) || null;
+  res.json({ ...c, stats, is_important, pending_deletion: pending });
 });
 
 router.get('/:id/cases', requireAuth, (req, res) => {
