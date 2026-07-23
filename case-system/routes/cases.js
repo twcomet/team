@@ -892,10 +892,11 @@ router.put('/:id/dispatches/:did', requireAuth, (req, res) => {
 
 router.delete('/:id/dispatches/:did', requireAuth, (req, res) => {
   const caseId = Number(req.params.id);
-  const d = db.prepare(`SELECT dispatch_type, scheduled_date, gcal_event_id FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, caseId);
+  const d = db.prepare(`SELECT dispatch_type, scheduled_date, gcal_event_id, drive_subfolder_id, drive_subfolder_name FROM dispatches WHERE id=? AND case_id=?`).get(req.params.did, caseId);
   db.prepare(`DELETE FROM dispatch_users WHERE dispatch_id=?`).run(req.params.did);
   db.prepare(`DELETE FROM dispatches WHERE id=? AND case_id=?`).run(req.params.did, caseId);
   gcal.safeRemoveEvent(d?.gcal_event_id); // 刪派工 → 同步移除 Google 事件
+  gdrive.safeDiscardDispatchFolder(d?.drive_subfolder_id, d?.drive_subfolder_name); // 刪派工→子夾空的就刪、有東西改名「(已作廢)」不刪(保內容)
   if (['survey', 'factory_survey'].includes(d?.dispatch_type)) gcal.safeSyncSurvey(caseId); // 刪場勘派工→若仍有場勘日期則補回場勘事件
   recalcLaborCost(caseId);
 
