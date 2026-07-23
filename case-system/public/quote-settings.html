@@ -277,7 +277,7 @@
     <div id="panel-notices" class="qs-panel">
       <div class="qs-card">
         <h3>報價單須知／條款範本庫</h3>
-        <p class="section-hint">四大區塊都能建範本：(a) 報價單優惠條款、(b) 貼膜前須知、(c) 驗收須知、(d) 回簽/訂單簽核資訊。報價單上點「套用範本（可多選）」即可帶入；(d) 可附「銀行帳號圖」，套範本時連圖一起帶出。</p>
+        <p class="section-hint">區塊範本庫：(a) 報價單優惠條款、(b) 貼膜前須知、(c) 驗收須知、(d) 回簽/訂單簽核資訊、(e) 施工前檢查項目（驗收單）。報價單上點「套用範本（可多選）」即可帶入；(d) 可附「銀行帳號圖」，套範本時連圖一起帶出。<br><b>(e) 施工前檢查項目</b>：依「類別（品項）」建立，<b>內容一行一項檢查項目</b>；驗收單師傅選品項時自動帶出成逐項打勾清單（如底板平整度）。</p>
         <table class="qs-table" id="notices-table">
           <thead><tr><th width="120">適用區塊</th><th>模板名稱</th><th>類別</th><th>內容預覽</th><th width="70">附圖</th><th width="80">操作</th></tr></thead>
           <tbody id="notices-tbody"></tbody>
@@ -291,6 +291,7 @@
                 <option value="notice" selected>(b) 貼膜前須知</option>
                 <option value="inspection">(c) 驗收須知</option>
                 <option value="acceptance">(d) 回簽/訂單簽核資訊</option>
+                <option value="precheck">(e) 施工前檢查項目（驗收單）</option>
               </select>
             </div>
             <div class="form-group"><label>模板名稱 *</label><input id="nn-name" placeholder="例：門片類須知 / 玉山銀行帳號"></div>
@@ -429,6 +430,7 @@
           <option value="notice">(b) 貼膜前須知</option>
           <option value="inspection">(c) 驗收須知</option>
           <option value="acceptance">(d) 回簽/訂單簽核資訊</option>
+          <option value="precheck">(e) 施工前檢查項目（驗收單）</option>
         </select>
       </div>
       <div class="form-group"><label>模板名稱</label><input id="edit-notice-name"></div>

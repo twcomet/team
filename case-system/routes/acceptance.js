@@ -58,12 +58,13 @@ router.get('/dispatch/:dispatchId', requireAuth, (req, res) => {
   res.json(hydrate(form));
 });
 
-// 貼膜須知範本（公開，供簽署頁「師傅勾選貼什麼→自動帶須知」）：取 (b)貼膜前須知，依類別分組
+// 範本庫（公開，供簽署頁）：預設取 (b)客戶須知；?block=precheck 取 (e)施工前檢查項目。依類別分組
 // 註：必須放在 GET /:id 之前，否則會被當成 id 攔截
 router.get('/notice-templates', (req, res) => {
   try {
+    const block = req.query.block === 'precheck' ? 'precheck' : 'notice';
     const rows = db.prepare(`SELECT id, name, category, content FROM film_notice_templates
-      WHERE active=1 AND COALESCE(block,'notice')='notice' AND TRIM(COALESCE(content,''))<>'' ORDER BY category, sort_order, id`).all();
+      WHERE active=1 AND COALESCE(block,'notice')=? AND TRIM(COALESCE(content,''))<>'' ORDER BY category, sort_order, id`).all(block);
     res.json(rows);
   } catch (e) { res.json([]); }
 });
@@ -81,8 +82,9 @@ router.put('/:id', requireAuth, (req, res) => {
   if (!form) return res.status(404).json({ error: '找不到驗收單' });
   if (form.status === 'signed') return res.status(400).json({ error: '已回簽的驗收單不可修改，如需重簽請通知客服解鎖' });
   const b = req.body || {};
-  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? form.notice_content, req.params.id);
+  const precheckJson = b.precheck != null ? (typeof b.precheck === 'string' ? b.precheck : JSON.stringify(b.precheck)) : form.precheck_json;
+  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, precheck_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? form.notice_content, precheckJson, req.params.id);
   res.json({ ok: true });
 });
 
@@ -107,12 +109,13 @@ router.get('/sign/:token', (req, res) => {
 
 // 師傅在簽署頁編輯（公開，token 保護；已回簽不可改）
 router.put('/sign/:token', (req, res) => {
-  const form = db.prepare(`SELECT id, status FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
+  const form = db.prepare(`SELECT id, status, precheck_json FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到驗收單' });
   if (form.status === 'signed') return res.status(400).json({ error: '已回簽不可修改，如需重簽請通知客服解鎖' });
   const b = req.body || {};
-  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, ref_quote=?, updated_at=CURRENT_TIMESTAMP WHERE share_token=?`)
-    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? '', b.ref_quote ? 1 : 0, req.params.token);
+  const precheckJson = b.precheck != null ? (typeof b.precheck === 'string' ? b.precheck : JSON.stringify(b.precheck)) : form.precheck_json;
+  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, precheck_json=?, ref_quote=?, updated_at=CURRENT_TIMESTAMP WHERE share_token=?`)
+    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? '', precheckJson, b.ref_quote ? 1 : 0, req.params.token);
   res.json({ ok: true });
 });
 
@@ -121,15 +124,17 @@ router.post('/sign/:token', (req, res) => {
   const form = db.prepare(`SELECT id, status FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到驗收單' });
   if (form.status === 'signed') return res.json({ ok: true, already: true });
-  const { signature, confirm, staff_id, items, notice_content, ref_quote } = req.body || {};
+  const { signature, confirm, staff_id, items, notice_content, ref_quote, precheck } = req.body || {};
   if (!signature) return res.status(400).json({ error: '請先簽名' });
   const itemsJson = items != null ? (typeof items === 'string' ? items : JSON.stringify(items)) : null;
+  const precheckJson = precheck != null ? (typeof precheck === 'string' ? precheck : JSON.stringify(precheck)) : null;
   db.prepare(`UPDATE acceptance_forms SET status='signed', client_signature=?, client_signed_at=CURRENT_TIMESTAMP,
       confirm_json=?, signed_by_staff=COALESCE(?, signed_by_staff, opened_by),
       items_json=COALESCE(?, items_json), notice_content=COALESCE(?, notice_content),
+      precheck_json=COALESCE(?, precheck_json),
       ref_quote=COALESCE(?, ref_quote), updated_at=CURRENT_TIMESTAMP
       WHERE share_token=?`)
-    .run(signature, JSON.stringify(confirm || {}), staff_id || null, itemsJson, notice_content ?? null, (ref_quote == null ? null : (ref_quote ? 1 : 0)), req.params.token);
+    .run(signature, JSON.stringify(confirm || {}), staff_id || null, itemsJson, notice_content ?? null, precheckJson, (ref_quote == null ? null : (ref_quote ? 1 : 0)), req.params.token);
   // 背景：完工照歸檔到案件雲端資料夾（不阻塞客戶簽署回應）
   try {
     const full = db.prepare(`SELECT case_id, items_json FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
@@ -196,10 +201,11 @@ async function archivePhotos(caseId, items) {
 }
 
 function hydrate(form) {
-  let items = [], confirm = {};
+  let items = [], confirm = {}, precheck = [];
   try { items = JSON.parse(form.items_json || '[]'); } catch (e) {}
   try { confirm = JSON.parse(form.confirm_json || '{}'); } catch (e) {}
-  return { ...form, items, confirm };
+  try { precheck = JSON.parse(form.precheck_json || '[]'); } catch (e) {}
+  return { ...form, items, confirm, precheck };
 }
 
 module.exports = router;
