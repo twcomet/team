@@ -336,6 +336,21 @@
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="rolePerm_page_marketing"> 📣 行銷報表
           </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_quote_settings"> 💹 報價設定
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_price_list"> 🏷️ 牌價表
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_material_match"> 🎨 相似花色查詢
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_work_reports"> 📋 完工回報總覽
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="rolePerm_page_template_settings"> 🗂️ 模板設定
+          </label>
         </div>
       </div>
     </div>
@@ -806,6 +821,11 @@ function openEditBuiltinRole(roleValue, label) {
   document.getElementById('rolePerm_page_performance').checked      = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked          = !!p.page_reports;
   document.getElementById('rolePerm_page_marketing').checked        = !!p.page_marketing;
+  document.getElementById('rolePerm_page_quote_settings').checked   = p.page_quote_settings !== undefined ? !!p.page_quote_settings : !!p.is_manager;
+  document.getElementById('rolePerm_page_price_list').checked       = p.page_price_list !== undefined ? !!p.page_price_list : ['vp','hq_sales','hq_cs','hq_cs_manager','hq_hr','hq_accounting','branch_manager','branch_sales'].includes(roleValue);
+  document.getElementById('rolePerm_page_material_match').checked   = p.page_material_match !== undefined ? !!p.page_material_match : !['contractor_install','contractor_sales','dealer'].includes(roleValue);
+  document.getElementById('rolePerm_page_work_reports').checked     = !!p.page_work_reports;
+  document.getElementById('rolePerm_page_template_settings').checked= p.page_template_settings !== undefined ? !!p.page_template_settings : ['hq_cs_manager','hq_cs'].includes(roleValue);
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -840,6 +860,11 @@ function openEditRole(id) {
   document.getElementById('rolePerm_page_performance').checked       = !!p.page_performance;
   document.getElementById('rolePerm_page_reports').checked           = !!p.page_reports;
   document.getElementById('rolePerm_page_marketing').checked         = !!p.page_marketing;
+  document.getElementById('rolePerm_page_quote_settings').checked    = !!p.page_quote_settings;
+  document.getElementById('rolePerm_page_price_list').checked        = !!p.page_price_list;
+  document.getElementById('rolePerm_page_material_match').checked    = !!p.page_material_match;
+  document.getElementById('rolePerm_page_work_reports').checked      = !!p.page_work_reports;
+  document.getElementById('rolePerm_page_template_settings').checked = !!p.page_template_settings;
   document.getElementById('roleModal').classList.add('open');
 }
 
@@ -865,6 +890,11 @@ document.getElementById('roleSaveBtn').addEventListener('click', async () => {
     page_performance:    document.getElementById('rolePerm_page_performance').checked,
     page_reports:        document.getElementById('rolePerm_page_reports').checked,
     page_marketing:      document.getElementById('rolePerm_page_marketing').checked,
+    page_quote_settings: document.getElementById('rolePerm_page_quote_settings').checked,
+    page_price_list:     document.getElementById('rolePerm_page_price_list').checked,
+    page_material_match: document.getElementById('rolePerm_page_material_match').checked,
+    page_work_reports:   document.getElementById('rolePerm_page_work_reports').checked,
+    page_template_settings: document.getElementById('rolePerm_page_template_settings').checked,
   };
 
   // 系統內建角色 → 儲存到 role_defaults
