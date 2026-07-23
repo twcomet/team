@@ -180,6 +180,14 @@ function clientImportant(id) {
     (SELECT COUNT(*) FROM client_deposits WHERE client_id=?) AS deps`).get(id, id);
   return (r.cases > 0) || (r.deps > 0);
 }
+// 刪除影響：會孤兒化多少案件（含進行中）與金流；進行中案件會擋刪
+function clientDeleteImpact(id) {
+  return db.prepare(`SELECT
+    (SELECT COUNT(*) FROM cases WHERE client_id=?) AS total_cases,
+    (SELECT COUNT(*) FROM cases WHERE client_id=? AND status NOT IN ('invalid','closed')) AS active_cases,
+    (SELECT COUNT(*) FROM client_deposits WHERE client_id=?) AS deposit_count,
+    (SELECT COALESCE(SUM(amount),0) FROM client_deposits WHERE client_id=?) AS deposit_sum`).get(id, id, id, id);
+}
 function notifyOwners(title, body, url, entityId) {
   const owners = db.prepare(`SELECT id FROM users WHERE role='owner' AND active=1`).all();
   const ins = db.prepare(`INSERT INTO notifications (user_id, title, body, type, entity, entity_id, url) VALUES (?,?,?,'deletion','deletion_requests',?,?)`);
@@ -192,7 +200,10 @@ router.get('/deletion-requests', requireAuth, (req, res) => {
   if (!canReviewDeletion(req.session.user)) return res.status(403).json({ error: '無審核權限' });
   const rows = db.prepare(`
     SELECT dr.*, u.name AS requested_by_name, du.name AS decided_by_name,
-           (SELECT COUNT(*) FROM cases WHERE client_id=dr.entity_id) AS case_count
+           (SELECT COUNT(*) FROM cases WHERE client_id=dr.entity_id) AS case_count,
+           (SELECT COUNT(*) FROM cases WHERE client_id=dr.entity_id AND status NOT IN ('invalid','closed')) AS active_case_count,
+           (SELECT COUNT(*) FROM client_deposits WHERE client_id=dr.entity_id) AS deposit_count,
+           (SELECT COALESCE(SUM(amount),0) FROM client_deposits WHERE client_id=dr.entity_id) AS deposit_sum
     FROM deletion_requests dr
     LEFT JOIN users u  ON u.id = dr.requested_by
     LEFT JOIN users du ON du.id = dr.decided_by
@@ -208,6 +219,8 @@ router.post('/deletion-requests/:reqId/approve', requireAuth, (req, res) => {
   if (!canReviewDeletion(me)) return res.status(403).json({ error: '無審核權限' });
   const dr = db.prepare(`SELECT * FROM deletion_requests WHERE id=? AND status='pending'`).get(req.params.reqId);
   if (!dr) return res.status(404).json({ error: '找不到待審申請（可能已處理）' });
+  const imp = clientDeleteImpact(dr.entity_id);
+  if (imp.active_cases > 0) return res.status(400).json({ error: `此客戶目前有 ${imp.active_cases} 筆進行中案件，無法刪除，請先結案或作廢再核准` });
   db.prepare(`DELETE FROM clients WHERE id=?`).run(dr.entity_id);
   db.prepare(`UPDATE deletion_requests SET status='approved', decided_by=?, decided_at=CURRENT_TIMESTAMP WHERE id=?`).run(me.id, dr.id);
   if (dr.requested_by) db.prepare(`INSERT INTO notifications (user_id, title, body, type) VALUES (?,?,?,'deletion')`)
@@ -236,6 +249,8 @@ router.post('/:id/request-deletion', requireAuth, (req, res) => {
   if (me.role !== 'owner' && !me.manage_users && !me.can_delete) return res.status(403).json({ error: '無刪除權限' });
   const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
   if (!client) return res.status(404).json({ error: '找不到客戶' });
+  const impR = clientDeleteImpact(client.id);
+  if (impR.active_cases > 0) return res.status(400).json({ error: `此客戶有 ${impR.active_cases} 筆進行中案件，無法刪除，請先結案或作廢` });
   const existing = db.prepare(`SELECT id FROM deletion_requests WHERE entity='clients' AND entity_id=? AND status='pending'`).get(client.id);
   if (existing) return res.json({ ok: true, already: true });
   const reason = (req.body?.reason || '').trim() || null;
@@ -251,6 +266,10 @@ router.delete('/:id', requireAuth, (req, res) => {
   const client = db.prepare(`SELECT id, name FROM clients WHERE id=?`).get(req.params.id);
   if (!client) return res.status(404).json({ error: '找不到客戶' });
   const isOwner = me.role === 'owner';
+  // 進行中案件一律擋刪（含老闆）：避免刪到正在跑的案子
+  const impD = clientDeleteImpact(client.id);
+  if (impD.active_cases > 0)
+    return res.status(400).json({ error: `此客戶有 ${impD.active_cases} 筆進行中案件，無法刪除，請先結案或作廢` });
   // 重要客戶（有案件/金流/成交/回簽）：只有老闆能直接刪；主管/客服須走「申請刪除」由老闆審核
   if (clientImportant(client.id) && !isOwner)
     return res.status(403).json({ error: '此客戶有案件或金流資料，請改用「申請刪除」由老闆審核', need_request: true });

@@ -126,17 +126,20 @@ function render(){
       <div class="dr-top">
         <div style="min-width:0">
           <div class="dr-name">${esc(r.entity_label || '(客戶已不存在)')}
-            ${r.case_count ? `<span class="dr-warn" style="margin-left:6px">有 ${r.case_count} 筆案件</span>` : ''}
+            ${r.active_case_count ? `<span class="dr-warn" style="margin-left:6px;background:#fee2e2;border-color:#fecaca;color:#991b1b">⛔ ${r.active_case_count} 筆進行中案件</span>` : ''}
             ${!pending ? `<span class="dr-status ${r.status==='approved'?'st-approved':'st-rejected'}" style="margin-left:6px">${r.status==='approved'?'已核准刪除':'已駁回'}</span>` : ''}
           </div>
+          ${(r.case_count||r.deposit_count) ? `<div style="margin-top:6px;font-size:12px;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:6px 10px">⚠️ 刪除後將孤兒化：${r.case_count?`<b>${r.case_count} 筆案件</b>${r.active_case_count?`（含 ${r.active_case_count} 進行中）`:''}`:''}${(r.case_count&&r.deposit_count)?' · ':''}${r.deposit_count?`<b>${r.deposit_count} 筆預收款 $${Number(r.deposit_sum||0).toLocaleString()}</b>`:''}</div>` : ''}
           <div class="dr-meta">申請人：${esc(r.requested_by_name||'—')} · 申請時間：${fmt(r.requested_at)}
             ${!pending ? `<br>處理：${esc(r.decided_by_name||'—')} · ${fmt(r.decided_at)}${r.decide_note?' · 原因：'+esc(r.decide_note):''}` : ''}</div>
           ${r.reason ? `<div class="dr-reason">申請原因：${esc(r.reason)}</div>` : ''}
         </div>
-        ${pending ? `<div class="dr-btns">
+        ${pending ? (r.active_case_count > 0
+          ? `<div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><span style="font-size:12px;color:#991b1b;font-weight:600">⛔ 有進行中案件<br>需先結案／作廢</span><button class="dr-reject" onclick="reject(${r.id})">駁回</button></div>`
+          : `<div class="dr-btns">
           <button class="dr-approve" onclick="approve(${r.id},'${esc(r.entity_label||'').replace(/'/g,"&#39;")}')">核准刪除</button>
           <button class="dr-reject" onclick="reject(${r.id})">駁回</button>
-        </div>` : ''}
+        </div>`) : ''}
       </div>
     </div>`;
   }).join('');
