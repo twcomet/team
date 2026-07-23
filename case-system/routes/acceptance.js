@@ -111,8 +111,8 @@ router.put('/sign/:token', (req, res) => {
   if (!form) return res.status(404).json({ error: '找不到驗收單' });
   if (form.status === 'signed') return res.status(400).json({ error: '已回簽不可修改，如需重簽請通知客服解鎖' });
   const b = req.body || {};
-  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, updated_at=CURRENT_TIMESTAMP WHERE share_token=?`)
-    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? '', req.params.token);
+  db.prepare(`UPDATE acceptance_forms SET items_json=?, notice_content=?, ref_quote=?, updated_at=CURRENT_TIMESTAMP WHERE share_token=?`)
+    .run(typeof b.items === 'string' ? b.items : JSON.stringify(b.items || []), b.notice_content ?? '', b.ref_quote ? 1 : 0, req.params.token);
   res.json({ ok: true });
 });
 
@@ -121,14 +121,15 @@ router.post('/sign/:token', (req, res) => {
   const form = db.prepare(`SELECT id, status FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
   if (!form) return res.status(404).json({ error: '找不到驗收單' });
   if (form.status === 'signed') return res.json({ ok: true, already: true });
-  const { signature, confirm, staff_id, items, notice_content } = req.body || {};
+  const { signature, confirm, staff_id, items, notice_content, ref_quote } = req.body || {};
   if (!signature) return res.status(400).json({ error: '請先簽名' });
   const itemsJson = items != null ? (typeof items === 'string' ? items : JSON.stringify(items)) : null;
   db.prepare(`UPDATE acceptance_forms SET status='signed', client_signature=?, client_signed_at=CURRENT_TIMESTAMP,
       confirm_json=?, signed_by_staff=COALESCE(?, signed_by_staff, opened_by),
-      items_json=COALESCE(?, items_json), notice_content=COALESCE(?, notice_content), updated_at=CURRENT_TIMESTAMP
+      items_json=COALESCE(?, items_json), notice_content=COALESCE(?, notice_content),
+      ref_quote=COALESCE(?, ref_quote), updated_at=CURRENT_TIMESTAMP
       WHERE share_token=?`)
-    .run(signature, JSON.stringify(confirm || {}), staff_id || null, itemsJson, notice_content ?? null, req.params.token);
+    .run(signature, JSON.stringify(confirm || {}), staff_id || null, itemsJson, notice_content ?? null, (ref_quote == null ? null : (ref_quote ? 1 : 0)), req.params.token);
   res.json({ ok: true });
 });
 

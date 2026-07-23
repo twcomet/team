@@ -3120,6 +3120,7 @@ db.exec(`
   );
 `);
 _addCol('acceptance_forms', 'dispatch_id', 'INTEGER');
+_addCol('acceptance_forms', 'ref_quote', 'INTEGER DEFAULT 0'); // 1=驗收內容參照回簽報價單(不逐項列)
 
 // 折扣規則（客戶分類 × 案量門檻）
 db.exec(`

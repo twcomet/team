@@ -95,8 +95,13 @@ function render(){
       </div>
     </div>
     <div class="sec"><div class="sec-title">施工項目（${items.length}）</div>
-      <div id="itemBox">${items.map((it,i)=>itemRow(it,i,signed)).join('')||(signed?'<div style="color:#9ca3af;font-size:13px">（無明細）</div>':'')}</div>
-      ${signed?'':'<button class="addbtn" onclick="addItem()">＋ 新增施工項目</button>'}
+      ${signed
+        ? (q.ref_quote ? '<div style="font-size:14px;color:#065f46;font-weight:600">✔ 本次驗收內容與回簽報價單一致（參照回簽報價單）</div>' : '')
+        : `<label style="display:flex;gap:10px;align-items:center;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:10px;cursor:pointer;font-size:14px;font-weight:600;color:var(--primary-dark)">
+             <input type="checkbox" id="refQuote" ${q.ref_quote?'checked':''} style="width:20px;height:20px;accent-color:var(--primary)" onchange="DATA.ref_quote=this.checked?1:0;toggleRef();scheduleSave()">
+             請參照回簽報價單（本次驗收內容與回簽報價單一致）</label>`}
+      <div id="itemBox" style="${(!signed && q.ref_quote)?'display:none':''}">${items.map((it,i)=>itemRow(it,i,signed)).join('')||(signed?(q.ref_quote?'':'<div style="color:#9ca3af;font-size:13px">（無明細）</div>'):'')}</div>
+      ${signed?'':`<button class="addbtn" id="addItemBtn" onclick="addItem()" style="${q.ref_quote?'display:none':''}">＋ 新增施工項目</button>`}
     </div>`;
   // 客戶須知
   if(signed){
@@ -165,11 +170,16 @@ function markActiveTpls(){
     el.classList.toggle('on',any);
   });
 }
+function toggleRef(){
+  const on=!!DATA.ref_quote;
+  const box=document.getElementById('itemBox'); if(box) box.style.display=on?'none':'';
+  const ab=document.getElementById('addItemBtn'); if(ab) ab.style.display=on?'none':'';
+}
 function onConfirm(k,v){ confirmState[k]=v; document.getElementById('cf-'+k).classList.toggle('on',v); }
 function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,900); const s=document.getElementById('saveHint'); if(s)s.textContent='編輯中…'; }
 async function saveNow(){
   if(DATA.status==='signed') return;
-  try{ await fetch('/api/acceptance/sign/'+token,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:DATA.items,notice_content:DATA.notice_content||''})});
+  try{ await fetch('/api/acceptance/sign/'+token,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:DATA.items,notice_content:DATA.notice_content||'',ref_quote:DATA.ref_quote?1:0})});
     const s=document.getElementById('saveHint'); if(s)s.textContent='✓ 已暫存';
   }catch(e){}
 }
@@ -191,7 +201,7 @@ async function submit(){
   if(!c.classList.contains('has')){ alert('請先在框內簽名'); return; }
   const go=document.getElementById('go'); go.disabled=true; go.textContent='處理中…';
   try{
-    const r=await fetch('/api/acceptance/sign/'+token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:c.toDataURL('image/png'),confirm:confirmState,items:DATA.items,notice_content:DATA.notice_content||''})});
+    const r=await fetch('/api/acceptance/sign/'+token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:c.toDataURL('image/png'),confirm:confirmState,items:DATA.items,notice_content:DATA.notice_content||'',ref_quote:DATA.ref_quote?1:0})});
     if(r.ok){ DATA=await fetch('/api/acceptance/sign/'+token).then(x=>x.json()); render(); }
     else { const e=await r.json().catch(()=>({})); alert(e.error||'送出失敗'); go.disabled=false; go.textContent='確認驗收'; }
   }catch(e){ alert('網路錯誤，請重試'); go.disabled=false; go.textContent='確認驗收'; }
