@@ -117,6 +117,18 @@ async function _findRootFolder(name, token) {
   return (j.files && j.files[0]) ? j.files[0].id : null;
 }
 
+// 在指定父資料夾底下找同名子資料夾（供派工變更/重建時「認領」既有子夾，避免開出重複）
+async function _findChildFolderByName(name, parentId, token) {
+  if (!parentId) return null;
+  const q = `name='${String(name).replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${parentId}' in parents`;
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,webViewLink)&pageSize=10&q=' + encodeURIComponent(q), {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return null;
+  return (j.files && j.files[0]) ? j.files[0] : null;   // { id, webViewLink }
+}
+
 // 母資料夾「繪新案件資料」——所有案件資料夾開在裡面（app 自己建，drive.file 才能寫子資料夾）
 async function _ensureParent(token) {
   const pid = getS('gdrive_parent_id');
@@ -248,14 +260,44 @@ async function _ensureDispatchSubfolderInner(dispatchId) {
   await ensureCaseFolder(d.case_id);                        // 保底：先確保案件資料夾存在
   const c = db.prepare('SELECT drive_folder_id FROM cases WHERE id=?').get(d.case_id);
   if (!c || !c.drive_folder_id) return null;                // 仍無案件資料夾 → 略過
-  const f = await _createFolder(name, c.drive_folder_id, token);   // 父層＝案件資料夾 → 一定在案件夾裡面
+  // 先認領案件夾底下「同名」的既有子夾（派工變更/重建時不再開重複；純認領、不動內容）
+  let f = await _findChildFolderByName(name, c.drive_folder_id, token);
+  if (!f) f = await _createFolder(name, c.drive_folder_id, token);   // 沒有才新建；父層＝案件資料夾
   db.prepare('UPDATE dispatches SET drive_subfolder_id=?, drive_subfolder_url=?, drive_subfolder_name=? WHERE id=?')
-    .run(f.id, f.webViewLink, name, d.id);
-  return f.webViewLink;
+    .run(f.id, f.webViewLink || null, name, d.id);
+  return f.webViewLink || null;
 }
 function safeEnsureDispatchSubfolder(dispatchId) {
   if (!isConnected()) return Promise.resolve(null);
   return ensureDispatchSubfolder(dispatchId).catch(e => { console.error('[gdrive] 派工子資料夾失敗 dispatch#' + dispatchId + '：', e.message); return null; });
+}
+
+// 資料夾是否為空（查不到就保守當作非空、不刪）
+async function _isFolderEmpty(folderId, token) {
+  const q = `'${folderId}' in parents and trashed=false`;
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id)&pageSize=1&q=' + encodeURIComponent(q), {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return false;
+  return !(j.files && j.files.length);
+}
+// 刪派工時處理其子資料夾：空的→直接刪；有東西→改名「(已作廢) …」保留內容不刪
+async function discardDispatchFolder(subfolderId, name) {
+  if (!subfolderId) return;
+  const token = await accessToken();
+  if (await _isFolderEmpty(subfolderId, token)) {
+    await fetch('https://www.googleapis.com/drive/v3/files/' + subfolderId, {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + token },
+    });
+  } else {
+    const nm = String(name || '派工資料夾');
+    if (!/^\(已作廢\)/.test(nm)) await _renameFile(subfolderId, '(已作廢) ' + nm, token);
+  }
+}
+function safeDiscardDispatchFolder(subfolderId, name) {
+  if (!isConnected() || !subfolderId) return Promise.resolve(null);
+  return discardDispatchFolder(subfolderId, name).catch(e => { console.error('[gdrive] 作廢派工子資料夾失敗 #' + subfolderId + '：', e.message); return null; });
 }
 
 // 場勘單（客服填寫區流程，非派工）→ 在案件資料夾內建「場勘」子資料夾，含場勘人員名字，改人員/日期自動改名
@@ -482,4 +524,4 @@ async function updateFileContent(fileId, buf, mime) {
   return j;
 }
 
-module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, ensureContractFolder, uploadFileToFolder, updateFileContent, renameFile };
+module.exports = { isConfigured, isConnected, authUrl, exchangeCode, createCaseFolder, ensureCaseFolder, safeEnsureCaseFolder, backfillCaseFolders, ensureDispatchSubfolder, safeEnsureDispatchSubfolder, safeDiscardDispatchFolder, ensureSurveyFolder, safeEnsureSurveyFolder, disconnect, accessToken, accountInfo, uploadBackup, pruneBackups, listBackups, ensureClientCsFolder, ensureCaseCsFolder, ensureContractFolder, uploadFileToFolder, updateFileContent, renameFile };
