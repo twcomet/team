@@ -215,7 +215,7 @@
     </div>
   </aside>
   <div class="main-content">
-    <div class="top-bar"><span class="page-title">估價計算機</span><span id="ec-status" style="font-size:13px;color:#6b7280"></span><button type="button" onclick="openHistory()" style="margin-left:auto;font-size:13px;color:#2563eb;font-weight:600;background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit">🔍 查歷史報價</button><a href="/estimator-quotes" style="margin-left:12px;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">🗂️ 估價單查詢</a></div>
+    <div class="top-bar"><span class="page-title">估價計算機</span><a id="backToCase" href="#" style="display:none;margin-left:10px;font-size:13px;color:#1d4ed8;font-weight:600;text-decoration:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:5px 11px">← 回案件</a><span id="ec-status" style="font-size:13px;color:#6b7280"></span><button type="button" onclick="openHistory()" style="margin-left:auto;font-size:13px;color:#2563eb;font-weight:600;background:#eff6ff;border:1px solid #dbeafe;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit">🔍 查歷史報價</button><a href="/estimator-quotes" style="margin-left:12px;font-size:13px;color:#D40069;font-weight:600;text-decoration:none">🗂️ 估價單查詢</a></div>
     <!-- 歷史報價彈窗 -->
     <div id="histModal" class="hist-mask" style="display:none" onclick="if(event.target===this)closeHistory()">
       <div class="hist-box">
@@ -1517,6 +1517,7 @@ async function prefillFromCase(id){
   var editParam = EPARAMS.get('edit');
   if(editParam) await loadEstQuote(editParam);          // 從估價單查詢開啟編輯
   else if(ECASE) await prefillFromCase(ECASE);
+  if(ECASE){ var _bl=document.getElementById('backToCase'); if(_bl){ _bl.href='/case-detail?id='+encodeURIComponent(ECASE); _bl.style.display=''; } }  // 從案件/詢問開啟→顯示「回案件」
 })();
 </script>
 </body>

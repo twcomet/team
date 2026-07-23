@@ -2670,6 +2670,8 @@ document.getElementById('saveEstimateBtn').addEventListener('click', async () =>
 // ── 估價紀錄（合併：快速報價 initial_estimates + 估價計算機 est_quotes）────
 // 估價計算機彈跳視窗：一案一張主估價單——若此案已有估價單就開最新那張來編輯，沒有才新建
 async function openEstFrameCase(quoteId) {
+  const win = window.open('', '_blank');   // 先在點擊當下開新分頁(頂層導覽→登入不會掉)，避免被彈窗攔截器擋
+  if (win) { try { win.document.write('<p style="font:15px sans-serif;padding:24px;color:#555">估價機載入中…</p>'); } catch (e) {} }
   let url;
   if (quoteId) {
     url = `/estimator?edit=${encodeURIComponent(quoteId)}`;   // 指定某張估價單→開它繼續編輯
@@ -2677,24 +2679,18 @@ async function openEstFrameCase(quoteId) {
     url = `/estimator?case_id=${encodeURIComponent(caseId)}`;
     try {
       const rows = await fetch(`/api/estimator/quotes?case_id=${encodeURIComponent(caseId)}`).then(r => r.json());
-      if (Array.isArray(rows) && rows.length) url = `/estimator?edit=${rows[0].id}`;   // 最新一張＝主估價單
+      if (Array.isArray(rows) && rows.length) url = `/estimator?edit=${rows[0].id}`;   // 一案一張主估價單→開最新那張
     } catch (e) { /* 撈不到就用空白帶 case_id */ }
   }
-  const fr = document.getElementById('estFrame');
-  const fb = document.getElementById('estFrameFallback');
-  document.getElementById('estFrameOpenTab').href = url;
-  document.getElementById('estFrameFallbackBtn').href = url;
-  fb.style.display = 'none'; fr.style.display = 'block';
-  fr.onload = function () {
-    try {
-      const p = fr.contentWindow.location.pathname;
-      if (p === '/' || /login/i.test(p)) { fb.style.display = ''; fr.style.display = 'none'; }
-      else { fb.style.display = 'none'; fr.style.display = 'block'; }
-    } catch (e) { /* 跨源讀不到就當正常顯示 */ }
-  };
-  fr.src = `${url}&embed=1`;
-  document.getElementById('estFrameModal').classList.add('open');
+  _estReturnRefresh = true;                // 切回此案件頁時自動刷新估價紀錄
+  if (win) { win.location = url; win.focus(); }
+  else { location.href = url; }            // 分頁被擋→同分頁前往(保底)
 }
+// 估價機改「新分頁」開啟後，切回此頁自動刷新估價紀錄清單
+let _estReturnRefresh = false;
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && _estReturnRefresh) { _estReturnRefresh = false; if (typeof loadQuickEstimates === 'function') loadQuickEstimates(); }
+});
 function closeEstFrameCase() {
   document.getElementById('estFrameModal').classList.remove('open');
   const fr = document.getElementById('estFrame');
