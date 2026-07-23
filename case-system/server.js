@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 防止直接以 /xxx.html 繞過路由層的登入/權限檢查
 // 公開 HTML 頁（客戶用、不需登入）保持可直接訪問
-const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'acceptance-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html', 'price-view.html']);
+const PUBLIC_HTML = new Set(['login.html', 'survey-sign.html', 'quote-sign.html', 'acceptance-sign.html', 'survey-worker.html', 'designer.html', 'estimator-sign.html', 'price-view.html', 'bind.html']);
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !PUBLIC_HTML.has(path.basename(req.path))) {
     return res.redirect(308, req.path.slice(0, -5) + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
@@ -252,6 +252,9 @@ app.get('/material-match', requireAuth, (req, res) => {
 });
 app.get('/m/:token', (req, res) => {   // 免登入分享頁
   res.sendFile(path.join(__dirname, 'public', 'material-share.html'));
+});
+app.get('/bind/:code', (req, res) => {   // 客戶 LINE 綁定中轉頁（免登入）
+  res.sendFile(path.join(__dirname, 'public', 'bind.html'));
 });
 app.get('/contract', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'contract.html'));

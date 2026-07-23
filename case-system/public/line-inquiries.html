@@ -349,6 +349,24 @@
   </div>
 </div>
 
+<!-- 綁定客戶 Modal -->
+<div class="modal-overlay" id="bindClientModal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h3>🔗 綁定客戶（推送綁定連結）</h3>
+      <button class="modal-close" onclick="closeBindClient()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;line-height:1.6">搜尋並選一筆客戶檔，系統會把綁定連結推進這通 LINE 對話；客人點連結送出後，這個 LINE 帳號就會綁到該客戶檔（並自動合併先前自動建立的重複客戶）。</div>
+      <input id="bindClientSearch" type="text" placeholder="輸入 客戶名 / 電話 / 聯絡人" oninput="searchBindClients()" style="width:100%;padding:9px 11px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;box-sizing:border-box">
+      <div id="bindClientResults" style="margin-top:10px;max-height:340px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeBindClient()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 客服關懷記錄 Modal -->
 <div class="modal-overlay" id="careModal">
   <div class="modal" style="max-width:920px;width:96%">
@@ -1067,6 +1085,7 @@ async function openInquiry(id) {
   const statusBar = `
     <button class="btn btn-sm det-act ${convDone ? 'det-act-done' : 'det-act-primary'}" onclick="openConvert(${id})" title="${convDone ? '此詢問已轉為案件，可再次轉案' : '把這通詢問轉成案件（詢價／場勘）'}">${convDone ? '✅ 已轉案' : '📋 轉案'}</button>
     <button class="btn btn-sm det-act det-act-blue" onclick="openLinkCase(${id})" title="把這個 LINE 對話（含此群組的 LINE ID）綁到一個已存在的案件／客戶">🔗 案件關聯</button>
+    ${!data.is_group ? `<button class="btn btn-sm det-act det-act-blue" onclick="openBindClient(${id})" title="選一筆客戶檔，把 LINE 綁定連結推進這通對話，客人點了即完成綁定">🔗 綁定客戶</button>` : ''}
     ${(S !== 'invalid' && S !== 'hidden')
       ? `<button class="btn btn-sm det-act ${_repliedCleared ? 'det-act-done' : 'det-act-green'}" onclick="markReplied(${id})" title="已在 LINE 官方後台回覆過了？點這清掉待回覆紅燈">${_repliedCleared ? '✓ 已回覆' : '✓ 標記回覆'}</button>`
       : ''}
@@ -1700,6 +1719,50 @@ async function doLinkCase(caseId) {
   } else {
     const e = await r.json().catch(() => ({}));
     showToast(e.error || '關聯失敗', 'error');
+  }
+}
+
+// ── 綁定客戶：選客戶檔 → 推綁定連結進對話 ─────────────────────────
+let bindClientInquiryId = null, bindClientTimer = null;
+function openBindClient(id) {
+  bindClientInquiryId = id;
+  document.getElementById('bindClientSearch').value = '';
+  document.getElementById('bindClientResults').innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋客戶檔</div>';
+  document.getElementById('bindClientModal').classList.add('open');
+  setTimeout(() => document.getElementById('bindClientSearch').focus(), 50);
+}
+function closeBindClient() { document.getElementById('bindClientModal').classList.remove('open'); }
+function searchBindClients() {
+  clearTimeout(bindClientTimer);
+  bindClientTimer = setTimeout(async () => {
+    const q = document.getElementById('bindClientSearch').value.trim();
+    const box = document.getElementById('bindClientResults');
+    if (q.length < 1) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋客戶檔</div>'; return; }
+    const list = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []);
+    if (!list.length) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">找不到符合的客戶</div>'; return; }
+    box.innerHTML = list.map(c => `
+      <div onclick="doBindClient(${c.id})" style="padding:9px 11px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--gray-800)">${escHtml(c.name || '（未命名）')}</div>
+          <div style="font-size:11px;color:var(--gray-500)">${escHtml(c.contact || '')}${c.phone ? (c.contact ? ' · ' : '') + escHtml(c.phone) : ''}</div>
+        </div>
+        <span style="font-size:12px;color:#1d4ed8;white-space:nowrap">推送綁定連結 →</span>
+      </div>`).join('');
+  }, 250);
+}
+async function doBindClient(clientId) {
+  if (!bindClientInquiryId) return;
+  const r = await fetch(`/api/line-inquiries/${bindClientInquiryId}/send-bind-link`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId })
+  });
+  if (r.ok) {
+    const d = await r.json();
+    closeBindClient();
+    showToast(`已把綁定連結推給客人（${d.client_name || ''}），等客人點擊完成綁定`);
+    openInquiry(bindClientInquiryId);
+  } else {
+    const e = await r.json().catch(() => ({}));
+    showToast(e.error || '推送失敗', 'error');
   }
 }
 

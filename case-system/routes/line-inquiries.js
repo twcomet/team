@@ -3,6 +3,7 @@ const router  = express.Router();
 const db      = require('../db');
 const gdrive  = require('../lib/gdrive');
 const { requireAuth } = require('../middleware/auth');
+const { createBindToken, buildBindLink } = require('../lib/client-bind');
 
 // ── 列表（含分頁、狀態篩選、關鍵字搜尋）──────────────────────────
 router.get('/', requireAuth, (req, res) => {
@@ -412,6 +413,62 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
   // 送出後清掉 AI 草稿（已由真人處理）
   db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP, ai_draft=NULL, ai_draft_at=NULL, ai_needs_human=0, ai_needs_human_reason=NULL WHERE id=?`).run(inq.id);
   res.json({ ok: true });
+});
+
+// ── 綁定客戶：選一筆客戶檔，把綁定連結推進這通對話 ────────────────
+// 客人點連結送出綁定碼後，webhook 會把 line_user_id 綁到該客戶檔（並自動合併去重）
+router.post('/:id/send-bind-link', requireAuth, async (req, res) => {
+  const { client_id } = req.body || {};
+  if (!client_id) return res.status(400).json({ error: '請選擇要綁定的客戶' });
+
+  const inq = db.prepare(`SELECT * FROM line_inquiries WHERE id=?`).get(req.params.id);
+  if (!inq)               return res.status(404).json({ error: 'not found' });
+  if (inq.is_group)       return res.status(400).json({ error: '群組對話無法用此方式綁定客戶' });
+  if (!inq.line_user_id)  return res.status(400).json({ error: '此對話沒有可推送的 LINE ID' });
+
+  const client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(client_id);
+  if (!client)            return res.status(404).json({ error: '找不到客戶' });
+
+  // token 的建檔店別以客戶檔為準（跨店由 webhook 依實際 OA 判斷並標記）
+  const code = createBindToken(client.id, client.org_id || null, req.session.user.id);
+  if (!code)              return res.status(500).json({ error: '產生綁定碼失敗，請重試' });
+
+  const proto  = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const origin = `${proto}://${req.get('host')}`;
+  const { link } = buildBindLink(client, code, origin);
+
+  // 依對話所屬 OA 取 token（多分店）
+  let token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (inq.channel_id) {
+    const ch = db.prepare(`SELECT channel_token FROM line_channels WHERE id=?`).get(inq.channel_id);
+    if (ch && ch.channel_token) token = ch.channel_token;
+  }
+  if (!token) return res.status(503).json({ error: 'LINE token 未設定' });
+
+  // 先確認客人在此 OA 可被推播（同 reply：非好友/封鎖會回 200 但送不到）
+  try {
+    const prof = await fetch('https://api.line.me/v2/bot/profile/' + encodeURIComponent(inq.line_user_id), { headers: { Authorization: `Bearer ${token}` } });
+    if (prof.status === 404 || prof.status === 403)
+      return res.status(409).json({ error: '這位客人在此官方帳號查不到（可能沒加好友、已封鎖，或這通對話來自其他工具／群組），無法推送綁定連結。' });
+  } catch (e) { /* profile 查詢失敗不阻擋 */ }
+
+  const text = `${client.name} 您好 🙌\n請點下方連結完成 LINE 綁定，之後繪新會直接透過這裡傳送報價單、場勘與驗收等資料給您：\n${link}`;
+  const pushRes = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ to: inq.line_user_id, messages: [{ type: 'text', text }] })
+  });
+  if (!pushRes.ok) {
+    const err = await pushRes.text().catch(() => '');
+    console.error('[send-bind-link] FAIL', { inquiry: inq.id, to: inq.line_user_id, status: pushRes.status, err });
+    return res.status(502).json({ error: 'LINE 傳送失敗（' + pushRes.status + '），請確認客人所在的官方帳號與系統一致' });
+  }
+
+  db.prepare(`INSERT INTO line_inquiry_messages (inquiry_id, direction, msg_type, content, sent_by) VALUES (?, 'out', 'text', ?, ?)`)
+    .run(inq.id, text, req.session.user.id);
+  db.prepare(`UPDATE line_inquiries SET updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(inq.id);
+
+  res.json({ ok: true, client_name: client.name });
 });
 
 // ── 標記已回覆（清掉待回覆紅燈）─────────────────────────────

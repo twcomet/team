@@ -592,10 +592,67 @@ function renderProfileTab() {
       <div><div class="info-label">優惠條件</div><div class="info-val">${g(c.discount_terms)}</div></div>
       ${c.notes ? `<div style="grid-column:span 2"><div class="info-label">備註</div><div class="info-val" style="white-space:pre-wrap">${c.notes}</div></div>` : ''}
     </div>
+    ${renderBindSection(c)}
     <div style="margin-top:16px;text-align:right">
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('editClientBtn').click()">✏️ 編輯</button>
     </div>
   `;
+}
+
+// LINE 綁定區塊
+function renderBindSection(c) {
+  const bound = !!c.line_user_id;
+  const mismatch = bound && c.bind_org_mismatch;
+  const boundAt = c.bound_at ? c.bound_at.slice(0,10) : null;
+  return `
+    <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--gray-100)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="info-label" style="margin-bottom:4px">LINE 綁定</div>
+          ${bound
+            ? `<div style="font-weight:600;color:#06a54b">✅ 已綁定 LINE${c.line_channel_name ? `（${c.line_channel_name}）` : ''}</div>
+               ${boundAt ? `<div style="font-size:12px;color:var(--gray-400);margin-top:2px">綁定於 ${boundAt}</div>` : ''}`
+            : `<div style="color:var(--gray-400)">尚未綁定</div>`}
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="genBindLink()">🔗 ${bound ? '重新產生綁定連結' : '產生綁定連結'}</button>
+      </div>
+      ${mismatch
+        ? `<div style="margin-top:10px;padding:10px 12px;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;font-size:13px;color:#ad6800">
+             ⚠️ 客人實際使用的官方帳號與此客戶的建檔店別不同，請確認店別歸屬是否正確。
+           </div>`
+        : ''}
+      <div id="bindLinkBox" style="display:none;margin-top:12px"></div>
+    </div>`;
+}
+
+async function genBindLink() {
+  const box = document.getElementById('bindLinkBox');
+  box.style.display = '';
+  box.innerHTML = '<span style="color:var(--gray-400)">產生中…</span>';
+  const res = await fetch(`/api/clients/${clientId}/bind-link`, { method:'POST' });
+  if (!res.ok) { box.innerHTML = '<span style="color:#c00">產生失敗，請重試</span>'; return; }
+  const d = await res.json();
+  const viaLabel = d.via === 'deeplink'
+    ? `一鍵深連結（客人點了直接開 ${d.oa_name || 'LINE'} 對話、預填綁定碼）`
+    : `綁定頁連結${d.oa_name ? `（${d.oa_name}）` : ''}`;
+  box.innerHTML = `
+    <div style="padding:12px;background:var(--gray-50,#f7f8fa);border:1px solid var(--gray-100);border-radius:10px">
+      <div style="font-size:12px;color:var(--gray-400);margin-bottom:6px">${viaLabel}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="bindLinkInput" value="${d.link}" readonly
+          style="flex:1;padding:8px 10px;border:1px solid var(--gray-200,#e2e5ea);border-radius:8px;font-size:13px;background:#fff">
+        <button class="btn btn-primary btn-sm" onclick="copyBindLink()">複製</button>
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:8px">
+        把這個連結傳給客人；也可到 <b>LINE 詢問</b> 對話視窗直接推送給正在對話的客人。連結 30 天內有效。
+      </div>
+    </div>`;
+}
+
+async function copyBindLink() {
+  const inp = document.getElementById('bindLinkInput');
+  try { await navigator.clipboard.writeText(inp.value); showToast('已複製綁定連結', 'success'); }
+  catch(e) { inp.select(); document.execCommand('copy'); showToast('已複製', 'success'); }
 }
 
 function openEditModal() {

@@ -309,6 +309,10 @@ _addCol('clients',    'updated_at',        'DATETIME');
 _addCol('clients',    'contact_phone',     'TEXT');  // 聯絡人電話（市話/公司線）
 _addCol('clients',    'contact_mobile',    'TEXT');  // 聯絡人手機
 _addCol('clients',    'company_address',   'TEXT');  // 公司地址/送貨地址（與發票地址可不同）
+// 客戶 LINE 綁定（客服產連結→客人送碼→綁 line_user_id 到客戶檔）
+_addCol('clients',    'line_channel_id',   'INTEGER REFERENCES line_channels(id)');  // 綁定在哪個官方帳號（=店別歸屬）
+_addCol('clients',    'bound_at',          'DATETIME');                              // LINE 綁定完成時間
+_addCol('clients',    'bind_org_mismatch', 'INTEGER DEFAULT 0');                     // 1=客人實際用的 OA 與建檔店別不同，提醒客服確認歸屬
 _addCol('users',      'permissions',       'TEXT DEFAULT "{}"');
 _addCol('users',      'sort_order',        'INTEGER DEFAULT 0');
 _addCol('users',      'daily_cost',        'REAL');
@@ -1563,6 +1567,24 @@ db.exec(`
     active         INTEGER DEFAULT 1,
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+// OA basic id（@開頭，非機密）；有設就走一鍵深連結，沒設就退中轉頁
+_addCol('line_channels', 'basic_id', 'TEXT');
+
+// 客戶 LINE 綁定 token：客服在客戶詳情頁產生，客人送碼到官方帳號完成綁定
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_bind_tokens (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    code               TEXT UNIQUE NOT NULL,
+    client_id          INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    org_id             INTEGER REFERENCES orgs(id),          -- 建檔店別（發碼時）
+    created_by         INTEGER REFERENCES users(id),
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at         DATETIME,
+    used_at            DATETIME,                              -- 已使用（綁定完成）
+    bound_line_user_id TEXT,
+    bound_channel_id   INTEGER REFERENCES line_channels(id)   -- 客人實際送碼用的 OA
   );
 `);
 _addCol('line_inquiries', 'org_id',             'INTEGER REFERENCES orgs(id)');

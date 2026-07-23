@@ -2,6 +2,7 @@ const express = require('express');
 const multer  = require('multer');
 const db = require('../db');
 const { requireAuth, orgFilterSQL } = require('../middleware/auth');
+const { createBindToken, buildBindLink, channelForClient, bindDeepLink } = require('../lib/client-bind');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -189,11 +190,13 @@ router.delete('/:id', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, (req, res) => {
   const c = db.prepare(`
     SELECT cl.*, o.name AS org_name, cc.name AS category_name, cc.discount_rate AS category_discount,
+      lc.channel_name AS line_channel_name,
       (SELECT GROUP_CONCAT(t.id||'|'||t.name||'|'||t.color)
         FROM client_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.client_id=cl.id) AS tags_csv
     FROM clients cl
     LEFT JOIN orgs o ON cl.org_id = o.id
     LEFT JOIN client_categories cc ON cc.id = cl.category_id
+    LEFT JOIN line_channels lc ON lc.id = cl.line_channel_id
     WHERE cl.id = ?
   `).get(req.params.id);
   if (!c) return res.status(404).json({ error: 'not found' });
@@ -229,6 +232,42 @@ router.get('/:id/cases', requireAuth, (req, res) => {
     FROM cases c WHERE c.client_id = ? ORDER BY c.created_at DESC
   `).all(req.params.id);
   res.json(cases);
+});
+
+// ── LINE 綁定：產生綁定連結（客服在客戶詳情頁按）─────────────────
+// 產一組新碼、作廢該客戶其他未使用的舊碼；回傳可分享連結。
+// 有 basic_id 的 OA → 回一鍵深連結；否則回中轉頁 /bind/:code。
+router.post('/:id/bind-link', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(req.params.id);
+  if (!client) return res.status(404).json({ error: '找不到客戶' });
+
+  const code = createBindToken(client.id, client.org_id || me.org_id || null, me.id);
+  if (!code) return res.status(500).json({ error: '產生綁定碼失敗，請重試' });
+
+  const proto  = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const origin = `${proto}://${req.get('host')}`;
+  const info = buildBindLink(client, code, origin);
+  res.json({ code, ...info, expires_days: 30 });   // link / deep_link / page_url / via / oa_name
+});
+
+// ── LINE 綁定：中轉頁用（免登入，讀綁定碼狀態＋深連結）───────────
+router.get('/bind-info/:code', (req, res) => {
+  const token = db.prepare(`SELECT * FROM client_bind_tokens WHERE code=?`).get(req.params.code);
+  if (!token)          return res.json({ ok: false, reason: 'notfound' });
+  if (token.used_at)   return res.json({ ok: false, reason: 'used' });
+  if (token.expires_at && db.prepare(`SELECT datetime(?) < datetime('now') AS x`).get(token.expires_at).x)
+    return res.json({ ok: false, reason: 'expired' });
+  const client = db.prepare(`SELECT id, name, org_id, line_channel_id FROM clients WHERE id=?`).get(token.client_id);
+  if (!client)         return res.json({ ok: false, reason: 'notfound' });
+  const ch = channelForClient(client);
+  res.json({
+    ok: true,
+    code: token.code,
+    client_name: client.name,
+    oa_name: ch ? ch.channel_name : null,
+    deep_link: ch ? bindDeepLink(ch.basic_id, token.code) : null,
+  });
 });
 
 module.exports = router;
