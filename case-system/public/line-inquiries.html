@@ -349,6 +349,24 @@
   </div>
 </div>
 
+<!-- 綁定客戶 Modal -->
+<div class="modal-overlay" id="bindClientModal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h3>🔗 綁定客戶（推送綁定連結）</h3>
+      <button class="modal-close" onclick="closeBindClient()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;line-height:1.6">搜尋並選一筆客戶檔，系統會把綁定連結推進這通 LINE 對話；客人點連結送出後，這個 LINE 帳號就會綁到該客戶檔（並自動合併先前自動建立的重複客戶）。</div>
+      <input id="bindClientSearch" type="text" placeholder="輸入 客戶名 / 電話 / 聯絡人" oninput="searchBindClients()" style="width:100%;padding:9px 11px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;box-sizing:border-box">
+      <div id="bindClientResults" style="margin-top:10px;max-height:340px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeBindClient()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 客服關懷記錄 Modal -->
 <div class="modal-overlay" id="careModal">
   <div class="modal" style="max-width:920px;width:96%">
@@ -1067,6 +1085,7 @@ async function openInquiry(id) {
   const statusBar = `
     <button class="btn btn-sm det-act ${convDone ? 'det-act-done' : 'det-act-primary'}" onclick="openConvert(${id})" title="${convDone ? '此詢問已轉為案件，可再次轉案' : '把這通詢問轉成案件（詢價／場勘）'}">${convDone ? '✅ 已轉案' : '📋 轉案'}</button>
     <button class="btn btn-sm det-act det-act-blue" onclick="openLinkCase(${id})" title="把這個 LINE 對話（含此群組的 LINE ID）綁到一個已存在的案件／客戶">🔗 案件關聯</button>
+    ${!data.is_group ? `<button class="btn btn-sm det-act det-act-blue" onclick="openBindClient(${id})" title="選一筆客戶檔，把 LINE 綁定連結推進這通對話，客人點了即完成綁定">🔗 綁定客戶</button>` : ''}
     ${(S !== 'invalid' && S !== 'hidden')
       ? `<button class="btn btn-sm det-act ${_repliedCleared ? 'det-act-done' : 'det-act-green'}" onclick="markReplied(${id})" title="已在 LINE 官方後台回覆過了？點這清掉待回覆紅燈">${_repliedCleared ? '✓ 已回覆' : '✓ 標記回覆'}</button>`
       : ''}
@@ -1114,6 +1133,28 @@ async function openInquiry(id) {
     </div>
 
     <div class="det-client" id="clientPanel" style="display:none">
+      ${!data.is_group ? `
+      <div style="margin-bottom:12px;padding:10px 12px;background:#f8fafc;border:1px solid var(--gray-200);border-radius:10px">
+        <div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px">客戶檔案關聯
+          ${data.client_line_user_id
+            ? `<span style="color:#06a54b;font-weight:700">✅ 已關聯：${escHtml(data.client_name||'')}</span>${data.client_bind_mismatch?` <span style="color:#ad6800">⚠️ 店別待確認</span>`:''}`
+            : (data.client_name
+                ? `<span style="color:var(--gray-500)">目前暫掛：${escHtml(data.client_name)}（可改關聯到正式客戶檔）</span>`
+                : `<span style="color:var(--gray-400)">尚未關聯客戶檔</span>`)}
+        </div>
+        <div style="font-size:11px;color:var(--gray-500);margin-bottom:6px">舊客戶 → 搜尋關聯；新客戶 → 輸入名稱建檔（系統會先幫你比對是否重複）。</div>
+        <div style="position:relative">
+          <input id="cf-assoc-search" placeholder="🔎 搜尋既有客戶（名稱/電話/聯絡人）關聯" oninput="searchAssocClients(${id})"
+            style="width:100%;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;box-sizing:border-box">
+          <div id="cf-assoc-results" style="margin-top:6px"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="cf-new-name" placeholder="➕ 查不到？輸入客戶名稱新增建檔"
+            style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;box-sizing:border-box">
+          <button class="btn btn-sm btn-primary" style="white-space:nowrap" onclick="createClientForInq(${id}, false)">新增建檔</button>
+        </div>
+        <div id="cf-dup-warn" style="margin-top:6px"></div>
+      </div>` : ''}
       <div class="client-grid">
         <div class="cf"><label>官方 LINE 顯示名稱（手動輸入）</label><input id="cf-name" value="${escHtml(data.display_name||'')}" placeholder="LINE 顯示名稱"></div>
         <div class="cf"><label>LINE 客戶顯示名稱</label><input value="${escHtml(data.line_original_name||data.display_name||'')}" readonly style="background:var(--gray-50);color:var(--gray-500);cursor:default"></div>
@@ -1701,6 +1742,115 @@ async function doLinkCase(caseId) {
     const e = await r.json().catch(() => ({}));
     showToast(e.error || '關聯失敗', 'error');
   }
+}
+
+// ── 綁定客戶：選客戶檔 → 推綁定連結進對話 ─────────────────────────
+let bindClientInquiryId = null, bindClientTimer = null;
+function openBindClient(id) {
+  bindClientInquiryId = id;
+  document.getElementById('bindClientSearch').value = '';
+  document.getElementById('bindClientResults').innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋客戶檔</div>';
+  document.getElementById('bindClientModal').classList.add('open');
+  setTimeout(() => document.getElementById('bindClientSearch').focus(), 50);
+}
+function closeBindClient() { document.getElementById('bindClientModal').classList.remove('open'); }
+function searchBindClients() {
+  clearTimeout(bindClientTimer);
+  bindClientTimer = setTimeout(async () => {
+    const q = document.getElementById('bindClientSearch').value.trim();
+    const box = document.getElementById('bindClientResults');
+    if (q.length < 1) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">輸入關鍵字搜尋客戶檔</div>'; return; }
+    const list = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []);
+    if (!list.length) { box.innerHTML = '<div style="font-size:13px;color:#9ca3af;padding:12px;text-align:center">找不到符合的客戶</div>'; return; }
+    box.innerHTML = list.map(c => `
+      <div onclick="doBindClient(${c.id})" style="padding:9px 11px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--gray-800)">${escHtml(c.name || '（未命名）')}</div>
+          <div style="font-size:11px;color:var(--gray-500)">${escHtml(c.contact || '')}${c.phone ? (c.contact ? ' · ' : '') + escHtml(c.phone) : ''}</div>
+        </div>
+        <span style="font-size:12px;color:#1d4ed8;white-space:nowrap">推送綁定連結 →</span>
+      </div>`).join('');
+  }, 250);
+}
+async function doBindClient(clientId) {
+  if (!bindClientInquiryId) return;
+  const r = await fetch(`/api/line-inquiries/${bindClientInquiryId}/send-bind-link`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId })
+  });
+  if (r.ok) {
+    const d = await r.json();
+    closeBindClient();
+    showToast(`已把綁定連結推給客人（${d.client_name || ''}），等客人點擊完成綁定`);
+    openInquiry(bindClientInquiryId);
+  } else {
+    const e = await r.json().catch(() => ({}));
+    showToast(e.error || '推送失敗', 'error');
+  }
+}
+
+// ── 客戶資料面板：關聯既有客戶 / 新增建檔（含重複偵測）─────────────
+let assocSearchTimer = null;
+function searchAssocClients(inqId) {
+  clearTimeout(assocSearchTimer);
+  assocSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('cf-assoc-search').value.trim();
+    const box = document.getElementById('cf-assoc-results');
+    if (q.length < 1) { box.innerHTML = ''; return; }
+    const list = await fetch(`/api/clients/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []);
+    if (!list.length) { box.innerHTML = `<div style="font-size:12px;color:#9ca3af;padding:4px 2px">找不到，可用下方「新增建檔」</div>`; return; }
+    box.innerHTML = list.map(c => `
+      <div onclick="doLinkClient(${inqId}, ${c.id})" style="padding:7px 9px;border:1px solid var(--gray-200);border-radius:7px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+        <div style="min-width:0"><span style="font-size:13px;font-weight:600;color:var(--gray-800)">${escHtml(c.name||'')}</span>
+          <span style="font-size:11px;color:var(--gray-500)">${c.contact?' · '+escHtml(c.contact):''}${c.phone?' · '+escHtml(c.phone):''}</span></div>
+        <span style="font-size:12px;color:#1d4ed8;white-space:nowrap">關聯 →</span>
+      </div>`).join('');
+  }, 250);
+}
+async function doLinkClient(inqId, clientId) {
+  const r = await fetch(`/api/line-inquiries/${inqId}/link-client`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId })
+  });
+  if (r.ok) {
+    const d = await r.json();
+    showToast(`已關聯到客戶「${d.client_name || ''}」${d.mismatch ? '（⚠️店別待確認）' : ''}`);
+    loadStats(); loadList(); openInquiry(inqId);
+  } else {
+    const e = await r.json().catch(() => ({}));
+    showToast(e.error || '關聯失敗', 'error');
+  }
+}
+async function createClientForInq(inqId, force) {
+  const name = (document.getElementById('cf-new-name').value || '').trim();
+  if (!name) { showToast('請輸入客戶名稱', 'error'); return; }
+  const phone = (document.getElementById('cf-phone')?.value || '').trim() || null;
+  const r = await fetch(`/api/line-inquiries/${inqId}/create-client`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, phone, force: !!force })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.ok) {
+    showToast(`已新增並關聯客戶「${d.client_name || name}」`);
+    loadStats(); loadList(); openInquiry(inqId);
+    return;
+  }
+  if (r.status === 409 && d.error === 'duplicate') {
+    // 疑似重複：列出候選，讓客服選「改關聯」或「仍要新增」
+    const warn = document.getElementById('cf-dup-warn');
+    warn.innerHTML = `
+      <div style="padding:8px 10px;background:#fff7e6;border:1px solid #ffd591;border-radius:8px">
+        <div style="font-size:12px;color:#ad6800;font-weight:700;margin-bottom:5px">⚠️ 資料庫已有相似客戶，是否為同一位？</div>
+        ${d.duplicates.map(c => `
+          <div onclick="doLinkClient(${inqId}, ${c.id})" style="padding:6px 8px;border:1px solid #ffe7ba;border-radius:6px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff" onmouseover="this.style.background='#fffbf0'" onmouseout="this.style.background='#fff'">
+            <div style="min-width:0"><span style="font-size:13px;font-weight:600">${escHtml(c.name||'')}</span>
+              <span style="font-size:11px;color:var(--gray-500)">${c.contact?' · '+escHtml(c.contact):''}${c.phone?' · '+escHtml(c.phone):''}${c.line_user_id?' · 已綁LINE':''}</span></div>
+            <span style="font-size:12px;color:#c2410c;white-space:nowrap">就是這位 → 關聯</span>
+          </div>`).join('')}
+        <div style="margin-top:6px;text-align:right">
+          <button class="btn btn-sm" style="background:#fff;border:1px solid #ffd591;color:#ad6800" onclick="createClientForInq(${inqId}, true)">都不是，仍要新增</button>
+        </div>
+      </div>`;
+    return;
+  }
+  showToast(d.error || '新增失敗', 'error');
 }
 
 // ── 工具 ──────────────────────────────────────────────────

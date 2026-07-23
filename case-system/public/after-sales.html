@@ -25,7 +25,55 @@
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
-    <nav class="sidebar-nav"></nav>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
     <div class="sidebar-user"><div class="user-name" id="sidebarUserName"></div><div class="user-role" id="sidebarUserRole"></div><a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a></div>
   </aside>
   <div class="main-content">

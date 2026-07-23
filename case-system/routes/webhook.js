@@ -2,6 +2,7 @@ const express = require('express');
 const crypto  = require('crypto');
 const db      = require('../db');
 const cloudinary = require('cloudinary').v2;
+const { applyBind } = require('../lib/client-bind');
 const router  = express.Router();
 
 cloudinary.config({
@@ -163,6 +164,47 @@ router.post('/line', express.raw({ type: '*/*' }), (req, res) => {
   }
 });
 
+// 客戶送出綁定碼（HXBxxxxxx）→ 把 line_user_id 綁到客服建的客戶檔
+// 含：店別歸屬（以實際送碼的 OA 為準）＋去重合併（客人先前自動建的客戶檔）
+// 回傳 true = 這是綁定碼訊息（已處理／已回覆），呼叫端不要再存成詢問
+async function handleClientBind(text, userId, channel, replyToken) {
+  const m = (text || '').match(/HXB[0-9A-Za-z]{6}/);
+  if (!m) return false;
+  const code  = m[0];
+  const token = db.prepare(`SELECT * FROM client_bind_tokens WHERE code=?`).get(code);
+
+  if (!token) {
+    await reply(replyToken, `找不到這組綁定碼，可能已失效。請向繪新客服索取新的綁定連結。`, channel.channel_token);
+    return true;
+  }
+  if (token.used_at) {
+    await reply(replyToken, `這組綁定碼已經使用過囉。若需重新綁定，請向客服索取新的綁定連結。`, channel.channel_token);
+    return true;
+  }
+  if (token.expires_at && db.prepare(`SELECT datetime(?) < datetime('now') AS x`).get(token.expires_at).x) {
+    await reply(replyToken, `這組綁定碼已過期，請向繪新客服索取新的綁定連結。`, channel.channel_token);
+    return true;
+  }
+
+  const target = db.prepare(`SELECT * FROM clients WHERE id=?`).get(token.client_id);
+  if (!target) {
+    await reply(replyToken, `綁定失敗：找不到對應的客戶資料，請聯繫客服。`, channel.channel_token);
+    return true;
+  }
+
+  // 合併去重＋寫入 line_user_id/店別歸屬/bound_at；跨店（建檔店 vs 實際 OA）標記提醒客服
+  const bindRes = applyBind(target.id, userId, channel, token.org_id) || { mismatch: 0 };
+
+  db.prepare(`UPDATE client_bind_tokens SET used_at=CURRENT_TIMESTAMP, bound_line_user_id=?, bound_channel_id=? WHERE id=?`)
+    .run(userId, channel.id || null, token.id);
+
+  console.log(`[CLIENT-BIND] ✅ client=${target.id}(${target.name}) line=${userId} ch=${channel.channel_name || channel.id || 'env'} mismatch=${bindRes.mismatch}`);
+  await reply(replyToken,
+    `✅ 綁定成功！\n${target.name} 您好，之後我們會直接透過這裡傳送報價單、場勘與驗收等資料給您。`,
+    channel.channel_token);
+  return true;
+}
+
 // 客戶傳訊 → 建立／追加 LINE 詢問單（收所有訊息類型與 1對1／群組，一律不丟）
 async function handleClientMessage(event, channel) {
   const srcType = event.source?.type;            // 'user' | 'group' | 'room'
@@ -173,6 +215,13 @@ async function handleClientMessage(event, channel) {
   const msg = event.message || {};
   console.log(`[LINE-MSG] 進入處理 srcType=${srcType} conv=${convId||'-'} sender=${userId||'-'} type=${msg.type} ch=${channel.channel_name||channel.id||'env'}`);
   if (!threadKey) { console.warn(`[LINE-MSG] 丟棄：無 threadKey（群組沒 groupId？）srcType=${srcType}`); return; }
+
+  // 綁定碼攔截：1對1文字命中綁定碼 → 完成綁定並結束，不存成詢問
+  if (!isGroup && userId && msg.type === 'text') {
+    try {
+      if (await handleClientBind(msg.text, userId, channel, event.replyToken)) return;
+    } catch (e) { console.error('[CLIENT-BIND] 例外', e.message); }
+  }
 
   // 依訊息類型決定：儲存型別 / 內容 / 清單預覽字
   let msgType = 'text', content = null, preview = '';
