@@ -668,8 +668,8 @@ router.put('/:quoteId/items/:itemId', requireAuth, (req, res) => {
 // 刪除整張報價單
 router.delete('/:quoteId', requireAuth, (req, res) => {
   const me = req.session.user;
-  const canDelAny = me.role === 'owner' || me.manage_users;   // 老闆/主管：可刪任何未回簽
-  const canDelDraft = canDelAny || me.can_delete || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);  // 有「可刪除資料」權限或客服/業務：可刪草稿
+  const canDelAny = me.role === 'owner' || me.manage_users || me.can_delete;   // 老闆/主管/有「可刪除資料」權限：可刪任何未回簽
+  const canDelDraft = canDelAny || ['vp','hq_cs','hq_cs_manager','hq_sales'].includes(me.role);  // 再加客服/業務：可刪草稿
   if (!canDelDraft) return res.status(403).json({ error: '無刪除報價單權限' });
   const qs = db.prepare(`SELECT qs.id, qs.status, c.status as case_status, c.case_number
     FROM quote_sheets qs JOIN cases c ON c.id=qs.case_id
