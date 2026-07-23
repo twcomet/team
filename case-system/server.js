@@ -80,10 +80,14 @@ app.get('/gdrive-connect', requireAuth, requireOwner, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'gdrive-connect.html'));
 });
 
-// 模板設定（統一管理各類範本）：老闆／主管／客服主管／客服
+// 模板設定（統一管理各類範本）：老闆／主管永遠可；否則看個人「模板設定」權限
+// (page_template_settings)，未設定則預設開放客服主管／客服（讓自訂角色也能被授權）
 app.get('/template-settings', requireAuth, requireContract, (req, res) => {
   const u = req.session.user;
-  const ok = u.role === 'owner' || u.manage_users || ['hq_cs_manager', 'hq_cs'].includes(u.role);
+  const p = u.permissions || {};
+  const ok = u.role === 'owner' || !!u.manage_users
+    || (p.page_template_settings !== undefined ? p.page_template_settings === true
+        : ['hq_cs_manager', 'hq_cs'].includes(u.role));
   if (!ok) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'public', 'template-settings.html'));
 });

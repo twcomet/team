@@ -145,7 +145,9 @@ async function loadUser() {
   (function() {
     const nav = document.querySelector('.sidebar-nav');
     if (!nav || nav.querySelector('[data-page="template-settings"]')) return;
-    const can = currentUser.role === 'owner' || mu || ['hq_cs_manager','hq_cs'].includes(currentUser.role);
+    const can = currentUser.role === 'owner' || mu
+      || (p.page_template_settings !== undefined ? p.page_template_settings === true
+          : ['hq_cs_manager','hq_cs'].includes(currentUser.role));
     if (!can) return;
     const a = document.createElement('a');
     a.className = 'nav-item'; a.dataset.page = 'template-settings'; a.href = '/template-settings';
