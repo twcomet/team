@@ -64,7 +64,7 @@
 <div class="lb" id="lb" onclick="this.classList.remove('on')"><img id="lbImg" src=""></div>
 <script>
 const token = (location.pathname.match(/\/accept\/([a-f0-9]+)/i)||[])[1];
-let DATA=null, TPLS=[], confirmState={}, saveTimer=null;
+let DATA=null, TPLS=[], PRECHK=[], confirmState={}, saveTimer=null;
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CONFIRMS = [
   { k:'scope',  t:'施工範圍、花色與材質與報價相符' },
@@ -78,7 +78,9 @@ async function load(){
   try{ DATA = await fetch('/api/acceptance/sign/'+token).then(r=>r.ok?r.json():null); }catch(e){}
   if(!DATA){ document.getElementById('app').innerHTML='<p style="padding:40px;text-align:center;color:#b91c1c">找不到驗收單</p>'; return; }
   try{ TPLS = await fetch('/api/acceptance/notice-templates').then(r=>r.ok?r.json():[]); }catch(e){ TPLS=[]; }
+  try{ PRECHK = await fetch('/api/acceptance/notice-templates?block=precheck').then(r=>r.ok?r.json():[]); }catch(e){ PRECHK=[]; }
   DATA.items = DATA.items || [];
+  DATA.precheck = DATA.precheck || [];
   render();
 }
 function render(){
@@ -94,6 +96,7 @@ function render(){
         <div><div class="b">${esc(q.org_name)}（乙方）</div><div class="r">統編 ${esc(q.org_tax_id)}<br>${esc(q.org_phone)}</div></div>
       </div>
     </div>
+    ${precheckHtml(signed)}
     <div class="sec"><div class="sec-title">施工項目（${items.length}）</div>
       ${signed
         ? (q.ref_quote ? '<div style="font-size:14px;color:#065f46;font-weight:600">✔ 本次驗收內容與回簽報價單一致（參照回簽報價單）</div>' : '')
@@ -103,14 +106,13 @@ function render(){
       <div id="itemBox" style="${(!signed && q.ref_quote)?'display:none':''}">${items.map((it,i)=>itemRow(it,i,signed)).join('')||(signed?(q.ref_quote?'':'<div style="color:#9ca3af;font-size:13px">（無明細）</div>'):'')}</div>
       ${signed?'':`<button class="addbtn" id="addItemBtn" onclick="addItem()" style="${q.ref_quote?'display:none':''}">＋ 新增施工項目</button>`}
     </div>`;
-  // 客戶須知
+  // 客戶須知／完工保養（品項於「施工前檢查」選取時自動帶入，可再編輯）
   if(signed){
-    if((q.notice_content||'').trim()) h+=`<div class="sec"><div class="sec-title">客戶須知</div><div class="notice-ro">${esc(q.notice_content)}</div></div>`;
+    if((q.notice_content||'').trim()) h+=`<div class="sec"><div class="sec-title">客戶須知／完工保養</div><div class="notice-ro">${esc(q.notice_content)}</div></div>`;
   } else {
-    const cats=[...new Set(TPLS.map(t=>t.category||t.name).filter(Boolean))];
-    h+=`<div class="sec"><div class="sec-title">客戶須知（勾選貼什麼→自動帶須知，可再編輯）</div>
-      <div class="ntpicks">${cats.map(c=>`<span class="ntpick" data-cat="${esc(c)}" onclick="toggleTpl(this,'${esc(c).replace(/'/g,"&#39;")}')">${esc(c)}</span>`).join('')||'<span style="color:#9ca3af;font-size:12px">（尚無須知範本，可到報價設定→貼膜須知模板建立）</span>'}</div>
-      <textarea id="mNotice" rows="4" oninput="DATA.notice_content=this.value;scheduleSave()" placeholder="勾選上方類別自動帶入，或手動輸入…">${esc(q.notice_content||'')}</textarea>
+    h+=`<div class="sec"><div class="sec-title">客戶須知／完工保養</div>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">於上方「施工前檢查」選品項時自動帶入，也可手動增修。</div>
+      <textarea id="mNotice" rows="4" oninput="DATA.notice_content=this.value;scheduleSave()" placeholder="選品項自動帶入，或手動輸入完工保養須知…">${esc(q.notice_content||'')}</textarea>
     </div>`;
   }
   if(signed){
@@ -132,7 +134,42 @@ function render(){
     </div>`;
   }
   document.getElementById('app').innerHTML=h;
-  if(!signed){ setupCanvas(); markActiveTpls(); }
+  if(!signed){ setupCanvas(); markActiveCats(); }
+}
+// 施工前檢查區塊（品項→帶出檢查清單＋保養須知）
+function precheckHtml(signed){
+  const pc=DATA.precheck||[];
+  if(signed){
+    if(!pc.length) return '';
+    return `<div class="sec"><div class="sec-title">施工前檢查</div>
+      ${pc.map(p=>`<div class="item"><span class="ckro ${p.checked?'on':'off'}">${p.checked?'✓':''}</span><span class="nm">${esc(p.name)}</span></div>`).join('')}</div>`;
+  }
+  const cats=[...new Set([...PRECHK,...TPLS].map(t=>t.category||t.name).filter(Boolean))];
+  return `<div class="sec"><div class="sec-title">施工前檢查（選品項→自動帶出檢查項目與保養須知）</div>
+    <div class="ntpicks">${cats.map(c=>`<span class="ntpick" data-cat="${esc(c)}" onclick="toggleCat('${esc(c).replace(/'/g,"&#39;")}')">${esc(c)}</span>`).join('')||'<span style="color:#9ca3af;font-size:12px">（尚無品項範本，可到報價設定→範本庫建立「(e) 施工前檢查項目」與「(b) 貼膜前須知」）</span>'}</div>
+    <div id="pcBox">${pc.map((p,i)=>precheckRow(p,i)).join('')||'<div style="color:#9ca3af;font-size:13px">（選上方品項自動帶入檢查項目，或手動新增）</div>'}</div>
+    <button class="addbtn" onclick="addPrecheck()">＋ 新增檢查項目</button>
+  </div>`;
+}
+function precheckRow(p,i){
+  return `<div class="item">
+    <input type="checkbox" class="ck" ${p.checked?'checked':''} onchange="DATA.precheck[${i}].checked=this.checked;scheduleSave()">
+    <span class="nm"><input class="tx" value="${esc(p.name)}" placeholder="檢查項目" onchange="DATA.precheck[${i}].name=this.value;scheduleSave()"></span>
+  </div>`;
+}
+function addPrecheck(){ DATA.precheck.push({name:'',checked:false}); render(); scheduleSave(); }
+// 某品項的施工前檢查項目（範本內容一行一項）
+function catItems(cat){
+  const out=[];
+  PRECHK.filter(t=>(t.category||t.name)===cat).forEach(t=>(t.content||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).forEach(l=>{ if(out.indexOf(l)<0) out.push(l); }));
+  return out;
+}
+// 某品項的客戶須知／保養內容（可多筆範本）
+function catNotice(cat){ return TPLS.filter(t=>(t.category||t.name)===cat).map(t=>(t.content||'').trim()).filter(Boolean); }
+function catActive(cat){
+  const names=new Set((DATA.precheck||[]).map(p=>p.name));
+  if(catItems(cat).some(n=>names.has(n))) return true;
+  const cur=(DATA.notice_content||''); return catNotice(cat).some(b=>b && cur.indexOf(b)>=0);
 }
 function itemRow(it,i,signed){
   if(signed) return `<div class="item"><span class="ckro ${it.checked?'on':'off'}">${it.checked?'✓':''}</span><span class="nm">${esc(it.name)}</span>${it.photo?`<img src="${esc(it.photo)}" onclick="openLb('${esc(it.photo)}')">`:''}</div>`;
@@ -149,25 +186,30 @@ function upItem(i){
     try{ const j=await fetch('/api/storage/upload',{method:'POST',body:fd}).then(r=>r.json()); if(j.url){ DATA.items[i].photo=j.url; render(); saveNow(); } else alert('上傳失敗'); }catch(e){ alert('上傳失敗'); } };
   inp.click();
 }
-// 客戶須知範本：勾選類別→把該類別所有範本內容併進須知（去重）
-function toggleTpl(el,cat){
-  el.classList.toggle('on');
-  const on=el.classList.contains('on');
-  const ta=document.getElementById('mNotice');
-  const blocks=TPLS.filter(t=>(t.category||t.name)===cat).map(t=>(t.content||'').trim()).filter(Boolean);
-  let cur=(ta.value||'').trim();
+// 選品項：一次帶出（或移除）該品項的「施工前檢查項目」＋「客戶須知／保養」
+function toggleCat(cat){
+  const on=!catActive(cat);
+  const items=catItems(cat);
+  DATA.precheck=DATA.precheck||[];
+  if(on){
+    const have=new Set(DATA.precheck.map(p=>p.name));
+    items.forEach(n=>{ if(!have.has(n)) DATA.precheck.push({name:n,checked:false}); });
+  }else{
+    const rm=new Set(items);
+    DATA.precheck=DATA.precheck.filter(p=>!rm.has(p.name));
+  }
+  const blocks=catNotice(cat);
+  let cur=(DATA.notice_content||'').trim();
   blocks.forEach(b=>{
     if(on){ if(cur.indexOf(b)<0) cur=(cur?cur+'\n':'')+b; }
-    else { cur=cur.split('\n').filter(l=>blocks.indexOf(l.trim())<0 && !b.split('\n').includes(l.trim())).join('\n'); }
+    else { cur=cur.split('\n').filter(l=>!b.split('\n').includes(l.trim())).join('\n'); }
   });
-  ta.value=cur; DATA.notice_content=cur; scheduleSave();
+  DATA.notice_content=cur;
+  render(); scheduleSave();
 }
-function markActiveTpls(){
-  const cur=(DATA.notice_content||'');
-  document.querySelectorAll('.ntpick').forEach(el=>{
-    const cat=el.dataset.cat;
-    const any=TPLS.filter(t=>(t.category||t.name)===cat).some(t=>(t.content||'').trim() && cur.indexOf((t.content||'').trim())>=0);
-    el.classList.toggle('on',any);
+function markActiveCats(){
+  document.querySelectorAll('.ntpick[data-cat]').forEach(el=>{
+    el.classList.toggle('on', catActive(el.dataset.cat));
   });
 }
 function toggleRef(){
@@ -179,7 +221,7 @@ function onConfirm(k,v){ confirmState[k]=v; document.getElementById('cf-'+k).cla
 function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,900); const s=document.getElementById('saveHint'); if(s)s.textContent='編輯中…'; }
 async function saveNow(){
   if(DATA.status==='signed') return;
-  try{ await fetch('/api/acceptance/sign/'+token,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:DATA.items,notice_content:DATA.notice_content||'',ref_quote:DATA.ref_quote?1:0})});
+  try{ await fetch('/api/acceptance/sign/'+token,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:DATA.items,notice_content:DATA.notice_content||'',precheck:DATA.precheck||[],ref_quote:DATA.ref_quote?1:0})});
     const s=document.getElementById('saveHint'); if(s)s.textContent='✓ 已暫存';
   }catch(e){}
 }
@@ -201,7 +243,7 @@ async function submit(){
   if(!c.classList.contains('has')){ alert('請先在框內簽名'); return; }
   const go=document.getElementById('go'); go.disabled=true; go.textContent='處理中…';
   try{
-    const r=await fetch('/api/acceptance/sign/'+token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:c.toDataURL('image/png'),confirm:confirmState,items:DATA.items,notice_content:DATA.notice_content||'',ref_quote:DATA.ref_quote?1:0})});
+    const r=await fetch('/api/acceptance/sign/'+token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:c.toDataURL('image/png'),confirm:confirmState,items:DATA.items,notice_content:DATA.notice_content||'',precheck:DATA.precheck||[],ref_quote:DATA.ref_quote?1:0})});
     if(r.ok){ DATA=await fetch('/api/acceptance/sign/'+token).then(x=>x.json()); render(); }
     else { const e=await r.json().catch(()=>({})); alert(e.error||'送出失敗'); go.disabled=false; go.textContent='確認驗收'; }
   }catch(e){ alert('網路錯誤，請重試'); go.disabled=false; go.textContent='確認驗收'; }

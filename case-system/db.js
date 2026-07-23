@@ -3143,6 +3143,7 @@ db.exec(`
 `);
 _addCol('acceptance_forms', 'dispatch_id', 'INTEGER');
 _addCol('acceptance_forms', 'ref_quote', 'INTEGER DEFAULT 0'); // 1=驗收內容參照回簽報價單(不逐項列)
+_addCol('acceptance_forms', 'precheck_json', "TEXT DEFAULT '[]'"); // 施工前檢查清單：[{name,checked}]（師傅選品項自動帶出、逐項打勾）
 
 // 折扣規則（客戶分類 × 案量門檻）
 db.exec(`
