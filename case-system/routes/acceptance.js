@@ -130,6 +130,12 @@ router.post('/sign/:token', (req, res) => {
       ref_quote=COALESCE(?, ref_quote), updated_at=CURRENT_TIMESTAMP
       WHERE share_token=?`)
     .run(signature, JSON.stringify(confirm || {}), staff_id || null, itemsJson, notice_content ?? null, (ref_quote == null ? null : (ref_quote ? 1 : 0)), req.params.token);
+  // 背景：完工照歸檔到案件雲端資料夾（不阻塞客戶簽署回應）
+  try {
+    const full = db.prepare(`SELECT case_id, items_json FROM acceptance_forms WHERE share_token=?`).get(req.params.token);
+    let its = []; try { its = JSON.parse(full.items_json || '[]'); } catch (e) {}
+    setImmediate(() => archivePhotos(full.case_id, its));
+  } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -164,6 +170,30 @@ router.post('/:id/unlock', requireAuth, (req, res) => {
     .run(me.id, req.params.id);
   res.json({ ok: true });
 });
+
+// 把施工項目完工照歸檔到案件 Google 雲端資料夾（背景、best-effort，不影響簽署）
+async function archivePhotos(caseId, items) {
+  try {
+    const gdrive = require('../lib/gdrive');
+    if (!gdrive.isConnected() || !caseId) return;
+    const urls = (items || []).map(it => it && it.photo).filter(u => /^https?:\/\//.test(u || '')).slice(0, 30);
+    if (!urls.length) return;
+    await gdrive.ensureCaseFolder(caseId);
+    const c = db.prepare('SELECT drive_folder_id FROM cases WHERE id=?').get(caseId);
+    if (!c || !c.drive_folder_id) return;
+    const already = new Set(db.prepare('SELECT src_url FROM est_photo_archive WHERE case_id=?').all(caseId).map(r => r.src_url));
+    for (let i = 0; i < urls.length; i++) {
+      if (already.has(urls[i])) continue;
+      try {
+        const r = await fetch(urls[i]); if (!r.ok) continue;
+        const ab = await r.arrayBuffer();
+        const ext = /\.png(\?|$)/i.test(urls[i]) ? 'png' : 'jpg';
+        const up = await gdrive.uploadFileToFolder(c.drive_folder_id, `驗收單完工照_${i + 1}.${ext}`, Buffer.from(ab), ext === 'png' ? 'image/png' : 'image/jpeg');
+        try { db.prepare('INSERT OR IGNORE INTO est_photo_archive (case_id,src_url,drive_file_id) VALUES (?,?,?)').run(caseId, urls[i], (up && up.id) || null); } catch (e) {}
+      } catch (e) {}
+    }
+  } catch (e) { console.warn('[acceptance archive]', e.message); }
+}
 
 function hydrate(form) {
   let items = [], confirm = {};
