@@ -66,8 +66,11 @@ function applyBind(targetClientId, lineUserId, channel, filedOrgId) {
   for (const d of dups) {
     db.prepare(`UPDATE line_inquiries SET client_id=? WHERE client_id=?`).run(targetClientId, d.id);
     const autoCreated = d.source === 'LINE' && !d.phone && !d.email && !d.address && !d.tax_id;
-    if (autoCreated) db.prepare(`DELETE FROM clients WHERE id=?`).run(d.id);
-    else             db.prepare(`UPDATE clients SET line_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(d.id);
+    // 自動建的空殼客戶：試著刪掉；若已被其他資料(案件/報價/收款…)參照而刪不掉(外鍵限制)，
+    // 就退而把它的 line_user_id 清空、保留該筆客戶，避免整個關聯動作 500 失敗。
+    let removed = false;
+    if (autoCreated) { try { db.prepare(`DELETE FROM clients WHERE id=?`).run(d.id); removed = true; } catch (e) { removed = false; } }
+    if (!removed) db.prepare(`UPDATE clients SET line_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(d.id);
   }
 
   const chId  = channel && channel.id     != null ? channel.id     : null;
