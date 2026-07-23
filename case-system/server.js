@@ -223,7 +223,7 @@ function requirePagePerm(page) {
     } else if (key === 'page_ledger') {
       allowed = p.page_ledger !== undefined ? p.page_ledger === true : p.page_payments === true;
     } else if (key === 'page_dispatch_pool') {
-      allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : !!u.manage_users;
+      allowed = p.page_dispatch_pool !== undefined ? p.page_dispatch_pool === true : (!!u.manage_users || ['hq_cs','hq_cs_manager'].includes(u.role));
     } else if (key === 'page_quote_settings') {
       allowed = p.page_quote_settings !== undefined ? p.page_quote_settings === true : !!u.manage_users;
     } else if (key === 'page_cases_deal') {
