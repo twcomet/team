@@ -82,6 +82,8 @@ router.post('/login', (req, res) => {
       page_marketing:      perm('page_marketing',   def.manageUsers),
       page_work_reports:   perm('page_work_reports', false),
       page_template_settings: perm('page_template_settings', ['hq_cs_manager','hq_cs'].includes(user.role)),
+      page_price_list:     perm('page_price_list', def.manageUsers || ['vp','hq_sales','hq_cs','hq_cs_manager','hq_hr','hq_accounting','branch_manager','branch_sales'].includes(user.role)),
+      page_material_match: perm('page_material_match', !['contractor_install','contractor_sales','dealer'].includes(user.role)),
       page_admin:          def.manageUsers,
       my_tasks:            perm('my_tasks',          isContractor),
     },
