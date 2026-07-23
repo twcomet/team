@@ -339,8 +339,11 @@ app.get('/attendance-records', requireAuth, requireContract, (req, res) => {
 // 膜料牌價表（業務／客服查閱；不含成本毛利）
 app.get('/price-list', requireAuth, requireContract, (req, res) => {
   const u = req.session.user;
+  const p = u?.permissions || {};
+  // 與選單一致：有勾個人權限就依權限；未設定才退回角色預設（否則授權了卻被踢到任務牆）
   const ok = u?.role === 'owner' || u?.manage_users ||
-    ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role);
+    (p.page_price_list !== undefined ? p.page_price_list === true
+      : ['vp', 'hq_sales', 'hq_cs', 'hq_cs_manager', 'hq_hr', 'hq_accounting', 'branch_manager', 'branch_sales'].includes(u?.role));
   if (!ok) return res.redirect('/my-tasks');
   res.sendFile(path.join(__dirname, 'public', 'price-list.html'));
 });
