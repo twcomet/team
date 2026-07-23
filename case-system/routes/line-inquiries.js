@@ -490,9 +490,14 @@ router.post('/:id/link-client', requireAuth, (req, res) => {
   const client = db.prepare(`SELECT * FROM clients WHERE id=?`).get(client_id);
   if (!client)           return res.status(404).json({ error: '找不到客戶' });
 
-  const r = applyBind(client.id, inq.line_user_id, inqChannel(inq), client.org_id);
-  db.prepare(`UPDATE line_inquiries SET client_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(client.id, inq.id);
-  res.json({ ok: true, client_id: client.id, client_name: client.name, mismatch: r ? r.mismatch : 0 });
+  try {
+    const r = applyBind(client.id, inq.line_user_id, inqChannel(inq), client.org_id);
+    db.prepare(`UPDATE line_inquiries SET client_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(client.id, inq.id);
+    res.json({ ok: true, client_id: client.id, client_name: client.name, mismatch: r ? r.mismatch : 0 });
+  } catch (e) {
+    console.error('link-client error:', e.message);
+    res.status(500).json({ error: '關聯失敗：' + e.message });
+  }
 });
 
 // ── 客戶資料編輯：查不到 → 新增客戶檔並關聯 ──────────────────────
