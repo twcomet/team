@@ -97,22 +97,21 @@
     <div class="page-body">
       <div class="ts-hint">系統各處要「帶入」的範本，統一在這裡管理（報價單、場勘單、驗收單會直接讀這裡的資料）。</div>
       <div class="ts-tabs">
-        <button class="ts-tab on" data-tab="notice"    onclick="setTab('notice')">📄 須知／條款範本<small style="opacity:.7">（報價單・驗收單）</small></button>
-        <button class="ts-tab"    data-tab="note"      onclick="setTab('note')">📝 場勘備註範本<small style="opacity:.7">（場勘單）</small></button>
-        <button class="ts-tab"    data-tab="checklist" onclick="setTab('checklist')">✅ 施作檢查清單<small style="opacity:.7">（場勘單）</small></button>
-        <button class="ts-tab"    data-tab="quote"     onclick="setTab('quote')">📋 報價單整張範本<small style="opacity:.7">（報價單）</small></button>
-        <button class="ts-tab"    data-tab="canned"    onclick="setTab('canned')">💬 客服罐頭訊息<small style="opacity:.7">（LINE）</small></button>
+        <button class="ts-tab on" data-tab="terms"      onclick="setTab('terms')">📄 報價單優惠條款<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab"    data-tab="notice"     onclick="setTab('notice')">📄 貼膜前須知<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab"    data-tab="acceptance" onclick="setTab('acceptance')">📄 回簽／簽核資訊<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab"    data-tab="precheck"   onclick="setTab('precheck')">✅ 施工前檢查<small style="opacity:.7">（驗收單）</small></button>
+        <button class="ts-tab"    data-tab="inspection" onclick="setTab('inspection')">✅ 驗收須知<small style="opacity:.7">（驗收單）</small></button>
+        <button class="ts-tab"    data-tab="note"       onclick="setTab('note')">📝 場勘備註<small style="opacity:.7">（場勘單）</small></button>
+        <button class="ts-tab"    data-tab="checklist"  onclick="setTab('checklist')">📋 施作檢查清單<small style="opacity:.7">（場勘單）</small></button>
+        <button class="ts-tab"    data-tab="quote"      onclick="setTab('quote')">🧾 報價單整張範本<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab"    data-tab="canned"     onclick="setTab('canned')">💬 客服罐頭訊息<small style="opacity:.7">（LINE）</small></button>
       </div>
 
-      <!-- 須知/條款範本 -->
+      <!-- 須知/條款範本（每個區塊各自一頁，共用此 pane）-->
       <div id="pane-notice" class="pane">
-        <div class="ts-hint"><span class="doc-tag">適用單據：報價單 · 驗收單</span>報價單與驗收單會帶入的須知/條款/檢查項目。各「區塊」對應不同單據（見下方選單標示）。<b>(e) 施工前檢查項目〔驗收單〕</b>：依品項建立、內容一行一項，驗收單師傅選品項時自動帶出成打勾清單。</div>
-        <div class="ts-bar">
-          <label style="font-size:13px;color:#6b7280">區塊
-            <select id="noticeBlock" class="ts-sel" onchange="loadNotice()"></select>
-          </label>
-          <button class="btn2" onclick="addNotice()">＋ 新增範本</button>
-        </div>
+        <div class="ts-hint" id="noticeHint"></div>
+        <div class="ts-bar"><button class="btn2" onclick="addNotice()">＋ 新增範本</button></div>
         <div id="noticeList"></div>
       </div>
 
@@ -173,11 +172,20 @@ function catOptions(sel){ return CATS.map(c=>`<option value="${esc(c)}"${c===sel
 async function api(url,opts){ const r=await fetch(url,opts); if(!r.ok){ let e={}; try{e=await r.json()}catch{} throw new Error(e.error||('HTTP '+r.status)); } return r.status===204?null:r.json().catch(()=>null); }
 function toast(m,ok=true){ if(window.showToast) showToast(m, ok?'success':'error'); else alert(m); }
 
+// 每個 notice 區塊各自一個分頁，共用 #pane-notice
+const BLOCK_META = {
+  terms:      {label:'報價單優惠條款', doc:'報價單'},
+  notice:     {label:'貼膜前須知',     doc:'報價單'},
+  acceptance: {label:'回簽／訂單簽核資訊', doc:'報價單'},
+  precheck:   {label:'施工前檢查項目', doc:'驗收單'},
+  inspection: {label:'驗收須知',       doc:'驗收單'},
+};
+let CUR_BLOCK = 'terms';
 function setTab(t){
   document.querySelectorAll('.ts-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   document.querySelectorAll('.pane').forEach(p=>p.style.display='none');
+  if(BLOCK_META[t]){ CUR_BLOCK=t; document.getElementById('pane-notice').style.display=''; loadNotice(); return; }
   document.getElementById('pane-'+t).style.display='';
-  if(t==='notice') loadNotice();
   if(t==='note') loadNote();
   if(t==='checklist') loadCheck();
   if(t==='quote') loadQuote();
@@ -201,12 +209,13 @@ function closeTm(){ document.getElementById('tmOv').classList.remove('on'); _tmS
 function tmVal(k){ const el=document.getElementById('tm-'+k); return el?el.value.trim():''; }
 async function tmSave(){ if(_tmSave){ try{ await _tmSave(); closeTm(); }catch(e){ toast(e.message,false); } } }
 
-// ── 1. 須知/條款範本（film_notice_templates via quote-settings/notices）──
-function loadNoticeBlocks(){
-  document.getElementById('noticeBlock').innerHTML=NOTICE_BLOCKS.map(b=>`<option value="${b.v}">${esc(b.t)}</option>`).join('');
-}
+// ── 須知/條款/驗收 範本（film_notice_templates via quote-settings/notices）──
 async function loadNotice(){
-  const block=document.getElementById('noticeBlock').value||'notice';
+  const block=CUR_BLOCK;
+  const m=BLOCK_META[block]||{label:'',doc:''};
+  const extra = block==='precheck' ? '　依品項建立、<b>內容一行一項</b>；驗收單師傅選品項時自動帶出成打勾清單。'
+              : block==='inspection' ? '　驗收單上呈現的驗收須知。' : '';
+  document.getElementById('noticeHint').innerHTML=`<span class="doc-tag">適用單據：${esc(m.doc)}</span><b>${esc(m.label)}</b> 範本${extra}`;
   const box=document.getElementById('noticeList');
   let rows=[]; try{ rows=await api('/api/quote-settings/notices?block='+block); }catch(e){ box.innerHTML=`<div class="ts-empty">載入失敗：${esc(e.message)}</div>`; return; }
   if(!rows.length){ box.innerHTML='<div class="ts-empty">此區塊尚無範本，按「＋ 新增範本」建立。</div>'; return; }
@@ -221,23 +230,21 @@ async function loadNotice(){
     </tr>`).join('')}</tbody></table>`;
 }
 function noticeFields(){ return [
-  {key:'block',label:'區塊',type:'select',options:NOTICE_BLOCKS.map(b=>({v:b.v,t:b.t}))},
   {key:'name',label:'模板名稱',ph:'例：門片類須知'},
   {key:'category',label:'類別（品項）',type:'select',options:CATS.map(c=>({v:c,t:c}))},
-  {key:'content',label:'內容（施工前檢查請一行一項）',type:'textarea',ph:'輸入內容…'},
+  {key:'content',label:(CUR_BLOCK==='precheck'?'內容（一行一項檢查項目）':'內容'),type:'textarea',ph:'輸入內容…'},
 ];}
 function addNotice(){
-  const block=document.getElementById('noticeBlock').value||'notice';
-  openTm('新增須知範本', noticeFields(), {block,category:'一般'}, async()=>{
+  openTm(`新增範本 · ${BLOCK_META[CUR_BLOCK].label}`, noticeFields(), {category:'一般'}, async()=>{
     if(!tmVal('name')) throw new Error('請填模板名稱');
-    await api('/api/quote-settings/notices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:tmVal('block'),name:tmVal('name'),category:tmVal('category'),content:tmVal('content')})});
-    toast('已新增'); document.getElementById('noticeBlock').value=tmVal('block'); loadNotice();
+    await api('/api/quote-settings/notices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:CUR_BLOCK,name:tmVal('name'),category:tmVal('category'),content:tmVal('content')})});
+    toast('已新增'); loadNotice();
   });
 }
 function editNotice(r){
-  openTm('編輯須知範本', noticeFields(), r, async()=>{
+  openTm(`編輯範本 · ${BLOCK_META[CUR_BLOCK].label}`, noticeFields(), r, async()=>{
     if(!tmVal('name')) throw new Error('請填模板名稱');
-    await api('/api/quote-settings/notices/'+r.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:tmVal('block'),name:tmVal('name'),category:tmVal('category'),content:tmVal('content'),active:1,image_url:r.image_url||null})});
+    await api('/api/quote-settings/notices/'+r.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({block:CUR_BLOCK,name:tmVal('name'),category:tmVal('category'),content:tmVal('content'),active:1,image_url:r.image_url||null})});
     toast('已更新'); loadNotice();
   });
 }
@@ -323,8 +330,7 @@ async function delQuote(id){ if(!confirm('確定刪除此報價單範本？'))re
 async function init(){
   await loadUser();
   if(window.highlightNav) highlightNav('template-settings');
-  loadNoticeBlocks();
-  setTab('notice');
+  setTab('terms');
 }
 init();
 </script>
