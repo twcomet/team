@@ -207,7 +207,13 @@ router.get('/short/:token', requireAuth, (req, res) => {
   const proto  = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
   const origin = `${proto}://${req.get('host')}`;
   const full   = `${origin}/quote/${q.share_token}`;
-  if (q.short_url && q.short_url.includes('/s/')) return res.json({ short_url: q.short_url, full });  // 只重用自家短網址；舊的 TinyURL 快取重建
+  // 只重用「確實指向這一版」的自家短網址；若短碼指到別版（舊 bug：分版時把 short_url 複製過來）→ 重產
+  if (q.short_url && q.short_url.includes('/s/')) {
+    const code = q.short_url.split('/s/')[1];
+    const link = code ? db.prepare(`SELECT target FROM short_links WHERE code=?`).get(code) : null;
+    if (link && link.target === full) return res.json({ short_url: q.short_url, full });
+    // 短碼指向別版或已失效 → 落到下面重產
+  }
   const { makeShort } = require('./shortlink');
   const code  = makeShort(full);
   const short = code ? `${origin}/s/${code}` : full;
@@ -470,6 +476,7 @@ router.post('/:quoteId/revise', requireAuth, (req, res) => {
   // 僅覆寫版本/連結/狀態/建立者，並清掉客戶端簽署快照；created_at/updated_at 用當下時間
   const overrides = {
     version: newVersion, share_token: token, status: 'draft', created_by: me.id,
+    short_url: null,   // 新版要有自己的縮網址，別沿用舊版的（否則縮網址會指向舊版頁面）
     client_viewed_at: null, client_signature: null, client_accepted_at: null, client_marketing_consent: 0,
   };
   const skip = new Set(['id', 'created_at', 'updated_at']);
