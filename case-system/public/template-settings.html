@@ -97,15 +97,14 @@
     <div class="page-body">
       <div class="ts-hint">系統各處要「帶入」的範本，統一在這裡管理（報價單、場勘單、驗收單會直接讀這裡的資料）。</div>
       <div class="ts-tabs">
-        <button class="ts-tab on" data-tab="terms"      onclick="setTab('terms')">📄 報價單優惠條款<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab on" data-tab="note"       onclick="setTab('note')">📝 場勘備註<small style="opacity:.7">（場勘單）</small></button>
+        <button class="ts-tab"    data-tab="checklist"  onclick="setTab('checklist')">📋 施作檢查清單<small style="opacity:.7">（場勘單）</small></button>
+        <button class="ts-tab"    data-tab="terms"      onclick="setTab('terms')">📄 報價單優惠條款<small style="opacity:.7">（報價單）</small></button>
         <button class="ts-tab"    data-tab="notice"     onclick="setTab('notice')">📄 貼膜前須知<small style="opacity:.7">（報價單）</small></button>
         <button class="ts-tab"    data-tab="acceptance" onclick="setTab('acceptance')">📄 回簽／簽核資訊<small style="opacity:.7">（報價單）</small></button>
+        <button class="ts-tab"    data-tab="inspection" onclick="setTab('inspection')">📄 驗收須知<small style="opacity:.7">（報價單）</small></button>
         <button class="ts-tab"    data-tab="precheck"   onclick="setTab('precheck')">✅ 施工前檢查<small style="opacity:.7">（驗收單）</small></button>
         <button class="ts-tab"    data-tab="aftercare"  onclick="setTab('aftercare')">🧴 完工後保養須知<small style="opacity:.7">（驗收單）</small></button>
-        <button class="ts-tab"    data-tab="inspection" onclick="setTab('inspection')">📄 驗收須知<small style="opacity:.7">（報價單）</small></button>
-        <button class="ts-tab"    data-tab="note"       onclick="setTab('note')">📝 場勘備註<small style="opacity:.7">（場勘單）</small></button>
-        <button class="ts-tab"    data-tab="checklist"  onclick="setTab('checklist')">📋 施作檢查清單<small style="opacity:.7">（場勘單）</small></button>
-        <button class="ts-tab"    data-tab="canned"     onclick="setTab('canned')">💬 客服罐頭訊息<small style="opacity:.7">（LINE）</small></button>
       </div>
 
       <!-- 須知/條款範本（每個區塊各自一頁，共用此 pane）-->
@@ -333,7 +332,7 @@ async function delQuote(id){ if(!confirm('確定刪除此報價單範本？'))re
 async function init(){
   await loadUser();
   if(window.highlightNav) highlightNav('template-settings');
-  setTab('terms');
+  setTab('note');
 }
 init();
 </script>
