@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>刪除申請審核 — 繪新管理系統</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/logo.png" type="image/png">
+<style>
+  .dr-tabs{display:flex;gap:8px;margin-bottom:16px}
+  .dr-tab{border:1px solid var(--gray-300,#d1d5db);background:#fff;border-radius:10px;padding:8px 18px;cursor:pointer;font-size:14px;font-weight:700;color:var(--gray-500,#6b7280)}
+  .dr-tab.on{background:#3a1030;color:#fff;border-color:transparent}
+  .dr-card{background:#fff;border:1px solid var(--gray-200,#e5e7eb);border-radius:12px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+  .dr-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .dr-name{font-size:16px;font-weight:800;color:var(--gray-900,#1f2937)}
+  .dr-meta{font-size:12px;color:var(--gray-500,#6b7280);margin-top:4px;line-height:1.7}
+  .dr-reason{margin-top:8px;font-size:13px;color:#4b5563;background:#f9fafb;border-radius:8px;padding:8px 12px;white-space:pre-wrap}
+  .dr-warn{display:inline-block;font-size:12px;font-weight:700;color:#ad6800;background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:2px 10px}
+  .dr-btns{display:flex;gap:8px;flex-shrink:0}
+  .dr-approve{border:none;background:#dc2626;color:#fff;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  .dr-reject{border:1px solid var(--gray-300,#d1d5db);background:#fff;color:#374151;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+  .dr-status{font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px}
+  .st-approved{background:#fee2e2;color:#991b1b} .st-rejected{background:#f3f4f6;color:#6b7280}
+  .dr-empty{color:#9ca3af;padding:44px;text-align:center;font-size:14px;background:#fff;border-radius:12px}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2><img src="/logo.png" style="height:28px;width:28px;object-fit:contain;filter:brightness(0) invert(1);margin-right:8px;flex-shrink:0"> 繪新管理系統</h2><p id="sidebarOrgName"></p></div>
+    <nav class="sidebar-nav">
+  <span class="nav-group-label">業務</span>
+  <a class="nav-item" data-page="dashboard"      href="/dashboard">      <span class="icon">📊</span>總覽</a>
+  <a class="nav-item" data-page="my-tasks"       href="/my-tasks">       <span class="icon">📌</span>我的任務</a>
+  <a class="nav-item" data-page="my-calendar"    href="/my-calendar">    <span class="icon">🗓️</span>我的行事曆</a>
+  <a class="nav-item" data-page="line-inquiries" href="/line-inquiries">  <span class="icon">💬</span>LINE 詢問</a>
+  <a class="nav-item" data-page="cases-inquiry"  href="/cases-inquiry">   <span class="icon">📝</span>詢價管理</a>
+  <a class="nav-item" data-page="cases-survey"   href="/cases-survey">    <span class="icon">🔍</span>場勘管理</a>
+  <a class="nav-item" data-page="cases-deal"     href="/cases-deal">      <span class="icon">✅</span>成交案件管理</a>
+  <a class="nav-item" data-page="quote-list"     href="/quote-list">      <span class="icon">📋</span>報價管理</a>
+      <a class="nav-item" data-page="estimator" href="/estimator"><span class="icon">💲</span>估價計算機</a>
+  <a class="nav-item" data-page="estimator-quotes" href="/estimator-quotes"><span class="icon">🗂️</span>估價單查詢</a>
+  <a class="nav-item" data-page="material-calc"  href="/material-calc">   <span class="icon">🧮</span>快速報價</a>
+  <a class="nav-item" data-page="dispatch-pool"  href="/dispatch-pool">   <span class="icon">🏊</span>派案池管理</a>
+  <a class="nav-item" data-page="calendar"       href="/calendar">        <span class="icon">📅</span>派單行事曆</a>
+  <span class="nav-group-label">客戶</span>
+  <a class="nav-item" data-page="clients"        href="/clients">         <span class="icon">👥</span>客戶管理</a>
+  <a class="nav-item" data-page="deposits"       href="/deposits">        <span class="icon">💳</span>預收款管理</a>
+  <span class="nav-group-label">進銷存</span>
+  <a class="nav-item" data-page="materials"      href="/materials">       <span class="icon">🎞️</span>膜料管理</a>
+  <a class="nav-item" data-page="material-usage" href="/material-usage">  <span class="icon">📋</span>膜料使用紀錄</a>
+          <a class="nav-item" data-page="layout"         href="/layout">          <span class="icon">📐</span>排版工具</a>
+
+  <a class="nav-item" data-page="purchases"      href="/purchases">       <span class="icon">🚚</span>進貨管理</a>
+  <a class="nav-item" data-page="shipments"      href="/shipments">       <span class="icon">📬</span>寄件管理</a>
+  <span class="nav-group-label">員工功能</span>
+  <a class="nav-item" data-page="leave"          href="/leave">           <span class="icon">🏖️</span>請假管理</a>
+  <a class="nav-item" data-page="expenses"       href="/expenses">        <span class="icon">🧾</span>費用申請管理</a>
+  <a class="nav-item" data-page="deficiencies"   href="/deficiencies">    <span class="icon">⚠️</span>嘉獎缺失管理</a>
+  <a class="nav-item" data-page="feedback"       href="/feedback">        <span class="icon">📣</span>申訴及意見回饋</a>
+  <a class="nav-item" data-page="assets"         href="/assets">          <span class="icon">📦</span>資產借用</a>
+  <a class="nav-item" data-page="hr"             href="/hr">              <span class="icon">👤</span>人事資料管理</a>
+  <a class="nav-item" data-page="profile"        href="/profile">         <span class="icon">🪪</span>我的個人資料</a>
+  <span class="nav-group-label">財務</span>
+  <a class="nav-item" data-page="payments"       href="/payments">        <span class="icon">💰</span>收款追蹤</a>
+  <a class="nav-item" data-page="ledger"         href="/ledger">          <span class="icon">📒</span>收支流水帳</a>
+  <a class="nav-item" data-page="subcontract"    href="/subcontract">     <span class="icon">🤝</span>協力外包</a>
+  <a class="nav-item" data-page="vendors"        href="/vendors">         <span class="icon">🏭</span>供應商管理</a>
+  <span class="nav-group-label">報表</span>
+  <a class="nav-item" data-page="performance"    href="/performance">     <span class="icon">🏆</span>業績報表</a>
+  <a class="nav-item" data-page="reports"        href="/reports">         <span class="icon">📈</span>財務報表</a>
+  <a class="nav-item" data-page="marketing"      href="/marketing">       <span class="icon">📣</span>行銷報表</a>
+  <a class="nav-item" data-page="staff-performance" data-need="owner" href="/staff-performance"><span class="icon">📋</span>員工績效</a>
+  <span class="nav-group-label">系統設定</span>
+  <a class="nav-item" data-page="contracts"      href="/contracts"      data-need="manage_users"><span class="icon">📋</span>合約管理</a>
+  <a class="nav-item" data-page="guide"          href="/guide">           <span class="icon">📖</span>系統使用說明</a>
+  <a class="nav-item" data-page="admin"          href="/admin"          data-need="manage_users"><span class="icon">⚙️</span>人員管理</a>
+      <a class="nav-item" data-page="estimator-settings" href="/estimator-settings"><span class="icon">💹</span>報價設定</a>
+</nav>
+    <div class="sidebar-user"><div class="user-name" id="sidebarUserName"></div><div class="user-role" id="sidebarUserRole"></div><a href="#" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')" style="font-size:12px;color:var(--gray-400);text-decoration:none">登出</a></div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar"><span class="page-title">🗑️ 刪除申請審核</span></div>
+    <div class="page-body">
+      <div style="font-size:12px;color:#9ca3af;margin-bottom:14px;line-height:1.7">客服對「有案件／金流／成交／已回簽」的重要客戶申請刪除，會列在這裡由老闆審核。<b>核准＝立即刪除該客戶且無法復原</b>，請確認清楚。</div>
+      <div class="dr-tabs">
+        <button class="dr-tab on" id="tabPending"  onclick="setTab('pending')">待審 <span id="cntPending"></span></button>
+        <button class="dr-tab"    id="tabDecided"  onclick="setTab('decided')">已處理</button>
+      </div>
+      <div id="listArea"><div class="dr-empty">載入中…</div></div>
+    </div>
+  </div>
+</div>
+<script src="/js/common.js?v=20260723"></script>
+<script>
+let ALL = [], TAB = 'pending';
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fmt(t){ return t ? String(t).slice(0,16).replace('T',' ') : ''; }
+
+function setTab(t){
+  TAB = t;
+  document.getElementById('tabPending').classList.toggle('on', t==='pending');
+  document.getElementById('tabDecided').classList.toggle('on', t==='decided');
+  render();
+}
+async function init(){
+  await loadUser();
+  if (currentUser?.role !== 'owner') { location.href = '/dashboard'; return; }
+  if (window.highlightNav) highlightNav('deletion-requests');
+  await load();
+}
+async function load(){
+  try { ALL = await fetch('/api/clients/deletion-requests').then(r=>r.ok?r.json():[]); }
+  catch(e){ ALL = []; }
+  const pend = ALL.filter(x=>x.status==='pending').length;
+  document.getElementById('cntPending').textContent = pend ? `(${pend})` : '';
+  render();
+}
+function render(){
+  const box = document.getElementById('listArea');
+  const rows = ALL.filter(x => TAB==='pending' ? x.status==='pending' : x.status!=='pending');
+  if (!rows.length){ box.innerHTML = `<div class="dr-empty">${TAB==='pending'?'目前沒有待審的刪除申請 🎉':'尚無已處理的申請'}</div>`; return; }
+  box.innerHTML = rows.map(r => {
+    const pending = r.status === 'pending';
+    return `<div class="dr-card">
+      <div class="dr-top">
+        <div style="min-width:0">
+          <div class="dr-name">${esc(r.entity_label || '(客戶已不存在)')}
+            ${r.case_count ? `<span class="dr-warn" style="margin-left:6px">有 ${r.case_count} 筆案件</span>` : ''}
+            ${!pending ? `<span class="dr-status ${r.status==='approved'?'st-approved':'st-rejected'}" style="margin-left:6px">${r.status==='approved'?'已核准刪除':'已駁回'}</span>` : ''}
+          </div>
+          <div class="dr-meta">申請人：${esc(r.requested_by_name||'—')} · 申請時間：${fmt(r.requested_at)}
+            ${!pending ? `<br>處理：${esc(r.decided_by_name||'—')} · ${fmt(r.decided_at)}${r.decide_note?' · 原因：'+esc(r.decide_note):''}` : ''}</div>
+          ${r.reason ? `<div class="dr-reason">申請原因：${esc(r.reason)}</div>` : ''}
+        </div>
+        ${pending ? `<div class="dr-btns">
+          <button class="dr-approve" onclick="approve(${r.id},'${esc(r.entity_label||'').replace(/'/g,"&#39;")}')">核准刪除</button>
+          <button class="dr-reject" onclick="reject(${r.id})">駁回</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function approve(id, name){
+  if (!confirm(`確定核准刪除客戶「${name}」？\n此動作會立即刪除該客戶且無法復原。`)) return;
+  const res = await fetch(`/api/clients/deletion-requests/${id}/approve`, { method:'POST' });
+  const d = await res.json().catch(()=>({}));
+  if (res.ok){ showToast('已核准並刪除'); await load(); }
+  else showToast(d.error || '處理失敗', 'error');
+}
+async function reject(id){
+  const note = prompt('駁回原因（會通知申請人，可留空）：', '');
+  if (note === null) return;
+  const res = await fetch(`/api/clients/deletion-requests/${id}/reject`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ note })
+  });
+  const d = await res.json().catch(()=>({}));
+  if (res.ok){ showToast('已駁回'); await load(); }
+  else showToast(d.error || '處理失敗', 'error');
+}
+init();
+</script>
+</body>
+</html>

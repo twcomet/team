@@ -155,6 +155,17 @@ async function loadUser() {
     const anchor = nav.querySelector('[data-page="estimator-settings"]') || nav.querySelector('[data-page="guide"]');
     if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
   })();
+  // 注入「刪除申請審核」選單（只有老闆）：放在系統設定區（人員管理下方）
+  (function() {
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav || nav.querySelector('[data-page="deletion-requests"]')) return;
+    if (currentUser.role !== 'owner') return;
+    const a = document.createElement('a');
+    a.className = 'nav-item'; a.dataset.page = 'deletion-requests'; a.href = '/deletion-requests';
+    a.innerHTML = '<span class="icon">🗑️</span>刪除申請審核';
+    const anchor = nav.querySelector('[data-page="admin"]') || nav.querySelector('[data-page="estimator-settings"]');
+    if (anchor) anchor.insertAdjacentElement('afterend', a); else nav.appendChild(a);
+  })();
   // 注入「客服知識庫」選單（跟 LINE 詢問同群人）：放在「業務」區最下面（較常用的在上面）
   (function() {
     const nav = document.querySelector('.sidebar-nav');

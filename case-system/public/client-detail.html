@@ -351,27 +351,67 @@ async function init() {
   await Promise.all([loadClient(), loadCases(), loadDeposits()]);
   document.getElementById('editClientBtn').addEventListener('click', openEditModal);
   document.getElementById('addDepositBtn').addEventListener('click', openDepositModal);
-  if (currentUser?.role === 'owner' || currentUser?.manage_users || currentUser?.can_delete) {
-    const delBtn = document.getElementById('deleteClientBtn');
-    delBtn.style.display = '';
-    delBtn.addEventListener('click', deleteClient);
-  }
+  setupDeleteButton();
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', {method:'POST'});
     location.href = '/';
   });
 }
 
+// 依權限與客戶重要性決定刪除鈕：審核中 / 直接刪 / 申請刪除
+function setupDeleteButton() {
+  const c = clientData; if (!c) return;
+  const btn = document.getElementById('deleteClientBtn');
+  const isOwner = currentUser?.role === 'owner';
+  const canDel  = isOwner || currentUser?.manage_users || currentUser?.can_delete;
+  if (!canDel) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = 'pointer';
+  if (c.pending_deletion) {
+    btn.textContent = '⏳ 刪除審核中';
+    btn.disabled = true; btn.style.opacity = '.6'; btn.style.cursor = 'default';
+    btn.onclick = null;
+    btn.title = `${c.pending_deletion.requested_by_name || ''} 已申請刪除，待老闆審核`;
+    return;
+  }
+  if (isOwner || !c.is_important) {           // 老闆一律可刪；一般人只有「不重要」客戶可直接刪
+    btn.textContent = '🗑 刪除客戶';
+    btn.onclick = deleteClient;
+  } else {                                     // 重要客戶 + 非老闆 → 申請刪除
+    btn.textContent = '🗑 申請刪除';
+    btn.onclick = requestDeletion;
+  }
+}
+
 async function deleteClient() {
   const name = clientData?.name || '此客戶';
-  if (!confirm(`確定要刪除「${name}」嗎？\n（有進行中案件的客戶無法刪除）`)) return;
+  if (!confirm(`確定要刪除「${name}」嗎？此動作無法復原。`)) return;
   const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (res.ok) {
     showToast(`已刪除客戶「${name}」`);
     setTimeout(() => location.href = '/clients', 800);
+  } else if (data.need_request) {
+    showToast('此客戶有案件/金流資料，需改用「申請刪除」', 'error');
+    await loadClient(); setupDeleteButton();
   } else {
     showToast(data.error || '刪除失敗', 'error');
+  }
+}
+
+async function requestDeletion() {
+  const name = clientData?.name || '此客戶';
+  const reason = prompt(`「${name}」有案件或金流資料，需老闆審核才能刪除。\n請填申請刪除的原因（會通知老闆）：`, '');
+  if (reason === null) return;   // 取消
+  const res = await fetch(`/api/clients/${clientId}/request-deletion`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok) {
+    showToast(data.already ? '此客戶已有待審的刪除申請' : '已送出刪除申請，待老闆審核');
+    await loadClient(); setupDeleteButton();
+  } else {
+    showToast(data.error || '申請失敗', 'error');
   }
 }
 

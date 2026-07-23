@@ -80,6 +80,11 @@ app.get('/gdrive-connect', requireAuth, requireOwner, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'gdrive-connect.html'));
 });
 
+// 刪除申請審核（重要客戶）：只有老闆
+app.get('/deletion-requests', requireAuth, requireContract, requireOwner, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'deletion-requests.html'));
+});
+
 // 模板設定（統一管理各類範本）：老闆／主管永遠可；否則看個人「模板設定」權限
 // (page_template_settings)，未設定則預設開放客服主管／客服（讓自訂角色也能被授權）
 app.get('/template-settings', requireAuth, requireContract, (req, res) => {
