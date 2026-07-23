@@ -89,7 +89,7 @@
         <input type="text" id="searchInput" placeholder="🔍 搜尋案號、客戶、項目…"
                style="padding:7px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;width:220px">
         <button class="btn btn-primary btn-sm" id="newCaseBtn" style="display:none">＋ 新增案件</button>
-        <button class="btn btn-ghost btn-sm" id="templateMgmtBtn" style="display:none" onclick="toggleTemplateMgmt()">⚙️ 模板管理</button>
+        <button class="btn btn-ghost btn-sm" id="templateMgmtBtn" style="display:none" onclick="location.href='/template-settings'" title="場勘備註／檢查清單範本已移到「模板設定」統一管理">🗂️ 模板設定</button>
         <button class="btn btn-ghost btn-sm" id="exportCsvBtn" style="display:none" onclick="exportCsv()">⬇ 匯出 CSV</button>
         <button class="btn btn-primary btn-sm" id="saveAssignBtn" style="display:none" onclick="saveAllAssignments()">💾 儲存指派</button>
       </div>
@@ -540,7 +540,7 @@ async function init() {
   if (cfg.showNewBtn) document.getElementById('newCaseBtn').style.display = '';
   if (cfg.showTypeTabs) document.getElementById('caseTypeTabs').style.display = '';
   if (MODE === 'deal') document.getElementById('exportCsvBtn').style.display = '';
-  if (MODE === 'survey' && currentUser.manage_users) {
+  if (MODE === 'survey' && (currentUser.role === 'owner' || currentUser.manage_users || ['hq_cs_manager','hq_cs'].includes(currentUser.role))) {
     document.getElementById('templateMgmtBtn').style.display = '';
   }
 
