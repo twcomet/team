@@ -58,11 +58,12 @@ router.get('/dispatch/:dispatchId', requireAuth, (req, res) => {
   res.json(hydrate(form));
 });
 
-// 範本庫（公開，供簽署頁）：預設取 (b)客戶須知；?block=precheck 取 (e)施工前檢查項目。依類別分組
+// 範本庫（公開，供簽署頁）：預設取「完工後保養須知」(aftercare)；?block=precheck 取施工前檢查項目。依類別分組
 // 註：必須放在 GET /:id 之前，否則會被當成 id 攔截
 router.get('/notice-templates', (req, res) => {
   try {
-    const block = req.query.block === 'precheck' ? 'precheck' : 'notice';
+    const block = (req.query.block === 'precheck' || req.query.block === 'aftercare' || req.query.block === 'notice')
+      ? req.query.block : 'aftercare';
     const rows = db.prepare(`SELECT id, name, category, content FROM film_notice_templates
       WHERE active=1 AND COALESCE(block,'notice')=? AND TRIM(COALESCE(content,''))<>'' ORDER BY category, sort_order, id`).all(block);
     res.json(rows);

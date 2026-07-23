@@ -3351,6 +3351,19 @@ try {
   }
 } catch (e) { console.warn('須知範本種子略過:', e.message.slice(0,80)); }
 
+// ── 驗收單「完工後保養須知」範本：首次由「貼膜前須知」複製一份(獨立分類 aftercare，之後可各自編輯)──
+try {
+  const _acn = db.prepare(`SELECT COUNT(*) n FROM film_notice_templates WHERE COALESCE(block,'notice')='aftercare'`).get().n;
+  if (!_acn) {
+    const _src = db.prepare(`SELECT name, category, content, sort_order, image_url FROM film_notice_templates WHERE COALESCE(block,'notice')='notice' AND active=1`).all();
+    if (_src.length) {
+      const _ins = db.prepare(`INSERT INTO film_notice_templates (name,category,content,sort_order,block,image_url) VALUES (?,?,?,?, 'aftercare', ?)`);
+      _src.forEach(t => _ins.run(t.name, t.category, t.content, t.sort_order || 0, t.image_url || null));
+      console.log('🌱 已由貼膜前須知複製「完工後保養須知」範本 ' + _src.length + ' 筆');
+    }
+  }
+} catch (e) { console.warn('完工後保養須知種子略過:', e.message.slice(0,80)); }
+
 // ── P1 成本權限系統 ────────────────────────────────────────────────────────
 // 材料成本可見性：老闆 + 會計
 _addCol('users', 'can_see_cost',       'INTEGER DEFAULT 0');

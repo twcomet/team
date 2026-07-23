@@ -70,6 +70,7 @@ const CONFIRMS = [
   { k:'scope',  t:'施工範圍、花色與材質與報價相符' },
   { k:'flat',   t:'貼膜完成後表面平整，無氣泡、翹邊' },
   { k:'noflaw', t:'已確認驗收無瑕疵' },
+  { k:'aftercare', t:'完工後保養須知已由施工人員說明，我已確認完畢' },
 ];
 function openLb(u){ document.getElementById('lbImg').src=u; document.getElementById('lb').classList.add('on'); }
 
@@ -108,9 +109,9 @@ function render(){
     </div>`;
   // 客戶須知／完工保養（品項於「施工前檢查」選取時自動帶入，可再編輯）
   if(signed){
-    if((q.notice_content||'').trim()) h+=`<div class="sec"><div class="sec-title">客戶須知／完工保養</div><div class="notice-ro">${esc(q.notice_content)}</div></div>`;
+    if((q.notice_content||'').trim()) h+=`<div class="sec"><div class="sec-title">完工後保養須知</div><div class="notice-ro">${esc(q.notice_content)}</div></div>`;
   } else {
-    h+=`<div class="sec"><div class="sec-title">客戶須知／完工保養</div>
+    h+=`<div class="sec"><div class="sec-title">完工後保養須知</div>
       <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">於上方「施工前檢查」選品項時自動帶入，也可手動增修。</div>
       <textarea id="mNotice" rows="4" oninput="DATA.notice_content=this.value;scheduleSave()" placeholder="選品項自動帶入，或手動輸入完工保養須知…">${esc(q.notice_content||'')}</textarea>
     </div>`;
@@ -126,7 +127,7 @@ function render(){
     </div>
     <div class="sig-wrap">
       <div class="sig-title">以上確認清楚請簽名</div>
-      <div class="sig-desc">請三項都勾選後，在下框內以手指簽名，完成後按「確認驗收」。<br>驗收日期：${dateStr}</div>
+      <div class="sig-desc">請上方確認項全部勾選（含完工後保養須知）後，在下框內以手指簽名，完成後按「確認驗收」。<br>驗收日期：${dateStr}</div>
       <canvas id="sig"></canvas>
       <div class="sig-ctrl"><span style="font-size:12px;color:#9ca3af">↑ 請在框內簽名</span><button class="btn-clear" onclick="clearSig()">清除重寫</button></div>
       <button class="btn-go" id="go" onclick="submit()">確認驗收</button>
@@ -146,7 +147,7 @@ function precheckHtml(signed){
   }
   const cats=[...new Set([...PRECHK,...TPLS].map(t=>t.category||t.name).filter(Boolean))];
   return `<div class="sec"><div class="sec-title">施工前檢查（選品項→自動帶出檢查項目與保養須知）</div>
-    <div class="ntpicks">${cats.map(c=>`<span class="ntpick" data-cat="${esc(c)}" onclick="toggleCat('${esc(c).replace(/'/g,"&#39;")}')">${esc(c)}</span>`).join('')||'<span style="color:#9ca3af;font-size:12px">（尚無品項範本，可到報價設定→範本庫建立「(e) 施工前檢查項目」與「(b) 貼膜前須知」）</span>'}</div>
+    <div class="ntpicks">${cats.map(c=>`<span class="ntpick" data-cat="${esc(c)}" onclick="toggleCat('${esc(c).replace(/'/g,"&#39;")}')">${esc(c)}</span>`).join('')||'<span style="color:#9ca3af;font-size:12px">（尚無品項範本，可到報價設定→範本庫建立「(e) 施工前檢查項目」與「完工後保養須知」）</span>'}</div>
     <div id="pcBox">${pc.map((p,i)=>precheckRow(p,i)).join('')||'<div style="color:#9ca3af;font-size:13px">（選上方品項自動帶入檢查項目，或手動新增）</div>'}</div>
     <button class="addbtn" onclick="addPrecheck()">＋ 新增檢查項目</button>
   </div>`;
