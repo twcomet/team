@@ -999,9 +999,12 @@ function renderBlockImages(){
 function delBlockImg(bk,idx){ (blockImages[bk]||[]).splice(idx,1); renderBlockImages(); markDirty(); }
 async function loadPrepay(){
   PREPAY_DEPOSITS=[]; prepayPick=new Set(); _prepayUnverified=0;
-  if(!clientId) return;
-  try{ const r=await fetch(`/api/client-deposits?client_id=${clientId}`); if(!r.ok) return;
-    const all=await r.json(); const TL={catalog:'膜料本',sample:'樣本費',survey_fee:'場勘費',other:'其他'};
+  if(!clientId && !caseId) return;
+  try{
+    // 有案件→用 /for-case（含 linked_case_id 防呆：客戶更名/重複時，關聯本案的預收款如場勘費也撈得到）；無案件才退回用客戶撈
+    const _url = caseId ? `/api/client-deposits/for-case/${caseId}` : `/api/client-deposits?client_id=${clientId}`;
+    const r=await fetch(_url); if(!r.ok) return;
+    const _j=await r.json(); const all = Array.isArray(_j) ? _j : (_j.deposits||[]); const TL={catalog:'膜料本',sample:'樣本費',survey_fee:'場勘費',other:'其他'};
     all.forEach(d=>{
       const appliedHere = d.status==='applied' && d.applied_case_id===caseId;
       // 只有「會計已核銷」的 pending 才可折抵(與案件頁 /for-case 一致)；未核銷的計數提示、不列入
